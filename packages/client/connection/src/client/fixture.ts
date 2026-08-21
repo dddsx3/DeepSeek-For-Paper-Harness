@@ -2263,6 +2263,9 @@ function createFixtureWorld(options: FixtureOptions): FixtureWorld {
     replays.set(id, { timer: setTimeout(tick, 80), finish })
   }
 
+  const harnessUnavailable = (request: RpcRequest<{ runId: string }>): Promise<RpcResponse<{ run: never }>> =>
+    err(request, { code: 'harness-service-unavailable', message: 'fixture harness service is not composed', details: { service: 'harnessWorkflow' } })
+
   const api: ApiProxy = {
     sessions: {
       list: request => ok(request, { items: [...sessions].sort((a, b) => b.updatedAt - a.updatedAt) }),
@@ -3056,6 +3059,22 @@ function createFixtureWorld(options: FixtureOptions): FixtureWorld {
         models: fixtureModelGroups().flatMap(group => group.models.map(model => ({ id: model.id, name: model.name }))),
       }),
     },
+    harness: {
+      runs: {
+        list: request => ok(request, { runs: [] }),
+        get: request => err(request, { code: 'harness-run-not-found', message: 'fixture run was not found', details: { runId: request.payload.runId } }),
+        start: request => ok(request, { run: { id: 'fixture-run', status: 'planning', mode: request.payload.mode, createdAt: '', updatedAt: '', usage: { inputTokens: 0, outputTokens: 0, costUsd: 0 }, version: 1, lastEventSeq: 0, nodes: [] } }),
+        pause: harnessUnavailable,
+        resume: harnessUnavailable,
+        cancel: request => ok(request, { run: { id: request.payload.runId, status: 'cancelled', mode: 'fast', createdAt: '', updatedAt: '', usage: { inputTokens: 0, outputTokens: 0, costUsd: 0 }, version: 1, lastEventSeq: 0, nodes: [] } }),
+        events: request => ok(request, { events: [], lastSeq: 0 }),
+      },
+      skills: {
+        list: request => ok(request, { skills: [] }),
+        install: request => err(request, { code: 'harness-skill-invalid', message: 'fixture install refused', details: { directory: request.payload.directory } }),
+        rollback: request => err(request, { code: 'harness-skill-not-found', message: 'fixture rollback refused', details: { id: request.payload.id } }),
+      },
+    },
     respond(message: ClientResponse): Promise<RpcReceipt> {
       // Same routing discipline as the host: rpcId first, then the payload's
       // audit correlation; a settled or unknown id is not-pending.
@@ -3227,6 +3246,16 @@ export class FixtureApiClient extends AbstractApiClient {
       case 'llm.providers': return this.api.llm.providers(request)
       case 'llm.models': return this.api.llm.models(request)
       case 'llm.discoverModels': return this.api.llm.discoverModels(request, signal)
+      case 'harness.runs.list': return this.api.harness.runs.list(request)
+      case 'harness.runs.get': return this.api.harness.runs.get(request)
+      case 'harness.runs.start': return this.api.harness.runs.start(request)
+      case 'harness.runs.pause': return this.api.harness.runs.pause(request)
+      case 'harness.runs.resume': return this.api.harness.runs.resume(request)
+      case 'harness.runs.cancel': return this.api.harness.runs.cancel(request)
+      case 'harness.runs.events': return this.api.harness.runs.events(request)
+      case 'harness.skills.list': return this.api.harness.skills.list(request)
+      case 'harness.skills.install': return this.api.harness.skills.install(request)
+      case 'harness.skills.rollback': return this.api.harness.skills.rollback(request)
     }
   }
 

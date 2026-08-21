@@ -39,6 +39,11 @@ export type {
   SkillConflict,
 } from './skill-catalog.ts'
 export { CatalogSkillProvider } from './catalog-provider.ts'
+export { resolveRunPolicy } from './policy.ts'
+export type { RunPolicy } from './policy.ts'
+export { WorkflowExecutor } from './executor.ts'
+export type { ExecutionOutcome, ReviewDefect } from './executor.ts'
+export { HarnessExecutorService } from './executor-service.ts'
 
 /** Cordis plugin name. */
 export const name = 'harness-foundation'

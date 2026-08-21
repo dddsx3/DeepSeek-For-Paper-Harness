@@ -6,6 +6,7 @@ import HarnessFoundationService from './index.ts'
 import HarnessProviderService from './provider.ts'
 import HarnessSettingsService from './settings.ts'
 import WorkflowEngineService from './workflow.ts'
+import HarnessExecutorService from './executor-service.ts'
 import type { HarnessSettings } from './spec.ts'
 
 /** Cordis plugin name for the complete phase-two service set. */
@@ -24,4 +25,5 @@ export async function apply(ctx: Context, config: HarnessSettings): Promise<void
   await ctx.plugin(HarnessDiagnosticsService)
   await ctx.plugin(HarnessFoundationService)
   await ctx.plugin(WorkflowEngineService)
+  await ctx.plugin(HarnessExecutorService)
 }

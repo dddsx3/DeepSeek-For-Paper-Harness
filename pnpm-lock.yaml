@@ -887,6 +887,9 @@ importers:
       '@deepseek-ai/dsh-message-feedback':
         specifier: workspace:^
         version: link:../../feedback/message-feedback
+      '@deepseek-ai/dsh-harness-foundation':
+        specifier: workspace:^
+        version: link:../../harness/harness-foundation
       '@deepseek-ai/dsh-session':
         specifier: workspace:^
         version: link:../../core/session

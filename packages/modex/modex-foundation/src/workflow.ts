@@ -2,6 +2,8 @@
 
 import { Context, Service } from '@deepseek-ai/cordis'
 import type {
+  ArtifactRecord,
+  Manifest,
   NodeId,
   NodeRecord,
   NodeType,
@@ -9,6 +11,7 @@ import type {
   RunRecord,
   RunMode,
   RunStatus,
+  Usage,
   WorkflowEvent,
 } from './spec.ts'
 import {
@@ -49,6 +52,18 @@ const now = (): string => new Date().toISOString()
 /** Harness version stamped into runs created through the engine. */
 export const MODEX_HARNESS_VERSION = '0.1.1-rc.2'
 
+declare module '@deepseek-ai/cordis' {
+  interface Events {
+    /**
+     * One workflow event became durable. Emitted after the append committed,
+     * carrying the exact persisted record; listener failures are contained.
+     * @param event - the persisted workflow event.
+     * @mode emit
+     */
+    'harness/run-event'(event: WorkflowEvent): void
+  }
+}
+
 /**
  * Coordinates durable state transitions. Every mutation for one run is
  * serialized so event sequence allocation and record updates cannot race.
@@ -58,8 +73,12 @@ export class WorkflowEngine {
 
   /**
    * @param repository - Durable workflow-run repository.
+   * @param ctx - Optional context used to publish durable events in-process.
    */
-  constructor(private readonly repository: DomainWorkflowRunRepository) {}
+  constructor(
+    private readonly repository: DomainWorkflowRunRepository,
+    private readonly ctx?: Context,
+  ) {}
 
   /** Create a new planning run and emit its first recovery-safe event. */
   startRun(input: StartRunInput): Promise<RunRecord> {
@@ -183,6 +202,57 @@ export class WorkflowEngine {
     return this.repository.latestEventSeq(runId)
   }
 
+  /** Accumulate usage into one run's record and emit a durable usage event. */
+  applyUsage(runId: RunId, usage: Usage): Promise<RunRecord> {
+    return this.enqueue(runId, async () => {
+      const current = this.requireRun(runId)
+      const next: RunRecord = {
+        ...current,
+        usage: {
+          inputTokens: current.usage.inputTokens + usage.inputTokens,
+          outputTokens: current.usage.outputTokens + usage.outputTokens,
+          costUsd: current.usage.costUsd + usage.costUsd,
+        },
+        updatedAt: now(),
+        version: current.version + 1,
+      }
+      await this.repository.putRun(next)
+      await this.append(runId, null, 'usage', { ...usage })
+      return next
+    })
+  }
+
+  /** Persist one artifact record for a run. */
+  putArtifact(record: ArtifactRecord): Promise<void> {
+    return this.enqueue(record.runId, async () => {
+      await this.repository.putArtifact(record)
+    })
+  }
+
+  /** Persist a run's final manifest. */
+  recordManifest(runId: RunId, manifest: Manifest): Promise<void> {
+    return this.enqueue(runId, async () => {
+      await this.repository.putManifest(manifest)
+    })
+  }
+
+  /** Append one durable event outside a transition (defects, gates, requests). */
+  appendPublic(
+    runId: RunId,
+    nodeId: NodeId | null,
+    type: WorkflowEvent['type'],
+    data: Record<string, unknown>,
+  ): Promise<void> {
+    return this.enqueue(runId, async () => {
+      await this.append(runId, nodeId, type, data)
+    })
+  }
+
+  /** Resolve one stored manifest. */
+  getManifest(runId: RunId): Manifest | undefined {
+    return this.repository.getManifest(runId)
+  }
+
   async recover(): Promise<RecoveryResult> {
     let recoveredRuns = 0
     let retriedNodes = 0
@@ -260,7 +330,10 @@ export class WorkflowEngine {
     data: Record<string, unknown>,
   ): Promise<void> {
     const seq = this.repository.latestEventSeq(runId) + 1
-    return this.repository.appendEvent({ runId, nodeId, seq, type, data, timestamp: now() })
+    const event: WorkflowEvent = { runId, nodeId, seq, type, data, timestamp: now() }
+    return this.repository.appendEvent(event).then(() => {
+      this.ctx?.emit('harness/run-event', event)
+    })
   }
 
   private enqueue<T>(runId: RunId, operation: () => Promise<T>): Promise<T> {
@@ -294,7 +367,7 @@ export class WorkflowEngineService extends Service {
 
   /** Initialize the engine from the foundation repository and recover active runs. */
   protected async [Service.init](): Promise<void> {
-    this.engine = new WorkflowEngine(this.ctx.harnessFoundation.runs)
+    this.engine = new WorkflowEngine(this.ctx.harnessFoundation.runs, this.ctx)
     this.recoveryResult = await this.engine.recover()
   }
 

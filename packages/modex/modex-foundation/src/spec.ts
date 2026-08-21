@@ -139,6 +139,7 @@ export const workflowRunDomainSpec = defineDomain({
 })
 
 export type RunMode = z.infer<typeof runModeSchema>
+export type Usage = z.infer<typeof usageSchema>
 export type RunStatus = z.infer<typeof runStatusSchema>
 export type NodeState = z.infer<typeof nodeStateSchema>
 export type NodeType = z.infer<typeof nodeTypeSchema>

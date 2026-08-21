@@ -278,6 +278,22 @@ export class FakeApiClient implements IApiClient {
     discoverModels: payload => this.record('llm.discoverModels', payload, Promise.resolve(ok({ models: [] }))),
   }
 
+  readonly harness: IApiClient['harness'] = {
+    runs: {
+      list: payload => this.record('harness.runs.list', payload, Promise.resolve(ok({ runs: [] }))),
+      get: payload => this.record('harness.runs.get', payload, Promise.resolve(ok({ run: { id: 'fake-run', status: 'planning', mode: 'fast', createdAt: '', updatedAt: '', usage: { inputTokens: 0, outputTokens: 0, costUsd: 0 }, version: 1, lastEventSeq: 0, nodes: [] } }))),
+      start: payload => this.record('harness.runs.start', payload, Promise.resolve(ok({ run: { id: 'fake-run', status: 'planning', mode: payload.mode, createdAt: '', updatedAt: '', usage: { inputTokens: 0, outputTokens: 0, costUsd: 0 }, version: 1, lastEventSeq: 0, nodes: [] } }))),
+      pause: payload => this.record('harness.runs.pause', payload, Promise.resolve(ok({ run: { id: payload.runId, status: 'paused', mode: 'fast', createdAt: '', updatedAt: '', usage: { inputTokens: 0, outputTokens: 0, costUsd: 0 }, version: 1, lastEventSeq: 0, nodes: [] } }))),
+      resume: payload => this.record('harness.runs.resume', payload, Promise.resolve(ok({ run: { id: payload.runId, status: 'running', mode: 'fast', createdAt: '', updatedAt: '', usage: { inputTokens: 0, outputTokens: 0, costUsd: 0 }, version: 1, lastEventSeq: 0, nodes: [] } }))),
+      cancel: payload => this.record('harness.runs.cancel', payload, Promise.resolve(ok({ run: { id: payload.runId, status: 'cancelled', mode: 'fast', createdAt: '', updatedAt: '', usage: { inputTokens: 0, outputTokens: 0, costUsd: 0 }, version: 1, lastEventSeq: 0, nodes: [] } }))),
+      events: payload => this.record('harness.runs.events', payload, Promise.resolve(ok({ events: [], lastSeq: 0 }))),
+    },
+    skills: {
+      list: payload => this.record('harness.skills.list', payload, Promise.resolve(ok({ skills: [] }))),
+      install: payload => this.record('harness.skills.install', payload, Promise.resolve(ok({ skill: { id: 'fake-skill', installedVersion: '1.0.0', versions: [{ version: '1.0.0', installedAt: '', signatureOk: true }] } }))),
+      rollback: payload => this.record('harness.skills.rollback', payload, Promise.resolve(ok({ skill: { id: payload.id, installedVersion: payload.toVersion, versions: [{ version: payload.toVersion, installedAt: '', signatureOk: true }] } }))),
+    },
+  }
   /** When true, streams never fire onOpen (misbehaving-carrier material for the handshake timeout guard). */
   suppressStreamOpen = false
 
