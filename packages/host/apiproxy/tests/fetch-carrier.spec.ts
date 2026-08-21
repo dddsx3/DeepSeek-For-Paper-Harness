@@ -282,6 +282,42 @@ function fakeApi(overrides: Partial<{ muxFrames: MuxFrame[]; hostFrames: HostFra
         return { rpcId: request.rpcId, result: { ok: true, value: { models: [] } } }
       },
     },
+    harness: {
+      runs: {
+        async list(request) {
+          return { rpcId: request.rpcId, result: { ok: true, value: { runs: [] } } }
+        },
+        async get(request) {
+          return { rpcId: request.rpcId, result: { ok: false, error: { code: 'harness-run-not-found', message: 'stub', details: { runId: request.payload.runId } } } }
+        },
+        async start(request) {
+          return { rpcId: request.rpcId, result: { ok: true, value: { run: { id: 'stub', status: 'planning', mode: request.payload.mode, createdAt: '', updatedAt: '', usage: { inputTokens: 0, outputTokens: 0, costUsd: 0 }, version: 1, lastEventSeq: 0, nodes: [] } } } }
+        },
+        async pause(request) {
+          return { rpcId: request.rpcId, result: { ok: false, error: { code: 'harness-run-transition-invalid', message: 'stub', details: { runId: request.payload.runId } } } }
+        },
+        async resume(request) {
+          return { rpcId: request.rpcId, result: { ok: true, value: { run: { id: request.payload.runId, status: 'running', mode: 'fast', createdAt: '', updatedAt: '', usage: { inputTokens: 0, outputTokens: 0, costUsd: 0 }, version: 2, lastEventSeq: 0, nodes: [] } } } }
+        },
+        async cancel(request) {
+          return { rpcId: request.rpcId, result: { ok: true, value: { run: { id: request.payload.runId, status: 'cancelled', mode: 'fast', createdAt: '', updatedAt: '', usage: { inputTokens: 0, outputTokens: 0, costUsd: 0 }, version: 2, lastEventSeq: 0, nodes: [] } } } }
+        },
+        async events(request) {
+          return { rpcId: request.rpcId, result: { ok: true, value: { events: [], lastSeq: 0 } } }
+        },
+      },
+      skills: {
+        async list(request) {
+          return { rpcId: request.rpcId, result: { ok: true, value: { skills: [] } } }
+        },
+        async install(request) {
+          return { rpcId: request.rpcId, result: { ok: false, error: { code: 'harness-skill-invalid', message: 'stub', details: { directory: request.payload.directory } } } }
+        },
+        async rollback(request) {
+          return { rpcId: request.rpcId, result: { ok: false, error: { code: 'harness-skill-not-found', message: 'stub', details: { id: request.payload.id } } } }
+        },
+      },
+    },
     events: {
       mux: (_request, signal) => stream(muxFrames, signal),
       host: (_request, signal) => stream(hostFrames, signal),

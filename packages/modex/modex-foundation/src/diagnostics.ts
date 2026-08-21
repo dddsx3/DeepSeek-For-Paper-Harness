@@ -23,6 +23,12 @@ export interface DiagnosticsResult {
   readonly code: string
 }
 
+declare module '@deepseek-ai/cordis' {
+  interface Context {
+    harnessDiagnostics: HarnessDiagnosticsService
+  }
+}
+
 /** LLM service wrapper for bounded, non-session diagnostics. */
 export class HarnessDiagnosticsService extends Service {
   static inject = ['llm']

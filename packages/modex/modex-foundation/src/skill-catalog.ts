@@ -6,7 +6,7 @@ import { Context, Service } from '@deepseek-ai/cordis'
 import { defineDomain, domainTable } from '@deepseek-ai/dsh-storage-domain'
 import type { KvTable } from '@deepseek-ai/dsh-storage-domain'
 import { z as zod } from 'zod'
-import { loadSignedSkill, type LoadSignedSkillOptions, type SkillTrustRoots } from './signed-skill.ts'
+import { loadSignedSkill, type LoadSignedSkillOptions, type SkillTrustRoots, type ValidatedSignedSkill } from './signed-skill.ts'
 
 /** One stored version of an installed skill package. */
 export interface InstalledSkillVersion {
@@ -262,6 +262,14 @@ export class SkillCatalogService extends Service {
     return this.list()
       .map(record => record.versions.find(entry => entry.version === record.installedVersion)?.directory)
       .filter((directory): directory is string => directory !== undefined)
+  }
+
+  /**
+   * Validate and load every record's active version.
+   * @returns validated active packages, in record order.
+   */
+  async activeSkills(): Promise<ValidatedSignedSkill[]> {
+    return Promise.all(this.activeDirectories().map(directory => loadSignedSkill(directory, this.loadOptions())))
   }
 
   /** Project the active version of every record for conflict checks. */

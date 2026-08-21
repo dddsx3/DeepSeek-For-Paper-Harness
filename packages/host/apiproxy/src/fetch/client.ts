@@ -62,6 +62,18 @@ import {
 } from '../api/credentials.schema.ts'
 import { llmDiscoverModelsValueSchema, llmModelsValueSchema, llmProvidersValueSchema } from '../api/llm.schema.ts'
 import {
+  harnessRunCancelValueSchema,
+  harnessRunEventsValueSchema,
+  harnessRunGetValueSchema,
+  harnessRunPauseValueSchema,
+  harnessRunResumeValueSchema,
+  harnessRunStartValueSchema,
+  harnessRunsListValueSchema,
+  harnessSkillInstallValueSchema,
+  harnessSkillRollbackValueSchema,
+  harnessSkillsListValueSchema,
+} from '../api/harness.schema.ts'
+import {
   subagentHistoryValueSchema,
   subagentInterruptValueSchema,
   subagentListValueSchema,
@@ -161,6 +173,22 @@ export interface IApiClient {
     models(payload: RequestPayload<'llm.models'>, signal?: AbortSignal): Promise<RpcResponse<ResponseValue<'llm.models'>>>
     discoverModels(payload: RequestPayload<'llm.discoverModels'>, signal?: AbortSignal): Promise<RpcResponse<ResponseValue<'llm.discoverModels'>>>
   }
+  harness: {
+    runs: {
+      list(payload: RequestPayload<'harness.runs.list'>, signal?: AbortSignal): Promise<RpcResponse<ResponseValue<'harness.runs.list'>>>
+      get(payload: RequestPayload<'harness.runs.get'>, signal?: AbortSignal): Promise<RpcResponse<ResponseValue<'harness.runs.get'>>>
+      start(payload: RequestPayload<'harness.runs.start'>, signal?: AbortSignal): Promise<RpcResponse<ResponseValue<'harness.runs.start'>>>
+      pause(payload: RequestPayload<'harness.runs.pause'>, signal?: AbortSignal): Promise<RpcResponse<ResponseValue<'harness.runs.pause'>>>
+      resume(payload: RequestPayload<'harness.runs.resume'>, signal?: AbortSignal): Promise<RpcResponse<ResponseValue<'harness.runs.resume'>>>
+      cancel(payload: RequestPayload<'harness.runs.cancel'>, signal?: AbortSignal): Promise<RpcResponse<ResponseValue<'harness.runs.cancel'>>>
+      events(payload: RequestPayload<'harness.runs.events'>, signal?: AbortSignal): Promise<RpcResponse<ResponseValue<'harness.runs.events'>>>
+    }
+    skills: {
+      list(payload: RequestPayload<'harness.skills.list'>, signal?: AbortSignal): Promise<RpcResponse<ResponseValue<'harness.skills.list'>>>
+      install(payload: RequestPayload<'harness.skills.install'>, signal?: AbortSignal): Promise<RpcResponse<ResponseValue<'harness.skills.install'>>>
+      rollback(payload: RequestPayload<'harness.skills.rollback'>, signal?: AbortSignal): Promise<RpcResponse<ResponseValue<'harness.skills.rollback'>>>
+    }
+  }
   /** client-response passthrough (rpcId is a backfill of the server-request's id — never minted here). */
   respond(message: ClientResponse, signal?: AbortSignal): Promise<RpcReceipt>
 }
@@ -222,6 +250,16 @@ const UNARY_VALUE_SCHEMAS: { [K in keyof RpcMethodMap]: z.ZodType<Wire<ResponseV
   'llm.providers': llmProvidersValueSchema,
   'llm.models': llmModelsValueSchema,
   'llm.discoverModels': llmDiscoverModelsValueSchema,
+  'harness.runs.list': harnessRunsListValueSchema,
+  'harness.runs.get': harnessRunGetValueSchema,
+  'harness.runs.start': harnessRunStartValueSchema,
+  'harness.runs.pause': harnessRunPauseValueSchema,
+  'harness.runs.resume': harnessRunResumeValueSchema,
+  'harness.runs.cancel': harnessRunCancelValueSchema,
+  'harness.runs.events': harnessRunEventsValueSchema,
+  'harness.skills.list': harnessSkillsListValueSchema,
+  'harness.skills.install': harnessSkillInstallValueSchema,
+  'harness.skills.rollback': harnessSkillRollbackValueSchema,
 }
 
 /** Default timeout for bounded unary calls (rpc-compare 2026-07-19: a hung host must not leave callers pending forever). */
@@ -486,6 +524,23 @@ export abstract class AbstractApiClient implements IApiClient {
     update: (payload, signal) => this.callUnary('settings.update', payload, signal),
     replace: (payload, signal) => this.callUnary('settings.replace', payload, signal),
     mutate: (payload, signal) => this.callUnary('settings.mutate', payload, signal),
+  }
+
+  readonly harness: IApiClient['harness'] = {
+    runs: {
+      list: (payload, signal) => this.callUnary('harness.runs.list', payload, signal),
+      get: (payload, signal) => this.callUnary('harness.runs.get', payload, signal),
+      start: (payload, signal) => this.callUnary('harness.runs.start', payload, signal),
+      pause: (payload, signal) => this.callUnary('harness.runs.pause', payload, signal),
+      resume: (payload, signal) => this.callUnary('harness.runs.resume', payload, signal),
+      cancel: (payload, signal) => this.callUnary('harness.runs.cancel', payload, signal),
+      events: (payload, signal) => this.callUnary('harness.runs.events', payload, signal),
+    },
+    skills: {
+      list: (payload, signal) => this.callUnary('harness.skills.list', payload, signal),
+      install: (payload, signal) => this.callUnary('harness.skills.install', payload, signal),
+      rollback: (payload, signal) => this.callUnary('harness.skills.rollback', payload, signal),
+    },
   }
 
   readonly credentials: IApiClient['credentials'] = {

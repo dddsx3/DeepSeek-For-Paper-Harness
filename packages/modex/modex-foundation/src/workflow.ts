@@ -46,6 +46,9 @@ export interface RecoveryResult {
 
 const now = (): string => new Date().toISOString()
 
+/** Harness version stamped into runs created through the engine. */
+export const MODEX_HARNESS_VERSION = '0.1.1-rc.2'
+
 /**
  * Coordinates durable state transitions. Every mutation for one run is
  * serialized so event sequence allocation and record updates cannot race.
@@ -155,6 +158,31 @@ export class WorkflowEngine {
     return replayWorkflow(id, this.repository.listEvents(id))
   }
 
+  /** Resolve one run record without mutating it. */
+  getRun(id: RunId): RunRecord | undefined {
+    return this.repository.getRun(id)
+  }
+
+  /** List every run record. */
+  listRuns(): RunRecord[] {
+    return this.repository.listRuns()
+  }
+
+  /** List one run's node records. */
+  listNodes(runId: RunId): NodeRecord[] {
+    return this.repository.listNodes(runId)
+  }
+
+  /** List one run's events after a sequence cursor. */
+  listEvents(runId: RunId, afterSeq = 0): WorkflowEvent[] {
+    return this.repository.listEvents(runId, afterSeq)
+  }
+
+  /** Resolve one run's highest persisted event sequence. */
+  latestEventSeq(runId: RunId): number {
+    return this.repository.latestEventSeq(runId)
+  }
+
   async recover(): Promise<RecoveryResult> {
     let recoveredRuns = 0
     let retriedNodes = 0
@@ -246,6 +274,12 @@ export class WorkflowEngine {
   }
 }
 
+declare module '@deepseek-ai/cordis' {
+  interface Context {
+    harnessWorkflow: WorkflowEngineService
+  }
+}
+
 /** Cordis service exposing the durable workflow engine to later consumers. */
 export class WorkflowEngineService extends Service {
   static inject = ['harnessFoundation']
@@ -255,10 +289,10 @@ export class WorkflowEngineService extends Service {
 
   /** @param ctx - Context carrying the foundation repository service. */
   constructor(ctx: Context) {
-    super(ctx, 'workflowEngine')
+    super(ctx, 'harnessWorkflow')
   }
 
-  /** Initialize the engine from the foundation repository. */
+  /** Initialize the engine from the foundation repository and recover active runs. */
   protected async [Service.init](): Promise<void> {
     this.engine = new WorkflowEngine(this.ctx.harnessFoundation.runs)
     this.recoveryResult = await this.engine.recover()

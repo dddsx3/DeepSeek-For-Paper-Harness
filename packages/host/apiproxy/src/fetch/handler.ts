@@ -70,6 +70,18 @@ import {
   subagentListRequestSchema,
   subagentPromptRequestSchema,
 } from '../api/subagents.schema.ts'
+import {
+  harnessRunCancelRequestSchema,
+  harnessRunEventsRequestSchema,
+  harnessRunGetRequestSchema,
+  harnessRunPauseRequestSchema,
+  harnessRunResumeRequestSchema,
+  harnessRunStartRequestSchema,
+  harnessRunsListRequestSchema,
+  harnessSkillInstallRequestSchema,
+  harnessSkillRollbackRequestSchema,
+  harnessSkillsListRequestSchema,
+} from '../api/harness.schema.ts'
 
 /**
  * Unary dispatch table, keyed by (and compiler-locked to) RpcMethodMap: a map row without a
@@ -140,6 +152,16 @@ const UNARY_ROUTES: UnaryRoutes = {
   'llm.providers': { schema: llmProvidersRequestSchema, invoke: (api, r) => api.llm.providers(r) },
   'llm.models': { schema: llmModelsRequestSchema, invoke: (api, r) => api.llm.models(r) },
   'llm.discoverModels': { schema: llmDiscoverModelsRequestSchema, invoke: (api, r, signal) => api.llm.discoverModels(r, signal) },
+  'harness.runs.list': { schema: harnessRunsListRequestSchema, invoke: (api, r) => api.harness.runs.list(r) },
+  'harness.runs.get': { schema: harnessRunGetRequestSchema, invoke: (api, r) => api.harness.runs.get(r) },
+  'harness.runs.start': { schema: harnessRunStartRequestSchema, invoke: (api, r) => api.harness.runs.start(r) },
+  'harness.runs.pause': { schema: harnessRunPauseRequestSchema, invoke: (api, r) => api.harness.runs.pause(r) },
+  'harness.runs.resume': { schema: harnessRunResumeRequestSchema, invoke: (api, r) => api.harness.runs.resume(r) },
+  'harness.runs.cancel': { schema: harnessRunCancelRequestSchema, invoke: (api, r) => api.harness.runs.cancel(r) },
+  'harness.runs.events': { schema: harnessRunEventsRequestSchema, invoke: (api, r) => api.harness.runs.events(r) },
+  'harness.skills.list': { schema: harnessSkillsListRequestSchema, invoke: (api, r) => api.harness.skills.list(r) },
+  'harness.skills.install': { schema: harnessSkillInstallRequestSchema, invoke: (api, r) => api.harness.skills.install(r) },
+  'harness.skills.rollback': { schema: harnessSkillRollbackRequestSchema, invoke: (api, r) => api.harness.skills.rollback(r) },
 }
 
 /** Route lookup that narrows an arbitrary path segment to a map key (single cast point for the string→key refinement). */

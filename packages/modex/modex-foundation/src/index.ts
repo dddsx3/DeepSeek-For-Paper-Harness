@@ -38,6 +38,7 @@ export type {
   SkillCatalogConfig,
   SkillConflict,
 } from './skill-catalog.ts'
+export { CatalogSkillProvider } from './catalog-provider.ts'
 
 /** Cordis plugin name. */
 export const name = 'harness-foundation'

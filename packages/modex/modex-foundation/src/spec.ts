@@ -155,6 +155,15 @@ export function newRunId(): RunId {
   return randomUUID() as RunId
 }
 
+/**
+ * Brand an existing string as a {@link RunId}; no validation is performed.
+ * @param id - the persisted run identifier.
+ * @returns the same string, branded.
+ */
+export function RunId(id: string): RunId {
+  return id as RunId
+}
+
 /** Create a validated opaque node identifier. */
 export function newNodeId(): NodeId {
   return randomUUID() as NodeId

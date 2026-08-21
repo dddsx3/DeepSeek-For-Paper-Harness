@@ -128,6 +128,22 @@ function scriptedApi(overrides: {
       discoverModels: err,
       ...overrides.llm,
     },
+    harness: {
+      runs: {
+        list: r => ok(r, { runs: [] }),
+        get: err,
+        start: err,
+        pause: err,
+        resume: err,
+        cancel: err,
+        events: err,
+      },
+      skills: {
+        list: r => ok(r, { skills: [] }),
+        install: err,
+        rollback: err,
+      },
+    },
     events: { mux: () => empty<MuxFrame>(), host: () => empty<HostFrame>(), ...overrides.events },
     respond: overrides.respond ?? (() => Promise.resolve({ accepted: false as const, reason: 'not-pending' as const })),
     downloads: { sessionLog: async () => new Response('stub', { status: 404 }) },

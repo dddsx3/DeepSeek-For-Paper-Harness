@@ -27,6 +27,12 @@ export const Config: s<HarnessSettings> = s.object({
   defaultMode: s.union(['fast', 'strict'] as const).default('fast'),
 })
 
+declare module '@deepseek-ai/cordis' {
+  interface Context {
+    harnessSettings: HarnessSettingsService
+  }
+}
+
 /** Role settings service with immutable per-read snapshots. */
 export class HarnessSettingsService extends Service {
   static Config = Config

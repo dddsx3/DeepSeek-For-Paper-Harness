@@ -92,6 +92,13 @@ export interface RpcErrorDetailsMap {
   'subagent-not-resumable': { childSessionId: SessionId }
   'subagent-unauthorized': { childSessionId: SessionId }
   'subagent-delivery-unavailable': { childSessionId: SessionId }
+  /** A Harness service this method needs is not composed; details name the missing service. */
+  'harness-service-unavailable': { service: string }
+  'harness-run-not-found': { runId: string }
+  'harness-run-transition-invalid': { runId: string }
+  'harness-skill-invalid': { directory: string }
+  'harness-skill-conflict': { conflicts: { kind: string; left: string; right: string; subject: string }[] }
+  'harness-skill-not-found': { id: string }
   'internal': {}
 }
 

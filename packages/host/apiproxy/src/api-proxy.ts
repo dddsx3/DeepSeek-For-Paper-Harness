@@ -3,7 +3,7 @@
  * narrow RpcRequest<P> and echoes request.rpcId on the RpcResponse<T>.
  */
 
-import { randomUUID } from 'node:crypto'
+import { createHash, randomUUID } from 'node:crypto'
 import { mkdir, stat } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { dirname } from 'node:path'
@@ -39,7 +39,8 @@ import type {} from '@deepseek-ai/dsh-tools'
 import type {
   ApiProxy, ConfigurableProviderView, CredentialView, GoalRef, HistoryEntry, HostFrame,
   ModelCatalogFailure, ModelProviderGroup,
-  ModelReasoning, MuxFrame, PromptContentPart, QuestionResponsePayload, SessionListMetadata, SessionProjectionsBlock, SessionSearchItem,
+  ModelReasoning, HarnessRunView, HarnessSkillView, MuxFrame, PromptContentPart,
+  QuestionResponsePayload, SessionListMetadata, SessionProjectionsBlock, SessionSearchItem,
   QueuedInboxItem, SessionSummary, SettingsNamespaceView, SubagentAddress, JobView, ToolEventView,
   WorkspaceId, WorkspaceView,
 } from './api/index.ts'
@@ -84,6 +85,18 @@ import type { SettingsDescriptor, SettingsNamespace, SettingsPathOp } from '@dee
 import { credentialRef } from '@deepseek-ai/dsh-credentials'
 // Value edge: the rename impl narrows the title service's validation failure; the import also resolves `ctx.get('sessionTitle')`.
 import { SessionTitleInvalidError } from '@deepseek-ai/dsh-session-title'
+// Harness seams: engine reads/transitions and the signed skill catalog. The value
+// imports also resolve `ctx.get('harnessWorkflow')` and `ctx.get('harnessSkillCatalog')`.
+import {
+  InvalidWorkflowTransitionError,
+  MODEX_HARNESS_VERSION,
+  RunId,
+  SignedSkillValidationError,
+  SkillConflictError,
+} from '@deepseek-ai/dsh-harness-foundation'
+import type {
+  InstalledSkillRecord, RunRecord, WorkflowEngine,
+} from '@deepseek-ai/dsh-harness-foundation'
 import type { CallId } from '@deepseek-ai/dsh-llm/brand'
 import type { ScopeKey } from '@deepseek-ai/dsh-scope'
 import type { ApprovalOutcome, ApprovalRequestId } from '@deepseek-ai/dsh-user-approval'
@@ -320,6 +333,65 @@ async function buildModelCatalog(ctx: Context): Promise<{
 /** Wrap an error result echoing the request's rpcId. */
 function err<T>(request: RpcRequest<unknown>, error: RpcError): RpcResponse<T> {
   return { rpcId: request.rpcId, result: { ok: false, error } }
+}
+
+/** Project one durable run record with its node states and event cursor. */
+function harnessRunView(engine: WorkflowEngine, run: RunRecord): HarnessRunView {
+  return {
+    id: run.id,
+    status: run.status,
+    mode: run.mode,
+    createdAt: run.createdAt,
+    updatedAt: run.updatedAt,
+    usage: run.usage,
+    version: run.version,
+    lastEventSeq: engine.latestEventSeq(run.id),
+    nodes: engine.listNodes(run.id).map(node => ({
+      id: node.id,
+      type: node.type,
+      state: node.state,
+      title: node.title,
+      attempts: node.attempts,
+      maxAttempts: node.maxAttempts,
+    })),
+  }
+}
+
+/** Project one installed skill record for the wire. */
+function harnessSkillView(record: InstalledSkillRecord): HarnessSkillView {
+  return {
+    id: record.id,
+    installedVersion: record.installedVersion,
+    versions: record.versions.map(entry => ({
+      version: entry.version,
+      installedAt: entry.installedAt,
+      signatureOk: entry.signatureOk,
+    })),
+  }
+}
+
+/** Apply one run transition, mapping absence and illegal-transition refusals. */
+function harnessTransition(
+  ctx: Context,
+  request: RpcRequest<{ runId: string }>,
+  to: RunRecord['status'],
+): Promise<RpcResponse<{ run: HarnessRunView }>> {
+  const engine = ctx.get('harnessWorkflow')
+  if (engine === undefined) {
+    return Promise.resolve(err(request, { code: 'harness-service-unavailable', message: 'the workflow engine is not composed', details: { service: 'harnessWorkflow' } }))
+  }
+  const runId = RunId(request.payload.runId)
+  if (engine.runs.getRun(runId) === undefined) {
+    return Promise.resolve(err(request, { code: 'harness-run-not-found', message: `run '${request.payload.runId}' was not found`, details: { runId: request.payload.runId } }))
+  }
+  return engine.runs.transitionRun(runId, to)
+    .then(run => ok(request, { run: harnessRunView(engine.runs, run) }))
+    .catch((error: unknown) => {
+      if (error instanceof InvalidWorkflowTransitionError) {
+        return err(request, { code: 'harness-run-transition-invalid', message: error.message, details: { runId: request.payload.runId } })
+      }
+      throw error
+    })
 }
 
 /**
@@ -3588,6 +3660,145 @@ export function createApiProxy(ctx: Context, defaults: ApiProxyDefaults): ApiPro
             },
           },
         )
+      },
+    },
+
+    harness: {
+      // Both Harness services are optional compositions (the settings/credentials
+      // precedent): a deployment without them keeps every other domain alive.
+      runs: {
+        list(request) {
+          const engine = ctx.get('harnessWorkflow')
+          if (engine === undefined) {
+            return Promise.resolve(err(request, { code: 'harness-service-unavailable', message: 'the workflow engine is not composed', details: { service: 'harnessWorkflow' } }))
+          }
+          return Promise.resolve(ok(request, { runs: engine.runs.listRuns().map(run => harnessRunView(engine.runs, run)) }))
+        },
+
+        get(request) {
+          const engine = ctx.get('harnessWorkflow')
+          if (engine === undefined) {
+            return Promise.resolve(err(request, { code: 'harness-service-unavailable', message: 'the workflow engine is not composed', details: { service: 'harnessWorkflow' } }))
+          }
+          const run = engine.runs.getRun(RunId(request.payload.runId))
+          if (run === undefined) {
+            return Promise.resolve(err(request, { code: 'harness-run-not-found', message: `run '${request.payload.runId}' was not found`, details: { runId: request.payload.runId } }))
+          }
+          return Promise.resolve(ok(request, { run: harnessRunView(engine.runs, run) }))
+        },
+
+        async start(request) {
+          const engine = ctx.get('harnessWorkflow')
+          if (engine === undefined) {
+            return err(request, { code: 'harness-service-unavailable', message: 'the workflow engine is not composed', details: { service: 'harnessWorkflow' } })
+          }
+          // The config hash pins the role settings the run was created under;
+          // without the settings service the run records the empty configuration.
+          const settings = ctx.get('harnessSettings')
+          const configHash = createHash('sha256')
+            .update(JSON.stringify(settings?.snapshot() ?? {}))
+            .digest('hex')
+          const run = await engine.runs.startRun({
+            mode: request.payload.mode,
+            harnessVersion: MODEX_HARNESS_VERSION,
+            configHash,
+          })
+          return ok(request, { run: harnessRunView(engine.runs, run) })
+        },
+
+        async pause(request) {
+          return harnessTransition(ctx, request, 'paused')
+        },
+
+        async resume(request) {
+          return harnessTransition(ctx, request, 'running')
+        },
+
+        async cancel(request) {
+          return harnessTransition(ctx, request, 'cancelled')
+        },
+
+        events(request) {
+          const engine = ctx.get('harnessWorkflow')
+          if (engine === undefined) {
+            return Promise.resolve(err(request, { code: 'harness-service-unavailable', message: 'the workflow engine is not composed', details: { service: 'harnessWorkflow' } }))
+          }
+          const runId = RunId(request.payload.runId)
+          if (engine.runs.getRun(runId) === undefined) {
+            return Promise.resolve(err(request, { code: 'harness-run-not-found', message: `run '${request.payload.runId}' was not found`, details: { runId: request.payload.runId } }))
+          }
+          const afterSeq = request.payload.afterSeq ?? 0
+          return Promise.resolve(ok(request, {
+            events: engine.runs.listEvents(runId, afterSeq).map(event => ({
+              seq: event.seq,
+              type: event.type,
+              nodeId: event.nodeId,
+              data: event.data,
+              timestamp: event.timestamp,
+            })),
+            lastSeq: engine.runs.latestEventSeq(runId),
+          }))
+        },
+      },
+
+      skills: {
+        list(request) {
+          const catalog = ctx.get('harnessSkillCatalog')
+          if (catalog === undefined) {
+            return Promise.resolve(err(request, { code: 'harness-service-unavailable', message: 'the skill catalog is not composed', details: { service: 'harnessSkillCatalog' } }))
+          }
+          return Promise.resolve(ok(request, { skills: catalog.list().map(record => harnessSkillView(record)) }))
+        },
+
+        async install(request) {
+          const catalog = ctx.get('harnessSkillCatalog')
+          if (catalog === undefined) {
+            return err(request, { code: 'harness-service-unavailable', message: 'the skill catalog is not composed', details: { service: 'harnessSkillCatalog' } })
+          }
+          try {
+            const record = await catalog.install(request.payload.directory)
+            return ok(request, { skill: harnessSkillView(record) })
+          } catch (error: unknown) {
+            if (error instanceof SignedSkillValidationError) {
+              return err(request, { code: 'harness-skill-invalid', message: error.message, details: { directory: error.directory } })
+            }
+            if (error instanceof SkillConflictError) {
+              return err(request, {
+                code: 'harness-skill-conflict',
+                message: error.message,
+                details: {
+                  conflicts: error.conflicts.map(conflict => ({
+                    kind: conflict.kind,
+                    left: conflict.left,
+                    right: conflict.right,
+                    subject: conflict.subject,
+                  })),
+                },
+              })
+            }
+            throw error
+          }
+        },
+
+        async rollback(request) {
+          const catalog = ctx.get('harnessSkillCatalog')
+          if (catalog === undefined) {
+            return err(request, { code: 'harness-service-unavailable', message: 'the skill catalog is not composed', details: { service: 'harnessSkillCatalog' } })
+          }
+          try {
+            const record = await catalog.rollback(request.payload.id, request.payload.toVersion)
+            return ok(request, { skill: harnessSkillView(record) })
+          } catch (error: unknown) {
+            if (error instanceof SignedSkillValidationError) {
+              return err(request, { code: 'harness-skill-invalid', message: error.message, details: { directory: error.directory } })
+            }
+            const message = error instanceof Error ? error.message : ''
+            if (message.includes('is not installed') || message.includes('no installed version')) {
+              return err(request, { code: 'harness-skill-not-found', message, details: { id: request.payload.id } })
+            }
+            throw error
+          }
+        },
       },
     },
 

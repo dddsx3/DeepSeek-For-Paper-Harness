@@ -15,6 +15,9 @@ The package deliberately reuses the harness LLM vocabulary and storage services.
 - `WorkflowEngineService`: Cordis lifecycle service that replays and recovers active runs during startup.
 - `SignedSkillProvider`: optional signed-package source registered through the existing `ctx.skills` provider seam.
 - `SkillCatalogService`: durable install, version history, rollback, and conflict detection for skill packages.
+- `CatalogSkillProvider`: serves the catalog's active versions through `ctx.skills`.
+
+The `harness.*` apiproxy domain (`api/harness.ts`) exposes run control (`harness.runs.*`), resumable event reads with an `afterSeq` cursor, and catalog operations (`harness.skills.*`) with structured `harness-*` error codes; the engine service is named `harnessWorkflow` to avoid the upstream `workflowEngine` name.
 
 The engine owns state facts and recovery only. Signed packages must pass manifest, file-hash, compatibility, trust-root, and Ed25519 checks before loading; unsigned packages load only in development mode with `allowUnsigned` and are refused in production builds. Catalog installs reject skill sets that would declare one tool twice or activate mutually exclusive tag groups. Provider retry policy, user interface, event transport, and migration logic are later phases.
 

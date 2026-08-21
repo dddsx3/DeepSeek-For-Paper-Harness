@@ -36,6 +36,9 @@
       "path": "../../llm/llm"
     },
     {
+      "path": "../../harness/harness-foundation"
+    },
+    {
       "path": "../../core/agent"
     },
     {

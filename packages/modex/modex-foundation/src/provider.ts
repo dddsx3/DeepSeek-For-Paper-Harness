@@ -16,6 +16,12 @@ export interface ResolvedRoleRoute extends ProviderRoute {
   readonly role: HarnessRole
 }
 
+declare module '@deepseek-ai/cordis' {
+  interface Context {
+    harnessProvider: HarnessProviderService
+  }
+}
+
 /** Shared LLM seam used by workflow consumers. */
 export class HarnessProviderService extends Service {
   static inject = ['llm']
