@@ -5807,6 +5807,9 @@ importers:
 
   packages/harness/harness-foundation:
     dependencies:
+      '@deepseek-ai/dsh-skill':
+        specifier: workspace:^
+        version: link:../../skill/skill
       zod:
         specifier: ^4.4.3
         version: 4.4.3

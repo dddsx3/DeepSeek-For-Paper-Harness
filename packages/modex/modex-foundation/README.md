@@ -11,6 +11,11 @@ The package deliberately reuses the harness LLM vocabulary and storage services.
 - `HarnessDiagnosticsService`: cancellable, bounded provider probe that returns only status, route, model, latency, and a stable code.
 - `HarnessFoundationService`: lifecycle owner for the workflow domain.
 - `WorkflowEngine`: durable run/node transitions and process-recovery reconciliation.
-- `WorkflowEngineService`: Cordis lifecycle service exposing the engine to later consumers.
+- `replayWorkflow`: contiguous event-log replay with fail-closed transition validation.
+- `WorkflowEngineService`: Cordis lifecycle service that replays and recovers active runs during startup.
+- `SignedSkillProvider`: optional signed-package source registered through the existing `ctx.skills` provider seam.
+- `SkillCatalogService`: durable install, version history, rollback, and conflict detection for skill packages.
 
-The engine owns state facts and recovery only. Provider retry policy, user interface, event transport, and migration logic are later phases.
+The engine owns state facts and recovery only. Signed packages must pass manifest, file-hash, compatibility, trust-root, and Ed25519 checks before loading; unsigned packages load only in development mode with `allowUnsigned` and are refused in production builds. Catalog installs reject skill sets that would declare one tool twice or activate mutually exclusive tag groups. Provider retry policy, user interface, event transport, and migration logic are later phases.
+
+The package ships on the upstream TypeScript/Cordis plugin architecture; no FastAPI, Electron, or Python sidecar is planned.

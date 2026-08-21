@@ -16,6 +16,7 @@ import {
   newRunId,
 } from './spec.ts'
 import { assertNodeTransition, assertRunTransition, canRetryNode } from './state-machine.ts'
+import { replayWorkflow, type WorkflowReplaySnapshot } from './replay.ts'
 import type { DomainWorkflowRunRepository } from './store.ts'
 
 /** Input for one workflow run. */
@@ -103,6 +104,7 @@ export class WorkflowEngine {
         version: 1,
       }
       await this.repository.putNode(node)
+      await this.append(input.runId, node.id, 'node_created', { state: node.state, type: node.type })
       return node
     })
   }
@@ -147,12 +149,27 @@ export class WorkflowEngine {
    * Reconcile runs left active by a process crash. Idempotent running nodes
    * return to ready when attempts remain; non-idempotent nodes pause for review.
    */
+  /** Replay one run's durable event stream before any recovery mutation. */
+  replayRun(id: RunId): WorkflowReplaySnapshot {
+    this.requireRun(id)
+    return replayWorkflow(id, this.repository.listEvents(id))
+  }
+
   async recover(): Promise<RecoveryResult> {
     let recoveredRuns = 0
     let retriedNodes = 0
     let pausedNodes = 0
     for (const run of this.repository.listRuns()) {
       if (run.status !== 'running' && run.status !== 'paused') continue
+      const snapshot = this.replayRun(run.id)
+      if (snapshot.runStatus !== run.status) {
+        throw new Error(`run '${run.id}' record status '${run.status}' disagrees with replay '${snapshot.runStatus}'`)
+      }
+      for (const node of this.repository.listNodes(run.id)) {
+        if (snapshot.nodeStates.get(node.id) !== node.state) {
+          throw new Error(`node '${node.id}' record state '${node.state}' disagrees with replay`)
+        }
+      }
       const running = this.repository.listNodes(run.id).filter(node => node.state === 'running')
       if (running.length === 0) continue
       recoveredRuns += 1
@@ -234,6 +251,7 @@ export class WorkflowEngineService extends Service {
   static inject = ['harnessFoundation']
 
   private engine: WorkflowEngine | undefined
+  private recoveryResult: RecoveryResult | undefined
 
   /** @param ctx - Context carrying the foundation repository service. */
   constructor(ctx: Context) {
@@ -241,8 +259,15 @@ export class WorkflowEngineService extends Service {
   }
 
   /** Initialize the engine from the foundation repository. */
-  protected [Service.init](): void {
+  protected async [Service.init](): Promise<void> {
     this.engine = new WorkflowEngine(this.ctx.harnessFoundation.runs)
+    this.recoveryResult = await this.engine.recover()
+  }
+
+  /** @returns the result of the startup recovery pass. */
+  get startupRecovery(): RecoveryResult {
+    if (this.recoveryResult === undefined) throw new Error('workflow engine recovery has not completed')
+    return this.recoveryResult
   }
 
   /** @returns initialized durable workflow engine. */

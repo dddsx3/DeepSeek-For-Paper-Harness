@@ -35,7 +35,7 @@ describe('WorkflowEngine', () => {
     await engine.transitionNode(node.id, 'succeeded')
     await expect(engine.transitionNode(node.id, 'running')).rejects.toBeInstanceOf(InvalidWorkflowTransitionError)
     expect(repository.listEvents(run.id).map(event => event.type)).toEqual([
-      'plan_ready', 'run_state', 'node_state', 'node_state', 'node_state',
+      'plan_ready', 'node_created', 'run_state', 'node_state', 'node_state', 'node_state',
     ])
     await repository.close()
   })

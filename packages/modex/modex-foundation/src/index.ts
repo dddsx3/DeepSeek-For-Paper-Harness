@@ -11,6 +11,33 @@ export * from './settings.ts'
 export * from './provider.ts'
 export * from './state-machine.ts'
 export * from './workflow.ts'
+export * from './replay.ts'
+export {
+  SignedSkillProvider,
+  SignedSkillValidationError,
+  SignedSkillConfig,
+  loadSignedSkill,
+  signaturePayload,
+} from './signed-skill.ts'
+export type {
+  SignedSkillManifest,
+  SkillTrustRoots,
+  SignedSkillProviderConfig,
+  LoadSignedSkillOptions,
+  ValidatedSignedSkill,
+} from './signed-skill.ts'
+export {
+  SkillCatalogService,
+  SkillConflictError,
+  detectSkillConflicts,
+  skillCatalogDomainSpec,
+} from './skill-catalog.ts'
+export type {
+  InstalledSkillRecord,
+  InstalledSkillVersion,
+  SkillCatalogConfig,
+  SkillConflict,
+} from './skill-catalog.ts'
 
 /** Cordis plugin name. */
 export const name = 'harness-foundation'

@@ -29,6 +29,7 @@
     "@deepseek-ai/dsh-invariants": "workspace:^",
     "@deepseek-ai/dsh-settings": "workspace:^",
     "@deepseek-ai/dsh-llm": "workspace:^",
+    "@deepseek-ai/dsh-skill": "workspace:^",
     "@deepseek-ai/dsh-storage-domain": "workspace:^"
   },
   "dependencies": {
