@@ -280,6 +280,7 @@
     { "path": "./packages/experimental/agent-team" },
     { "path": "./packages/experimental/tool-agent-team" },
     { "path": "./packages/workflow/workflow" },
+    { "path": "./packages/harness/harness-foundation" },
     { "path": "./packages/workflow/workflow-worker-thread" },
     { "path": "./packages/workflow/tool-workflow" },
     { "path": "./packages/workflow/tool-ralph" },
