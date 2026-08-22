@@ -62,17 +62,17 @@ import {
 } from '../api/credentials.schema.ts'
 import { llmDiscoverModelsValueSchema, llmModelsValueSchema, llmProvidersValueSchema } from '../api/llm.schema.ts'
 import {
-  harnessRunCancelValueSchema,
-  harnessRunEventsValueSchema,
-  harnessRunGetValueSchema,
-  harnessRunPauseValueSchema,
-  harnessRunResumeValueSchema,
-  harnessRunStartValueSchema,
-  harnessRunsListValueSchema,
-  harnessSkillInstallValueSchema,
-  harnessSkillRollbackValueSchema,
-  harnessSkillsListValueSchema,
-} from '../api/harness.schema.ts'
+  paperRunCancelValueSchema,
+  paperRunEventsValueSchema,
+  paperRunGetValueSchema,
+  paperRunPauseValueSchema,
+  paperRunResumeValueSchema,
+  paperRunStartValueSchema,
+  paperRunsListValueSchema,
+  paperSkillInstallValueSchema,
+  paperSkillRollbackValueSchema,
+  paperSkillsListValueSchema,
+} from '../api/paper.schema.ts'
 import {
   subagentHistoryValueSchema,
   subagentInterruptValueSchema,
@@ -173,20 +173,20 @@ export interface IApiClient {
     models(payload: RequestPayload<'llm.models'>, signal?: AbortSignal): Promise<RpcResponse<ResponseValue<'llm.models'>>>
     discoverModels(payload: RequestPayload<'llm.discoverModels'>, signal?: AbortSignal): Promise<RpcResponse<ResponseValue<'llm.discoverModels'>>>
   }
-  harness: {
+  paper: {
     runs: {
-      list(payload: RequestPayload<'harness.runs.list'>, signal?: AbortSignal): Promise<RpcResponse<ResponseValue<'harness.runs.list'>>>
-      get(payload: RequestPayload<'harness.runs.get'>, signal?: AbortSignal): Promise<RpcResponse<ResponseValue<'harness.runs.get'>>>
-      start(payload: RequestPayload<'harness.runs.start'>, signal?: AbortSignal): Promise<RpcResponse<ResponseValue<'harness.runs.start'>>>
-      pause(payload: RequestPayload<'harness.runs.pause'>, signal?: AbortSignal): Promise<RpcResponse<ResponseValue<'harness.runs.pause'>>>
-      resume(payload: RequestPayload<'harness.runs.resume'>, signal?: AbortSignal): Promise<RpcResponse<ResponseValue<'harness.runs.resume'>>>
-      cancel(payload: RequestPayload<'harness.runs.cancel'>, signal?: AbortSignal): Promise<RpcResponse<ResponseValue<'harness.runs.cancel'>>>
-      events(payload: RequestPayload<'harness.runs.events'>, signal?: AbortSignal): Promise<RpcResponse<ResponseValue<'harness.runs.events'>>>
+      list(payload: RequestPayload<'paper.runs.list'>, signal?: AbortSignal): Promise<RpcResponse<ResponseValue<'paper.runs.list'>>>
+      get(payload: RequestPayload<'paper.runs.get'>, signal?: AbortSignal): Promise<RpcResponse<ResponseValue<'paper.runs.get'>>>
+      start(payload: RequestPayload<'paper.runs.start'>, signal?: AbortSignal): Promise<RpcResponse<ResponseValue<'paper.runs.start'>>>
+      pause(payload: RequestPayload<'paper.runs.pause'>, signal?: AbortSignal): Promise<RpcResponse<ResponseValue<'paper.runs.pause'>>>
+      resume(payload: RequestPayload<'paper.runs.resume'>, signal?: AbortSignal): Promise<RpcResponse<ResponseValue<'paper.runs.resume'>>>
+      cancel(payload: RequestPayload<'paper.runs.cancel'>, signal?: AbortSignal): Promise<RpcResponse<ResponseValue<'paper.runs.cancel'>>>
+      events(payload: RequestPayload<'paper.runs.events'>, signal?: AbortSignal): Promise<RpcResponse<ResponseValue<'paper.runs.events'>>>
     }
     skills: {
-      list(payload: RequestPayload<'harness.skills.list'>, signal?: AbortSignal): Promise<RpcResponse<ResponseValue<'harness.skills.list'>>>
-      install(payload: RequestPayload<'harness.skills.install'>, signal?: AbortSignal): Promise<RpcResponse<ResponseValue<'harness.skills.install'>>>
-      rollback(payload: RequestPayload<'harness.skills.rollback'>, signal?: AbortSignal): Promise<RpcResponse<ResponseValue<'harness.skills.rollback'>>>
+      list(payload: RequestPayload<'paper.skills.list'>, signal?: AbortSignal): Promise<RpcResponse<ResponseValue<'paper.skills.list'>>>
+      install(payload: RequestPayload<'paper.skills.install'>, signal?: AbortSignal): Promise<RpcResponse<ResponseValue<'paper.skills.install'>>>
+      rollback(payload: RequestPayload<'paper.skills.rollback'>, signal?: AbortSignal): Promise<RpcResponse<ResponseValue<'paper.skills.rollback'>>>
     }
   }
   /** client-response passthrough (rpcId is a backfill of the server-request's id — never minted here). */
@@ -250,16 +250,16 @@ const UNARY_VALUE_SCHEMAS: { [K in keyof RpcMethodMap]: z.ZodType<Wire<ResponseV
   'llm.providers': llmProvidersValueSchema,
   'llm.models': llmModelsValueSchema,
   'llm.discoverModels': llmDiscoverModelsValueSchema,
-  'harness.runs.list': harnessRunsListValueSchema,
-  'harness.runs.get': harnessRunGetValueSchema,
-  'harness.runs.start': harnessRunStartValueSchema,
-  'harness.runs.pause': harnessRunPauseValueSchema,
-  'harness.runs.resume': harnessRunResumeValueSchema,
-  'harness.runs.cancel': harnessRunCancelValueSchema,
-  'harness.runs.events': harnessRunEventsValueSchema,
-  'harness.skills.list': harnessSkillsListValueSchema,
-  'harness.skills.install': harnessSkillInstallValueSchema,
-  'harness.skills.rollback': harnessSkillRollbackValueSchema,
+  'paper.runs.list': paperRunsListValueSchema,
+  'paper.runs.get': paperRunGetValueSchema,
+  'paper.runs.start': paperRunStartValueSchema,
+  'paper.runs.pause': paperRunPauseValueSchema,
+  'paper.runs.resume': paperRunResumeValueSchema,
+  'paper.runs.cancel': paperRunCancelValueSchema,
+  'paper.runs.events': paperRunEventsValueSchema,
+  'paper.skills.list': paperSkillsListValueSchema,
+  'paper.skills.install': paperSkillInstallValueSchema,
+  'paper.skills.rollback': paperSkillRollbackValueSchema,
 }
 
 /** Default timeout for bounded unary calls (rpc-compare 2026-07-19: a hung host must not leave callers pending forever). */
@@ -526,20 +526,20 @@ export abstract class AbstractApiClient implements IApiClient {
     mutate: (payload, signal) => this.callUnary('settings.mutate', payload, signal),
   }
 
-  readonly harness: IApiClient['harness'] = {
+  readonly paper: IApiClient['paper'] = {
     runs: {
-      list: (payload, signal) => this.callUnary('harness.runs.list', payload, signal),
-      get: (payload, signal) => this.callUnary('harness.runs.get', payload, signal),
-      start: (payload, signal) => this.callUnary('harness.runs.start', payload, signal),
-      pause: (payload, signal) => this.callUnary('harness.runs.pause', payload, signal),
-      resume: (payload, signal) => this.callUnary('harness.runs.resume', payload, signal),
-      cancel: (payload, signal) => this.callUnary('harness.runs.cancel', payload, signal),
-      events: (payload, signal) => this.callUnary('harness.runs.events', payload, signal),
+      list: (payload, signal) => this.callUnary('paper.runs.list', payload, signal),
+      get: (payload, signal) => this.callUnary('paper.runs.get', payload, signal),
+      start: (payload, signal) => this.callUnary('paper.runs.start', payload, signal),
+      pause: (payload, signal) => this.callUnary('paper.runs.pause', payload, signal),
+      resume: (payload, signal) => this.callUnary('paper.runs.resume', payload, signal),
+      cancel: (payload, signal) => this.callUnary('paper.runs.cancel', payload, signal),
+      events: (payload, signal) => this.callUnary('paper.runs.events', payload, signal),
     },
     skills: {
-      list: (payload, signal) => this.callUnary('harness.skills.list', payload, signal),
-      install: (payload, signal) => this.callUnary('harness.skills.install', payload, signal),
-      rollback: (payload, signal) => this.callUnary('harness.skills.rollback', payload, signal),
+      list: (payload, signal) => this.callUnary('paper.skills.list', payload, signal),
+      install: (payload, signal) => this.callUnary('paper.skills.install', payload, signal),
+      rollback: (payload, signal) => this.callUnary('paper.skills.rollback', payload, signal),
     },
   }
 

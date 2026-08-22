@@ -128,7 +128,7 @@ function scriptedApi(overrides: {
       discoverModels: err,
       ...overrides.llm,
     },
-    harness: {
+    paper: {
       runs: {
         list: r => ok(r, { runs: [] }),
         get: err,

@@ -36,7 +36,7 @@
       "path": "../../llm/llm"
     },
     {
-      "path": "../../harness/harness-foundation"
+      "path": "../../paper/paper-foundation"
     },
     {
       "path": "../../core/agent"

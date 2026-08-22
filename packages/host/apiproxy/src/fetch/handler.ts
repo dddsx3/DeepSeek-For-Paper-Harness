@@ -71,17 +71,17 @@ import {
   subagentPromptRequestSchema,
 } from '../api/subagents.schema.ts'
 import {
-  harnessRunCancelRequestSchema,
-  harnessRunEventsRequestSchema,
-  harnessRunGetRequestSchema,
-  harnessRunPauseRequestSchema,
-  harnessRunResumeRequestSchema,
-  harnessRunStartRequestSchema,
-  harnessRunsListRequestSchema,
-  harnessSkillInstallRequestSchema,
-  harnessSkillRollbackRequestSchema,
-  harnessSkillsListRequestSchema,
-} from '../api/harness.schema.ts'
+  paperRunCancelRequestSchema,
+  paperRunEventsRequestSchema,
+  paperRunGetRequestSchema,
+  paperRunPauseRequestSchema,
+  paperRunResumeRequestSchema,
+  paperRunStartRequestSchema,
+  paperRunsListRequestSchema,
+  paperSkillInstallRequestSchema,
+  paperSkillRollbackRequestSchema,
+  paperSkillsListRequestSchema,
+} from '../api/paper.schema.ts'
 
 /**
  * Unary dispatch table, keyed by (and compiler-locked to) RpcMethodMap: a map row without a
@@ -152,16 +152,16 @@ const UNARY_ROUTES: UnaryRoutes = {
   'llm.providers': { schema: llmProvidersRequestSchema, invoke: (api, r) => api.llm.providers(r) },
   'llm.models': { schema: llmModelsRequestSchema, invoke: (api, r) => api.llm.models(r) },
   'llm.discoverModels': { schema: llmDiscoverModelsRequestSchema, invoke: (api, r, signal) => api.llm.discoverModels(r, signal) },
-  'harness.runs.list': { schema: harnessRunsListRequestSchema, invoke: (api, r) => api.harness.runs.list(r) },
-  'harness.runs.get': { schema: harnessRunGetRequestSchema, invoke: (api, r) => api.harness.runs.get(r) },
-  'harness.runs.start': { schema: harnessRunStartRequestSchema, invoke: (api, r) => api.harness.runs.start(r) },
-  'harness.runs.pause': { schema: harnessRunPauseRequestSchema, invoke: (api, r) => api.harness.runs.pause(r) },
-  'harness.runs.resume': { schema: harnessRunResumeRequestSchema, invoke: (api, r) => api.harness.runs.resume(r) },
-  'harness.runs.cancel': { schema: harnessRunCancelRequestSchema, invoke: (api, r) => api.harness.runs.cancel(r) },
-  'harness.runs.events': { schema: harnessRunEventsRequestSchema, invoke: (api, r) => api.harness.runs.events(r) },
-  'harness.skills.list': { schema: harnessSkillsListRequestSchema, invoke: (api, r) => api.harness.skills.list(r) },
-  'harness.skills.install': { schema: harnessSkillInstallRequestSchema, invoke: (api, r) => api.harness.skills.install(r) },
-  'harness.skills.rollback': { schema: harnessSkillRollbackRequestSchema, invoke: (api, r) => api.harness.skills.rollback(r) },
+  'paper.runs.list': { schema: paperRunsListRequestSchema, invoke: (api, r) => api.paper.runs.list(r) },
+  'paper.runs.get': { schema: paperRunGetRequestSchema, invoke: (api, r) => api.paper.runs.get(r) },
+  'paper.runs.start': { schema: paperRunStartRequestSchema, invoke: (api, r) => api.paper.runs.start(r) },
+  'paper.runs.pause': { schema: paperRunPauseRequestSchema, invoke: (api, r) => api.paper.runs.pause(r) },
+  'paper.runs.resume': { schema: paperRunResumeRequestSchema, invoke: (api, r) => api.paper.runs.resume(r) },
+  'paper.runs.cancel': { schema: paperRunCancelRequestSchema, invoke: (api, r) => api.paper.runs.cancel(r) },
+  'paper.runs.events': { schema: paperRunEventsRequestSchema, invoke: (api, r) => api.paper.runs.events(r) },
+  'paper.skills.list': { schema: paperSkillsListRequestSchema, invoke: (api, r) => api.paper.skills.list(r) },
+  'paper.skills.install': { schema: paperSkillInstallRequestSchema, invoke: (api, r) => api.paper.skills.install(r) },
+  'paper.skills.rollback': { schema: paperSkillRollbackRequestSchema, invoke: (api, r) => api.paper.skills.rollback(r) },
 }
 
 /** Route lookup that narrows an arbitrary path segment to a map key (single cast point for the string→key refinement). */

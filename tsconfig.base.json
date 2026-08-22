@@ -104,13 +104,13 @@
       "@deepseek-ai/dsh-agent-loop/invariant": ["./packages/core/agent-loop/src/invariant.ts"],
       "@deepseek-ai/dsh-experimental-agent-team/invariant": ["./packages/experimental/agent-team/src/invariant.ts"],
       "@deepseek-ai/dsh-experimental-tool-agent-team/invariant": ["./packages/experimental/tool-agent-team/src/invariant.ts"],
-      // The Harness layer's bundle dir (harness-bundle) does not match its package
-      // name (dsh-harness), so the group wildcards below cannot map it; the
+      // The Paper layer's bundle dir (paper-bundle) does not match its package
+      // name (dsh-paper), so the group wildcards below cannot map it; the
       // foundation's several entry points need a subpath wildcard of their own.
-      "@deepseek-ai/dsh-harness": ["./packages/harness/harness-bundle/src"],
-      "@deepseek-ai/dsh-harness/invariant": ["./packages/harness/harness-bundle/src/invariant.ts"],
-      "@deepseek-ai/dsh-harness-foundation": ["./packages/harness/harness-foundation/src"],
-      "@deepseek-ai/dsh-harness-foundation/*": ["./packages/harness/harness-foundation/src/*"],
+      "@deepseek-ai/dsh-paper": ["./packages/paper/paper-bundle/src"],
+      "@deepseek-ai/dsh-paper/invariant": ["./packages/paper/paper-bundle/src/invariant.ts"],
+      "@deepseek-ai/dsh-paper-foundation": ["./packages/paper/paper-foundation/src"],
+      "@deepseek-ai/dsh-paper-foundation/*": ["./packages/paper/paper-foundation/src/*"],
       "@deepseek-ai/dsh-*/invariant": [
         "./packages/core/*/src/invariant.ts",
         "./packages/prompt/*/src/invariant.ts",

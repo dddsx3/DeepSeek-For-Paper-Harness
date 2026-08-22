@@ -39,7 +39,7 @@ import type {} from '@deepseek-ai/dsh-tools'
 import type {
   ApiProxy, ConfigurableProviderView, CredentialView, GoalRef, HistoryEntry, HostFrame,
   ModelCatalogFailure, ModelProviderGroup,
-  ModelReasoning, HarnessRunView, HarnessSkillView, MuxFrame, PromptContentPart,
+  ModelReasoning, PaperRunView, PaperSkillView, MuxFrame, PromptContentPart,
   QuestionResponsePayload, SessionListMetadata, SessionProjectionsBlock, SessionSearchItem,
   QueuedInboxItem, SessionSummary, SettingsNamespaceView, SubagentAddress, JobView, ToolEventView,
   WorkspaceId, WorkspaceView,
@@ -85,18 +85,18 @@ import type { SettingsDescriptor, SettingsNamespace, SettingsPathOp } from '@dee
 import { credentialRef } from '@deepseek-ai/dsh-credentials'
 // Value edge: the rename impl narrows the title service's validation failure; the import also resolves `ctx.get('sessionTitle')`.
 import { SessionTitleInvalidError } from '@deepseek-ai/dsh-session-title'
-// Harness seams: engine reads/transitions and the signed skill catalog. The value
-// imports also resolve `ctx.get('harnessWorkflow')` and `ctx.get('harnessSkillCatalog')`.
+// Paper seams: engine reads/transitions and the signed skill catalog. The value
+// imports also resolve `ctx.get('paperWorkflow')` and `ctx.get('paperSkillCatalog')`.
 import {
   InvalidWorkflowTransitionError,
-  MODEX_HARNESS_VERSION,
+  PAPER_HARNESS_VERSION,
   RunId,
   SignedSkillValidationError,
   SkillConflictError,
-} from '@deepseek-ai/dsh-harness-foundation'
+} from '@deepseek-ai/dsh-paper-foundation'
 import type {
   InstalledSkillRecord, RunRecord, WorkflowEngine,
-} from '@deepseek-ai/dsh-harness-foundation'
+} from '@deepseek-ai/dsh-paper-foundation'
 import type { CallId } from '@deepseek-ai/dsh-llm/brand'
 import type { ScopeKey } from '@deepseek-ai/dsh-scope'
 import type { ApprovalOutcome, ApprovalRequestId } from '@deepseek-ai/dsh-user-approval'
@@ -336,7 +336,7 @@ function err<T>(request: RpcRequest<unknown>, error: RpcError): RpcResponse<T> {
 }
 
 /** Project one durable run record with its node states and event cursor. */
-function harnessRunView(engine: WorkflowEngine, run: RunRecord): HarnessRunView {
+function paperRunView(engine: WorkflowEngine, run: RunRecord): PaperRunView {
   return {
     id: run.id,
     status: run.status,
@@ -358,7 +358,7 @@ function harnessRunView(engine: WorkflowEngine, run: RunRecord): HarnessRunView 
 }
 
 /** Project one installed skill record for the wire. */
-function harnessSkillView(record: InstalledSkillRecord): HarnessSkillView {
+function paperSkillView(record: InstalledSkillRecord): PaperSkillView {
   return {
     id: record.id,
     installedVersion: record.installedVersion,
@@ -371,24 +371,24 @@ function harnessSkillView(record: InstalledSkillRecord): HarnessSkillView {
 }
 
 /** Apply one run transition, mapping absence and illegal-transition refusals. */
-function harnessTransition(
+function paperTransition(
   ctx: Context,
   request: RpcRequest<{ runId: string }>,
   to: RunRecord['status'],
-): Promise<RpcResponse<{ run: HarnessRunView }>> {
-  const engine = ctx.get('harnessWorkflow')
+): Promise<RpcResponse<{ run: PaperRunView }>> {
+  const engine = ctx.get('paperWorkflow')
   if (engine === undefined) {
-    return Promise.resolve(err(request, { code: 'harness-service-unavailable', message: 'the workflow engine is not composed', details: { service: 'harnessWorkflow' } }))
+    return Promise.resolve(err(request, { code: 'paper-service-unavailable', message: 'the workflow engine is not composed', details: { service: 'paperWorkflow' } }))
   }
   const runId = RunId(request.payload.runId)
   if (engine.runs.getRun(runId) === undefined) {
-    return Promise.resolve(err(request, { code: 'harness-run-not-found', message: `run '${request.payload.runId}' was not found`, details: { runId: request.payload.runId } }))
+    return Promise.resolve(err(request, { code: 'paper-run-not-found', message: `run '${request.payload.runId}' was not found`, details: { runId: request.payload.runId } }))
   }
   return engine.runs.transitionRun(runId, to)
-    .then(run => ok(request, { run: harnessRunView(engine.runs, run) }))
+    .then(run => ok(request, { run: paperRunView(engine.runs, run) }))
     .catch((error: unknown) => {
       if (error instanceof InvalidWorkflowTransitionError) {
-        return err(request, { code: 'harness-run-transition-invalid', message: error.message, details: { runId: request.payload.runId } })
+        return err(request, { code: 'paper-run-transition-invalid', message: error.message, details: { runId: request.payload.runId } })
       }
       throw error
     })
@@ -3663,69 +3663,69 @@ export function createApiProxy(ctx: Context, defaults: ApiProxyDefaults): ApiPro
       },
     },
 
-    harness: {
-      // Both Harness services are optional compositions (the settings/credentials
+    paper: {
+      // Both Paper services are optional compositions (the settings/credentials
       // precedent): a deployment without them keeps every other domain alive.
       runs: {
         list(request) {
-          const engine = ctx.get('harnessWorkflow')
+          const engine = ctx.get('paperWorkflow')
           if (engine === undefined) {
-            return Promise.resolve(err(request, { code: 'harness-service-unavailable', message: 'the workflow engine is not composed', details: { service: 'harnessWorkflow' } }))
+            return Promise.resolve(err(request, { code: 'paper-service-unavailable', message: 'the workflow engine is not composed', details: { service: 'paperWorkflow' } }))
           }
-          return Promise.resolve(ok(request, { runs: engine.runs.listRuns().map(run => harnessRunView(engine.runs, run)) }))
+          return Promise.resolve(ok(request, { runs: engine.runs.listRuns().map(run => paperRunView(engine.runs, run)) }))
         },
 
         get(request) {
-          const engine = ctx.get('harnessWorkflow')
+          const engine = ctx.get('paperWorkflow')
           if (engine === undefined) {
-            return Promise.resolve(err(request, { code: 'harness-service-unavailable', message: 'the workflow engine is not composed', details: { service: 'harnessWorkflow' } }))
+            return Promise.resolve(err(request, { code: 'paper-service-unavailable', message: 'the workflow engine is not composed', details: { service: 'paperWorkflow' } }))
           }
           const run = engine.runs.getRun(RunId(request.payload.runId))
           if (run === undefined) {
-            return Promise.resolve(err(request, { code: 'harness-run-not-found', message: `run '${request.payload.runId}' was not found`, details: { runId: request.payload.runId } }))
+            return Promise.resolve(err(request, { code: 'paper-run-not-found', message: `run '${request.payload.runId}' was not found`, details: { runId: request.payload.runId } }))
           }
-          return Promise.resolve(ok(request, { run: harnessRunView(engine.runs, run) }))
+          return Promise.resolve(ok(request, { run: paperRunView(engine.runs, run) }))
         },
 
         async start(request) {
-          const engine = ctx.get('harnessWorkflow')
+          const engine = ctx.get('paperWorkflow')
           if (engine === undefined) {
-            return err(request, { code: 'harness-service-unavailable', message: 'the workflow engine is not composed', details: { service: 'harnessWorkflow' } })
+            return err(request, { code: 'paper-service-unavailable', message: 'the workflow engine is not composed', details: { service: 'paperWorkflow' } })
           }
           // The config hash pins the role settings the run was created under;
           // without the settings service the run records the empty configuration.
-          const settings = ctx.get('harnessSettings')
+          const settings = ctx.get('paperSettings')
           const configHash = createHash('sha256')
             .update(JSON.stringify(settings?.snapshot() ?? {}))
             .digest('hex')
           const run = await engine.runs.startRun({
             mode: request.payload.mode,
-            harnessVersion: MODEX_HARNESS_VERSION,
+            harnessVersion: PAPER_HARNESS_VERSION,
             configHash,
           })
-          return ok(request, { run: harnessRunView(engine.runs, run) })
+          return ok(request, { run: paperRunView(engine.runs, run) })
         },
 
         async pause(request) {
-          return harnessTransition(ctx, request, 'paused')
+          return paperTransition(ctx, request, 'paused')
         },
 
         async resume(request) {
-          return harnessTransition(ctx, request, 'running')
+          return paperTransition(ctx, request, 'running')
         },
 
         async cancel(request) {
-          return harnessTransition(ctx, request, 'cancelled')
+          return paperTransition(ctx, request, 'cancelled')
         },
 
         events(request) {
-          const engine = ctx.get('harnessWorkflow')
+          const engine = ctx.get('paperWorkflow')
           if (engine === undefined) {
-            return Promise.resolve(err(request, { code: 'harness-service-unavailable', message: 'the workflow engine is not composed', details: { service: 'harnessWorkflow' } }))
+            return Promise.resolve(err(request, { code: 'paper-service-unavailable', message: 'the workflow engine is not composed', details: { service: 'paperWorkflow' } }))
           }
           const runId = RunId(request.payload.runId)
           if (engine.runs.getRun(runId) === undefined) {
-            return Promise.resolve(err(request, { code: 'harness-run-not-found', message: `run '${request.payload.runId}' was not found`, details: { runId: request.payload.runId } }))
+            return Promise.resolve(err(request, { code: 'paper-run-not-found', message: `run '${request.payload.runId}' was not found`, details: { runId: request.payload.runId } }))
           }
           const afterSeq = request.payload.afterSeq ?? 0
           return Promise.resolve(ok(request, {
@@ -3743,28 +3743,28 @@ export function createApiProxy(ctx: Context, defaults: ApiProxyDefaults): ApiPro
 
       skills: {
         list(request) {
-          const catalog = ctx.get('harnessSkillCatalog')
+          const catalog = ctx.get('paperSkillCatalog')
           if (catalog === undefined) {
-            return Promise.resolve(err(request, { code: 'harness-service-unavailable', message: 'the skill catalog is not composed', details: { service: 'harnessSkillCatalog' } }))
+            return Promise.resolve(err(request, { code: 'paper-service-unavailable', message: 'the skill catalog is not composed', details: { service: 'paperSkillCatalog' } }))
           }
-          return Promise.resolve(ok(request, { skills: catalog.list().map(record => harnessSkillView(record)) }))
+          return Promise.resolve(ok(request, { skills: catalog.list().map(record => paperSkillView(record)) }))
         },
 
         async install(request) {
-          const catalog = ctx.get('harnessSkillCatalog')
+          const catalog = ctx.get('paperSkillCatalog')
           if (catalog === undefined) {
-            return err(request, { code: 'harness-service-unavailable', message: 'the skill catalog is not composed', details: { service: 'harnessSkillCatalog' } })
+            return err(request, { code: 'paper-service-unavailable', message: 'the skill catalog is not composed', details: { service: 'paperSkillCatalog' } })
           }
           try {
             const record = await catalog.install(request.payload.directory)
-            return ok(request, { skill: harnessSkillView(record) })
+            return ok(request, { skill: paperSkillView(record) })
           } catch (error: unknown) {
             if (error instanceof SignedSkillValidationError) {
-              return err(request, { code: 'harness-skill-invalid', message: error.message, details: { directory: error.directory } })
+              return err(request, { code: 'paper-skill-invalid', message: error.message, details: { directory: error.directory } })
             }
             if (error instanceof SkillConflictError) {
               return err(request, {
-                code: 'harness-skill-conflict',
+                code: 'paper-skill-conflict',
                 message: error.message,
                 details: {
                   conflicts: error.conflicts.map(conflict => ({
@@ -3781,20 +3781,20 @@ export function createApiProxy(ctx: Context, defaults: ApiProxyDefaults): ApiPro
         },
 
         async rollback(request) {
-          const catalog = ctx.get('harnessSkillCatalog')
+          const catalog = ctx.get('paperSkillCatalog')
           if (catalog === undefined) {
-            return err(request, { code: 'harness-service-unavailable', message: 'the skill catalog is not composed', details: { service: 'harnessSkillCatalog' } })
+            return err(request, { code: 'paper-service-unavailable', message: 'the skill catalog is not composed', details: { service: 'paperSkillCatalog' } })
           }
           try {
             const record = await catalog.rollback(request.payload.id, request.payload.toVersion)
-            return ok(request, { skill: harnessSkillView(record) })
+            return ok(request, { skill: paperSkillView(record) })
           } catch (error: unknown) {
             if (error instanceof SignedSkillValidationError) {
-              return err(request, { code: 'harness-skill-invalid', message: error.message, details: { directory: error.directory } })
+              return err(request, { code: 'paper-skill-invalid', message: error.message, details: { directory: error.directory } })
             }
             const message = error instanceof Error ? error.message : ''
             if (message.includes('is not installed') || message.includes('no installed version')) {
-              return err(request, { code: 'harness-skill-not-found', message, details: { id: request.payload.id } })
+              return err(request, { code: 'paper-skill-not-found', message, details: { id: request.payload.id } })
             }
             throw error
           }

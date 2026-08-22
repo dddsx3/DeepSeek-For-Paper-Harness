@@ -887,9 +887,9 @@ importers:
       '@deepseek-ai/dsh-message-feedback':
         specifier: workspace:^
         version: link:../../feedback/message-feedback
-      '@deepseek-ai/dsh-harness-foundation':
+      '@deepseek-ai/dsh-paper-foundation':
         specifier: workspace:^
-        version: link:../../harness/harness-foundation
+        version: link:../../paper/paper-foundation
       '@deepseek-ai/dsh-session':
         specifier: workspace:^
         version: link:../../core/session
@@ -5005,12 +5005,12 @@ importers:
       '@deepseek-ai/dsh-llm':
         specifier: workspace:^
         version: link:../../llm/llm
-      '@deepseek-ai/dsh-harness-foundation':
-        specifier: workspace:^
-        version: link:../../harness/harness-foundation
       '@deepseek-ai/dsh-native-command':
         specifier: workspace:^
         version: link:../../util/native-command
+      '@deepseek-ai/dsh-paper-foundation':
+        specifier: workspace:^
+        version: link:../../paper/paper-foundation
       '@deepseek-ai/dsh-session':
         specifier: workspace:^
         version: link:../../core/session
@@ -5811,11 +5811,11 @@ importers:
         specifier: ^2026.7.4
         version: 2026.7.10(zod@4.4.3)
 
-  packages/harness/harness-bundle:
+  packages/paper/paper-bundle:
     dependencies:
-      '@deepseek-ai/dsh-harness-foundation':
+      '@deepseek-ai/dsh-paper-foundation':
         specifier: workspace:^
-        version: link:../harness-foundation
+        version: link:../paper-foundation
       '@deepseek-ai/dsh-storage-domain':
         specifier: workspace:^
         version: link:../../storage/storage-domain
@@ -5830,7 +5830,7 @@ importers:
         specifier: workspace:^
         version: link:../../runtime-diagnostics/invariants
 
-  packages/harness/harness-foundation:
+  packages/paper/paper-foundation:
     dependencies:
       '@deepseek-ai/schemastery':
         specifier: link:../../../vendor/schemastery

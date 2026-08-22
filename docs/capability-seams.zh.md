@@ -203,18 +203,18 @@ flowchart LR
   pkg_cordis_host_runner["cordis-host-runner"]
   svc_dynamicCordisRunner["ctx.dynamicCordisRunner<br/>Dynamic Cordis package host runner"]
   svc_cordisInspect["ctx.cordisInspect<br/>Dynamic Cordis inspect registry"]
-  pkg_harness_foundation["harness-foundation"]
-  svc_harnessFoundation["ctx.harnessFoundation<br/>Harness workflow domain owner"]
-  pkg_harness["harness"]
-  svc_harnessMigration["ctx.harnessMigration<br/>Harness legacy migration progress"]
-  svc_harnessWorkflow["ctx.harnessWorkflow<br/>Harness durable run engine"]
-  svc_harnessExecutor["ctx.harnessExecutor<br/>Harness node executor"]
-  svc_harnessProvider["ctx.harnessProvider<br/>Harness role routing"]
-  svc_harnessSettings["ctx.harnessSettings<br/>Harness role settings"]
-  svc_harnessDiagnostics["ctx.harnessDiagnostics<br/>Harness connectivity probe"]
-  svc_harnessAudit["ctx.harnessAudit<br/>Harness audit trail"]
-  svc_harnessSkillCatalog["ctx.harnessSkillCatalog<br/>Harness signed skill catalog"]
-  svc_harnessRelease["ctx.harnessRelease<br/>Harness release state"]
+  pkg_paper_foundation["paper-foundation"]
+  svc_paperFoundation["ctx.paperFoundation<br/>Paper workflow domain owner"]
+  pkg_paper["paper"]
+  svc_paperMigration["ctx.paperMigration<br/>Paper legacy migration progress"]
+  svc_paperWorkflow["ctx.paperWorkflow<br/>Paper durable run engine"]
+  svc_paperExecutor["ctx.paperExecutor<br/>Paper node executor"]
+  svc_paperProvider["ctx.paperProvider<br/>Paper role routing"]
+  svc_paperSettings["ctx.paperSettings<br/>Paper role settings"]
+  svc_paperDiagnostics["ctx.paperDiagnostics<br/>Paper connectivity probe"]
+  svc_paperAudit["ctx.paperAudit<br/>Paper audit trail"]
+  svc_paperSkillCatalog["ctx.paperSkillCatalog<br/>Paper signed skill catalog"]
+  svc_paperRelease["ctx.paperRelease<br/>Paper release state"]
   pkg_acp --> svc_approval
   pkg_agent --> svc_agents
   pkg_agent_default_model --> svc_agentDefaultModel
@@ -260,17 +260,17 @@ flowchart LR
   pkg_lsp --> svc_lsp
   pkg_lsp_local --> svc_lsp
   pkg_message_feedback --> svc_messageFeedback
-  pkg_harness_foundation --> svc_harnessAudit
-  pkg_harness_foundation --> svc_harnessDiagnostics
-  pkg_harness_foundation --> svc_harnessExecutor
-  pkg_harness_foundation --> svc_harnessFoundation
-  pkg_harness_foundation --> svc_harnessMigration
-  pkg_harness_foundation --> svc_harnessProvider
-  pkg_harness_foundation --> svc_harnessRelease
-  pkg_harness_foundation --> svc_harnessSettings
-  pkg_harness_foundation --> svc_harnessSkillCatalog
-  pkg_harness_foundation --> svc_harnessWorkflow
   pkg_modules --> svc_clientModules
+  pkg_paper_foundation --> svc_paperAudit
+  pkg_paper_foundation --> svc_paperDiagnostics
+  pkg_paper_foundation --> svc_paperExecutor
+  pkg_paper_foundation --> svc_paperFoundation
+  pkg_paper_foundation --> svc_paperMigration
+  pkg_paper_foundation --> svc_paperProvider
+  pkg_paper_foundation --> svc_paperRelease
+  pkg_paper_foundation --> svc_paperSettings
+  pkg_paper_foundation --> svc_paperSkillCatalog
+  pkg_paper_foundation --> svc_paperWorkflow
   pkg_permission_presets --> svc_permissionPresets
   pkg_plan_mode --> svc_planMode
   pkg_pwsh_local --> svc_shell
@@ -366,18 +366,18 @@ flowchart LR
   svc_llm --> pkg_agent_loop
   svc_llm --> pkg_compaction_basic
   svc_lsp --> pkg_tool_lsp
-  svc_harnessAudit --> pkg_harness
-  svc_harnessDiagnostics --> pkg_harness
-  svc_harnessExecutor --> pkg_harness
-  svc_harnessFoundation --> pkg_harness
-  svc_harnessMigration --> pkg_harness
-  svc_harnessProvider --> pkg_harness
-  svc_harnessRelease --> pkg_harness
-  svc_harnessSettings --> pkg_harness
-  svc_harnessSkillCatalog --> pkg_host_apiproxy
-  svc_harnessSkillCatalog --> pkg_harness
-  svc_harnessWorkflow --> pkg_host_apiproxy
-  svc_harnessWorkflow --> pkg_harness
+  svc_paperAudit --> pkg_paper
+  svc_paperDiagnostics --> pkg_paper
+  svc_paperExecutor --> pkg_paper
+  svc_paperFoundation --> pkg_paper
+  svc_paperMigration --> pkg_paper
+  svc_paperProvider --> pkg_paper
+  svc_paperRelease --> pkg_paper
+  svc_paperSettings --> pkg_paper
+  svc_paperSkillCatalog --> pkg_host_apiproxy
+  svc_paperSkillCatalog --> pkg_paper
+  svc_paperWorkflow --> pkg_host_apiproxy
+  svc_paperWorkflow --> pkg_paper
   svc_sandbox --> pkg_bash_sandbox
   svc_sandbox --> pkg_terminal_bash
   svc_sandboxPolicy --> pkg_bash_sandbox
@@ -520,15 +520,15 @@ flowchart LR
 | `ctx.apiProxy` | `core` | `apiproxy` | - | `connection` | - | 与传输无关的 Host 网关接口：它分派浏览器 API 调用，每条打开的 Host 流自行订阅转发事件，而不是由广播方法向其推送。 |
 | `ctx.dynamicCordisRunner` | `core` | [`cordis-host-runner`](../packages/extensions/cordis-host-runner) | - | [`tool-cordis`](../packages/extensions/tool-cordis) | - | 拥有内存定义注册表、Host 半的 vm 沙箱和 request-run 往返流程；浏览器页面通过其 Remote 命名空间在线访问同一服务。 |
 | `ctx.cordisInspect` | `core` | [`cordis-host-runner`](../packages/extensions/cordis-host-runner) | - | [`tool-cordis`](../packages/extensions/tool-cordis) | - | 注册 Host inspect 提供方、镜像 Client 提供方 manifest，并通过动态 Cordis 传输路由 Client 查询。 |
-| `ctx.harnessFoundation` | `seam` | [`harness-foundation`](../packages/harness/harness-foundation) | - | [`harness`](../packages/harness/harness-bundle) | - | 打开版本化的 Harness 运行域并暴露其仓储层；组合包层负责挂载它，其余 Harness 服务都通过它读取持久事实。 |
-| `ctx.harnessMigration` | `seam` | [`harness-foundation`](../packages/harness/harness-foundation) | - | [`harness`](../packages/harness/harness-bundle) | - | 为运维方提供的旧版数据行暴露显式干跑／提交 runner；它记录可续跑进度，但启动时绝不扫描、导入、修改或删除旧版数据。 |
-| `ctx.harnessWorkflow` | `seam` | [`harness-foundation`](../packages/harness/harness-foundation) | - | [`host-apiproxy`](../packages/host/apiproxy), [`harness`](../packages/harness/harness-bundle) | - | 拥有运行与节点状态转换、只追加事件日志和启动恢复；命名为 harnessWorkflow 是因为上游脚本引擎已占用 ctx.workflowEngine。 |
-| `ctx.harnessExecutor` | `seam` | [`harness-foundation`](../packages/harness/harness-foundation) | - | [`harness`](../packages/harness/harness-bundle) | - | 驱动 plan、execute、按模式限轮的复核循环与交付；重试、成本、审计与上下文预算是被组合的 seam，而不是引擎内部逻辑。 |
-| `ctx.harnessProvider` | `seam` | [`harness-foundation`](../packages/harness/harness-foundation) | - | [`harness`](../packages/harness/harness-bundle) | - | 通过 ctx.llm 解析执行、复核与编辑三个角色，并用 ctx.llm.stream 派发，因此提供方适配器仍是路由的唯一实现。 |
-| `ctx.harnessSettings` | `seam` | [`harness-foundation`](../packages/harness/harness-foundation) | - | [`harness`](../packages/harness/harness-bundle) | - | 发布持有角色路由与默认模式的 Harness settings 命名空间；凭据字段只是引用，由 credentials seam 稍后解析。 |
-| `ctx.harnessDiagnostics` | `seam` | [`harness-foundation`](../packages/harness/harness-foundation) | - | [`harness`](../packages/harness/harness-bundle) | - | 一次受限且可取消的请求，不创建 Session，只返回路由、模型、延迟和一个稳定状态代码。 |
-| `ctx.harnessAudit` | `seam` | [`harness-foundation`](../packages/harness/harness-foundation) | - | [`harness`](../packages/harness/harness-bundle) | - | 独立域并按追加序号排序，因为两次操作可能落在同一毫秒；每个明细映射在持久化之前都会被遮蔽。 |
-| `ctx.harnessSkillCatalog` | `seam` | [`harness-foundation`](../packages/harness/harness-foundation) | - | [`host-apiproxy`](../packages/host/apiproxy), [`harness`](../packages/harness/harness-bundle) | - | 签名技能包的持久安装、版本历史、回滚与冲突检测；目录 provider 通过 ctx.skills 提供其活跃版本。 |
-| `ctx.harnessRelease` | `seam` | [`harness-foundation`](../packages/harness/harness-foundation) | - | [`harness`](../packages/harness/harness-bundle) | - | 暂存已校验的发布，记录当前激活版本及其替换对象，并回滚从未报告健康的版本；安装产物仍由调用方负责。 |
+| `ctx.paperFoundation` | `seam` | [`paper-foundation`](../packages/paper/paper-foundation) | - | [`paper`](../packages/paper/paper-bundle) | - | 打开版本化的 Paper 运行域并暴露其仓储层；组合包层负责挂载它，其余 Paper 服务都通过它读取持久事实。 |
+| `ctx.paperMigration` | `seam` | [`paper-foundation`](../packages/paper/paper-foundation) | - | [`paper`](../packages/paper/paper-bundle) | - | 为运维方提供的旧版数据行暴露显式干跑／提交 runner；它记录可续跑进度，但启动时绝不扫描、导入、修改或删除旧版数据。 |
+| `ctx.paperWorkflow` | `seam` | [`paper-foundation`](../packages/paper/paper-foundation) | - | [`host-apiproxy`](../packages/host/apiproxy), [`paper`](../packages/paper/paper-bundle) | - | 拥有运行与节点状态转换、只追加事件日志和启动恢复；命名为 paperWorkflow 是因为上游脚本引擎已占用 ctx.workflowEngine。 |
+| `ctx.paperExecutor` | `seam` | [`paper-foundation`](../packages/paper/paper-foundation) | - | [`paper`](../packages/paper/paper-bundle) | - | 驱动 plan、execute、按模式限轮的复核循环与交付；重试、成本、审计与上下文预算是被组合的 seam，而不是引擎内部逻辑。 |
+| `ctx.paperProvider` | `seam` | [`paper-foundation`](../packages/paper/paper-foundation) | - | [`paper`](../packages/paper/paper-bundle) | - | 通过 ctx.llm 解析执行、复核与编辑三个角色，并用 ctx.llm.stream 派发，因此提供方适配器仍是路由的唯一实现。 |
+| `ctx.paperSettings` | `seam` | [`paper-foundation`](../packages/paper/paper-foundation) | - | [`paper`](../packages/paper/paper-bundle) | - | 发布持有角色路由与默认模式的 Paper settings 命名空间；凭据字段只是引用，由 credentials seam 稍后解析。 |
+| `ctx.paperDiagnostics` | `seam` | [`paper-foundation`](../packages/paper/paper-foundation) | - | [`paper`](../packages/paper/paper-bundle) | - | 一次受限且可取消的请求，不创建 Session，只返回路由、模型、延迟和一个稳定状态代码。 |
+| `ctx.paperAudit` | `seam` | [`paper-foundation`](../packages/paper/paper-foundation) | - | [`paper`](../packages/paper/paper-bundle) | - | 独立域并按追加序号排序，因为两次操作可能落在同一毫秒；每个明细映射在持久化之前都会被遮蔽。 |
+| `ctx.paperSkillCatalog` | `seam` | [`paper-foundation`](../packages/paper/paper-foundation) | - | [`host-apiproxy`](../packages/host/apiproxy), [`paper`](../packages/paper/paper-bundle) | - | 签名技能包的持久安装、版本历史、回滚与冲突检测；目录 provider 通过 ctx.skills 提供其活跃版本。 |
+| `ctx.paperRelease` | `seam` | [`paper-foundation`](../packages/paper/paper-foundation) | - | [`paper`](../packages/paper/paper-bundle) | - | 暂存已校验的发布，记录当前激活版本及其替换对象，并回滚从未报告健康的版本；安装产物仍由调用方负责。 |
 
 维护模式：混合模式。服务从 Cordis 声明中发现；接口、实现和消费方角色在 `scripts/gen-doc-graphs.ts` 中分类，并设有完整性守卫。

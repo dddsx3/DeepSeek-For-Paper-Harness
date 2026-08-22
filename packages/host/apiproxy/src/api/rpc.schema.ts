@@ -74,14 +74,14 @@ export const rpcErrorSchema: z.ZodType<RpcError> = z.discriminatedUnion('code', 
   z.object({ code: z.literal('subagent-not-resumable'), message: z.string(), details: z.object({ childSessionId: z.string() }) }),
   z.object({ code: z.literal('subagent-unauthorized'), message: z.string(), details: z.object({ childSessionId: z.string() }) }),
   z.object({ code: z.literal('subagent-delivery-unavailable'), message: z.string(), details: z.object({ childSessionId: z.string() }) }),
-  z.object({ code: z.literal('harness-service-unavailable'), message: z.string(), details: z.object({ service: z.string() }) }),
-  z.object({ code: z.literal('harness-run-not-found'), message: z.string(), details: z.object({ runId: z.string() }) }),
-  z.object({ code: z.literal('harness-run-transition-invalid'), message: z.string(), details: z.object({ runId: z.string() }) }),
-  z.object({ code: z.literal('harness-skill-invalid'), message: z.string(), details: z.object({ directory: z.string() }) }),
-  z.object({ code: z.literal('harness-skill-conflict'), message: z.string(), details: z.object({
+  z.object({ code: z.literal('paper-service-unavailable'), message: z.string(), details: z.object({ service: z.string() }) }),
+  z.object({ code: z.literal('paper-run-not-found'), message: z.string(), details: z.object({ runId: z.string() }) }),
+  z.object({ code: z.literal('paper-run-transition-invalid'), message: z.string(), details: z.object({ runId: z.string() }) }),
+  z.object({ code: z.literal('paper-skill-invalid'), message: z.string(), details: z.object({ directory: z.string() }) }),
+  z.object({ code: z.literal('paper-skill-conflict'), message: z.string(), details: z.object({
     conflicts: z.array(z.object({ kind: z.string(), left: z.string(), right: z.string(), subject: z.string() })),
   }) }),
-  z.object({ code: z.literal('harness-skill-not-found'), message: z.string(), details: z.object({ id: z.string() }) }),
+  z.object({ code: z.literal('paper-skill-not-found'), message: z.string(), details: z.object({ id: z.string() }) }),
   z.object({ code: z.literal('internal'), message: z.string(), details: z.object({}) }),
 ]) as unknown as z.ZodType<RpcError>
 

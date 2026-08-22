@@ -14,7 +14,7 @@ import type { SettingsApi } from './settings.ts'
 import type { CredentialsApi } from './credentials.ts'
 import type { LlmApi } from './llm.ts'
 import type { SubagentsApi } from './subagents.ts'
-import type { HarnessApi } from './harness.ts'
+import type { PaperApi } from './paper.ts'
 import type { RpcResponse } from './rpc.ts'
 
 /**
@@ -75,16 +75,16 @@ export interface RpcMethodMap {
   'llm.providers': LlmApi['providers']
   'llm.models': LlmApi['models']
   'llm.discoverModels': LlmApi['discoverModels']
-  'harness.runs.list': HarnessApi['runs']['list']
-  'harness.runs.get': HarnessApi['runs']['get']
-  'harness.runs.start': HarnessApi['runs']['start']
-  'harness.runs.pause': HarnessApi['runs']['pause']
-  'harness.runs.resume': HarnessApi['runs']['resume']
-  'harness.runs.cancel': HarnessApi['runs']['cancel']
-  'harness.runs.events': HarnessApi['runs']['events']
-  'harness.skills.list': HarnessApi['skills']['list']
-  'harness.skills.install': HarnessApi['skills']['install']
-  'harness.skills.rollback': HarnessApi['skills']['rollback']
+  'paper.runs.list': PaperApi['runs']['list']
+  'paper.runs.get': PaperApi['runs']['get']
+  'paper.runs.start': PaperApi['runs']['start']
+  'paper.runs.pause': PaperApi['runs']['pause']
+  'paper.runs.resume': PaperApi['runs']['resume']
+  'paper.runs.cancel': PaperApi['runs']['cancel']
+  'paper.runs.events': PaperApi['runs']['events']
+  'paper.skills.list': PaperApi['skills']['list']
+  'paper.skills.install': PaperApi['skills']['install']
+  'paper.skills.rollback': PaperApi['skills']['rollback']
 }
 
 /** Business request payload of method K (reaches through the RpcRequest narrow form to payload). */

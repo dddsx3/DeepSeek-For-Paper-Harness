@@ -388,8 +388,8 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         parameters: [],
       },
       {
-        signature: 'harness: HarnessApi',
-        description: 'Harness workflow-run control, resumable event reads, and the signed skill catalog.',
+        signature: 'paper: PaperApi',
+        description: 'Paper workflow-run control, resumable event reads, and the signed skill catalog.',
         parameters: [],
       },
       {
@@ -1083,7 +1083,7 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     ],
   },
   {
-    key: 'harnessAudit',
+    key: 'paperAudit',
     summary: 'Durable audit trail over its own storage domain.',
     description: 'Durable audit trail over its own storage domain.',
     methods: [
@@ -1102,7 +1102,7 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     ],
   },
   {
-    key: 'harnessDiagnostics',
+    key: 'paperDiagnostics',
     summary: 'LLM service wrapper for bounded, non-session diagnostics.',
     description: 'LLM service wrapper for bounded, non-session diagnostics.',
     methods: [
@@ -1115,19 +1115,19 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     ],
   },
   {
-    key: 'harnessExecutor',
+    key: 'paperExecutor',
     summary: 'Lifecycle owner of the node executor over the durable engine.',
     description: 'Lifecycle owner of the node executor over the durable engine.',
     methods: [],
   },
   {
-    key: 'harnessFoundation',
+    key: 'paperFoundation',
     summary: 'Owns the phase-two workflow domain and exposes its repository.',
     description: 'Owns the phase-two workflow domain and exposes its repository.',
     methods: [],
   },
   {
-    key: 'harnessMigration',
+    key: 'paperMigration',
     summary: 'Lifecycle owner of the migration domain and its runner factory.',
     description: 'Lifecycle owner of the migration domain and its runner factory.',
     methods: [
@@ -1152,12 +1152,12 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     ],
   },
   {
-    key: 'harnessProvider',
+    key: 'paperProvider',
     summary: 'Shared LLM seam used by workflow consumers.',
     description: 'Shared LLM seam used by workflow consumers.',
     methods: [
       {
-        signature: 'async resolveRole( role: HarnessRole, settings: HarnessSettings, signal?: AbortSignal, ): Promise<{ route: ResolvedRoleRoute; model: LlmResolvedModelInfo }>',
+        signature: 'async resolveRole( role: PaperRole, settings: PaperSettings, signal?: AbortSignal, ): Promise<{ route: ResolvedRoleRoute; model: LlmResolvedModelInfo }>',
         description: 'Resolve one role\'s model metadata without retaining mutable settings.',
         parameters: [{ name: 'role', description: 'workflow role to resolve.' }, { name: 'settings', description: 'detached settings snapshot.' }, { name: 'signal', description: 'optional cancellation for model metadata lookup.' }],
         returns: 'route identity and adapter-owned model metadata.',
@@ -1171,7 +1171,7 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     ],
   },
   {
-    key: 'harnessRelease',
+    key: 'paperRelease',
     summary: 'Durable staging, activation, health confirmation, and rollback of releases.',
     description: 'Durable staging, activation, health confirmation, and rollback of releases.',
     methods: [
@@ -1209,12 +1209,12 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     ],
   },
   {
-    key: 'harnessSettings',
+    key: 'paperSettings',
     summary: 'Role settings service with immutable per-read snapshots.',
     description: 'Role settings service with immutable per-read snapshots.',
     methods: [
       {
-        signature: 'snapshot(): HarnessSettings',
+        signature: 'snapshot(): PaperSettings',
         description: 'Detached settings snapshot for one operation, so a mid-operation change cannot alter the routes a run already started with.',
         parameters: [],
         returns: 'a deep copy of the currently resolved settings.',
@@ -1222,7 +1222,7 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     ],
   },
   {
-    key: 'harnessSkillCatalog',
+    key: 'paperSkillCatalog',
     summary: 'Durable skill package catalog.',
     description: 'Durable skill package catalog. Validates packages at install, stores one directory per version, re-validates the target before rollback, and refuses installs whose active set would conflict.',
     methods: [
@@ -1265,7 +1265,7 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     ],
   },
   {
-    key: 'harnessWorkflow',
+    key: 'paperWorkflow',
     summary: 'Cordis service exposing the durable workflow engine to later consumers.',
     description: 'Cordis service exposing the durable workflow engine to later consumers.',
     methods: [],
@@ -2815,17 +2815,17 @@ export const EVENT_API: readonly EventApiEntry[] = [
     parameters: [{ name: 'options', description: 'the full request. A LOOP-built request carries the process-local {@link markAgentLoopRequest} identity and arrives deep-frozen (mutation throws): its content is a pure function of the session log (the reconstructability Agent Note), so listeners read it, never rewrite it. Hand-built calls do not carry that marker; their messages already obey the immutable creation contract.' }],
   },
   {
-    name: 'harness-skill/catalog-changed',
+    name: 'paper-skill/catalog-changed',
     mode: 'emit',
-    signature: '\'harness-skill/catalog-changed\'(record: InstalledSkillRecord): void',
+    signature: '\'paper-skill/catalog-changed\'(record: InstalledSkillRecord): void',
     summary: 'One installed skill record changed through install or rollback.',
     description: 'One installed skill record changed through install or rollback. Emitted after the record is durable; listener failures are contained.',
     parameters: [{ name: 'record', description: 'the updated catalog record.' }],
   },
   {
-    name: 'harness/run-event',
+    name: 'paper/run-event',
     mode: 'emit',
-    signature: '\'harness/run-event\'(event: WorkflowEvent): void',
+    signature: '\'paper/run-event\'(event: WorkflowEvent): void',
     summary: 'One workflow event became durable.',
     description: 'One workflow event became durable. Emitted after the append committed, carrying the exact persisted record; listener failures are contained.',
     parameters: [{ name: 'event', description: 'the persisted workflow event.' }],
@@ -3112,7 +3112,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'ArtifactId',
-    declaration: 'export type ArtifactId = Branded<\'HarnessArtifactId\'>;',
+    declaration: 'export type ArtifactId = Branded<\'PaperArtifactId\'>;',
   },
   {
     name: 'ArtifactRecord',
@@ -4079,36 +4079,8 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface ModelModalityMap {\n    text: \'text\';\n    image: \'image\';\n}',
   },
   {
-    name: 'HarnessApi',
-    declaration: 'export interface HarnessApi {\n    runs: {\n        list(request: RpcRequest<{}>): Promise<RpcResponse<{\n            runs: readonly HarnessRunView[];\n        }>>;\n        get(request: RpcRequest<{\n            runId: string;\n        }>): Promise<RpcResponse<{\n            run: HarnessRunView;\n        }>>;\n        start(request: RpcRequest<{\n            mode: \'fast\' | \'strict\';\n        }>): Promise<RpcResponse<{\n            run: HarnessRunView;\n        }>>;\n        pause(request: RpcRequest<{\n            runId: string;\n        }>): Promise<RpcResponse<{\n            run: HarnessRunView;\n        }>>;\n        resume(request: RpcRequest<{\n            runId: string;\n        }>): Promise<RpcResponse<{\n            run: HarnessRunView;\n        }>>;\n        cancel(request: RpcRequest<{\n            runId: string;\n        }>): Promise<RpcResponse<{\n            run: HarnessRunView;\n        }>>;\n        events(request: RpcRequest<{\n            runId: string;\n            afterSeq?: number;\n        }>): Promise<RpcResponse<{\n            events: readonly HarnessEventView[];\n            lastSeq: number;\n        }>>;\n    };\n    skills: {\n        list(request: RpcRequest<{}>): Promise<RpcResponse<{\n            skills: readonly HarnessSkillView[];\n        }>>;\n        install(request: RpcRequest<{\n            directory: string;\n        }>): Promise<RpcResponse<{\n            skill: HarnessSkillView;\n        }>>;\n        rollback(request: RpcRequest<{\n            id: string;\n            toVersion: string;\n        }>): Pro /* …truncated — full shape in source */',
-  },
-  {
-    name: 'HarnessEventView',
-    declaration: 'export interface HarnessEventView {\n    readonly seq: number;\n    readonly type: string;\n    readonly nodeId: string | null;\n    readonly data: Record<string, unknown>;\n    readonly timestamp: string;\n}',
-  },
-  {
-    name: 'HarnessNodeView',
-    declaration: 'export interface HarnessNodeView {\n    readonly id: string;\n    readonly type: \'plan\' | \'execute\' | \'review\' | \'revise\' | \'deliver\';\n    readonly state: \'pending\' | \'ready\' | \'running\' | \'succeeded\' | \'failed\' | \'skipped\' | \'paused\';\n    readonly title: string;\n    readonly attempts: number;\n    readonly maxAttempts: number;\n}',
-  },
-  {
-    name: 'HarnessRole',
-    declaration: 'export type HarnessRole = \'executor\' | \'reviewer\' | \'editorAi\';',
-  },
-  {
-    name: 'HarnessRunView',
-    declaration: 'export interface HarnessRunView {\n    readonly id: string;\n    readonly status: \'planning\' | \'running\' | \'paused\' | \'completed\' | \'failed\' | \'cancelled\';\n    readonly mode: \'fast\' | \'strict\';\n    readonly createdAt: string;\n    readonly updatedAt: string;\n    readonly usage: {\n        readonly inputTokens: number;\n        readonly outputTokens: number;\n        readonly costUsd: number;\n    };\n    readonly version: number;\n    readonly lastEventSeq: number;\n    readonly nodes: readonly HarnessNodeView[];\n}',
-  },
-  {
-    name: 'HarnessSettings',
-    declaration: 'export type HarnessSettings = z.infer<typeof harnessSettingsSchema>;',
-  },
-  {
-    name: 'HarnessSkillView',
-    declaration: 'export interface HarnessSkillView {\n    readonly id: string;\n    readonly installedVersion: string;\n    readonly versions: readonly {\n        readonly version: string;\n        readonly installedAt: string;\n        readonly signatureOk: boolean;\n    }[];\n}',
-  },
-  {
     name: 'NodeId',
-    declaration: 'export type NodeId = Branded<\'HarnessNodeId\'>;',
+    declaration: 'export type NodeId = Branded<\'PaperNodeId\'>;',
   },
   {
     name: 'NodeRecord',
@@ -4121,6 +4093,34 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'OneShotSubagentDescriptorData',
     declaration: 'export interface OneShotSubagentDescriptorData extends SubagentDescriptorBase {\n    readonly mode: \'one-shot\';\n    readonly label?: string;\n}',
+  },
+  {
+    name: 'PaperApi',
+    declaration: 'export interface PaperApi {\n    runs: {\n        list(request: RpcRequest<{}>): Promise<RpcResponse<{\n            runs: readonly PaperRunView[];\n        }>>;\n        get(request: RpcRequest<{\n            runId: string;\n        }>): Promise<RpcResponse<{\n            run: PaperRunView;\n        }>>;\n        start(request: RpcRequest<{\n            mode: \'fast\' | \'strict\';\n        }>): Promise<RpcResponse<{\n            run: PaperRunView;\n        }>>;\n        pause(request: RpcRequest<{\n            runId: string;\n        }>): Promise<RpcResponse<{\n            run: PaperRunView;\n        }>>;\n        resume(request: RpcRequest<{\n            runId: string;\n        }>): Promise<RpcResponse<{\n            run: PaperRunView;\n        }>>;\n        cancel(request: RpcRequest<{\n            runId: string;\n        }>): Promise<RpcResponse<{\n            run: PaperRunView;\n        }>>;\n        events(request: RpcRequest<{\n            runId: string;\n            afterSeq?: number;\n        }>): Promise<RpcResponse<{\n            events: readonly PaperEventView[];\n            lastSeq: number;\n        }>>;\n    };\n    skills: {\n        list(request: RpcRequest<{}>): Promise<RpcResponse<{\n            skills: readonly PaperSkillView[];\n        }>>;\n        install(request: RpcRequest<{\n            directory: string;\n        }>): Promise<RpcResponse<{\n            skill: PaperSkillView;\n        }>>;\n        rollback(request: RpcRequest<{\n            id: string;\n            toVersion: string;\n        }>): Pro /* …truncated — full shape in source */',
+  },
+  {
+    name: 'PaperEventView',
+    declaration: 'export interface PaperEventView {\n    readonly seq: number;\n    readonly type: string;\n    readonly nodeId: string | null;\n    readonly data: Record<string, unknown>;\n    readonly timestamp: string;\n}',
+  },
+  {
+    name: 'PaperNodeView',
+    declaration: 'export interface PaperNodeView {\n    readonly id: string;\n    readonly type: \'plan\' | \'execute\' | \'review\' | \'revise\' | \'deliver\';\n    readonly state: \'pending\' | \'ready\' | \'running\' | \'succeeded\' | \'failed\' | \'skipped\' | \'paused\';\n    readonly title: string;\n    readonly attempts: number;\n    readonly maxAttempts: number;\n}',
+  },
+  {
+    name: 'PaperRole',
+    declaration: 'export type PaperRole = \'executor\' | \'reviewer\' | \'editorAi\';',
+  },
+  {
+    name: 'PaperRunView',
+    declaration: 'export interface PaperRunView {\n    readonly id: string;\n    readonly status: \'planning\' | \'running\' | \'paused\' | \'completed\' | \'failed\' | \'cancelled\';\n    readonly mode: \'fast\' | \'strict\';\n    readonly createdAt: string;\n    readonly updatedAt: string;\n    readonly usage: {\n        readonly inputTokens: number;\n        readonly outputTokens: number;\n        readonly costUsd: number;\n    };\n    readonly version: number;\n    readonly lastEventSeq: number;\n    readonly nodes: readonly PaperNodeView[];\n}',
+  },
+  {
+    name: 'PaperSettings',
+    declaration: 'export type PaperSettings = z.infer<typeof paperSettingsSchema>;',
+  },
+  {
+    name: 'PaperSkillView',
+    declaration: 'export interface PaperSkillView {\n    readonly id: string;\n    readonly installedVersion: string;\n    readonly versions: readonly {\n        readonly version: string;\n        readonly installedAt: string;\n        readonly signatureOk: boolean;\n    }[];\n}',
   },
   {
     name: 'PermissionSelect',
@@ -4280,7 +4280,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'ResolvedRoleRoute',
-    declaration: 'export interface ResolvedRoleRoute extends ProviderRoute {\n    readonly role: HarnessRole;\n}',
+    declaration: 'export interface ResolvedRoleRoute extends ProviderRoute {\n    readonly role: PaperRole;\n}',
   },
   {
     name: 'ResolvedSubagentStartRequest',
@@ -4328,7 +4328,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'RunId',
-    declaration: 'export type RunId = Branded<\'HarnessRunId\'>;',
+    declaration: 'export type RunId = Branded<\'PaperRunId\'>;',
   },
   {
     name: 'RunnerFailureRule',

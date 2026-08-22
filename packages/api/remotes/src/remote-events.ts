@@ -25,6 +25,6 @@ export const API_REMOTE_FORWARDED_EVENTS = [
   'cordis/inspect-query',
   'cordis/inspect-query-resolved',
   'llm/adapters-updated',
-  'harness/run-event',
+  'paper/run-event',
   'settings/document-updated',
 ] as const

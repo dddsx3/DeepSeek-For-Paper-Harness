@@ -201,18 +201,18 @@ flowchart LR
   pkg_cordis_host_runner["cordis-host-runner"]
   svc_dynamicCordisRunner["ctx.dynamicCordisRunner<br/>Dynamic Cordis package host runner"]
   svc_cordisInspect["ctx.cordisInspect<br/>Dynamic Cordis inspect registry"]
-  pkg_harness_foundation["harness-foundation"]
-  svc_harnessFoundation["ctx.harnessFoundation<br/>Harness workflow domain owner"]
-  pkg_harness["harness"]
-  svc_harnessMigration["ctx.harnessMigration<br/>Harness legacy migration progress"]
-  svc_harnessWorkflow["ctx.harnessWorkflow<br/>Harness durable run engine"]
-  svc_harnessExecutor["ctx.harnessExecutor<br/>Harness node executor"]
-  svc_harnessProvider["ctx.harnessProvider<br/>Harness role routing"]
-  svc_harnessSettings["ctx.harnessSettings<br/>Harness role settings"]
-  svc_harnessDiagnostics["ctx.harnessDiagnostics<br/>Harness connectivity probe"]
-  svc_harnessAudit["ctx.harnessAudit<br/>Harness audit trail"]
-  svc_harnessSkillCatalog["ctx.harnessSkillCatalog<br/>Harness signed skill catalog"]
-  svc_harnessRelease["ctx.harnessRelease<br/>Harness release state"]
+  pkg_paper_foundation["paper-foundation"]
+  svc_paperFoundation["ctx.paperFoundation<br/>Paper workflow domain owner"]
+  pkg_paper["paper"]
+  svc_paperMigration["ctx.paperMigration<br/>Paper legacy migration progress"]
+  svc_paperWorkflow["ctx.paperWorkflow<br/>Paper durable run engine"]
+  svc_paperExecutor["ctx.paperExecutor<br/>Paper node executor"]
+  svc_paperProvider["ctx.paperProvider<br/>Paper role routing"]
+  svc_paperSettings["ctx.paperSettings<br/>Paper role settings"]
+  svc_paperDiagnostics["ctx.paperDiagnostics<br/>Paper connectivity probe"]
+  svc_paperAudit["ctx.paperAudit<br/>Paper audit trail"]
+  svc_paperSkillCatalog["ctx.paperSkillCatalog<br/>Paper signed skill catalog"]
+  svc_paperRelease["ctx.paperRelease<br/>Paper release state"]
   pkg_acp --> svc_approval
   pkg_agent --> svc_agents
   pkg_agent_default_model --> svc_agentDefaultModel
@@ -258,17 +258,17 @@ flowchart LR
   pkg_lsp --> svc_lsp
   pkg_lsp_local --> svc_lsp
   pkg_message_feedback --> svc_messageFeedback
-  pkg_harness_foundation --> svc_harnessAudit
-  pkg_harness_foundation --> svc_harnessDiagnostics
-  pkg_harness_foundation --> svc_harnessExecutor
-  pkg_harness_foundation --> svc_harnessFoundation
-  pkg_harness_foundation --> svc_harnessMigration
-  pkg_harness_foundation --> svc_harnessProvider
-  pkg_harness_foundation --> svc_harnessRelease
-  pkg_harness_foundation --> svc_harnessSettings
-  pkg_harness_foundation --> svc_harnessSkillCatalog
-  pkg_harness_foundation --> svc_harnessWorkflow
   pkg_modules --> svc_clientModules
+  pkg_paper_foundation --> svc_paperAudit
+  pkg_paper_foundation --> svc_paperDiagnostics
+  pkg_paper_foundation --> svc_paperExecutor
+  pkg_paper_foundation --> svc_paperFoundation
+  pkg_paper_foundation --> svc_paperMigration
+  pkg_paper_foundation --> svc_paperProvider
+  pkg_paper_foundation --> svc_paperRelease
+  pkg_paper_foundation --> svc_paperSettings
+  pkg_paper_foundation --> svc_paperSkillCatalog
+  pkg_paper_foundation --> svc_paperWorkflow
   pkg_permission_presets --> svc_permissionPresets
   pkg_plan_mode --> svc_planMode
   pkg_pwsh_local --> svc_shell
@@ -364,18 +364,18 @@ flowchart LR
   svc_llm --> pkg_agent_loop
   svc_llm --> pkg_compaction_basic
   svc_lsp --> pkg_tool_lsp
-  svc_harnessAudit --> pkg_harness
-  svc_harnessDiagnostics --> pkg_harness
-  svc_harnessExecutor --> pkg_harness
-  svc_harnessFoundation --> pkg_harness
-  svc_harnessMigration --> pkg_harness
-  svc_harnessProvider --> pkg_harness
-  svc_harnessRelease --> pkg_harness
-  svc_harnessSettings --> pkg_harness
-  svc_harnessSkillCatalog --> pkg_host_apiproxy
-  svc_harnessSkillCatalog --> pkg_harness
-  svc_harnessWorkflow --> pkg_host_apiproxy
-  svc_harnessWorkflow --> pkg_harness
+  svc_paperAudit --> pkg_paper
+  svc_paperDiagnostics --> pkg_paper
+  svc_paperExecutor --> pkg_paper
+  svc_paperFoundation --> pkg_paper
+  svc_paperMigration --> pkg_paper
+  svc_paperProvider --> pkg_paper
+  svc_paperRelease --> pkg_paper
+  svc_paperSettings --> pkg_paper
+  svc_paperSkillCatalog --> pkg_host_apiproxy
+  svc_paperSkillCatalog --> pkg_paper
+  svc_paperWorkflow --> pkg_host_apiproxy
+  svc_paperWorkflow --> pkg_paper
   svc_sandbox --> pkg_bash_sandbox
   svc_sandbox --> pkg_terminal_bash
   svc_sandboxPolicy --> pkg_bash_sandbox
@@ -518,15 +518,15 @@ flowchart LR
 | `ctx.apiProxy` | `core` | `apiproxy` | - | `connection` | - | The transport-agnostic host gateway face: it dispatches browser API calls, and each open host stream subscribes to the events it forwards rather than being pushed to through a broadcast verb. |
 | `ctx.dynamicCordisRunner` | `core` | [`cordis-host-runner`](../packages/extensions/cordis-host-runner) | - | [`tool-cordis`](../packages/extensions/tool-cordis) | - | Owns the in-memory definition registry, the vm sandbox for host halves, and the request-run round trip; browser pages reach the same service over the wire through its remote namespace. |
 | `ctx.cordisInspect` | `core` | [`cordis-host-runner`](../packages/extensions/cordis-host-runner) | - | [`tool-cordis`](../packages/extensions/tool-cordis) | - | Registers host inspect providers, mirrors the client provider manifest, and routes client queries through the dynamic Cordis transport. |
-| `ctx.harnessFoundation` | `seam` | [`harness-foundation`](../packages/harness/harness-foundation) | - | [`harness`](../packages/harness/harness-bundle) | - | Opens the versioned Harness run domain and exposes its repository; the bundle layer mounts it, and every other Harness service reads durable facts through it. |
-| `ctx.harnessMigration` | `seam` | [`harness-foundation`](../packages/harness/harness-foundation) | - | [`harness`](../packages/harness/harness-bundle) | - | Exposes an explicit dry-run/commit runner over the operator-supplied legacy rows; it records resumable progress but never scans, imports, edits, or deletes predecessor data at startup. |
-| `ctx.harnessWorkflow` | `seam` | [`harness-foundation`](../packages/harness/harness-foundation) | - | [`host-apiproxy`](../packages/host/apiproxy), [`harness`](../packages/harness/harness-bundle) | - | Owns run and node transitions, the append-only event log, and startup recovery; named harnessWorkflow because the upstream script engine already holds ctx.workflowEngine. |
-| `ctx.harnessExecutor` | `seam` | [`harness-foundation`](../packages/harness/harness-foundation) | - | [`harness`](../packages/harness/harness-bundle) | - | Drives plan, execute, the mode-bounded review loop, and delivery; retry, cost, audit, and context budgeting are composed seams rather than logic inside the engine. |
-| `ctx.harnessProvider` | `seam` | [`harness-foundation`](../packages/harness/harness-foundation) | - | [`harness`](../packages/harness/harness-bundle) | - | Resolves the executor, reviewer, and editor roles through ctx.llm and dispatches with ctx.llm.stream, so provider adapters stay the only implementation of a route. |
-| `ctx.harnessSettings` | `seam` | [`harness-foundation`](../packages/harness/harness-foundation) | - | [`harness`](../packages/harness/harness-bundle) | - | Publishes the Harness settings namespace holding role routes and the default mode; credential fields are references the credentials seam resolves later. |
-| `ctx.harnessDiagnostics` | `seam` | [`harness-foundation`](../packages/harness/harness-foundation) | - | [`harness`](../packages/harness/harness-bundle) | - | One bounded cancellable request that creates no Session and returns only route, model, latency, and a stable status code. |
-| `ctx.harnessAudit` | `seam` | [`harness-foundation`](../packages/harness/harness-foundation) | - | [`harness`](../packages/harness/harness-bundle) | - | A separate domain ordered by append sequence, because two operations can land in the same millisecond; every detail map is redacted before it becomes durable. |
-| `ctx.harnessSkillCatalog` | `seam` | [`harness-foundation`](../packages/harness/harness-foundation) | - | [`host-apiproxy`](../packages/host/apiproxy), [`harness`](../packages/harness/harness-bundle) | - | Durable install, version history, rollback, and conflict detection for signed skill packages; the catalog provider serves its active versions through ctx.skills. |
-| `ctx.harnessRelease` | `seam` | [`harness-foundation`](../packages/harness/harness-foundation) | - | [`harness`](../packages/harness/harness-bundle) | - | Stages verified releases, records what is active and what it replaced, and rolls back a version that never reported healthy; installing artifacts stays with the caller. |
+| `ctx.paperFoundation` | `seam` | [`paper-foundation`](../packages/paper/paper-foundation) | - | [`paper`](../packages/paper/paper-bundle) | - | Opens the versioned Paper run domain and exposes its repository; the bundle layer mounts it, and every other Paper service reads durable facts through it. |
+| `ctx.paperMigration` | `seam` | [`paper-foundation`](../packages/paper/paper-foundation) | - | [`paper`](../packages/paper/paper-bundle) | - | Exposes an explicit dry-run/commit runner over the operator-supplied legacy rows; it records resumable progress but never scans, imports, edits, or deletes predecessor data at startup. |
+| `ctx.paperWorkflow` | `seam` | [`paper-foundation`](../packages/paper/paper-foundation) | - | [`host-apiproxy`](../packages/host/apiproxy), [`paper`](../packages/paper/paper-bundle) | - | Owns run and node transitions, the append-only event log, and startup recovery; named paperWorkflow because the upstream script engine already holds ctx.workflowEngine. |
+| `ctx.paperExecutor` | `seam` | [`paper-foundation`](../packages/paper/paper-foundation) | - | [`paper`](../packages/paper/paper-bundle) | - | Drives plan, execute, the mode-bounded review loop, and delivery; retry, cost, audit, and context budgeting are composed seams rather than logic inside the engine. |
+| `ctx.paperProvider` | `seam` | [`paper-foundation`](../packages/paper/paper-foundation) | - | [`paper`](../packages/paper/paper-bundle) | - | Resolves the executor, reviewer, and editor roles through ctx.llm and dispatches with ctx.llm.stream, so provider adapters stay the only implementation of a route. |
+| `ctx.paperSettings` | `seam` | [`paper-foundation`](../packages/paper/paper-foundation) | - | [`paper`](../packages/paper/paper-bundle) | - | Publishes the Paper settings namespace holding role routes and the default mode; credential fields are references the credentials seam resolves later. |
+| `ctx.paperDiagnostics` | `seam` | [`paper-foundation`](../packages/paper/paper-foundation) | - | [`paper`](../packages/paper/paper-bundle) | - | One bounded cancellable request that creates no Session and returns only route, model, latency, and a stable status code. |
+| `ctx.paperAudit` | `seam` | [`paper-foundation`](../packages/paper/paper-foundation) | - | [`paper`](../packages/paper/paper-bundle) | - | A separate domain ordered by append sequence, because two operations can land in the same millisecond; every detail map is redacted before it becomes durable. |
+| `ctx.paperSkillCatalog` | `seam` | [`paper-foundation`](../packages/paper/paper-foundation) | - | [`host-apiproxy`](../packages/host/apiproxy), [`paper`](../packages/paper/paper-bundle) | - | Durable install, version history, rollback, and conflict detection for signed skill packages; the catalog provider serves its active versions through ctx.skills. |
+| `ctx.paperRelease` | `seam` | [`paper-foundation`](../packages/paper/paper-foundation) | - | [`paper`](../packages/paper/paper-bundle) | - | Stages verified releases, records what is active and what it replaced, and rolls back a version that never reported healthy; installing artifacts stays with the caller. |
 
 Maintenance mode: hybrid: services are discovered from Cordis declarations; interface/implementation/consumer roles are classified in `scripts/gen-doc-graphs.ts` with a completeness guard.

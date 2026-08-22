@@ -665,7 +665,7 @@
         "@deepseek-ai/.+"
       ]
     },
-    "packages/harness/harness-foundation": {
+    "packages/paper/paper-foundation": {
       "entry": [
         "tests/**/*.e2e.ts"
       ],
@@ -674,7 +674,7 @@
         "tests/**/*.ts"
       ]
     },
-    "packages/harness/harness-bundle": {
+    "packages/paper/paper-bundle": {
       "ignoreDependencies": [
         "@deepseek-ai/.+"
       ]
