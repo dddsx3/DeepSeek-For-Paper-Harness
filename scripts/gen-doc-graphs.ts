@@ -598,6 +598,14 @@ const SERVICE_ROLES: ServiceRole[] = [
     note: 'Opens the versioned Harness run domain and exposes its repository; the bundle layer mounts it, and every other Harness service reads durable facts through it.',
   },
   {
+    key: 'harnessMigration',
+    pkg: 'harness-foundation',
+    title: 'Harness legacy migration progress',
+    mode: 'seam',
+    consumers: ['harness'],
+    note: 'Exposes an explicit dry-run/commit runner over the operator-supplied legacy rows; it records resumable progress but never scans, imports, edits, or deletes predecessor data at startup.',
+  },
+  {
     key: 'harnessWorkflow',
     pkg: 'harness-foundation',
     title: 'Harness durable run engine',

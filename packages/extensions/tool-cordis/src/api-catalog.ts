@@ -1127,6 +1127,31 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     methods: [],
   },
   {
+    key: 'harnessMigration',
+    summary: 'Lifecycle owner of the migration domain and its runner factory.',
+    description: 'Lifecycle owner of the migration domain and its runner factory.',
+    methods: [
+      {
+        signature: 'runner(resolvers: Pick<LegacyRecordOptions, \'resolveRunId\' | \'resolveNodeId\' | \'resolveArtifactId\'>): LegacyMigrationRunner',
+        description: 'Build a runner over this installation\'s durable records.',
+        parameters: [{ name: 'resolvers', description: 'id translation for the legacy ids being imported.' }],
+        returns: 'a runner for one migration pass.',
+      },
+      {
+        signature: 'marks(): MigrationMark[]',
+        description: 'Every completion mark recorded so far, oldest first.',
+        parameters: [],
+        returns: 'a snapshot of the migration marks.',
+      },
+      {
+        signature: 'async notePass(report: MigrationReport): Promise<MigrationState>',
+        description: 'Note that a pass finished, so an operator can tell a fresh installation from one that has already imported its predecessor\'s data.',
+        parameters: [{ name: 'report', description: 'the committed pass to record.' }],
+        returns: 'the durable state after recording.',
+      },
+    ],
+  },
+  {
     key: 'harnessProvider',
     summary: 'Shared LLM seam used by workflow consumers.',
     description: 'Shared LLM seam used by workflow consumers.',
@@ -3086,6 +3111,14 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export class ApprovalService extends Service {\n    static Config: z<Config>;\n    constructor(ctx: Context, public config: Config);\n    setPolicy(agent: Agent, policy: ApprovalPolicy): void;\n    async request(req: ApprovalRequest): Promise<ApprovalOutcome>;\n    overrideOf(session: Session): ApprovalPolicy | undefined;\n}',
   },
   {
+    name: 'ArtifactId',
+    declaration: 'export type ArtifactId = Branded<\'HarnessArtifactId\'>;',
+  },
+  {
+    name: 'ArtifactRecord',
+    declaration: 'export type ArtifactRecord = z.infer<typeof artifactRecordSchema>;',
+  },
+  {
     name: 'AskUserQuestionAnswer',
     declaration: 'export interface AskUserQuestionAnswer {\n    answers: AskUserQuestionAnswerItem[];\n}',
   },
@@ -3144,6 +3177,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'AuditRecord',
     declaration: 'export type AuditRecord = zod.infer<typeof auditRecordSchema>;',
+  },
+  {
+    name: 'AuditSink',
+    declaration: 'export interface AuditSink {\n    record(entry: AuditEntryInput): Promise<unknown>;\n}',
   },
   {
     name: 'AuthorizationEntry',
@@ -3806,6 +3843,18 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface KvUnitDescriptor {\n    readonly name: string;\n    readonly version: number;\n    readonly tables: readonly string[];\n    readonly hasGlobal: boolean;\n}',
   },
   {
+    name: 'LegacyMigrationRunner',
+    declaration: 'export class LegacyMigrationRunner {\n    constructor(private readonly repository: WorkflowRunRepository, private readonly marks: KvTable<string, MigrationMark>, private readonly options: LegacyRecordOptions, private readonly audit?: AuditSink);\n    plan(bundles: readonly LegacyRunBundle[]): MigrationReport;\n    async apply(bundles: readonly LegacyRunBundle[]): Promise<MigrationReport>;\n}',
+  },
+  {
+    name: 'LegacyRecordOptions',
+    declaration: 'export interface LegacyRecordOptions {\n    readonly resolveRunId: (legacyId: string) => RunId;\n    readonly resolveNodeId: (legacyId: string) => NodeId;\n    readonly resolveArtifactId: (legacyId: string) => ArtifactId;\n    readonly harnessVersion: string;\n    readonly configHash: string;\n}',
+  },
+  {
+    name: 'LegacyRunBundle',
+    declaration: 'export interface LegacyRunBundle {\n    readonly legacyId: string;\n    readonly run: unknown;\n    readonly nodes: readonly unknown[];\n    readonly events: readonly unknown[];\n}',
+  },
+  {
     name: 'LlmAdapter',
     declaration: 'export abstract class LlmAdapter {\n    providerInfo(provider: string): LlmProviderInfo;\n    providerRetryPolicy(_provider: string): ResolvedRetryPolicy | undefined;\n    listModels(_provider: string): Promise<readonly LlmModelInfo[]>;\n    resolveModel(provider: string, model: string, _signal?: AbortSignal): Promise<LlmResolvedModelInfo>;\n    async prepareCall(provider: string, model: string, signal?: AbortSignal): Promise<PreparedAdapterCall>;\n    abstract stream(options: GenerateOptions): AsyncIterable<StreamChunk>;\n}',
   },
@@ -3900,6 +3949,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'LspRange',
     declaration: 'export interface LspRange {\n    readonly start: LspPosition;\n    readonly end: LspPosition;\n}',
+  },
+  {
+    name: 'Manifest',
+    declaration: 'export type Manifest = z.infer<typeof manifestSchema>;',
   },
   {
     name: 'ManualCompactAgentContext',
@@ -3998,6 +4051,22 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface MessageSourceMap {\n    user: {\n        kind: \'user\';\n    };\n    plugin: {\n        kind: \'plugin\';\n        plugin: string;\n    } & ContextFormed;\n    model: ModelMessageSource;\n    tool: ToolMessageSource;\n}',
   },
   {
+    name: 'MigratedRunOutcome',
+    declaration: 'export interface MigratedRunOutcome {\n    readonly legacyId: string;\n    readonly state: \'migrated\' | \'skipped\' | \'refused\';\n    readonly nodes: number;\n    readonly events: number;\n    readonly reason?: string;\n}',
+  },
+  {
+    name: 'MigrationMark',
+    declaration: 'export type MigrationMark = zod.infer<typeof migrationMarkSchema>;',
+  },
+  {
+    name: 'MigrationReport',
+    declaration: 'export interface MigrationReport {\n    readonly committed: boolean;\n    readonly runs: readonly MigratedRunOutcome[];\n    readonly migrated: number;\n    readonly skipped: number;\n    readonly refused: number;\n}',
+  },
+  {
+    name: 'MigrationState',
+    declaration: 'export type MigrationState = zod.infer<typeof migrationStateSchema>;',
+  },
+  {
     name: 'ModelMessageSource',
     declaration: 'export interface ModelMessageSource extends AssistantProvenance {\n    kind: \'model\';\n}',
   },
@@ -4036,6 +4105,14 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'HarnessSkillView',
     declaration: 'export interface HarnessSkillView {\n    readonly id: string;\n    readonly installedVersion: string;\n    readonly versions: readonly {\n        readonly version: string;\n        readonly installedAt: string;\n        readonly signatureOk: boolean;\n    }[];\n}',
+  },
+  {
+    name: 'NodeId',
+    declaration: 'export type NodeId = Branded<\'HarnessNodeId\'>;',
+  },
+  {
+    name: 'NodeRecord',
+    declaration: 'export type NodeRecord = z.infer<typeof nodeRecordSchema>;',
   },
   {
     name: 'ObjectJsonSchema',
@@ -4250,8 +4327,16 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type RpcResult<T> = {\n    ok: true;\n    value: T;\n} | {\n    ok: false;\n    error: RpcError;\n};',
   },
   {
+    name: 'RunId',
+    declaration: 'export type RunId = Branded<\'HarnessRunId\'>;',
+  },
+  {
     name: 'RunnerFailureRule',
     declaration: 'export interface RunnerFailureRule {\n    allowedExitCodes?: readonly number[];\n    fatalSignatures: readonly string[];\n    informationalLines?: readonly string[];\n}',
+  },
+  {
+    name: 'RunRecord',
+    declaration: 'export type RunRecord = z.infer<typeof runRecordSchema>;',
   },
   {
     name: 'SandboxEnforcement',
@@ -5312,6 +5397,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'WorkflowRunInfo',
     declaration: 'export interface WorkflowRunInfo {\n    id: WorkflowRunId;\n    meta: WorkflowMeta;\n}',
+  },
+  {
+    name: 'WorkflowRunRepository',
+    declaration: 'export interface WorkflowRunRepository {\n    getRun(id: RunId): RunRecord | undefined;\n    listRuns(): RunRecord[];\n    putRun(record: RunRecord): Promise<void>;\n    getNode(id: NodeId): NodeRecord | undefined;\n    listNodes(runId: RunId): NodeRecord[];\n    putNode(record: NodeRecord): Promise<void>;\n    appendEvent(event: WorkflowEvent): Promise<void>;\n    listEvents(runId: RunId, afterSeq?: number): WorkflowEvent[];\n    latestEventSeq(runId: RunId): number;\n    putArtifact(record: ArtifactRecord): Promise<void>;\n    getArtifact(id: ArtifactId): ArtifactRecord | undefined;\n    putManifest(manifest: Manifest): Promise<void>;\n    getManifest(runId: RunId): Manifest | undefined;\n    close(): Promise<void>;\n}',
   },
   {
     name: 'WorkflowStartRequest',

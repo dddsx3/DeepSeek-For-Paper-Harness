@@ -49,6 +49,11 @@
         releasePolicy:
           harnessVersion: 0.1.1-rc.2
           allowUnsigned: false
+        # Mounts the progress domain and explicit runner only. It never scans
+        # or imports legacy data during startup; an operator previews first.
+        migrationPolicy:
+          harnessVersion: 0.1.1-rc.2
+          configHash: legacy-migration
 
     # The signed skill catalog and the provider serving its active versions.
     - id: harness-skill-catalog

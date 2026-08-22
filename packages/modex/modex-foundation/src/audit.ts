@@ -31,6 +31,11 @@ export const AUDIT_EVENT_TYPES = [
   'release_staged',
   'release_activated',
   'release_rollback',
+  'migration_started',
+  'migration_record',
+  'migration_skipped',
+  'migration_completed',
+  'migration_failed',
 ] as const
 
 /** One audited operation kind. */

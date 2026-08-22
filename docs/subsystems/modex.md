@@ -8,7 +8,7 @@ Source: [`packages/harness/harness-foundation/src/spec.ts`](../../packages/harne
 
 ## Durable records
 
-Four versioned domains carry the subsystem's state, each opened through the shared `storage-domain` facility:
+Five versioned domains carry the subsystem's state, each opened through the shared `storage-domain` facility:
 
 | Domain | Version | Holds |
 |---|---|---|
@@ -16,6 +16,7 @@ Four versioned domains carry the subsystem's state, each opened through the shar
 | `harness_skills` | 0 | installed skill packages with their version history |
 | `harness_audit` | 0 | the audit trail, keyed by append sequence |
 | `harness_releases` | 0 | this install's identity plus every staged release record |
+| `harness_migration` | 0 | per-legacy-id completion marks and the last completed migration pass |
 
 A run holds its mode (`fast` or `strict`), the harness version, and a config hash; a node holds its kind, attempt count, and status. Events are the authority: `replayWorkflow` refuses a history with a sequence gap, a foreign run id, or an illegal transition, so recovery either agrees with the records or fails loud rather than resuming from a state nobody can justify.
 
@@ -37,6 +38,14 @@ Retry, cost, audit, and context budgeting are separate modules the executor comp
 A skill package is a directory with `skill.json`, `system.md`, and optional tool declarations; `loadSignedSkill` checks schema, harness compatibility, trust root, detached Ed25519 signature, and each declared file's SHA-256 before the package can load. `SkillCatalogService` keeps one directory per installed version, re-validates a version before rolling back to it, and refuses installs whose active set would declare one tool twice or activate mutually exclusive tag groups.
 
 A release is a signed manifest of content-addressed artifacts. `verifyReleaseManifest` judges the manifest, `verifyReleaseArtifacts` checks each artifact's size before its hash, and `isInRollout` resolves a staged rollout as a pure function of install identity and version, so an install stays on the same side of a rollout across restarts. `HarnessReleaseService` records what is staged, active, replaced, and healthy; a version activated but never confirmed healthy is rolled back to its predecessor on the next start. Moving artifacts into place and restarting the process belong to the installer that calls the service.
+
+## Legacy migration and content cleansing
+
+`legacy.ts` is the pure translation boundary for predecessor data: it normalizes run and node enums, stamps new records, infers a provider from a deployment-owned path-segment table, and turns an inline legacy API key into a `CredentialPlacement`. The migrated settings document contains only `credentialRef`; the caller hands each placement to the existing credentials seam. Unknown enum values fail instead of being guessed, and an interrupted legacy run maps to `paused`, because work stopped mid-flight remains resumable.
+
+`LegacyMigrationRunner.plan()` translates every bundle without writing, and `apply()` invokes the same translation before it commits. The source is never deleted or marked in place. Progress lives in `harness_migration`: a legacy id receives a completion mark only after its run, nodes, and contiguous event log land. If the process stops before that mark, the next pass retries the idempotent keyed writes and skips event sequences already present; if it stops after the mark, the next pass skips the bundle. Every start, committed record, skip, refusal, and completion reaches `harness_audit`. The composition mounts the service but never starts a migration — preview and commit are explicit operator actions.
+
+`cleanseSkillBody` removes operating instructions that name a predecessor command-line tool or bypass the live permission surface, drops directives that assume a parseable provider reasoning channel, and turns provider-specific XML-style blocks into neutral fenced blocks while keeping their contents. Every rewrite reports the stable rule id, original line, and excerpt. A person reviews that report before the cleansed `system.md` is signed and installed; cleansing model-visible text is never a silent catalog side effect.
 
 <!-- BEGIN GENERATED cordis-surface (gen-cordis-catalog.ts) — do not edit between markers -->
 
@@ -102,6 +111,37 @@ Source: [`packages/harness/harness-foundation/src/executor-service.ts`](../../pa
 Owns the phase-two workflow domain and exposes its repository.
 
 Source: [`packages/harness/harness-foundation/src/index.ts`](../../packages/harness/harness-foundation/src/index.ts)
+
+<a id="ctxharnessmigration--harnessmigrationservice"></a>
+
+### `ctx.harnessMigration` — `HarnessMigrationService`
+
+Lifecycle owner of the migration domain and its runner factory.
+
+```ts cordis-catalog
+/**
+ * Build a runner over this installation's durable records.
+ * @param resolvers - id translation for the legacy ids being imported.
+ * @returns a runner for one migration pass.
+ */
+runner(resolvers: Pick<LegacyRecordOptions, 'resolveRunId' | 'resolveNodeId' | 'resolveArtifactId'>): LegacyMigrationRunner
+
+/**
+ * Every completion mark recorded so far, oldest first.
+ * @returns a snapshot of the migration marks.
+ */
+marks(): MigrationMark[]
+
+/**
+ * Note that a pass finished, so an operator can tell a fresh installation
+ * from one that has already imported its predecessor's data.
+ * @param report - the committed pass to record.
+ * @returns the durable state after recording.
+ */
+async notePass(report: MigrationReport): Promise<MigrationState>
+```
+
+Source: [`packages/harness/harness-foundation/src/migration.ts`](../../packages/harness/harness-foundation/src/migration.ts)
 
 <a id="ctxharnessprovider--harnessproviderservice"></a>
 

@@ -27,6 +27,9 @@ Harness 扩展的第二阶段基础包。本包拥有版本化的工作流运行
 - `CatalogSkillProvider`：通过 `ctx.skills` 提供目录的活跃版本。
 - `verifyReleaseManifest` / `isInRollout` / `verifyReleaseArtifacts`：发布清单需通过信任根、harness 版本下限、灰度分桶与逐产物内容哈希的判定。
 - `HarnessReleaseService`：发布的持久暂存、激活、健康确认与回滚，并在启动时对未报告健康的版本进行对账。
+- `migrateLegacySettings` / `migrateLegacyRun` / `migrateLegacyNode` / `migrateLegacyEvent`：把旧版文档与数据行纯翻译为只含凭据引用的 settings 和当前持久记录。
+- `LegacyMigrationRunner` / `HarnessMigrationService`：带旧版 id 完成标记和迁移审计事件的干跑、可续跑、非破坏性导入。
+- `cleanseSkillBody` / `needsCleansing`：可审核地移除 provider 专用标记、命令行指令、权限绕过指令与 reasoning 通道假设。
 
 `harness.*` apiproxy 域（`api/harness.ts`）暴露运行控制（`harness.runs.*`）、带 `afterSeq` 游标的可续传事件读取，以及目录操作（`harness.skills.*`），并使用结构化的 `harness-*` 错误代码；引擎服务命名为 `harnessWorkflow`，以避开上游已占用的 `workflowEngine`。持久事件同时通过 `harness/run-event` Cordis 事件在进程内推送，该事件已列入 `API_REMOTE_FORWARDED_EVENTS`，因此远程消费者可经既有下行通道以 `host/remote-event` 帧收到它们。
 
@@ -34,9 +37,11 @@ Harness 扩展的第二阶段基础包。本包拥有版本化的工作流运行
 
 节点只重试重试能修复的失败；凭据、路由与请求合法性类失败立即让运行失败，而尝试次数用尽的节点转入暂停待人工复核而非失败，因此恢复后的运行可从该节点继续。一旦当日预算用尽，运行拒绝发起新的模型调用：转入暂停并记录该拒绝。审计明细与提供方文本在入库前被遮蔽，因此没有凭据值进入追踪。
 
-引擎只负责状态事实与恢复。签名包必须通过清单、文件哈希、兼容性、信任根与 Ed25519 校验才能加载；未签名包仅在开发态配合 `allowUnsigned` 加载，生产构建一律拒绝。目录安装会拒绝会导致同一工具被声明两次、或互斥标签组同时激活的技能组合。提供方重试策略、用户界面、事件传输与迁移逻辑属于后续阶段。
+引擎只负责状态事实与恢复。签名包必须通过清单、文件哈希、兼容性、信任根与 Ed25519 校验才能加载；未签名包仅在开发态配合 `allowUnsigned` 加载，生产构建一律拒绝。目录安装会拒绝会导致同一工具被声明两次、或互斥标签组同时激活的技能组合。
 
 一次更新就是一份"内容寻址产物"的签名清单，未通过校验的内容绝不会被激活：schema、harness 版本下限、信任根、分离式 Ed25519 签名，随后是每个产物的大小与 SHA-256。某个安装是否被纳入灰度，是其安装身份与版本号的纯函数，因此已进入灰度的安装在重启后仍在灰度内，而不是每次启动重新抽签；被暂缓的安装仍可能被下一个版本纳入。`HarnessReleaseService` 记录哪个版本已暂存、哪个已激活、它替换了谁，以及哪个已自报健康；激活后从未确认健康的版本会在下次启动时回滚到其前任，因此坏版本无法把一台安装困在自己身上。暂存、激活与回滚都会进入审计追踪。该服务记录发布状态并决定应当激活什么——把产物就位与重启进程属于调用它的安装器。
+
+历史迁移是显式且非破坏性的。纯翻译器遇到未知枚举直接失败而不是猜测，把内联 API key 提取为 credential placement，并让 settings 只保留引用。`LegacyMigrationRunner.plan()` 使用与 `apply()` 提交时完全相同的翻译来预览；`harness_migration` 只有在某个旧版运行的记录全部落盘后才写完成标记，因此中断的迁移按旧版 id 恢复，且绝不删除或修改旧来源。`cleanseSkillBody` 按规则和行号报告每次 provider 专用标记或指令改写；人工审核报告后，生成的 `system.md` 才能被签名并安装。组合会挂载迁移服务，但启动时绝不扫描或导入任何内容。
 
 本包运行在上游 TypeScript/Cordis 插件架构之上；不计划引入 FastAPI、Electron 或 Python 伴随进程。[`@deepseek-ai/dsh-harness`](../harness-bundle/README.zh.md) 是把这些服务组合为加载器行的 profile 组合包。
 
@@ -74,4 +79,5 @@ List defects, or return an empty list. Respond with JSON only in this shape:
 - **发布服务记录状态，不安装任何东西**：校验、暂存、激活、健康与回滚都是持久化的决策，而把产物落到磁盘、重启进程属于调用方。
 - **在部署指定信任根之前自更新保持关闭**：没有受信任密钥时任何清单都会被拒绝，这是刻意的默认值，而不是需要用 `allowUnsigned` 去填的缺口。
 - **审计追踪只按保留期清理**：目前没有导出路径，记录之间也还没有防篡改链式校验。
-- **历史数据迁移与技能内容整理属于后续阶段**：本包只读写自己的版本化域。
+- **旧版 SQLite 的提取由调用方负责**：本包只翻译读取器提供的不可信数据行；它不会打开未知的旧版数据库，也不会加载不透明二进制。
+- **内容清洗是机械处理，不等于编辑审核**：每次改写都会被报告，在人工审核之前结果保持未签名。

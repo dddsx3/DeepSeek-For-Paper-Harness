@@ -65,6 +65,8 @@ describe('dsh-harness bundle patch', () => {
     expect(release?.['trustRoots']).toBeUndefined()
     expect(release?.['allowUnsigned']).toBe(false)
     expect(release?.['harnessVersion']).toBe('0.1.1-rc.2')
+    const migration = harness?.config?.['migrationPolicy'] as Record<string, unknown> | undefined
+    expect(migration).toEqual({ harnessVersion: '0.1.1-rc.2', configHash: 'legacy-migration' })
     const catalog = patchRows().find(row => row.id === 'harness-skill-catalog')
     expect(catalog?.config?.['trustRoots']).toBeUndefined()
     expect(catalog?.config?.['allowUnsigned']).toBe(false)

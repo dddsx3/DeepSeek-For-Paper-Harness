@@ -190,9 +190,27 @@ export function newNodeId(): NodeId {
 }
 
 /**
+ * Brand an existing string as a {@link NodeId}; no validation is performed.
+ * @param id - the persisted node identifier.
+ * @returns the same string, branded.
+ */
+export function NodeId(id: string): NodeId {
+  return id as NodeId
+}
+
+/**
  * Create one opaque artifact identifier.
  * @returns a fresh branded artifact id.
  */
 export function newArtifactId(): ArtifactId {
   return randomUUID() as ArtifactId
+}
+
+/**
+ * Brand an existing string as an {@link ArtifactId}; no validation is performed.
+ * @param id - the persisted artifact identifier.
+ * @returns the same string, branded.
+ */
+export function ArtifactId(id: string): ArtifactId {
+  return id as ArtifactId
 }

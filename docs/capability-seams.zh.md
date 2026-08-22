@@ -206,6 +206,7 @@ flowchart LR
   pkg_harness_foundation["harness-foundation"]
   svc_harnessFoundation["ctx.harnessFoundation<br/>Harness workflow domain owner"]
   pkg_harness["harness"]
+  svc_harnessMigration["ctx.harnessMigration<br/>Harness legacy migration progress"]
   svc_harnessWorkflow["ctx.harnessWorkflow<br/>Harness durable run engine"]
   svc_harnessExecutor["ctx.harnessExecutor<br/>Harness node executor"]
   svc_harnessProvider["ctx.harnessProvider<br/>Harness role routing"]
@@ -263,6 +264,7 @@ flowchart LR
   pkg_harness_foundation --> svc_harnessDiagnostics
   pkg_harness_foundation --> svc_harnessExecutor
   pkg_harness_foundation --> svc_harnessFoundation
+  pkg_harness_foundation --> svc_harnessMigration
   pkg_harness_foundation --> svc_harnessProvider
   pkg_harness_foundation --> svc_harnessRelease
   pkg_harness_foundation --> svc_harnessSettings
@@ -368,6 +370,7 @@ flowchart LR
   svc_harnessDiagnostics --> pkg_harness
   svc_harnessExecutor --> pkg_harness
   svc_harnessFoundation --> pkg_harness
+  svc_harnessMigration --> pkg_harness
   svc_harnessProvider --> pkg_harness
   svc_harnessRelease --> pkg_harness
   svc_harnessSettings --> pkg_harness
@@ -518,6 +521,7 @@ flowchart LR
 | `ctx.dynamicCordisRunner` | `core` | [`cordis-host-runner`](../packages/extensions/cordis-host-runner) | - | [`tool-cordis`](../packages/extensions/tool-cordis) | - | 拥有内存定义注册表、Host 半的 vm 沙箱和 request-run 往返流程；浏览器页面通过其 Remote 命名空间在线访问同一服务。 |
 | `ctx.cordisInspect` | `core` | [`cordis-host-runner`](../packages/extensions/cordis-host-runner) | - | [`tool-cordis`](../packages/extensions/tool-cordis) | - | 注册 Host inspect 提供方、镜像 Client 提供方 manifest，并通过动态 Cordis 传输路由 Client 查询。 |
 | `ctx.harnessFoundation` | `seam` | [`harness-foundation`](../packages/harness/harness-foundation) | - | [`harness`](../packages/harness/harness-bundle) | - | 打开版本化的 Harness 运行域并暴露其仓储层；组合包层负责挂载它，其余 Harness 服务都通过它读取持久事实。 |
+| `ctx.harnessMigration` | `seam` | [`harness-foundation`](../packages/harness/harness-foundation) | - | [`harness`](../packages/harness/harness-bundle) | - | 为运维方提供的旧版数据行暴露显式干跑／提交 runner；它记录可续跑进度，但启动时绝不扫描、导入、修改或删除旧版数据。 |
 | `ctx.harnessWorkflow` | `seam` | [`harness-foundation`](../packages/harness/harness-foundation) | - | [`host-apiproxy`](../packages/host/apiproxy), [`harness`](../packages/harness/harness-bundle) | - | 拥有运行与节点状态转换、只追加事件日志和启动恢复；命名为 harnessWorkflow 是因为上游脚本引擎已占用 ctx.workflowEngine。 |
 | `ctx.harnessExecutor` | `seam` | [`harness-foundation`](../packages/harness/harness-foundation) | - | [`harness`](../packages/harness/harness-bundle) | - | 驱动 plan、execute、按模式限轮的复核循环与交付；重试、成本、审计与上下文预算是被组合的 seam，而不是引擎内部逻辑。 |
 | `ctx.harnessProvider` | `seam` | [`harness-foundation`](../packages/harness/harness-foundation) | - | [`harness`](../packages/harness/harness-bundle) | - | 通过 ctx.llm 解析执行、复核与编辑三个角色，并用 ctx.llm.stream 派发，因此提供方适配器仍是路由的唯一实现。 |

@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-08-22-harness-foundation-seams.md
-2026-08-22-harness-foundation-seams.md: 4b0ded9fe590b24170e9d1d48e17ecaad700bacc
-2026-08-22-harness-foundation-seams.zh.md: 9873566cd2d046a27426e691e21159e23bd260a7
+2026-08-22-harness-foundation-seams.md: 70739ca1877d4a5f05c8adbcd2431b7b1b014ef6
+2026-08-22-harness-foundation-seams.zh.md: 6f51bb1e970293ce0025943c37602c2aafa16295

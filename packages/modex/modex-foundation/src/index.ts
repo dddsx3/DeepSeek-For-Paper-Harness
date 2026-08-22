@@ -76,6 +76,28 @@ export {
   auditRecordSchema,
 } from './audit.ts'
 export type { AuditConfig, AuditEntryInput, AuditEventType, AuditRecord } from './audit.ts'
+export {
+  DEFAULT_LEGACY_TIMEOUT_MS, LegacyMigrationError, MODEX_ROLES, inferProvider,
+  legacyEventSchema, legacyNodeSchema, legacyRunSchema, legacySettingsSchema,
+  migrateLegacyEvent, migrateLegacyNode, migrateLegacyRun, migrateLegacySettings,
+  migrateNodeState, migrateNodeType, migrateRunMode, migrateRunStatus,
+} from './legacy.ts'
+export type {
+  CredentialPlacement, LegacyRecordOptions, LegacySettings, LegacySettingsOptions,
+  MigratedSettings, HarnessRoleName,
+} from './legacy.ts'
+export {
+  DEFAULT_CLEANSE_RULES, cleanseSkillBody, needsCleansing,
+} from './skill-content.ts'
+export type { CleanseChange, CleanseOutcome, CleanseRule, CleanseRuleKind } from './skill-content.ts'
+export {
+  DEFAULT_MIGRATION_CONFIG_HASH, LegacyMigrationRunner, HarnessMigrationService,
+  migrationDomainSpec, migrationMarkSchema, migrationStateSchema, resolveMigrationConfig,
+} from './migration.ts'
+export type {
+  LegacyRunBundle, MigratedRunOutcome, MigrationConfig, MigrationMark, MigrationReport,
+  MigrationState, ResolvedMigrationConfig,
+} from './migration.ts'
 
 /** Cordis plugin name. */
 export const name = 'harness-foundation'

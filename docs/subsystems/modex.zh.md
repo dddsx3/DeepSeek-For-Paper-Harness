@@ -8,7 +8,7 @@
 
 ## 持久记录
 
-四个版本化域承载该子系统的状态，每个都通过共享的 `storage-domain` 设施打开：
+五个版本化域承载该子系统的状态，每个都通过共享的 `storage-domain` 设施打开：
 
 | 域 | 版本 | 承载内容 |
 |---|---|---|
@@ -16,6 +16,7 @@
 | `harness_skills` | 0 | 已安装的技能包及其版本历史 |
 | `harness_audit` | 0 | 审计追踪，按追加序号为键 |
 | `harness_releases` | 0 | 本安装的身份，以及每一条已暂存的发布记录 |
+| `harness_migration` | 0 | 按旧版 id 记录的完成标记，以及最近一次完成的迁移轮次 |
 
 一次运行持有其模式（`fast` 或 `strict`）、harness 版本与配置哈希；一个节点持有其种类、尝试次数与状态。事件是权威来源：`replayWorkflow` 会拒绝存在序号缺口、外来运行 id 或非法转换的历史，因此恢复要么与记录一致，要么直接报错，而不会从无人能解释的状态继续。
 
@@ -37,6 +38,14 @@
 技能包是一个包含 `skill.json`、`system.md` 与可选工具声明的目录；`loadSignedSkill` 在允许加载前校验 schema、harness 兼容性、信任根、分离式 Ed25519 签名，以及每个声明文件的 SHA-256。`SkillCatalogService` 为每个已安装版本保留一个目录，在回滚到某版本前重新校验它，并拒绝会导致活跃集合中同一工具被声明两次、或互斥标签组同时激活的安装。
 
 发布是一份"内容寻址产物"的签名清单。`verifyReleaseManifest` 判定清单，`verifyReleaseArtifacts` 先核对每个产物的大小再核对其哈希，`isInRollout` 把灰度解析为"安装身份 + 版本号"的纯函数，因此一台安装在重启后仍位于灰度的同一侧。`HarnessReleaseService` 记录哪个版本已暂存、已激活、被替换以及已健康；激活后从未确认健康的版本会在下次启动时回滚到其前任。把产物就位与重启进程属于调用该服务的安装器。
+
+## 历史迁移与内容清洗
+
+`legacy.ts` 是旧版数据的纯翻译边界：它归一化运行与节点枚举、给新记录加戳、依据部署方维护的 URL 路径段表推断 provider，并把旧版内联 API key 转为 `CredentialPlacement`。迁移后的 settings 文档只包含 `credentialRef`；调用方把每条 placement 交给既有 credentials seam。未知枚举直接失败而不是猜测；被中断的旧运行映射为 `paused`，因为半途停止的工作仍可恢复。
+
+`LegacyMigrationRunner.plan()` 翻译所有 bundle 但不写入，`apply()` 在提交前调用同一套翻译。旧来源既不删除，也不在原处打标。进度只写入 `harness_migration`：只有当运行、节点与连续事件日志全部落盘后，旧版 id 才获得完成标记。如果进程在标记前停止，下一轮会重试按键幂等的写入，并跳过已存在的事件序号；如果进程在标记后停止，下一轮会跳过整个 bundle。每次开始、写入记录、跳过、拒绝与完成都会进入 `harness_audit`。组合只挂载服务，绝不自动启动迁移——预览与提交都是显式的运维操作。
+
+`cleanseSkillBody` 会删除点名旧版命令行工具或绕过实时权限面的操作指令，移除把 provider reasoning 当作可解析通道的指令，并把 provider 专用 XML 风格区块转换为通用 fenced block，同时保留区块内容。每次改写都报告稳定规则 id、原始行号与摘录。人工审核报告之后，清洗后的 `system.md` 才能被签名并安装；模型可见文本的清洗绝不是目录安装时的静默副作用。
 
 <!-- BEGIN GENERATED cordis-surface (gen-cordis-catalog.ts) — do not edit between markers -->
 
@@ -102,6 +111,37 @@ Source: [`packages/harness/harness-foundation/src/executor-service.ts`](../../pa
 Owns the phase-two workflow domain and exposes its repository.
 
 Source: [`packages/harness/harness-foundation/src/index.ts`](../../packages/harness/harness-foundation/src/index.ts)
+
+<a id="ctxharnessmigration--harnessmigrationservice"></a>
+
+### `ctx.harnessMigration` — `HarnessMigrationService`
+
+Lifecycle owner of the migration domain and its runner factory.
+
+```ts cordis-catalog
+/**
+ * Build a runner over this installation's durable records.
+ * @param resolvers - id translation for the legacy ids being imported.
+ * @returns a runner for one migration pass.
+ */
+runner(resolvers: Pick<LegacyRecordOptions, 'resolveRunId' | 'resolveNodeId' | 'resolveArtifactId'>): LegacyMigrationRunner
+
+/**
+ * Every completion mark recorded so far, oldest first.
+ * @returns a snapshot of the migration marks.
+ */
+marks(): MigrationMark[]
+
+/**
+ * Note that a pass finished, so an operator can tell a fresh installation
+ * from one that has already imported its predecessor's data.
+ * @param report - the committed pass to record.
+ * @returns the durable state after recording.
+ */
+async notePass(report: MigrationReport): Promise<MigrationState>
+```
+
+Source: [`packages/harness/harness-foundation/src/migration.ts`](../../packages/harness/harness-foundation/src/migration.ts)
 
 <a id="ctxharnessprovider--harnessproviderservice"></a>
 

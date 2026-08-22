@@ -204,6 +204,7 @@ flowchart LR
   pkg_harness_foundation["harness-foundation"]
   svc_harnessFoundation["ctx.harnessFoundation<br/>Harness workflow domain owner"]
   pkg_harness["harness"]
+  svc_harnessMigration["ctx.harnessMigration<br/>Harness legacy migration progress"]
   svc_harnessWorkflow["ctx.harnessWorkflow<br/>Harness durable run engine"]
   svc_harnessExecutor["ctx.harnessExecutor<br/>Harness node executor"]
   svc_harnessProvider["ctx.harnessProvider<br/>Harness role routing"]
@@ -261,6 +262,7 @@ flowchart LR
   pkg_harness_foundation --> svc_harnessDiagnostics
   pkg_harness_foundation --> svc_harnessExecutor
   pkg_harness_foundation --> svc_harnessFoundation
+  pkg_harness_foundation --> svc_harnessMigration
   pkg_harness_foundation --> svc_harnessProvider
   pkg_harness_foundation --> svc_harnessRelease
   pkg_harness_foundation --> svc_harnessSettings
@@ -366,6 +368,7 @@ flowchart LR
   svc_harnessDiagnostics --> pkg_harness
   svc_harnessExecutor --> pkg_harness
   svc_harnessFoundation --> pkg_harness
+  svc_harnessMigration --> pkg_harness
   svc_harnessProvider --> pkg_harness
   svc_harnessRelease --> pkg_harness
   svc_harnessSettings --> pkg_harness
@@ -516,6 +519,7 @@ flowchart LR
 | `ctx.dynamicCordisRunner` | `core` | [`cordis-host-runner`](../packages/extensions/cordis-host-runner) | - | [`tool-cordis`](../packages/extensions/tool-cordis) | - | Owns the in-memory definition registry, the vm sandbox for host halves, and the request-run round trip; browser pages reach the same service over the wire through its remote namespace. |
 | `ctx.cordisInspect` | `core` | [`cordis-host-runner`](../packages/extensions/cordis-host-runner) | - | [`tool-cordis`](../packages/extensions/tool-cordis) | - | Registers host inspect providers, mirrors the client provider manifest, and routes client queries through the dynamic Cordis transport. |
 | `ctx.harnessFoundation` | `seam` | [`harness-foundation`](../packages/harness/harness-foundation) | - | [`harness`](../packages/harness/harness-bundle) | - | Opens the versioned Harness run domain and exposes its repository; the bundle layer mounts it, and every other Harness service reads durable facts through it. |
+| `ctx.harnessMigration` | `seam` | [`harness-foundation`](../packages/harness/harness-foundation) | - | [`harness`](../packages/harness/harness-bundle) | - | Exposes an explicit dry-run/commit runner over the operator-supplied legacy rows; it records resumable progress but never scans, imports, edits, or deletes predecessor data at startup. |
 | `ctx.harnessWorkflow` | `seam` | [`harness-foundation`](../packages/harness/harness-foundation) | - | [`host-apiproxy`](../packages/host/apiproxy), [`harness`](../packages/harness/harness-bundle) | - | Owns run and node transitions, the append-only event log, and startup recovery; named harnessWorkflow because the upstream script engine already holds ctx.workflowEngine. |
 | `ctx.harnessExecutor` | `seam` | [`harness-foundation`](../packages/harness/harness-foundation) | - | [`harness`](../packages/harness/harness-bundle) | - | Drives plan, execute, the mode-bounded review loop, and delivery; retry, cost, audit, and context budgeting are composed seams rather than logic inside the engine. |
 | `ctx.harnessProvider` | `seam` | [`harness-foundation`](../packages/harness/harness-foundation) | - | [`harness`](../packages/harness/harness-bundle) | - | Resolves the executor, reviewer, and editor roles through ctx.llm and dispatches with ctx.llm.stream, so provider adapters stay the only implementation of a route. |
