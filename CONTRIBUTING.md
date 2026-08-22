@@ -2,6 +2,14 @@
 
 English | [中文](CONTRIBUTING.zh.md)
 
+## This fork
+
+This repository is [DeepSeek-For-Paper-Harness](https://github.com/dddsx3/DeepSeek-For-Paper-Harness), a secondary-development rebuild of DeepSeek Harness — not the official project. Contributions to the Harness extension and to the Windows gate fixes are welcome here: open an [Issue](https://github.com/dddsx3/DeepSeek-For-Paper-Harness/issues) first for anything that changes behavior, then submit a pull request against the `harness/phase-2-foundation` branch. Keep every change compliant with the repository's own gates (per-file 100% test coverage, lint, bilingual documentation pairs); the CI lane documents what passes.
+
+The statement below is inherited from the upstream project and describes how the **official** DeepSeek Harness accepts contributions. It does not apply to pull requests aimed at this fork.
+
+---
+
 Thank you for your interest in contributing to DeepSeek Harness!
 
 We deeply believe in the power of open source communities, and that belief has shaped this project from the very beginning.

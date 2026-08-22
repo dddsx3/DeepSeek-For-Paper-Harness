@@ -2,6 +2,14 @@
 
 [English](CONTRIBUTING.md) | 中文
 
+## 关于本分支
+
+本仓库是 [DeepSeek-For-Paper-Harness](https://github.com/dddsx3/DeepSeek-For-Paper-Harness)，一个基于 DeepSeek Harness 的二次开发重建仓库——并非官方项目。欢迎向本仓库贡献 Harness 扩展与 Windows 门禁修复相关的改动：任何改变行为的改动请先开 [Issue](https://github.com/dddsx3/DeepSeek-For-Paper-Harness/issues) 讨论，再向 `harness/phase-2-foundation` 分支提交 pull request。所有改动都必须满足仓库自身的门禁（每文件 100% 测试覆盖率、lint、双语文档配对）；CI 流水线标明了当前通过的范围。
+
+以下声明继承自上游项目，描述的是**官方** DeepSeek Harness 接受贡献的方式，不适用于面向本分支的 pull request。
+
+---
+
 感谢你愿意为 DeepSeek Harness 作出贡献！
 
 我们深信开源社区的力量，这份信念从项目最初就塑造着 DeepSeek Harness。
