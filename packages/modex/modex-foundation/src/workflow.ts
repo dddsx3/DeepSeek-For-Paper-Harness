@@ -231,7 +231,7 @@ export class WorkflowEngine {
    * @param afterSeq - exclusive lower bound; zero reads from the start.
    * @returns the matching events in sequence order.
    */
-  listEvents(runId: RunId, afterSeq = 0): WorkflowEvent[] {
+  listEvents(runId: RunId, afterSeq: number = 0): WorkflowEvent[] {
     return this.repository.listEvents(runId, afterSeq)
   }
 
@@ -409,8 +409,15 @@ export class WorkflowEngine {
     const seq = this.repository.latestEventSeq(runId) + 1
     const event: WorkflowEvent = { runId, nodeId, seq, type, data, timestamp: now() }
     return this.repository.appendEvent(event).then(() => {
-      this.ctx?.emit('harness/run-event', event)
+      this.publish(event)
     })
+  }
+
+  /** Publish one durable event in-process, when the engine was given a context. */
+  private publish(event: WorkflowEvent): void {
+    const ctx = this.ctx
+    if (ctx === undefined) return
+    ctx.emit('harness/run-event', event)
   }
 
   private enqueue<T>(runId: RunId, operation: () => Promise<T>): Promise<T> {

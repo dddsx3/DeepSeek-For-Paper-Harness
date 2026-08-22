@@ -28,6 +28,9 @@ export const AUDIT_EVENT_TYPES = [
   'provider_blocked',
   'recovery',
   'auth_failure',
+  'release_staged',
+  'release_activated',
+  'release_rollback',
 ] as const
 
 /** One audited operation kind. */

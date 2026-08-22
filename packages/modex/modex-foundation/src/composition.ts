@@ -8,8 +8,10 @@ import HarnessSettingsService from './settings.ts'
 import WorkflowEngineService from './workflow.ts'
 import HarnessExecutorService from './executor-service.ts'
 import HarnessAuditService from './audit.ts'
+import HarnessReleaseService from './release-service.ts'
 import type { ExecutorConfig } from './executor-service.ts'
 import type { AuditConfig } from './audit.ts'
+import type { ReleaseConfig } from './release-service.ts'
 import type { HarnessSettings } from './spec.ts'
 
 /** Cordis plugin name for the complete phase-two service set. */
@@ -23,6 +25,8 @@ export interface CompositionConfig extends HarnessSettings {
   readonly auditPolicy?: AuditConfig
   /** Budget, backoff, and pricing policy; omitted uses the service defaults. */
   readonly executionPolicy?: ExecutorConfig
+  /** Release trust and compatibility policy; omitted uses the service defaults. */
+  readonly releasePolicy?: ReleaseConfig
 }
 
 /**
@@ -40,4 +44,5 @@ export async function apply(ctx: Context, config: CompositionConfig): Promise<vo
   await ctx.plugin(WorkflowEngineService)
   await ctx.plugin(HarnessAuditService, config.auditPolicy ?? {})
   await ctx.plugin(HarnessExecutorService, config.executionPolicy ?? {})
+  await ctx.plugin(HarnessReleaseService, config.releasePolicy ?? {})
 }

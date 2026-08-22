@@ -30,6 +30,14 @@
       "types": "./lib/types/types.d.ts",
       "default": "./lib/types/types.js"
     },
+    "./skill-catalog": {
+      "types": "./lib/types/skill-catalog.d.ts",
+      "default": "./lib/types/skill-catalog.js"
+    },
+    "./catalog-provider": {
+      "types": "./lib/types/catalog-provider.d.ts",
+      "default": "./lib/types/catalog-provider.js"
+    },
     "./src/*": "./src/*",
     "./package.json": "./package.json"
   },
@@ -50,6 +58,7 @@
     "@deepseek-ai/dsh-storage-domain": "workspace:^"
   },
   "dependencies": {
+    "@deepseek-ai/schemastery": "workspace:^",
     "zod": "^4.4.3"
   },
   "devDependencies": {

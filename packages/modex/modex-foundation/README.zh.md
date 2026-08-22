@@ -25,6 +25,8 @@ Harness 扩展的第二阶段基础包。本包拥有版本化的工作流运行
 - `SignedSkillProvider`：可选的签名包来源，通过既有 `ctx.skills` 提供方接口注册。
 - `SkillCatalogService`：技能包的持久安装、版本历史、回滚与冲突检测。
 - `CatalogSkillProvider`：通过 `ctx.skills` 提供目录的活跃版本。
+- `verifyReleaseManifest` / `isInRollout` / `verifyReleaseArtifacts`：发布清单需通过信任根、harness 版本下限、灰度分桶与逐产物内容哈希的判定。
+- `HarnessReleaseService`：发布的持久暂存、激活、健康确认与回滚，并在启动时对未报告健康的版本进行对账。
 
 `harness.*` apiproxy 域（`api/harness.ts`）暴露运行控制（`harness.runs.*`）、带 `afterSeq` 游标的可续传事件读取，以及目录操作（`harness.skills.*`），并使用结构化的 `harness-*` 错误代码；引擎服务命名为 `harnessWorkflow`，以避开上游已占用的 `workflowEngine`。持久事件同时通过 `harness/run-event` Cordis 事件在进程内推送，该事件已列入 `API_REMOTE_FORWARDED_EVENTS`，因此远程消费者可经既有下行通道以 `host/remote-event` 帧收到它们。
 
@@ -34,4 +36,42 @@ Harness 扩展的第二阶段基础包。本包拥有版本化的工作流运行
 
 引擎只负责状态事实与恢复。签名包必须通过清单、文件哈希、兼容性、信任根与 Ed25519 校验才能加载；未签名包仅在开发态配合 `allowUnsigned` 加载，生产构建一律拒绝。目录安装会拒绝会导致同一工具被声明两次、或互斥标签组同时激活的技能组合。提供方重试策略、用户界面、事件传输与迁移逻辑属于后续阶段。
 
-本包运行在上游 TypeScript/Cordis 插件架构之上；不计划引入 FastAPI、Electron 或 Python 伴随进程。
+一次更新就是一份"内容寻址产物"的签名清单，未通过校验的内容绝不会被激活：schema、harness 版本下限、信任根、分离式 Ed25519 签名，随后是每个产物的大小与 SHA-256。某个安装是否被纳入灰度，是其安装身份与版本号的纯函数，因此已进入灰度的安装在重启后仍在灰度内，而不是每次启动重新抽签；被暂缓的安装仍可能被下一个版本纳入。`HarnessReleaseService` 记录哪个版本已暂存、哪个已激活、它替换了谁，以及哪个已自报健康；激活后从未确认健康的版本会在下次启动时回滚到其前任，因此坏版本无法把一台安装困在自己身上。暂存、激活与回滚都会进入审计追踪。该服务记录发布状态并决定应当激活什么——把产物就位与重启进程属于调用它的安装器。
+
+本包运行在上游 TypeScript/Cordis 插件架构之上；不计划引入 FastAPI、Electron 或 Python 伴随进程。[`@deepseek-ai/dsh-harness`](../harness-bundle/README.zh.md) 是把这些服务组合为加载器行的 profile 组合包。
+
+## 模型体验
+
+### 工作流节点请求
+
+#### 模型看到什么
+
+每个节点一条纯文本请求，由带标签的分段以空行拼接而成：先是 `Task: <输入>`，然后是该节点自己的材料（`Plan:`、`Current text:`、`Delivered text:`、`Defects:`），最后是一行指令。复核节点的指令直接给出它将解析的确切回复形状，因此缺陷清单无需工具调用即可被机器读取。除此之外不添加任何内容：没有 persona、没有工具目录、没有会话历史，因为每个节点都是独立的一次请求，而不是不断增长的会话中的一轮。当请求曾被压缩时，末尾会带上 `<artifact_ref kind="text" id="…" sha256="…" />`，指向已存储的未裁剪提示词。
+
+##### 复核节点请求
+
+```markdown
+Task: draft the migration note
+
+Delivered text:
+<the text under review>
+
+List defects, or return an empty list. Respond with JSON only in this shape:
+{"defects":[{"severity":"major|minor","description":"..."}]}
+```
+
+#### Token 影响
+
+内容在发出前先定价：每 4 字符 1 token，另加每分段 4 token 的结构开销——与 `dsh-token-meter` 采用的启发式一致——整条请求被适配到该角色上下文窗口的 `contextUtilization`（默认 0.8）。超预算时，按声明顺序先把最可让位的分段折半（计划，其次缺陷清单、草稿，最后是任务陈述），每个分段保留首尾并在中间插入 `… N characters elided …`，且不低于 200 字符；指令永不裁剪。仍然放不下的提示词会以本模块能做到的最短形式发出，并报告一个高于预算的估算值，而不是丢弃必需分段。
+
+#### KV Cache 影响
+
+每个节点都开启一条新请求，因此运行过程中不会累积上下文，节点之间也没有可复用的增长前缀。在同一次运行内，`Task:` 分段在所有节点中逐字节相同且位于最前，因此提供方侧的前缀缓存可以命中它，其后才是变化的材料与指令；同一节点的重试发送完全相同的字节，同样命中该前缀。压缩会改写某个分段的中部，从该分段起的缓存前缀随之失效——这也是把体量内容存为产物并以引用替代重发的又一个原因。
+
+## 已知限制与暂缓事项
+
+- **token 估算是启发式，不是提供方的分词器**：在此适配通过的请求仍可能超出真实计数；那会以 `CONTEXT_WINDOW_EXCEEDED` 失败返回，直接阻断运行，而不是重新适配后重发。
+- **发布服务记录状态，不安装任何东西**：校验、暂存、激活、健康与回滚都是持久化的决策，而把产物落到磁盘、重启进程属于调用方。
+- **在部署指定信任根之前自更新保持关闭**：没有受信任密钥时任何清单都会被拒绝，这是刻意的默认值，而不是需要用 `allowUnsigned` 去填的缺口。
+- **审计追踪只按保留期清理**：目前没有导出路径，记录之间也还没有防篡改链式校验。
+- **历史数据迁移与技能内容整理属于后续阶段**：本包只读写自己的版本化域。

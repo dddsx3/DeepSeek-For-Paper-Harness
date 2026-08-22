@@ -92,7 +92,7 @@ export class DomainWorkflowRunRepository implements WorkflowRunRepository {
   }
 
   /** @inheritdoc */
-  listEvents(runId: RunId, afterSeq = 0): WorkflowEvent[] {
+  listEvents(runId: RunId, afterSeq: number = 0): WorkflowEvent[] {
     return [...this.events.entries()]
       .map(([, event]) => event)
       .filter(event => event.runId === runId && event.seq > afterSeq)

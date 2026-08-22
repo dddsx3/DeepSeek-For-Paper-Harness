@@ -62,6 +62,16 @@ export {
   REDACTED, redactSensitiveDetail, redactSensitiveText, redactSensitiveValue,
 } from './redact.ts'
 export {
+  ReleaseVerificationError, isInRollout, releaseArtifactSchema, releaseManifestSchema,
+  releaseSignaturePayload, verifyReleaseArtifacts, verifyReleaseManifest,
+} from './release.ts'
+export type { ReleaseArtifact, ReleaseManifest, ReleasePolicy, VerifiedRelease } from './release.ts'
+export {
+  DEFAULT_RELEASE_HARNESS_VERSION, HarnessReleaseService, releaseDomainSpec,
+  releaseRecordSchema, releaseStateSchema, resolveReleasePolicy,
+} from './release-service.ts'
+export type { ReleaseConfig, ReleaseRecord, ReleaseStartupResult, ReleaseState } from './release-service.ts'
+export {
   AUDIT_EVENT_TYPES, DEFAULT_AUDIT_RETENTION_DAYS, HarnessAuditService, auditDomainSpec,
   auditRecordSchema,
 } from './audit.ts'

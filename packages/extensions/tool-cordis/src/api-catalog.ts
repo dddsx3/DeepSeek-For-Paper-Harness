@@ -388,6 +388,11 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         parameters: [],
       },
       {
+        signature: 'harness: HarnessApi',
+        description: 'Harness workflow-run control, resumable event reads, and the signed skill catalog.',
+        parameters: [],
+      },
+      {
         signature: 'respond(message: ClientResponse): Promise<RpcReceipt>',
         description: 'Response entry for server requests; not a domain method.',
         parameters: [{ name: 'message', description: 'Client response carrying the server request\'s rpcId.' }],
@@ -1076,6 +1081,169 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'the stable absent postcondition, or an explicit failure.',
       },
     ],
+  },
+  {
+    key: 'harnessAudit',
+    summary: 'Durable audit trail over its own storage domain.',
+    description: 'Durable audit trail over its own storage domain.',
+    methods: [
+      {
+        signature: 'async record(entry: AuditEntryInput): Promise<AuditRecord>',
+        description: 'Append one entry, redacting its detail first, then prune expired entries.',
+        parameters: [{ name: 'entry', description: 'the operation to record.' }],
+        returns: 'the persisted entry.',
+      },
+      {
+        signature: 'list(runId?: string): AuditRecord[]',
+        description: 'Read the trail in append order.',
+        parameters: [{ name: 'runId', description: 'when given, only entries belonging to that run.' }],
+        returns: 'the matching entries, oldest first.',
+      },
+    ],
+  },
+  {
+    key: 'harnessDiagnostics',
+    summary: 'LLM service wrapper for bounded, non-session diagnostics.',
+    description: 'LLM service wrapper for bounded, non-session diagnostics.',
+    methods: [
+      {
+        signature: 'async probe(request: DiagnosticsRequest): Promise<DiagnosticsResult>',
+        description: 'Execute one short request without creating a Session or persisting content.',
+        parameters: [{ name: 'request', description: 'provider route, model, and timeout policy.' }],
+        returns: 'status and non-sensitive timing/error facts.',
+      },
+    ],
+  },
+  {
+    key: 'harnessExecutor',
+    summary: 'Lifecycle owner of the node executor over the durable engine.',
+    description: 'Lifecycle owner of the node executor over the durable engine.',
+    methods: [],
+  },
+  {
+    key: 'harnessFoundation',
+    summary: 'Owns the phase-two workflow domain and exposes its repository.',
+    description: 'Owns the phase-two workflow domain and exposes its repository.',
+    methods: [],
+  },
+  {
+    key: 'harnessProvider',
+    summary: 'Shared LLM seam used by workflow consumers.',
+    description: 'Shared LLM seam used by workflow consumers.',
+    methods: [
+      {
+        signature: 'async resolveRole( role: HarnessRole, settings: HarnessSettings, signal?: AbortSignal, ): Promise<{ route: ResolvedRoleRoute; model: LlmResolvedModelInfo }>',
+        description: 'Resolve one role\'s model metadata without retaining mutable settings.',
+        parameters: [{ name: 'role', description: 'workflow role to resolve.' }, { name: 'settings', description: 'detached settings snapshot.' }, { name: 'signal', description: 'optional cancellation for model metadata lookup.' }],
+        returns: 'route identity and adapter-owned model metadata.',
+      },
+      {
+        signature: 'stream(options: GenerateOptions): AsyncIterable<StreamChunk>',
+        description: 'Dispatch one already assembled request through the shared runtime.',
+        parameters: [{ name: 'options', description: 'provider-neutral request assembled by a workflow consumer.' }],
+        returns: 'the provider-neutral stream.',
+      },
+    ],
+  },
+  {
+    key: 'harnessRelease',
+    summary: 'Durable staging, activation, health confirmation, and rollback of releases.',
+    description: 'Durable staging, activation, health confirmation, and rollback of releases.',
+    methods: [
+      {
+        signature: 'async stage(raw: unknown): Promise<ReleaseRecord>',
+        description: 'Verify one manifest and record it as staged. Verification failure and a rollout this install is not part of are both refusals, so nothing unstaged can later be activated.',
+        parameters: [{ name: 'raw', description: 'manifest as read from a feed, still untrusted.' }],
+        returns: 'the staged record.',
+      },
+      {
+        signature: 'async activate(version: string): Promise<ReleaseRecord>',
+        description: 'Activate one staged version, remembering the version it replaced so an unhealthy start can return to it.',
+        parameters: [{ name: 'version', description: 'staged version to activate.' }],
+        returns: 'the activated record.',
+      },
+      {
+        signature: 'async confirmHealthy(): Promise<ReleaseRecord | undefined>',
+        description: 'Mark the active version healthy. Until this lands, the next start treats the version as unproven and returns to its predecessor.',
+        parameters: [],
+        returns: 'the confirmed record, or `undefined` when no version is active.',
+      },
+      {
+        signature: 'async rollback(toVersion?: string): Promise<string>',
+        description: 'Return to a previously staged version.',
+        parameters: [{ name: 'toVersion', description: 'version to activate; omitted uses the recorded predecessor.' }],
+        returns: 'the version now active.',
+        throws: ['when no predecessor is recorded or the target was never staged.'],
+      },
+      {
+        signature: 'list(): ReleaseRecord[]',
+        description: 'List every staged release, oldest first.',
+        parameters: [],
+        returns: 'a snapshot of the staged table.',
+      },
+    ],
+  },
+  {
+    key: 'harnessSettings',
+    summary: 'Role settings service with immutable per-read snapshots.',
+    description: 'Role settings service with immutable per-read snapshots.',
+    methods: [
+      {
+        signature: 'snapshot(): HarnessSettings',
+        description: 'Detached settings snapshot for one operation, so a mid-operation change cannot alter the routes a run already started with.',
+        parameters: [],
+        returns: 'a deep copy of the currently resolved settings.',
+      },
+    ],
+  },
+  {
+    key: 'harnessSkillCatalog',
+    summary: 'Durable skill package catalog.',
+    description: 'Durable skill package catalog. Validates packages at install, stores one directory per version, re-validates the target before rollback, and refuses installs whose active set would conflict.',
+    methods: [
+      {
+        signature: 'async install(directory: string): Promise<InstalledSkillRecord>',
+        description: 'Validate and install one package version. Installing the same version again is idempotent; a new version of the same id keeps prior versions.',
+        parameters: [{ name: 'directory', description: 'Package directory containing skill.json.' }],
+        returns: 'the updated catalog record.',
+      },
+      {
+        signature: 'async rollback(id: string, toVersion: string): Promise<InstalledSkillRecord>',
+        description: 'Switch one skill back to a previously installed version after re-validating the stored copy.',
+        parameters: [{ name: 'id', description: 'Installed skill id.' }, { name: 'toVersion', description: 'Version to activate.' }],
+        returns: 'the updated catalog record.',
+      },
+      {
+        signature: 'list(): InstalledSkillRecord[]',
+        description: 'List every installed record.',
+        parameters: [],
+        returns: 'snapshot of the installed table.',
+      },
+      {
+        signature: 'get(id: string): InstalledSkillRecord | undefined',
+        description: 'Resolve one installed record by id.',
+        parameters: [{ name: 'id', description: 'Installed skill id.' }],
+        returns: 'the record, or `undefined` when absent.',
+      },
+      {
+        signature: 'activeDirectories(): string[]',
+        description: 'Directories of every record\'s active version, for provider wiring.',
+        parameters: [],
+        returns: 'active version directories.',
+      },
+      {
+        signature: 'async activeSkills(): Promise<ValidatedSignedSkill[]>',
+        description: 'Validate and load every record\'s active version.',
+        parameters: [],
+        returns: 'validated active packages, in record order.',
+      },
+    ],
+  },
+  {
+    key: 'harnessWorkflow',
+    summary: 'Cordis service exposing the durable workflow engine to later consumers.',
+    description: 'Cordis service exposing the durable workflow engine to later consumers.',
+    methods: [],
   },
   {
     key: 'permissionPresets',
@@ -2622,6 +2790,22 @@ export const EVENT_API: readonly EventApiEntry[] = [
     parameters: [{ name: 'options', description: 'the full request. A LOOP-built request carries the process-local {@link markAgentLoopRequest} identity and arrives deep-frozen (mutation throws): its content is a pure function of the session log (the reconstructability Agent Note), so listeners read it, never rewrite it. Hand-built calls do not carry that marker; their messages already obey the immutable creation contract.' }],
   },
   {
+    name: 'harness-skill/catalog-changed',
+    mode: 'emit',
+    signature: '\'harness-skill/catalog-changed\'(record: InstalledSkillRecord): void',
+    summary: 'One installed skill record changed through install or rollback.',
+    description: 'One installed skill record changed through install or rollback. Emitted after the record is durable; listener failures are contained.',
+    parameters: [{ name: 'record', description: 'the updated catalog record.' }],
+  },
+  {
+    name: 'harness/run-event',
+    mode: 'emit',
+    signature: '\'harness/run-event\'(event: WorkflowEvent): void',
+    summary: 'One workflow event became durable.',
+    description: 'One workflow event became durable. Emitted after the append committed, carrying the exact persisted record; listener failures are contained.',
+    parameters: [{ name: 'event', description: 'the persisted workflow event.' }],
+  },
+  {
     name: 'session-telemetry/record',
     mode: 'waterfall',
     signature: '\'session-telemetry/record\'(record: SessionTelemetryRecord, next: () => SessionTelemetryRecord): SessionTelemetryRecord',
@@ -2950,6 +3134,18 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type AttachmentId = Branded<\'AttachmentId\'>;',
   },
   {
+    name: 'AuditEntryInput',
+    declaration: 'export interface AuditEntryInput {\n    readonly eventType: AuditEventType;\n    readonly actor: string;\n    readonly runId?: string | null;\n    readonly detail?: Readonly<Record<string, unknown>>;\n}',
+  },
+  {
+    name: 'AuditEventType',
+    declaration: 'export type AuditEventType = typeof AUDIT_EVENT_TYPES[number];',
+  },
+  {
+    name: 'AuditRecord',
+    declaration: 'export type AuditRecord = zod.infer<typeof auditRecordSchema>;',
+  },
+  {
     name: 'AuthorizationEntry',
     declaration: 'export interface AuthorizationEntry {\n    key: CredentialKey;\n    label: string;\n    methods: readonly AuthorizationMethod[];\n    inFlight: boolean;\n}',
   },
@@ -3226,6 +3422,14 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type CredentialRef = Branded<\'CredentialRef\'>;',
   },
   {
+    name: 'DiagnosticsRequest',
+    declaration: 'export interface DiagnosticsRequest {\n    readonly provider: string;\n    readonly model: string;\n    readonly timeoutMs: number;\n}',
+  },
+  {
+    name: 'DiagnosticsResult',
+    declaration: 'export interface DiagnosticsResult {\n    readonly ok: boolean;\n    readonly provider: string;\n    readonly model: string;\n    readonly latencyMs: number;\n    readonly code: string;\n}',
+  },
+  {
     name: 'DiffCallView',
     declaration: 'export interface DiffCallView {\n    card: \'diff\';\n    title: string;\n    diffs: FileDiff[];\n    locations?: FileLocation[];\n}',
   },
@@ -3488,6 +3692,14 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'IndexInjectionPlacement',
     declaration: 'export type IndexInjectionPlacement = \'head\' | \'body\';',
+  },
+  {
+    name: 'InstalledSkillRecord',
+    declaration: 'export interface InstalledSkillRecord {\n    readonly id: string;\n    readonly installedVersion: string;\n    readonly versions: readonly InstalledSkillVersion[];\n}',
+  },
+  {
+    name: 'InstalledSkillVersion',
+    declaration: 'export interface InstalledSkillVersion {\n    readonly version: string;\n    readonly directory: string;\n    readonly installedAt: string;\n    readonly signatureOk: boolean;\n    readonly tools: readonly string[];\n    readonly tags: readonly string[];\n}',
   },
   {
     name: 'InvariantFailure',
@@ -3798,6 +4010,34 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface ModelModalityMap {\n    text: \'text\';\n    image: \'image\';\n}',
   },
   {
+    name: 'HarnessApi',
+    declaration: 'export interface HarnessApi {\n    runs: {\n        list(request: RpcRequest<{}>): Promise<RpcResponse<{\n            runs: readonly HarnessRunView[];\n        }>>;\n        get(request: RpcRequest<{\n            runId: string;\n        }>): Promise<RpcResponse<{\n            run: HarnessRunView;\n        }>>;\n        start(request: RpcRequest<{\n            mode: \'fast\' | \'strict\';\n        }>): Promise<RpcResponse<{\n            run: HarnessRunView;\n        }>>;\n        pause(request: RpcRequest<{\n            runId: string;\n        }>): Promise<RpcResponse<{\n            run: HarnessRunView;\n        }>>;\n        resume(request: RpcRequest<{\n            runId: string;\n        }>): Promise<RpcResponse<{\n            run: HarnessRunView;\n        }>>;\n        cancel(request: RpcRequest<{\n            runId: string;\n        }>): Promise<RpcResponse<{\n            run: HarnessRunView;\n        }>>;\n        events(request: RpcRequest<{\n            runId: string;\n            afterSeq?: number;\n        }>): Promise<RpcResponse<{\n            events: readonly HarnessEventView[];\n            lastSeq: number;\n        }>>;\n    };\n    skills: {\n        list(request: RpcRequest<{}>): Promise<RpcResponse<{\n            skills: readonly HarnessSkillView[];\n        }>>;\n        install(request: RpcRequest<{\n            directory: string;\n        }>): Promise<RpcResponse<{\n            skill: HarnessSkillView;\n        }>>;\n        rollback(request: RpcRequest<{\n            id: string;\n            toVersion: string;\n        }>): Pro /* …truncated — full shape in source */',
+  },
+  {
+    name: 'HarnessEventView',
+    declaration: 'export interface HarnessEventView {\n    readonly seq: number;\n    readonly type: string;\n    readonly nodeId: string | null;\n    readonly data: Record<string, unknown>;\n    readonly timestamp: string;\n}',
+  },
+  {
+    name: 'HarnessNodeView',
+    declaration: 'export interface HarnessNodeView {\n    readonly id: string;\n    readonly type: \'plan\' | \'execute\' | \'review\' | \'revise\' | \'deliver\';\n    readonly state: \'pending\' | \'ready\' | \'running\' | \'succeeded\' | \'failed\' | \'skipped\' | \'paused\';\n    readonly title: string;\n    readonly attempts: number;\n    readonly maxAttempts: number;\n}',
+  },
+  {
+    name: 'HarnessRole',
+    declaration: 'export type HarnessRole = \'executor\' | \'reviewer\' | \'editorAi\';',
+  },
+  {
+    name: 'HarnessRunView',
+    declaration: 'export interface HarnessRunView {\n    readonly id: string;\n    readonly status: \'planning\' | \'running\' | \'paused\' | \'completed\' | \'failed\' | \'cancelled\';\n    readonly mode: \'fast\' | \'strict\';\n    readonly createdAt: string;\n    readonly updatedAt: string;\n    readonly usage: {\n        readonly inputTokens: number;\n        readonly outputTokens: number;\n        readonly costUsd: number;\n    };\n    readonly version: number;\n    readonly lastEventSeq: number;\n    readonly nodes: readonly HarnessNodeView[];\n}',
+  },
+  {
+    name: 'HarnessSettings',
+    declaration: 'export type HarnessSettings = z.infer<typeof harnessSettingsSchema>;',
+  },
+  {
+    name: 'HarnessSkillView',
+    declaration: 'export interface HarnessSkillView {\n    readonly id: string;\n    readonly installedVersion: string;\n    readonly versions: readonly {\n        readonly version: string;\n        readonly installedAt: string;\n        readonly signatureOk: boolean;\n    }[];\n}',
+  },
+  {
     name: 'ObjectJsonSchema',
     declaration: 'export type ObjectJsonSchema = JsonSchemaNode & {\n    type: \'object\';\n};',
   },
@@ -3878,12 +4118,12 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface PromptContext {\n    readonly name: string;\n    readonly order: number;\n    readonly text: string | ((context: AssembleContext) => string);\n}',
   },
   {
-    name: 'PromptSection',
-    declaration: 'export interface PromptSection {\n    readonly name: string;\n    readonly order: number;\n    readonly text: string | ((context: AssembleContext) => string);\n    readonly complete?: boolean;\n}',
-  },
-  {
     name: 'ProviderRequestId',
     declaration: 'export type ProviderRequestId = Branded<\'ProviderRequestId\'>;',
+  },
+  {
+    name: 'ProviderRoute',
+    declaration: 'export type ProviderRoute = z.infer<typeof providerRouteSchema>;',
   },
   {
     name: 'PrunedEntry',
@@ -3912,6 +4152,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'RedactedSecret',
     declaration: 'export interface RedactedSecret {\n    path: string[];\n    set: boolean;\n}',
+  },
+  {
+    name: 'ReleaseRecord',
+    declaration: 'export type ReleaseRecord = zod.infer<typeof releaseRecordSchema>;',
   },
   {
     name: 'ReplayEnvelope',
@@ -3958,6 +4202,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type ResolvedRetryPolicy = ResolvedNormalRetryPolicy | ResolvedAlwaysRetryPolicy;',
   },
   {
+    name: 'ResolvedRoleRoute',
+    declaration: 'export interface ResolvedRoleRoute extends ProviderRoute {\n    readonly role: HarnessRole;\n}',
+  },
+  {
     name: 'ResolvedSubagentStartRequest',
     declaration: 'export interface ResolvedSubagentStartRequest extends SubagentStartRequest {\n    readonly descriptor: SubagentDescriptorData;\n}',
   },
@@ -3988,6 +4236,14 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'RpcReceipt',
     declaration: 'export type RpcReceipt = {\n    accepted: true;\n} | {\n    accepted: false;\n    reason: \'not-pending\' | \'bad-response\';\n};',
+  },
+  {
+    name: 'RpcRequest',
+    declaration: 'export interface RpcRequest<P> {\n    rpcId: RpcId;\n    payload: P;\n}',
+  },
+  {
+    name: 'RpcResponse',
+    declaration: 'export interface RpcResponse<T> {\n    rpcId: RpcId;\n    result: RpcResult<T>;\n}',
   },
   {
     name: 'RpcResult',
@@ -4368,6 +4624,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'ShellSandboxInfo',
     declaration: 'export interface ShellSandboxInfo {\n    mode: SandboxMode;\n    denied: boolean;\n    enforcement?: SandboxEnforcement;\n    runnerFailed?: boolean;\n}',
+  },
+  {
+    name: 'SignedSkillManifest',
+    declaration: 'export interface SignedSkillManifest {\n    readonly id: string;\n    readonly version: string;\n    readonly name: string;\n    readonly description: string;\n    readonly roles: readonly string[];\n    readonly tags: readonly string[];\n    readonly permissions: {\n        readonly tools: readonly string[];\n        readonly network: boolean;\n    };\n    readonly compat: {\n        readonly minHarness: string;\n    };\n    readonly integrity: {\n        readonly algo: \'sha256\';\n        readonly files: Readonly<Record<string, string>>;\n    };\n    readonly signature?: {\n        readonly algo: \'ed25519\';\n        readonly value: string;\n        readonly keyId: string;\n    };\n}',
   },
   {
     name: 'SkillCandidate',
@@ -4938,6 +5198,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface UserQuestionProvider {\n    ask(request: AskUserQuestionRequest): Promise<AskUserQuestionAnswer>;\n}',
   },
   {
+    name: 'ValidatedSignedSkill',
+    declaration: 'export interface ValidatedSignedSkill {\n    readonly directory: string;\n    readonly manifest: SignedSkillManifest;\n    readonly systemContent: string;\n    readonly declaredTools: readonly string[];\n    readonly signatureVerified: boolean;\n}',
+  },
+  {
     name: 'WebBootEntry',
     declaration: 'export interface WebBootEntry {\n    id: string;\n    url: string;\n    rev: string;\n    inject?: string[];\n    immediately?: boolean;\n    external?: string[];\n}',
   },
@@ -5016,6 +5280,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'WorkflowAgentOutcome',
     declaration: 'export type WorkflowAgentOutcome = \'completed\' | \'failed\' | \'cancelled\';',
+  },
+  {
+    name: 'WorkflowEvent',
+    declaration: 'export type WorkflowEvent = z.infer<typeof workflowEventSchema>;',
   },
   {
     name: 'WorkflowMeta',

@@ -290,6 +290,7 @@ const subsystemGroups = [
     ['web.md', 'Web 访问', 'Web access'],
     ['skills.md', '技能', 'Skills'],
     ['workflow.md', '工作流', 'Workflows'],
+    ['harness.md', 'Harness 工作流', 'Harness workflows'],
     ['subagent.md', '子代理', 'Subagents'],
   ]],
   ['策略与交互', 'Policy and interaction', [
