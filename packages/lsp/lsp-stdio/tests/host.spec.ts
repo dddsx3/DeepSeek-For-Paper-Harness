@@ -13,6 +13,11 @@ import { canonicalizeWorkspace, readHostSource } from '@deepseek-ai/dsh-lsp-stdi
 
 const execFileAsync = promisify(execFile)
 
+// Windows reserves directory symlinks for elevated processes; a junction is the
+// same kind of reparse point, so canonicalization resolves through it
+// identically on every host.
+const DIRECTORY_LINK = process.platform === 'win32' ? 'junction' : 'dir'
+
 let root: string
 let ws: string
 let ctx: Context
@@ -49,7 +54,7 @@ describe('canonicalizeWorkspace', () => {
 
   it('resolves a symlinked workspace to its target so aliases share identity', async () => {
     const link = join(root, 'ws-link')
-    await symlink(ws, link)
+    await symlink(ws, link, DIRECTORY_LINK)
     expect((await canonicalizeWorkspace(fs, link)).canonicalPath).toBe(ws)
   })
 
@@ -102,7 +107,7 @@ describe('readHostSource', () => {
   it('accepts a source reached through a symlink that stays inside the workspace', async () => {
     await mkdir(join(ws, 'real'))
     await writeFile(join(ws, 'real', 'c.ts'), 'c')
-    await symlink(join(ws, 'real'), join(ws, 'linked'))
+    await symlink(join(ws, 'real'), join(ws, 'linked'), DIRECTORY_LINK)
     const source = await readSource('linked/c.ts')
     expect(source.fileUrl).toBe(pathToFileURL(join(ws, 'real', 'c.ts')).href)
   })

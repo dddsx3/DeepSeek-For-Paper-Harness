@@ -20,6 +20,11 @@ import SandboxPolicyService from '@deepseek-ai/dsh-sandbox-policy'
 import type { SandboxMode } from '@deepseek-ai/dsh-sandbox'
 import { SandboxedFileSystem } from '@deepseek-ai/dsh-fs-sandbox'
 
+// Windows reserves directory symlinks for elevated processes; a junction is the
+// same kind of reparse point for containment, so the escapes below canonicalize
+// identically on every host.
+const DIRECTORY_LINK = process.platform === 'win32' ? 'junction' : 'dir'
+
 let base: string
 let workspace: string
 let outside: string
@@ -117,14 +122,14 @@ describe('workspace-write containment', () => {
 
   it('a symlinked directory inside the workspace pointing OUT is denied (canonicalized before containment)', async () => {
     // workspace/link -> outside ; writing workspace/link/f.txt would land in outside/f.txt.
-    await symlink(outside, join(workspace, 'link'))
+    await symlink(outside, join(workspace, 'link'), DIRECTORY_LINK)
     const path = join(workspace, 'link', 'f.txt')
     await expect(fs.writeText(await target(path), 'x')).rejects.toMatchObject({ code: 'FS_SANDBOX_DENIED' })
     expect(existsSync(join(outside, 'f.txt'))).toBe(false)
   })
 
   it('a NEW file created under a symlinked-out directory is denied (deepest-ancestor realpath)', async () => {
-    await symlink(outside, join(workspace, 'link'))
+    await symlink(outside, join(workspace, 'link'), DIRECTORY_LINK)
     const path = join(workspace, 'link', 'newdir', 'deep.txt')
     await expect(fs.writeText(await target(path), 'x')).rejects.toMatchObject({ code: 'FS_SANDBOX_DENIED' })
     expect(existsSync(join(outside, 'newdir'))).toBe(false)

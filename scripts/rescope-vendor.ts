@@ -198,6 +198,8 @@ const EXACT_EDITS: readonly ExactEdit[] = [
   },
   {
     // The rescoped name is already covered by the `@deepseek-ai/.+` pattern beside it.
+    // The trailing key anchors the one `examples` block this edit belongs to;
+    // it follows whatever workspace entry currently sits next in knip.json.
     id: 'knip-logger-console',
     file: 'knip.json',
     find: `      "ignoreDependencies": [
@@ -205,12 +207,12 @@ const EXACT_EDITS: readonly ExactEdit[] = [
         "@deepseek-ai/.+"
       ]
     },
-    "packages/util/home": {`,
+    "packages/host/directory-picker-auto": {`,
     replace: `      "ignoreDependencies": [
         "@deepseek-ai/.+"
       ]
     },
-    "packages/util/home": {`,
+    "packages/host/directory-picker-auto": {`,
     expect: 1,
   },
   {
@@ -345,10 +347,12 @@ const VENDORED_LIBRARY = /^@deepseek-ai\\/(cosmokit|schemastery)(\\/|$)/
     expect: 1,
   },
   {
+    // The Chinese side links its own locale's mapping page, as the paired-link
+    // gate requires, so the applied text differs from the English edit above.
     id: 'vendoring-cookbook-name-invariant-zh',
     file: 'docs/cookbook/adding-a-vendored-package.zh.md',
     find: '保留上游的 `name`/`version`/`exports`/`type`',
-    replace: '改写 `name` 的 scope（[映射](../rescope.md)），保留上游的 `version`/`exports`/`type`',
+    replace: '改写 `name` 的 scope（[映射](../rescope.zh.md)），保留上游的 `version`/`exports`/`type`',
     expect: 1,
   },
   {

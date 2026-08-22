@@ -46,6 +46,11 @@ import { MockAdapter, textResponse, toolCallResponse } from '../../../core/agent
 /** Per-candidate reconciliation scope key: directory paired with the file name. */
 const sk = (directory: string, candidateName: string): string => candidateScopeKey(directory, candidateName)
 
+// Windows reserves directory symlinks for elevated processes; a junction is the
+// same kind of reparse point, so a candidate that resolves to a directory
+// through a link classifies identically on every host.
+const DIRECTORY_LINK = process.platform === 'win32' ? 'junction' : 'dir'
+
 const testToolSignal = new AbortController().signal
 
 async function tempRepo(): Promise<string> {
@@ -3402,7 +3407,7 @@ describe('dynamic nested workspace context injection', () => {
       // removed; an unavailable classification would emit no change at all.
       await rm(join(root, 'pkg/AGENTS.md'))
       await mkdir(join(root, 'pkg/elsewhere'), { recursive: true })
-      await symlink(join(root, 'pkg/elsewhere'), join(root, 'pkg/AGENTS.md'))
+      await symlink(join(root, 'pkg/elsewhere'), join(root, 'pkg/AGENTS.md'), DIRECTORY_LINK)
       await ctx.tools.execute({
         signal: testToolSignal,
         callId: CallId('read-after-symlink-dir'), name: 'read', arguments: { file_path: join('pkg', 'file.txt') }, agent,

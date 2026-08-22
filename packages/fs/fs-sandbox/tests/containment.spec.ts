@@ -1,5 +1,10 @@
 /**
  * Containment tests for lexical canonical paths and filesystem-identity aliases.
+ *
+ * Directory links pass `'junction'` on Windows, where creating a directory
+ * symlink needs an elevated process. A junction is the same kind of reparse
+ * point for containment purposes — `realpath` resolves through it identically —
+ * so the escape these tests exercise is the same on every host.
  */
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
@@ -7,6 +12,8 @@ import { mkdir, mkdtemp, realpath, rm, symlink, writeFile } from 'node:fs/promis
 import { tmpdir } from 'node:os'
 import { join, parse } from 'node:path'
 import { isPathUnder } from '../src/containment.ts'
+
+const DIRECTORY_LINK = process.platform === 'win32' ? 'junction' : 'dir'
 
 let base: string
 
@@ -34,7 +41,7 @@ describe('filesystem sandbox containment', () => {
     const realRoot = join(base, 'real')
     const aliasRoot = join(base, 'alias')
     await mkdir(realRoot)
-    await symlink(realRoot, aliasRoot)
+    await symlink(realRoot, aliasRoot, DIRECTORY_LINK)
     expect(await isPathUnder(join(await realpath(realRoot), 'missing', 'file.txt'), aliasRoot)).toBe(true)
   })
 

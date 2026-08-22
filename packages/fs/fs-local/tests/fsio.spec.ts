@@ -27,6 +27,11 @@ import type { LocalTarget } from '../src/fsio.ts'
 import { copyFileDaclWin32, readFileDaclWin32 } from '../src/win32.ts'
 import { FsError, FsTargetKey } from '@deepseek-ai/dsh-fs'
 
+// Windows reserves directory symlinks for elevated processes; a junction is the
+// same kind of reparse point, so realpath-based key derivation behaves
+// identically on every host.
+const DIRECTORY_LINK = process.platform === 'win32' ? 'junction' : 'dir'
+
 let dir: string
 beforeEach(async () => {
   dir = await mkdtemp(join(tmpdir(), 'dsh-fsio-'))
@@ -80,7 +85,7 @@ describe('resolveLocalTarget', () => {
     const realRoot = join(dir, 'real-root')
     await mkdir(realRoot)
     const linkRoot = join(dir, 'link-root')
-    await symlink(realRoot, linkRoot)
+    await symlink(realRoot, linkRoot, DIRECTORY_LINK)
 
     const before = await resolveLocalTarget(linkRoot, 'sub/file.txt')
     await mkdir(join(realRoot, 'sub'), { recursive: true })

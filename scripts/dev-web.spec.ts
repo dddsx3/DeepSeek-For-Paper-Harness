@@ -1,9 +1,10 @@
-import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { expect, it } from 'vitest'
 import type { TsdownBundle } from 'tsdown'
 import { discoverLibraryDirs, discoverPluginDirs, watchClientPlugins } from './dev-web.ts'
+import { linkDirectory } from './link-directory.ts'
 
 it('discovers dsh.client packages with sibling roles', async () => {
   const root = await mkdtemp(join(tmpdir(), 'dsh-dev-web-discovery-'))
@@ -53,7 +54,7 @@ it('rebuilds a client-plugin bundle after its source changes', async () => {
   const root = await mkdtemp(join(tmpdir(), 'dsh-dev-web-watch-'))
   let bundles: TsdownBundle[] = []
   try {
-    await symlink(join(import.meta.dirname, '..', 'node_modules'), join(root, 'node_modules'), 'dir')
+    await linkDirectory(join(import.meta.dirname, '..', 'node_modules'), join(root, 'node_modules'))
     await writeFile(join(root, 'package.json'), JSON.stringify({ name: '@dsh-test/dev-web-watch', private: true, type: 'module' }))
     await writeFile(join(root, 'tsdown.config.ts'), `
 import { defineConfig } from 'tsdown'
