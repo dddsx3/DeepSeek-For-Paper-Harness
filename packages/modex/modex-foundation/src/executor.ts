@@ -1,31 +1,92 @@
-/** Node executor: drives runs through plan, execute, review, revise, deliver. */
+/**
+ * Node executor: policy-bounded runs with retry, cost accounting, and audit.
+ * Every model call goes through the shared provider seam and every fact
+ * through the durable engine, so a crashed run replays and recovers.
+ *
+ * @module @deepseek-ai/dsh-harness-foundation/src/executor
+ */
 
 import { createHash } from 'node:crypto'
 import { BlockAssembler, createUserMessage } from '@deepseek-ai/dsh-llm'
-import type { TokenUsage } from '@deepseek-ai/dsh-llm'
-import type { HarnessRole, HarnessProviderService } from './provider.ts'
-import type { HarnessSettingsService } from './settings.ts'
+import type { LlmFailure, TokenUsage } from '@deepseek-ai/dsh-llm'
+import type { AuditEntryInput } from './audit.ts'
+import { computeCostUsd, evaluateBudget, resolveModelPrice } from './cost.ts'
+import type { BudgetPolicy, PricingTable } from './cost.ts'
 import { resolveRunPolicy } from './policy.ts'
-import type {
-  ArtifactRecord,
-  Manifest,
-  NodeRecord,
-  RunId,
-  RunRecord,
-} from './spec.ts'
+import type { HarnessProviderService, HarnessRole } from './provider.ts'
+import { backoffDelayMs, classifyFailure } from './resilience.ts'
+import type { BackoffPolicy } from './resilience.ts'
+import type { HarnessSettingsService } from './settings.ts'
+import type { ArtifactRecord, Manifest, NodeRecord, RunId, RunRecord } from './spec.ts'
 import { newArtifactId } from './spec.ts'
 import type { WorkflowEngine } from './workflow.ts'
 
 /** Result of one completed run execution. */
 export interface ExecutionOutcome {
+  /** Final run record. */
   readonly run: RunRecord
+  /** Manifest recorded at delivery. */
   readonly manifest: Manifest
 }
 
 /** One structured reviewer finding. */
 export interface ReviewDefect {
+  /** How much the finding matters. */
   readonly severity: 'major' | 'minor'
+  /** What the reviewer objected to. */
   readonly description: string
+}
+
+/** Minimal audit sink the executor needs; {@link HarnessAuditService} satisfies it. */
+export interface AuditSink {
+  /**
+   * Append one audit entry.
+   * @param entry - the operation to record.
+   * @returns resolution after the entry is durable.
+   */
+  record(entry: AuditEntryInput): Promise<unknown>
+}
+
+/** Deployment-varying execution knobs resolved by the owning service. */
+export interface ExecutorOptions {
+  /** Route prices used to turn token counts into cost. */
+  readonly pricing: PricingTable
+  /** Daily spend ceiling and warning fraction. */
+  readonly budget: BudgetPolicy
+  /** Retry backoff bounds. */
+  readonly backoff: BackoffPolicy
+  /** Audit sink; omitted in compositions that mount no trail. */
+  readonly audit?: AuditSink
+}
+
+/** Stable reasons the executor refuses to finish a run. */
+export type ExecutionFailureCode =
+  | 'budget-exhausted'
+  | 'provider-blocked'
+  | 'provider-unavailable'
+  | 'gate-failed'
+
+/** A run the executor stopped, carrying the reason a caller routes on. */
+export class WorkflowExecutionError extends Error {
+  /**
+   * @param code - stable reason the run stopped.
+   * @param message - human-readable summary without credential material.
+   */
+  constructor(readonly code: ExecutionFailureCode, message: string) {
+    super(message)
+    this.name = 'WorkflowExecutionError'
+  }
+}
+
+/** One model call that ended in a provider or transport failure. */
+class ModelCallFailure extends Error {
+  /**
+   * @param failure - the adapter's provider-neutral failure facts.
+   */
+  constructor(readonly failure: LlmFailure) {
+    super(failure.message)
+    this.name = 'ModelCallFailure'
+  }
 }
 
 const SYSTEM_PROMPTS: Record<HarnessRole, string> = {
@@ -40,25 +101,25 @@ function nodeRoleOf(role: HarnessRole): NodeRecord['role'] {
 }
 
 /**
- * Drives one run's nodes through the durable engine. Every model call goes
- * through the shared provider seam; every state change, event, and artifact
- * is persisted, so a crashed run replays and recovers through the engine.
+ * Drives one run's nodes through the durable engine: plan, execute, the
+ * mode-bounded review loop, and delivery with a manifest.
  */
 export class WorkflowExecutor {
   /**
    * @param engine - Durable workflow engine owning all run writes.
    * @param provider - Shared LLM seam for the three roles.
    * @param settings - Role settings snapshots.
+   * @param options - Pricing, budget, backoff, and the optional audit sink.
    */
   constructor(
     private readonly engine: WorkflowEngine,
     private readonly provider: HarnessProviderService,
     private readonly settings: HarnessSettingsService,
+    private readonly options: ExecutorOptions,
   ) {}
 
   /**
-   * Execute one run end to end: plan, execute, the mode-bounded review loop,
-   * and delivery with a manifest. Fast mode delivers after its revise rounds
+   * Execute one run end to end. Fast mode delivers after its revise rounds
    * even with defects; strict mode fails the run when defects persist.
    * @param runId - Run to execute.
    * @param input - User task text.
@@ -69,63 +130,96 @@ export class WorkflowExecutor {
     if (initial === undefined) throw new Error(`run '${runId}' was not found`)
     const policy = resolveRunPolicy(initial.mode)
     if (initial.status === 'planning') await this.engine.transitionRun(runId, 'running')
+    await this.audit({ eventType: 'workflow_started', actor: 'harness-executor', runId, detail: { mode: initial.mode } })
 
-    const plan = await this.runNode(runId, 'plan', 'plan', 'executor', [
-      `Task: ${input}`,
-      'Produce a short numbered execution plan.',
-    ].join('\n'))
-    const draft = await this.runNode(runId, 'execute', 'execute', 'executor', [
-      `Task: ${input}`,
-      `Plan:\n${plan.text}`,
-      'Produce the deliverable text for the task.',
-    ].join('\n\n'))
+    try {
+      const plan = await this.runNode(runId, 'plan', 'plan', 'executor', [
+        `Task: ${input}`,
+        'Produce a short numbered execution plan.',
+      ].join('\n'))
+      const draft = await this.runNode(runId, 'execute', 'execute', 'executor', [
+        `Task: ${input}`,
+        `Plan:\n${plan.text}`,
+        'Produce the deliverable text for the task.',
+      ].join('\n\n'))
 
-    let current = draft.text
-    let defects: ReviewDefect[] = []
-    for (let round = 0; round <= policy.maxReviseRounds; round += 1) {
-      const review = await this.runNode(
-        runId, 'review', round === 0 ? 'review' : `review #${round + 1}`, 'reviewer',
-        this.reviewPrompt(input, current),
-      )
-      defects = parseDefects(review.text)
-      for (const defect of defects) {
-        await this.engine.appendPublic(runId, review.nodeId, 'defect', {
-          severity: defect.severity,
-          description: defect.description,
-        })
+      let current = draft.text
+      let defects: ReviewDefect[] = []
+      for (let round = 0; round <= policy.maxReviseRounds; round += 1) {
+        const review = await this.runNode(
+          runId, 'review', round === 0 ? 'review' : `review #${round + 1}`, 'reviewer',
+          this.reviewPrompt(input, current),
+        )
+        defects = parseDefects(review.text)
+        for (const defect of defects) {
+          await this.engine.appendPublic(runId, review.nodeId, 'defect', {
+            severity: defect.severity,
+            description: defect.description,
+          })
+        }
+        if (defects.length === 0 || round === policy.maxReviseRounds) break
+        const revised = await this.runNode(
+          runId, 'revise', `revise #${round + 1}`, 'editorAi',
+          [
+            `Task: ${input}`,
+            `Current text:\n${current}`,
+            `Defects:\n${defects.map(defect => `- [${defect.severity}] ${defect.description}`).join('\n')}`,
+            'Return the corrected text only.',
+          ].join('\n\n'),
+        )
+        current = revised.text
       }
-      if (defects.length === 0 || round === policy.maxReviseRounds) break
-      const revised = await this.runNode(
-        runId, 'revise', `revise #${round + 1}`, 'editorAi',
-        [
-          `Task: ${input}`,
-          `Current text:\n${current}`,
-          `Defects:\n${defects.map(defect => `- [${defect.severity}] ${defect.description}`).join('\n')}`,
-          'Return the corrected text only.',
-        ].join('\n\n'),
-      )
-      current = revised.text
-    }
 
-    const gatePassed = defects.length === 0
-    await this.engine.appendPublic(runId, null, 'gate_result', { gate: 'review', passed: gatePassed })
-    const deliverNode = await this.engine.addNode({ runId, type: 'deliver', title: 'deliver' })
-    await this.engine.transitionNode(deliverNode.id, 'ready')
-    await this.engine.transitionNode(deliverNode.id, 'running')
-    const finalArtifact = await this.storeArtifact(runId, deliverNode.id, current)
-    await this.engine.transitionNode(deliverNode.id, 'succeeded')
+      const gatePassed = defects.length === 0
+      await this.engine.appendPublic(runId, null, 'gate_result', { gate: 'review', passed: gatePassed })
+      const artifact = await this.deliver(runId, current)
+      const manifest = this.buildManifest(this.engine.getRun(runId) ?? initial, artifact, gatePassed)
+      await this.engine.recordManifest(runId, manifest)
 
-    const beforeOutcome = this.engine.getRun(runId) ?? initial
-    const manifest = this.buildManifest(beforeOutcome, finalArtifact, gatePassed)
-    await this.engine.recordManifest(runId, manifest)
-    await this.engine.transitionRun(runId, gatePassed || initial.mode === 'fast' ? 'completed' : 'failed')
-    if (!gatePassed && initial.mode !== 'fast') {
-      throw new Error(`run '${runId}' failed its review gate after ${policy.maxReviseRounds + 1} reviews`)
+      if (!gatePassed && initial.mode !== 'fast') {
+        await this.engine.transitionRun(runId, 'failed')
+        await this.audit({
+          eventType: 'gate_failed',
+          actor: 'harness-executor',
+          runId,
+          detail: { gate: 'review', defects: defects.length, reviews: policy.maxReviseRounds + 1 },
+        })
+        throw new WorkflowExecutionError(
+          'gate-failed',
+          `run '${runId}' failed its review gate after ${policy.maxReviseRounds + 1} reviews`,
+        )
+      }
+      await this.engine.transitionRun(runId, 'completed')
+      await this.audit({
+        eventType: 'workflow_completed',
+        actor: 'harness-executor',
+        runId,
+        detail: { gatePassed, costUsd: manifest.usage.costUsd },
+      })
+      return { run: this.engine.getRun(runId) ?? initial, manifest }
+    } catch (error: unknown) {
+      if (!(error instanceof WorkflowExecutionError) || error.code === 'gate-failed') throw error
+      await this.audit({
+        eventType: 'workflow_failed',
+        actor: 'harness-executor',
+        runId,
+        detail: { reason: error.code, message: error.message },
+      })
+      throw error
     }
-    return { run: this.engine.getRun(runId) ?? initial, manifest }
   }
 
-  /** Run one model-backed node through ready → running → succeeded with events. */
+  /** Deliver the final text: one delivery node plus its stored artifact. */
+  private async deliver(runId: RunId, text: string): Promise<ArtifactRecord> {
+    const node = await this.engine.addNode({ runId, type: 'deliver', title: 'deliver' })
+    await this.engine.transitionNode(node.id, 'ready')
+    await this.engine.transitionNode(node.id, 'running')
+    const artifact = await this.storeArtifact(runId, node.id, text)
+    await this.engine.transitionNode(node.id, 'succeeded')
+    return artifact
+  }
+
+  /** Run one model-backed node through ready, running, and its outcome. */
   private async runNode(
     runId: RunId,
     type: NodeRecord['type'],
@@ -133,7 +227,11 @@ export class WorkflowExecutor {
     role: HarnessRole,
     prompt: string,
   ): Promise<{ nodeId: NodeRecord['id']; text: string }> {
-    const policy = resolveRunPolicy(this.engine.getRun(runId)?.mode ?? 'fast')
+    const run = this.engine.getRun(runId)
+    const mode = run?.mode ?? 'fast'
+    const policy = resolveRunPolicy(mode)
+    await this.assertBudget(runId, mode)
+
     const node = await this.engine.addNode({
       runId,
       type,
@@ -143,28 +241,104 @@ export class WorkflowExecutor {
       idempotent: true,
     })
     await this.engine.transitionNode(node.id, 'ready')
-    await this.engine.transitionNode(node.id, 'running')
     const route = this.settings.snapshot()[role]
-    await this.engine.appendPublic(runId, node.id, 'request_started', {
-      provider: route.provider,
-      model: route.model,
-    })
-    try {
-      const { text, usage } = await this.call(role, prompt)
-      if (usage !== undefined) {
-        await this.engine.applyUsage(runId, {
-          inputTokens: usage.inputTokens,
-          outputTokens: usage.outputTokens,
-          costUsd: 0,
+
+    for (let attempt = 1; attempt <= policy.maxNodeAttempts; attempt += 1) {
+      await this.engine.transitionNode(node.id, 'running')
+      await this.engine.appendPublic(runId, node.id, 'request_started', {
+        provider: route.provider,
+        model: route.model,
+        attempt,
+      })
+      try {
+        const { text, usage } = await this.call(role, prompt)
+        await this.recordUsage(runId, route.provider, route.model, usage)
+        await this.engine.transitionNode(node.id, 'succeeded')
+        return { nodeId: node.id, text }
+      } catch (error: unknown) {
+        const failure = failureOf(error)
+        const action = classifyFailure(failure.code)
+        await this.engine.transitionNode(node.id, 'failed')
+        if (action === 'block' || action === 'revise') {
+          await this.engine.transitionRun(runId, 'failed')
+          await this.audit({
+            eventType: 'provider_blocked',
+            actor: 'harness-executor',
+            runId,
+            detail: { code: failure.code, role, action },
+          })
+          throw new WorkflowExecutionError(
+            'provider-blocked',
+            `node '${node.id}' cannot proceed: provider reported ${failure.code}`,
+          )
+        }
+        if (attempt === policy.maxNodeAttempts) break
+        await this.audit({
+          eventType: 'provider_retry',
+          actor: 'harness-executor',
+          runId,
+          detail: { code: failure.code, role, attempt },
         })
+        await this.engine.transitionNode(node.id, 'ready')
+        await delay(backoffDelayMs(attempt, this.options.backoff, failure.providerRetryAfterMs))
       }
-      await this.engine.transitionNode(node.id, 'succeeded')
-      return { nodeId: node.id, text }
-    } catch (error: unknown) {
-      await this.engine.transitionNode(node.id, 'failed')
-      await this.engine.transitionRun(runId, 'failed')
-      throw error
     }
+
+    // Attempts are spent and the failure was retryable: pause for review
+    // rather than fail, so a resumed run continues from this node.
+    await this.engine.transitionNode(node.id, 'paused')
+    await this.engine.transitionRun(runId, 'paused')
+    throw new WorkflowExecutionError(
+      'provider-unavailable',
+      `node '${node.id}' exhausted ${policy.maxNodeAttempts} attempts and is paused for review`,
+    )
+  }
+
+  /** Refuse to start another model call once the day's ceiling is reached. */
+  private async assertBudget(runId: RunId, mode: 'fast' | 'strict'): Promise<void> {
+    const verdict = evaluateBudget(this.spentTodayUsd(), this.options.budget, mode)
+    if (verdict.state === 'ok') return
+    await this.engine.appendPublic(runId, null, 'usage', {
+      budgetState: verdict.state,
+      limitUsd: Number.isFinite(verdict.limitUsd) ? verdict.limitUsd : null,
+      spentUsd: verdict.spentUsd,
+    })
+    if (verdict.state === 'warning') return
+    await this.engine.transitionRun(runId, 'paused')
+    await this.audit({
+      eventType: 'budget_exceeded',
+      actor: 'harness-executor',
+      runId,
+      detail: { limitUsd: verdict.limitUsd, spentUsd: verdict.spentUsd, mode },
+    })
+    throw new WorkflowExecutionError(
+      'budget-exhausted',
+      `run '${runId}' is paused: the daily budget of ${verdict.limitUsd} USD is spent`,
+    )
+  }
+
+  /** Accumulate one call's tokens and derived cost onto the run. */
+  private async recordUsage(
+    runId: RunId,
+    provider: string,
+    model: string,
+    usage: TokenUsage | undefined,
+  ): Promise<void> {
+    if (usage === undefined) return
+    const price = resolveModelPrice(this.options.pricing, provider, model)
+    await this.engine.applyUsage(runId, {
+      inputTokens: usage.inputTokens,
+      outputTokens: usage.outputTokens,
+      costUsd: computeCostUsd(price, usage),
+    })
+  }
+
+  /** Cost recorded for runs created today, the budget's spend basis. */
+  private spentTodayUsd(): number {
+    const today = new Date().toISOString().slice(0, 10)
+    return this.engine.listRuns()
+      .filter(run => run.createdAt.startsWith(today))
+      .reduce((total, run) => total + run.usage.costUsd, 0)
   }
 
   /** One provider-neutral model call assembling the streamed text. */
@@ -183,9 +357,7 @@ export class WorkflowExecutor {
       assembler.push(chunk)
     }
     const finish = assembler.finish
-    if (finish.kind === 'error' || finish.kind === 'aborted') {
-      throw new Error(`model call for role '${role}' ended with ${finish.kind}: ${finish.failure.message}`)
-    }
+    if (finish.kind === 'error' || finish.kind === 'aborted') throw new ModelCallFailure(finish.failure)
     return {
       text: assembler.blocks()
         .filter(block => block.type === 'text')
@@ -231,6 +403,25 @@ export class WorkflowExecutor {
       usage: this.engine.getRun(run.id)?.usage ?? run.usage,
       redacted: true,
     }
+  }
+
+  private async audit(entry: AuditEntryInput): Promise<void> {
+    await this.options.audit?.record(entry)
+  }
+}
+
+/** Await one backoff delay. */
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => { setTimeout(resolve, ms) })
+}
+
+/** Project any thrown value onto provider-neutral failure facts. */
+function failureOf(error: unknown): LlmFailure {
+  if (error instanceof ModelCallFailure) return error.failure
+  const code = (error as { code?: unknown } | null)?.code
+  return {
+    message: error instanceof Error ? error.message : String(error),
+    code: typeof code === 'string' && code.length > 0 ? code : 'UNKNOWN',
   }
 }
 

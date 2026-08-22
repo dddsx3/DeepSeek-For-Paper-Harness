@@ -41,9 +41,27 @@ export type {
 export { CatalogSkillProvider } from './catalog-provider.ts'
 export { resolveRunPolicy } from './policy.ts'
 export type { RunPolicy } from './policy.ts'
-export { WorkflowExecutor } from './executor.ts'
-export type { ExecutionOutcome, ReviewDefect } from './executor.ts'
-export { HarnessExecutorService } from './executor-service.ts'
+export { WorkflowExecutor, WorkflowExecutionError } from './executor.ts'
+export type {
+  AuditSink, ExecutionFailureCode, ExecutionOutcome, ExecutorOptions, ReviewDefect,
+} from './executor.ts'
+export {
+  DEFAULT_BACKOFF_BASE_MS, DEFAULT_BACKOFF_CAP_MS, DEFAULT_BUDGET_WARN_FRACTION,
+  DEFAULT_DAILY_BUDGET_USD, DEFAULT_STRICT_BUDGET_MULTIPLIER, HarnessExecutorService,
+} from './executor-service.ts'
+export type { ExecutorConfig } from './executor-service.ts'
+export { computeCostUsd, evaluateBudget, resolveModelPrice } from './cost.ts'
+export type { BudgetPolicy, BudgetState, BudgetVerdict, ModelPrice, PricingTable } from './cost.ts'
+export { backoffDelayMs, classifyFailure } from './resilience.ts'
+export type { BackoffPolicy, FailureAction } from './resilience.ts'
+export {
+  REDACTED, redactSensitiveDetail, redactSensitiveText, redactSensitiveValue,
+} from './redact.ts'
+export {
+  AUDIT_EVENT_TYPES, DEFAULT_AUDIT_RETENTION_DAYS, HarnessAuditService, auditDomainSpec,
+  auditRecordSchema,
+} from './audit.ts'
+export type { AuditConfig, AuditEntryInput, AuditEventType, AuditRecord } from './audit.ts'
 
 /** Cordis plugin name. */
 export const name = 'harness-foundation'
