@@ -47,11 +47,14 @@ export type {
 } from './executor.ts'
 export {
   DEFAULT_BACKOFF_BASE_MS, DEFAULT_BACKOFF_CAP_MS, DEFAULT_BUDGET_WARN_FRACTION,
+  DEFAULT_CONTEXT_UTILIZATION,
   DEFAULT_DAILY_BUDGET_USD, DEFAULT_STRICT_BUDGET_MULTIPLIER, HarnessExecutorService,
 } from './executor-service.ts'
 export type { ExecutorConfig } from './executor-service.ts'
 export { computeCostUsd, evaluateBudget, resolveModelPrice } from './cost.ts'
 export type { BudgetPolicy, BudgetState, BudgetVerdict, ModelPrice, PricingTable } from './cost.ts'
+export { compactPrompt, estimateTextTokens, renderSections } from './context.ts'
+export type { CompactionOutcome, ElidedSection, PromptSection } from './context.ts'
 export { backoffDelayMs, classifyFailure } from './resilience.ts'
 export type { BackoffPolicy, FailureAction } from './resilience.ts'
 export {

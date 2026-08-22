@@ -17,6 +17,7 @@ The package deliberately reuses the harness LLM vocabulary and storage services.
 - `resolveRunPolicy`: mode-bounded revise rounds and node attempt ceilings.
 - `classifyFailure` / `backoffDelayMs`: provider failures routed to retry, block, or revision, with exponential backoff that never undercuts a provider-requested delay.
 - `resolveModelPrice` / `computeCostUsd` / `evaluateBudget`: cost derived from token counts against a configured price table, judged against a daily ceiling that strict mode raises.
+- `compactPrompt` / `estimateTextTokens`: prompt sections priced under the repo's four-character density and trimmed by declared priority so a request fits the model's window.
 - `HarnessAuditService`: durable audit trail in its own `harness_audit` domain, ordered by append sequence and pruned by a retention window.
 - `redactSensitiveText` / `redactSensitiveValue` / `redactSensitiveDetail`: credential masking applied before anything becomes durable or diagnostic.
 - `SignedSkillProvider`: optional signed-package source registered through the existing `ctx.skills` provider seam.
@@ -24,6 +25,8 @@ The package deliberately reuses the harness LLM vocabulary and storage services.
 - `CatalogSkillProvider`: serves the catalog's active versions through `ctx.skills`.
 
 The `harness.*` apiproxy domain (`api/harness.ts`) exposes run control (`harness.runs.*`), resumable event reads with an `afterSeq` cursor, and catalog operations (`harness.skills.*`) with structured `harness-*` error codes; the engine service is named `harnessWorkflow` to avoid the upstream `workflowEngine` name. Durable events are also pushed in-process through the `harness/run-event` Cordis event, allowlisted in `API_REMOTE_FORWARDED_EVENTS`, so remote consumers receive them as `host/remote-event` frames over the existing downlink.
+
+A request is fitted to the role's context window before it is sent: the lowest-priority sections give way first (a regenerable plan, then the defect list, then the draft, then the task, never the instruction), a trimmed section keeps its head and tail, and once every trimmable section reaches its floor the prompt is sent as short as it can be made rather than silently dropping a required section. When anything is elided the untrimmed prompt is stored as a run artifact and the request carries its reference, so the full text stays recoverable without being resent.
 
 A node retries only failures a retry can fix; credential, routing, and request-validity failures fail the run at once, and a node that spends its attempts pauses for review instead of failing, so a resumed run continues from it. A run refuses to start another model call once the day's ceiling is spent: it pauses and records the refusal. Audit detail and provider text are redacted on the way in, so no credential value reaches the trail.
 

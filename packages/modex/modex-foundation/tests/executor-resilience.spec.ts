@@ -61,6 +61,10 @@ function scriptedProvider(behaviors: Behavior[], fallback: (system: string) => s
   const calls: string[] = []
   return {
     calls,
+    resolveRole: () => Promise.resolve({
+      route: { role: 'executor', ...settings.executor },
+      model: { provider: 'fake', id: 'fake-model', name: 'fake-model' },
+    }),
     stream: (options: GenerateOptions): AsyncIterable<StreamChunk> => {
       const system = options.system ?? ''
       calls.push(system.slice(0, 12))

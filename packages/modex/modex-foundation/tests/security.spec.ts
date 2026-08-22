@@ -58,6 +58,15 @@ describe('redaction', () => {
     })
   })
 
+  it('replaces structure past the depth ceiling and drops non-JSON values', () => {
+    let deep: Record<string, unknown> = { leaf: 'end' }
+    for (let level = 0; level < 12; level += 1) deep = { level, next: deep }
+    expect(JSON.stringify(redactSensitiveValue(deep))).toContain(REDACTED)
+
+    expect(redactSensitiveValue({ fn: () => 'x', sym: Symbol('s'), ok: 1 }))
+      .toEqual({ fn: null, sym: null, ok: 1 })
+  })
+
   it('redacts detail maps without dropping their keys', () => {
     expect(redactSensitiveDetail({ token: 'abcdefghijkl', mode: 'strict', note: 'api_key: sk-abcdefghijklmnop' }))
       .toEqual({ token: REDACTED, mode: 'strict', note: `api_key: ${REDACTED}` })

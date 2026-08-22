@@ -21,6 +21,8 @@ export const DEFAULT_STRICT_BUDGET_MULTIPLIER = 1.5
 export const DEFAULT_BACKOFF_BASE_MS = 1000
 /** Retry delay ceiling used when a composition names none. */
 export const DEFAULT_BACKOFF_CAP_MS = 30_000
+/** Context-window fraction one request may occupy when a composition names none. */
+export const DEFAULT_CONTEXT_UTILIZATION = 0.8
 
 /**
  * Execution policy for one deployment. Every field is optional in yml: the
@@ -40,6 +42,8 @@ export interface ExecutorConfig {
   readonly backoffCapMs?: number
   /** Route prices keyed by provider then model. */
   readonly pricing?: PricingTable
+  /** Fraction of a model's context window one request may occupy. */
+  readonly contextUtilization?: number
 }
 
 const modelPrice: s<ModelPrice> = s.object({
@@ -64,6 +68,7 @@ export class HarnessExecutorService extends Service {
     backoffBaseMs: s.number().step(1).min(1).default(DEFAULT_BACKOFF_BASE_MS),
     backoffCapMs: s.number().step(1).min(1).default(DEFAULT_BACKOFF_CAP_MS),
     pricing: s.dict(s.dict(modelPrice)).default({}),
+    contextUtilization: s.number().min(0.1).max(1).default(DEFAULT_CONTEXT_UTILIZATION),
   })
 
   private executor: WorkflowExecutor | undefined
@@ -94,6 +99,7 @@ export class HarnessExecutorService extends Service {
           baseMs: this.config.backoffBaseMs ?? DEFAULT_BACKOFF_BASE_MS,
           capMs: this.config.backoffCapMs ?? DEFAULT_BACKOFF_CAP_MS,
         },
+        contextUtilization: this.config.contextUtilization ?? DEFAULT_CONTEXT_UTILIZATION,
         ...audit === undefined ? {} : { audit },
       },
     )

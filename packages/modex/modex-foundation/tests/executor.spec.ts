@@ -45,6 +45,10 @@ async function harness(script: Script) {
   await ctx.plugin(HarnessFoundationService)
   await ctx.plugin(WorkflowEngineService)
   ctx.provide('harnessProvider', {
+    resolveRole: () => Promise.resolve({
+      route: { role: 'executor', ...settings.executor },
+      model: { provider: 'fake', id: 'fake-model', name: 'fake-model' },
+    }),
     stream: (options: GenerateOptions) => fakeStream(script(options.system ?? '', userText(options))),
   } as never)
   await ctx.plugin(HarnessSettingsService, settings)

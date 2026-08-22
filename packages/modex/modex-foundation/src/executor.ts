@@ -10,6 +10,8 @@ import { createHash } from 'node:crypto'
 import { BlockAssembler, createUserMessage } from '@deepseek-ai/dsh-llm'
 import type { LlmFailure, TokenUsage } from '@deepseek-ai/dsh-llm'
 import type { AuditEntryInput } from './audit.ts'
+import { compactPrompt, renderSections } from './context.ts'
+import type { PromptSection } from './context.ts'
 import { computeCostUsd, evaluateBudget, resolveModelPrice } from './cost.ts'
 import type { BudgetPolicy, PricingTable } from './cost.ts'
 import { resolveRunPolicy } from './policy.ts'
@@ -55,6 +57,8 @@ export interface ExecutorOptions {
   readonly budget: BudgetPolicy
   /** Retry backoff bounds. */
   readonly backoff: BackoffPolicy
+  /** Fraction of a model's context window one request may occupy. */
+  readonly contextUtilization: number
   /** Audit sink; omitted in compositions that mount no trail. */
   readonly audit?: AuditSink
 }
@@ -89,6 +93,13 @@ class ModelCallFailure extends Error {
   }
 }
 
+/** Trim order: a regenerable plan gives way first, instructions never. */
+const TRIM_PLAN = 0
+const TRIM_DEFECTS = 1
+const TRIM_DRAFT = 2
+const TRIM_TASK = 3
+const KEEP = Infinity
+
 const SYSTEM_PROMPTS: Record<HarnessRole, string> = {
   executor: 'You are a careful task executor. Produce complete, correct output for the given task. Be concise.',
   reviewer: 'You are an independent reviewer. Judge only the delivered text against the task. Respond with JSON only.',
@@ -118,6 +129,9 @@ export class WorkflowExecutor {
     private readonly options: ExecutorOptions,
   ) {}
 
+  /** Context windows already resolved per role; `undefined` means the adapter states none. */
+  private readonly contextWindows = new Map<HarnessRole, number | undefined>()
+
   /**
    * Execute one run end to end. Fast mode delivers after its revise rounds
    * even with defects; strict mode fails the run when defects persist.
@@ -133,22 +147,23 @@ export class WorkflowExecutor {
     await this.audit({ eventType: 'workflow_started', actor: 'harness-executor', runId, detail: { mode: initial.mode } })
 
     try {
+      const task: PromptSection = { name: 'task', text: `Task: ${input}`, trimPriority: TRIM_TASK }
       const plan = await this.runNode(runId, 'plan', 'plan', 'executor', [
-        `Task: ${input}`,
-        'Produce a short numbered execution plan.',
-      ].join('\n'))
+        task,
+        { name: 'instruction', text: 'Produce a short numbered execution plan.', trimPriority: KEEP },
+      ])
       const draft = await this.runNode(runId, 'execute', 'execute', 'executor', [
-        `Task: ${input}`,
-        `Plan:\n${plan.text}`,
-        'Produce the deliverable text for the task.',
-      ].join('\n\n'))
+        task,
+        { name: 'plan', text: `Plan:\n${plan.text}`, trimPriority: TRIM_PLAN },
+        { name: 'instruction', text: 'Produce the deliverable text for the task.', trimPriority: KEEP },
+      ])
 
       let current = draft.text
       let defects: ReviewDefect[] = []
       for (let round = 0; round <= policy.maxReviseRounds; round += 1) {
         const review = await this.runNode(
           runId, 'review', round === 0 ? 'review' : `review #${round + 1}`, 'reviewer',
-          this.reviewPrompt(input, current),
+          reviewSections(task, current),
         )
         defects = parseDefects(review.text)
         for (const defect of defects) {
@@ -161,11 +176,15 @@ export class WorkflowExecutor {
         const revised = await this.runNode(
           runId, 'revise', `revise #${round + 1}`, 'editorAi',
           [
-            `Task: ${input}`,
-            `Current text:\n${current}`,
-            `Defects:\n${defects.map(defect => `- [${defect.severity}] ${defect.description}`).join('\n')}`,
-            'Return the corrected text only.',
-          ].join('\n\n'),
+            task,
+            { name: 'draft', text: `Current text:\n${current}`, trimPriority: TRIM_DRAFT },
+            {
+              name: 'defects',
+              text: `Defects:\n${defects.map(defect => `- [${defect.severity}] ${defect.description}`).join('\n')}`,
+              trimPriority: TRIM_DEFECTS,
+            },
+            { name: 'instruction', text: 'Return the corrected text only.', trimPriority: KEEP },
+          ],
         )
         current = revised.text
       }
@@ -225,7 +244,7 @@ export class WorkflowExecutor {
     type: NodeRecord['type'],
     title: string,
     role: HarnessRole,
-    prompt: string,
+    sections: readonly PromptSection[],
   ): Promise<{ nodeId: NodeRecord['id']; text: string }> {
     const run = this.engine.getRun(runId)
     const mode = run?.mode ?? 'fast'
@@ -242,6 +261,7 @@ export class WorkflowExecutor {
     })
     await this.engine.transitionNode(node.id, 'ready')
     const route = this.settings.snapshot()[role]
+    const prompt = await this.fitPrompt(runId, node.id, role, sections)
 
     for (let attempt = 1; attempt <= policy.maxNodeAttempts; attempt += 1) {
       await this.engine.transitionNode(node.id, 'running')
@@ -292,6 +312,42 @@ export class WorkflowExecutor {
       'provider-unavailable',
       `node '${node.id}' exhausted ${policy.maxNodeAttempts} attempts and is paused for review`,
     )
+  }
+
+  /**
+   * Fit one prompt to the role's context window. When anything is elided the
+   * untrimmed prompt is stored as a run artifact and the request carries its
+   * reference, so the full text stays recoverable without being resent.
+   */
+  private async fitPrompt(
+    runId: RunId,
+    nodeId: NodeRecord['id'],
+    role: HarnessRole,
+    sections: readonly PromptSection[],
+  ): Promise<string> {
+    const window = await this.contextWindowFor(role)
+    const budget = window === undefined
+      ? Infinity
+      : Math.floor(window * this.options.contextUtilization)
+    const outcome = compactPrompt(sections, budget)
+    if (outcome.elided.length === 0) return outcome.text
+    const artifact = await this.storeArtifact(runId, nodeId, renderSections(sections))
+    await this.engine.appendPublic(runId, nodeId, 'context_compacted', {
+      budgetTokens: budget,
+      estimatedTokens: outcome.estimatedTokens,
+      elided: outcome.elided.map(entry => ({ ...entry })),
+      fullPromptArtifactId: artifact.id,
+    })
+    return `${outcome.text}\n\n<artifact_ref kind="text" id="${artifact.id}" sha256="${artifact.sha256}" />`
+  }
+
+  /** Resolve and cache one role's context window from the adapter. */
+  private async contextWindowFor(role: HarnessRole): Promise<number | undefined> {
+    if (this.contextWindows.has(role)) return this.contextWindows.get(role)
+    const resolved = await this.provider.resolveRole(role, this.settings.snapshot())
+    const window = resolved.model.context?.contextWindow
+    this.contextWindows.set(role, window)
+    return window
   }
 
   /** Refuse to start another model call once the day's ceiling is reached. */
@@ -367,15 +423,6 @@ export class WorkflowExecutor {
     }
   }
 
-  private reviewPrompt(input: string, text: string): string {
-    return [
-      `Task: ${input}`,
-      `Delivered text:\n${text}`,
-      'List defects, or return an empty list. Respond with JSON only in this shape:',
-      '{"defects":[{"severity":"major|minor","description":"..."}]}',
-    ].join('\n\n')
-  }
-
   private async storeArtifact(runId: RunId, nodeId: NodeRecord['id'], text: string): Promise<ArtifactRecord> {
     const digest = createHash('sha256').update(text).digest('hex')
     const record: ArtifactRecord = {
@@ -408,6 +455,22 @@ export class WorkflowExecutor {
   private async audit(entry: AuditEntryInput): Promise<void> {
     await this.options.audit?.record(entry)
   }
+}
+
+/** Sections one review request carries. */
+function reviewSections(task: PromptSection, delivered: string): PromptSection[] {
+  return [
+    task,
+    { name: 'draft', text: `Delivered text:\n${delivered}`, trimPriority: TRIM_DRAFT },
+    {
+      name: 'instruction',
+      text: [
+        'List defects, or return an empty list. Respond with JSON only in this shape:',
+        '{"defects":[{"severity":"major|minor","description":"..."}]}',
+      ].join('\n'),
+      trimPriority: KEEP,
+    },
+  ]
 }
 
 /** Await one backoff delay. */

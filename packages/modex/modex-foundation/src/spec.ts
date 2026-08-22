@@ -77,7 +77,8 @@ export const workflowEventSchema = z.object({
   nodeId: nodeIdSchema.nullable(),
   seq: z.number().int().positive(),
   type: z.enum([
-    'plan_ready', 'run_state', 'node_created', 'node_state', 'request_started', 'reasoning_delta', 'text_delta',
+    'plan_ready', 'run_state', 'node_created', 'node_state', 'request_started',
+    'context_compacted', 'reasoning_delta', 'text_delta',
     'tool_call', 'tool_result', 'usage', 'defect', 'gate_result', 'completed',
     'failed', 'paused', 'recovery',
   ]),
