@@ -140,8 +140,7 @@ export class WorkflowExecutor {
    * @returns the final run record and its manifest.
    */
   async execute(runId: RunId, input: string): Promise<ExecutionOutcome> {
-    const initial = this.engine.getRun(runId)
-    if (initial === undefined) throw new Error(`run '${runId}' was not found`)
+    const initial = this.runOf(runId)
     const policy = resolveRunPolicy(initial.mode)
     if (initial.status === 'planning') await this.engine.transitionRun(runId, 'running')
     await this.audit({ eventType: 'workflow_started', actor: 'harness-executor', runId, detail: { mode: initial.mode } })
@@ -192,7 +191,7 @@ export class WorkflowExecutor {
       const gatePassed = defects.length === 0
       await this.engine.appendPublic(runId, null, 'gate_result', { gate: 'review', passed: gatePassed })
       const artifact = await this.deliver(runId, current)
-      const manifest = this.buildManifest(this.engine.getRun(runId) ?? initial, artifact, gatePassed)
+      const manifest = this.buildManifest(this.runOf(runId), artifact, gatePassed)
       await this.engine.recordManifest(runId, manifest)
 
       if (!gatePassed && initial.mode !== 'fast') {
@@ -215,7 +214,7 @@ export class WorkflowExecutor {
         runId,
         detail: { gatePassed, costUsd: manifest.usage.costUsd },
       })
-      return { run: this.engine.getRun(runId) ?? initial, manifest }
+      return { run: this.runOf(runId), manifest }
     } catch (error: unknown) {
       if (!(error instanceof WorkflowExecutionError) || error.code === 'gate-failed') throw error
       await this.audit({
@@ -246,8 +245,7 @@ export class WorkflowExecutor {
     role: HarnessRole,
     sections: readonly PromptSection[],
   ): Promise<{ nodeId: NodeRecord['id']; text: string }> {
-    const run = this.engine.getRun(runId)
-    const mode = run?.mode ?? 'fast'
+    const mode = this.runOf(runId).mode
     const policy = resolveRunPolicy(mode)
     await this.assertBudget(runId, mode)
 
@@ -356,7 +354,7 @@ export class WorkflowExecutor {
     if (verdict.state === 'ok') return
     await this.engine.appendPublic(runId, null, 'usage', {
       budgetState: verdict.state,
-      limitUsd: Number.isFinite(verdict.limitUsd) ? verdict.limitUsd : null,
+      limitUsd: verdict.limitUsd,
       spentUsd: verdict.spentUsd,
     })
     if (verdict.state === 'warning') return
@@ -447,9 +445,16 @@ export class WorkflowExecutor {
       mode: run.mode,
       finalArtifactId: artifact.id,
       gates: { review: gatePassed },
-      usage: this.engine.getRun(run.id)?.usage ?? run.usage,
+      usage: run.usage,
       redacted: true,
     }
+  }
+
+  /** Resolve one run or fail loud; the executor never operates on a vanished run. */
+  private runOf(runId: RunId): RunRecord {
+    const run = this.engine.getRun(runId)
+    if (run === undefined) throw new Error(`run '${runId}' was not found`)
+    return run
   }
 
   private async audit(entry: AuditEntryInput): Promise<void> {

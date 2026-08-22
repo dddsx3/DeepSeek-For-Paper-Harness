@@ -10,6 +10,7 @@ import { Context, Service } from '@deepseek-ai/cordis'
 import s from '@deepseek-ai/schemastery'
 import type { ModelPrice, PricingTable } from './cost.ts'
 import { WorkflowExecutor } from './executor.ts'
+import type { ExecutorOptions } from './executor.ts'
 
 /** Daily spend ceiling used when a composition names none. */
 export const DEFAULT_DAILY_BUDGET_USD = 20
@@ -51,6 +52,34 @@ const modelPrice: s<ModelPrice> = s.object({
   outputPer1k: s.number().min(0).required(),
 })
 
+/**
+ * Resolve one deployment's execution policy. The loader applies the schema
+ * defaults before construction; this is the same resolution for a
+ * hand-built composition, and the single place either path defaults.
+ * @param config - the composition's declared policy, possibly partial.
+ * @param audit - audit sink to attach, when the composition mounts one.
+ * @returns the fully resolved executor options.
+ */
+export function resolveExecutorOptions(
+  config: ExecutorConfig,
+  audit?: ExecutorOptions['audit'],
+): ExecutorOptions {
+  return {
+    pricing: config.pricing ?? {},
+    budget: {
+      dailyBudgetUsd: config.dailyBudgetUsd ?? DEFAULT_DAILY_BUDGET_USD,
+      warnFraction: config.budgetWarnFraction ?? DEFAULT_BUDGET_WARN_FRACTION,
+      strictMultiplier: config.strictBudgetMultiplier ?? DEFAULT_STRICT_BUDGET_MULTIPLIER,
+    },
+    backoff: {
+      baseMs: config.backoffBaseMs ?? DEFAULT_BACKOFF_BASE_MS,
+      capMs: config.backoffCapMs ?? DEFAULT_BACKOFF_CAP_MS,
+    },
+    contextUtilization: config.contextUtilization ?? DEFAULT_CONTEXT_UTILIZATION,
+    ...audit === undefined ? {} : { audit },
+  }
+}
+
 declare module '@deepseek-ai/cordis' {
   interface Context {
     harnessExecutor: HarnessExecutorService
@@ -83,29 +112,18 @@ export class HarnessExecutorService extends Service {
 
   /** Build the executor from the composed services and validated policy. */
   protected [Service.init](): void {
-    const audit = this.ctx.get('harnessAudit')
     this.executor = new WorkflowExecutor(
       this.ctx.harnessWorkflow.runs,
       this.ctx.harnessProvider,
       this.ctx.harnessSettings,
-      {
-        pricing: this.config.pricing ?? {},
-        budget: {
-          dailyBudgetUsd: this.config.dailyBudgetUsd ?? DEFAULT_DAILY_BUDGET_USD,
-          warnFraction: this.config.budgetWarnFraction ?? DEFAULT_BUDGET_WARN_FRACTION,
-          strictMultiplier: this.config.strictBudgetMultiplier ?? DEFAULT_STRICT_BUDGET_MULTIPLIER,
-        },
-        backoff: {
-          baseMs: this.config.backoffBaseMs ?? DEFAULT_BACKOFF_BASE_MS,
-          capMs: this.config.backoffCapMs ?? DEFAULT_BACKOFF_CAP_MS,
-        },
-        contextUtilization: this.config.contextUtilization ?? DEFAULT_CONTEXT_UTILIZATION,
-        ...audit === undefined ? {} : { audit },
-      },
+      resolveExecutorOptions(this.config, this.ctx.get('harnessAudit')),
     )
   }
 
-  /** @returns the initialized workflow executor. */
+  /**
+   * Resolve the executor built during initialization.
+   * @returns the initialized workflow executor.
+   */
   get runs(): WorkflowExecutor {
     if (this.executor === undefined) throw new Error('harness executor is not initialized')
     return this.executor

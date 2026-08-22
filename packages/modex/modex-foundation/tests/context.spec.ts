@@ -89,6 +89,13 @@ describe('context budgeting', () => {
     // Same tier, so the longer section gives way first: it is the only one cut,
     // and trimming stops as soon as the budget is met.
     expect(outcome.elided.map(entry => entry.name)).toEqual(['long-plan'])
+    // Declared the other way round the incumbent already is the longest.
+    const reversed = compactPrompt([
+      section('long-plan', 4000, 0),
+      section('short-plan', 900, 0),
+      { name: 'instruction', text: 'answer briefly', trimPriority: KEEP },
+    ], 700)
+    expect(reversed.elided.map(entry => entry.name)).toEqual(['long-plan'])
     const longPlan = outcome.elided[0]
     expect(longPlan?.keptChars).toBeLessThan(longPlan?.originalChars ?? 0)
     expect(outcome.estimatedTokens).toBeLessThanOrEqual(700)

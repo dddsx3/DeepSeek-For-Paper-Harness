@@ -11,10 +11,10 @@ import {
   redactSensitiveValue,
 } from '../src/index.ts'
 
-async function auditHarness(retentionDays = 90) {
+async function auditHarness(retentionDays = 90, pool = new MemoryMediaPool()) {
   const ctx = new Context()
   await ctx.plugin(Storage)
-  ctx.storage.backend.register('memory', new MemoryStorageBackend(new MemoryMediaPool()))
+  ctx.storage.backend.register('memory', new MemoryStorageBackend(pool))
   const facility = new DomainFacility(ctx, { backend: 'memory' })
   ctx.storage.mount('domain', facility)
   ctx.provide('storageDomain', facility)
@@ -73,6 +73,26 @@ describe('redaction', () => {
   })
 })
 
+describe('HarnessAuditService restart', () => {
+  it('resumes the append sequence past the highest persisted entry', async () => {
+    const pool = new MemoryMediaPool()
+    const first = await auditHarness(90, pool)
+    await first.audit.record({ eventType: 'workflow_started', actor: 'harness-executor', runId: 'run-1' })
+    await first.audit.record({ eventType: 'workflow_completed', actor: 'harness-executor', runId: 'run-1' })
+    expect(first.audit.list().map(entry => entry.seq)).toEqual([1, 2])
+    await first.fiber.dispose()
+
+    // A restart over the same medium must not reuse an order position.
+    const second = await auditHarness(90, pool)
+    const resumed = await second.audit.record({
+      eventType: 'workflow_started', actor: 'harness-executor', runId: 'run-2',
+    })
+    expect(resumed.seq).toBe(3)
+    expect(second.audit.list().map(entry => entry.seq)).toEqual([1, 2, 3])
+    await second.fiber.dispose()
+  })
+})
+
 describe('HarnessAuditService', () => {
   it('records redacted entries in chronological order and filters by run', async () => {
     const { fiber, audit } = await auditHarness()
@@ -100,6 +120,8 @@ describe('HarnessAuditService', () => {
     const { fiber, audit } = await auditHarness()
     const entry = await audit.record({ eventType: 'settings_changed', actor: 'operator' })
     expect(entry.runId).toBeNull()
+    const explicit = await audit.record({ eventType: 'settings_changed', actor: 'operator', runId: null })
+    expect(explicit.runId).toBeNull()
     expect(entry.detail).toEqual({})
     await fiber.dispose()
   })

@@ -1,5 +1,7 @@
 # `@deepseek-ai/dsh-harness-foundation`
 
+English | [中文](README.zh.md)
+
 Phase-two foundation for the Harness extension. This package owns the versioned workflow-run records, the shared `storage-domain` declaration, a repository over that domain, role-settings schemas, and a bounded diagnostics service over `ctx.llm`.
 
 The package deliberately reuses the harness LLM vocabulary and storage services. It does not create a second message protocol, a second persistence backend, or a regular Session for diagnostics. Credential fields are references only; credential values are resolved by the existing credentials seam at the provider boundary.

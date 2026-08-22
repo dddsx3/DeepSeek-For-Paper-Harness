@@ -38,19 +38,36 @@ const nodeTransitions: Record<NodeState, readonly NodeState[]> = {
   paused: ['ready', 'skipped'],
 }
 
-/** Validate a run transition and return the target state. */
+/**
+ * Validate one run transition against the declared edge set.
+ * @param id - run whose transition is being judged, named in the refusal.
+ * @param from - state the run currently holds.
+ * @param to - state the caller wants to reach.
+ * @returns the target state when the edge is declared.
+ */
 export function assertRunTransition(id: string, from: RunStatus, to: RunStatus): RunStatus {
   if (!runTransitions[from].includes(to)) throw new InvalidWorkflowTransitionError('run', id, from, to)
   return to
 }
 
-/** Validate a node transition and return the target state. */
+/**
+ * Validate one node transition against the declared edge set.
+ * @param id - node whose transition is being judged, named in the refusal.
+ * @param from - state the node currently holds.
+ * @param to - state the caller wants to reach.
+ * @returns the target state when the edge is declared.
+ */
 export function assertNodeTransition(id: string, from: NodeState, to: NodeState): NodeState {
   if (!nodeTransitions[from].includes(to)) throw new InvalidWorkflowTransitionError('node', id, from, to)
   return to
 }
 
-/** Return whether a node can be retried without exceeding its attempt limit. */
+/**
+ * Whether one more attempt stays within a node's ceiling.
+ * @param attempts - attempts already spent.
+ * @param maxAttempts - ceiling the node was created with.
+ * @returns whether another attempt is permitted.
+ */
 export function canRetryNode(attempts: number, maxAttempts: number): boolean {
   return attempts < maxAttempts
 }

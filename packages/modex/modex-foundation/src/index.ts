@@ -48,6 +48,7 @@ export type {
 export {
   DEFAULT_BACKOFF_BASE_MS, DEFAULT_BACKOFF_CAP_MS, DEFAULT_BUDGET_WARN_FRACTION,
   DEFAULT_CONTEXT_UTILIZATION,
+  resolveExecutorOptions,
   DEFAULT_DAILY_BUDGET_USD, DEFAULT_STRICT_BUDGET_MULTIPLIER, HarnessExecutorService,
 } from './executor-service.ts'
 export type { ExecutorConfig } from './executor-service.ts'

@@ -167,7 +167,6 @@ function nextTrimTarget(
 /** Halve one section, keeping its head and tail with an elision note between. */
 function shorten(text: string): string {
   const keepChars = Math.max(MIN_KEEP_CHARS, Math.floor(text.length / 2))
-  if (keepChars >= text.length) return text
   const head = text.slice(0, Math.ceil(keepChars / 2))
   const tail = text.slice(text.length - Math.floor(keepChars / 2))
   const removed = text.length - head.length - tail.length

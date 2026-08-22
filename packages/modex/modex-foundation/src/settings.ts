@@ -50,7 +50,11 @@ export class HarnessSettingsService extends Service {
     this.install(config)
   }
 
-  /** Current detached settings snapshot for one operation. */
+  /**
+   * Detached settings snapshot for one operation, so a mid-operation change
+   * cannot alter the routes a run already started with.
+   * @returns a deep copy of the currently resolved settings.
+   */
   snapshot(): HarnessSettings {
     return structuredClone(this.source())
   }

@@ -158,6 +158,76 @@ describe('SkillCatalogService', () => {
   })
 })
 
+describe('SkillCatalogService edge cases', () => {
+  it('treats reinstalling a stored version as a no-op', async () => {
+    const { parent, fiber, service } = await catalog()
+    const directory = await writePackage(parent, { id: 'idem-skill', version: '1.0.0' })
+    const first = await service.install(directory)
+    const again = await service.install(directory)
+    expect(again).toEqual(first)
+    expect(service.get('idem-skill')?.versions).toHaveLength(1)
+    await fiber.dispose()
+  })
+
+  it('installs a package whose integrity covers no tool declaration', async () => {
+    const { parent, fiber, service } = await catalog()
+    const directory = join(parent, 'bodyonly')
+    await mkdir(directory, { recursive: true })
+    const body = ['# body-only', '', 'instructions.', ''].join('\n')
+    await writeFile(join(directory, 'system.md'), body)
+    const manifest = {
+      id: 'body-only-skill',
+      version: '1.0.0',
+      name: 'body-only',
+      description: 'no tool declaration',
+      roles: ['executor'],
+      tags: [],
+      permissions: { tools: [], network: false },
+      compat: { minHarness: '0.1.0' },
+      integrity: {
+        algo: 'sha256' as const,
+        files: { 'system.md': createHash('sha256').update(body).digest('hex') },
+      },
+      signature: { algo: 'ed25519' as const, value: '', keyId: 'test-key' },
+    } satisfies SignedSkillManifest
+    manifest.signature.value = sign(null, Buffer.from(signaturePayload(manifest)), privateKey).toString('base64')
+    await writeFile(join(directory, 'skill.json'), JSON.stringify(manifest))
+
+    const record = await service.install(directory)
+    expect(record.versions[0]?.tools).toEqual([])
+    await fiber.dispose()
+  })
+
+  it('refuses to roll back a skill that was never installed', async () => {
+    const { fiber, service } = await catalog()
+    await expect(service.rollback('absent-skill', '1.0.0')).rejects.toThrow('is not installed')
+    await fiber.dispose()
+  })
+
+  it('treats a record whose active version is missing as declaring nothing', async () => {
+    const { parent, ctx, fiber, service } = await catalog()
+    await service.install(await writePackage(parent, { id: 'present-skill', version: '1.0.0', tools: ['write_file'] }))
+    const table = ctx.storageDomain.get('harness_skills')?.table('installed')
+    expect(table).toBeDefined()
+    // A record pointing at a version it does not hold contributes no tools or tags.
+    await table?.put('ghost-skill', { id: 'ghost-skill', installedVersion: '9.9.9', versions: [
+      { version: '1.0.0', directory: 'nowhere', installedAt: '', signatureOk: true, tools: ['read_file'], tags: [] },
+    ] })
+    expect(service.activeDirectories()).toHaveLength(1)
+
+    // The ghost declares nothing, so an installing skill sees no conflict from it.
+    const record = await service.install(await writePackage(parent, { id: 'other-skill', version: '1.0.0', tools: ['read_file'] }))
+    expect(record.installedVersion).toBe('1.0.0')
+    await fiber.dispose()
+  })
+
+  it('refuses reads once its domain is closed', async () => {
+    const { fiber, service } = await catalog()
+    await fiber.dispose()
+    expect(() => service.list()).toThrow('not initialized')
+  })
+})
+
 describe('detectSkillConflicts', () => {
   it('reports tool and tag conflicts between distinct skills only', () => {
     const existing = [{ id: 'left', tools: ['web_search'], tags: ['editor'] }]

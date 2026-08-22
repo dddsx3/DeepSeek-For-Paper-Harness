@@ -2,7 +2,10 @@
 
 import type { Context } from '@deepseek-ai/cordis'
 import type { InvariantInstaller } from '@deepseek-ai/dsh-invariants'
-import { workflowRunDomainSpec } from './spec.ts'
+// By package name, not a relative path: the root and the companion are two
+// bundles, and a shared relative import would split their common module into a
+// chunk this package's published file list does not carry.
+import { workflowRunDomainSpec } from '@deepseek-ai/dsh-harness-foundation'
 
 const PACKAGE_NAME = '@deepseek-ai/dsh-harness-foundation'
 

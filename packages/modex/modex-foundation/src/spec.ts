@@ -139,20 +139,35 @@ export const workflowRunDomainSpec = defineDomain({
   },
 })
 
+/** Execution mode of one run, which bounds its review loop and budget. */
 export type RunMode = z.infer<typeof runModeSchema>
+/** Token and cost accounting accumulated onto one run. */
 export type Usage = z.infer<typeof usageSchema>
+/** Lifecycle state of one run. */
 export type RunStatus = z.infer<typeof runStatusSchema>
+/** Lifecycle state of one node. */
 export type NodeState = z.infer<typeof nodeStateSchema>
+/** Responsibility one node carries in the workflow. */
 export type NodeType = z.infer<typeof nodeTypeSchema>
+/** One durable run record. */
 export type RunRecord = z.infer<typeof runRecordSchema>
+/** One durable node record. */
 export type NodeRecord = z.infer<typeof nodeRecordSchema>
+/** One persisted workflow event. */
 export type WorkflowEvent = z.infer<typeof workflowEventSchema>
+/** Durable metadata for one run artifact. */
 export type ArtifactRecord = z.infer<typeof artifactRecordSchema>
+/** Final summary recorded when a run delivers. */
 export type Manifest = z.infer<typeof manifestSchema>
+/** Provider route one workflow role dispatches through. */
 export type ProviderRoute = z.infer<typeof providerRouteSchema>
+/** Role settings document; credential values never appear here. */
 export type HarnessSettings = z.infer<typeof harnessSettingsSchema>
 
-/** Create a validated opaque run identifier. */
+/**
+ * Create one opaque run identifier.
+ * @returns a fresh branded run id.
+ */
 export function newRunId(): RunId {
   return randomUUID() as RunId
 }
@@ -166,12 +181,18 @@ export function RunId(id: string): RunId {
   return id as RunId
 }
 
-/** Create a validated opaque node identifier. */
+/**
+ * Create one opaque node identifier.
+ * @returns a fresh branded node id.
+ */
 export function newNodeId(): NodeId {
   return randomUUID() as NodeId
 }
 
-/** Create a validated opaque artifact identifier. */
+/**
+ * Create one opaque artifact identifier.
+ * @returns a fresh branded artifact id.
+ */
 export function newArtifactId(): ArtifactId {
   return randomUUID() as ArtifactId
 }

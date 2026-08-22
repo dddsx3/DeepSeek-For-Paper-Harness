@@ -280,7 +280,11 @@ export function apply(ctx: Context, config: SignedSkillProviderConfig): void {
   ctx.skills.registerProvider(() => provider)
 }
 
-/** Canonical bytes covered by the detached package signature. */
+/**
+ * Canonical bytes the detached package signature covers.
+ * @param manifest - manifest to serialize without its signature block.
+ * @returns the stable JSON text that is signed and verified.
+ */
 export function signaturePayload(manifest: SignedSkillManifest): string {
   const unsigned = { ...manifest, signature: undefined }
   return stableJson(unsigned)

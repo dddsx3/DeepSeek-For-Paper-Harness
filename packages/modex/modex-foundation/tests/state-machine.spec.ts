@@ -142,6 +142,9 @@ describe('replay of the remaining event kinds', () => {
       event(runId, 1, 'recovery', nodeId, { to: 'ready' }),
     ])).toThrow(WorkflowReplayError)
     expect(() => replayWorkflow(runId, [
+      event(runId, 1, 'node_state', nodeId, { from: 'pending', to: 'ready' }),
+    ])).toThrow('was not created')
+    expect(() => replayWorkflow(runId, [
       event(runId, 1, 'node_created', nodeId),
       event(runId, 2, 'node_created', nodeId),
     ])).toThrow('created twice')

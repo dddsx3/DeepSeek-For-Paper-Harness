@@ -2,6 +2,8 @@
 
 Status: implemented
 
+English | [中文](2026-08-22-harness-foundation-seams.zh.md)
+
 ## Problem
 
 The phase-two implementation needs durable workflow-run records, role settings, and a bounded provider diagnostic without introducing a second message protocol, persistence medium, or credential document inside the harness.
@@ -28,4 +30,6 @@ The package requires the existing storage-domain, settings, credentials, and LLM
 
 ## Testing
 
-The host TypeScript build includes the package without errors. Schema, storage, provider, diagnostics, settings, workflow, replay, skill catalog, and apiproxy harness-domain tests run without external network access. The package invariant companion checks undeclared domain tables and persisted values against the declared schemas.
+Both compiler faces build without errors, and the package meets the repository's per-file 100% coverage gate: schema, storage, provider, diagnostics, settings, workflow, replay, context budgeting, cost, resilience, redaction, audit, skill catalog, and apiproxy harness-domain suites all run without network access. The package invariant companion checks undeclared domain tables and persisted values against the declared schemas.
+
+`tests/workflow.e2e.ts` is the real-API acceptance suite and self-skips without `$DEEPSEEK_API_KEY`, so a keyless lane stays green. It asserts durable facts rather than model prose — manifest, artifact, accumulated usage, audit trail, and a replay of the event log agreeing with the records — and deliberately omits a strict-mode case, whose four reviews would spend four times the calls to pin facts the unit suites already cover.

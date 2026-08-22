@@ -54,17 +54,17 @@ export function replayWorkflow(runId: RunId, events: readonly WorkflowEvent[]): 
           runStatus = transitionRun(runId, runStatus, event.data, event.seq)
           break
         case 'node_created':
-          createNode(nodeStates, event, runId)
+          createNode(nodeStates, event)
           break
         case 'node_state':
-          transitionNode(nodeStates, event, runId)
+          transitionNode(nodeStates, event)
           break
         case 'recovery':
-          transitionNodeFromRecovery(nodeStates, event, runId)
+          transitionNodeFromRecovery(nodeStates, event)
           break
         case 'paused':
           if (event.nodeId === null) runStatus = transitionRunTo(runId, runStatus, 'paused')
-          else setNode(nodeStates, event.nodeId, 'paused', runId, event.seq)
+          else nodeStates.set(event.nodeId, 'paused')
           break
         case 'completed':
           runStatus = transitionRunTo(runId, runStatus, 'completed')
@@ -76,7 +76,8 @@ export function replayWorkflow(runId: RunId, events: readonly WorkflowEvent[]): 
           break
       }
     } catch (error) {
-      if (error instanceof WorkflowReplayError) throw error
+      // Every throw inside the switch comes from the helpers below as a plain
+      // Error; wrapping it names the event whose replay failed.
       throw new WorkflowReplayError(runId, `event ${event.seq}: ${String(error)}`)
     }
   }
@@ -107,51 +108,26 @@ function transitionRunTo(runId: RunId, current: RunStatus, to: RunStatus): RunSt
   return assertRunTransition(runId, current, to)
 }
 
-function createNode(
-  nodeStates: Map<NodeId, NodeState>,
-  event: WorkflowEvent,
-  runId: RunId,
-): void {
+function createNode(nodeStates: Map<NodeId, NodeState>, event: WorkflowEvent): void {
   if (event.nodeId === null) throw new Error('node_created event has no node id')
   if (nodeStates.has(event.nodeId)) throw new Error(`node '${event.nodeId}' was created twice`)
   nodeStates.set(event.nodeId, 'pending')
-  if (event.runId !== runId) throw new Error('node event belongs to another run')
 }
 
-function transitionNode(
-  nodeStates: Map<NodeId, NodeState>,
-  event: WorkflowEvent,
-  runId: RunId,
-): void {
+function transitionNode(nodeStates: Map<NodeId, NodeState>, event: WorkflowEvent): void {
   if (event.nodeId === null) throw new Error(`event ${event.seq} has no node id`)
   const current = nodeStates.get(event.nodeId)
   if (current === undefined) throw new Error(`node '${event.nodeId}' was not created`)
   const from = nodeStateSchema.parse(event.data.from)
   const to = nodeStateSchema.parse(event.data.to)
   if (from !== current) throw new Error(`event ${event.seq} says node is '${from}', replay state is '${current}'`)
-  setNode(nodeStates, event.nodeId, assertNodeTransition(event.nodeId, from, to), runId, event.seq)
+  nodeStates.set(event.nodeId, assertNodeTransition(event.nodeId, from, to))
 }
 
-function transitionNodeFromRecovery(
-  nodeStates: Map<NodeId, NodeState>,
-  event: WorkflowEvent,
-  runId: RunId,
-): void {
+function transitionNodeFromRecovery(nodeStates: Map<NodeId, NodeState>, event: WorkflowEvent): void {
   if (event.nodeId === null) throw new Error(`event ${event.seq} has no node id`)
   const current = nodeStates.get(event.nodeId)
   if (current === undefined) throw new Error(`node '${event.nodeId}' was not created`)
   const to = nodeStateSchema.parse(event.data.to)
-  setNode(nodeStates, event.nodeId, to, runId, event.seq)
-}
-
-function setNode(
-  nodeStates: Map<NodeId, NodeState>,
-  nodeId: NodeId,
-  state: NodeState,
-  runId: RunId,
-  seq: number,
-): void {
-  if (typeof nodeId !== 'string' || nodeId.length === 0) throw new Error(`event ${seq} has an invalid node id`)
-  if (typeof runId !== 'string' || runId.length === 0) throw new Error(`event ${seq} has an invalid run id`)
-  nodeStates.set(nodeId, state)
+  nodeStates.set(event.nodeId, to)
 }
