@@ -1,7 +1,13 @@
 {
-  "name": "@deepseek-ai/dsh-root",
+  "name": "deepseek-for-paper-harness",
   "version": "0.1.1-rc.2",
+  "description": "A paper-writing-oriented agent harness built on the open-source DeepSeek Harness (dsh) base",
   "license": "MIT",
+  "author": "DeepSeek-For-Paper-Harness contributors",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dddsx3/DeepSeek-For-Paper-Harness.git"
+  },
   "private": true,
   "type": "module",
   "packageManager": "pnpm@11.7.0",
