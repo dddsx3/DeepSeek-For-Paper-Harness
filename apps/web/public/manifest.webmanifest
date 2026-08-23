@@ -1,7 +1,7 @@
 {
   "id": "/",
-  "name": "DeepSeek Harness",
-  "short_name": "DSH",
+  "name": "DeepSeek-For-Paper-Harness",
+  "short_name": "DPH",
   "start_url": "/",
   "scope": "/",
   "display": "fullscreen",

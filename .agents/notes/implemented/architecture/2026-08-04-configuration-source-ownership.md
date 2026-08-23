@@ -6,7 +6,7 @@ English | [中文](2026-08-04-configuration-source-ownership.zh.md)
 
 ## Problem
 
-`$DSH_HOME/.env` had just [become an ordinary environment layer](2026-08-04-credentials-yaml-and-user-environment-layer.md), which left the harness resolving user-facing values from a flattened `process.env` that could no longer say where a value came from. Three consequences followed.
+`$DPH_HOME/.env` had just [become an ordinary environment layer](2026-08-04-credentials-yaml-and-user-environment-layer.md), which left the harness resolving user-facing values from a flattened `process.env` that could no longer say where a value came from. Three consequences followed.
 
 A key stored through the web page stayed shadowed by an older key in the user's own `.env`, because the credential provider compared "the environment" against its file and the environment now included that file. The migration dead end the split was supposed to remove had simply moved.
 
@@ -23,7 +23,7 @@ explicit for this run     per-operation override, CLI argument
 > user settings           settings.yaml
 > composition             profile bundles, user patch layers, --patch overlays
 > this launch's shell     inherited process environment
-> discovered file         <invocation cwd>/.env, then $DSH_HOME/.env
+> discovered file         <invocation cwd>/.env, then $DPH_HOME/.env
 > defaults                schema default, provider public default
 ```
 
@@ -33,9 +33,9 @@ Settings sit above composition because that is what the [settings seam](2026-07-
 
 ```text
 inherited process environment      (read-only, wins)
-> $DSH_HOME/.credentials.yaml      (provider-managed, writable)
+> $DPH_HOME/.credentials.yaml      (provider-managed, writable)
 > <invocation cwd>/.env
-> $DSH_HOME/.env
+> $DPH_HOME/.env
 ```
 
 The launching environment wins because `DEEPSEEK_API_KEY=… dsh`, a CI secret, and a container `-e` are the one override an operator must be able to apply per run without editing machine state, and because it cannot be edited from inside it must be *visibly* read-only. Configuration is meant to carry only the *reference* — which name to resolve — and that name follows the non-secret ordering above.

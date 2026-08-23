@@ -101,7 +101,7 @@ describe('web e2e: fresh round trip through the real assembly', () => {
       callId: CallId('web-url-probe'),
       name: 'bash',
       arguments: {
-        command: 'printf \'%s\\n\' "$DSH_WEB_URL"',
+        command: 'printf \'%s\\n\' "$DPH_WEB_URL"',
         description: 'Print current Web runtime',
       },
       agent,

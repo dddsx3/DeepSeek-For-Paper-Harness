@@ -2,7 +2,7 @@
 
 English | [中文](README.zh.md)
 
-The tool-independent shell environment plugin: owns the `ctx.shellEnv` registry of trusted, per-execution `DSH_*` variables that the model-facing shell tools (`dsh-tool-bash`, `dsh-tool-pwsh`) collect into every shell call's environment. Built-in shell facts (`DSH_HOME`, `DSH_SHELL=1`, `DSH_SESSION_ID`) are owned by the registry itself; other plugins register additional enumerable facts with effect-scoped disposal, and duplicate ownership or undeclared runtime keys fail loudly.
+The tool-independent shell environment plugin: owns the `ctx.shellEnv` registry of trusted, per-execution `DSH_*` variables that the model-facing shell tools (`dsh-tool-bash`, `dsh-tool-pwsh`) collect into every shell call's environment. Built-in shell facts (`DPH_HOME`, `DPH_SHELL=1`, `DPH_SESSION_ID`) are owned by the registry itself; other plugins register additional enumerable facts with effect-scoped disposal, and duplicate ownership or undeclared runtime keys fail loudly.
 
 The package root exports the Cordis plugin contract (`name`, `inject`, `Config`, `apply`) plus the `ShellEnvRegistry` service class and its contributor types; consumers use `ctx.shellEnv` after loading this plugin.
 
@@ -12,14 +12,14 @@ The package root exports the Cordis plugin contract (`name`, `inject`, `Config`,
 - id: shell-env
   name: '@deepseek-ai/dsh-shell-env'
   config:
-    dshHome: C:\Users\me\.dsh   # default: $DSH_HOME, then ~/.dsh
+    dshHome: C:\Users\me\.dph   # default: $DPH_HOME, then ~/.dph
 ```
 
 ## Managed environment
 
-Every foreground and background model shell call receives a newly collected trusted `DSH_*` environment. `DSH_HOME` is the absolute Harness home resolved by [`@deepseek-ai/dsh-home-paths`](../../util/home-paths/README.md) (`dshHome` config, then ambient `$DSH_HOME`, then `~/.dsh`) and `DSH_SHELL=1` identifies the managed child. Agent calls additionally receive `DSH_SESSION_ID=agent.session.header.id`; when the active persistence seam locates a JSONL artifact they also receive `DSH_SESSION_JSONL=<absolute target path>`. The JSONL path is a location hint: it may not exist before the first flush or contain the current buffered turn, and it is not an authorization credential.
+Every foreground and background model shell call receives a newly collected trusted `DSH_*` environment. `DPH_HOME` is the absolute Harness home resolved by [`@deepseek-ai/dsh-home-paths`](../../util/home-paths/README.md) (`dshHome` config, then ambient `$DPH_HOME`, then `~/.dph`) and `DPH_SHELL=1` identifies the managed child. Agent calls additionally receive `DPH_SESSION_ID=agent.session.header.id`; when the active persistence seam locates a JSONL artifact they also receive `DPH_SESSION_JSONL=<absolute target path>`. The JSONL path is a location hint: it may not exist before the first flush or contain the current buffered turn, and it is not an authorization credential.
 
-`ctx.shellEnv` owns collection. Other plugins can register an effect-scoped contributor with a stable name, declared keys/descriptions, and `resolve(execution: ToolExecution)`; duplicate ownership and undeclared runtime keys fail loudly, while `list()` enumerates declarations without executing providers. Harness built-ins reserve `DSH_HOME`, `DSH_SHELL`, and `DSH_SESSION_ID`; this plugin's persistence translator owns `DSH_SESSION_JSONL` by reading the backend-neutral `sessionPersistence.locate()` seam.
+`ctx.shellEnv` owns collection. Other plugins can register an effect-scoped contributor with a stable name, declared keys/descriptions, and `resolve(execution: ToolExecution)`; duplicate ownership and undeclared runtime keys fail loudly, while `list()` enumerates declarations without executing providers. Harness built-ins reserve `DPH_HOME`, `DPH_SHELL`, and `DPH_SESSION_ID`; this plugin's persistence translator owns `DPH_SESSION_JSONL` by reading the backend-neutral `sessionPersistence.locate()` seam.
 
 ```ts
 import type { Context } from '@deepseek-ai/cordis'
@@ -48,4 +48,4 @@ No direct invalidation; the named consumers own any request-prefix changes.
 
 ## Known Limitations and Deferred Work
 
-- **`list()` enumerates contributor-declared variables only** — registry-owned built-ins (`DSH_HOME`, `DSH_SHELL`, `DSH_SESSION_ID`) are not included, so diagnostics, prompt, or UI code must not treat `list()` as an exhaustive environment catalog.
+- **`list()` enumerates contributor-declared variables only** — registry-owned built-ins (`DPH_HOME`, `DPH_SHELL`, `DPH_SESSION_ID`) are not included, so diagnostics, prompt, or UI code must not treat `list()` as an exhaustive environment catalog.

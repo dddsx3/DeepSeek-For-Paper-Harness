@@ -72,7 +72,7 @@ describe('dsh badge assembled snapshot', () => {
             {
               "text": "<skill_content name="dsh-badge">
       <skill_resources>
-      Base directory for this skill: {{badgeAssetsPath}}
+      Base directory for this skill: D:\\deepseek-harness\\deepseek-harness\\packages\\skill\\skill-badge\\assets\\
       Resolve relative paths mentioned by this skill against the base directory before using them. Load referenced resources only as needed.
       </skill_resources>
 
@@ -152,7 +152,7 @@ describe('dsh badge assembled snapshot', () => {
             "provider": "dsh-badge",
             "resourceBase": {
               "kind": "directory",
-              "path": "{{badgeAssetsPath}}",
+              "path": "D:\\deepseek-harness\\deepseek-harness\\packages\\skill\\skill-badge\\assets\\",
             },
           },
         },
@@ -166,7 +166,7 @@ describe('dsh badge assembled snapshot', () => {
           "provider": "dsh-badge",
           "resourceBase": {
             "kind": "directory",
-            "path": "{{badgeAssetsPath}}",
+            "path": "D:\\deepseek-harness\\deepseek-harness\\packages\\skill\\skill-badge\\assets\\",
           },
           "source": "bundled",
         },

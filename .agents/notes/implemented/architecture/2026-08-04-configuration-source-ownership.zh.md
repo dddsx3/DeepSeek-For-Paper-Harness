@@ -6,7 +6,7 @@ Status: implemented
 
 ## Problem
 
-`$DSH_HOME/.env` 刚刚[变成普通环境层](2026-08-04-credentials-yaml-and-user-environment-layer.zh.md)，这使得 harness 解析面向用户的值时面对的是一个压平的 `process.env`，再也说不清某个值来自哪里。由此产生三个后果。
+`$DPH_HOME/.env` 刚刚[变成普通环境层](2026-08-04-credentials-yaml-and-user-environment-layer.zh.md)，这使得 harness 解析面向用户的值时面对的是一个压平的 `process.env`，再也说不清某个值来自哪里。由此产生三个后果。
 
 通过 Web 页面存下的密钥仍然被用户自己 `.env` 里更旧的密钥遮蔽，因为凭据提供方是拿「环境」与自己的文件比较，而现在环境包含了那个文件。这次拆分本该消除的迁移死路，只是换了个位置。
 
@@ -23,7 +23,7 @@ explicit for this run     per-operation override, CLI argument
 > user settings           settings.yaml
 > composition             profile bundles, user patch layers, --patch overlays
 > this launch's shell     inherited process environment
-> discovered file         <invocation cwd>/.env, then $DSH_HOME/.env
+> discovered file         <invocation cwd>/.env, then $DPH_HOME/.env
 > defaults                schema default, provider public default
 ```
 
@@ -34,9 +34,9 @@ settings 在 composition 之上，因为 [settings seam](2026-07-28-user-setting
 
 ```text
 inherited process environment      (read-only, wins)
-> $DSH_HOME/.credentials.yaml      (provider-managed, writable)
+> $DPH_HOME/.credentials.yaml      (provider-managed, writable)
 > <invocation cwd>/.env
-> $DSH_HOME/.env
+> $DPH_HOME/.env
 ```
 
 继承环境优先，因为 `DEEPSEEK_API_KEY=… dsh`、CI 机密与容器 `-e` 是运维必须能按次施加、且无需改动机器状态的那一种覆盖；而它无法从进程内部修改，就必须*可见地*只读。配置本应只携带*引用*——解析哪个名字——该名字本身遵循上面的非机密顺序。

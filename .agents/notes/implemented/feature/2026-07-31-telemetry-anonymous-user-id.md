@@ -1,4 +1,4 @@
-# Agent Note: SessionTelemetryBackend anonymous user id ($DSH_HOME/.anonymous-user-id) and the OTel Resource user.id
+# Agent Note: SessionTelemetryBackend anonymous user id ($DPH_HOME/.anonymous-user-id) and the OTel Resource user.id
 
 Status: implemented
 
@@ -10,7 +10,7 @@ Session telemetry is mounted by default ([default-mount Note](2026-07-31-web-tel
 
 ## Decision
 
-`getOrCreateAnonymousUserId()` returns the bare UUID line in `$DSH_HOME/.anonymous-user-id` (resolved by `resolveDshHome`, `$DSH_HOME` > `~/.dsh`), minting and persisting a random UUID v4 on first use; the backend constructor carries it as the Resource's `user.id` (the OTel semconv user attribute), once per export batch. The original implementation lived inside `session-telemetry-otel` because no second real consumer existed. `/feedback` later became that consumer, so [the shared-id decision](../architecture/2026-08-07-shared-feedback-telemetry-user-id.md) moves ownership to `@deepseek-ai/dsh-anonymous-user-id` without changing the storage, anonymity, concurrency, or loss semantics recorded here. [Direct DeepSeek request identity](2026-08-11-deepseek-request-user-id-header.md) is a third consumer of the same id.
+`getOrCreateAnonymousUserId()` returns the bare UUID line in `$DPH_HOME/.anonymous-user-id` (resolved by `resolveDshHome`, `$DPH_HOME` > `~/.dsh`), minting and persisting a random UUID v4 on first use; the backend constructor carries it as the Resource's `user.id` (the OTel semconv user attribute), once per export batch. The original implementation lived inside `session-telemetry-otel` because no second real consumer existed. `/feedback` later became that consumer, so [the shared-id decision](../architecture/2026-08-07-shared-feedback-telemetry-user-id.md) moves ownership to `@deepseek-ai/dsh-anonymous-user-id` without changing the storage, anonymity, concurrency, or loss semantics recorded here. [Direct DeepSeek request identity](2026-08-11-deepseek-request-user-id-header.md) is a third consumer of the same id.
 
 | Ruling | Value | Rationale |
 |---|---|---|
@@ -37,7 +37,7 @@ Session telemetry is mounted by default ([default-mount Note](2026-07-31-web-tel
 
 ## Consequences
 
-- One `$DSH_HOME` is one stable user in the OTel feed; separate homes are separate users by construction, with no cross-home linking mechanism.
+- One `$DPH_HOME` is one stable user in the OTel feed; separate homes are separate users by construction, with no cross-home linking mechanism.
 - The OTel feed, `/feedback`, and direct DeepSeek requests share `.anonymous-user-id`.
 - Deleting `.anonymous-user-id` resets the identity (effective next launch); on an unwritable home each process holds its own in-memory id until the home becomes writable.
 - The [default-mount Note](2026-07-31-web-telemetry-default-mount.md)'s identity follow-up is closed for the anonymous-user-id part by this decision; hostname/surface dimensions, the redaction rule, and the usage-metrics track remain open.

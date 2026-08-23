@@ -3,13 +3,13 @@
 # the composition base, while user-plane values resolve per request through
 # the two providers below.
 
-# User-settings document (`$DSH_HOME/settings.yaml`, hot-reloaded): a
+# User-settings document (`$DPH_HOME/settings.yaml`, hot-reloaded): a
 # `llm-deepseek:` section there overrides the adapter entry below without a
 # restart.
 - id: settings
   name: '@deepseek-ai/dsh-settings-file'
 
-# Credential store: the live process environment over `$DSH_HOME/.credentials.yaml`
+# Credential store: the live process environment over `$DPH_HOME/.credentials.yaml`
 # (owner-only file, hot-reloaded). The adapter resolves `DEEPSEEK_API_KEY`
 # through it at each request, so no key is inlined in this file.
 - id: credentials

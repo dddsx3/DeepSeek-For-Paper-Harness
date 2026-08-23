@@ -41,8 +41,8 @@ function shellArgv(command: string): string[] {
     case 'echo "$EXTRA_ONE/$EXTRA_TWO"': return node('console.log(process.env.EXTRA_ONE + "/" + process.env.EXTRA_TWO)')
     case 'echo "$EXPLICIT_OVERRIDE_PASSWORD"': return node('console.log(process.env.EXPLICIT_OVERRIDE_PASSWORD)')
     case 'echo "${SUBPROCESS_TOMBSTONE_PROBE:-absent}"': return node('console.log(process.env.SUBPROCESS_TOMBSTONE_PROBE ?? "absent")')
-    case 'echo "[${DSH_STALE:-absent}|$DSH_SHELL|$DSH_SESSION_ID]"':
-      return node('console.log("[" + [process.env.DSH_STALE ?? "absent", process.env.DSH_SHELL, process.env.DSH_SESSION_ID].join("|") + "]")')
+    case 'echo "[${DPH_STALE:-absent}|$DPH_SHELL|$DPH_SESSION_ID]"':
+      return node('console.log("[" + [process.env.DPH_STALE ?? "absent", process.env.DPH_SHELL, process.env.DPH_SESSION_ID].join("|") + "]")')
     case 'echo "[${DSH_TEST_API_KEY:-absent}|${DSH_TEST_TOKEN:-absent}|${SUBPROCESS_TEST_PASSWORD:-absent}|${DSH_TEST_PLAIN:-absent}]"':
       return node('console.log("[" + [process.env.DSH_TEST_API_KEY ?? "absent", process.env.DSH_TEST_TOKEN ?? "absent", process.env.SUBPROCESS_TEST_PASSWORD ?? "absent", process.env.DSH_TEST_PLAIN ?? "absent"].join("|") + "]")')
     case 'printf "%.0sx" $(seq 1 500)': return node('process.stdout.write("x".repeat(500))')
@@ -1057,16 +1057,16 @@ describe('environment and spill-file hardening', () => {
   })
 
   it('forwards explicit DSH_* env entries while scrubbing ambient ones', async () => {
-    // Both facts through one explicit map: the ambient DSH_STALE is dropped by
+    // Both facts through one explicit map: the ambient DPH_STALE is dropped by
     // the scrub, and the deliberately supplied current values merge after it.
-    process.env.DSH_STALE = 'old-value'
+    process.env.DPH_STALE = 'old-value'
     try {
-      const result = await finish(spawnSubprocess(spec('echo "[${DSH_STALE:-absent}|$DSH_SHELL|$DSH_SESSION_ID]"', {
-        env: { DSH_SHELL: '1', DSH_SESSION_ID: 'current-session' },
+      const result = await finish(spawnSubprocess(spec('echo "[${DPH_STALE:-absent}|$DPH_SHELL|$DPH_SESSION_ID]"', {
+        env: { DPH_SHELL: '1', DPH_SESSION_ID: 'current-session' },
       })))
       expect(result.stdout.text.trim()).toBe('[absent|1|current-session]')
     } finally {
-      delete process.env.DSH_STALE
+      delete process.env.DPH_STALE
     }
   })
 

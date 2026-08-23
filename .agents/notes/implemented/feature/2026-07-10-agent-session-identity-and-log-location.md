@@ -33,10 +33,10 @@ The model-facing bash package owns a `ctx.shellEnv` registry. A contributor decl
 
 The registry rebuilds a trusted overlay for every foreground and background bash `ToolExecution`:
 
-- `DSH_HOME` is always the absolute configured Harness home. The standalone [`@deepseek-ai/dsh-home-paths`](../../../../packages/util/home-paths/README.md) utility owns its precedence: explicit `dshHome`, then ambient `$DSH_HOME`, then `~/.dsh`.
-- `DSH_SHELL=1` is always present and identifies a model bash child managed by DeepSeek Harness.
-- `DSH_SESSION_ID` is present when the execution has an agent and equals `agent.session.header.id`.
-- The built-in persistence translator contributes `DSH_SESSION_JSONL` only when `ctx.sessionPersistence.locate(header)` returns `kind: 'jsonl'`.
+- `DPH_HOME` is always the absolute configured Harness home. The standalone [`@deepseek-ai/dsh-home-paths`](../../../../packages/util/home-paths/README.md) utility owns its precedence: explicit `dshHome`, then ambient `$DPH_HOME`, then `~/.dsh`.
+- `DPH_SHELL=1` is always present and identifies a model bash child managed by DeepSeek Harness.
+- `DPH_SESSION_ID` is present when the execution has an agent and equals `agent.session.header.id`.
+- The built-in persistence translator contributes `DPH_SESSION_JSONL` only when `ctx.sessionPersistence.locate(header)` returns `kind: 'jsonl'`.
 
 Session persistence remains the fact owner: JSONL does not depend on tool-bash or register shell variables itself, and hooks continue to consume `locate()` directly. Tool-bash is the translation layer from the persistence fact into a shell convention. Other plugins that need shell-visible facts depend on the registry and register their own keys; they do not modify `process.env`.
 
@@ -52,7 +52,7 @@ Peer products separate stable identity from physical storage. Codex injects stab
 
 ## Lifecycle and persistence semantics
 
-A fresh session receives its id before the first turn, so its first bash call can read `DSH_SESSION_ID` and a JSONL target. The JSONL file may still be absent until the first successful turn-end checkpoint, and during an open turn it contains only the last flushed prefix. `DSH_SESSION_JSONL` is a location hint, not an authorization credential or freshness guarantee.
+A fresh session receives its id before the first turn, so its first bash call can read `DPH_SESSION_ID` and a JSONL target. The JSONL file may still be absent until the first successful turn-end checkpoint, and during an open turn it contains only the last flushed prefix. `DPH_SESSION_JSONL` is a location hint, not an authorization credential or freshness guarantee.
 
 Resume reuses the loaded header and therefore the same id and location. Fork and spawn create new session ids and locations. Parent and child calls resolve from their own `ToolExecution.agent`; each command receives an immutable snapshot even when calls overlap. A persistence service replacement affects later collections because the translator queries `ctx.get('sessionPersistence')` at execution time; the registry itself is effect-scoped and HMR-safe.
 
@@ -62,7 +62,7 @@ Resume reuses the loaded header and therefore the same id and location. Fork and
 
 Unit coverage pins registry declaration validation, effect disposal, per-execution collection, the `dshHome` precedence, and the local executor's `DSH_*` scrub/rebuild order. Request-recording tests cover foreground/background snapshots, no-agent calls, absent/JSONL persistence, ignored model `env`, and parent/child isolation. JSONL/SQLite locator contract tests and both hook bridge suites pin available and unavailable transcript dialects.
 
-A keyless full-loop integration drives the real agent loop, JSONL persistence, tool-bash, and bash-local on the first turn. The child prints `DSH_HOME`, `DSH_SHELL`, session id, JSONL target, and an inherited stale sentinel; the test verifies current values, absence of the stale variable, pre-flush file absence, and the eventual persisted header. Snapshot coverage pins the generic bash description in the recorded request header. No with-key test is required because the contract is deterministic local execution rather than model choice.
+A keyless full-loop integration drives the real agent loop, JSONL persistence, tool-bash, and bash-local on the first turn. The child prints `DPH_HOME`, `DPH_SHELL`, session id, JSONL target, and an inherited stale sentinel; the test verifies current values, absence of the stale variable, pre-flush file absence, and the eventual persisted header. Snapshot coverage pins the generic bash description in the recorded request header. No with-key test is required because the contract is deterministic local execution rather than model choice.
 
 ## Alternatives considered
 

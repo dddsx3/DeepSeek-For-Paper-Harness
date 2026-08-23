@@ -33,10 +33,10 @@ interface SessionPersistence {
 
 注册表会为每次前台和后台 bash `ToolExecution` 重新构建受信任的覆盖层：
 
-- `DSH_HOME` 始终是配置的 Harness home 绝对路径。独立的 [`@deepseek-ai/dsh-home-paths`](../../../../packages/util/home-paths/README.zh.md) 工具库规定其优先级：显式 `dshHome`，其次是环境中的 `$DSH_HOME`，最后是 `~/.dsh`。
-- `DSH_SHELL=1` 始终存在，用于标识由 DeepSeek Harness 管理、面向模型的 bash 子进程。
-- 执行具有关联 agent 时，`DSH_SESSION_ID` 存在并等于 `agent.session.header.id`。
-- 内置的持久化转换层提供 `DSH_SESSION_JSONL` 的条件是 `ctx.sessionPersistence.locate(header)` 返回 `kind: 'jsonl'`。
+- `DPH_HOME` 始终是配置的 Harness home 绝对路径。独立的 [`@deepseek-ai/dsh-home-paths`](../../../../packages/util/home-paths/README.zh.md) 工具库规定其优先级：显式 `dshHome`，其次是环境中的 `$DPH_HOME`，最后是 `~/.dsh`。
+- `DPH_SHELL=1` 始终存在，用于标识由 DeepSeek Harness 管理、面向模型的 bash 子进程。
+- 执行具有关联 agent 时，`DPH_SESSION_ID` 存在并等于 `agent.session.header.id`。
+- 内置的持久化转换层提供 `DPH_SESSION_JSONL` 的条件是 `ctx.sessionPersistence.locate(header)` 返回 `kind: 'jsonl'`。
 
 会话持久化仍然是事实所有者：JSONL 不依赖 tool-bash，也不会自行注册 shell 变量；钩子继续直接使用 `locate()`。tool-bash 是把持久化事实转换为 shell 约定的转换层。其他需要向 shell 公开事实的插件依赖该注册表，并注册各自的键；它们不修改 `process.env`。
 
@@ -52,7 +52,7 @@ bash 工具说明只讲解持久约定：当前 harness 环境事实通过受管
 
 ## 生命周期与持久化语义
 
-新会话在第一个轮次之前获得 id，因此它的首次 bash 调用即可读取 `DSH_SESSION_ID` 和 JSONL 目标。JSONL 文件可能要等到第一次成功的轮次结束检查点后才存在，而且在一个轮次仍未结束时，它只包含上次刷写的前缀。`DSH_SESSION_JSONL` 是位置提示，不是授权凭据或新鲜度保证。
+新会话在第一个轮次之前获得 id，因此它的首次 bash 调用即可读取 `DPH_SESSION_ID` 和 JSONL 目标。JSONL 文件可能要等到第一次成功的轮次结束检查点后才存在，而且在一个轮次仍未结束时，它只包含上次刷写的前缀。`DPH_SESSION_JSONL` 是位置提示，不是授权凭据或新鲜度保证。
 
 恢复操作复用已加载的 header，因此 id 和位置不变。fork 和 spawn 会创建新的会话 id 与位置。父子调用分别从自己的 `ToolExecution.agent` 解析事实；即使调用重叠，每条命令也会收到不可变快照。替换持久化服务会影响后续收集，因为转换层在执行时查询 `ctx.get('sessionPersistence')`；注册表本身受 effect 作用域约束，并且可安全用于 HMR（热模块替换）。
 
@@ -62,7 +62,7 @@ bash 工具说明只讲解持久约定：当前 harness 环境事实通过受管
 
 单元测试覆盖注册表声明校验、effect 释放、逐次执行收集、`dshHome` 优先级，以及本地执行器清理并重建 `DSH_*` 的顺序。请求录制测试覆盖前台／后台快照、无 agent 调用、持久化不存在或为 JSONL、忽略模型 `env`，以及父子隔离。JSONL／SQLite 定位器约定测试与两套钩子桥接测试均锁定 transcript 可用和不可用两种方言。
 
-一项无密钥的完整循环集成测试会在第一个轮次驱动真实的 agent loop、JSONL 持久化、tool-bash 与 bash-local。子进程打印 `DSH_HOME`、`DSH_SHELL`、会话 id、JSONL 目标和继承的陈旧哨兵值；测试校验当前值、陈旧变量不存在、刷写前文件不存在，并最终检查持久化 header。快照测试会固定录制请求 header 中的通用 bash 说明。该约定属于确定性的本地执行，不涉及模型选择，因此无需带密钥测试。
+一项无密钥的完整循环集成测试会在第一个轮次驱动真实的 agent loop、JSONL 持久化、tool-bash 与 bash-local。子进程打印 `DPH_HOME`、`DPH_SHELL`、会话 id、JSONL 目标和继承的陈旧哨兵值；测试校验当前值、陈旧变量不存在、刷写前文件不存在，并最终检查持久化 header。快照测试会固定录制请求 header 中的通用 bash 说明。该约定属于确定性的本地执行，不涉及模型选择，因此无需带密钥测试。
 
 ## 考虑过的替代方案
 
