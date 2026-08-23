@@ -87,7 +87,7 @@ async function runHeadlessPtySmoke(): Promise<string> {
       tsconfigPath,
       env: {
         DPH_HOME: home,
-        DSH_AGENTS_HOME: join(cwd, '.agents'),
+        DPH_AGENTS_HOME: join(cwd, '.agents'),
         DEEPSEEK_API_KEY: 'keyless-shutdown-no-call',
         DSH_TELEMETRY_DISABLED: '1',
         DSH_TEST_SHUTDOWN_ARM_FILE: join(cwd, 'shutdown-armed'),

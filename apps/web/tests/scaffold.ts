@@ -359,7 +359,7 @@ export async function launchWebScaffold(options: LaunchOptions = {}): Promise<We
   // credentials rows were configured with.
   const skillRootEnvironment = {
     DPH_HOME: harnessHome,
-    DSH_AGENTS_HOME: join(workspaceCwd, '.agents-home'),
+    DPH_AGENTS_HOME: join(workspaceCwd, '.agents-home'),
     DSH_BUNDLED_SKILL_DIR: join(workspaceCwd, '.bundled-skills'),
   }
   const originalSkillRootEnvironment = Object.fromEntries(

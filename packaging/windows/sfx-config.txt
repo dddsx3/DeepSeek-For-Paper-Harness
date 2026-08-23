@@ -1,0 +1,8 @@
+;!@Install@!UTF-8!
+Title="DeepSeek-For-Paper-Harness"
+BeginPrompt="Extract to the selected folder and finish?"
+ExtractTitle="Extracting DeepSeek-For-Paper-Harness..."
+ExtractDialogText="The launcher (launcher.bat) starts the Web UI afterwards."
+InstallPath=""
+GUIFlags="4"
+;!@InstallEnd@!

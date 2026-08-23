@@ -17,7 +17,7 @@ Requires `ctx.skills` (`inject: ['skills']`).
 | `providerName` | `filesystem` | Unique name used to register this provider on `ctx.skills`. |
 | `includeDefaultRoots` | `true` | Include project and user roots around `customSkillDirs`; set false for an isolated custom-root provider. |
 | `dshHome` | `$DPH_HOME` or `~/.dph` | DeepSeek Harness config root resolved by [`@deepseek-ai/dsh-home-paths`](../../util/home-paths/README.md); scans `skills` under this directory. |
-| `agentsHome` | `$DSH_AGENTS_HOME` or `~/.agents` | Shared agent config root scanned for compatible skills. |
+| `agentsHome` | `$DPH_AGENTS_HOME` or `~/.agents` | Shared agent config root scanned for compatible skills. |
 | `customSkillDirs` | `[]` | Additional local skill roots scanned after project roots and before user roots. |
 | `watch` | `true` | Watch host-local roots and invalidate the local provider when catalog membership or frontmatter may have changed. |
 | `watchUsePolling` | `false` | Use Chokidar polling instead of native events for existing skill roots. |

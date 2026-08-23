@@ -22,7 +22,7 @@ Status: implemented
 - `config.yaml`——顶层 YAML 数组，元素为 `@cordisjs/plugin-include` 的 `PatchOptions`，用 include 自己的 `!!js` 方言解析（`loadPersonalPatches`）并传给 `boot()`，由它作为根 include 的 `patches` 转发。补丁语义与交付的 surface overlay 一致：按 id 定位的补丁替换该配置项的整个 `config`，`insert` 追加配置项，未匹配的 id 静默不执行任何操作。外部包作为 [profile 组合包](../simplification/2026-08-09-remove-repository-plugin.zh.md)安装；这个个人层负责配置这些组合包提供的 Loader 配置项。
 - 文件缺失即无 overlay；文件存在但不可读、不可解析或非数组则在启动时抛出（配置错误会明确报错，绝不静默跳过）。
 
-PTY 冒烟测试的启动器把 `$DPH_HOME` 隔离到每个测试自己的目录，与它已有的 `DSH_AGENTS_HOME` 隔离方式完全一致，开发者真实的个人 overlay 不可能泄漏进 fixture（测试前置数据）；只有 dsh CLI 读取个人配置，因此其他测试启动器无需改动。
+PTY 冒烟测试的启动器把 `$DPH_HOME` 隔离到每个测试自己的目录，与它已有的 `DPH_AGENTS_HOME` 隔离方式完全一致，开发者真实的个人 overlay 不可能泄漏进 fixture（测试前置数据）；只有 dsh CLI 读取个人配置，因此其他测试启动器无需改动。
 
 TUI 和 Web 启动后通过 Cordis HMR（热模块替换）注册确切的个人配置路径。每次新增、变更或移除都会以事务方式通过启动器自己的组合闭包重新组合完整 patch 列表，因此新的个人 patch 落在启动时相同的层次位置。YAML 无效或 Loader 候选被拒时，最后一个可用树保持活动状态，并广播 `hmr/config-update-failed(filename, Error)`；无头界面只在启动时读取该文件。Include 在已提交配置文件刷新时也会重新应用其 patch（见[配置热重载韧性 Agent Note](../bug-fix/2026-07-20-config-hot-reload-resilience.zh.md)）。
 

@@ -53,7 +53,7 @@ export interface Config {
   includeDefaultRoots?: boolean
   /** Harness config root. Defaults to `$DPH_HOME` or `~/.dph`. */
   dshHome?: string
-  /** Shared agent config root. Defaults to `$DSH_AGENTS_HOME` or `~/.agents`. */
+  /** Shared agent config root. Defaults to `$DPH_AGENTS_HOME` or `~/.agents`. */
   agentsHome?: string
   /** Additional skill roots scanned after project roots and before user roots. */
   customSkillDirs?: string[]
@@ -161,7 +161,7 @@ export class FileSystemSkillProvider implements SkillProvider {
     this.name = config.providerName ?? 'filesystem'
     this.includeDefaultRoots = config.includeDefaultRoots ?? true
     this.dshHome = resolveDshHome(config.dshHome)
-    this.agentsHome = resolve(config.agentsHome ?? process.env.DSH_AGENTS_HOME ?? join(homedir(), '.agents'))
+    this.agentsHome = resolve(config.agentsHome ?? process.env.DPH_AGENTS_HOME ?? join(homedir(), '.agents'))
     this.customSkillDirs = (config.customSkillDirs ?? []).map(root => resolve(root))
     this.watchManager = new SkillWatchManager(ctx, control.invalidate, resolveWatchConfig(config))
     control.signal.addEventListener('abort', () => { void this.dispose() }, { once: true })

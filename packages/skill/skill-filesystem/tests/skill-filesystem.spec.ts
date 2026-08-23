@@ -817,12 +817,12 @@ describe('FileSystemSkillProvider', () => {
 
   it('uses default home root resolution without exposing builtin skills', async () => {
     const previousDshHome = process.env.DPH_HOME
-    const previousAgentsHome = process.env.DSH_AGENTS_HOME
+    const previousAgentsHome = process.env.DPH_AGENTS_HOME
     const previousBundledSkillDir = process.env.DSH_BUNDLED_SKILL_DIR
     const envHome = await tempDir('skill-env-home')
     try {
       process.env.DPH_HOME = join(envHome, '.dph')
-      process.env.DSH_AGENTS_HOME = join(envHome, '.agents')
+      process.env.DPH_AGENTS_HOME = join(envHome, '.agents')
       const bundled = join(envHome, 'bundled-skills')
       process.env.DSH_BUNDLED_SKILL_DIR = bundled
       await writeSkill(join(envHome, '.dph/skills'), 'env-skill', 'Env skill')
@@ -850,13 +850,13 @@ describe('FileSystemSkillProvider', () => {
 
       process.env.DPH_HOME = join(envHome, 'empty-dsh')
       delete process.env.DSH_BUNDLED_SKILL_DIR
-      process.env.DSH_AGENTS_HOME = join(envHome, 'empty-agents')
+      process.env.DPH_AGENTS_HOME = join(envHome, 'empty-agents')
       const empty = new Context()
       await empty.plugin(SkillRegistry)
       SkillFileSystem.apply(empty, { watch: false })
       expect(await empty.skills.list()).toEqual([])
 
-      delete process.env.DSH_AGENTS_HOME
+      delete process.env.DPH_AGENTS_HOME
       expect(new SkillFileSystem.FileSystemSkillProvider(empty, {
         signal: new AbortController().signal,
         invalidate() {},
@@ -868,9 +868,9 @@ describe('FileSystemSkillProvider', () => {
         process.env.DPH_HOME = previousDshHome
       }
       if (previousAgentsHome === undefined) {
-        delete process.env.DSH_AGENTS_HOME
+        delete process.env.DPH_AGENTS_HOME
       } else {
-        process.env.DSH_AGENTS_HOME = previousAgentsHome
+        process.env.DPH_AGENTS_HOME = previousAgentsHome
       }
       if (previousBundledSkillDir === undefined) {
         delete process.env.DSH_BUNDLED_SKILL_DIR

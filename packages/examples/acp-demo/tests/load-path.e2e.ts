@@ -90,7 +90,7 @@ async function boot(): Promise<Spawned & { cwd: string }> {
         // Key-present check only; no prompt is sent, so the model is never called.
         DEEPSEEK_API_KEY: process.env.DEEPSEEK_API_KEY ?? 'keyless-acp-agent-smoke',
         DPH_HOME: join(cwd, '.dph'),
-        DSH_AGENTS_HOME: join(cwd, '.agents'),
+        DPH_AGENTS_HOME: join(cwd, '.agents'),
       },
       stdio: ['pipe', 'pipe', 'pipe'],
     },

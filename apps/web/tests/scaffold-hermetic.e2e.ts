@@ -31,10 +31,10 @@ it('isolates replay skill discovery from every ambient host root', async () => {
   ])
 
   const originalDshHome = process.env.DPH_HOME
-  const originalAgentsHome = process.env.DSH_AGENTS_HOME
+  const originalAgentsHome = process.env.DPH_AGENTS_HOME
   const originalBundled = process.env.DSH_BUNDLED_SKILL_DIR
   process.env.DPH_HOME = dshHome
-  process.env.DSH_AGENTS_HOME = agentsHome
+  process.env.DPH_AGENTS_HOME = agentsHome
   process.env.DSH_BUNDLED_SKILL_DIR = bundled
   let scaffold: WebScaffold | undefined
   try {
@@ -64,8 +64,8 @@ it('isolates replay skill discovery from every ambient host root', async () => {
     } finally {
       if (originalDshHome === undefined) delete process.env.DPH_HOME
       else process.env.DPH_HOME = originalDshHome
-      if (originalAgentsHome === undefined) delete process.env.DSH_AGENTS_HOME
-      else process.env.DSH_AGENTS_HOME = originalAgentsHome
+      if (originalAgentsHome === undefined) delete process.env.DPH_AGENTS_HOME
+      else process.env.DPH_AGENTS_HOME = originalAgentsHome
       if (originalBundled === undefined) delete process.env.DSH_BUNDLED_SKILL_DIR
       else process.env.DSH_BUNDLED_SKILL_DIR = originalBundled
       await rm(ambient, { recursive: true, force: true })

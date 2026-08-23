@@ -913,7 +913,7 @@ function installedArtifactEnvironment(consumerRoot: string): NodeJS.ProcessEnv {
   delete environment.NODE_OPTIONS
   delete environment.NODE_PATH
   environment.DPH_HOME = resolve(consumerRoot, '.dsh')
-  environment.DSH_AGENTS_HOME = resolve(consumerRoot, '.agents')
+  environment.DPH_AGENTS_HOME = resolve(consumerRoot, '.agents')
   environment.DSH_TELEMETRY_DISABLED = '1'
   environment.DEEPSEEK_API_KEY = 'keyless-installed-web-no-call'
   environment.LANG = 'en_US.UTF-8'
