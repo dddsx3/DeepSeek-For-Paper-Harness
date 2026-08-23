@@ -28,8 +28,8 @@ describe('dsh path helpers', () => {
     expect(expandHomePath('~')).toBe(homedir())
     expect(expandHomePath('~/.dph')).toBe(join(homedir(), '.dph'))
     expect(expandHomePath('~\\.dph')).toBe(join(homedir(), '.dph'))
-    expect(expandHomePath('/tmp/.dsh')).toBe('/tmp/.dsh')
-    expect(expandHomePath('~other/.dsh')).toBe('~other/.dsh')
+    expect(expandHomePath('/tmp/.dph')).toBe('/tmp/.dph')
+    expect(expandHomePath('~other/.dph')).toBe('~other/.dph')
   })
 
   it('resolves explicit path before DPH_HOME and the default', () => {

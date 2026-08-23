@@ -37,8 +37,8 @@ function consumerEnvironment(consumerRoot: string): NodeJS.ProcessEnv {
   delete environment.NPM_CONFIG_USER_AGENT
   delete environment.NODE_OPTIONS
   delete environment.NODE_PATH
-  environment.DPH_HOME = resolve(consumerRoot, '.dsh')
-  environment.DPH_AGENTS_HOME = resolve(consumerRoot, '.agents')
+  environment.DPH_HOME = resolve(consumerRoot, '.dph')
+  environment.DSH_AGENTS_HOME = resolve(consumerRoot, '.agents')
   environment.DSH_TELEMETRY_DISABLED = '1'
   return environment
 }
