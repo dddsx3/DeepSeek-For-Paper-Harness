@@ -1,0 +1,9 @@
+{
+  "fault_id": "A-003",
+  "description": "verifier_registry service is missing when FORMAL profile preflight runs",
+  "expected_status": "BLOCKED",
+  "blocked_by": [
+    "PaperPreflight.runPreflight returns ok:false",
+    "missing contains kind:'verifier_registry'"
+  ]
+}

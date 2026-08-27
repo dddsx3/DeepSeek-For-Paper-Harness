@@ -1,0 +1,9 @@
+{
+  "fault_id": "A-004",
+  "description": "DeliveryPolicy service is missing when FORMAL profile preflight runs",
+  "expected_status": "BLOCKED",
+  "blocked_by": [
+    "PaperPreflight.runPreflight returns ok:false",
+    "missing contains kind:'delivery_policy'"
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "fault_id": "A-005",
+  "description": "production configuration name is not in knownProductionConfigs",
+  "expected_status": "BLOCKED",
+  "blocked_by": [
+    "PaperPreflight.runPreflight returns ok:false",
+    "unknownConfig is non-empty",
+    "first unknownConfig entry equals the supplied productionConfig string"
+  ]
+}

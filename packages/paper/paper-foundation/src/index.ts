@@ -4,6 +4,7 @@ import { Context, Service } from '@deepseek-ai/cordis'
 import { DomainWorkflowRunRepository } from './store.ts'
 import { workflowRunDomainSpec } from './spec.ts'
 
+export * from './runtime/index.ts'
 export * from './spec.ts'
 export * from './store.ts'
 export * from './diagnostics.ts'

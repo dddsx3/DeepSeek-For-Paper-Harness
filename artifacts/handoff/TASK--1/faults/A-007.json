@@ -1,0 +1,10 @@
+{
+  "fault_id": "A-007",
+  "description": "DELIVERY stage attempts to write_model_spec (mutation in a delivery-only stage)",
+  "expected_status": "BLOCKED",
+  "blocked_by": [
+    "CapabilityFirewall.check returns allowed:false",
+    "denial reason is 'not_in_whitelist'",
+    "audit event with allowed:false is emitted"
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "fault_id": "A-002",
+  "description": "artifact_store service is missing when FORMAL profile preflight runs",
+  "expected_status": "BLOCKED",
+  "blocked_by": [
+    "PaperPreflight.runPreflight returns ok:false",
+    "missing contains kind:'artifact_store'"
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "task": "TASK-X",
+  "commit": "<git rev-parse HEAD>",
+  "status": "PASS",
+  "tests_total": 0,
+  "tests_passed": 0,
+  "faults_total": 0,
+  "faults_blocked": 0,
+  "critical_failures": [],
+  "known_risks": []
+}

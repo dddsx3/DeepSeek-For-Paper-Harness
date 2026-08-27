@@ -1,0 +1,10 @@
+{
+  "fault_id": "A-001",
+  "description": "persistence (storage) service is missing when FORMAL profile preflight runs",
+  "expected_status": "BLOCKED",
+  "blocked_by": [
+    "PaperPreflight.runPreflight returns ok:false",
+    "missing contains kind:'persistence'",
+    "audit event type:'preflight_missing' is emitted"
+  ]
+}

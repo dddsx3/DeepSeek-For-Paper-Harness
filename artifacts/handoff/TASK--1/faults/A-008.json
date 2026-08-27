@@ -1,0 +1,10 @@
+{
+  "fault_id": "A-008",
+  "description": "PLAN stage requests a capability that is not declared for that stage (solver)",
+  "expected_status": "BLOCKED",
+  "blocked_by": [
+    "CapabilityFirewall.check returns allowed:false",
+    "denial reason is 'not_in_whitelist'",
+    "audit event with allowed:false is emitted"
+  ]
+}

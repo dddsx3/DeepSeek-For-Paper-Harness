@@ -1,0 +1,101 @@
+{
+  "task": "TASK--1",
+  "faults": [
+    {
+      "fault_id": "A-001",
+      "description": "persistence (storage) service is missing when FORMAL profile preflight runs",
+      "expected_status": "BLOCKED",
+      "actual_status": "BLOCKED",
+      "blocked_by": [
+        "PaperPreflight.runPreflight returns ok:false",
+        "missing contains kind:'persistence'",
+        "audit event type:'preflight_missing' is emitted"
+      ],
+      "fixture_path": "faults\\A-001.json"
+    },
+    {
+      "fault_id": "A-002",
+      "description": "artifact_store service is missing when FORMAL profile preflight runs",
+      "expected_status": "BLOCKED",
+      "actual_status": "BLOCKED",
+      "blocked_by": [
+        "PaperPreflight.runPreflight returns ok:false",
+        "missing contains kind:'artifact_store'"
+      ],
+      "fixture_path": "faults\\A-002.json"
+    },
+    {
+      "fault_id": "A-003",
+      "description": "verifier_registry service is missing when FORMAL profile preflight runs",
+      "expected_status": "BLOCKED",
+      "actual_status": "BLOCKED",
+      "blocked_by": [
+        "PaperPreflight.runPreflight returns ok:false",
+        "missing contains kind:'verifier_registry'"
+      ],
+      "fixture_path": "faults\\A-003.json"
+    },
+    {
+      "fault_id": "A-004",
+      "description": "DeliveryPolicy service is missing when FORMAL profile preflight runs",
+      "expected_status": "BLOCKED",
+      "actual_status": "BLOCKED",
+      "blocked_by": [
+        "PaperPreflight.runPreflight returns ok:false",
+        "missing contains kind:'delivery_policy'"
+      ],
+      "fixture_path": "faults\\A-004.json"
+    },
+    {
+      "fault_id": "A-005",
+      "description": "production configuration name is not in knownProductionConfigs",
+      "expected_status": "BLOCKED",
+      "actual_status": "BLOCKED",
+      "blocked_by": [
+        "PaperPreflight.runPreflight returns ok:false",
+        "unknownConfig is non-empty",
+        "first unknownConfig entry equals the supplied productionConfig string"
+      ],
+      "fixture_path": "faults\\A-005.json"
+    },
+    {
+      "fault_id": "A-006",
+      "description": "REVIEW stage attempts to call shell capability",
+      "expected_status": "BLOCKED",
+      "actual_status": "BLOCKED",
+      "blocked_by": [
+        "CapabilityFirewall.check returns allowed:false",
+        "denial reason is 'forbidden_capability'",
+        "audit event with allowed:false is emitted"
+      ],
+      "fixture_path": "faults\\A-006.json"
+    },
+    {
+      "fault_id": "A-007",
+      "description": "DELIVERY stage attempts to write_model_spec (mutation in a delivery-only stage)",
+      "expected_status": "BLOCKED",
+      "actual_status": "BLOCKED",
+      "blocked_by": [
+        "CapabilityFirewall.check returns allowed:false",
+        "denial reason is 'not_in_whitelist'",
+        "audit event with allowed:false is emitted"
+      ],
+      "fixture_path": "faults\\A-007.json"
+    },
+    {
+      "fault_id": "A-008",
+      "description": "PLAN stage requests a capability that is not declared for that stage (solver)",
+      "expected_status": "BLOCKED",
+      "actual_status": "BLOCKED",
+      "blocked_by": [
+        "CapabilityFirewall.check returns allowed:false",
+        "denial reason is 'not_in_whitelist'",
+        "audit event with allowed:false is emitted"
+      ],
+      "fixture_path": "faults\\A-008.json"
+    }
+  ],
+  "declared_faults": 8,
+  "escaped_faults": 0,
+  "escape_rate": 0
+}

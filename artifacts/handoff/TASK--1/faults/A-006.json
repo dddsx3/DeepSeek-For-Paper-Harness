@@ -1,0 +1,10 @@
+{
+  "fault_id": "A-006",
+  "description": "REVIEW stage attempts to call shell capability",
+  "expected_status": "BLOCKED",
+  "blocked_by": [
+    "CapabilityFirewall.check returns allowed:false",
+    "denial reason is 'forbidden_capability'",
+    "audit event with allowed:false is emitted"
+  ]
+}
