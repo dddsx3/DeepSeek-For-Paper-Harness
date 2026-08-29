@@ -1,0 +1,8 @@
+{
+  "fault_id": "D-001",
+  "description": "reviewer PASS but deterministic reference_validation gate FAIL — must not deliver",
+  "expected_status": "BLOCKED",
+  "blocked_by": [
+    "delivery-policy:evaluateDelivery (critical_gate check, id=reference_validation)"
+  ]
+}

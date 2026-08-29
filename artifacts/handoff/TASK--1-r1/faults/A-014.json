@@ -1,0 +1,6 @@
+{
+  "fault_id": "A-014",
+  "description": "deliveryPolicyId absent from knownDeliveryPolicyIds blocks startup",
+  "target_gate": "preflight",
+  "expected_status": "BLOCKED"
+}

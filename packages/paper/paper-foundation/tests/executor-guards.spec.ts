@@ -4,6 +4,8 @@ import type { GenerateOptions, StreamChunk } from '@deepseek-ai/dsh-llm'
 import Storage from '@deepseek-ai/dsh-storage'
 import { DomainFacility } from '@deepseek-ai/dsh-storage-domain'
 import { MemoryMediaPool, MemoryStorageBackend } from '../../../storage/storage-domain/tests/helpers/memory-backend.ts'
+import PaperRuntimeGuard from '../src/runtime/runtime-guard.ts'
+import { createFastProfile } from '../src/runtime/profile.ts'
 import {
   DEFAULT_BACKOFF_BASE_MS,
   DEFAULT_BACKOFF_CAP_MS,
@@ -66,6 +68,10 @@ async function harness(options: HarnessOptions = {}) {
   } as never)
   await ctx.plugin(PaperSettingsService, settings)
   await ctx.plugin(PaperAuditService, {})
+  // TASK -1 rewire: mount the runtime guard with the FAST profile
+  // because the harness creates runs in `fast` mode.
+  const guard = new PaperRuntimeGuard(ctx, { profile: createFastProfile() })
+  guard.markReady()
   await ctx.plugin(PaperExecutorService, options.config ?? { backoffBaseMs: 1, backoffCapMs: 1 })
   return { ctx }
 }

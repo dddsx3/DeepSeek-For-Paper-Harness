@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import { PaperDiagnosticsService } from '../src/diagnostics.ts'
+import PaperRuntimeGuard from '../src/runtime/runtime-guard.ts'
 
 type Chunk = {
   type: 'finish'
@@ -10,6 +11,9 @@ type Chunk = {
 function contextWithStream(stream: (signal: AbortSignal) => AsyncIterable<Chunk>): Context {
   const ctx = new Context()
   ctx.provide('llm', { stream: (options: { signal?: AbortSignal }) => stream(options.signal ?? new AbortController().signal) } as never)
+  // TASK -1 rewire: probe() goes through the runtime guard.
+  const guard = new PaperRuntimeGuard(ctx)
+  guard.markReady()
   return ctx
 }
 

@@ -1,0 +1,9 @@
+{
+  "fault_id": "IR-005",
+  "description": "ModelSpec references a nonexistent ProblemSpec; RunArtifact references a nonexistent ModelSpec",
+  "expected_status": "BLOCKED",
+  "blocked_by": [
+    "ir/refs:validateRefFields (missing)",
+    "ir/store:ModelingIr.put (unresolved_reference)"
+  ]
+}

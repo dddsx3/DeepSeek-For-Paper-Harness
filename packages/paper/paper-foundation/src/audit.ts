@@ -36,6 +36,8 @@ export const AUDIT_EVENT_TYPES = [
   'migration_skipped',
   'migration_completed',
   'migration_failed',
+  'preflight_blocked',
+  'capability_check',
 ] as const
 
 /** One audited operation kind. */

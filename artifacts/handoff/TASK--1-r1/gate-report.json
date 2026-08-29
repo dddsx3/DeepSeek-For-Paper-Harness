@@ -1,0 +1,11 @@
+{
+  "task": "TASK--1-r1",
+  "commit": "<pending>",
+  "status": "PASS",
+  "tests_total": 302,
+  "tests_passed": 302,
+  "faults_total": 14,
+  "faults_blocked": 14,
+  "critical_failures": [],
+  "known_risks": []
+}

@@ -1,0 +1,496 @@
+﻿node.exe : The plugin "vite-tsconfig-paths" is detected. Vite now supports
+ tsconfig paths resolution natively via the resolve.tsconfigPaths opti
+on. You can remove the plugin and set resolve.tsconfigPaths: true in y
+our Vite config instead.
+At line:439 char:52
++ ... k-harness"; & node "./node_modules/vitest/vitest.mjs" run --project=t ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (The plugin...g instead.
+   :String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+
+The plugin "vite-tsconfig-paths" is detected. Vite now supports tsconfig p
+aths resolution natively via the resolve.tsconfigPaths option. You can
+ remove the plugin and set resolve.tsconfigPaths: true in your Vite co
+nfig instead.
+
+ RUN  v4.1.8 D:/deepseek-harness/deepseek-harness
+
+ ✓  thread-safe  packages/paper/paper-foundation/tests/delivery/promoter.spec.ts > Promoter — Candidate -> Deliverable > happy path: candidate + allowed decision + FORMAL → delivers, audit promotion_succeeded, finalOutputPath set 7ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/delivery/promoter.spec.ts > Promoter — Candidate -> Deliverable > writeFinalOutput is called EXACTLY once on success (no double-write) 1ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/delivery/promoter.spec.ts > Promoter — Candidate -> Deliverable > failure path: decision.allowed=false → writeFinalOutput NOT called, audit promotion_failed 1ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/delivery/promoter.spec.ts > Promoter — Candidate -> Deliverable > FAST mode bypass attempt: critical gate missing from policy.gates → fast_mode_bypass_attempt 1ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/delivery/promoter.spec.ts > Promoter — Candidate -> Deliverable > wrong source state: calling promote() with a non-CANDIDATE artifact → wrong_source_state 1ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/delivery/promoter.spec.ts > Promoter — Candidate -> Deliverable > deliverable artifact has finalOutputPath set exactly when state = DELIVERABLE (already enforced by the schema; double-check here) 1ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/delivery/promoter.spec.ts > Promoter — Candidate -> Deliverable > all required critical gate records must be present in FORMAL mode (sanity for the FAST-only bypass guard) 0ms
+[paperRuntimeGuard] audit not available: capability_check stage=PLAN cap=read_p
+roblem allowed=true
+[paperRuntimeGuard] audit not available: capability_check stage=PLAN cap=read_p
+roblem allowed=true
+[paperRuntimeGuard] audit not available: capability_check stage=MODEL cap=llm_i
+nference allowed=true
+[paperRuntimeGuard] audit not available: capability_check stage=REVIEW cap=shel
+l allowed=false
+[paper-preflight] failures=["missing_service"] at=2026-08-29T07:30:43.670Z
+[paper-preflight] failures=["missing_service"] at=2026-08-29T07:30:43.670Z
+[paper-preflight] failures=["missing_service"] at=2026-08-29T07:30:43.670Z
+[paper-preflight] failures=["missing_service"] at=2026-08-29T07:30:43.671Z
+[paper-preflight] failures=["unknown_production_config"] at=2026-08-29T07:30:43
+.671Z
+[paper-preflight] failures=["gate_not_registered","gate_not_registered","gate_n
+ot_registered","gate_not_registered","gate_not_registered"] at=2026-08-29T07:30
+:43.672Z
+[paper-preflight] failures=["stage_policy_incomplete"] at=2026-08-29T07:30:43.6
+72Z
+[paper-preflight] failures=["delivery_policy_unresolved"] at=2026-08-29T07:30:4
+3.677Z
+ ✓  thread-safe  packages/paper/paper-foundation/tests/runtime/runtime-guard.spec.ts > PaperRuntimeGuard — unit > constructs with the default FORMAL profile when no override is given 5ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/runtime/runtime-guard.spec.ts > PaperRuntimeGuard — unit > setProfile replaces the active profile before readied, then throws after readied 1ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/runtime/runtime-guard.spec.ts > PaperRuntimeGuard — unit > markReady flips the guard to the readied state 1ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/runtime/runtime-guard.spec.ts > PaperRuntimeGuard — unit > assertRuntimeReady passes when run mode matches the FORMAL profile 1ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/runtime/runtime-guard.spec.ts > PaperRuntimeGuard — unit > assertRuntimeReady throws when run mode does not match the FORMAL profile 1ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/runtime/runtime-guard.spec.ts > PaperRuntimeGuard — unit > assertRuntimeReady accepts any run mode under EXPLORATORY 1ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/runtime/runtime-guard.spec.ts > PaperRuntimeGuard — unit > invokeCapability returns the wrapped function result for a synchronous fn 1ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/runtime/runtime-guard.spec.ts > PaperRuntimeGuard — unit > invokeCapability awaits a Promise returned by the wrapped fn 1ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/runtime/runtime-guard.spec.ts > PaperRuntimeGuard — unit > invokeCapability throws CapabilityDeniedError for a denied capability 1ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/runtime/runtime-guard.spec.ts > PaperRuntimeGuard — unit > invokeCapability throws RuntimeNotReadyError when the guard is not readied 1ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/runtime/runtime-guard.spec.ts > PaperRuntimeGuard — A-001..A-008 regression > A-001: runPreflight rejects a profile whose persistence service is missing 1ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/runtime/runtime-guard.spec.ts > PaperRuntimeGuard — A-001..A-008 regression > A-002: runPreflight rejects a profile whose artifact store is missing 0ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/runtime/runtime-guard.spec.ts > PaperRuntimeGuard — A-001..A-008 regression > A-003: runPreflight rejects a profile whose verifier registry is missing 0ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/runtime/runtime-guard.spec.ts > PaperRuntimeGuard — A-001..A-008 regression > A-004: runPreflight rejects a profile whose delivery policy is missing 0ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/runtime/runtime-guard.spec.ts > PaperRuntimeGuard — A-001..A-008 regression > A-005: runPreflight rejects an unknown production configuration 0ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/runtime/runtime-guard.spec.ts > PaperRuntimeGuard — A-001..A-008 regression > A-006: REVIEW stage requesting shell is denied as forbidden_capability 0ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/runtime/runtime-guard.spec.ts > PaperRuntimeGuard — A-001..A-008 regression > A-007: DELIVERY stage requesting write_model_spec is denied as not_in_whitelist 0ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/runtime/runtime-guard.spec.ts > PaperRuntimeGuard — A-001..A-008 regression > A-008: PLAN stage requesting solver is denied as not_in_whitelist 0ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/runtime/runtime-guard.spec.ts > PaperRuntimeGuard — A-009..A-014 attack regression > A-009: criticalGateIds referencing an unregistered gate blocks startup 0ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/runtime/runtime-guard.spec.ts > PaperRuntimeGuard — A-009..A-014 attack regression > A-010: stage policy table missing DELIVERY blocks startup 1ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/runtime/runtime-guard.spec.ts > PaperRuntimeGuard — A-009..A-014 attack regression > A-011: run mode fast with FORMAL profile → assertRuntimeReady throws 1ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/runtime/runtime-guard.spec.ts > PaperRuntimeGuard — A-009..A-014 attack regression > A-012: preflight failure emits a preflight_blocked audit event when audit is available 1ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/runtime/runtime-guard.spec.ts > PaperRuntimeGuard — A-009..A-014 attack regression > A-013: denied capability_check event reaches paperAudit 1ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/runtime/runtime-guard.spec.ts > PaperRuntimeGuard — A-009..A-014 attack regression > A-014: deliveryPolicyId absent from knownDeliveryPolicyIds blocks startup 0ms
+[paper-preflight] failures=["missing_service"] at=2026-08-29T07:30:43.768Z
+[paper-preflight] failures=["missing_service"] at=2026-08-29T07:30:43.769Z
+[paper-preflight] failures=["missing_service"] at=2026-08-29T07:30:43.769Z
+[paper-preflight] failures=["unknown_production_config"] at=2026-08-29T07:30:43
+.770Z
+[paper-preflight] failures=["missing_service"] at=2026-08-29T07:30:43.771Z
+[paper-preflight] failures=["missing_service","missing_service"] at=2026-08-29T
+07:30:43.772Z
+ ✓  thread-safe  packages/paper/paper-foundation/tests/runtime/preflight.spec.ts > PaperPreflight — attack tests > A-001: storage (persistence) missing → blocks startup 3ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/runtime/preflight.spec.ts > PaperPreflight — attack tests > A-002: artifact store missing → blocks startup 1ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/runtime/preflight.spec.ts > PaperPreflight — attack tests > A-003: verifier registry missing → blocks startup 0ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/runtime/preflight.spec.ts > PaperPreflight — attack tests > A-004: delivery policy missing → blocks startup 1ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/runtime/preflight.spec.ts > PaperPreflight — attack tests > A-005: unknown production configuration → blocks startup with non-empty unknownConfig 1ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/runtime/preflight.spec.ts > PaperPreflight — happy path and aggregate missing counts > all six services present and known config → ok: true 0ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/runtime/preflight.spec.ts > PaperPreflight — happy path and aggregate missing counts > missing exactly one service → missing.length === 1 0ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/runtime/preflight.spec.ts > PaperPreflight — happy path and aggregate missing counts > missing two services → missing.length === 2 0ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/runtime/preflight.spec.ts > PaperPreflight — happy path and aggregate missing counts > audit sink is called even when unknownConfig and missing both fire 2ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/runtime/preflight.spec.ts > PaperPreflight — happy path and aggregate missing counts > without an audit sink, preflight still blocks (stderr-only fallback) 1ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/ir/store.spec.ts > ModelingIr — canonical state > ingests the full legal chain and exposes it in ingest order 12ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/ir/store.spec.ts > ModelingIr — canonical state > exposes id, kind, and record lookups 1ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/ir/store.spec.ts > ModelingIr — canonical state > stamps the injected clock and the ingest order 0ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/ir/store.spec.ts > ModelingIr — canonical state > works with no options at all (default audit and clock) 0ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/ir/store.spec.ts > ModelingIr — canonical state > ingestJson accepts valid text and is equivalent to put 1ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/ir/store.spec.ts > ModelingIr — canonical state > refuses an unknown kind rather than treating it as a no-op 1ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/ir/store.spec.ts > ModelingIr — canonical state > refuses unparseable text before touching the schema 0ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/ir/store.spec.ts > ModelingIr — canonical state > reports the offending path for a schema failure 1ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/ir/store.spec.ts > ModelingIr — canonical state > reports a whole-document path for an unrecognised top-level key 1ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/ir/store.spec.ts > ModelingIr — canonical state > refuses a duplicate id of the same kind 1ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/ir/store.spec.ts > ModelingIr — canonical state > refuses a duplicate id across different kinds (ids are globally unique) 1ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/ir/store.spec.ts > ModelingIr — canonical state > collects duplicate-id and reference failures in one verdict 1ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/ir/store.spec.ts > ModelingIr — canonical state > refuses a reference that resolves to the wrong kind 1ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/ir/store.spec.ts > ModelingIr — canonical state > requires the referenced object to exist BEFORE the referencing one 1ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/ir/store.spec.ts > ModelingIr — canonical state > stores a deep-frozen snapshot, so later mutation of the input is inert 3ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/ir/store.spec.ts > ModelingIr — canonical state > refuses direct mutation of canonical state 1ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/ir/store.spec.ts > ModelingIr — canonical state > freezes nested structures, not just the top level 0ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/ir/store.spec.ts > ModelingIr — canonical state > emits one audit event on acceptance and one on refusal 1ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/ir/store.spec.ts > ModelingIr — canonical state > keeps the refused payload out of canonical state 0ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/ir/store.spec.ts > ModelingIr — canonical state > types the accepted record to its kind 0ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/ir/store.spec.ts > ModelingIr — canonical state > ingests a VerificationResult and a FigureSpec on top of the chain 1ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/ir/attack.spec.ts > TASK 1 — IR-001..IR-010 > IR-001: invalid JSON never reaches canonical state 10ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/ir/attack.spec.ts > TASK 1 — IR-001..IR-010 > IR-002: duplicate id is refused, within a kind and across kinds 3ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/ir/attack.spec.ts > TASK 1 — IR-001..IR-010 > IR-003: a Claim naming a nonexistent Result is refused 1ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/ir/attack.spec.ts > TASK 1 — IR-001..IR-010 > IR-004: a Result naming a nonexistent RunArtifact is refused 1ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/ir/attack.spec.ts > TASK 1 — IR-001..IR-010 > IR-005: a ModelSpec naming a nonexistent ProblemSpec is refused 1ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/ir/attack.spec.ts > TASK 1 — IR-001..IR-010 > IR-006: a Claim with no criticality is refused at the criticality field 1ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/ir/attack.spec.ts > TASK 1 — IR-001..IR-010 > IR-007: a Figure whose data_ref does not exist is refused 1ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/ir/attack.spec.ts > TASK 1 — IR-001..IR-010 > IR-008: a Result with no unit is refused at the unit field 1ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/ir/attack.spec.ts > TASK 1 — IR-001..IR-010 > IR-009: a RunArtifact with no exit_status is refused at the exit_status field 2ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/ir/attack.spec.ts > TASK 1 — IR-001..IR-010 > IR-010: a malformed reviewer finding is refused, not absorbed 7ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/ir/attack.spec.ts > TASK 1 — IR-001..IR-010 > an accepted object cannot be swapped out afterwards (no update path exists) 2ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/ir/attack.spec.ts > TASK 1 — IR-001..IR-010 > the IR module exposes no repair, coercion, or second-guess entry point 0ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/ir/schema.spec.ts > IR schemas — closed vocabulary > declares an ID field and a schema for every kind 10ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/ir/schema.spec.ts > IR schemas — closed vocabulary > accepts one valid object of every kind 1ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/ir/schema.spec.ts > IR schemas — closed vocabulary > readIrObjectId returns the canonical id of a validated object 1ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/ir/schema.spec.ts > IR schemas — closed vocabulary > rejects an unrecognised key on every kind (no silently-ignored fields) 2ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/ir/schema.spec.ts > IR schemas — closed vocabulary > rejects an id that is empty or whitespace 1ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/ir/schema.spec.ts > IR schemas — closed vocabulary > rejects empty external refs and hashes 1ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/ir/schema.spec.ts > IR schemas — closed vocabulary > rejects NaN and Infinity result values through the typed path 1ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/ir/schema.spec.ts > IR schemas — closed vocabulary > rejects an unknown criticality, claim type, attack type, and severity 2ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/ir/schema.spec.ts > IR schemas — closed vocabulary > rejects a verification status outside PASS / FAIL / BLOCKED 1ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/ir/schema.spec.ts > IR schemas — closed vocabulary > ProblemSpec rejects duplicate subproblem ids inside one object 1ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/ir/schema.spec.ts > IR schemas — closed vocabulary > ProblemSpec rejects duplicate required-output ids inside one object 2ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/ir/schema.spec.ts > IR schemas — closed vocabulary > ModelSpec requires a unit on every variable and parameter 0ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/ir/schema.spec.ts > IR schemas — closed vocabulary > ModelSpec allows an explicit null objective but not a missing one 0ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/ir/schema.spec.ts > IR schemas — closed vocabulary > RunArtifact accepts a null seed and an integer or string seed, but not a fractional one 0ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/ir/schema.spec.ts > IR schemas — closed vocabulary > FigureSpec is schema-only and still demands the provenance fields 0ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/ir/redteam.spec.ts > RT1-01 / RT2-01 — canonical state is not reachable from outside > exposes no enumerable state at all 10ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/ir/redteam.spec.ts > RT1-01 / RT2-01 — canonical state is not reachable from outside > treats a decoy property as inert: canonical state is unreachable 2ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/ir/redteam.spec.ts > RT1-01 / RT2-01 — canonical state is not reachable from outside > returns a frozen record, so record.kind cannot be spoofed 1ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/ir/redteam.spec.ts > RT1-01 / RT2-01 — canonical state is not reachable from outside > list() hands out a defensive copy, not the live collection 1ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/ir/redteam.spec.ts > RT2-02 / RT3-01 — the policy tables are immutable > freezes every exported table deeply 0ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/ir/redteam.spec.ts > RT2-02 / RT3-01 — the policy tables are immutable > refuses to let a table be rewritten to disable reference validation 1ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/ir/redteam.spec.ts > RT2-02 / RT3-01 — the policy tables are immutable > refuses to let an id field mapping be rewritten 0ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/ir/redteam.spec.ts > RT2-02 / RT3-01 — the policy tables are immutable > keeps validating after a failed table rewrite on a fresh store 1ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/ir/redteam.spec.ts > RT3-02 — the store class itself is frozen > cannot have put() replaced on the prototype 1ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/ir/redteam.spec.ts > RT3-02 — the store class itself is frozen > still ingests correctly after a failed prototype hijack 1ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/ir/redteam.spec.ts > RT3-02 — the store class itself is frozen > fails closed when the method is detached from its instance 1ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/ir/redteam.spec.ts > RT3-03 — inherited and symbol keys cannot satisfy or poison a schema > refuses an empty object that inherits all required fields 0ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/ir/redteam.spec.ts > RT3-03 — inherited and symbol keys cannot satisfy or poison a schema > refuses a value carrying own symbol keys 3ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/ir/redteam.spec.ts > RT2-03 / RT3-05 — both ingress doors apply the same rules > put() refuses the same bytes ingestJson() refuses 1ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/ir/redteam.spec.ts > RT2-03 / RT3-05 — both ingress doors apply the same rules > put() refuses an over-deep graph that ingestJson() would also refuse 1ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/ir/redteam.spec.ts > RT1-03 / RT2-06 — put() is total and audits before committing > refuses instead of throwing when the audit sink throws 0ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/ir/redteam.spec.ts > RT1-03 / RT2-06 — put() is total and audits before committing > refuses instead of throwing when the clock throws 0ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/ir/redteam.spec.ts > RT1-03 / RT2-06 — put() is total and audits before committing > refuses instead of throwing when the kind has a hostile toString 0ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/ir/redteam.spec.ts > RT1-03 / RT2-06 — put() is total and audits before committing > refuses instead of throwing on a non-Error throwable 0ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/ir/redteam.spec.ts > RT1-03 / RT2-06 — put() is total and audits before committing > still refuses when a refusal audit itself throws 1ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/ir/redteam.spec.ts > RT2-07 — refusals carry the best-effort id > names the object in a schema-level refusal 1ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/ir/redteam.spec.ts > RT2-07 — refusals carry the best-effort id > falls back to null when the id is unreadable or absent 1ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/ir/redteam.spec.ts > RT2-07 — refusals carry the best-effort id > stays null for an unknown kind, string or not 0ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/ir/redteam.spec.ts > RT2-04 — a CRITICAL claim with no references is refused > refuses evidence-free critical claims, and accepts them once referenced 1ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/ir/redteam.spec.ts > RT2-04 — a CRITICAL claim with no references is refused > still allows a NON_CRITICAL claim with no references 0ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/ir/redteam.spec.ts > RT1-04 — id charset and normalisation > rejects ids containing control, format, surrogate or separator characters 1ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/ir/redteam.spec.ts > RT1-04 — id charset and normalisation > rejects an id that is not in NFC form 1ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/ir/redteam.spec.ts > RT1-04 — id charset and normalisation > accepts the precomposed form, and keeps it distinct from the NFD spelling 0ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/ir/redteam.spec.ts > RT1-02 — oversized ingress is refused, not absorbed > refuses an over-long prose field 0ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/ir/redteam.spec.ts > RT1-02 — oversized ingress is refused, not absorbed > accepts a prose field at the limit 0ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/ir/redteam.spec.ts > RT1-02 — oversized ingress is refused, not absorbed > refuses multi-megabyte text before parsing it 1ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/ir/redteam.spec.ts > RT4-01 — the reference table covers every reference-bearing field > declares exactly the reference fields the schemas define 1ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/ir/redteam.spec.ts > RT4-01 — the reference table covers every reference-bearing field > omits every external locator from the table 1ms
+[paperRuntimeGuard] audit not available: capability_check stage=PLAN cap=llm_in
+ference allowed=true
+[paperRuntimeGuard] audit not available: capability_check stage=PLAN cap=llm_in
+ference allowed=true
+[paperRuntimeGuard] audit not available: capability_check stage=PLAN cap=llm_in
+ference allowed=true
+ ✓  thread-safe  packages/paper/paper-foundation/tests/diagnostics.spec.ts > PaperDiagnosticsService > returns only stable success facts for a terminal provider result 15ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/diagnostics.spec.ts > PaperDiagnosticsService > maps a provider failure without exposing response content 3ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/diagnostics.spec.ts > PaperDiagnosticsService > aborts a probe that does not produce a terminal result before the deadline 7ms
+ ✓  thread-safe  packages/paper/paper-bundle/tests/bundle.spec.ts > dsh-paper bundle patch > inserts the Paper rows through the dsh.bundle.patch manifest field 7ms
+ ✓  thread-safe  packages/paper/paper-bundle/tests/bundle.spec.ts > dsh-paper bundle patch > routes the three roles and names a default mode 2ms
+ ✓  thread-safe  packages/paper/paper-bundle/tests/bundle.spec.ts > dsh-paper bundle patch > keeps the conservative trust defaults the layer ships with 3ms
+ ✓  thread-safe  packages/paper/paper-bundle/tests/bundle.spec.ts > dsh-paper bundle patch > names published entry points for every row 2ms
+ ✓  thread-safe  packages/paper/paper-bundle/tests/bundle.spec.ts > missingPaperServices > names every requirement a bare composition does not carry 5ms
+ ✓  thread-safe  packages/paper/paper-bundle/tests/bundle.spec.ts > missingPaperServices > reports nothing once the composition carries all three 2ms
+ ✓  thread-safe  packages/paper/paper-bundle/tests/bundle.spec.ts > dsh-paper plugin > is a named plugin 0ms
+ ✓  thread-safe  packages/paper/paper-bundle/tests/bundle.spec.ts > dsh-paper plugin > throws naming the gap when a profile cannot activate the layer (TASK -1 rewire) 36ms
+ ✓  thread-safe  packages/paper/paper-bundle/tests/bundle.spec.ts > dsh-paper plugin > stays quiet when the composition is complete 4ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/settings.spec.ts > PaperSettingsService > returns a detached snapshot and keeps credential values out of the settings contract 9ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/state-machine.spec.ts > workflow transition table > accepts exactly the declared run edges and refuses every other pair 7ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/state-machine.spec.ts > workflow transition table > accepts exactly the declared node edges and refuses every other pair 3ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/state-machine.spec.ts > workflow transition table > names the entity, id, and states it refused 2ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/state-machine.spec.ts > workflow transition table > permits a retry only while attempts remain 0ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/state-machine.spec.ts > replay of the remaining event kinds > follows recovery, pause, completion, and failure events 2ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/state-machine.spec.ts > replay of the remaining event kinds > refuses an event stream that mixes runs 1ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/state-machine.spec.ts > replay of the remaining event kinds > refuses node events that name no node or an uncreated node 1ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/state-machine.spec.ts > replay of the remaining event kinds > refuses an illegal run transition and a contradictory run state 1ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/state-machine.spec.ts > replay of the remaining event kinds > reports an empty stream as sequence zero 2ms
+[paper-preflight] early-gate {"type":"preflight_missing","missing":[{"kind":"pe
+rsistence","interfaceName":"paper.persistence"},{"kind":"artifact_store","inter
+faceName":"paper.artifactStore"},{"kind":"verifier_registry","interfaceName":"p
+aper.verifierRegistry"},{"kind":"hash_provider","interfaceName":"paper.hashProv
+ider"}],"unknownConfig":[],"at":"2026-08-29T07:30:44.314Z"} at=2026-08-29T07:30
+:44.314Z
+ ✓  thread-safe  packages/paper/paper-foundation/tests/skill-content.spec.ts > cleanseSkillBody > turns provider-specific markup into a fenced block, keeping the content 10ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/skill-content.spec.ts > cleanseSkillBody > keeps tag attributes out of the result and handles an inline pair 1ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/skill-content.spec.ts > cleanseSkillBody > uses the default fence for a custom unwrap rule that names none 0ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/skill-content.spec.ts > cleanseSkillBody > removes an empty pair outright rather than leaving an empty fence 1ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/skill-content.spec.ts > cleanseSkillBody > removes a self-closing or unpaired tag without leaving half of it behind 0ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/skill-content.spec.ts > cleanseSkillBody > drops instructions that drive a provider tool or bypass the permission surface 1ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/skill-content.spec.ts > cleanseSkillBody > drops directives that treat reasoning as a parseable field 1ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/skill-content.spec.ts > cleanseSkillBody > leaves a clean body byte-identical apart from a trailing newline 0ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/skill-content.spec.ts > cleanseSkillBody > collapses the blank runs and trailing space a removal leaves behind 1ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/skill-content.spec.ts > cleanseSkillBody > reports the line of each change and truncates a long excerpt 1ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/skill-content.spec.ts > custom cleanse rules > replaces a matched pattern with the rule replacement 1ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/skill-content.spec.ts > custom cleanse rules > deletes a match when the replace rule states no replacement 0ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/skill-content.spec.ts > custom cleanse rules > accepts a literal string match for drop-line and replace 2ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/skill-content.spec.ts > custom cleanse rules > honors a global flag already present on a replace pattern 0ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/skill-content.spec.ts > custom cleanse rules > applies no rules when handed an empty set 0ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/skill-content.spec.ts > needsCleansing > separates a migrated body from one that still carries legacy markup 1ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/skill-content.spec.ts > needsCleansing > answers against a caller rule set 0ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/skill-content.spec.ts > DEFAULT_CLEANSE_RULES > gives every rule a unique id and a stated reason 0ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/legacy.spec.ts > inferProvider > resolves a declared path segment and defaults everything else 5ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/legacy.spec.ts > inferProvider > resolves an unparseable value rather than throwing, and needs no table 0ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/legacy.spec.ts > inferProvider > matches a segment case-insensitively 0ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/legacy.spec.ts > migrateLegacySettings > lifts every credential value out of the settings record 5ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/legacy.spec.ts > migrateLegacySettings > gives an unconfigured role the executor route so a migrated install still runs 1ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/legacy.spec.ts > migrateLegacySettings > folds the oldest flat document into the role form 2ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/legacy.spec.ts > migrateLegacySettings > prefers a role block over the flat fields of the same document 1ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/legacy.spec.ts > migrateLegacySettings > applies the caller default timeout and reference naming 0ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/legacy.spec.ts > migrateLegacySettings > names the default model when the document states none 1ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/legacy.spec.ts > migrateLegacySettings > refuses a document it cannot recognize or that configures nothing 7ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/legacy.spec.ts > enum normalization > maps every legacy spelling of a run status 3ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/legacy.spec.ts > enum normalization > maps legacy node states, kinds, and modes 2ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/legacy.spec.ts > migrateLegacyRun > maps a full row and stamps the migrating harness 3ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/legacy.spec.ts > migrateLegacyRun > defaults absent usage and reuses the creation stamp 0ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/legacy.spec.ts > migrateLegacyRun > refuses a row that is not a legacy run 1ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/legacy.spec.ts > migrateLegacyNode > maps a full row with both artifact links 2ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/legacy.spec.ts > migrateLegacyNode > defaults a sparse row and never assumes a node is safe to re-run 0ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/legacy.spec.ts > migrateLegacyNode > treats an explicit legacy null the same as an absent field 0ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/legacy.spec.ts > migrateLegacyNode > refuses an unmappable role and a row of the wrong shape 1ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/legacy.spec.ts > migrateLegacyEvent > maps a full row and its payload 1ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/legacy.spec.ts > migrateLegacyEvent > defaults an absent payload and a run-scoped event 1ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/legacy.spec.ts > migrateLegacyEvent > refuses an unmappable event rather than dropping it from the log 1ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/composition.spec.ts > Paper foundation composition > loads and disposes the phase-two services over real Cordis/storage facilities 40ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/store.spec.ts > DomainWorkflowRunRepository > persists runs and resumes events after reopening the shared medium 37ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/store.spec.ts > DomainWorkflowRunRepository > rejects duplicate event sequence keys without replacing the first event 7ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/signed-skill.spec.ts > signed skill packages > loads a package only after hash and signature validation 34ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/signed-skill.spec.ts > signed skill packages > rejects unknown trust roots and modified content 13ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/release.spec.ts > release manifest verification > accepts a signed manifest the deployment can run 14ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/release.spec.ts > release manifest verification > refuses anything that is not a manifest 4ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/release.spec.ts > release manifest verification > refuses a release that requires a newer harness, and accepts short-form versions 7ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/release.spec.ts > release manifest verification > refuses an unknown trust root and a forged signature 2ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/release.spec.ts > release manifest verification > accepts an unsigned manifest only in development mode 1ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/release.spec.ts > release manifest verification > signs a stable payload regardless of key order 1ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/release.spec.ts > staged rollout > offers everything at one and nothing at zero 1ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/release.spec.ts > staged rollout > is stable per install and version, and splits the population in between 4ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/release.spec.ts > release artifact verification > accepts artifacts whose bytes match their recorded hash and size 2ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/release.spec.ts > release artifact verification > refuses a wrong size before it hashes, and a wrong hash after 3ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/workflow.spec.ts > WorkflowEngine > persists legal run and node transitions and rejects terminal rewrites 56ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/workflow.spec.ts > WorkflowEngine > recovers idempotent nodes to ready and pauses non-idempotent nodes 12ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/spec.spec.ts > Paper foundation schemas > accepts a complete run record and preserves the UUID brand at runtime 10ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/spec.spec.ts > Paper foundation schemas > rejects a credential value in the role settings contract 3ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/spec.spec.ts > Paper foundation schemas > rejects event sequence zero and malformed artifact hashes 5ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/workflow-guards.spec.ts > workflow engine guards > refuses to add a node to a run that is no longer planning or running 33ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/workflow-guards.spec.ts > workflow engine guards > rejects transitions, usage, and artifacts that name something absent 6ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/workflow-guards.spec.ts > workflow engine guards > serializes concurrent writes on one run and releases the queue afterwards 8ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/workflow-guards.spec.ts > workflow engine guards > stores and reads artifacts through the repository 5ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/workflow-guards.spec.ts > workflow recovery guards > refuses to recover a run whose record disagrees with its replayed history 8ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/workflow-guards.spec.ts > workflow recovery guards > refuses to recover when a node record disagrees with its replayed state 8ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/workflow-guards.spec.ts > workflow recovery guards > skips runs with no running node and leaves terminal runs alone 5ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/workflow-guards.spec.ts > workflow recovery guards > pauses an idempotent node that has already spent its attempts 7ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/workflow-guards.spec.ts > workflow recovery guards > leaves an already paused run paused while recovering its node 9ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/workflow-guards.spec.ts > workflow recovery guards > skips a node that stopped running before recovery reached it 8ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/executor-context.spec.ts > executor context budgeting > compacts an oversized prompt, references the full text, and records the elision 46ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/executor-context.spec.ts > executor context budgeting > sends prompts whole when the adapter states no context window 18ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/executor-context.spec.ts > executor context budgeting > leaves a prompt that already fits untouched 22ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/security.spec.ts > redaction > masks labeled, bearer, and prefixed credential material in text 4ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/security.spec.ts > redaction > leaves ordinary prose and short values untouched 0ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/security.spec.ts > redaction > masks credential-bearing keys at every depth and refuses to follow cycles 2ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/security.spec.ts > redaction > replaces structure past the depth ceiling and drops non-JSON values 1ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/security.spec.ts > redaction > redacts detail maps without dropping their keys 0ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/security.spec.ts > PaperAuditService restart > resumes the append sequence past the highest persisted entry 67ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/security.spec.ts > PaperAuditService > records redacted entries in chronological order and filters by run 10ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/security.spec.ts > PaperAuditService > records a null run for host-scoped operations 11ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/security.spec.ts > PaperAuditService > prunes entries past the retention window on the next write 8ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/executor-resilience.spec.ts > executor resilience > retries a transport failure, records the retry, and completes 85ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/executor-resilience.spec.ts > executor resilience > blocks a credential failure without retrying and fails the run 22ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/signed-skill-guards.spec.ts > signed package validation refusals > refuses a directory with no readable manifest 27ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/signed-skill-guards.spec.ts > signed package validation refusals > refuses a manifest that does not match the schema 10ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/signed-skill-guards.spec.ts > signed package validation refusals > refuses an id that is not a skill name 11ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/migration.spec.ts > LegacyMigrationRunner dry run > previews without writing anything 27ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/migration.spec.ts > LegacyMigrationRunner dry run > reports the same refusal a commit would make 10ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/migration.spec.ts > LegacyMigrationRunner commit > writes records, marks the legacy id, and audits the pass 32ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/migration.spec.ts > LegacyMigrationRunner commit > skips a legacy id a previous pass already completed 22ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/migration.spec.ts > LegacyMigrationRunner commit > retries an unmarked bundle without duplicating the events it already wrote 15ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/workflow-guards.spec.ts > WorkflowEngineService lifecycle > exposes the startup recovery result and refuses use before initialization 9ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/workflow-guards.spec.ts > WorkflowEngineService lifecycle > refuses repository use before the foundation opens its domain 2ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/executor-guards.spec.ts > executor policy resolution > resolves every default for a composition that declares none 5ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/executor-guards.spec.ts > executor policy resolution > keeps every declared value and attaches an audit sink when one is mounted 1ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/executor-guards.spec.ts > executor run guards > refuses to execute a run that does not exist 52ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/executor-guards.spec.ts > executor run guards > executes a run that is already running without re-transitioning it 53ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/skill-provider.spec.ts > SignedSkillProvider > lists and loads validated skills through the upstream registry 110ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/executor.spec.ts > WorkflowExecutor > completes a fast run whose review passes on the first pass 57ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/executor.spec.ts > WorkflowExecutor > delivers a fast run with defects after its single revise round 31ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/executor.spec.ts > WorkflowExecutor > fails a strict run when defects persist past the policy ceiling 40ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/runtime/integration.spec.ts > red-team minimum-4 acceptance > 1. FORMAL composition without storageDomain throws at startup 38ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/runtime/integration.spec.ts > red-team minimum-4 acceptance > 2. FORMAL composition with all required services mounts and readies the guard 38ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/runtime/integration.spec.ts > red-team minimum-4 acceptance > 3. REVIEW stage requesting shell: underlying capability implementation is never invoked 23ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/runtime/integration.spec.ts > red-team minimum-4 acceptance > 4. paperProvider.stream and paperDiagnostics.probe are guarded; ctx.llm.stream is not the public surface 20ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/release-service.spec.ts > PaperReleaseService staging > mints one stable install id and keeps it across restarts 33ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/release-service.spec.ts > PaperReleaseService staging > stages a verified release once and audits it 21ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/release-service.spec.ts > PaperReleaseService staging > refuses a release this install is not yet offered 17ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/release-service.spec.ts > PaperReleaseService staging > refuses an unverifiable release before staging it 10ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/release-service.spec.ts > PaperReleaseService staging > records an accepted unsigned release as unverified 6ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/release-service.spec.ts > PaperReleaseService staging > works without an audit trail in the composition 7ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/release-service.spec.ts > PaperReleaseService activation and health > activates a staged version, remembers its predecessor, and confirms health 27ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/executor.spec.ts > WorkflowExecutor > pushes durable events in-process as they are appended 13ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/executor-resilience.spec.ts > executor resilience > pauses the run when retryable attempts are exhausted 29ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/executor-resilience.spec.ts > executor resilience > derives cost from the pricing table and carries it into the manifest 14ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/executor-resilience.spec.ts > executor resilience > pauses a new run once the day is over budget and records the refusal 9ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/migration.spec.ts > LegacyMigrationRunner commit > refuses a run whose migrated event log has a gap 9ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/migration.spec.ts > LegacyMigrationRunner commit > accepts an out-of-order but complete event log 9ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/migration.spec.ts > LegacyMigrationRunner commit > works without an audit trail in the composition 5ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/migration.spec.ts > LegacyMigrationRunner commit > lets a non-migration failure out rather than reporting it as a refusal 7ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/migration.spec.ts > PaperMigrationService state > counts only committed passes and survives a restart 14ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/migration.spec.ts > PaperMigrationService state > stamps an unnamed harness version rather than an empty one 4ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/migration.spec.ts > PaperMigrationService state > refuses every operation once its domain is closed 4ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/migration.spec.ts > resolveMigrationConfig > resolves both absent and explicitly empty harness versions 0ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/migration.spec.ts > resolveMigrationConfig > keeps both caller-supplied stamps 0ms
+[paperRuntimeGuard] audit not available: capability_check stage=PLAN cap=llm_in
+ference allowed=true
+[paperRuntimeGuard] audit not available: capability_check stage=PLAN cap=llm_in
+ference allowed=true
+[paperRuntimeGuard] audit not available: capability_check stage=PLAN cap=llm_in
+ference allowed=true
+ ✓  thread-safe  packages/paper/paper-foundation/tests/catalog-provider.spec.ts > CatalogSkillProvider > lists and loads the catalog active version, and ignores foreign locators 123ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/catalog-provider.spec.ts > CatalogSkillProvider > serves the rolled-back version after the catalog switches 38ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/catalog-provider.spec.ts > CatalogSkillProvider > registers on the skill registry so a catalog skill resolves by name 24ms
+[paperRuntimeGuard] audit not available: capability_check stage=PLAN cap=llm_in
+ference allowed=true
+[paperRuntimeGuard] audit not available: capability_check stage=PLAN cap=llm_in
+ference allowed=true
+[paperRuntimeGuard] audit not available: capability_check stage=MODEL cap=llm_i
+nference allowed=true
+ ✓  thread-safe  packages/paper/paper-foundation/tests/signed-skill-guards.spec.ts > signed package validation refusals > refuses a package that requires a newer harness and accepts equal or older 76ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/signed-skill-guards.spec.ts > signed package validation refusals > refuses a forged signature 6ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/signed-skill-guards.spec.ts > signed package validation refusals > refuses integrity that names an unsupported file or omits the body 10ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/signed-skill-guards.spec.ts > signed package validation refusals > refuses tools.json that is unreadable or not a string array 16ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/signed-skill-guards.spec.ts > signed package validation refusals > reads no declared tools when integrity does not cover tools.json 6ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/signed-skill-guards.spec.ts > SignedSkillProvider catalog behavior > skips unreadable roots and invalid packages while listing the sound ones 14ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/signed-skill-guards.spec.ts > SignedSkillProvider catalog behavior > accepts an unsigned package only when the deployment allows it 5ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/signed-skill-guards.spec.ts > SignedSkillProvider catalog behavior > registers on the skill registry through its plugin form 25ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/ir/parse.spec.ts > parseStrictJson — IR-001 text ingress > accepts a well-formed object 2ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/ir/parse.spec.ts > parseStrictJson — IR-001 text ingress > accepts a bare scalar, leaving type rejection to the schema 0ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/ir/parse.spec.ts > parseStrictJson — IR-001 text ingress > rejects a non-string input instead of coercing it 0ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/ir/parse.spec.ts > parseStrictJson — IR-001 text ingress > rejects undefined and null inputs 0ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/ir/parse.spec.ts > parseStrictJson — IR-001 text ingress > rejects empty and whitespace-only input 0ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/ir/parse.spec.ts > parseStrictJson — IR-001 text ingress > rejects trailing commas 0ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/ir/parse.spec.ts > parseStrictJson — IR-001 text ingress > rejects single-quoted JSON 0ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/ir/parse.spec.ts > parseStrictJson — IR-001 text ingress > rejects JavaScript literals that are not JSON 0ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/ir/parse.spec.ts > parseStrictJson — IR-001 text ingress > rejects a model "explanation sandwich" around the JSON 1ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/ir/parse.spec.ts > parseStrictJson — IR-001 text ingress > rejects truncated JSON 0ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/ir/parse.spec.ts > parseStrictJson — IR-001 text ingress > never throws on adversarial input 1ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/ir/parse.spec.ts > parseStrictJson — size cap precedes the parse > refuses an oversized payload without ever calling JSON.parse 2ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/ir/parse.spec.ts > parseStrictJson — size cap precedes the parse > accepts a payload exactly at the cap 2ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/ir/parse.spec.ts > scanIrValue — structural safety of an already-parsed value > cleans a plain legal object 0ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/ir/parse.spec.ts > scanIrValue — structural safety of an already-parsed value > rejects a top-level __proto__ key 0ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/ir/parse.spec.ts > scanIrValue — structural safety of an already-parsed value > rejects a nested forbidden key 0ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/ir/parse.spec.ts > scanIrValue — structural safety of an already-parsed value > rejects a forbidden key inside an array 0ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/ir/parse.spec.ts > scanIrValue — structural safety of an already-parsed value > rejects the unicode-escaped spelling of a forbidden key 0ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/ir/parse.spec.ts > scanIrValue — structural safety of an already-parsed value > rejects an object graph deeper than the cap 0ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/ir/parse.spec.ts > scanIrValue — structural safety of an already-parsed value > accepts an object graph exactly at the cap 0ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/ir/parse.spec.ts > scanIrValue — structural safety of an already-parsed value > rejects a value with own symbol keys, which Object.keys would silently drop 0ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/ir/parse.spec.ts > scanIrValue — structural safety of an already-parsed value > rejects inherited keys, which zod would read as if they were own 0ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/ir/parse.spec.ts > scanIrValue — structural safety of an already-parsed value > rejects an array whose prototype carries an enumerable key 0ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/ir/parse.spec.ts > scanIrValue — structural safety of an already-parsed value > rejects an accessor property rather than invoking it 0ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/ir/parse.spec.ts > text ingress as a whole refuses every hostile payload > either the parser or the scan rejects attack text 1ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/signed-skill-guards.spec.ts > SignedSkillProvider catalog behavior > reports the refused directory on its validation error 6ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/release-service.spec.ts > PaperReleaseService activation and health > refuses to activate a version that was never staged 7ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/release-service.spec.ts > PaperReleaseService activation and health > reports no health confirmation when nothing is active or the record is gone 8ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/release-service.spec.ts > PaperReleaseService activation and health > re-activating the active version keeps its recorded predecessor 9ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/release-service.spec.ts > PaperReleaseService rollback > returns to the recorded predecessor and audits the move 7ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/release-service.spec.ts > PaperReleaseService rollback > refuses a rollback with no predecessor or an unstaged target 6ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/release-service.spec.ts > PaperReleaseService rollback > rolls back an active version that never reported healthy on the next start 14ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/release-service.spec.ts > PaperReleaseService rollback > leaves a healthy active version alone on the next start 9ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/release-service.spec.ts > PaperReleaseService rollback > keeps an unproven first release active when it has no predecessor 8ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/release-service.spec.ts > PaperReleaseService rollback > keeps the pointer when the active record vanished before the restart 15ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/release-service.spec.ts > PaperReleaseService lifecycle guards > refuses every operation before initialization 2ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/release-service.spec.ts > PaperReleaseService lifecycle guards > refuses reads once its domain is closed 4ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/release-service.spec.ts > PaperReleaseService lifecycle guards > resolves its policy defaults when a composition names none 0ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/release-service.spec.ts > PaperReleaseService lifecycle guards > refuses a release signed by a key the deployment does not trust 5ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/executor-guards.spec.ts > executor run guards > warns at the budget fraction and still finishes the run 32ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/executor-guards.spec.ts > executor run guards > classifies a thrown non-provider value and pauses after its attempts 17ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/executor-guards.spec.ts > executor run guards > blocks immediately on a thrown value that carries a blocking code 10ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/executor-guards.spec.ts > reviewer output parsing > treats output with no JSON object as one major defect 15ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/executor-guards.spec.ts > reviewer output parsing > treats JSON without a defects array as one major defect 12ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/executor-guards.spec.ts > reviewer output parsing > treats unparsable JSON as one major defect 13ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/executor-guards.spec.ts > reviewer output parsing > keeps described entries, drops shapeless ones, and defaults severity to minor 19ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/skill-catalog.spec.ts > SkillCatalogService > installs versioned packages, keeps history, and rolls back after re-validation 113ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/skill-catalog.spec.ts > SkillCatalogService > refuses rollback when the stored copy no longer validates 29ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/skill-catalog.spec.ts > SkillCatalogService > rejects installs whose active tools conflict and accepts same-id upgrades 31ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/skill-catalog.spec.ts > SkillCatalogService > enforces exclusive tag groups through install 23ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/service-guards.spec.ts > PaperDiagnosticsService guards > refuses a timeout that is not a positive safe integer 10ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/service-guards.spec.ts > PaperDiagnosticsService guards > reports an incomplete stream that neither finished nor aborted 5ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/service-guards.spec.ts > PaperDiagnosticsService guards > reports an aborted terminal result 2ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/service-guards.spec.ts > PaperDiagnosticsService guards > reports a throw that lands after the deadline as an abort 7ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/service-guards.spec.ts > PaperDiagnosticsService guards > projects a thrown provider error onto its stable code, and anything else onto a generic one 4ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/service-guards.spec.ts > PaperProviderService > dispatches an assembled request through the shared runtime 3ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/service-guards.spec.ts > PaperAuditService lifecycle > records a host-scoped entry and refuses reads once its domain is closed 14ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/service-guards.spec.ts > PaperAuditService lifecycle > falls back to the default retention when constructed without config 2ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/service-guards.spec.ts > PaperSettingsService over a real settings provider > reads through the registered scope and counts committed changes 9ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/service-guards.spec.ts > PaperExecutorService configuration > resolves every policy default when a composition names none 6ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/service-guards.spec.ts > PaperExecutorService configuration > refuses use before initialization 1ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/service-guards.spec.ts > paper invariant companion > accepts declared tables and schema-valid values, and fails on anything else 5ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/service-guards.spec.ts > skill conflict detection > reports nothing when tools and tags do not overlap 0ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/provider.spec.ts > PaperProviderService > resolves a role through the provider-neutral LLM registry 6ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/skill-catalog.spec.ts > SkillCatalogService > loads unsigned packages only in development mode 25ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/skill-catalog.spec.ts > SkillCatalogService edge cases > treats reinstalling a stored version as a no-op 13ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/skill-catalog.spec.ts > SkillCatalogService edge cases > installs a package whose integrity covers no tool declaration 11ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/skill-catalog.spec.ts > SkillCatalogService edge cases > refuses to roll back a skill that was never installed 3ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/skill-catalog.spec.ts > SkillCatalogService edge cases > treats a record whose active version is missing as declaring nothing 22ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/skill-catalog.spec.ts > SkillCatalogService edge cases > refuses reads once its domain is closed 3ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/skill-catalog.spec.ts > detectSkillConflicts > reports tool and tag conflicts between distinct skills only 1ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/runtime/profile.spec.ts > PaperRuntimeProfile — FORMAL > declares FORMAL mode 1ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/runtime/profile.spec.ts > PaperRuntimeProfile — FORMAL > includes all six required services 1ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/runtime/profile.spec.ts > PaperRuntimeProfile — FORMAL > PLAN stage allows read_problem and llm_inference 0ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/runtime/profile.spec.ts > PaperRuntimeProfile — FORMAL > DELIVERY stage only allows read_verified_artifact 0ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/runtime/profile.spec.ts > PaperRuntimeProfile — FORMAL > does not allow shell, web, or self_modify in any stage 1ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/runtime/profile.spec.ts > PaperRuntimeProfile — FORMAL > lists at least five critical gate IDs 0ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/runtime/profile.spec.ts > PaperRuntimeProfile — FORMAL > declares a non-empty delivery policy ID 0ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/runtime/profile.spec.ts > PaperRuntimeProfile — FAST vs FORMAL > FAST differs from FORMAL by at most 2 non-critical items 0ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/runtime/profile.spec.ts > PaperRuntimeProfile — EXPLORATORY vs FORMAL > EXPLORATORY differs from FORMAL on stage policies (PLAN is the change) 1ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/runtime/profile.spec.ts > PaperRuntimeProfile — EXPLORATORY vs FORMAL > EXPLORATORY allows no forbidden capabilities either 0ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/runtime/profile.spec.ts > PaperRuntimeProfile — EXPLORATORY vs FORMAL > every FORMAL stage has a strict, non-overlapping whitelist shape 0ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/delivery/artifact-states.spec.ts > ArtifactStates — three-state invariant > allows Candidate -> Verified (state change preserves required fields) 3ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/delivery/artifact-states.spec.ts > ArtifactStates — three-state invariant > rejects direct Candidate -> Deliverable: deliverable schema refuses without verifiedAt / promotedAt / finalOutputPath 1ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/delivery/artifact-states.spec.ts > ArtifactStates — three-state invariant > allows Verified -> Deliverable (promoter-side only) 0ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/delivery/artifact-states.spec.ts > ArtifactStates — three-state invariant > rejects an artifact with promotedAt set but state != DELIVERABLE (D-007: any direct promotion must be refused by the schema) 0ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/delivery/artifact-states.spec.ts > ArtifactStates — three-state invariant > rejects unknown states (closed enum) 0ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/delivery/artifact-states.spec.ts > ArtifactStates — three-state invariant > parseArtifact throws on malformed input 1ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/ir/refs.spec.ts > IR reference validation > declares ref fields only for fields the IR can resolve 4ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/ir/refs.spec.ts > IR reference validation > accepts a fully resolving object 1ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/ir/refs.spec.ts > IR reference validation > reports a missing single ref 1ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/ir/refs.spec.ts > IR reference validation > reports a missing ref inside an array, with the array path 0ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/ir/refs.spec.ts > IR reference validation > reports every dangling ref at once rather than the first only 0ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/ir/refs.spec.ts > IR reference validation > reports a kind mismatch when the ref exists but points at the wrong kind 0ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/ir/refs.spec.ts > IR reference validation > reports a kind mismatch for a Figure data_ref that names a Claim 0ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/ir/refs.spec.ts > IR reference validation > accepts ANY-target refs from any registered kind 0ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/ir/refs.spec.ts > IR reference validation > still rejects an unregistered ref on an ANY-target field 1ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/ir/refs.spec.ts > IR reference validation > resolves ModelSpec problem_refs and dependencies with kind checks 0ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/ir/refs.spec.ts > IR reference validation > ignores external refs on RunArtifact entirely 0ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/ir/refs.spec.ts > IR reference validation > has nothing to check on ProblemSpec, the graph root 0ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/delivery/delivery-policy.spec.ts > DeliveryPolicy — D-001..D-008 attack matrix > D-001: critical gate FAIL even when reviewer data shows PASS → delivery BLOCKED 2ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/delivery/delivery-policy.spec.ts > DeliveryPolicy — D-001..D-008 attack matrix > D-002: stale artifact id present → delivery BLOCKED with kind=stale 0ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/delivery/delivery-policy.spec.ts > DeliveryPolicy — D-001..D-008 attack matrix > D-003: unresolved Result reference id present → delivery BLOCKED with kind=unresolved_ref 0ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/delivery/delivery-policy.spec.ts > DeliveryPolicy — D-001..D-008 attack matrix > D-004: critical Claim with no evidence (provenance gate FAIL) → delivery BLOCKED 0ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/delivery/delivery-policy.spec.ts > DeliveryPolicy — D-001..D-008 attack matrix > D-005: FAST mode cannot bypass a critical FAIL — must still BLOCK 0ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/delivery/delivery-policy.spec.ts > DeliveryPolicy — D-001..D-008 attack matrix > D-006: execution gate FAIL → delivery BLOCKED 0ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/delivery/delivery-policy.spec.ts > DeliveryPolicy — D-001..D-008 attack matrix > D-007: required output uncovered → decision.allowed=false (precondition for direct promote() rejection) 0ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/delivery/delivery-policy.spec.ts > DeliveryPolicy — D-001..D-008 attack matrix > D-008: reviewer malformed output — provenance gate BLOCKED → delivery BLOCKED 0ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/delivery/delivery-policy.spec.ts > DeliveryPolicy — D-001..D-008 attack matrix > All critical PASS + no stale + no unresolved + all covered + profile valid → allowed 1ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/delivery/delivery-policy.spec.ts > DeliveryPolicy — D-001..D-008 attack matrix > FAST mode: non-critical gate FAIL does NOT block delivery (only critical blocks) 0ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/delivery/delivery-policy.spec.ts > DeliveryPolicy — D-001..D-008 attack matrix > FORMAL mode: non-critical gate FAIL does NOT block delivery either 0ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/delivery/delivery-policy.spec.ts > DeliveryPolicy — D-001..D-008 attack matrix > runtime profile invalid → BLOCKED with kind=runtime_profile_invalid 0ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/runtime/firewall.spec.ts > CapabilityFirewall — attack tests > A-006: REVIEW stage requesting shell is denied as forbidden_capability 1ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/runtime/firewall.spec.ts > CapabilityFirewall — attack tests > A-007: DELIVERY stage requesting write_model_spec is denied as not_in_whitelist 0ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/runtime/firewall.spec.ts > CapabilityFirewall — attack tests > A-008: PLAN stage requesting solver is denied as not_in_whitelist 0ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/runtime/firewall.spec.ts > CapabilityFirewall — forbidden capability surface > self_modify is denied in every stage 0ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/runtime/firewall.spec.ts > CapabilityFirewall — forbidden capability surface > web is denied in MODEL stage 0ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/runtime/firewall.spec.ts > CapabilityFirewall — audit and statelessness > allowed requests are also recorded in the audit trail 0ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/runtime/firewall.spec.ts > CapabilityFirewall — audit and statelessness > denied requests record an audit event with type=capability_check 0ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/runtime/firewall.spec.ts > CapabilityFirewall — audit and statelessness > auditSink is called exactly once per check (no duplication) 1ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/runtime/firewall.spec.ts > CapabilityFirewall — audit and statelessness > repeated identical requests both pass (no state, no idempotency cache) 1ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/runtime/firewall.spec.ts > CapabilityFirewall — audit and statelessness > repeated identical denied requests both fail (no state poisoning to allowed) 0ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/runtime/firewall.spec.ts > CapabilityFirewall — audit and statelessness > EXPLORATORY profile still denies self_modify in MODEL 0ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/cost.spec.ts > cost accounting > prices only routes the table declares and rounds to six decimals 2ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/cost.spec.ts > cost accounting > raises warning then exhausted, and treats a non-positive ceiling as unbounded 1ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/cost.spec.ts > failure classification > blocks configuration faults, revises content faults, and retries transport faults 0ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/cost.spec.ts > failure classification > routes HTTP-coded failures by status class 0ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/cost.spec.ts > retry backoff > grows exponentially to the cap within the jitter band 0ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/cost.spec.ts > retry backoff > never returns less than a provider-requested delay 0ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/replay.spec.ts > replayWorkflow > reconstructs run and node state from an ordered event stream 2ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/replay.spec.ts > replayWorkflow > fails closed on gaps and contradictory state facts 0ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/context.spec.ts > context budgeting > prices text at the shared four-character density plus framing 1ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/context.spec.ts > context budgeting > renders sections in declaration order separated by a blank line 0ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/context.spec.ts > context budgeting > returns the prompt untouched when it already fits or the budget is unbounded 1ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/context.spec.ts > context budgeting > trims the lowest-priority section first and keeps head and tail 1ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/context.spec.ts > context budgeting > escalates through the priority tiers when one section is not enough 0ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/context.spec.ts > context budgeting > never trims a keep-section, and reports what it could not fit 0ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/context.spec.ts > context budgeting > breaks a priority tie by length and stops when a section cannot shrink 0ms
+ ✓  thread-safe  packages/paper/paper-foundation/tests/context.spec.ts > context budgeting > leaves sections already at the keep floor alone 0ms
+
+ Test Files  43 passed (43)
+      Tests  420 passed (420)
+   Start at  15:30:40
+   Duration  3.98s (transform 10.54s, setup 4.95s, import 20.52s, tests 2.95s, environment 6ms)

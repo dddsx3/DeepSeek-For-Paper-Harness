@@ -1,0 +1,8 @@
+{
+  "fault_id": "A-013",
+  "actual_status": "BLOCKED",
+  "blocked_by": [
+    "PaperRuntimeGuard.emitAudit calls paperAudit.record(capability_check)",
+    "allowed:false persisted in audit domain"
+  ]
+}

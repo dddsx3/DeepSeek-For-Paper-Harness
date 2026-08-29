@@ -1,0 +1,8 @@
+{
+  "fault_id": "D-002",
+  "description": "staleArtifactIds non-empty — must not deliver",
+  "expected_status": "BLOCKED",
+  "blocked_by": [
+    "delivery-policy:evaluateDelivery (stale check)"
+  ]
+}

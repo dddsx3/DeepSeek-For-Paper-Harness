@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import { PaperProviderService } from '../src/provider.ts'
+import PaperRuntimeGuard from '../src/runtime/runtime-guard.ts'
 import type { PaperSettings } from '../src/spec.ts'
 
 const settings: PaperSettings = {
@@ -20,6 +21,12 @@ describe('PaperProviderService', () => {
     }))
     const ctx = new Context()
     ctx.provide('llm', { resolveModelInfo, stream: vi.fn() } as never)
+    // TASK -1 rewire: provider.stream() routes through the runtime guard.
+    // Mount the guard here so the role-resolution call (which is the
+    // non-capability seam) still works without preflight; the guard
+    // only gates `stream`, not `resolveRole`.
+    const guard = new PaperRuntimeGuard(ctx)
+    guard.markReady()
     const service = new PaperProviderService(ctx)
     const resolved = await service.resolveRole('reviewer', settings)
     expect(resolved.route).toMatchObject({ role: 'reviewer', provider: 'deepseek-official', model: 'reviewer-model' })

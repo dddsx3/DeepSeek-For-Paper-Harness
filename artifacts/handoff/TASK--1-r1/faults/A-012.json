@@ -1,0 +1,6 @@
+{
+  "fault_id": "A-012",
+  "description": "preflight failure emits a preflight_blocked audit event when audit is available",
+  "target_gate": "audit",
+  "expected_status": "BLOCKED"
+}

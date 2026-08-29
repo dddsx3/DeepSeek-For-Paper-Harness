@@ -8,6 +8,7 @@ import InvariantRegistry from '@deepseek-ai/dsh-invariants'
 import { MemoryMediaPool, MemoryStorageBackend } from '../../../storage/storage-domain/tests/helpers/memory-backend.ts'
 import { MemorySettings } from '../../../settings/settings/tests/memory.ts'
 import * as PaperInvariant from '../src/invariant.ts'
+import PaperRuntimeGuard from '../src/runtime/runtime-guard.ts'
 import {
   PAPER_SETTINGS_NAMESPACE,
   PaperAuditService,
@@ -42,6 +43,13 @@ async function storageContext() {
 function diagnosticsContext(stream: (options: GenerateOptions) => AsyncIterable<StreamChunk>): Context {
   const ctx = new Context()
   ctx.provide('llm', { stream } as never)
+  // TASK -1 rewire: probe() now goes through the runtime guard. The
+  // helper mounts the guard and readies it directly; the unit tests
+  // for diagnostics only care about the streaming semantics, not the
+  // preflight surface. The constructor registers the guard in the
+  // context, so no separate `ctx.provide` is required.
+  const guard = new PaperRuntimeGuard(ctx)
+  guard.markReady()
   return ctx
 }
 
@@ -112,6 +120,9 @@ describe('PaperProviderService', () => {
     })
     const ctx = new Context()
     ctx.provide('llm', { stream } as never)
+    // TASK -1 rewire: provider.stream() goes through the runtime guard.
+    const guard = new PaperRuntimeGuard(ctx)
+    guard.markReady()
     const service = new PaperProviderService(ctx)
 
     const received: StreamChunk[] = []
@@ -168,6 +179,10 @@ describe('PaperExecutorService configuration', () => {
     await ctx.plugin(WorkflowEngineService)
     ctx.provide('paperProvider', { stream: () => noFinish() } as never)
     await ctx.plugin(PaperSettingsService, settings)
+    // TASK -1 rewire: mount the runtime guard so PaperExecutorService can
+    // inject it into WorkflowExecutor.
+    const guard = new PaperRuntimeGuard(ctx)
+    guard.markReady()
     await ctx.plugin(PaperExecutorService, {})
 
     expect(ctx.paperExecutor.runs).toBeDefined()

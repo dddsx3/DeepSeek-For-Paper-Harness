@@ -1,0 +1,6 @@
+{
+  "fault_id": "A-006",
+  "description": "REVIEW stage requests shell (forbidden capability)",
+  "target_gate": "firewall",
+  "expected_status": "BLOCKED"
+}

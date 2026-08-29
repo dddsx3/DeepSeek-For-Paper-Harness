@@ -1,0 +1,8 @@
+{
+  "fault_id": "D-008",
+  "description": "reviewer malformed output → provenance gate BLOCKED — must not deliver",
+  "expected_status": "BLOCKED",
+  "blocked_by": [
+    "delivery-policy:evaluateDelivery (critical_gate check, id=provenance, status=BLOCKED)"
+  ]
+}

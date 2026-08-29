@@ -1,0 +1,8 @@
+{
+  "fault_id": "A-011",
+  "actual_status": "BLOCKED",
+  "blocked_by": [
+    "PaperRuntimeGuard.assertRuntimeReady throws RuntimeNotReadyError",
+    "WorkflowExecutor.execute refuses"
+  ]
+}

@@ -49,12 +49,22 @@ export type CapabilityDecision =
 export type AuditSink = (event: AuditEvent) => void
 
 export class CapabilityFirewall {
-  private readonly profile: PaperRuntimeProfile
+  private profile: PaperRuntimeProfile
   private readonly auditSink: AuditSink
 
   constructor(profile: PaperRuntimeProfile, auditSink: AuditSink) {
     this.profile = profile
     this.auditSink = auditSink
+  }
+
+  /**
+   * Replace the active profile. Used by `PaperRuntimeGuard` when the
+   * composition swaps profiles before readied. Forbidden after readied;
+   * `PaperRuntimeGuard.setProfile` enforces that.
+   * @param profile - new profile.
+   */
+  setProfile(profile: PaperRuntimeProfile): void {
+    this.profile = profile
   }
 
   /**

@@ -1,0 +1,6 @@
+{
+  "fault_id": "A-008",
+  "description": "PLAN stage requests solver (not in stage whitelist)",
+  "target_gate": "firewall",
+  "expected_status": "BLOCKED"
+}

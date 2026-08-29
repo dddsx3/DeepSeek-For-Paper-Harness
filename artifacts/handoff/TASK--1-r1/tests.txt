@@ -1,0 +1,77 @@
+[33mThe plugin "vite-tsconfig-paths" is detected. Vite now supports tsconfig paths resolution natively via the [1mresolve.tsconfigPaths[22m option. You can remove the plugin and set [1mresolve.tsconfigPaths: true[22m in your Vite config instead.[39m
+[33mThe plugin "vite-tsconfig-paths" is detected. Vite now supports tsconfig paths resolution natively via the [1mresolve.tsconfigPaths[22m option. You can remove the plugin and set [1mresolve.tsconfigPaths: true[22m in your Vite config instead.[39m
+[33mThe plugin "vite-tsconfig-paths" is detected. Vite now supports tsconfig paths resolution natively via the [1mresolve.tsconfigPaths[22m option. You can remove the plugin and set [1mresolve.tsconfigPaths: true[22m in your Vite config instead.[39m
+
+[1m[30m[46m RUN [49m[39m[22m [36mv4.1.8 [39m[90mD:/deepseek-harness/deepseek-harness[39m
+
+[paper-preflight] failures=["missing_service"] at=2026-08-28T13:05:53.727Z
+[paper-preflight] failures=["missing_service"] at=2026-08-28T13:05:53.731Z
+[paper-preflight] failures=["missing_service"] at=2026-08-28T13:05:53.733Z
+[paper-preflight] failures=["unknown_production_config"] at=2026-08-28T13:05:53.735Z
+[paper-preflight] failures=["missing_service"] at=2026-08-28T13:05:53.739Z
+[paper-preflight] failures=["missing_service","missing_service"] at=2026-08-28T13:05:53.741Z
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-foundation/tests/runtime/firewall.spec.ts [2m([22m[2m11 tests[22m[2m)[22m[32m 44[2mms[22m[39m
+[paperRuntimeGuard] audit not available: capability_check stage=PLAN cap=read_problem allowed=true
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-foundation/tests/runtime/profile.spec.ts [2m([22m[2m11 tests[22m[2m)[22m[32m 54[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-foundation/tests/runtime/preflight.spec.ts [2m([22m[2m10 tests[22m[2m)[22m[32m 58[2mms[22m[39m
+[paperRuntimeGuard] audit not available: capability_check stage=PLAN cap=read_problem allowed=true
+[paperRuntimeGuard] audit not available: capability_check stage=MODEL cap=llm_inference allowed=true
+[paperRuntimeGuard] audit not available: capability_check stage=REVIEW cap=shell allowed=false
+[paper-preflight] failures=["missing_service"] at=2026-08-28T13:05:53.794Z
+[paper-preflight] failures=["missing_service"] at=2026-08-28T13:05:53.795Z
+[paper-preflight] failures=["missing_service"] at=2026-08-28T13:05:53.796Z
+[paper-preflight] failures=["missing_service"] at=2026-08-28T13:05:53.797Z
+[paper-preflight] failures=["unknown_production_config"] at=2026-08-28T13:05:53.799Z
+[paper-preflight] failures=["gate_not_registered","gate_not_registered","gate_not_registered","gate_not_registered","gate_not_registered"] at=2026-08-28T13:05:53.803Z
+[paper-preflight] failures=["stage_policy_incomplete"] at=2026-08-28T13:05:53.804Z
+[paper-preflight] failures=["delivery_policy_unresolved"] at=2026-08-28T13:05:53.823Z
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-foundation/tests/runtime/runtime-guard.spec.ts [2m([22m[2m24 tests[22m[2m)[22m[32m 120[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-foundation/tests/delivery/promoter.spec.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 71[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-foundation/tests/settings.spec.ts [2m([22m[2m1 test[22m[2m)[22m[32m 65[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-foundation/tests/spec.spec.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 100[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-foundation/tests/provider.spec.ts [2m([22m[2m1 test[22m[2m)[22m[32m 68[2mms[22m[39m
+[paperRuntimeGuard] audit not available: capability_check stage=PLAN cap=llm_inference allowed=true
+[paperRuntimeGuard] audit not available: capability_check stage=PLAN cap=llm_inference allowed=true
+[paperRuntimeGuard] audit not available: capability_check stage=PLAN cap=llm_inference allowed=true
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-foundation/tests/diagnostics.spec.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 129[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-foundation/tests/delivery/artifact-states.spec.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 63[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-foundation/tests/delivery/delivery-policy.spec.ts [2m([22m[2m12 tests[22m[2m)[22m[32m 33[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-foundation/tests/context.spec.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 52[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-foundation/tests/cost.spec.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 54[2mms[22m[39m
+[paper-preflight] early-gate {"type":"preflight_missing","missing":[{"kind":"persistence","interfaceName":"paper.persistence"},{"kind":"artifact_store","interfaceName":"paper.artifactStore"},{"kind":"verifier_registry","interfaceName":"paper.verifierRegistry"},{"kind":"hash_provider","interfaceName":"paper.hashProvider"}],"unknownConfig":[],"at":"2026-08-28T13:05:57.217Z"} at=2026-08-28T13:05:57.217Z
+[paperRuntimeGuard] audit not available: capability_check stage=PLAN cap=llm_inference allowed=true
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-foundation/tests/state-machine.spec.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 89[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-foundation/tests/skill-content.spec.ts [2m([22m[2m18 tests[22m[2m)[22m[32m 94[2mms[22m[39m
+[paperRuntimeGuard] audit not available: capability_check stage=PLAN cap=llm_inference allowed=true
+[paperRuntimeGuard] audit not available: capability_check stage=PLAN cap=llm_inference allowed=true
+[paperRuntimeGuard] audit not available: capability_check stage=PLAN cap=llm_inference allowed=true
+[paperRuntimeGuard] audit not available: capability_check stage=PLAN cap=llm_inference allowed=true
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-foundation/tests/replay.spec.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 40[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-foundation/tests/legacy.spec.ts [2m([22m[2m22 tests[22m[2m)[22m[32m 160[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-foundation/tests/signed-skill.spec.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 172[2mms[22m[39m
+[paperRuntimeGuard] audit not available: capability_check stage=MODEL cap=llm_inference allowed=true
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-foundation/tests/composition.spec.ts [2m([22m[2m1 test[22m[2m)[22m[32m 198[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-foundation/tests/release.spec.ts [2m([22m[2m10 tests[22m[2m)[22m[32m 179[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-foundation/tests/store.spec.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 218[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-foundation/tests/workflow.spec.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 222[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-foundation/tests/skill-provider.spec.ts [2m([22m[2m1 test[22m[2m)[22m[32m 282[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-foundation/tests/security.spec.ts [2m([22m[2m9 tests[22m[2m)[22m[33m 367[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-foundation/tests/service-guards.spec.ts [2m([22m[2m13 tests[22m[2m)[22m[33m 363[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-foundation/tests/executor-context.spec.ts [2m([22m[2m3 tests[22m[2m)[22m[33m 397[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-foundation/tests/workflow-guards.spec.ts [2m([22m[2m12 tests[22m[2m)[22m[33m 424[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-foundation/tests/runtime/integration.spec.ts [2m([22m[2m4 tests[22m[2m)[22m[33m 433[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-foundation/tests/executor.spec.ts [2m([22m[2m4 tests[22m[2m)[22m[33m 466[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-foundation/tests/executor-resilience.spec.ts [2m([22m[2m5 tests[22m[2m)[22m[33m 536[2mms[22m[39m
+     [33m[2m✓[22m[39m retries a transport failure, records the retry, and completes [33m 338[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-foundation/tests/catalog-provider.spec.ts [2m([22m[2m3 tests[22m[2m)[22m[33m 596[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-foundation/tests/migration.spec.ts [2m([22m[2m14 tests[22m[2m)[22m[33m 630[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-foundation/tests/executor-guards.spec.ts [2m([22m[2m11 tests[22m[2m)[22m[33m 721[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-foundation/tests/signed-skill-guards.spec.ts [2m([22m[2m12 tests[22m[2m)[22m[33m 777[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-foundation/tests/release-service.spec.ts [2m([22m[2m20 tests[22m[2m)[22m[33m 800[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-foundation/tests/skill-catalog.spec.ts [2m([22m[2m11 tests[22m[2m)[22m[33m 1047[2mms[22m[39m
+     [33m[2m✓[22m[39m installs versioned packages, keeps history, and rolls back after re-validation [33m 324[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m36 passed[39m[22m[90m (36)[39m
+[2m      Tests [22m [1m[32m293 passed[39m[22m[90m (293)[39m
+[2m   Start at [22m 21:05:48
+[2m   Duration [22m 9.80s[2m (transform 118.30s, setup 61.37s, import 114.27s, tests 10.12s, environment 27ms)[22m

@@ -1,0 +1,8 @@
+{
+  "fault_id": "D-005",
+  "description": "FAST mode attempt to skip a critical gate (numeric_consistency FAIL) — must not deliver",
+  "expected_status": "BLOCKED",
+  "blocked_by": [
+    "delivery-policy:evaluateDelivery (critical_gate check, id=numeric_consistency, mode-independent)"
+  ]
+}

@@ -1,0 +1,8 @@
+{
+  "fault_id": "A-014",
+  "actual_status": "BLOCKED",
+  "blocked_by": [
+    "preflight_delivery_policy_unresolved",
+    "composition.apply throws at startup"
+  ]
+}

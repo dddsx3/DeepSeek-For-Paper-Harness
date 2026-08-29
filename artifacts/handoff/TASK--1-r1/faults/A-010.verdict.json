@@ -1,0 +1,8 @@
+{
+  "fault_id": "A-010",
+  "actual_status": "BLOCKED",
+  "blocked_by": [
+    "preflight_stage_policy_incomplete",
+    "composition.apply throws at startup"
+  ]
+}

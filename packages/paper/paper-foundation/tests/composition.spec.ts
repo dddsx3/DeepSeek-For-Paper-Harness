@@ -4,6 +4,7 @@ import Storage from '@deepseek-ai/dsh-storage'
 import { DomainFacility } from '@deepseek-ai/dsh-storage-domain'
 import { MemoryMediaPool, MemoryStorageBackend } from '../../../storage/storage-domain/tests/helpers/memory-backend.ts'
 import * as Composition from '../src/composition.ts'
+import PaperRuntimeGuard from '../src/runtime/runtime-guard.ts'
 import type { PaperSettings } from '../src/spec.ts'
 
 const settings: PaperSettings = {
@@ -25,6 +26,9 @@ describe('Paper foundation composition', () => {
       resolveModelInfo: async (provider: string, model: string) => ({ provider, id: model, name: model }),
       stream: () => (async function* () {})(),
     } as never)
+    // TASK -1 rewire: PaperRuntimeGuard must be mounted before the composition
+    // can run its full preflight gate.
+    await ctx.plugin(PaperRuntimeGuard)
 
     const fiber = await ctx.plugin(Composition, settings)
     expect(ctx.get('paperFoundation')).toBeDefined()

@@ -1,0 +1,6 @@
+{
+  "fault_id": "A-007",
+  "description": "DELIVERY stage requests write_model_spec (not in stage whitelist)",
+  "target_gate": "firewall",
+  "expected_status": "BLOCKED"
+}

@@ -1,0 +1,8 @@
+{
+  "fault_id": "IR-002",
+  "description": "duplicate id — same kind and across kinds must both be refused",
+  "expected_status": "BLOCKED",
+  "blocked_by": [
+    "ir/store:ModelingIr.put (duplicate_id)"
+  ]
+}

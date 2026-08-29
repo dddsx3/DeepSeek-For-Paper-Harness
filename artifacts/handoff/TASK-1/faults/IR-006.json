@@ -1,0 +1,9 @@
+{
+  "fault_id": "IR-006",
+  "description": "Claim has no criticality",
+  "expected_status": "BLOCKED",
+  "blocked_by": [
+    "ir/schema:claimSchema (criticality required)",
+    "ir/store:ModelingIr.put (schema_invalid)"
+  ]
+}

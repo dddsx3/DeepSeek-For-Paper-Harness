@@ -1,0 +1,6 @@
+{
+  "fault_id": "A-013",
+  "description": "denied capability_check event reaches paperAudit",
+  "target_gate": "audit",
+  "expected_status": "BLOCKED"
+}

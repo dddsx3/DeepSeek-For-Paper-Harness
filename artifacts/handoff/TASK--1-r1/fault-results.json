@@ -1,0 +1,162 @@
+{
+  "task": "TASK--1-r1",
+  "faults": [
+    {
+      "fault_id": "A-001",
+      "description": "persistence (storage) service is missing when FORMAL profile preflight runs",
+      "expected_status": "BLOCKED",
+      "actual_status": "BLOCKED",
+      "blocked_by": [
+        "preflight_missing_service",
+        "composition.apply throws at startup"
+      ],
+      "fixture_path": "artifacts/handoff/TASK--1-r1/faults/A-001.json"
+    },
+    {
+      "fault_id": "A-002",
+      "description": "artifact_store service is missing when FORMAL profile preflight runs",
+      "expected_status": "BLOCKED",
+      "actual_status": "BLOCKED",
+      "blocked_by": [
+        "preflight_missing_service",
+        "composition.apply throws at startup"
+      ],
+      "fixture_path": "artifacts/handoff/TASK--1-r1/faults/A-002.json"
+    },
+    {
+      "fault_id": "A-003",
+      "description": "verifier_registry service is missing when FORMAL profile preflight runs",
+      "expected_status": "BLOCKED",
+      "actual_status": "BLOCKED",
+      "blocked_by": [
+        "preflight_missing_service",
+        "composition.apply throws at startup"
+      ],
+      "fixture_path": "artifacts/handoff/TASK--1-r1/faults/A-003.json"
+    },
+    {
+      "fault_id": "A-004",
+      "description": "delivery_policy service is missing when FORMAL profile preflight runs",
+      "expected_status": "BLOCKED",
+      "actual_status": "BLOCKED",
+      "blocked_by": [
+        "preflight_missing_service",
+        "composition.apply throws at startup"
+      ],
+      "fixture_path": "artifacts/handoff/TASK--1-r1/faults/A-004.json"
+    },
+    {
+      "fault_id": "A-005",
+      "description": "unknown production configuration is supplied to FORMAL profile preflight",
+      "expected_status": "BLOCKED",
+      "actual_status": "BLOCKED",
+      "blocked_by": [
+        "preflight_unknown_production_config",
+        "composition.apply throws at startup"
+      ],
+      "fixture_path": "artifacts/handoff/TASK--1-r1/faults/A-005.json"
+    },
+    {
+      "fault_id": "A-006",
+      "description": "REVIEW stage requests shell (forbidden capability)",
+      "expected_status": "BLOCKED",
+      "actual_status": "BLOCKED",
+      "blocked_by": [
+        "CapabilityFirewall: forbidden_capability",
+        "PaperRuntimeGuard.invokeCapability throws CapabilityDeniedError"
+      ],
+      "fixture_path": "artifacts/handoff/TASK--1-r1/faults/A-006.json"
+    },
+    {
+      "fault_id": "A-007",
+      "description": "DELIVERY stage requests write_model_spec (not in stage whitelist)",
+      "expected_status": "BLOCKED",
+      "actual_status": "BLOCKED",
+      "blocked_by": [
+        "CapabilityFirewall: not_in_whitelist",
+        "PaperRuntimeGuard.invokeCapability throws CapabilityDeniedError"
+      ],
+      "fixture_path": "artifacts/handoff/TASK--1-r1/faults/A-007.json"
+    },
+    {
+      "fault_id": "A-008",
+      "description": "PLAN stage requests solver (not in stage whitelist)",
+      "expected_status": "BLOCKED",
+      "actual_status": "BLOCKED",
+      "blocked_by": [
+        "CapabilityFirewall: not_in_whitelist",
+        "PaperRuntimeGuard.invokeCapability throws CapabilityDeniedError"
+      ],
+      "fixture_path": "artifacts/handoff/TASK--1-r1/faults/A-008.json"
+    },
+    {
+      "fault_id": "A-009",
+      "description": "criticalGateIds references an unregistered gate id",
+      "expected_status": "BLOCKED",
+      "actual_status": "BLOCKED",
+      "blocked_by": [
+        "preflight_gate_not_registered",
+        "composition.apply throws at startup"
+      ],
+      "fixture_path": "artifacts/handoff/TASK--1-r1/faults/A-009.json"
+    },
+    {
+      "fault_id": "A-010",
+      "description": "stage policy table is missing the DELIVERY stage",
+      "expected_status": "BLOCKED",
+      "actual_status": "BLOCKED",
+      "blocked_by": [
+        "preflight_stage_policy_incomplete",
+        "composition.apply throws at startup"
+      ],
+      "fixture_path": "artifacts/handoff/TASK--1-r1/faults/A-010.json"
+    },
+    {
+      "fault_id": "A-011",
+      "description": "run mode fast with FORMAL profile → assertRuntimeReady throws",
+      "expected_status": "BLOCKED",
+      "actual_status": "BLOCKED",
+      "blocked_by": [
+        "PaperRuntimeGuard.assertRuntimeReady throws RuntimeNotReadyError",
+        "WorkflowExecutor.execute refuses"
+      ],
+      "fixture_path": "artifacts/handoff/TASK--1-r1/faults/A-011.json"
+    },
+    {
+      "fault_id": "A-012",
+      "description": "preflight failure emits a preflight_blocked audit event when audit is available",
+      "expected_status": "BLOCKED",
+      "actual_status": "BLOCKED",
+      "blocked_by": [
+        "PaperAuditService.record(preflight_blocked) emits event",
+        "audit trail is persisted"
+      ],
+      "fixture_path": "artifacts/handoff/TASK--1-r1/faults/A-012.json"
+    },
+    {
+      "fault_id": "A-013",
+      "description": "denied capability_check event reaches paperAudit",
+      "expected_status": "BLOCKED",
+      "actual_status": "BLOCKED",
+      "blocked_by": [
+        "PaperRuntimeGuard.emitAudit calls paperAudit.record(capability_check)",
+        "allowed:false persisted in audit domain"
+      ],
+      "fixture_path": "artifacts/handoff/TASK--1-r1/faults/A-013.json"
+    },
+    {
+      "fault_id": "A-014",
+      "description": "deliveryPolicyId absent from knownDeliveryPolicyIds blocks startup",
+      "expected_status": "BLOCKED",
+      "actual_status": "BLOCKED",
+      "blocked_by": [
+        "preflight_delivery_policy_unresolved",
+        "composition.apply throws at startup"
+      ],
+      "fixture_path": "artifacts/handoff/TASK--1-r1/faults/A-014.json"
+    }
+  ],
+  "declared_faults": 14,
+  "escaped_faults": 0,
+  "escape_rate": 0
+}

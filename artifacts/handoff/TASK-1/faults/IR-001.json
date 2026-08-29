@@ -1,0 +1,9 @@
+{
+  "fault_id": "IR-001",
+  "description": "invalid JSON from the model — parse failure must not reach canonical state",
+  "expected_status": "BLOCKED",
+  "blocked_by": [
+    "ir/parse:parseStrictJson (json_parse_error)",
+    "ir/store:ModelingIr.ingestJson (parse_failed)"
+  ]
+}

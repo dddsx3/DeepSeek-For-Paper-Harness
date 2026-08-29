@@ -1,0 +1,8 @@
+{
+  "fault_id": "D-006",
+  "description": "execution gate FAIL (solver exit non-zero) — must not deliver",
+  "expected_status": "BLOCKED",
+  "blocked_by": [
+    "delivery-policy:evaluateDelivery (critical_gate check, id=execution)"
+  ]
+}

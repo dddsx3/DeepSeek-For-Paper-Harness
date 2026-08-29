@@ -1,0 +1,118 @@
+{
+  "task": "TASK-1",
+  "faults": [
+    {
+      "fault_id": "IR-001",
+      "description": "invalid JSON from the model — parse failure must not reach canonical state",
+      "expected_status": "BLOCKED",
+      "actual_status": "BLOCKED",
+      "blocked_by": [
+        "ir/parse:parseStrictJson (json_parse_error)",
+        "ir/store:ModelingIr.ingestJson (parse_failed)"
+      ],
+      "fixture_path": "faults\\IR-001.json"
+    },
+    {
+      "fault_id": "IR-002",
+      "description": "duplicate id — same kind and across kinds must both be refused",
+      "expected_status": "BLOCKED",
+      "actual_status": "BLOCKED",
+      "blocked_by": [
+        "ir/store:ModelingIr.put (duplicate_id)"
+      ],
+      "fixture_path": "faults\\IR-002.json"
+    },
+    {
+      "fault_id": "IR-003",
+      "description": "Claim references a nonexistent Result",
+      "expected_status": "BLOCKED",
+      "actual_status": "BLOCKED",
+      "blocked_by": [
+        "ir/refs:validateRefFields (missing)",
+        "ir/store:ModelingIr.put (unresolved_reference)"
+      ],
+      "fixture_path": "faults\\IR-003.json"
+    },
+    {
+      "fault_id": "IR-004",
+      "description": "Result references a nonexistent RunArtifact",
+      "expected_status": "BLOCKED",
+      "actual_status": "BLOCKED",
+      "blocked_by": [
+        "ir/refs:validateRefFields (missing)",
+        "ir/store:ModelingIr.put (unresolved_reference)"
+      ],
+      "fixture_path": "faults\\IR-004.json"
+    },
+    {
+      "fault_id": "IR-005",
+      "description": "ModelSpec references a nonexistent ProblemSpec; RunArtifact references a nonexistent ModelSpec",
+      "expected_status": "BLOCKED",
+      "actual_status": "BLOCKED",
+      "blocked_by": [
+        "ir/refs:validateRefFields (missing)",
+        "ir/store:ModelingIr.put (unresolved_reference)"
+      ],
+      "fixture_path": "faults\\IR-005.json"
+    },
+    {
+      "fault_id": "IR-006",
+      "description": "Claim has no criticality",
+      "expected_status": "BLOCKED",
+      "actual_status": "BLOCKED",
+      "blocked_by": [
+        "ir/schema:claimSchema (criticality required)",
+        "ir/store:ModelingIr.put (schema_invalid)"
+      ],
+      "fixture_path": "faults\\IR-006.json"
+    },
+    {
+      "fault_id": "IR-007",
+      "description": "FigureSpec data_ref does not exist",
+      "expected_status": "BLOCKED",
+      "actual_status": "BLOCKED",
+      "blocked_by": [
+        "ir/refs:validateRefFields (missing)",
+        "ir/store:ModelingIr.put (unresolved_reference)"
+      ],
+      "fixture_path": "faults\\IR-007.json"
+    },
+    {
+      "fault_id": "IR-008",
+      "description": "Result has no unit",
+      "expected_status": "BLOCKED",
+      "actual_status": "BLOCKED",
+      "blocked_by": [
+        "ir/schema:resultSchema (unit required)",
+        "ir/store:ModelingIr.put (schema_invalid)"
+      ],
+      "fixture_path": "faults\\IR-008.json"
+    },
+    {
+      "fault_id": "IR-009",
+      "description": "RunArtifact has no exit_status",
+      "expected_status": "BLOCKED",
+      "actual_status": "BLOCKED",
+      "blocked_by": [
+        "ir/schema:runArtifactSchema (exit_status required)",
+        "ir/store:ModelingIr.put (schema_invalid)"
+      ],
+      "fixture_path": "faults\\IR-009.json"
+    },
+    {
+      "fault_id": "IR-010",
+      "description": "malformed reviewer finding — unparseable text and valid-JSON-wrong-shape",
+      "expected_status": "BLOCKED",
+      "actual_status": "BLOCKED",
+      "blocked_by": [
+        "ir/parse:parseStrictJson (json_parse_error)",
+        "ir/schema:reviewerFindingSchema (strict)",
+        "ir/store:ModelingIr.put (schema_invalid)"
+      ],
+      "fixture_path": "faults\\IR-010.json"
+    }
+  ],
+  "declared_faults": 10,
+  "escaped_faults": 0,
+  "escape_rate": 0
+}

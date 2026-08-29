@@ -1,0 +1,8 @@
+{
+  "fault_id": "A-012",
+  "actual_status": "BLOCKED",
+  "blocked_by": [
+    "PaperAuditService.record(preflight_blocked) emits event",
+    "audit trail is persisted"
+  ]
+}

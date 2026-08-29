@@ -1,0 +1,8 @@
+{
+  "fault_id": "D-003",
+  "description": "unresolvedReferenceIds non-empty (Result[N] not yet computed) — must not deliver",
+  "expected_status": "BLOCKED",
+  "blocked_by": [
+    "delivery-policy:evaluateDelivery (unresolved_ref check)"
+  ]
+}

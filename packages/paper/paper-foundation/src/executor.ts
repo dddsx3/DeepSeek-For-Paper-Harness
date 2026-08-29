@@ -18,6 +18,7 @@ import { resolveRunPolicy } from './policy.ts'
 import type { PaperProviderService, PaperRole } from './provider.ts'
 import { backoffDelayMs, classifyFailure } from './resilience.ts'
 import type { BackoffPolicy } from './resilience.ts'
+import type { PaperRuntimeGuard } from './runtime/runtime-guard.ts'
 import type { PaperSettingsService } from './settings.ts'
 import type { ArtifactRecord, Manifest, NodeRecord, RunId, RunRecord } from './spec.ts'
 import { newArtifactId } from './spec.ts'
@@ -121,12 +122,16 @@ export class WorkflowExecutor {
    * @param provider - Shared LLM seam for the three roles.
    * @param settings - Role settings snapshots.
    * @param options - Pricing, budget, backoff, and the optional audit sink.
+   * @param runtimeGuard - The runtime guard, single entry point for capability
+   *   execution. The executor asserts it is readied and the run mode matches
+   *   the active profile before it starts a workflow.
    */
   constructor(
     private readonly engine: WorkflowEngine,
     private readonly provider: PaperProviderService,
     private readonly settings: PaperSettingsService,
     private readonly options: ExecutorOptions,
+    private readonly runtimeGuard: PaperRuntimeGuard,
   ) {}
 
   /** Context windows already resolved per role; `undefined` means the adapter states none. */
@@ -141,6 +146,12 @@ export class WorkflowExecutor {
    */
   async execute(runId: RunId, input: string): Promise<ExecutionOutcome> {
     const initial = this.runOf(runId)
+    // TASK -1 rewire: refuse to start a run unless the runtime guard is
+    // readied and the run mode matches the active profile. This is the
+    // enforcement boundary the red-team P0-07 asked for: a mode mismatch
+    // throws `RuntimeNotReadyError` here rather than allowing the run to
+    // drift into a misconfigured execution path.
+    this.runtimeGuard.assertRuntimeReady(initial.mode)
     const policy = resolveRunPolicy(initial.mode)
     if (initial.status === 'planning') await this.engine.transitionRun(runId, 'running')
     await this.audit({ eventType: 'workflow_started', actor: 'paper-executor', runId, detail: { mode: initial.mode } })

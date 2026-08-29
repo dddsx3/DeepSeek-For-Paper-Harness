@@ -1,0 +1,6 @@
+{
+  "fault_id": "A-005",
+  "description": "unknown production configuration is supplied to FORMAL profile preflight",
+  "target_gate": "preflight",
+  "expected_status": "BLOCKED"
+}

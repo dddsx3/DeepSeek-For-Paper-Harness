@@ -1,0 +1,9 @@
+{
+  "fault_id": "IR-007",
+  "description": "FigureSpec data_ref does not exist",
+  "expected_status": "BLOCKED",
+  "blocked_by": [
+    "ir/refs:validateRefFields (missing)",
+    "ir/store:ModelingIr.put (unresolved_reference)"
+  ]
+}

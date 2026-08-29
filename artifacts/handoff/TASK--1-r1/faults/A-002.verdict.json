@@ -1,0 +1,8 @@
+{
+  "fault_id": "A-002",
+  "actual_status": "BLOCKED",
+  "blocked_by": [
+    "preflight_missing_service",
+    "composition.apply throws at startup"
+  ]
+}

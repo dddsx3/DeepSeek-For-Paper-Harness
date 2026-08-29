@@ -1,0 +1,10 @@
+{
+  "fault_id": "IR-010",
+  "description": "malformed reviewer finding — unparseable text and valid-JSON-wrong-shape",
+  "expected_status": "BLOCKED",
+  "blocked_by": [
+    "ir/parse:parseStrictJson (json_parse_error)",
+    "ir/schema:reviewerFindingSchema (strict)",
+    "ir/store:ModelingIr.put (schema_invalid)"
+  ]
+}

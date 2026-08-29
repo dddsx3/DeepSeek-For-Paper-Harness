@@ -1,0 +1,6 @@
+{
+  "fault_id": "A-004",
+  "description": "delivery_policy service is missing when FORMAL profile preflight runs",
+  "target_gate": "preflight",
+  "expected_status": "BLOCKED"
+}

@@ -1,0 +1,6 @@
+{
+  "fault_id": "A-010",
+  "description": "stage policy table is missing the DELIVERY stage",
+  "target_gate": "preflight",
+  "expected_status": "BLOCKED"
+}

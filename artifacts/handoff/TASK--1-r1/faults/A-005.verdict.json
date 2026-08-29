@@ -1,0 +1,8 @@
+{
+  "fault_id": "A-005",
+  "actual_status": "BLOCKED",
+  "blocked_by": [
+    "preflight_unknown_production_config",
+    "composition.apply throws at startup"
+  ]
+}

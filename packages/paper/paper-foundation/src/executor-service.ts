@@ -88,7 +88,7 @@ declare module '@deepseek-ai/cordis' {
 
 /** Lifecycle owner of the node executor over the durable engine. */
 export class PaperExecutorService extends Service {
-  static inject = ['paperWorkflow', 'paperProvider', 'paperSettings']
+  static inject = ['paperWorkflow', 'paperProvider', 'paperSettings', 'paperRuntimeGuard']
 
   static Config: s<ExecutorConfig> = s.object({
     dailyBudgetUsd: s.number().min(0).default(DEFAULT_DAILY_BUDGET_USD),
@@ -117,6 +117,7 @@ export class PaperExecutorService extends Service {
       this.ctx.paperProvider,
       this.ctx.paperSettings,
       resolveExecutorOptions(this.config, this.ctx.get('paperAudit')),
+      this.ctx.paperRuntimeGuard,
     )
   }
 

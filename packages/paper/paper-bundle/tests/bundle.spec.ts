@@ -97,27 +97,22 @@ describe('dsh-paper plugin', () => {
     expect(name).toBe('paper-bundle')
   })
 
-  it('warns once naming the gap when a profile cannot activate the layer', async () => {
+  it('throws naming the gap when a profile cannot activate the layer (TASK -1 rewire)', async () => {
     const ctx = new Context()
-    const warnings: string[] = []
-    ctx.logger.warn = ((message: unknown) => { warnings.push(String(message)) }) as typeof ctx.logger.warn
     ctx.provide('storage', {} as never)
-
-    const fiber = await ctx.plugin(bundle)
-    expect(warnings).toHaveLength(1)
-    expect(warnings[0]).toContain('storageDomain, llm')
-    // The layer still mounts: the services may arrive from a later patch row.
-    await fiber.dispose()
+    // TASK -1 rewire: warn-and-continue is forbidden in FORMAL; a profile
+    // missing required services must surface the gap as a thrown error
+    // rather than a warning, so the caller cannot silently boot a partial
+    // composition.
+    await expect(ctx.plugin(bundle)).rejects.toThrow(/paper-bundle: profile does not carry required services: storageDomain, llm/)
   })
 
   it('stays quiet when the composition is complete', async () => {
     const ctx = new Context()
-    const warnings: string[] = []
-    ctx.logger.warn = ((message: unknown) => { warnings.push(String(message)) }) as typeof ctx.logger.warn
     for (const service of PAPER_REQUIRED_SERVICES) ctx.provide(service, {} as never)
 
     const fiber = await ctx.plugin(bundle)
-    expect(warnings).toEqual([])
+    // No warning, no throw — the layer is fully resolved.
     await fiber.dispose()
   })
 })

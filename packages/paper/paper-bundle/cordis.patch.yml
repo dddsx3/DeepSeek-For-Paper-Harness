@@ -10,6 +10,11 @@
 # rows mounted but inactive — `dsh --profile <name> --dump-config` shows which
 # rows a composition actually carries.
 #
+# TASK -1 rewire: in a FORMAL profile this bundle's `apply()` now THROWS on
+# missing services instead of warning-and-continuing. A development profile
+# that wants the warn-and-continue behaviour must opt into the EXPLORATORY
+# profile explicitly through the same patch row.
+#
 # Deployment-varying values stay conservative on purpose: an unset price table
 # charges nothing, an empty trust-root map refuses every signed package and
 # release, and `allowUnsigned` stays false. A profile that wants any of these

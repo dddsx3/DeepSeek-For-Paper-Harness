@@ -46,3 +46,15 @@ export type {
   CapabilityDecision,
   CapabilityRequest,
 } from './capability-firewall.ts'
+
+export {
+  CapabilityDeniedError,
+  PaperRuntimeGuard,
+  RuntimeNotReadyError,
+} from './runtime-guard.ts'
+export type {
+  GuardAuditSink,
+  GuardedCapability,
+  GuardedFnContext,
+  InvokeCapabilityContext,
+} from './runtime-guard.ts'

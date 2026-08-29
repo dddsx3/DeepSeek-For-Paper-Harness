@@ -1,0 +1,9 @@
+{
+  "fault_id": "IR-009",
+  "description": "RunArtifact has no exit_status",
+  "expected_status": "BLOCKED",
+  "blocked_by": [
+    "ir/schema:runArtifactSchema (exit_status required)",
+    "ir/store:ModelingIr.put (schema_invalid)"
+  ]
+}

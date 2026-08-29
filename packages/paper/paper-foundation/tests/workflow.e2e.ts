@@ -39,6 +39,7 @@ import {
   type PaperSettings,
   type ProviderRoute,
 } from '../src/index.ts'
+import PaperRuntimeGuard from '../src/runtime/runtime-guard.ts'
 
 const API_KEY = process.env.DEEPSEEK_API_KEY
 const KEYLESS = API_KEY === undefined || API_KEY === ''
@@ -80,6 +81,10 @@ async function harness(route: ProviderRoute = LIVE_ROUTE) {
   await ctx.plugin(PaperDiagnosticsService)
   await ctx.plugin(PaperSettingsService, settingsWith(route))
   await ctx.plugin(PaperAuditService, {})
+  // TASK -1 rewire: mount the runtime guard before the executor so the
+  // service's static inject can find it.
+  const guard = new PaperRuntimeGuard(ctx)
+  guard.markReady()
   await ctx.plugin(PaperExecutorService, {
     backoffBaseMs: 1000,
     backoffCapMs: 4000,

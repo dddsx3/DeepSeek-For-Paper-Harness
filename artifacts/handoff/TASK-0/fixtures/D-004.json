@@ -1,0 +1,8 @@
+{
+  "fault_id": "D-004",
+  "description": "critical Claim has no evidence (provenance gate FAIL) — must not deliver",
+  "expected_status": "BLOCKED",
+  "blocked_by": [
+    "delivery-policy:evaluateDelivery (critical_gate check, id=provenance)"
+  ]
+}

@@ -1,0 +1,6 @@
+{
+  "fault_id": "A-001",
+  "description": "persistence (storage) service is missing when FORMAL profile preflight runs",
+  "target_gate": "preflight",
+  "expected_status": "BLOCKED"
+}

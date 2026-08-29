@@ -52,11 +52,21 @@ export class PaperProviderService extends Service {
 
   /**
    * Dispatch one already assembled request through the shared runtime.
+   * Every call goes through `PaperRuntimeGuard.invokeCapability` so the
+   * `MODEL` stage capability firewall can veto it; bypassing the guard
+   * (calling `ctx.llm.stream` directly) is the explicit red-team path A-010.
    * @param options - provider-neutral request assembled by a workflow consumer.
    * @returns the provider-neutral stream.
    */
   stream(options: GenerateOptions): AsyncIterable<StreamChunk> {
-    return this.ctx.llm.stream(options)
+    const guard = this.ctx.get('paperRuntimeGuard')
+    if (guard === undefined) {
+      throw new Error('paper runtime guard is not available')
+    }
+    return guard.invokeCapability<AsyncIterable<StreamChunk>>(
+      { stage: 'MODEL', capability: 'llm' },
+      { fn: () => this.ctx.llm.stream(options) },
+    )
   }
 
   private routeOf(role: PaperRole, settings: PaperSettings): ResolvedRoleRoute {

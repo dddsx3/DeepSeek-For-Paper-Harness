@@ -1,0 +1,6 @@
+{
+  "fault_id": "A-002",
+  "description": "artifact_store service is missing when FORMAL profile preflight runs",
+  "target_gate": "preflight",
+  "expected_status": "BLOCKED"
+}

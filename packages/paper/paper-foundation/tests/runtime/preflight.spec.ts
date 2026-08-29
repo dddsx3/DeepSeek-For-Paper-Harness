@@ -41,8 +41,8 @@ describe('PaperPreflight — attack tests', () => {
       expect(kinds).toContain('persistence')
     }
     expect(events.length).toBeGreaterThanOrEqual(1)
-    expect(events[0].type).toBe('preflight_missing')
-    expect(events[0].missing.map(s => s.kind)).toContain('persistence')
+    expect(events[0]!.type).toBe('preflight_missing')
+    expect(events[0]!.missing.map(s => s.kind)).toContain('persistence')
   })
 
   // A-002
@@ -127,7 +127,7 @@ describe('PaperPreflight — happy path and aggregate missing counts', () => {
     expect(result.ok).toBe(false)
     if (!result.ok) {
       expect(result.missing.length).toBe(1)
-      expect(result.missing[0].kind).toBe('audit')
+      expect(result.missing[0]!.kind).toBe('audit')
     }
   })
 
@@ -161,7 +161,7 @@ describe('PaperPreflight — happy path and aggregate missing counts', () => {
     })
     expect(result.ok).toBe(false)
     expect(sink).toHaveBeenCalledTimes(1)
-    const call = sink.mock.calls[0][0] as PreflightAuditEvent
+    const call = sink.mock.calls[0]![0] as PreflightAuditEvent
     expect(call.type).toBe('preflight_missing')
     expect(call.missing.map(s => s.kind)).toContain('audit')
     expect(call.unknownConfig).toEqual(['rogue-region'])

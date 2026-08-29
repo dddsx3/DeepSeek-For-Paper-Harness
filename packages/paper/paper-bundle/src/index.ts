@@ -32,16 +32,19 @@ export function missingPaperServices(ctx: Context): MissingPaperService[] {
 }
 
 /**
- * Report an incomplete composition once at load. The layer still mounts: the
- * services may arrive from a later patch row, and Cordis activates the Paper
- * rows when they do.
+ * Refuse to mount the Paper layer when the composition cannot carry it.
+ * TASK -1 rewire: warn-and-continue is forbidden in a FORMAL profile. The
+ * layer is now an all-or-nothing seam — a profile that stacks this layer
+ * over a storage-less mode must either add the storage rows in its own
+ * patch or pick an `EXPLORATORY` profile that does not require the full
+ * preflight surface.
  * @param ctx - plugin context for this bundle layer.
  */
 export function apply(ctx: Context): void {
   const missing = missingPaperServices(ctx)
   if (missing.length === 0) return
-  ctx.logger.warn(
-    `paper-bundle: this profile does not carry ${missing.join(', ')}; `
-    + 'the Paper rows stay inactive until a patch row provides them',
+  throw new Error(
+    `paper-bundle: profile does not carry required services: ${missing.join(', ')}; `
+    + 'paper rows cannot be activated. (TASK -1 rewire: warn-and-continue is forbidden in FORMAL)',
   )
 }

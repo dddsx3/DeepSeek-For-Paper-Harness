@@ -1,0 +1,6 @@
+{
+  "fault_id": "A-011",
+  "description": "run mode fast with FORMAL profile → assertRuntimeReady throws",
+  "target_gate": "runtime_guard",
+  "expected_status": "BLOCKED"
+}

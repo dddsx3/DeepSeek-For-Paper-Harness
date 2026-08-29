@@ -28,10 +28,14 @@ describe('PaperRuntimeProfile — FORMAL', () => {
     expect(profile.requiredServices.length).toBe(6)
   })
 
-  it('PLAN stage only allows read_problem', () => {
+  it('PLAN stage allows read_problem and llm_inference', () => {
+    // TASK -1 rewire: PLAN runs the model once for the plan prompt, so
+    // it carries the `llm_inference` capability. The narrow "read_problem
+    // only" shape still holds for problem-data reads; the new entry is
+    // the LLM seam, not a stage policy leak.
     const plan = profile.stagePolicies.get('PLAN')
     expect(plan).toBeDefined()
-    expect([...plan!.allowedCapabilities]).toEqual(['read_problem'])
+    expect([...plan!.allowedCapabilities].sort()).toEqual(['llm_inference', 'read_problem'])
   })
 
   it('DELIVERY stage only allows read_verified_artifact', () => {
@@ -95,11 +99,14 @@ describe('PaperRuntimeProfile — EXPLORATORY vs FORMAL', () => {
 
   it('every FORMAL stage has a strict, non-overlapping whitelist shape', () => {
     const profile = createFormalProfile()
+    // TASK -1 rewire: every stage that calls the model carries the
+    // `llm_inference` capability. DELIVERY never calls the model, so
+    // it stays empty of LLM seams.
     const expected: ReadonlyMap<StageName, ReadonlyArray<Capability>> = new Map([
-      ['PLAN', ['read_problem']],
-      ['MODEL', ['read_artifact', 'write_model_spec']],
-      ['EXECUTE', ['read_artifact', 'code_runtime', 'solver']],
-      ['REVIEW', ['read_artifact', 'propose_finding']],
+      ['PLAN', ['read_problem', 'llm_inference']],
+      ['MODEL', ['read_artifact', 'write_model_spec', 'llm_inference']],
+      ['EXECUTE', ['read_artifact', 'code_runtime', 'solver', 'llm_inference']],
+      ['REVIEW', ['read_artifact', 'propose_finding', 'llm_inference']],
       ['DELIVERY', ['read_verified_artifact']],
     ])
     for (const [stage, caps] of expected) {

@@ -5,6 +5,7 @@ import {
   createUserMessage,
   LlmError,
   type LlmFailure,
+  type StreamChunk,
 } from '@deepseek-ai/dsh-llm'
 
 /** Request for one bounded provider probe. */
@@ -42,12 +43,20 @@ export class PaperDiagnosticsService extends Service {
 
   /**
    * Execute one short request without creating a Session or persisting content.
+   * The probe is routed through `PaperRuntimeGuard.invokeCapability` so the
+   * `PLAN` stage firewall can reject bypass attempts. The LLM seam is reached
+   * through the guard token `diagnostics_probe`; without the guard being
+   * readied, the probe throws `RuntimeNotReadyError`.
    * @param request - provider route, model, and timeout policy.
    * @returns status and non-sensitive timing/error facts.
    */
   async probe(request: DiagnosticsRequest): Promise<DiagnosticsResult> {
     if (!Number.isSafeInteger(request.timeoutMs) || request.timeoutMs <= 0) {
       throw new TypeError('diagnostics timeoutMs must be a positive safe integer')
+    }
+    const guard = this.ctx.get('paperRuntimeGuard')
+    if (guard === undefined) {
+      throw new Error('paper runtime guard is not available')
     }
     const controller = new AbortController()
     const timer = setTimeout(() => { controller.abort() }, request.timeoutMs)
@@ -63,7 +72,11 @@ export class PaperDiagnosticsService extends Service {
         maxTokens: 4,
         signal: controller.signal,
       }
-      for await (const chunk of this.ctx.llm.stream(options)) {
+      const stream = guard.invokeCapability<AsyncIterable<StreamChunk>>(
+        { stage: 'PLAN', capability: 'diagnostics_probe' },
+        { fn: () => this.ctx.llm.stream(options) },
+      )
+      for await (const chunk of stream) {
         if (chunk.type !== 'finish') continue
         if (chunk.reason.kind === 'error' || chunk.reason.kind === 'aborted') {
           return this.failureResult(request, started, chunk.reason.failure)

@@ -1,0 +1,9 @@
+{
+  "fault_id": "IR-003",
+  "description": "Claim references a nonexistent Result",
+  "expected_status": "BLOCKED",
+  "blocked_by": [
+    "ir/refs:validateRefFields (missing)",
+    "ir/store:ModelingIr.put (unresolved_reference)"
+  ]
+}

@@ -32,6 +32,7 @@ export type Capability =
   | 'solver'
   | 'propose_finding'
   | 'read_verified_artifact'
+  | 'llm_inference'
   | 'shell'
   | 'web'
   | 'self_modify'
@@ -67,26 +68,26 @@ export type ServiceRequirement =
 const ALL_STAGES: ReadonlyArray<StageName> = ['PLAN', 'MODEL', 'EXECUTE', 'REVIEW', 'DELIVERY']
 
 const FORMAL_STAGE_CAPABILITIES: ReadonlyMap<StageName, ReadonlyArray<Capability>> = new Map<StageName, ReadonlyArray<Capability>>([
-  ['PLAN', ['read_problem']],
-  ['MODEL', ['read_artifact', 'write_model_spec']],
-  ['EXECUTE', ['read_artifact', 'code_runtime', 'solver']],
-  ['REVIEW', ['read_artifact', 'propose_finding']],
+  ['PLAN', ['read_problem', 'llm_inference']],
+  ['MODEL', ['read_artifact', 'write_model_spec', 'llm_inference']],
+  ['EXECUTE', ['read_artifact', 'code_runtime', 'solver', 'llm_inference']],
+  ['REVIEW', ['read_artifact', 'propose_finding', 'llm_inference']],
   ['DELIVERY', ['read_verified_artifact']],
 ])
 
 const FAST_STAGE_CAPABILITIES: ReadonlyMap<StageName, ReadonlyArray<Capability>> = new Map<StageName, ReadonlyArray<Capability>>([
-  ['PLAN', ['read_problem']],
-  ['MODEL', ['read_artifact', 'write_model_spec']],
-  ['EXECUTE', ['read_artifact', 'code_runtime', 'solver', 'propose_finding']],
-  ['REVIEW', ['read_artifact', 'propose_finding']],
+  ['PLAN', ['read_problem', 'llm_inference']],
+  ['MODEL', ['read_artifact', 'write_model_spec', 'llm_inference']],
+  ['EXECUTE', ['read_artifact', 'code_runtime', 'solver', 'propose_finding', 'llm_inference']],
+  ['REVIEW', ['read_artifact', 'propose_finding', 'llm_inference']],
   ['DELIVERY', ['read_verified_artifact']],
 ])
 
 const EXPLORATORY_STAGE_CAPABILITIES: ReadonlyMap<StageName, ReadonlyArray<Capability>> = new Map<StageName, ReadonlyArray<Capability>>([
-  ['PLAN', ['read_problem', 'read_artifact']],
-  ['MODEL', ['read_artifact', 'write_model_spec']],
-  ['EXECUTE', ['read_artifact', 'code_runtime', 'solver']],
-  ['REVIEW', ['read_artifact', 'propose_finding']],
+  ['PLAN', ['read_problem', 'read_artifact', 'llm_inference']],
+  ['MODEL', ['read_artifact', 'write_model_spec', 'llm_inference']],
+  ['EXECUTE', ['read_artifact', 'code_runtime', 'solver', 'llm_inference']],
+  ['REVIEW', ['read_artifact', 'propose_finding', 'llm_inference']],
   ['DELIVERY', ['read_verified_artifact']],
 ])
 

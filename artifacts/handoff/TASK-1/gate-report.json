@@ -1,0 +1,32 @@
+{
+  "task": "TASK-1",
+  "commit": "<pending>",
+  "status": "PASS",
+  "tests_total": 420,
+  "tests_passed": 420,
+  "faults_total": 10,
+  "faults_blocked": 10,
+  "critical_failures": [],
+  "red_team_rounds": 1,
+  "red_team_agents": 4,
+  "red_team_findings_fixed": 13,
+  "red_team_findings_deferred": 15,
+  "mutation_suite": "17/17 guards killed",
+  "known_risks": [
+    "RISK-01: external locators not filesystem-checked — TASK 3",
+    "RISK-02: raw_problem_ref has no content hash — TASK 1.5",
+    "RISK-03: nested ids unique within parent only — TASK 1.5",
+    "RISK-04: seed:null admitted by the IR — TASK 3",
+    "RISK-05: FigureSpec schema-only; data_refs targets Result — TASK 1.5/7",
+    "RISK-06: Result.value number-only — TASK 2/3",
+    "RISK-07: no staleness machinery; store append-only — TASK 3.5",
+    "RISK-08: equations are free strings — TASK 7.5",
+    "RISK-09: reviewer verdict fields rejected rather than ignored — TASK 5",
+    "RISK-10: ModelingIr in-memory, per-process — TASK -1 composition / 3.5",
+    "RISK-11: executor.ts parseDefects still absorbs malformed reviewer output — TASK 5",
+    "RISK-12: array fields unbounded on the typed path — TASK 3 if reported",
+    "RISK-13: numeric round-trip fidelity is JSON's — TASK 3",
+    "RISK-14: IR not yet wired into any producer — TASK 2",
+    "RISK-15: schemas exported beside the store; put() uniqueness is a convention — TASK 2 review"
+  ]
+}

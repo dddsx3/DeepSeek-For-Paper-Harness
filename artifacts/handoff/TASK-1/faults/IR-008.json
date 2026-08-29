@@ -1,0 +1,9 @@
+{
+  "fault_id": "IR-008",
+  "description": "Result has no unit",
+  "expected_status": "BLOCKED",
+  "blocked_by": [
+    "ir/schema:resultSchema (unit required)",
+    "ir/store:ModelingIr.put (schema_invalid)"
+  ]
+}

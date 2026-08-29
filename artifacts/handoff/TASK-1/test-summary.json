@@ -1,0 +1,6 @@
+{
+  "numTotalTests": 420,
+  "numPassedTests": 420,
+  "command": "vitest run --project=thread-safe --reporter=verbose packages/paper",
+  "scope": "packages/paper (paper-foundation + paper-bundle), the surface TASK 1 touches; 43 files, 420 tests (302 baseline + 118 new)"
+}

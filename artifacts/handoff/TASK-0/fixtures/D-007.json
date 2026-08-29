@@ -1,0 +1,9 @@
+{
+  "fault_id": "D-007",
+  "description": "direct promote() call in CANDIDATE state with decision.allowed=false — must not deliver",
+  "expected_status": "BLOCKED",
+  "blocked_by": [
+    "delivery:promoteCandidateToDeliverable (wrong_source_state / verification_not_passed branch)",
+    "delivery-policy:evaluateDelivery (required_output_missing)"
+  ]
+}

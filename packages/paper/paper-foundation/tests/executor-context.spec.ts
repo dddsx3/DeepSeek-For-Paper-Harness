@@ -4,6 +4,8 @@ import type { GenerateOptions, StreamChunk } from '@deepseek-ai/dsh-llm'
 import Storage from '@deepseek-ai/dsh-storage'
 import { DomainFacility } from '@deepseek-ai/dsh-storage-domain'
 import { MemoryMediaPool, MemoryStorageBackend } from '../../../storage/storage-domain/tests/helpers/memory-backend.ts'
+import PaperRuntimeGuard from '../src/runtime/runtime-guard.ts'
+import { createFastProfile } from '../src/runtime/profile.ts'
 import {
   PaperExecutorService,
   PaperFoundationService,
@@ -61,6 +63,10 @@ async function harness(contextWindow: number | undefined) {
   const provider = windowedProvider(contextWindow)
   ctx.provide('paperProvider', provider as never)
   await ctx.plugin(PaperSettingsService, settings)
+  // TASK -1 rewire: mount the runtime guard with the FAST profile
+  // because the harness creates runs in `fast` mode.
+  const guard = new PaperRuntimeGuard(ctx, { profile: createFastProfile() })
+  guard.markReady()
   await ctx.plugin(PaperExecutorService, { contextUtilization: 0.5 })
   return { ctx, provider }
 }

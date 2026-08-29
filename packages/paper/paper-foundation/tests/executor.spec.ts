@@ -4,6 +4,8 @@ import type { GenerateOptions, StreamChunk } from '@deepseek-ai/dsh-llm'
 import Storage from '@deepseek-ai/dsh-storage'
 import { DomainFacility } from '@deepseek-ai/dsh-storage-domain'
 import { MemoryMediaPool, MemoryStorageBackend } from '../../../storage/storage-domain/tests/helpers/memory-backend.ts'
+import PaperRuntimeGuard from '../src/runtime/runtime-guard.ts'
+import { createExploratoryProfile } from '../src/runtime/profile.ts'
 import {
   PaperExecutorService,
   PaperFoundationService,
@@ -52,6 +54,12 @@ async function harness(script: Script) {
     stream: (options: GenerateOptions) => fakeStream(script(options.system ?? '', userText(options))),
   } as never)
   await ctx.plugin(PaperSettingsService, settings)
+  // TASK -1 rewire: mount the runtime guard with the EXPLORATORY
+  // profile because the harness exercises both `fast` and `strict`
+  // run modes; EXPLORATORY does not enforce a run-mode match, which
+  // is exactly what unit tests need.
+  const guard = new PaperRuntimeGuard(ctx, { profile: createExploratoryProfile() })
+  guard.markReady()
   await ctx.plugin(PaperExecutorService)
   return { ctx }
 }

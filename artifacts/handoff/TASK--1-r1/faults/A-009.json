@@ -1,0 +1,6 @@
+{
+  "fault_id": "A-009",
+  "description": "criticalGateIds references an unregistered gate id",
+  "target_gate": "preflight",
+  "expected_status": "BLOCKED"
+}

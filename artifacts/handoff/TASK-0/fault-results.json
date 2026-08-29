@@ -1,0 +1,89 @@
+{
+  "task": "TASK-0",
+  "faults": [
+    {
+      "fault_id": "D-001",
+      "description": "reviewer PASS but deterministic reference_validation gate FAIL — must not deliver",
+      "expected_status": "BLOCKED",
+      "actual_status": "BLOCKED",
+      "blocked_by": [
+        "delivery-policy:evaluateDelivery (critical_gate check, id=reference_validation)"
+      ],
+      "fixture_path": "artifacts\\handoff\\TASK-0\\fixtures\\D-001.json"
+    },
+    {
+      "fault_id": "D-002",
+      "description": "staleArtifactIds non-empty — must not deliver",
+      "expected_status": "BLOCKED",
+      "actual_status": "BLOCKED",
+      "blocked_by": [
+        "delivery-policy:evaluateDelivery (stale check)"
+      ],
+      "fixture_path": "artifacts\\handoff\\TASK-0\\fixtures\\D-002.json"
+    },
+    {
+      "fault_id": "D-003",
+      "description": "unresolvedReferenceIds non-empty (Result[N] not yet computed) — must not deliver",
+      "expected_status": "BLOCKED",
+      "actual_status": "BLOCKED",
+      "blocked_by": [
+        "delivery-policy:evaluateDelivery (unresolved_ref check)"
+      ],
+      "fixture_path": "artifacts\\handoff\\TASK-0\\fixtures\\D-003.json"
+    },
+    {
+      "fault_id": "D-004",
+      "description": "critical Claim has no evidence (provenance gate FAIL) — must not deliver",
+      "expected_status": "BLOCKED",
+      "actual_status": "BLOCKED",
+      "blocked_by": [
+        "delivery-policy:evaluateDelivery (critical_gate check, id=provenance)"
+      ],
+      "fixture_path": "artifacts\\handoff\\TASK-0\\fixtures\\D-004.json"
+    },
+    {
+      "fault_id": "D-005",
+      "description": "FAST mode attempt to skip a critical gate (numeric_consistency FAIL) — must not deliver",
+      "expected_status": "BLOCKED",
+      "actual_status": "BLOCKED",
+      "blocked_by": [
+        "delivery-policy:evaluateDelivery (critical_gate check, id=numeric_consistency, mode-independent)"
+      ],
+      "fixture_path": "artifacts\\handoff\\TASK-0\\fixtures\\D-005.json"
+    },
+    {
+      "fault_id": "D-006",
+      "description": "execution gate FAIL (solver exit non-zero) — must not deliver",
+      "expected_status": "BLOCKED",
+      "actual_status": "BLOCKED",
+      "blocked_by": [
+        "delivery-policy:evaluateDelivery (critical_gate check, id=execution)"
+      ],
+      "fixture_path": "artifacts\\handoff\\TASK-0\\fixtures\\D-006.json"
+    },
+    {
+      "fault_id": "D-007",
+      "description": "direct promote() call in CANDIDATE state with decision.allowed=false — must not deliver",
+      "expected_status": "BLOCKED",
+      "actual_status": "BLOCKED",
+      "blocked_by": [
+        "delivery:promoteCandidateToDeliverable (wrong_source_state / verification_not_passed branch)",
+        "delivery-policy:evaluateDelivery (required_output_missing)"
+      ],
+      "fixture_path": "artifacts\\handoff\\TASK-0\\fixtures\\D-007.json"
+    },
+    {
+      "fault_id": "D-008",
+      "description": "reviewer malformed output → provenance gate BLOCKED — must not deliver",
+      "expected_status": "BLOCKED",
+      "actual_status": "BLOCKED",
+      "blocked_by": [
+        "delivery-policy:evaluateDelivery (critical_gate check, id=provenance, status=BLOCKED)"
+      ],
+      "fixture_path": "artifacts\\handoff\\TASK-0\\fixtures\\D-008.json"
+    }
+  ],
+  "declared_faults": 8,
+  "escaped_faults": 0,
+  "escape_rate": 0
+}
