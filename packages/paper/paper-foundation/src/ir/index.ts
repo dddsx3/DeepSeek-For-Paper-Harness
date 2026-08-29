@@ -69,6 +69,24 @@ export { deepFreeze } from './freeze.ts'
 export { IR_REF_FIELDS, validateRefFields } from './refs.ts'
 export type { IrRefFieldSpec, IrRefProblem, IrRefResolution, IrRefTarget, IrRefResolver } from './refs.ts'
 
+export {
+  IR_BACKBONE_KINDS,
+  IR_BACKBONE_EXEMPT_MODES,
+  IR_CLAIM_REJECTIONS,
+  evaluateIrBridge,
+  irBridgeGate,
+  requiresIrBackbone,
+  irClaimSchema,
+} from './bridge.ts'
+export type {
+  IrBackboneKind,
+  IrBackboneExemptMode,
+  IrBridgeDecision,
+  IrClaim,
+  IrClaimProblem,
+  IrClaimRejection,
+} from './bridge.ts'
+
 export { IR_FAILURE_KINDS, ModelingIr } from './store.ts'
 export type {
   IrAuditEvent,

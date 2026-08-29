@@ -14,6 +14,7 @@ import {
   WorkflowEngineService,
   type PaperSettings,
 } from '../src/index.ts'
+import { backboneIr } from './ir/fixtures.ts'
 
 const settings: PaperSettings = {
   executor: { provider: 'fake', model: 'exec-model', credentialRef: 'cred://executor', timeoutMs: 1000 },
@@ -60,6 +61,10 @@ async function harness(script: Script) {
   // is exactly what unit tests need.
   const guard = new PaperRuntimeGuard(ctx, { profile: createExploratoryProfile() })
   guard.markReady()
+  // TASK 1.25: mount a canonical IR store holding the delivery backbone.
+  // Without it these runs are text-only and the bridge blocks them; these
+  // suites are about context budgeting, retries and cost, not about the IR.
+  ctx.provide('paperModelingIr', backboneIr())
   await ctx.plugin(PaperExecutorService)
   return { ctx }
 }
@@ -126,7 +131,13 @@ describe('WorkflowExecutor', () => {
     const revises = engine.listNodes(RunId(run.id)).filter(node => node.type === 'revise')
     expect(reviews).toHaveLength(4)
     expect(revises).toHaveLength(3)
-    expect(engine.getManifest(RunId(run.id))?.gates.review).toBe(false)
+    // TASK 1.25: a run rejected by review must not leave a manifest behind.
+    // The old ordering recorded one before applying the verdict, so rejected
+    // text was still reachable as "delivered" through getManifest (RT125B-02).
+    expect(engine.getManifest(RunId(run.id))).toBeUndefined()
+    const authorized = engine.listEvents(RunId(run.id))
+      .some(event => event.type === 'delivery_authorized')
+    expect(authorized).toBe(false)
   })
 
   it('pushes durable events in-process as they are appended', async () => {

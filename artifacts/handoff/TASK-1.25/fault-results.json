@@ -1,0 +1,88 @@
+{
+  "task": "TASK-1.25",
+  "faults": [
+    {
+      "fault_id": "B-001",
+      "description": "fast run with no canonical IR store mounted still reaches a manifest",
+      "expected_status": "BLOCKED",
+      "actual_status": "BLOCKED",
+      "blocked_by": [
+        "executor:enforceCanonicalIr (INV-1.25-B)"
+      ],
+      "fixture_path": "faults\\B-001.json"
+    },
+    {
+      "fault_id": "B-002",
+      "description": "strict run with no canonical IR store mounted still reaches a manifest",
+      "expected_status": "BLOCKED",
+      "actual_status": "BLOCKED",
+      "blocked_by": [
+        "executor:enforceCanonicalIr (INV-1.25-B)"
+      ],
+      "fixture_path": "faults\\B-002.json"
+    },
+    {
+      "fault_id": "B-003",
+      "description": "an empty (but present) IR store satisfies delivery",
+      "expected_status": "BLOCKED",
+      "actual_status": "BLOCKED",
+      "blocked_by": [
+        "ir/bridge:evaluateIrBridge (missing backbone)"
+      ],
+      "fixture_path": "faults\\B-003.json"
+    },
+    {
+      "fault_id": "B-004",
+      "description": "an IR store without Result and Claim satisfies delivery",
+      "expected_status": "BLOCKED",
+      "actual_status": "BLOCKED",
+      "blocked_by": [
+        "ir/bridge:evaluateIrBridge (missing backbone)"
+      ],
+      "fixture_path": "faults\\B-004.json"
+    },
+    {
+      "fault_id": "B-005",
+      "description": "an IR store whose only Claim is NON_CRITICAL satisfies delivery",
+      "expected_status": "BLOCKED",
+      "actual_status": "BLOCKED",
+      "blocked_by": [
+        "ir/bridge:evaluateIrBridge (missingCriticalClaim)"
+      ],
+      "fixture_path": "faults\\B-005.json"
+    },
+    {
+      "fault_id": "B-006",
+      "description": "omitting the ir_canonicalization gate from policy.gates passes delivery",
+      "expected_status": "BLOCKED",
+      "actual_status": "BLOCKED",
+      "blocked_by": [
+        "delivery/delivery-policy:evaluateDelivery (critical_gate_missing, INV-1.25-C)"
+      ],
+      "fixture_path": "faults\\B-006.json"
+    },
+    {
+      "fault_id": "B-007",
+      "description": "a text artifact claims to be an IR object with an unregistered ir_ref",
+      "expected_status": "BLOCKED",
+      "actual_status": "BLOCKED",
+      "blocked_by": [
+        "ir/bridge:evaluateIrBridge (INV-1.25-A, ir_ref_not_registered)"
+      ],
+      "fixture_path": "faults\\B-007.json"
+    },
+    {
+      "fault_id": "B-008",
+      "description": "a claim names a real IR object of the wrong kind",
+      "expected_status": "BLOCKED",
+      "actual_status": "BLOCKED",
+      "blocked_by": [
+        "ir/bridge:evaluateIrBridge (INV-1.25-A, ir_kind_mismatch)"
+      ],
+      "fixture_path": "faults\\B-008.json"
+    }
+  ],
+  "declared_faults": 8,
+  "escaped_faults": 0,
+  "escape_rate": 0
+}

@@ -1,0 +1,8 @@
+{
+  "fault_id": "B-003",
+  "description": "an empty (but present) IR store satisfies delivery",
+  "expected_status": "BLOCKED",
+  "blocked_by": [
+    "ir/bridge:evaluateIrBridge (missing backbone)"
+  ]
+}

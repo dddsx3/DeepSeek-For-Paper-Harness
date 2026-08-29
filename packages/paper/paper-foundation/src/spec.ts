@@ -81,6 +81,10 @@ export const workflowEventSchema = z.object({
     'context_compacted', 'reasoning_delta', 'text_delta',
     'tool_call', 'tool_result', 'usage', 'defect', 'gate_result', 'completed',
     'failed', 'paused', 'recovery',
+    // TASK 1.25: written by the executor only, once every critical gate —
+    // including the canonical-IR bridge — has passed. It is the durable proof
+    // that a manifest is allowed to exist for this run.
+    'delivery_authorized',
   ]),
   data: jsonObject,
   timestamp: timestampSchema,

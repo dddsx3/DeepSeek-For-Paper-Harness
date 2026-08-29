@@ -31,6 +31,7 @@ export type {
 export {
   CRITICAL_GATE_IDS,
   GATE_STATUSES,
+  IR_CANONICALIZATION_GATE_ID,
   evaluateDelivery,
   isNonCriticalGateSkippableInMode,
 } from './delivery-policy.ts'

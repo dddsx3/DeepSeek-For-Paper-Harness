@@ -1,0 +1,6 @@
+{
+  "numTotalTests": 462,
+  "numPassedTests": 462,
+  "command": "vitest run --project=thread-safe --reporter=verbose packages/paper",
+  "scope": "packages/paper; 46 files, 462 tests (420 before TASK 1.25, +42: bridge 21, red-team regressions 13, executor delivery-authorization 8)"
+}

@@ -1,0 +1,8 @@
+{
+  "fault_id": "B-006",
+  "description": "omitting the ir_canonicalization gate from policy.gates passes delivery",
+  "expected_status": "BLOCKED",
+  "blocked_by": [
+    "delivery/delivery-policy:evaluateDelivery (critical_gate_missing, INV-1.25-C)"
+  ]
+}

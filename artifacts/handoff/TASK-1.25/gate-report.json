@@ -1,0 +1,28 @@
+{
+  "task": "TASK-1.25",
+  "commit": "<pending>",
+  "status": "PASS",
+  "tests_total": 462,
+  "tests_passed": 462,
+  "faults_total": 8,
+  "faults_blocked": 8,
+  "critical_failures": [],
+  "red_team_rounds": 1,
+  "red_team_agents": 4,
+  "red_team_product_findings_fixed": 4,
+  "red_team_harness_defects_fixed": 2,
+  "invariants": [
+    "INV-1.25-A: no fake IR — claimed IR objects must resolve to canonical records of the claimed kind",
+    "INV-1.25-B: no bypass — FORMAL/FAST delivery requires a canonical backbone (Problem/Model/Run/Result/Claim + >=1 CRITICAL claim)",
+    "INV-1.25-C: no missing / downgraded / duplicated critical gate"
+  ],
+  "honest_ledger": [
+    "INV-1.25-A is mechanism-complete but input-vacuous until TASK 2 populates claims (executor passes [] today); INV-1.25-B is fully live",
+    "a composition that mounts no ModelingIr is blocked in FORMAL/FAST rather than skipped",
+    "EXPLORATORY mode is exempt from the backbone by design"
+  ],
+  "known_risks": [
+    "RISK-14 resolved for B (workflow can no longer ignore the IR); A awaits TASK 2 claims",
+    "TASK-1 known-risks RISK-01..15 unchanged and still deferred to their owner TASKs"
+  ]
+}

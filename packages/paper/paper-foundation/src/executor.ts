@@ -14,6 +14,9 @@ import { compactPrompt, renderSections } from './context.ts'
 import type { PromptSection } from './context.ts'
 import { computeCostUsd, evaluateBudget, resolveModelPrice } from './cost.ts'
 import type { BudgetPolicy, PricingTable } from './cost.ts'
+import { IR_CANONICALIZATION_GATE_ID } from './delivery/delivery-policy.ts'
+import { irBridgeGate } from './ir/bridge.ts'
+import { ModelingIr } from './ir/store.ts'
 import { resolveRunPolicy } from './policy.ts'
 import type { PaperProviderService, PaperRole } from './provider.ts'
 import { backoffDelayMs, classifyFailure } from './resilience.ts'
@@ -62,7 +65,21 @@ export interface ExecutorOptions {
   readonly contextUtilization: number
   /** Audit sink; omitted in compositions that mount no trail. */
   readonly audit?: AuditSink
+  /**
+   * The canonical Modeling IR store the workflow's mathematical facts live in
+   * (TASK 1.25). Deliberately optional at the type level — the composition may
+   * not mount one — but **not** optional at the enforcement level: in FORMAL
+   * and FAST mode a missing store means there is no canonical state at all,
+   * which is exactly the condition the bridge exists to block.
+   */
+  readonly ir?: ModelingIr
 }
+
+/**
+ * Shared stand-in for "no canonical IR was mounted". The bridge only reads, so
+ * one immutable empty store is safe to reuse for every such run.
+ */
+const EMPTY_IR = new ModelingIr()
 
 /** Stable reasons the executor refuses to finish a run. */
 export type ExecutionFailureCode =
@@ -201,9 +218,18 @@ export class WorkflowExecutor {
 
       const gatePassed = defects.length === 0
       await this.engine.appendPublic(runId, null, 'gate_result', { gate: 'review', passed: gatePassed })
-      const artifact = await this.deliver(runId, current)
-      const manifest = this.buildManifest(this.runOf(runId), artifact, gatePassed)
-      await this.engine.recordManifest(runId, manifest)
+
+      // TASK 1.25: the paper may not be delivered unless its mathematical
+      // facts exist as canonical IR. Without this call the workflow still had
+      // a complete text-only path to a manifest, which made every IR
+      // guarantee vacuous (external-advisory finding IR_CAN_BE_BYPASSED).
+      // Claims are empty for now: TASK 2 introduces the Claim→Result→Run
+      // evidence chain that populates them, and INV-1.25-A is exercised by
+      // the bridge suite directly until then.
+      // The IR bridge must pass before the review verdict is applied: a run
+      // that fails review must not leave a manifest behind either (red team
+      // RT125B-02 found the old ordering persisted one for rejected text).
+      await this.enforceCanonicalIr(runId, initial.mode)
 
       if (!gatePassed && initial.mode !== 'fast') {
         await this.engine.transitionRun(runId, 'failed')
@@ -218,6 +244,18 @@ export class WorkflowExecutor {
           `run '${runId}' failed its review gate after ${policy.maxReviseRounds + 1} reviews`,
         )
       }
+
+      // Authorisation is the durable proof that lets a manifest exist at all;
+      // `recordManifest` refuses without it (TASK 1.25, RT125B-03).
+      await this.engine.authorizeDelivery(runId, {
+        authorizedAt: new Date().toISOString(),
+        gates: ['review', IR_CANONICALIZATION_GATE_ID],
+      })
+
+      const artifact = await this.deliver(runId, current)
+      const manifest = this.buildManifest(this.runOf(runId), artifact, gatePassed)
+      await this.engine.recordManifest(runId, manifest)
+
       await this.engine.transitionRun(runId, 'completed')
       await this.audit({
         eventType: 'workflow_completed',
@@ -236,6 +274,31 @@ export class WorkflowExecutor {
       })
       throw error
     }
+  }
+
+  /**
+   * Refuse to deliver unless the canonical IR carries the mathematical facts
+   * the paper claims (TASK 1.25, INV-1.25-B).
+   *
+   * A composition that never mounted a store is treated as an empty one: in
+   * FORMAL and FAST mode that means "no canonical state", so the run is
+   * blocked rather than waved through. EXPLORATORY is exempt because it is
+   * the mode in which no fact has been asserted yet.
+   */
+  private async enforceCanonicalIr(runId: RunId, mode: string): Promise<void> {
+    const gate = irBridgeGate(this.options.ir ?? EMPTY_IR, [], mode, new Date().toISOString())
+    if (gate.status === 'PASS') return
+    await this.audit({
+      eventType: 'ir_bridge_blocked',
+      actor: 'paper-executor',
+      runId,
+      detail: { gate: gate.id, reason: gate.reason, mode },
+    })
+    await this.engine.transitionRun(runId, 'failed')
+    throw new WorkflowExecutionError(
+      'gate-failed',
+      `run '${runId}' has no canonical IR to deliver from (${gate.reason})`,
+    )
   }
 
   /** Deliver the final text: one delivery node plus its stored artifact. */

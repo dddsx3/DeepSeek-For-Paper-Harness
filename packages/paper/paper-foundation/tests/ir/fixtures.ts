@@ -10,7 +10,7 @@
  * build attacks, and must never mutate the module-level originals.
  */
 
-import type { IrKind } from '../../src/ir/index.ts'
+import { ModelingIr, type IrKind } from '../../src/ir/index.ts'
 
 export function problemSpec(overrides: Record<string, unknown> = {}): Record<string, unknown> {
   return {
@@ -148,4 +148,23 @@ export function validChain(): ReadonlyArray<{ kind: IrKind; value: Record<string
     { kind: 'FigureSpec', value: figureSpec() },
     { kind: 'ReviewerFinding', value: reviewerFinding() },
   ]
+}
+
+/**
+ * A \`ModelingIr\` already holding the IR backbone TASK 1.25 requires for
+ * delivery: Problem → Model → Run → Result → Claim, with at least one
+ * CRITICAL claim.
+ *
+ * Executor-level suites that predate TASK 1.25 mount this so they keep
+ * testing what they were written to test (context budgeting, retries, cost,
+ * reviewer parsing) instead of accidentally asserting that a text-only run
+ * can still be delivered.
+ */
+export function backboneIr(): ModelingIr {
+  const ir = new ModelingIr({ now: () => '2026-08-29T00:00:00.000Z' })
+  for (const entry of validChain().slice(0, 5)) {
+    const verdict = ir.put(entry.kind, entry.value)
+    if (!verdict.accepted) throw new Error(`backbone fixture failed: ${entry.kind}`)
+  }
+  return ir
 }

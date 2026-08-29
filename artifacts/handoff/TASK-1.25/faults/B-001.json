@@ -1,0 +1,8 @@
+{
+  "fault_id": "B-001",
+  "description": "fast run with no canonical IR store mounted still reaches a manifest",
+  "expected_status": "BLOCKED",
+  "blocked_by": [
+    "executor:enforceCanonicalIr (INV-1.25-B)"
+  ]
+}

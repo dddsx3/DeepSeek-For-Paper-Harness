@@ -1,0 +1,8 @@
+{
+  "fault_id": "B-005",
+  "description": "an IR store whose only Claim is NON_CRITICAL satisfies delivery",
+  "expected_status": "BLOCKED",
+  "blocked_by": [
+    "ir/bridge:evaluateIrBridge (missingCriticalClaim)"
+  ]
+}

@@ -1,0 +1,8 @@
+{
+  "fault_id": "B-007",
+  "description": "a text artifact claims to be an IR object with an unregistered ir_ref",
+  "expected_status": "BLOCKED",
+  "blocked_by": [
+    "ir/bridge:evaluateIrBridge (INV-1.25-A, ir_ref_not_registered)"
+  ]
+}

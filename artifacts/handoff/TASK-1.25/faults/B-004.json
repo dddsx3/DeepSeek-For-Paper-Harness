@@ -1,0 +1,8 @@
+{
+  "fault_id": "B-004",
+  "description": "an IR store without Result and Claim satisfies delivery",
+  "expected_status": "BLOCKED",
+  "blocked_by": [
+    "ir/bridge:evaluateIrBridge (missing backbone)"
+  ]
+}

@@ -1,0 +1,8 @@
+{
+  "fault_id": "B-008",
+  "description": "a claim names a real IR object of the wrong kind",
+  "expected_status": "BLOCKED",
+  "blocked_by": [
+    "ir/bridge:evaluateIrBridge (INV-1.25-A, ir_kind_mismatch)"
+  ]
+}

@@ -110,9 +110,51 @@ export class ModelingIr {
   #audit: (event: IrAuditEvent) => void
   #now: () => string
 
+  /**
+   * Registry of stores this class actually constructed.
+   *
+   * `instanceof ModelingIr` is not proof of identity: a real instance can be
+   * shadowed with `Object.defineProperty(ir, 'list', { value: lyingFn })`,
+   * which keeps `instanceof` true while making every read lie (red team
+   * RT125A-02). And a plain object carrying `get`/`list` methods satisfies the
+   * duck type, which is enough to smuggle a fake store through an untyped
+   * service slot (RT125A-01). A private `WeakSet` filled only by this
+   * constructor is the one thing neither attack can forge.
+   */
+  static readonly #constructed = new WeakSet<object>()
+
   constructor(options: ModelingIrOptions = {}) {
     this.#audit = options.audit ?? (() => {})
     this.#now = options.now ?? (() => new Date().toISOString())
+    ModelingIr.#constructed.add(this)
+  }
+
+  /**
+   * Whether `value` is a canonical store this class constructed.
+   *
+   * Callers that receive a store from an untyped seam (a Cordis service slot,
+   * deserialised config, a process boundary) must check this before trusting
+   * it. Never throws.
+   */
+  static isCanonicalIr(value: unknown): value is ModelingIr {
+    if (value === null || typeof value !== 'object') return false
+    if (!ModelingIr.#constructed.has(value)) return false
+    // A forged object can carry the real prototype via Object.create, so the
+    // prototype is pinned as well: only instances whose prototype is this
+    // frozen prototype are accepted.
+    return Object.getPrototypeOf(value) === ModelingIr.prototype
+  }
+
+  /**
+   * Read canonical state without going through any instance method.
+   *
+   * The bridge uses this instead of `ir.list()` / `ir.get()` so a shadowed
+   * instance property cannot change what the gate sees. `null` means "not a
+   * canonical store" — callers must treat that as a block.
+   */
+  static snapshot(value: unknown): ReadonlyMap<string, IrObjectRecord> | null {
+    if (!ModelingIr.isCanonicalIr(value)) return null
+    return value.#objects
   }
 
   /** Number of canonical objects. */

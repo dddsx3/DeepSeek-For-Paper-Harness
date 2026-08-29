@@ -63,6 +63,7 @@ const modelPrice: s<ModelPrice> = s.object({
 export function resolveExecutorOptions(
   config: ExecutorConfig,
   audit?: ExecutorOptions['audit'],
+  ir?: ExecutorOptions['ir'],
 ): ExecutorOptions {
   return {
     pricing: config.pricing ?? {},
@@ -76,6 +77,9 @@ export function resolveExecutorOptions(
       capMs: config.backoffCapMs ?? DEFAULT_BACKOFF_CAP_MS,
     },
     contextUtilization: config.contextUtilization ?? DEFAULT_CONTEXT_UTILIZATION,
+    // exactOptionalPropertyTypes: an explicit undefined would be a type
+    // error on the optional fields, so omit rather than pass through.
+    ...ir === undefined ? {} : { ir },
     ...audit === undefined ? {} : { audit },
   }
 }
@@ -116,7 +120,14 @@ export class PaperExecutorService extends Service {
       this.ctx.paperWorkflow.runs,
       this.ctx.paperProvider,
       this.ctx.paperSettings,
-      resolveExecutorOptions(this.config, this.ctx.get('paperAudit')),
+      resolveExecutorOptions(
+        this.config,
+        this.ctx.get('paperAudit'),
+        // TASK 1.25: the canonical IR store, when the composition mounts one.
+        // Absent, the executor treats it as an empty store and blocks FORMAL
+        // and FAST delivery rather than delivering text-only.
+        this.ctx.get('paperModelingIr'),
+      ),
       this.ctx.paperRuntimeGuard,
     )
   }

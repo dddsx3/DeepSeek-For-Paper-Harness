@@ -17,6 +17,7 @@ import {
   type ExecutorConfig,
   type PaperSettings,
 } from '../src/index.ts'
+import { backboneIr } from './ir/fixtures.ts'
 
 const settings: PaperSettings = {
   executor: { provider: 'fake', model: 'fake-model', credentialRef: 'cred://executor', timeoutMs: 1000 },
@@ -96,6 +97,9 @@ async function harness(behaviors: Behavior[], config: ExecutorConfig = FAST_BACK
   // TASK -1 rewire: mount the runtime guard with the FAST profile.
   const guard = new PaperRuntimeGuard(ctx, { profile: createFastProfile() })
   guard.markReady()
+  // TASK 1.25: mount the canonical IR backbone so these suites keep testing
+  // budgeting / retries / cost rather than a text-only delivery path.
+  ctx.provide('paperModelingIr', backboneIr())
   await ctx.plugin(PaperExecutorService, config)
   return { ctx, provider }
 }

@@ -52,6 +52,35 @@ const now = (): string => new Date().toISOString()
 /** Harness version stamped into runs created through the engine. */
 export const PAPER_HARNESS_VERSION = '0.1.1-rc.2'
 
+/**
+ * Event type proving the gated executor authorised a delivery (TASK 1.25).
+ * `recordManifest` refuses to persist a manifest without it.
+ */
+export const DELIVERY_AUTHORIZED_EVENT = 'delivery_authorized' as const
+
+/** Bounded evidence stored with a delivery authorisation. */
+export interface DeliveryAuthorizationDetail {
+  /** ISO timestamp of the authorisation. */
+  readonly authorizedAt: string
+  /** Gate ids that had passed at the moment of authorisation. */
+  readonly gates: ReadonlyArray<string>
+}
+
+/**
+ * Raised when something tries to record a manifest for a run that no gate
+ * ever authorised. Before TASK 1.25 the manifest was a free public write, so
+ * a caller could fabricate a delivered run with no executor involved at all.
+ */
+export class WorkflowManifestUnauthorizedError extends Error {
+  /**
+   * @param runId - the run whose manifest was refused.
+   */
+  constructor(readonly runId: string) {
+    super(`run '${runId}' has no delivery authorisation; refusing to record a manifest`)
+    this.name = 'WorkflowManifestUnauthorizedError'
+  }
+}
+
 declare module '@deepseek-ai/cordis' {
   interface Events {
     /**
@@ -282,13 +311,46 @@ export class WorkflowEngine {
 
   /**
    * Persist one run's final manifest.
+   *
+   * A manifest is the durable signal that a paper was delivered, so it may
+   * only be written for a run the gated executor has authorised. Before
+   * TASK 1.25 this method was an unguarded public write: a caller could
+   * `startRun` → `putArtifact` → `recordManifest` → `transitionRun('completed')`
+   * and obtain a delivered-looking run with no executor, no review, and no
+   * canonical IR at all (red team RT125B-03). Authorisation is now a durable
+   * event that only the executor writes, after every gate has passed.
+   *
    * @param runId - run the manifest belongs to.
    * @param manifest - summary recorded at delivery.
    * @returns resolution after the manifest is durable.
+   * @throws when the run carries no delivery authorisation.
    */
   recordManifest(runId: RunId, manifest: Manifest): Promise<void> {
     return this.enqueue(runId, async () => {
+      const authorized = this.repository
+        .listEvents(runId)
+        .some(event => event.type === DELIVERY_AUTHORIZED_EVENT)
+      if (!authorized) {
+        throw new WorkflowManifestUnauthorizedError(runId)
+      }
       await this.repository.putManifest(manifest)
+    })
+  }
+
+  /**
+   * Record that every gate has passed for `runId` and a manifest may be
+   * written. Called by the executor only, after the canonical-IR bridge and
+   * every other critical gate have passed.
+   * @param runId - run being authorised.
+   * @param detail - bounded evidence to store alongside the event.
+   * @returns resolution after the authorisation is durable.
+   */
+  authorizeDelivery(runId: RunId, detail: DeliveryAuthorizationDetail): Promise<void> {
+    return this.enqueue(runId, async () => {
+      await this.append(runId, null, DELIVERY_AUTHORIZED_EVENT, {
+        authorizedAt: detail.authorizedAt,
+        gates: detail.gates.slice(),
+      })
     })
   }
 

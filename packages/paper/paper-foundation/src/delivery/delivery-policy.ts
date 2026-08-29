@@ -35,10 +35,20 @@ export type GateStatus = (typeof GATE_STATUSES)[number]
  * `gate.execution`); we accept any string for `id` and reserve the type
  * alias below for the closed set.
  */
+/**
+ * Gate id for the canonical-IR bridge (TASK 1.25).
+ *
+ * Declared here, next to the critical list it joins, rather than in
+ * `ir/bridge.ts`: the bridge already imports this module for `GateRecord`,
+ * and a constant that lives in only one place cannot drift.
+ */
+export const IR_CANONICALIZATION_GATE_ID = 'ir_canonicalization'
+
 export const CRITICAL_GATE_IDS = [
   'runtime_integrity',
   'execution',
   'provenance',
+  IR_CANONICALIZATION_GATE_ID,
   'numeric_consistency',
   'stale_detection',
   'reference_validation',
@@ -102,7 +112,43 @@ export interface DeliveryDecision {
 export function evaluateDelivery(policy: DeliveryPolicy): DeliveryDecision {
   const failures: DeliveryFailure[] = []
 
-  // 1. Critical gate check (mode-independent; FAST does NOT skip this).
+  // 1a. Missing critical gate check. The loop below can only reject gates it
+  // was handed, so a caller that simply omitted `ir_canonicalization` was
+  // approved — the contract already promised "if a non-PASS critical gate is
+  // missing, that itself is a failure", but nothing enforced it. Presence is
+  // now checked explicitly (TASK 1.25, INV-1.25-C).
+  //
+  // Presence is not just "an entry with this id exists". Red team RT125C-01
+  // showed that `{id: 'ir_canonicalization', status: 'PASS', critical: false}`
+  // satisfies an id-only check and is then skipped by the `critical` filter in
+  // step 1b — a forged gate that both silences the missing-gate failure and
+  // escapes the status check. A critical id must therefore be present *as a
+  // critical gate*, and a downgraded one is itself a failure.
+  const byId = new Map<string, GateRecord[]>()
+  for (const gate of policy.gates) {
+    const bucket = byId.get(gate.id)
+    if (bucket === undefined) byId.set(gate.id, [gate])
+    else bucket.push(gate)
+  }
+  for (const [id, gates] of byId) {
+    if (gates.length > 1) {
+      // Two entries for one gate id: which one wins depends on array order,
+      // so the verdict would be the caller's to pick (RT125C-03).
+      failures.push({ kind: 'duplicate_gate_id', reason: id })
+    }
+  }
+  for (const id of CRITICAL_GATE_IDS) {
+    const gates = byId.get(id)
+    if (gates === undefined || gates.length === 0) {
+      failures.push({ kind: 'critical_gate_missing', reason: id })
+      continue
+    }
+    if (!gates.some(gate => gate.critical)) {
+      failures.push({ kind: 'critical_gate_downgraded', reason: id })
+    }
+  }
+
+  // 1b. Critical gate check (mode-independent; FAST does NOT skip this).
   for (const gate of policy.gates) {
     if (!gate.critical) continue
     if (gate.status === 'PASS') continue
