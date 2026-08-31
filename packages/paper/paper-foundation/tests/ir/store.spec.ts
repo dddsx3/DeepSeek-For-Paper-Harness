@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import { ModelingIr } from '../../src/ir/index.ts'
 import type { IrAuditEvent, IrObjectRecord } from '../../src/ir/index.ts'
-import { claim, figureSpec, problemSpec, result, runArtifact, validChain, verificationResult } from './fixtures.ts'
+import { chainThrough, claim, figureSpec, modelSpec, problemSpec, result, runArtifact, validChain, verificationResult } from './fixtures.ts'
 
 /** A store pre-loaded with the legal Problem → Model → Run chain. */
 function seeded(events: IrAuditEvent[] = []): ModelingIr {
   const ir = new ModelingIr({ audit: e => events.push(e), now: () => '2026-08-28T00:00:00.000Z' })
-  for (const entry of validChain().slice(0, 3)) {
+  for (const entry of chainThrough('RunArtifact')) {
     expect(ir.put(entry.kind, entry.value).accepted, `${entry.kind} must ingest`).toBe(true)
   }
   return ir
@@ -18,12 +18,11 @@ describe('ModelingIr — canonical state', () => {
     for (const entry of validChain()) {
       expect(ir.put(entry.kind, entry.value).accepted).toBe(true)
     }
-    expect(ir.size).toBe(8)
-    expect(ir.list().map(r => r.kind)).toEqual([
-      'ProblemSpec', 'ModelSpec', 'RunArtifact', 'Result',
-      'Claim', 'VerificationResult', 'FigureSpec', 'ReviewerFinding',
-    ])
-    expect(ir.list().map(r => r.seq)).toEqual([0, 1, 2, 3, 4, 5, 6, 7])
+    // Derived, not literal: TASK 1.5 inserted four kinds ahead of
+    // ProblemSpec, and a hardcoded length would rot on the next ontology change.
+    expect(ir.size).toBe(validChain().length)
+    expect(ir.list().map(r => r.kind)).toEqual(validChain().map(e => e.kind))
+    expect(ir.list().map(r => r.seq)).toEqual(validChain().map((_, i) => i))
   })
 
   it('exposes id, kind, and record lookups', () => {
@@ -40,14 +39,20 @@ describe('ModelingIr — canonical state', () => {
     const ir = seeded()
     const record = ir.get('P1')!
     expect(record.ingestedAt).toBe('2026-08-28T00:00:00.000Z')
-    expect(record.seq).toBe(0)
+    expect(record.seq).toBe(chainThrough('RunArtifact').findIndex(e => e.kind === 'ProblemSpec'))
   })
 
   it('works with no options at all (default audit and clock)', () => {
     const ir = new ModelingIr()
-    const verdict = ir.put('ProblemSpec', problemSpec())
-    expect(verdict.accepted).toBe(true)
-    if (verdict.accepted) expect(verdict.record.ingestedAt).toMatch(/^\d{4}-\d{2}-\d{2}T/)
+    // TASK 1.5R: `ProblemSpec.raw_problem_ref` / `requirement_refs` are closed
+    // against the canonical store, so the referenced DataArtifact and
+    // RequirementSpecs must be registered first.
+    for (const entry of chainThrough('ProblemSpec')) {
+      expect(ir.put(entry.kind, entry.value).accepted).toBe(true)
+    }
+    const record = ir.get('P1')!
+    expect(record.kind).toBe('ProblemSpec')
+    expect(record.ingestedAt).toMatch(/^\d{4}-\d{2}-\d{2}T/)
   })
 
   it('ingestJson accepts valid text and is equivalent to put', () => {
@@ -104,7 +109,7 @@ describe('ModelingIr — canonical state', () => {
       expect(verdict.failures[0]!.kind).toBe('duplicate_id')
       expect(verdict.failures[0]!.reason).toContain('already registered as Result')
     }
-    expect(ir.size).toBe(4)
+    expect(ir.size).toBe(chainThrough('RunArtifact').length + 1)
   })
 
   it('refuses a duplicate id across different kinds (ids are globally unique)', () => {
@@ -143,7 +148,7 @@ describe('ModelingIr — canonical state', () => {
     expect(ir.put('Result', result({ run_ref: 'RUN-FUTURE' })).accepted).toBe(false)
     expect(ir.put('RunArtifact', runArtifact({ run_id: 'RUN-FUTURE' })).accepted).toBe(true)
     expect(ir.get('RUN-FUTURE')).toBeDefined()
-    expect(ir.size).toBe(4)
+    expect(ir.size).toBe(chainThrough('RunArtifact').length + 1)
   })
 
   it('stores a deep-frozen snapshot, so later mutation of the input is inert', () => {
@@ -166,17 +171,20 @@ describe('ModelingIr — canonical state', () => {
   })
 
   it('freezes nested structures, not just the top level', () => {
-    const ir = new ModelingIr()
-    expect(ir.put('ProblemSpec', problemSpec()).accepted).toBe(true)
-    const stored = ir.get('P1')!.value as {
-      subproblems: Array<{ statement: string }>
-      constraints: string[]
+    // ModelSpec rather than ProblemSpec: `parameter_refs` is an array of
+    // objects, which is the nesting this test needs, and ProblemSpec no
+    // longer carries nested sub-objects at all (INV-1.5-A).
+    const ir = seeded()
+    expect(ir.put('ModelSpec', modelSpec({ model_id: 'M2' })).accepted).toBe(true)
+    const stored = ir.get('M2')!.value as {
+      parameter_refs: Array<{ symbol_ref: string; value: number }>
+      equations: string[]
     }
-    expect(Object.isFrozen(stored.subproblems)).toBe(true)
-    expect(Object.isFrozen(stored.subproblems[0])).toBe(true)
-    expect(Object.isFrozen(stored.constraints)).toBe(true)
+    expect(Object.isFrozen(stored.parameter_refs)).toBe(true)
+    expect(Object.isFrozen(stored.parameter_refs[0])).toBe(true)
+    expect(Object.isFrozen(stored.equations)).toBe(true)
     expect(() => {
-      stored.subproblems[0]!.statement = 'mutated'
+      stored.parameter_refs[0]!.symbol_ref = 'mutated'
     }).toThrow(TypeError)
   })
 
@@ -229,6 +237,7 @@ describe('ModelingIr — canonical state', () => {
     expect(ir.put('FigureSpec', figureSpec()).accepted).toBe(false)
     expect(ir.put('Claim', claim()).accepted).toBe(true)
     expect(ir.put('FigureSpec', figureSpec()).accepted).toBe(true)
-    expect(ir.size).toBe(7)
+    // seeded prefix + Result + VerificationResult + Claim + FigureSpec.
+    expect(ir.size).toBe(chainThrough('RunArtifact').length + 4)
   })
 })

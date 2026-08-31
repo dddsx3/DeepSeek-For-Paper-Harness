@@ -23,42 +23,49 @@ export {
   IR_KINDS,
   IR_SCHEMAS,
   claimSchema,
+  dataArtifactSchema,
   figureSpecSchema,
-  modelParameterSchema,
   modelSpecSchema,
-  modelVariableSchema,
   problemSpecSchema,
   readIrObjectId,
-  requiredOutputSchema,
+  requirementSpecSchema,
   resultSchema,
   reviewerFindingSchema,
   runArtifactSchema,
-  subproblemSchema,
+  symbolSpecSchema,
   verificationResultSchema,
+  // Closed-enum constants used by callers building fixtures or guards.
+  DATA_ARTIFACT_ROLES,
+  REQUIREMENT_TYPES,
+  SYMBOL_ROLES,
 } from './schema.ts'
 export type {
   AttackType,
   Claim,
   ClaimCriticality,
   ClaimType,
+  DataArtifact,
+  DataArtifactRole,
   FigureSpec,
   FindingSeverity,
   IrKind,
   IrObjectMap,
-  ModelParameter,
   ModelSpec,
-  ModelVariable,
   ProblemSpec,
+  RequirementSpec,
+  RequirementType,
   Result,
   ReviewerFinding,
   RunArtifact,
-  Subproblem,
+  SymbolRole,
+  SymbolSpec,
   VerificationResult,
 } from './schema.ts'
 
 export {
   MAX_IR_JSON_CHARS,
   MAX_IR_JSON_DEPTH,
+  MAX_IR_VALUE_NODES,
   parseStrictJson,
   scanIrValue,
 } from './parse.ts'
@@ -70,6 +77,21 @@ export { IR_REF_FIELDS, validateRefFields } from './refs.ts'
 export type { IrRefFieldSpec, IrRefProblem, IrRefResolution, IrRefTarget, IrRefResolver } from './refs.ts'
 
 export {
+  PROBLEM_CONTRACT_FAILURE_KINDS,
+  EMPTY_MINIMUM_PROBLEM_CONTRACT,
+  findDuplicateSymbolTokens,
+  minimumProblemContractSatisfied,
+  validateModelSpecSymbols,
+  validateProblemContract,
+} from './problem-contract.ts'
+export type {
+  MinimumProblemContract,
+  ProblemContractFailureKind,
+  ProblemContractProblem,
+  ProblemContractResolver,
+} from './problem-contract.ts'
+
+export {
   IR_BACKBONE_KINDS,
   IR_BACKBONE_EXEMPT_MODES,
   IR_CLAIM_REJECTIONS,
@@ -79,6 +101,7 @@ export {
   irClaimSchema,
 } from './bridge.ts'
 export type {
+  ContractFailure,
   IrBackboneKind,
   IrBackboneExemptMode,
   IrBridgeDecision,

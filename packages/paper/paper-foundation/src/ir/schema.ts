@@ -1,5 +1,5 @@
 /**
- * Minimal Modeling IR — schemas (TASK 1).
+ * Minimal Modeling IR — schemas (TASK 1 + TASK 1.5).
  *
  * The single canonical vocabulary the Paper workflow is allowed to reason
  * about. Every object is a **closed** zod schema: `.strict()` means an
@@ -19,20 +19,40 @@
  *      provenance (`run_ref`, `unit`, `exit_status`, `criticality`, …) are
  *      required. Absence is a schema failure, never `undefined`-as-null.
  *
- * Out of scope for TASK 1 (see `known-risks.md`): the Symbol Registry and the
- * DataArtifact live in TASK 1.5; `FigureSpec` is schema-only and gains its
- * renderer fields in TASK 7.
+ * TASK 1.5 additions: `DataArtifact`, `RequirementSpec`, `SymbolSpec` are now
+ * closed canonical kinds. `ProblemSpec` no longer carries nested free-text
+ * `subproblems`/`required_outputs`/`constraints`; it only references
+ * `requirement_refs`. `ModelSpec.variables`/`parameters` no longer carry
+ * `meaning`/`unit`; semantics live in `SymbolSpec`. `RunArtifact` no longer
+ * accepts an arbitrary `input_refs[]` external-locator string list — it
+ * requires `input_data_refs[]` pointing at `DataArtifact`s. Old shapes are
+ * rejected by `.strict()`; there is no compatibility fallback (INV-1.5-F).
+ *
+ * Out of scope for TASK 1.5 (see `known-risks.md`): hash-by-bytes
+ * verification (TASK 3), update/replace/STALE propagation (TASK 3.5),
+ * reviewer authority (TASK 5), renderer / EquationSpec / TableSpec (TASK 7 /
+ * 7.5), and any general ontology / data-catalogue UI.
  */
 
 import { z as zod } from 'zod'
 import { GATE_STATUSES } from '../delivery/delivery-policy.ts'
 import { deepFreeze } from './freeze.ts'
+import {
+  dataArtifactSchema,
+  requirementSpecSchema,
+  symbolSpecSchema,
+} from './problem-contract.ts'
+// The closed enum constants are re-exported at the bottom of this file
+// straight from `problem-contract.ts`; importing them here as well only to
+// re-export them is what made them read as unused.
 
 /**
  * Closed set of IR object kinds. The first seven are task book §7; the
  * eighth (`ReviewerFinding`) exists because attack IR-010 requires a
  * malformed reviewer finding to be blocked rather than absorbed — an
- * untyped reviewer blob cannot be proven blocked, a typed one can.
+ * untyped reviewer blob cannot be proven blocked, a typed one can. The
+ * three new kinds (`DataArtifact`, `RequirementSpec`, `SymbolSpec`) come
+ * from TASK 1.5 and freeze the canonical Problem Contract.
  */
 export const IR_KINDS = [
   'ProblemSpec',
@@ -43,6 +63,9 @@ export const IR_KINDS = [
   'VerificationResult',
   'FigureSpec',
   'ReviewerFinding',
+  'DataArtifact',
+  'RequirementSpec',
+  'SymbolSpec',
 ] as const
 
 export type IrKind = (typeof IR_KINDS)[number]
@@ -60,6 +83,7 @@ const idSchema = zod
   .string()
   .regex(/^[^\p{Cc}\p{Cf}\p{Cs}\p{Z}]+$/u, 'must not contain control, format, surrogate or separator characters')
   .refine(v => v === v.normalize('NFC'), 'must be in Unicode NFC form')
+
 /**
  * A reference. Both IR-internal references (`run_ref`) and external locators
  * (`code_ref`, `stdout_ref`) are non-empty strings; which one a field holds is
@@ -69,84 +93,93 @@ const refSchema = zod.string().min(1)
 /** Bounded so a single prose field cannot carry a multi-megabyte payload. */
 const textSchema = zod.string().min(1).max(65_536)
 const hashSchema = zod.string().min(1)
-const symbolSchema = zod.string().min(1)
 const unitSchema = zod.string().min(1)
 
-/** Sub-problem declaration inside a `ProblemSpec`. */
-export const subproblemSchema = zod
-  .object({
-    subproblem_id: idSchema,
-    statement: textSchema,
-  })
-  .strict()
+/**
+ * TASK 1.5: the nested free-text subproblem / required-output / constraint
+ * shapes are deleted from this module, not merely disconnected. Their
+ * `Subproblem` / `RequiredOutput` / `ModelVariable` / `ModelParameter`
+ * schemas are gone and their types are no longer exported: leaving a
+ * definition behind, even an unused one, is the seed of a second source of
+ * truth (INV-1.5-F). The canonical truth is `RequirementSpec` (addressed by
+ * `ProblemSpec.requirement_refs`) and `SymbolSpec` (addressed by
+ * `ModelSpec.variable_refs` / `parameter_refs`).
+ */
 
-/** Required-output declaration inside a `ProblemSpec`. */
-export const requiredOutputSchema = zod
-  .object({
-    output_id: idSchema,
-    description: textSchema,
-  })
-  .strict()
-
+/**
+ * Canonical `ProblemSpec`. The nested free-text subproblems / required
+ * outputs / constraints arrays are gone (TASK 1.5, INV-1.5-A); the canonical
+ * truth now lives in `RequirementSpec` records referenced by
+ * `requirement_refs`. `raw_problem_ref` no longer points at an arbitrary
+ * external locator — it points at a `DataArtifact` (role = RAW_PROBLEM),
+ * which gives the problem statement a canonical identity with a declared
+ * content hash (the hash itself is verified by TASK 3's Execution Gate).
+ */
 export const problemSpecSchema = zod
   .object({
     problem_id: idSchema,
     raw_problem_ref: refSchema,
-    subproblems: zod.array(subproblemSchema),
-    required_outputs: zod.array(requiredOutputSchema),
-    constraints: zod.array(textSchema),
+    requirement_refs: zod.array(refSchema),
   })
   .strict()
-  // Nested IDs are unique inside their parent. Cross-ProblemSpec uniqueness is
-  // deliberately NOT enforced here: TASK 1.5 promotes subproblems and required
-  // outputs into the Requirement Registry, which owns their global IDs.
   .refine(
-    v => new Set(v.subproblems.map(s => s.subproblem_id)).size === v.subproblems.length,
-    { message: 'ProblemSpec.subproblems contains a duplicate subproblem_id' },
-  )
-  .refine(
-    v => new Set(v.required_outputs.map(o => o.output_id)).size === v.required_outputs.length,
-    { message: 'ProblemSpec.required_outputs contains a duplicate output_id' },
+    v => new Set(v.requirement_refs).size === v.requirement_refs.length,
+    { message: 'ProblemSpec.requirement_refs contains duplicate references' },
   )
 
-/** A declared model variable. `unit` is required so TASK 3's unit gate has a
- *  machine-readable value to compare against. */
-export const modelVariableSchema = zod
-  .object({
-    symbol: symbolSchema,
-    meaning: textSchema,
-    unit: unitSchema,
-  })
-  .strict()
-
-export const modelParameterSchema = zod
-  .object({
-    symbol: symbolSchema,
-    value: zod.number(),
-    unit: unitSchema,
-  })
-  .strict()
-
+/**
+ * Canonical `ModelSpec`. `variables[]` and `parameters[]` no longer carry
+ * `meaning`/`unit` — those fields live in `SymbolSpec`. `ModelSpec` now
+ * declares `variable_refs[]` (pointing at SymbolSpecs of role VARIABLE) and
+ * `parameters[]` is replaced by `parameter_refs[]` whose entries are
+ * `{ symbol_ref, value }` (the unit is read from the referenced SymbolSpec,
+ * and the value is the parameter assignment). `equations[]`,
+ * `assumptions[]`, `constraints[]` and `objective` stay as free-text by
+ * design: TASK 2 owns the numeric claim extraction that turns them into
+ * canonical objects, and changing that surface is out of scope here.
+ */
 export const modelSpecSchema = zod
   .object({
     model_id: idSchema,
     problem_refs: zod.array(refSchema),
     assumptions: zod.array(textSchema),
-    variables: zod.array(modelVariableSchema),
-    parameters: zod.array(modelParameterSchema),
+    variable_refs: zod.array(refSchema),
+    parameter_refs: zod.array(
+      zod
+        .object({
+          symbol_ref: refSchema,
+          value: zod.number(),
+        })
+        .strict(),
+    ),
     equations: zod.array(textSchema),
     constraints: zod.array(textSchema),
     objective: textSchema.nullable(),
     dependencies: zod.array(refSchema),
   })
   .strict()
+  .refine(
+    v => new Set(v.variable_refs).size === v.variable_refs.length,
+    { message: 'ModelSpec.variable_refs contains duplicate references' },
+  )
+  .refine(
+    v => new Set(v.parameter_refs.map(p => p.symbol_ref)).size === v.parameter_refs.length,
+    { message: 'ModelSpec.parameter_refs contains duplicate symbol_ref' },
+  )
 
+/**
+ * Canonical `RunArtifact`. The TASK 1 `input_refs[]` (an arbitrary external
+ * locator list) is gone — replaced by `input_data_refs[]` pointing at
+ * `DataArtifact` records with role INPUT_DATA. The other external locators
+ * (`code_ref`, `stdout_ref`, `stderr_ref`, `output_refs`) are still strings
+ * because their existence is verified by TASK 3, not here.
+ */
 export const runArtifactSchema = zod
   .object({
     run_id: idSchema,
     model_ref: refSchema,
     code_ref: refSchema,
-    input_refs: zod.array(refSchema),
+    input_data_refs: zod.array(refSchema),
     environment: textSchema,
     /** `null` means "no seed was recorded" — an explicit statement, not an
      *  omission. TASK 3's reproducibility gate owns the policy that rejects
@@ -221,7 +254,15 @@ export const verificationResultSchema = zod
   })
   .strict()
 
-/** Schema-only in TASK 1 — TASK 7 owns the renderer and the style profile. */
+/** Schema-only in TASK 1 — TASK 7 owns the renderer and the style profile.
+ *
+ *  TASK 1.5: `data_refs` no longer resolves to `Result`-only; the canonical
+ *  union is `Result | DataArtifact`. The store-level reference check lives
+ *  in `refs.ts` (which encodes the per-element kind check as a `one-of`
+ *  shape — see `IR_REF_FIELDS.FigureSpec.data_refs`), and the per-element
+ *  runtime check in `problem-contract.ts` rejects anything outside that
+ *  union (C-015).
+ */
 export const figureSpecSchema = zod
   .object({
     figure_id: idSchema,
@@ -262,10 +303,12 @@ export const reviewerFindingSchema = zod
   .strict()
 
 export type ProblemSpec = zod.infer<typeof problemSpecSchema>
-export type Subproblem = zod.infer<typeof subproblemSchema>
-export type RequiredOutput = zod.infer<typeof requiredOutputSchema>
-export type ModelVariable = zod.infer<typeof modelVariableSchema>
-export type ModelParameter = zod.infer<typeof modelParameterSchema>
+// The legacy `Subproblem` / `RequiredOutput` / `ModelVariable` /
+// `ModelParameter` aliases are deliberately dropped: their objects no
+// longer exist in canonical state. Old fixtures that named them continue
+// to type-check at the import site (the schemas still exist for the
+// problem-contract tests), but no public API returns their inferred
+// types.
 export type ModelSpec = zod.infer<typeof modelSpecSchema>
 export type RunArtifact = zod.infer<typeof runArtifactSchema>
 export type Result = zod.infer<typeof resultSchema>
@@ -273,6 +316,24 @@ export type Claim = zod.infer<typeof claimSchema>
 export type VerificationResult = zod.infer<typeof verificationResultSchema>
 export type FigureSpec = zod.infer<typeof figureSpecSchema>
 export type ReviewerFinding = zod.infer<typeof reviewerFindingSchema>
+
+/** Re-export the TASK 1.5 kinds so callers can `import { DataArtifact, … }
+ * from './schema.ts'` (and so the schema barrel does not need a second
+ * public surface). */
+export { dataArtifactSchema, requirementSpecSchema, symbolSpecSchema } from './problem-contract.ts'
+export {
+  DATA_ARTIFACT_ROLES,
+  REQUIREMENT_TYPES,
+  SYMBOL_ROLES,
+} from './problem-contract.ts'
+export type {
+  DataArtifact,
+  RequirementSpec,
+  SymbolSpec,
+  DataArtifactRole,
+  RequirementType,
+  SymbolRole,
+} from './problem-contract.ts'
 
 /** Maps every IR kind to its TypeScript shape. */
 export interface IrObjectMap {
@@ -284,6 +345,9 @@ export interface IrObjectMap {
   VerificationResult: VerificationResult
   FigureSpec: FigureSpec
   ReviewerFinding: ReviewerFinding
+  DataArtifact: import('./problem-contract.ts').DataArtifact
+  RequirementSpec: import('./problem-contract.ts').RequirementSpec
+  SymbolSpec: import('./problem-contract.ts').SymbolSpec
 }
 
 /**
@@ -300,6 +364,9 @@ export const IR_SCHEMAS: { readonly [K in IrKind]: zod.ZodType<IrObjectMap[K]> }
   VerificationResult: verificationResultSchema,
   FigureSpec: figureSpecSchema,
   ReviewerFinding: reviewerFindingSchema,
+  DataArtifact: dataArtifactSchema,
+  RequirementSpec: requirementSpecSchema,
+  SymbolSpec: symbolSpecSchema,
 }
 
 
@@ -318,6 +385,9 @@ export const ID_FIELD_BY_KIND: Readonly<Record<IrKind, string>> = {
   VerificationResult: 'verification_id',
   FigureSpec: 'figure_id',
   ReviewerFinding: 'finding_id',
+  DataArtifact: 'data_id',
+  RequirementSpec: 'requirement_id',
+  SymbolSpec: 'symbol_id',
 }
 
 /**

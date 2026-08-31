@@ -89,48 +89,53 @@ describe('IR schemas — closed vocabulary', () => {
     }
   })
 
-  it('ProblemSpec rejects duplicate subproblem ids inside one object', () => {
-    const value = {
+  // TASK 1.5 removed the nested shapes these used to inspect. The guarantee
+  // that replaces "no duplicate subproblem ids inside one object" is stronger:
+  // there is no nested block to hold a duplicate, because the field does not
+  // exist. Requirements and symbol semantics live in their own canonical
+  // objects, so the failure moved from "unrecognised key" to "second source
+  // of truth is not representable" (INV-1.5-A / INV-1.5-C).
+  it('ProblemSpec rejects a nested subproblems block outright', () => {
+    const parsed = problemSpecSchema.safeParse({
       ...validObjectFor('ProblemSpec'),
       subproblems: [
         { subproblem_id: 'S1', statement: 'a' },
         { subproblem_id: 'S1', statement: 'b' },
       ],
-    }
-    const parsed = problemSpecSchema.safeParse(value)
+    })
     expect(parsed.success).toBe(false)
     if (!parsed.success) {
-      expect(parsed.error.issues[0]!.message).toContain('duplicate subproblem_id')
+      expect(parsed.error.issues[0]!.message).toContain('subproblems')
     }
   })
 
-  it('ProblemSpec rejects duplicate required-output ids inside one object', () => {
-    const value = {
+  it('ProblemSpec rejects a nested required_outputs block outright', () => {
+    const parsed = problemSpecSchema.safeParse({
       ...validObjectFor('ProblemSpec'),
       required_outputs: [
         { output_id: 'O1', description: 'a' },
         { output_id: 'O1', description: 'b' },
       ],
-    }
-    const parsed = problemSpecSchema.safeParse(value)
+    })
     expect(parsed.success).toBe(false)
     if (!parsed.success) {
-      expect(parsed.error.issues[0]!.message).toContain('duplicate output_id')
+      expect(parsed.error.issues[0]!.message).toContain('required_outputs')
     }
   })
 
-  it('ModelSpec requires a unit on every variable and parameter', () => {
-    const noUnitVariable = {
+  it('ModelSpec rejects re-embedded variables and parameters', () => {
+    // A meaning/unit pair belongs to SymbolSpec and nowhere else, so a model
+    // that re-embeds it is creating a second source of truth for what its
+    // symbols mean (INV-1.5-C, attack C-014).
+    expect(modelSpecSchema.safeParse({
       ...validObjectFor('ModelSpec'),
-      variables: [{ symbol: 'x', meaning: 'distance' }],
-    }
-    expect(modelSpecSchema.safeParse(noUnitVariable).success).toBe(false)
+      variables: [{ symbol: 'x', meaning: 'distance', unit: 'm' }],
+    }).success).toBe(false)
 
-    const noUnitParameter = {
+    expect(modelSpecSchema.safeParse({
       ...validObjectFor('ModelSpec'),
       parameters: [{ symbol: 'rho', value: 917 }],
-    }
-    expect(modelSpecSchema.safeParse(noUnitParameter).success).toBe(false)
+    }).success).toBe(false)
   })
 
   it('ModelSpec allows an explicit null objective but not a missing one', () => {

@@ -17,11 +17,11 @@ import {
   ModelingIr,
 } from '../../src/ir/index.ts'
 import type { IrAuditEvent } from '../../src/ir/index.ts'
-import { claim, problemSpec, result, validChain } from './fixtures.ts'
+import { chainThrough, claim, dataArtifact, problemSpec, result } from './fixtures.ts'
 
 function armed(events: IrAuditEvent[] = []): ModelingIr {
   const ir = new ModelingIr({ audit: e => events.push(e), now: () => '2026-08-28T00:00:00.000Z' })
-  for (const entry of validChain().slice(0, 3)) {
+  for (const entry of chainThrough('RunArtifact')) {
     expect(ir.put(entry.kind, entry.value).accepted).toBe(true)
   }
   return ir
@@ -57,7 +57,7 @@ describe('RT1-01 / RT2-01 — canonical state is not reachable from outside', ()
     // And validation still runs, so the decoy cannot launder an ingest.
     expect(ir.put('Result', result({ run_ref: 'NOPE' })).accepted).toBe(false)
     expect(ir.put('Result', result()).accepted).toBe(true)
-    expect(ir.list().at(-1)!.seq).toBe(3)
+    expect(ir.list().at(-1)!.seq).toBe(chainThrough('RunArtifact').length)
   })
 
   it('returns a frozen record, so record.kind cannot be spoofed', () => {
@@ -150,7 +150,7 @@ describe('RT3-02 — the store class itself is frozen', () => {
     const ir = armed()
     const detached = ir.put
     expect(() => detached('Result', result())).toThrow(TypeError)
-    expect(ir.size).toBe(3)
+    expect(ir.size).toBe(chainThrough('RunArtifact').length)
   })
 })
 
@@ -210,7 +210,9 @@ describe('RT1-03 / RT2-06 — put() is total and audits before committing', () =
       },
       now: () => '2026-08-28T00:00:00.000Z',
     })
-    const verdict = ir.put('ProblemSpec', problemSpec())
+    // DataArtifact is self-closed (no refs), so it clears the reference gate
+    // and reaches the audit phase — exactly where the sink throws.
+    const verdict = ir.put('DataArtifact', dataArtifact())
     expect(verdict.accepted).toBe(false)
     if (!verdict.accepted) expect(verdict.failures[0]!.kind).toBe('internal_error')
     // Nothing was committed: an accepted object with no audit record is
@@ -224,7 +226,7 @@ describe('RT1-03 / RT2-06 — put() is total and audits before committing', () =
         throw new Error('clock down')
       },
     })
-    const verdict = ir.put('ProblemSpec', problemSpec())
+    const verdict = ir.put('DataArtifact', dataArtifact())
     expect(verdict.accepted).toBe(false)
     if (!verdict.accepted) expect(verdict.failures[0]!.kind).toBe('internal_error')
   })
@@ -246,7 +248,7 @@ describe('RT1-03 / RT2-06 — put() is total and audits before committing', () =
         throw { toString(): string { throw new Error('also hostile') } }
       },
     })
-    const verdict = ir.put('ProblemSpec', problemSpec())
+    const verdict = ir.put('DataArtifact', dataArtifact())
     expect(verdict.accepted).toBe(false)
     if (!verdict.accepted) expect(verdict.failures[0]!.reason).toBe('non-Error throw')
   })
@@ -398,14 +400,19 @@ describe('RT4-01 — the reference table covers every reference-bearing field', 
     // external locators were absent, which stays green even when a real
     // reference field is deleted from the table.
     const expected: Record<string, ReadonlyArray<string>> = {
-      ProblemSpec: [],
-      ModelSpec: ['problem_refs', 'dependencies'],
-      RunArtifact: ['model_ref'],
+      // TASK 1.5R: `raw_problem_ref` / `requirement_refs` are now IR-internal
+      // references closed on the store boundary (Canonical Reference Closure).
+      ProblemSpec: ['raw_problem_ref', 'requirement_refs'],
+      ModelSpec: ['problem_refs', 'dependencies', 'variable_refs', 'parameter_refs'],
+      RunArtifact: ['model_ref', 'input_data_refs'],
       Result: ['run_ref'],
       Claim: ['evidence_refs', 'result_refs', 'model_refs'],
       VerificationResult: ['target_ref', 'evidence_refs'],
       FigureSpec: ['data_refs', 'claim_refs'],
       ReviewerFinding: ['target_ref', 'evidence_refs'],
+      DataArtifact: [],
+      RequirementSpec: ['source_data_ref'],
+      SymbolSpec: ['scope_ref'],
     }
     for (const kind of IR_KINDS) {
       expect(IR_REF_FIELDS[kind].map(f => f.path), `${kind} ref fields`).toEqual(expected[kind])
@@ -413,8 +420,11 @@ describe('RT4-01 — the reference table covers every reference-bearing field', 
   })
 
   it('omits every external locator from the table', () => {
+    // TASK 1.5R: `raw_problem_ref` is no longer an external locator — it is
+    // an IR-internal reference to a canonical DataArtifact. The remaining
+    // externals are file/URI locators the IR has no filesystem for.
     const externals = [
-      'raw_problem_ref', 'code_ref', 'stdout_ref', 'stderr_ref',
+      'code_ref', 'stdout_ref', 'stderr_ref',
       'input_refs', 'output_refs', 'source_location',
     ]
     for (const kind of IR_KINDS) {

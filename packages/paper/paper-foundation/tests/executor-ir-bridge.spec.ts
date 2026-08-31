@@ -28,7 +28,7 @@ import {
   type PaperSettings,
 } from '../src/index.ts'
 import { ModelingIr } from '../src/ir/index.ts'
-import { backboneIr, claim, modelSpec, problemSpec, result, runArtifact } from './ir/fixtures.ts'
+import { backboneIr, chainThrough, claim, modelSpec, problemSpec, result, runArtifact } from './ir/fixtures.ts'
 
 const settings: PaperSettings = {
   executor: { provider: 'fake', model: 'exec-model', credentialRef: 'cred://executor', timeoutMs: 1000 },
@@ -104,18 +104,20 @@ describe('B-001..B-003 — the workflow can no longer deliver without canonical 
 
   it('B-004: an IR store missing the Result and Claim stages is blocked', async () => {
     const ir = new ModelingIr()
-    expect(ir.put('ProblemSpec', problemSpec()).accepted).toBe(true)
-    expect(ir.put('ModelSpec', modelSpec()).accepted).toBe(true)
-    expect(ir.put('RunArtifact', runArtifact()).accepted).toBe(true)
+    // Pre-register the Problem → Model → Run closure the new store boundary
+    // requires (TASK 1.5R). The test still asserts the partial backbone leaves
+    // Result and Claim missing.
+    for (const entry of chainThrough('RunArtifact')) {
+      expect(ir.put(entry.kind, entry.value).accepted).toBe(true)
+    }
     await expect(runOnce(ir, 'fast')).rejects.toThrow(/missing IR backbone: Result,Claim/)
   })
 
   it('B-005: an IR store whose only claim is NON_CRITICAL is blocked', async () => {
     const ir = new ModelingIr()
-    expect(ir.put('ProblemSpec', problemSpec()).accepted).toBe(true)
-    expect(ir.put('ModelSpec', modelSpec()).accepted).toBe(true)
-    expect(ir.put('RunArtifact', runArtifact()).accepted).toBe(true)
-    expect(ir.put('Result', result()).accepted).toBe(true)
+    for (const entry of chainThrough('Result')) {
+      expect(ir.put(entry.kind, entry.value).accepted).toBe(true)
+    }
     expect(ir.put('Claim', claim({ criticality: 'NON_CRITICAL' })).accepted).toBe(true)
     await expect(runOnce(ir, 'fast')).rejects.toThrow(/no CRITICAL claim/)
   })

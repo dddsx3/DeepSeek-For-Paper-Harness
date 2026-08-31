@@ -39,3 +39,9 @@ apps/web/dist/
 worktrees/
 .agents/worktrees/
 .typert-*/
+
+# Local tool / test-residue dirs (never commit)
+.workbuddy/
+packages/typert/generator/tests/.explicit-service-*/
+packages/typert/generator/tests/.generated-*/
+paper-harness-*-review-*.zip

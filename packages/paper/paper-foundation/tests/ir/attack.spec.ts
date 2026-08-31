@@ -9,12 +9,12 @@
 import { describe, expect, it } from 'vitest'
 import * as irModule from '../../src/ir/index.ts'
 import { ModelingIr } from '../../src/ir/index.ts'
-import { claim, figureSpec, modelSpec, result, runArtifact, validChain } from './fixtures.ts'
+import { chainThrough, claim, figureSpec, modelSpec, result, runArtifact } from './fixtures.ts'
 
 /** Store holding Problem P1 → Model M1 → Run RUN1. */
 function armed(): ModelingIr {
   const ir = new ModelingIr({ now: () => '2026-08-28T00:00:00.000Z' })
-  for (const entry of validChain().slice(0, 3)) {
+  for (const entry of chainThrough('RunArtifact')) {
     expect(ir.put(entry.kind, entry.value).accepted).toBe(true)
   }
   return ir
@@ -40,7 +40,7 @@ describe('TASK 1 — IR-001..IR-010', () => {
       const verdict = ir.ingestJson('Result', text)
       expect(verdict.accepted, `must reject: ${text}`).toBe(false)
     }
-    expect(ir.size).toBe(3)
+    expect(ir.size).toBe(chainThrough('RunArtifact').length)
   })
 
   it('IR-002: duplicate id is refused, within a kind and across kinds', () => {
@@ -51,7 +51,7 @@ describe('TASK 1 — IR-001..IR-010', () => {
     expect(kinds(ir.put('Result', result()))).toContain('duplicate_id')
     expect(kinds(ir.put('Claim', claim({ claim_id: 'RES1' })))).toContain('duplicate_id')
     expect(kinds(ir.put('RunArtifact', runArtifact({ run_id: 'RES1' })))).toContain('duplicate_id')
-    expect(ir.size).toBe(4)
+    expect(ir.size).toBe(chainThrough('RunArtifact').length + 1)
   })
 
   it('IR-003: a Claim naming a nonexistent Result is refused', () => {

@@ -39,6 +39,23 @@ export const MAX_IR_JSON_DEPTH = 64
  */
 export const MAX_IR_JSON_CHARS = 1_048_576
 
+/**
+ * Maximum number of nodes `scanIrValue` will walk before refusing.
+ *
+ * This is the typed-path counterpart to {@link MAX_IR_JSON_CHARS}. Without it
+ * the character cap is trivially bypassable: it is enforced inside
+ * {@link parseStrictJson}, so a payload handed to `put()` as a live object
+ * never passes through it. 200 000 `requirement_refs` is ~1.4 MB of JSON —
+ * refused as text, accepted as an object. That asymmetry is the same
+ * fail-open-by-inconsistency this module exists to prevent (RT2-03 /
+ * RT3-05), one dimension over: those cared about *shape*, this about *size*.
+ *
+ * The bound is on nodes rather than on any single array so that breadth and
+ * depth share one budget and no individual field needs an arbitrary cap.
+ * A legal IR object is a few hundred nodes at most.
+ */
+export const MAX_IR_VALUE_NODES = 100_000
+
 export type StrictJsonResult =
   | { readonly ok: true; readonly value: unknown }
   | { readonly ok: false; readonly reason: StrictJsonFailureReason }
@@ -89,6 +106,7 @@ export type ScanVerdict =
   | 'clean'
   | 'forbidden_key'
   | 'too_deep'
+  | 'too_large'
   | 'inherited_key'
   | 'symbol_key'
   | 'accessor_key'
@@ -99,15 +117,23 @@ export type ScanVerdict =
  * Runs on already-parsed data, so it guards the typed `put()` path as well as
  * the text path. Never throws.
  */
-export function scanIrValue(value: unknown, depth = 0): ScanVerdict {
+export function scanIrValue(value: unknown): ScanVerdict {
+  return scanIrValueInner(value, 0, { nodes: 0 })
+}
+
+function scanIrValueInner(value: unknown, depth: number, budget: { nodes: number }): ScanVerdict {
   if (depth > MAX_IR_JSON_DEPTH) return 'too_deep'
+  // One budget for both breadth and depth, so a wide array and a deep tree
+  // cost the same and neither can escape the other's cap.
+  budget.nodes += 1
+  if (budget.nodes > MAX_IR_VALUE_NODES) return 'too_large'
 
   if (Array.isArray(value)) {
     for (const key in value) {
       if (!Object.hasOwn(value, key)) return 'inherited_key'
     }
     for (const item of value) {
-      const verdict = scanIrValue(item, depth + 1)
+      const verdict = scanIrValueInner(item, depth + 1, budget)
       if (verdict !== 'clean') return verdict
     }
     return 'clean'
@@ -127,7 +153,7 @@ export function scanIrValue(value: unknown, depth = 0): ScanVerdict {
     // throw-on-read payload, and refusing keeps `scanIrValue` total.
     const descriptor = Object.getOwnPropertyDescriptor(record, key)
     if (descriptor?.get !== undefined || descriptor?.set !== undefined) return 'accessor_key'
-    const verdict = scanIrValue(record[key], depth + 1)
+    const verdict = scanIrValueInner(record[key], depth + 1, budget)
     if (verdict !== 'clean') return verdict
   }
   return 'clean'

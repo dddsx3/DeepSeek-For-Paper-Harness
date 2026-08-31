@@ -27,14 +27,14 @@ import {
   type DeliveryPolicy,
   type GateRecord,
 } from '../../src/delivery/index.ts'
-import { claim, modelSpec, problemSpec, validChain } from './fixtures.ts'
+import { chainThrough, claim, modelSpec, problemSpec } from './fixtures.ts'
 
 const AT = '2026-08-29T00:00:00.000Z'
 
 /** A store holding the full legal chain: Problem → Model → Run → Result → Claim. */
 function fullIr(): ModelingIr {
   const ir = new ModelingIr({ now: () => AT })
-  for (const entry of validChain().slice(0, 5)) {
+  for (const entry of chainThrough('Claim')) {
     expect(ir.put(entry.kind, entry.value).accepted).toBe(true)
   }
   return ir
@@ -111,8 +111,12 @@ describe('INV-1.25-B — the workflow cannot reach Deliverable without canonical
 
   it('blocks when only part of the backbone is present', () => {
     const ir = new ModelingIr({ now: () => AT })
-    expect(ir.put('ProblemSpec', problemSpec()).accepted).toBe(true)
-    expect(ir.put('ModelSpec', modelSpec()).accepted).toBe(true)
+    // Pre-register the dependencies ProblemSpec / ModelSpec now require
+    // (TASK 1.5R). The test still asserts what it always did: a partial
+    // backbone of Problem + Model leaves Run / Result / Claim missing.
+    for (const entry of chainThrough('ModelSpec')) {
+      expect(ir.put(entry.kind, entry.value).accepted).toBe(true)
+    }
     const decision = evaluateIrBridge(ir, [], 'FORMAL')
     expect(decision.missingBackbone).toEqual(['RunArtifact', 'Result', 'Claim'])
     expect(decision.status).toBe('BLOCKED')
@@ -120,7 +124,7 @@ describe('INV-1.25-B — the workflow cannot reach Deliverable without canonical
 
   it('blocks when the backbone is present but no claim is CRITICAL', () => {
     const ir = new ModelingIr({ now: () => AT })
-    for (const entry of validChain().slice(0, 4)) {
+    for (const entry of chainThrough('Result')) {
       expect(ir.put(entry.kind, entry.value).accepted).toBe(true)
     }
     expect(ir.put('Claim', claim({ criticality: 'NON_CRITICAL' })).accepted).toBe(true)
