@@ -1,0 +1,138 @@
+{
+  "task": "TASK 1.5 — Canonical Problem Contract",
+  "phase": "PHASE 7 — Targeted Mutation",
+  "baseline": "green",
+  "totals": {
+    "total": 14,
+    "killed": 14,
+    "survived": 0
+  },
+  "mutations": [
+    {
+      "id": "M-01",
+      "guard": "DataArtifact content_hash format",
+      "status": "killed",
+      "detail": {
+        "vitest": "pass",
+        "faultCorpus": "exit 1"
+      }
+    },
+    {
+      "id": "M-02",
+      "guard": "requirement_ref resolves to a RequirementSpec (kind check)",
+      "status": "killed",
+      "detail": {
+        "vitest": "pass",
+        "faultCorpus": "exit 1"
+      }
+    },
+    {
+      "id": "M-03",
+      "guard": "ProblemSpec raw source <-> RequirementSpec source consistency",
+      "status": "killed",
+      "detail": {
+        "vitest": "pass",
+        "faultCorpus": "exit 1"
+      }
+    },
+    {
+      "id": "M-04",
+      "guard": "SymbolSpec same-scope token uniqueness",
+      "status": "killed",
+      "detail": {
+        "vitest": "pass",
+        "faultCorpus": "exit 1"
+      }
+    },
+    {
+      "id": "M-05",
+      "guard": "ModelSpec.variable_refs points at a VARIABLE",
+      "status": "killed",
+      "detail": {
+        "vitest": "exit 1",
+        "faultCorpus": "exit 1"
+      }
+    },
+    {
+      "id": "M-06",
+      "guard": "ModelSpec.parameter_refs points at a PARAMETER",
+      "status": "killed",
+      "detail": {
+        "vitest": "exit 1",
+        "faultCorpus": "exit 1"
+      }
+    },
+    {
+      "id": "M-07",
+      "guard": "RunArtifact.input_data_refs points at an INPUT_DATA DataArtifact",
+      "status": "killed",
+      "detail": {
+        "vitest": "pass",
+        "faultCorpus": "exit 1"
+      }
+    },
+    {
+      "id": "M-08",
+      "guard": "FigureSpec.data_refs is Result | DataArtifact",
+      "status": "killed",
+      "detail": {
+        "vitest": "pass",
+        "faultCorpus": "exit 1"
+      }
+    },
+    {
+      "id": "M-09",
+      "guard": "FORMAL/FAST minimum Problem Contract bridge check",
+      "status": "killed",
+      "detail": {
+        "vitest": "exit 1",
+        "faultCorpus": "pass"
+      }
+    },
+    {
+      "id": "M-10",
+      "guard": "legacy nested shape rejection (ProblemSpec strict schema)",
+      "status": "killed",
+      "detail": {
+        "vitest": "exit 1",
+        "faultCorpus": "exit 1"
+      }
+    },
+    {
+      "id": "M-11",
+      "guard": "SymbolSpec token must be NFC (RT-D-01)",
+      "status": "killed",
+      "detail": {
+        "vitest": "exit 1",
+        "faultCorpus": "pass"
+      }
+    },
+    {
+      "id": "M-12",
+      "guard": "orphan ModelSpec still faces the symbol guards (RT-B-01)",
+      "status": "killed",
+      "detail": {
+        "vitest": "exit 1",
+        "faultCorpus": "pass"
+      }
+    },
+    {
+      "id": "M-13",
+      "guard": "ProblemSpec must reference a REQUIRED_OUTPUT (RT-C-01)",
+      "status": "killed",
+      "detail": {
+        "vitest": "exit 1",
+        "faultCorpus": "pass"
+      }
+    },
+    {
+      "id": "M-14",
+      "guard": "typed-ingress size budget (RT-A-02)",
+      "status": "killed",
+      "detail": {
+        "vitest": "exit 1",
+        "faultCorpus": "pass"
+      }
+    }
+  ]
+}

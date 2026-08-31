@@ -1,0 +1,9 @@
+{
+  "id": "C-013",
+  "expected_status": "BLOCKED",
+  "expected_reason_matches": [
+    "parameter_role_mismatch",
+    "parameter_refs.SYM-x"
+  ],
+  "description": "ModelSpec.parameter_refs points at VARIABLE SymbolSpec (role mismatch)"
+}

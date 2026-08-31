@@ -1,0 +1,8 @@
+{
+  "id": "R-012",
+  "description": "FigureSpec.data_refs -> Result is a legal union member (PASS)",
+  "root_cause": "structural",
+  "expected_status": "PASS",
+  "expected_reason_matches": [],
+  "expected_ingest_reason_matches": []
+}

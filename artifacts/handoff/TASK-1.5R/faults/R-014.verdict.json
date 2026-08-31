@@ -1,0 +1,11 @@
+{
+  "id": "R-014",
+  "description": "raw_problem_ref binds a DataArtifact with role=INPUT_DATA (kind right, role wrong)",
+  "root_cause": "semantic",
+  "expected_status": "BLOCKED",
+  "expected_reason_matches": [
+    "Problem Contract failure",
+    "unbound_data_artifact"
+  ],
+  "expected_ingest_reason_matches": []
+}

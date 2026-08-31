@@ -1,0 +1,41 @@
+{
+  "id": "R-002",
+  "description": "ProblemSpec.requirement_refs contains an unregistered id",
+  "root_cause": "structural",
+  "mode": "FORMAL",
+  "ir_claims": [],
+  "ingest": [
+    {
+      "kind": "DataArtifact",
+      "value": {
+        "data_id": "DA-RAW",
+        "role": "RAW_PROBLEM",
+        "locator": "file:///problem/2026-mcm-a.txt",
+        "content_hash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "media_type": "text/markdown",
+        "description": "The MCM 2026 problem A statement."
+      }
+    },
+    {
+      "kind": "DataArtifact",
+      "value": {
+        "data_id": "DA-IN",
+        "role": "INPUT_DATA",
+        "locator": "file:///runs/RUN1/input.csv",
+        "content_hash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "media_type": "text/csv",
+        "description": "Survey line observations for RUN1."
+      }
+    },
+    {
+      "kind": "ProblemSpec",
+      "value": {
+        "problem_id": "P1",
+        "raw_problem_ref": "DA-RAW",
+        "requirement_refs": [
+          "R-DOES-NOT-EXIST"
+        ]
+      }
+    }
+  ]
+}

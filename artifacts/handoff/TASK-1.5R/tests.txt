@@ -1,0 +1,74 @@
+# TASK 1.5R — test inventory
+
+All commands must run with `--maxWorkers=1` (+ `--no-file-parallelism` for
+stability on this machine; see CONTINUATION.md §2 — parallel forks OOM).
+
+## Full package regression (PHASE 6 gate)
+
+```
+NODE_OPTIONS="--max-old-space-size=4096" \
+  pnpm exec vitest run --project=thread-safe --maxWorkers=1 \
+  packages/paper/paper-foundation/
+```
+
+Result: **49 files / 522 tests green** (was 47 files / 493 at handoff;
++29 = PHASE 3 gate 9 + fault corpus 18 + M-14 unit 2).
+
+## Executor IR bridge
+
+`tests/executor-ir-bridge.spec.ts` — 8/8 green (B-001..B-005 + happy path).
+
+## IR directory (the PHASE 3/4/5 targeted suite)
+
+`packages/paper/paper-foundation/tests/ir/` — 12 files / 219 tests green:
+
+| file | tests | covers |
+|------|------:|--------|
+| `ref-closure.spec.ts` | 13 | PHASE 0 R-001..R-013 store-level structural closure |
+| `bridge-dedup.spec.ts` | 11 | PHASE 3 gate: no structural bridge failures; R-014..R-017 semantic attacks; snapshot closure proof; M-14 direct unit |
+| `fault-corpus.spec.ts` | 18 | PHASE 4 corpus R-001..R-018 via the shared driver |
+| `redteam15.spec.ts` | 26 | RT-A-02 budgets, RT-B-01 orphans, RT-C-01/02 minimum contract, RT-D-01 NFC uniqueness |
+| `refs.spec.ts` | 13 | closed policy table incl. nested paths + narrow union |
+| `store.spec.ts` | 21 | commit pipeline, duplicate+ref joint reporting, totality |
+| `bridge.spec.ts` | 21 | INV-1.25-A/B/C end-to-end delivery gate |
+| `attack.spec.ts` | 12 | TASK 1 structural attacks |
+| `redteam.spec.ts` | 33 | TASK 1 red team (store hardening) |
+| `redteam125.spec.ts` | 13 | TASK 1.25 red team (bridge identity) |
+| `schema.spec.ts` | 15 | closed schemas, id/NFC invariants |
+| `parse.spec.ts` | 25 | strict JSON parse + budgets |
+
+## Standalone fault corpus
+
+```
+node artifacts/handoff/TASK-1.5R/run-fault-corpus.mjs <repo-root>
+```
+
+Result: **18/18 PASS** (`fault-results.json`), each pinning
+`expected_status` + bridge reason keywords + store-level ingest root cause.
+
+## Targeted mutations
+
+```
+node artifacts/handoff/TASK-1.5R/run-mutations.mjs <repo-root>
+```
+
+Result: **14/14 killed** (`mutation-results.json`); M-14 was SURVIVED on the
+first sweep, answered with a direct unit test, then killed. No survivor left
+unaddressed.
+
+## Type check
+
+```
+tsc --noEmit -p packages/paper/paper-foundation/tsconfig.json
+```
+
+Result: clean.
+
+## Notes
+
+- The fault-corpus vitest spec resolves the fixture directory relative to
+  `import.meta.url` (5 levels up from `tests/ir/` to the repo root); moving
+  the package layout requires updating `fault-corpus.spec.ts`.
+- `run-fault-corpus.mjs`'s ingest haystack is `path:kind:reason` so a
+  needle like `raw_problem_ref:unresolved_reference` pins field + failure
+  class.

@@ -1,0 +1,93 @@
+{
+  "task": "TASK 1.5R — Canonical Reference Closure",
+  "gate": "External Attack Gate (HOLD → PASS evaluation)",
+  "generatedAt": "2026-08-31T20:25:00.000Z",
+  "pinned_main": "622b46cc46396399862d393afb98253503828aed",
+  "baseline": {
+    "full_package_vitest": "49 files / 522 tests green (was 47 files / 493 tests at handoff; +29 = PHASE 3 gate 9 + fault corpus 18 + M-14 direct unit 2)",
+    "executor_ir_bridge": "8/8 green",
+    "fault_corpus_standalone": "18/18 PASS",
+    "mutations": "14/14 killed (M-01..M-14)",
+    "tsc": "paper-foundation src clean (tsc --noEmit)"
+  },
+  "closed_conditions": [
+    {
+      "id": 1,
+      "condition": "IR_REF_FIELDS / successor policy declares every TASK 1.5 internal reference",
+      "status": "PASS",
+      "evidence": "refs.ts IR_REF_FIELDS declares ProblemSpec.raw_problem_ref/requirement_refs, ModelSpec.variable_refs/parameter_refs[].symbol_ref (nested), RunArtifact.input_data_refs, FigureSpec.data_refs=[Result,DataArtifact], RequirementSpec.source_data_ref, SymbolSpec.scope_ref; table deepFrozen; refs.spec.ts asserts the paths"
+    },
+    {
+      "id": 2,
+      "condition": "ProblemSpec can no longer enter ModelingIr with dangling raw/requirement refs",
+      "status": "PASS",
+      "evidence": "R-001/R-002/R-003 (ref-closure.spec.ts) store-level BLOCKED with unresolved_reference / reference_kind_mismatch; fault corpus R-001..R-003; redteam15 RT-A-02 500-dangling expectation replaced"
+    },
+    {
+      "id": 3,
+      "condition": "ModelSpec variable/parameter symbol refs existence+kind closed before commit",
+      "status": "PASS",
+      "evidence": "R-004..R-007 store-level BLOCKED incl. nested path parameter_refs.0.symbol_ref; refs.spec.ts resolves variable_refs + nested parameter symbol_refs"
+    },
+    {
+      "id": 4,
+      "condition": "RunArtifact.input_data_refs existence+kind closed before commit",
+      "status": "PASS",
+      "evidence": "R-008/R-009 store-level BLOCKED; refs.spec.ts closes input_data_refs"
+    },
+    {
+      "id": 5,
+      "condition": "FigureSpec.data_refs uses narrow Result|DataArtifact target set, never ANY",
+      "status": "PASS",
+      "evidence": "refs.ts FigureSpec.data_refs target ['Result','DataArtifact'] (not ANY); R-010/R-011 BLOCKED, R-012/R-013 PASS; mutation M-06 (ANY-ify) killed"
+    },
+    {
+      "id": 6,
+      "condition": "ModelingIr.snapshot contains no declared missing/wrong-kind internal edge",
+      "status": "PASS",
+      "evidence": "bridge-dedup.spec.ts 'every declared ref in a closed snapshot resolves with an allowed kind' — re-runs validateRefFields over the frozen snapshot of the full chain, 0 problems"
+    },
+    {
+      "id": 7,
+      "condition": "bridge only enforces semantic role/source/scope/minimum-contract, not structural repair",
+      "status": "PASS",
+      "evidence": "PHASE 3 dedup: PROBLEM_CONTRACT_FAILURE_KINDS no longer contains unresolved_reference / reference_kind_mismatch / figure_target_not_union / missing_raw_problem_data_artifact / missing_symbol; Figure walk deleted; bridge-dedup.spec.ts asserts only semantic kinds can be emitted; the sole remaining 'unresolved_reference' sentinel is removed (fault sentinel now unbound_data_artifact)"
+    },
+    {
+      "id": 8,
+      "condition": "R-001..R-017 BLOCKED by the correct layer; R-018 PASS",
+      "status": "PASS",
+      "evidence": "fault corpus 18/18: R-001..R-013 structural (store refuses, root cause pinned via expected_ingest_reason_matches), R-014..R-017 semantic (store accepts, bridge blocks), R-018 PASS; each fixture tagged root_cause=structural|semantic"
+    },
+    {
+      "id": 9,
+      "condition": ">=4 red-team roles, CRITICAL escape = 0",
+      "status": "PASS",
+      "evidence": "redteam.md: RT-REF/RT-STORE/RT-BRIDGE/RT-POLICY all CLOSED with pinned regressions; no attack reaches DELIVERABLE"
+    },
+    {
+      "id": 10,
+      "condition": ">=12 targeted mutations, all killed",
+      "status": "PASS",
+      "evidence": "run-mutations.mjs 14 mutations M-01..M-14, 14/14 killed (mutation-results.json); M-14 initially SURVIVED, answered with a direct unit test, then killed — no survivor left unaddressed"
+    },
+    {
+      "id": 11,
+      "condition": "packages/paper full regression green; TASK 1/1.25/1.5 regressions green",
+      "status": "PASS",
+      "evidence": "full package 49 files/522 tests green (includes legacy ir/store/attack/bridge/redteam suites), executor-ir-bridge 8/8 green"
+    },
+    {
+      "id": 12,
+      "condition": "known-risks drops 'ProblemSpec refs intentionally absent'; store.ts invariant doc consistent with implementation",
+      "status": "PASS",
+      "evidence": "known-risks.md (TASK-1.5R) deletes entry 3 and records the deletion; store.ts header documents Reference Validation in the put() pipeline and append-only 'never dangle' — now true for every kind (validateRefFields runs for all IR_REF_FIELDS entries, R-001..R-013 prove it)"
+    }
+  ],
+  "summary": {
+    "conditions_total": 12,
+    "conditions_passed": 12,
+    "conditions_failed": 0,
+    "gate_verdict": "PASS"
+  }
+}

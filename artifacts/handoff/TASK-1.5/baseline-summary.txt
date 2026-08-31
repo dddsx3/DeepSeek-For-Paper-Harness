@@ -1,0 +1,14 @@
+{
+  "task": "TASK 1.5 — Canonical Problem Contract",
+  "phase": "PHASE 0 — Topology Recon",
+  "pinned_main": "622b46cc46",
+  "baseline_source": "vitest run packages/paper/paper-foundation",
+  "test_files": 45,
+  "tests": 453,
+  "frozen_baseline_in_taskbook": {
+    "test_files": 46,
+    "tests": 462,
+    "note": "live tree has 45/453 after TASK 1.25 fixture consolidation; no unrelated failures introduced."
+  },
+  "gate_status": "PHASE 0 PASS — proceed to PHASE 1 (Schema Vocabulary Freeze)"
+}

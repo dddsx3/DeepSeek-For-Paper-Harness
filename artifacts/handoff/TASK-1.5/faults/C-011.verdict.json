@@ -1,0 +1,9 @@
+{
+  "id": "C-011",
+  "expected_status": "BLOCKED",
+  "expected_reason_matches": [
+    "duplicate_symbol_token",
+    "P1/x"
+  ],
+  "description": "two SymbolSpec records share token 'x' with different units"
+}

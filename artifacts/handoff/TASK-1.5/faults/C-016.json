@@ -1,0 +1,80 @@
+{
+  "id": "C-016",
+  "description": "FORMAL with old 5-kind backbone but no Requirement/Data/Symbol",
+  "mode": "FORMAL",
+  "ir_claims": [],
+  "ingest": [
+    {
+      "kind": "ProblemSpec",
+      "value": {
+        "problem_id": "P1",
+        "raw_problem_ref": "file:///x",
+        "requirement_refs": []
+      }
+    },
+    {
+      "kind": "ModelSpec",
+      "value": {
+        "model_id": "M1",
+        "problem_refs": [
+          "P1"
+        ],
+        "assumptions": [],
+        "variable_refs": [],
+        "parameter_refs": [],
+        "equations": [],
+        "constraints": [],
+        "objective": null,
+        "dependencies": []
+      }
+    },
+    {
+      "kind": "RunArtifact",
+      "value": {
+        "run_id": "RUN1",
+        "model_ref": "M1",
+        "code_ref": "file:///runs/RUN1/main.py",
+        "input_data_refs": [],
+        "environment": "python 3.13",
+        "seed": 1,
+        "exit_status": 0,
+        "stdout_ref": "file:///stdout",
+        "stderr_ref": "file:///stderr",
+        "output_refs": [],
+        "code_hash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "input_hash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "output_hash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      }
+    },
+    {
+      "kind": "Result",
+      "value": {
+        "result_id": "RES1",
+        "run_ref": "RUN1",
+        "name": "x",
+        "value": 1.0,
+        "unit": "m",
+        "uncertainty": null,
+        "source_location": "file:///x"
+      }
+    },
+    {
+      "kind": "Claim",
+      "value": {
+        "claim_id": "C1",
+        "text": "x",
+        "claim_type": "NUMERIC",
+        "criticality": "CRITICAL",
+        "evidence_refs": [
+          "RES1"
+        ],
+        "result_refs": [
+          "RES1"
+        ],
+        "model_refs": [
+          "M1"
+        ]
+      }
+    }
+  ]
+}

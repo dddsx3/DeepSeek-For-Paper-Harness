@@ -1,0 +1,6 @@
+{
+  "id": "C-018",
+  "expected_status": "PASS",
+  "expected_reason_matches": [],
+  "description": "happy path"
+}

@@ -1,0 +1,12 @@
+{
+  "id": "R-010",
+  "description": "FigureSpec.data_refs points at a ModelSpec (outside Result|DataArtifact union)",
+  "root_cause": "structural",
+  "expected_status": "BLOCKED",
+  "expected_reason_matches": [
+    "missing IR backbone"
+  ],
+  "expected_ingest_reason_matches": [
+    "data_refs:reference_kind_mismatch"
+  ]
+}

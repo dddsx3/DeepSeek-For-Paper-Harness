@@ -1,0 +1,9 @@
+{
+  "id": "C-008",
+  "expected_status": "BLOCKED",
+  "expected_reason_matches": [
+    "input_data_refs.DA-RAW",
+    "reference_kind_mismatch"
+  ],
+  "description": "RAW_PROBLEM DataArtifact reused as RunArtifact input_data_ref"
+}

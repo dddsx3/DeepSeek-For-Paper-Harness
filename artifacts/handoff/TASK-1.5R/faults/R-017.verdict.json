@@ -1,0 +1,11 @@
+{
+  "id": "R-017",
+  "description": "RequirementSpec source_data_ref disagrees with ProblemSpec.raw_problem_ref",
+  "root_cause": "semantic",
+  "expected_status": "BLOCKED",
+  "expected_reason_matches": [
+    "Problem Contract failure",
+    "cross_source_requirement"
+  ],
+  "expected_ingest_reason_matches": []
+}

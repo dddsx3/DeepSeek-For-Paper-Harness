@@ -1,0 +1,90 @@
+# TASK 1.5 — test inventory
+#
+# Everything below runs green on pinned main 622b46cc46396399862d393afb98253503828aed.
+# Counts are from `vitest run --project=thread-safe packages/paper/`.
+
+## Full regression
+
+    npx vitest run --project=thread-safe packages/paper/
+      -> 47 files, 488 tests, all passing
+
+## Targeted suite (the one PHASE 7 mutates against)
+
+    npx vitest run --project=thread-safe packages/paper/paper-foundation/tests/ir/
+    node artifacts/handoff/TASK-1.5/run-fault-corpus.mjs "D:/repo-root"
+
+## packages/paper/paper-foundation/tests/ir/ — 176 tests
+
+| File | Focus |
+|------|-------|
+| `schema.spec.ts` | closed vocabularies; the three new canonical kinds; legacy nested shapes now rejected outright |
+| `store.spec.ts` | append-only store, global id uniqueness, frozen records, totality, audit events |
+| `refs.spec.ts` | the closed reference table; `FigureSpec.data_refs` delegation to the contract guard; `ANY` still enforces existence |
+| `parse.spec.ts` | strict text ingress, depth cap, forbidden / inherited / symbol / accessor keys, node budget |
+| `bridge.spec.ts` | backbone + claim verification; Problem Contract fields on the decision |
+| `attack.spec.ts` | the TASK 1 IR-001..IR-010 attack catalogue |
+| `redteam.spec.ts` | TASK 1 / 1.25 red-team escapes |
+| `redteam125.spec.ts` | TASK 1.25 red-team escapes |
+| `redteam15.spec.ts` | **TASK 1.5 red-team escapes — 26 tests, new in this task** |
+
+## redteam15.spec.ts — the 26 TASK 1.5 regressions
+
+    RT-A-01 — non-finite numbers cannot enter canonical state (10)
+      probed, found already closed; retained as guard coverage
+        refuses parameter_refs[].value = NaN
+        refuses Result.value = NaN
+        refuses Result.uncertainty = NaN
+        refuses parameter_refs[].value = Infinity
+        refuses Result.value = Infinity
+        refuses Result.uncertainty = Infinity
+        refuses parameter_refs[].value = -Infinity
+        refuses Result.value = -Infinity
+        refuses Result.uncertainty = -Infinity
+        still accepts a finite parameter value (guard is not a blanket refusal)
+
+    RT-A-02 — the typed ingress carries the same size budget as the text ingress (3)
+        refuses an oversized ref array handed to put() as a live object
+        refuses the same payload arriving as text
+        accepts a realistically sized ref array (guard is not a blanket refusal)
+
+    RT-B-01 — a ModelSpec owned by no ProblemSpec still faces the symbol guards (3)
+        blocks a PARAMETER used as a variable by an unowned ModelSpec
+        blocks a VARIABLE used as a parameter by an unowned ModelSpec
+        passes when an unowned ModelSpec claims no symbols at all
+
+    RT-C-01 — the minimum contract is bound to a ProblemSpec, not counted globally (4)
+        blocks a ProblemSpec that declares no REQUIRED_OUTPUT requirement
+        blocks a ProblemSpec whose only requirements are SUBPROBLEM/CONSTRAINT
+        blocks in FAST too — the bypass is not mode-specific
+        does not credit a REQUIRED_OUTPUT that no ProblemSpec references
+
+    RT-C-02 — the minimum contract is a gate of its own (2)
+      added by PHASE 7 after M-09 survived
+        blocks delivery when no SymbolSpec is declared at all
+        blocks in FAST too
+
+    RT-D-01 — same-scope token uniqueness is Unicode-aware (4)
+        the two spellings are canonically equivalent but byte-distinct
+        refuses the second, non-NFC spelling at ingest
+        never lets a second spelling of one token enter canonical state
+        still accepts a genuine NFC token (guard is not a blanket refusal)
+
+## Fault corpus — C-001..C-018
+
+    node artifacts/handoff/TASK-1.5/run-fault-corpus.mjs "D:/repo-root"
+      -> 18/18 pass (C-001..C-017 BLOCKED, C-018 PASS)
+
+Each fixture is executed by spawning `tests/ir/run-fault.ts`, which builds a
+real `ModelingIr` and calls the real `evaluateIrBridge`. The runner asserts
+the verdict, keyword(s) inside the bridge reason, and — where the refusal
+happens at ingest — the ingest-level root cause.
+
+## Mutation suite — 14 guards
+
+    node artifacts/handoff/TASK-1.5/run-mutations.mjs "D:/repo-root"
+      -> 14 mutations, 14 killed, 0 survived
+
+## Type checks
+
+    npx tsc -b tsconfig.host.json      -> exit 0
+    npx tsc -b tsconfig.client.json    -> exit 0

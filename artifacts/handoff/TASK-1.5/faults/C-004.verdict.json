@@ -1,0 +1,9 @@
+{
+  "id": "C-004",
+  "expected_status": "BLOCKED",
+  "expected_reason_matches": [
+    "requirement_refs.R-SUB",
+    "cross_source_requirement"
+  ],
+  "description": "RequirementSpec source_data_ref points at INPUT_DATA (cross-source)"
+}

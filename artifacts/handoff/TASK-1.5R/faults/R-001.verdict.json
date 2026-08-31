@@ -1,0 +1,12 @@
+{
+  "id": "R-001",
+  "description": "ProblemSpec.raw_problem_ref points at an unregistered id",
+  "root_cause": "structural",
+  "expected_status": "BLOCKED",
+  "expected_reason_matches": [
+    "missing IR backbone"
+  ],
+  "expected_ingest_reason_matches": [
+    "raw_problem_ref:unresolved_reference"
+  ]
+}

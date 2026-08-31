@@ -1,0 +1,9 @@
+{
+  "id": "C-003",
+  "expected_status": "BLOCKED",
+  "expected_reason_matches": [
+    "requirement_refs.C1",
+    "reference_kind_mismatch"
+  ],
+  "description": "requirement_ref resolves to a Claim (kind mismatch)"
+}

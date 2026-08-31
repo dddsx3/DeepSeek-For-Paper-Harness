@@ -1,0 +1,13 @@
+{
+  "id": "C-007",
+  "expected_status": "BLOCKED",
+  "expected_reason_matches": [
+    "unresolved_reference",
+    "minimum Problem Contract not satisfied",
+    "RAW_PROBLEM"
+  ],
+  "description": "DataArtifact content_hash='sha256:1234' (truncated)",
+  "expected_ingest_reason_matches": [
+    "content_hash"
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "id": "R-016",
+  "description": "variable_refs binds a SymbolSpec with role=PARAMETER (kind right, role wrong)",
+  "root_cause": "semantic",
+  "expected_status": "BLOCKED",
+  "expected_reason_matches": [
+    "Problem Contract failure",
+    "symbol_role_mismatch"
+  ],
+  "expected_ingest_reason_matches": []
+}

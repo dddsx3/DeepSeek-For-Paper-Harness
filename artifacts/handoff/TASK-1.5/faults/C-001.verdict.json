@@ -1,0 +1,9 @@
+{
+  "id": "C-001",
+  "expected_status": "BLOCKED",
+  "expected_reason_matches": [
+    "Problem Contract",
+    "RAW_PROBLEM"
+  ],
+  "description": "legacy nested subproblems/required_outputs on ProblemSpec (schema_invalid)"
+}

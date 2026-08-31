@@ -1,0 +1,9 @@
+{
+  "id": "C-015",
+  "expected_status": "BLOCKED",
+  "expected_reason_matches": [
+    "figure_target_not_union",
+    "data_refs.M1"
+  ],
+  "description": "FigureSpec.data_refs points at a ModelSpec (one-of mismatch)"
+}

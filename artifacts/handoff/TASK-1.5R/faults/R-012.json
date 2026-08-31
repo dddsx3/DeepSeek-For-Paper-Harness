@@ -1,0 +1,212 @@
+{
+  "id": "R-012",
+  "description": "FigureSpec.data_refs -> Result is a legal union member (PASS)",
+  "root_cause": "structural",
+  "mode": "FORMAL",
+  "ir_claims": [],
+  "ingest": [
+    {
+      "kind": "DataArtifact",
+      "value": {
+        "data_id": "DA-RAW",
+        "role": "RAW_PROBLEM",
+        "locator": "file:///problem/2026-mcm-a.txt",
+        "content_hash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "media_type": "text/markdown",
+        "description": "The MCM 2026 problem A statement."
+      }
+    },
+    {
+      "kind": "DataArtifact",
+      "value": {
+        "data_id": "DA-IN",
+        "role": "INPUT_DATA",
+        "locator": "file:///runs/RUN1/input.csv",
+        "content_hash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "media_type": "text/csv",
+        "description": "Survey line observations for RUN1."
+      }
+    },
+    {
+      "kind": "RequirementSpec",
+      "value": {
+        "requirement_id": "R-SUB",
+        "source_data_ref": "DA-RAW",
+        "requirement_type": "SUBPROBLEM",
+        "statement": "Estimate the ice thickness profile."
+      }
+    },
+    {
+      "kind": "RequirementSpec",
+      "value": {
+        "requirement_id": "R-OUT",
+        "source_data_ref": "DA-RAW",
+        "requirement_type": "REQUIRED_OUTPUT",
+        "statement": "Produce a thickness profile table."
+      }
+    },
+    {
+      "kind": "RequirementSpec",
+      "value": {
+        "requirement_id": "R-CON",
+        "source_data_ref": "DA-RAW",
+        "requirement_type": "CONSTRAINT",
+        "statement": "Total sensor budget must not exceed USD 200000."
+      }
+    },
+    {
+      "kind": "ProblemSpec",
+      "value": {
+        "problem_id": "P1",
+        "raw_problem_ref": "DA-RAW",
+        "requirement_refs": [
+          "R-SUB",
+          "R-OUT",
+          "R-CON"
+        ]
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "SYM-x",
+        "scope_ref": "P1",
+        "token": "x",
+        "meaning": "distance along track",
+        "unit": "m",
+        "role": "VARIABLE"
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "SYM-rho",
+        "scope_ref": "P1",
+        "token": "rho",
+        "meaning": "ice density",
+        "unit": "kg/m^3",
+        "role": "PARAMETER"
+      }
+    },
+    {
+      "kind": "ModelSpec",
+      "value": {
+        "model_id": "M1",
+        "problem_refs": [
+          "P1"
+        ],
+        "assumptions": [
+          "Ice is a homogeneous slab."
+        ],
+        "variable_refs": [
+          "SYM-x"
+        ],
+        "parameter_refs": [
+          {
+            "symbol_ref": "SYM-rho",
+            "value": 917
+          }
+        ],
+        "equations": [
+          "h(x) = a * x + b"
+        ],
+        "constraints": [
+          "x >= 0"
+        ],
+        "objective": null,
+        "dependencies": []
+      }
+    },
+    {
+      "kind": "RunArtifact",
+      "value": {
+        "run_id": "RUN1",
+        "model_ref": "M1",
+        "code_ref": "file:///runs/RUN1/main.py",
+        "input_data_refs": [
+          "DA-IN"
+        ],
+        "environment": "python 3.13, numpy 2.1",
+        "seed": 20260828,
+        "exit_status": 0,
+        "stdout_ref": "file:///runs/RUN1/stdout.log",
+        "stderr_ref": "file:///runs/RUN1/stderr.log",
+        "output_refs": [
+          "file:///runs/RUN1/result.json"
+        ],
+        "code_hash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "input_hash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "output_hash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      }
+    },
+    {
+      "kind": "Result",
+      "value": {
+        "result_id": "RES1",
+        "run_ref": "RUN1",
+        "name": "mean_thickness",
+        "value": 0.731,
+        "unit": "m",
+        "uncertainty": 0.012,
+        "source_location": "file:///runs/RUN1/result.json#mean_thickness"
+      }
+    },
+    {
+      "kind": "Claim",
+      "value": {
+        "claim_id": "C1",
+        "text": "Mean ice thickness at the survey line is 0.731 m.",
+        "claim_type": "NUMERIC",
+        "criticality": "CRITICAL",
+        "evidence_refs": [
+          "RES1"
+        ],
+        "result_refs": [
+          "RES1"
+        ],
+        "model_refs": [
+          "M1"
+        ]
+      }
+    },
+    {
+      "kind": "VerificationResult",
+      "value": {
+        "verification_id": "V1",
+        "target_ref": "RES1",
+        "verifier": "gate.numeric_consistency",
+        "status": "PASS",
+        "evidence_refs": [
+          "RES1"
+        ]
+      }
+    },
+    {
+      "kind": "FigureSpec",
+      "value": {
+        "figure_id": "F1",
+        "data_refs": [
+          "RES1"
+        ],
+        "claim_refs": [
+          "C1"
+        ]
+      }
+    },
+    {
+      "kind": "ReviewerFinding",
+      "value": {
+        "finding_id": "RF1",
+        "target_ref": "RES1",
+        "attack_type": "numeric-consistency",
+        "hypothesis": "The paper body may restate RES1 with a different value.",
+        "reason": "The abstract quotes 0.781 while RES1 holds 0.731.",
+        "evidence_refs": [
+          "RES1"
+        ],
+        "proposed_check": "Compare the abstract number against result RES1.",
+        "severity": "CRITICAL"
+      }
+    }
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "id": "C-005",
+  "expected_status": "BLOCKED",
+  "expected_reason_matches": [
+    "raw_problem_ref",
+    "unresolved_reference"
+  ],
+  "description": "ProblemSpec.raw_problem_ref is a file:// locator instead of DataArtifact id"
+}

@@ -1,0 +1,12 @@
+{
+  "id": "R-002",
+  "description": "ProblemSpec.requirement_refs contains an unregistered id",
+  "root_cause": "structural",
+  "expected_status": "BLOCKED",
+  "expected_reason_matches": [
+    "missing IR backbone"
+  ],
+  "expected_ingest_reason_matches": [
+    "requirement_refs:unresolved_reference"
+  ]
+}

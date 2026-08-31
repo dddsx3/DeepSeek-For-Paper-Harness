@@ -1,0 +1,12 @@
+{
+  "id": "R-011",
+  "description": "FigureSpec.data_refs points at an unregistered id",
+  "root_cause": "structural",
+  "expected_status": "BLOCKED",
+  "expected_reason_matches": [
+    "missing IR backbone"
+  ],
+  "expected_ingest_reason_matches": [
+    "data_refs:unresolved_reference"
+  ]
+}

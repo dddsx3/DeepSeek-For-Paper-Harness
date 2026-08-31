@@ -1,0 +1,12 @@
+{
+  "id": "R-006",
+  "description": "parameter_refs[].symbol_ref points at an unregistered id (nested path)",
+  "root_cause": "structural",
+  "expected_status": "BLOCKED",
+  "expected_reason_matches": [
+    "missing IR backbone"
+  ],
+  "expected_ingest_reason_matches": [
+    "parameter_refs.0.symbol_ref:unresolved_reference"
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "id": "C-009",
+  "expected_status": "BLOCKED",
+  "expected_reason_matches": [
+    "missing IR backbone",
+    "RunArtifact"
+  ],
+  "description": "RunArtifact with legacy input_refs field (schema_invalid)"
+}

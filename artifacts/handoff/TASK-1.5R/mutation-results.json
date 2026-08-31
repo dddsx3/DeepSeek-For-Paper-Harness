@@ -1,0 +1,138 @@
+{
+  "task": "TASK 1.5R — Canonical Reference Closure",
+  "phase": "PHASE 5 — Targeted Mutation",
+  "baseline": "green",
+  "totals": {
+    "total": 14,
+    "killed": 14,
+    "survived": 0
+  },
+  "mutations": [
+    {
+      "id": "M-01",
+      "guard": "ProblemSpec.raw_problem_ref closes against DataArtifact at commit",
+      "status": "killed",
+      "detail": {
+        "vitest": "exit 1",
+        "faultCorpus": "pass"
+      }
+    },
+    {
+      "id": "M-02",
+      "guard": "ProblemSpec.requirement_refs closes against RequirementSpec at commit",
+      "status": "killed",
+      "detail": {
+        "vitest": "exit 1",
+        "faultCorpus": "exit 1"
+      }
+    },
+    {
+      "id": "M-03",
+      "guard": "ModelSpec.variable_refs closes against SymbolSpec at commit",
+      "status": "killed",
+      "detail": {
+        "vitest": "exit 1",
+        "faultCorpus": "exit 1"
+      }
+    },
+    {
+      "id": "M-04",
+      "guard": "parameter_refs[].symbol_ref nested extractor walks every entry at commit",
+      "status": "killed",
+      "detail": {
+        "vitest": "exit 1",
+        "faultCorpus": "exit 1"
+      }
+    },
+    {
+      "id": "M-05",
+      "guard": "RunArtifact.input_data_refs closes against DataArtifact at commit",
+      "status": "killed",
+      "detail": {
+        "vitest": "exit 1",
+        "faultCorpus": "exit 1"
+      }
+    },
+    {
+      "id": "M-06",
+      "guard": "FigureSpec.data_refs uses the narrow Result|DataArtifact target set, not ANY",
+      "status": "killed",
+      "detail": {
+        "vitest": "exit 1",
+        "faultCorpus": "exit 1"
+      }
+    },
+    {
+      "id": "M-07",
+      "guard": "kind-union membership check (isAllowedTarget)",
+      "status": "killed",
+      "detail": {
+        "vitest": "exit 1",
+        "faultCorpus": "exit 1"
+      }
+    },
+    {
+      "id": "M-08",
+      "guard": "store calls validateRefFields before commit",
+      "status": "killed",
+      "detail": {
+        "vitest": "exit 1",
+        "faultCorpus": "exit 1"
+      }
+    },
+    {
+      "id": "M-09",
+      "guard": "raw_problem_ref role must be RAW_PROBLEM (R-014)",
+      "status": "killed",
+      "detail": {
+        "vitest": "exit 1",
+        "faultCorpus": "exit 1"
+      }
+    },
+    {
+      "id": "M-10",
+      "guard": "input_data_refs role must be INPUT_DATA (R-015)",
+      "status": "killed",
+      "detail": {
+        "vitest": "exit 1",
+        "faultCorpus": "exit 1"
+      }
+    },
+    {
+      "id": "M-11",
+      "guard": "variable_refs role must be VARIABLE (R-016)",
+      "status": "killed",
+      "detail": {
+        "vitest": "exit 1",
+        "faultCorpus": "exit 1"
+      }
+    },
+    {
+      "id": "M-12",
+      "guard": "parameter_refs role must be PARAMETER (R-016)",
+      "status": "killed",
+      "detail": {
+        "vitest": "exit 1",
+        "faultCorpus": "pass"
+      }
+    },
+    {
+      "id": "M-13",
+      "guard": "Requirement source_data_ref == ProblemSpec.raw_problem_ref (R-017)",
+      "status": "killed",
+      "detail": {
+        "vitest": "exit 1",
+        "faultCorpus": "exit 1"
+      }
+    },
+    {
+      "id": "M-14",
+      "guard": "SymbolSpec same-scope token uniqueness (C-010/C-011)",
+      "status": "killed",
+      "detail": {
+        "vitest": "exit 1",
+        "faultCorpus": "pass"
+      }
+    }
+  ]
+}

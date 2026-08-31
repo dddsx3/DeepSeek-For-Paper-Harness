@@ -1,0 +1,94 @@
+# TASK 1.5 — Canonical Problem Contract
+# changed files (pinned main 622b46cc46396399862d393afb98253503828aed)
+#
+# M = modified, A = added. Paths relative to repository root.
+
+## Product code — packages/paper/paper-foundation/src/ir/
+
+A   packages/paper/paper-foundation/src/ir/problem-contract.ts
+      New canonical kinds DataArtifact / RequirementSpec / SymbolSpec with
+      closed enums and a strict sha256 content_hash; the cross-cutting
+      semantic guards (raw-source <-> requirement-source consistency, symbol
+      role binding, run-input role binding, figure union, same-scope token
+      uniqueness); and `minimumProblemContractSatisfied`.
+
+M   packages/paper/paper-foundation/src/ir/schema.ts
+      ProblemSpec reduced to `requirement_refs[]` (nested subproblems /
+      required_outputs / constraints removed); ModelSpec reduced to
+      `variable_refs[]` / `parameter_refs[{symbol_ref,value}]` (embedded
+      meaning/unit removed); RunArtifact `input_refs` -> `input_data_refs[]`;
+      IR_KINDS / IR_SCHEMAS / ID_FIELD_BY_KIND / IrObjectMap extended to the
+      three new kinds.
+
+M   packages/paper/paper-foundation/src/ir/refs.ts
+      Reference table gained RequirementSpec.source_data_ref and
+      SymbolSpec.scope_ref. FigureSpec.data_refs deliberately widened to
+      'ANY': the table can name one target per field, and the legal target is
+      the union Result | DataArtifact, which is enforced by the contract
+      guard instead (C-015).
+
+M   packages/paper/paper-foundation/src/ir/bridge.ts
+      `IrBridgeDecision` gained contractFailures / contract / contractSatisfied;
+      `inspectProblemContract` walks the store for per-element and
+      cross-cutting failures and builds the bound minimum-contract summary;
+      FORMAL and FAST require `contractSatisfied`. Orphan ModelSpecs are
+      validated explicitly (RT-B-01).
+
+M   packages/paper/paper-foundation/src/ir/parse.ts
+      `scanIrValue` walks under a shared node budget (MAX_IR_VALUE_NODES) and
+      gained the `too_large` verdict, so the typed ingress carries the same
+      size bound as the text ingress (RT-A-02).
+
+M   packages/paper/paper-foundation/src/ir/index.ts
+      Public surface: the three new schemas and their closed enums, the guard
+      functions, the new parse constant, and `modelSpecSchema` (which had been
+      dropped from the barrel).
+
+## Tests — packages/paper/paper-foundation/tests/ir/
+
+A   tests/ir/redteam15.spec.ts
+      TASK 1.5 red-team regressions (26 tests).
+A   tests/ir/run-fault.ts
+      Fixture driver for the fault corpus: builds the store from a fixture
+      file and returns the real bridge decision as JSON.
+M   tests/ir/fixtures.ts
+      New TASK 1.5 factories; validChain() reordered so ProblemSpec precedes
+      SymbolSpec; added `chainThrough(kind)` to replace index literals that
+      silently changed meaning when four kinds were inserted.
+M   tests/ir/store.spec.ts
+      Size / seq assertions re-derived from the chain instead of hardcoded.
+      Nested-freeze test moved from ProblemSpec (no longer has sub-objects) to
+      ModelSpec.parameter_refs.
+M   tests/ir/schema.spec.ts
+      Tests of the removed nested shapes replaced with tests that the legacy
+      shapes are now rejected outright.
+M   tests/ir/refs.spec.ts
+      FigureSpec.data_refs test rewritten: the store delegates the union to
+      the contract guard; `ANY` still enforces existence.
+M   tests/ir/attack.spec.ts
+M   tests/ir/bridge.spec.ts
+M   tests/ir/redteam.spec.ts
+      Seeded-store size assertions re-derived from the chain; the reference
+      table's coverage test gained the three new kinds.
+
+## Handoff package — artifacts/handoff/TASK-1.5/
+
+A   run-fault-corpus.mjs        fault corpus runner (C-001..C-018)
+A   run-mutations.mjs           PHASE 7 targeted mutation runner
+A   faults/generate.py          fixture + verdict generator
+A   faults/C-001..C-018.json    18 fault fixtures
+A   faults/C-001..C-018.verdict.json
+A   fault-results.json          machine-readable corpus results
+A   mutation-results.json       machine-readable mutation results
+A   phase-0-topology.md
+A   phase-5-fault-corpus.md
+A   phase-6-redteam.md
+A   phase-7-mutation.md
+A   baseline-summary.txt
+A   test-summary.json
+A   gate-report.json
+A   invariant.md
+A   known-risks.md
+A   changed-files.txt
+A   tests.txt
+A   summary.md

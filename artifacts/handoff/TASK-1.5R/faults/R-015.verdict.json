@@ -1,0 +1,11 @@
+{
+  "id": "R-015",
+  "description": "RunArtifact.input_data_refs binds a DataArtifact with role=RAW_PROBLEM",
+  "root_cause": "semantic",
+  "expected_status": "BLOCKED",
+  "expected_reason_matches": [
+    "Problem Contract failure",
+    "unbound_data_artifact"
+  ],
+  "expected_ingest_reason_matches": []
+}

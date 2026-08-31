@@ -1,0 +1,8 @@
+{
+  "id": "R-018",
+  "description": "complete closed Problem Contract + backbone",
+  "root_cause": "semantic",
+  "expected_status": "PASS",
+  "expected_reason_matches": [],
+  "expected_ingest_reason_matches": []
+}

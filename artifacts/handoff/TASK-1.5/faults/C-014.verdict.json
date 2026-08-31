@@ -1,0 +1,9 @@
+{
+  "id": "C-014",
+  "expected_status": "BLOCKED",
+  "expected_reason_matches": [
+    "missing IR backbone",
+    "ModelSpec"
+  ],
+  "description": "ModelSpec re-embeds variables with meaning/unit (legacy)"
+}

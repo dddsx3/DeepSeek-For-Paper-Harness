@@ -1,0 +1,9 @@
+{
+  "id": "C-012",
+  "expected_status": "BLOCKED",
+  "expected_reason_matches": [
+    "variable_refs.SYM-rho",
+    "symbol_role_mismatch"
+  ],
+  "description": "ModelSpec.variable_refs points at PARAMETER SymbolSpec (role mismatch)"
+}

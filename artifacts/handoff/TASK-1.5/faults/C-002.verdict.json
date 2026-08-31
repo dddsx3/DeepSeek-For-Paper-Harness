@@ -1,0 +1,9 @@
+{
+  "id": "C-002",
+  "expected_status": "BLOCKED",
+  "expected_reason_matches": [
+    "requirement_refs.R-DOES-NOT-EXIST",
+    "unresolved_reference"
+  ],
+  "description": "requirement_ref points at unregistered id"
+}

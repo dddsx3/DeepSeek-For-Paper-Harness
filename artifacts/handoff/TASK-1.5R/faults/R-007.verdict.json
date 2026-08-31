@@ -1,0 +1,12 @@
+{
+  "id": "R-007",
+  "description": "parameter_refs[].symbol_ref points at a DataArtifact (kind mismatch)",
+  "root_cause": "structural",
+  "expected_status": "BLOCKED",
+  "expected_reason_matches": [
+    "missing IR backbone"
+  ],
+  "expected_ingest_reason_matches": [
+    "parameter_refs.0.symbol_ref:reference_kind_mismatch"
+  ]
+}

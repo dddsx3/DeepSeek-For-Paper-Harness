@@ -1,0 +1,92 @@
+{
+  "task": "TASK 1.5 — Canonical Problem Contract",
+  "pinned_main": "622b46cc46396399862d393afb98253503828aed",
+  "verdict": "LOCAL GATES PASS — ready for External Attack Gate",
+  "generated_by": "TASK 1.5 handoff, PHASE 8",
+
+  "gates": [
+    {
+      "id": "PHASE-1",
+      "name": "Schema vocabulary freeze",
+      "status": "PASS",
+      "evidence": "RequirementSpec / DataArtifact / SymbolSpec added as closed canonical kinds; ProblemSpec and ModelSpec reduced to reference-only; strict() schemas with no compatibility fallback."
+    },
+    {
+      "id": "PHASE-2",
+      "name": "Reference graph + semantic guards",
+      "status": "PASS",
+      "evidence": "refs.ts declares source_data_ref and scope_ref; cross-cutting guards live in problem-contract.ts; FigureSpec union delegated to the contract guard."
+    },
+    {
+      "id": "PHASE-3",
+      "name": "Problem Contract enforcement bridge",
+      "status": "PASS",
+      "evidence": "IrBridgeDecision carries contractFailures / contract / contractSatisfied; FORMAL and FAST require the minimum contract."
+    },
+    {
+      "id": "PHASE-4",
+      "name": "Legacy path removal",
+      "status": "PASS",
+      "evidence": "No fallbackToText / useLegacyValue / warnAndContinue in src/; the four legacy nested schemas are deleted from schema.ts, not merely disconnected."
+    },
+    {
+      "id": "PHASE-5",
+      "name": "Fault corpus C-001..C-018",
+      "status": "PASS",
+      "evidence": "18/18. C-001..C-017 BLOCKED, C-018 PASS. Runner asserts verdict, reason keywords, and ingest-level root cause.",
+      "counts": { "total": 18, "passed": 18, "failed": 0 }
+    },
+    {
+      "id": "PHASE-6",
+      "name": "Red team — 4 independent roles",
+      "status": "PASS",
+      "evidence": "RT-A / RT-B / RT-C / RT-D all returned. 3 CRITICAL escapes found and closed, 1 HIGH closed, 3 attacks probed and found already closed, 1 MEDIUM accepted by design. CRITICAL escape = 0.",
+      "counts": {
+        "roles": 4,
+        "critical_found": 3,
+        "critical_closed": 3,
+        "critical_open": 0,
+        "high_found": 1,
+        "high_closed": 1,
+        "accepted_by_design": 1
+      }
+    },
+    {
+      "id": "PHASE-7",
+      "name": "Targeted mutation",
+      "status": "PASS",
+      "evidence": "14 guards mutated, 14 killed, 0 survived. M-09 survived the first run; the missing test (RT-C-02) was added and M-09 is now killed.",
+      "counts": { "total": 14, "killed": 14, "survived": 0 }
+    },
+    {
+      "id": "PHASE-8",
+      "name": "Full regression",
+      "status": "PASS",
+      "evidence": "packages/paper: 47 files / 488 tests green. Fault corpus 18/18. tsc -b host and client both exit 0.",
+      "counts": { "test_files": 47, "tests": 488, "fault_corpus": "18/18" }
+    }
+  ],
+
+  "closed_conditions": [
+    { "condition": "RequirementSpec / DataArtifact / SymbolSpec are closed canonical kinds", "met": true },
+    { "condition": "ProblemSpec no longer treats nested free-text requirements as canonical truth", "met": true },
+    { "condition": "raw problem and run inputs use DataArtifact canonical identity; hash format is machine-checkable", "met": true },
+    { "condition": "ModelSpec holds no copy of variable meaning/unit; SymbolSpec is the sole semantic source", "met": true },
+    { "condition": "FigureSpec.data_refs is Result | DataArtifact only", "met": true },
+    { "condition": "Neither FORMAL nor FAST can bypass the new contract with the old 5-kind backbone", "met": true },
+    { "condition": "C-001..C-017 BLOCKED, C-018 PASS, escape_rate = 0", "met": true },
+    { "condition": "At least 4 real red-team roles completed, CRITICAL escape = 0", "met": true },
+    { "condition": "At least 10 key guards mutated, 10/10 killed", "met": true, "actual": "14/14" },
+    { "condition": "Full packages/paper suite green", "met": true },
+    { "condition": "known-risks records deferred items such as unverified hash bytes", "met": true }
+  ],
+
+  "not_met": [],
+
+  "known_risks": [
+    "Hash bytes are not verified against real content (TASK 3).",
+    "Compatibility-equivalent (homoglyph) symbol tokens are not folded.",
+    "ProblemSpec reference fields are absent from IR_REF_FIELDS by design — see known-risks.md §3.",
+    "EXPLORATORY mode does not require the minimum contract (by design)."
+  ]
+}

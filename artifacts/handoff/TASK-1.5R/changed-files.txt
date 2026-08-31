@@ -1,0 +1,80 @@
+# TASK 1.5R — changed files (this session vs handoff)
+
+`git status --short` relative to `622b46cc` (the handoff pinned main). The
+session's own edits are marked **[PHASE]**; files that were already modified
+or untracked at handoff (TASK 1.5 / 1.5R-start work, per CONTINUATION.md §3.2)
+are marked **[handoff]** and were only layered on, never reverted.
+
+## Source (`packages/paper/paper-foundation/src/ir/`)
+
+- `refs.ts` — [PHASE 1, handoff] closed Reference Target table + nested
+  extractor; this session: `entries[i]!` non-null assertion for
+  `noUncheckedIndexedAccess`. Load-bearing anchors for mutations M-01..M-07.
+- `store.ts` — [PHASE 2, handoff] `put()` runs `validateRefFields` before
+  commit. This session: unchanged (anchor M-08).
+- `problem-contract.ts` — [PHASE 3, THIS SESSION] bridge de-duplication:
+  - `PROBLEM_CONTRACT_FAILURE_KINDS` drops `unresolved_reference`,
+    `reference_kind_mismatch`, `figure_target_not_union`,
+    `missing_raw_problem_data_artifact`, `missing_symbol`.
+  - `validateProblemContract`: raw_ref / requirement / run-input branches
+    re-kinded to semantic failures (`unbound_data_artifact`,
+    `unbound_requirement`); role branches (RAW_PROBLEM / INPUT_DATA) now emit
+    `unbound_data_artifact` instead of `reference_kind_mismatch`; FigureSpec
+    walk **deleted** (store closes the union; renderer policy is TASK 7).
+  - `validateModelSpecSymbols`: resolver-miss branches re-kinded to
+    `unbound_variable_symbol` / `unbound_parameter_symbol`; role branches
+    keep `symbol_role_mismatch` / `parameter_role_mismatch`.
+  - `findDuplicateSymbolTokens` / `minimumProblemContractSatisfied` /
+    `symbolScopeMatches` unchanged (kept: store does not do scope-uniqueness
+    or minimum-contract).
+- `bridge.ts` — [PHASE 3, THIS SESSION] module docs updated; total-failure
+  sentinel changed from `unresolved_reference` to `unbound_data_artifact`
+  (the former is no longer a valid contract-failure kind); FigureSpec
+  bucketing + figure walk removed from `inspectProblemContract`; LF
+  line-ending normalization (was CRLF).
+- `schema.ts` — [handoff] TASK 1.5 shapes. This session: LF normalization
+  only (no semantic change).
+- `index.ts` — [PHASE 1, handoff] exports synced; auto-synced with the
+  failure-kind set change (symbol re-export).
+
+## Tests (`packages/paper/paper-foundation/tests/`)
+
+- `ir/ref-closure.spec.ts` — [PHASE 0, handoff] R-001..R-013 store-level.
+- `ir/bridge-dedup.spec.ts` — **[THIS SESSION, NEW]** PHASE 3 gate: no
+  structural failures from the bridge on closed stores; R-014..R-017
+  semantic attacks; snapshot closure proof; M-14 direct unit for
+  `findDuplicateSymbolTokens`.
+- `ir/fault-corpus.spec.ts` — **[THIS SESSION, NEW]** drives the 18 R-001..
+  R-018 fixtures through the same `run-fault.ts` driver as the standalone
+  runner.
+- `ir/redteam15.spec.ts` — [PHASE 2, handoff] RT-A-02 500-dangling
+  expectation replaced; RT-B/RT-C/RT-D kept.
+- `ir/refs.spec.ts`, `ir/store.spec.ts`, `ir/bridge.spec.ts`,
+  `ir/attack.spec.ts`, `ir/schema.spec.ts`, `ir/redteam.spec.ts`,
+  `ir/fixtures.ts` — [PHASE 2, handoff] closed-fixture regressions.
+- `executor-ir-bridge.spec.ts` — [PHASE 2, handoff] B-004/B-005 use
+  `chainThrough`.
+- `ir/run-fault.ts` — [handoff] fixture driver (shared with TASK 1.5).
+
+## Artifacts (`artifacts/handoff/TASK-1.5R/`)
+
+- `faults/` — [THIS SESSION] `generate.py` + R-001..R-018 `.json` /
+  `.verdict.json` (structural vs semantic root cause tagged).
+- `run-fault-corpus.mjs` — [THIS SESSION] standalone runner (kind-aware
+  ingest haystack).
+- `run-mutations.mjs` — [THIS SESSION] 14-mutation runner (M-01..M-14).
+- `mutate.py` — copied from TASK 1.5 (byte-exact backup helper, unused by
+  the current runner; kept for future deletion-type mutations).
+- `gate-report.json`, `fault-results.json`, `mutation-results.json`,
+  `redteam.md`, `known-risks.md`, `summary.md`, `invariant.md`,
+  `changed-files.txt`, `tests.txt` — [THIS SESSION] PHASE 6 handoff.
+- `CONTINUATION.md`, `HANDOVER.md` — [handoff] task specs, untouched.
+
+## Explicitly NOT changed
+
+- No TASK 2 claim-slot / numeric binding.
+- No TASK 3 file-existence / hash-bytes / execution gates.
+- No STALE / update / replace machinery.
+- No reviewer-authority changes.
+- No `ANY` used for a known narrow union (`FigureSpec.data_refs` stays
+  `['Result','DataArtifact']`).

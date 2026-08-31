@@ -1,0 +1,9 @@
+{
+  "id": "C-016",
+  "expected_status": "BLOCKED",
+  "expected_reason_matches": [
+    "Problem Contract",
+    "RAW_PROBLEM"
+  ],
+  "description": "FORMAL with old 5-kind backbone but no Requirement/Data/Symbol"
+}

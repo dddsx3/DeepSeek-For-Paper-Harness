@@ -1,0 +1,19 @@
+{
+  "id": "R-011",
+  "description": "FigureSpec.data_refs points at an unregistered id",
+  "root_cause": "structural",
+  "mode": "FORMAL",
+  "ir_claims": [],
+  "ingest": [
+    {
+      "kind": "FigureSpec",
+      "value": {
+        "figure_id": "F1",
+        "data_refs": [
+          "DA-DOES-NOT-EXIST"
+        ],
+        "claim_refs": []
+      }
+    }
+  ]
+}
