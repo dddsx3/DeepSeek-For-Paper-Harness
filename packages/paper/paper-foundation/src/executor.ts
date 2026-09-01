@@ -15,8 +15,8 @@ import type { PromptSection } from './context.ts'
 import { computeCostUsd, evaluateBudget, resolveModelPrice } from './cost.ts'
 import type { BudgetPolicy, PricingTable } from './cost.ts'
 import { IR_CANONICALIZATION_GATE_ID, PROVENANCE_GATE_ID } from './delivery/delivery-policy.ts'
-import { executionProvenanceGate } from './execution/audit.ts'
-import { irBridgeGate, requiresIrBackbone } from './ir/bridge.ts'
+import { buildDeliveryPolicy } from './delivery/gate-registry.ts'
+import { evaluateDelivery } from './delivery/delivery-policy.ts'
 import { ModelingIr } from './ir/store.ts'
 import { resolveRunPolicy } from './policy.ts'
 import type { PaperProviderService, PaperRole } from './provider.ts'
@@ -225,16 +225,12 @@ export class WorkflowExecutor {
       // a complete text-only path to a manifest, which made every IR
       // guarantee vacuous (external-advisory finding IR_CAN_BE_BYPASSED).
       // Claims are empty for now: TASK 2 introduces the Claim→Result→Run
-      // evidence chain that populates them, and INV-1.25-A is exercised by
-      // the bridge suite directly until then.
-      // The IR bridge must pass before the review verdict is applied: a run
-      // that fails review must not leave a manifest behind either (red team
-      // RT125B-02 found the old ordering persisted one for rejected text).
-      await this.enforceCanonicalIr(runId, initial.mode)
-      // TASK 3: structural execution provenance — every critical-chain run
-      // must carry a consistent ExecutionRecord before anything is
-      // authorized. Byte-level truth is replay's job (independent audit).
-      await this.enforceExecutionProvenance(runId, initial.mode)
+      // TASK 3 repair (3.R2 / INV-3-K): there is exactly ONE delivery
+      // verdict path. `buildDeliveryPolicy` walks the gate registry; the
+      // resulting policy is handed to `evaluateDelivery`; whatever it
+      // returns is the only thing the executor reasons about. No
+      // parallel `if (gate.status === 'PASS') return` branches remain.
+      await this.enforceDelivery(runId, initial.mode)
 
       if (!gatePassed && initial.mode !== 'fast') {
         await this.engine.transitionRun(runId, 'failed')
@@ -290,45 +286,31 @@ export class WorkflowExecutor {
    * blocked rather than waved through. EXPLORATORY is exempt because it is
    * the mode in which no fact has been asserted yet.
    */
-  private async enforceCanonicalIr(runId: RunId, mode: string): Promise<void> {
-    const gate = irBridgeGate(this.options.ir ?? EMPTY_IR, [], mode, new Date().toISOString())
-    if (gate.status === 'PASS') return
-    await this.audit({
-      eventType: 'ir_bridge_blocked',
-      actor: 'paper-executor',
-      runId,
-      detail: { gate: gate.id, reason: gate.reason, mode },
-    })
-    await this.engine.transitionRun(runId, 'failed')
-    throw new WorkflowExecutionError(
-      'gate-failed',
-      `run '${runId}' has no canonical IR to deliver from (${gate.reason})`,
-    )
-  }
-
   /**
-   * Refuse to deliver unless every critical-chain run carries a
-   * structurally consistent ExecutionRecord (TASK 3, INV-3-G).
-   *
-   * EXPLORATORY is exempt (same mode rule as the canonical-IR gate). The
-   * canonical-IR gate runs first, so a backbone-less store never reaches
-   * this check — the gate's vacuous-PASS-on-empty semantics is thus only
-   * reachable for stores that already carry the full evidence chain.
+   * TASK 3 repair (3.R2 / INV-3-K): the single delivery verdict. Builds
+   * the policy from the gate registry, runs `evaluateDelivery`, and
+   * refuses delivery whenever the policy fails. No `if (gate.status
+   * === 'PASS') return` branch — every gate is read once, in
+   * `CRITICAL_GATE_IDS` order, and the verdict is the policy's.
    */
-  private async enforceExecutionProvenance(runId: RunId, mode: string): Promise<void> {
-    if (!requiresIrBackbone(mode)) return
-    const gate = executionProvenanceGate(this.options.ir ?? EMPTY_IR, new Date().toISOString())
-    if (gate.status === 'PASS') return
-    await this.audit({
-      eventType: 'provenance_gate_blocked',
-      actor: 'paper-executor',
-      runId,
-      detail: { gate: gate.id, reason: gate.reason, mode },
-    })
+  private async enforceDelivery(runId: RunId, mode: string): Promise<void> {
+    const policy = buildDeliveryPolicy({ mode, ir: this.options.ir ?? EMPTY_IR })
+    const decision = evaluateDelivery(policy)
+    if (decision.allowed) return
+    // Record one audit entry per failure kind so external auditors can
+    // triage without re-running the executor.
+    for (const failure of decision.failures) {
+      await this.audit({
+        eventType: 'gate_failed',
+        actor: 'paper-executor',
+        runId,
+        detail: { kind: failure.kind, reason: failure.reason, mode },
+      })
+    }
     await this.engine.transitionRun(runId, 'failed')
     throw new WorkflowExecutionError(
       'gate-failed',
-      `run '${runId}' has no execution provenance to deliver from (${gate.reason})`,
+      `run '${runId}' cannot deliver: ${decision.failures.map(f => `${f.kind}:${f.reason}`).join('; ')}`,
     )
   }
 

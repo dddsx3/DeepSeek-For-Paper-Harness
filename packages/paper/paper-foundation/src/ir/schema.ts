@@ -273,6 +273,17 @@ export const numericBindingSchema = zod
  *     QUALITATIVE with empty `evidence_refs` is schema-valid; the semantic
  *     guard refuses it (D-011).
  */
+/**
+ * TASK 3 repair (3.R1 / INV-3-I) — the criticality field is now
+ * constrained by per-claim-type rules. A NUMERIC claim CANNOT declare
+ * NON_CRITICAL (its numeric_binding is the value-anchor; not declaring
+ * it provenance-bound is a proven escape, RT-X3-04a). MODEL/QUALITATIVE
+ * claims may declare NON_CRITICAL, but if they do they MUST provide a
+ * `criticality_rationale` (non-empty, ≤512 chars) that downstream
+ * review can audit. The rules are exactly the v1.1 hard rules from
+ * `criticality.ts`; the schema mirrors them at the entry boundary so
+ * the escape is closed before the IR is even admitted.
+ */
 export const claimSchema = zod.discriminatedUnion('claim_type', [
   zod
     .object({
@@ -285,31 +296,51 @@ export const claimSchema = zod.discriminatedUnion('claim_type', [
       result_refs: zod.array(refSchema).min(1),
       model_refs: zod.array(refSchema),
     })
-    .strict(),
+    .strict()
+    .refine(
+      c => c.criticality === 'CRITICAL',
+      { message: 'NUMERIC Claim must declare criticality: CRITICAL (3.R1 / INV-3-I)' },
+    ),
   zod
     .object({
       claim_id: idSchema,
       text: textSchema,
       claim_type: zod.literal('MODEL'),
       criticality: zod.enum(CLAIM_CRITICALITIES),
+      criticality_rationale: zod.string().min(1).max(512).optional(),
       numeric_binding: zod.null(),
       evidence_refs: zod.array(refSchema),
       result_refs: zod.array(refSchema),
       model_refs: zod.array(refSchema).min(1),
     })
-    .strict(),
+    .strict()
+    .refine(
+      c => c.criticality === 'CRITICAL' || (
+        c.criticality_rationale !== undefined
+          && c.criticality_rationale.trim().length >= 1
+      ),
+      { message: 'MODEL Claim with criticality NON_CRITICAL must carry a non-whitespace criticality_rationale' },
+    ),
   zod
     .object({
       claim_id: idSchema,
       text: textSchema,
       claim_type: zod.literal('QUALITATIVE'),
       criticality: zod.enum(CLAIM_CRITICALITIES),
+      criticality_rationale: zod.string().min(1).max(512).optional(),
       numeric_binding: zod.null(),
       evidence_refs: zod.array(refSchema),
       result_refs: zod.array(refSchema),
       model_refs: zod.array(refSchema),
     })
-    .strict(),
+    .strict()
+    .refine(
+      c => c.criticality === 'CRITICAL' || (
+        c.criticality_rationale !== undefined
+          && c.criticality_rationale.trim().length >= 1
+      ),
+      { message: 'QUALITATIVE Claim with criticality NON_CRITICAL must carry a non-whitespace criticality_rationale' },
+    ),
 ])
 
 export const verificationResultSchema = zod

@@ -14,6 +14,7 @@
  */
 
 import {
+  CAPTURE_ATTESTATION,
   ModelingIr,
   canonicalJson,
   declaredDependencyLockFingerprint,
@@ -166,4 +167,27 @@ function sameSet(a: ReadonlyArray<string>, b: ReadonlyArray<string>): boolean {
   const sortedA = [...a].sort()
   const sortedB = [...b].sort()
   return sortedA.every((value, i) => value === sortedB[i])
+}
+
+/**
+ * TASK 3 repair (3.R3 / INV-3-M): the only legal path for a captured
+ * ExecutionRecord to enter the canonical store is through
+ * `ModelingIr.putExecutionRecord`, which requires the
+ * `CAPTURE_ATTESTATION` symbol. This module is the sole importer of
+ * that symbol; an external caller cannot forge it.
+ *
+ *   1. `captureExecution` runs the code through the runner seam and
+ *      returns a record (it does NOT touch the store — the composition
+ *      decides when to commit).
+ *   2. `ingestCapturedRecord(ir, record)` commits the record through
+ *      the producer-only entry. This is the only sanctioned write path.
+ *   3. Tests that want to simulate a forged record use a `forge*`
+ *      prefix in their file name and exercise `ir.put` directly to
+ *      assert the producer_required refusal (the new contract).
+ */
+export function ingestCapturedRecord(
+  ir: ModelingIr,
+  record: ExecutionRecord,
+): ReturnType<ModelingIr['putExecutionRecord']> {
+  return ir.putExecutionRecord(record, CAPTURE_ATTESTATION)
 }

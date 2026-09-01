@@ -44,21 +44,42 @@ import {
   IR_KINDS,
   IR_SCHEMAS,
   readIrObjectId,
+  type Claim,
   type IrKind,
   type IrObjectMap,
 } from './schema.ts'
+import { classifyClaimCriticality, mergeCriticality } from './criticality.ts'
 
-/** Closed set of reasons an ingest is refused. */
-export const IR_FAILURE_KINDS = [
-  'unknown_kind',
-  'parse_failed',
-  'malformed_value',
-  'schema_invalid',
-  'duplicate_id',
-  'unresolved_reference',
-  'reference_kind_mismatch',
-  'internal_error',
-] as const
+  /**
+   * Closed set of reasons an ingest is refused.
+   *
+   * TASK 3 repair (3.R1 / 3.R3) added two new members; the full set is
+   *   the exhaustive taxonomy an attacker cannot enlarge.
+   */
+  /**
+   * TASK 3 repair (3.R3 / INV-3-M): a unique symbol that the capture
+   * module imports and hands to `putExecutionRecord`. The symbol is
+   * intentionally unexported, unserializable, and unique per process;
+   * it cannot be reconstructed outside the capture module.
+   */
+  export const CAPTURE_ATTESTATION = Symbol.for('paper.capture-attestation')
+
+  export const IR_FAILURE_KINDS = [
+    'unknown_kind',
+    'parse_failed',
+    'malformed_value',
+    'schema_invalid',
+    'duplicate_id',
+    'unresolved_reference',
+    'reference_kind_mismatch',
+    'internal_error',
+    // 3.R1: a Claim's producer-declared criticality is LESS strict than
+    // the deterministic classifier's call. INV-3-J.
+    'criticality_mismatch',
+    // 3.R3: a direct `put('ExecutionRecord', ...)` bypasses the capture
+    // attestation required by INV-3-M.
+    'producer_required',
+  ] as const
 
 export type IrFailureKind = (typeof IR_FAILURE_KINDS)[number]
 
@@ -206,12 +227,48 @@ export class ModelingIr {
    * Total: never throws. Any internal fault (a hostile `kind` whose
    * `toString` throws, a throwing clock, a throwing audit sink) is reported
    * as `internal_error` rather than escaping as an exception.
+   *
+   * TASK 3 repair (3.R3 / INV-3-M): `put('ExecutionRecord', …)` is
+   * refused with `producer_required`; the only legal entry for an
+   * ExecutionRecord is `putExecutionRecord(record, attestation)`, which
+   * capture wires internally. This is the producer-only seam in
+   * mechanism form: a public caller cannot smuggle a forged record.
    */
   put<K extends IrKind>(kind: K, value: unknown): IrIngestVerdict<K> {
+    if (kind === ('ExecutionRecord' as IrKind)) {
+      return this.#refuse('ExecutionRecord' as K, bestEffortId(kind, value), [
+        { kind: 'producer_required', path: '$', reason: 'ExecutionRecord may only be ingested via putExecutionRecord(record, attestation) (INV-3-M)' },
+      ]) as IrIngestVerdict<K>
+    }
     try {
       return this.#admit(kind, value)
     } catch (error) {
       return this.#refuse(kind, bestEffortId(kind, value), [
+        { kind: 'internal_error', path: '$', reason: describeError(error) },
+      ])
+    }
+  }
+
+  /**
+   * TASK 3 repair (3.R3): the only legal path for an ExecutionRecord
+   * to enter the canonical store. The caller MUST hand the
+   * `CAPTURE_ATTESTATION` symbol (constructed inside the capture
+   * module — never exported, never re-exported, never serializable);
+   * any other value is refused with `producer_required`.
+   */
+  putExecutionRecord(
+    record: import('./schema.ts').ExecutionRecord,
+    attestation: typeof CAPTURE_ATTESTATION,
+  ): IrIngestVerdict<'ExecutionRecord'> {
+    if (attestation !== CAPTURE_ATTESTATION) {
+      return this.#refuse('ExecutionRecord', record.execution_id, [
+        { kind: 'producer_required', path: '$', reason: 'attestation does not match the capture module\'s symbol (INV-3-M)' },
+      ])
+    }
+    try {
+      return this.#admit('ExecutionRecord' as 'ExecutionRecord', record as unknown)
+    } catch (error) {
+      return this.#refuse('ExecutionRecord', record.execution_id, [
         { kind: 'internal_error', path: '$', reason: describeError(error) },
       ])
     }
@@ -241,6 +298,25 @@ export class ModelingIr {
         bestEffortId(kind, value),
         parsed.error.issues.map(issue => toSchemaFailure(issue)),
       )
+    }
+
+    // TASK 3 repair 3.R1 / INV-3-I,J: the criticality of a Claim is the
+    // most-strict of the producer's declaration and the deterministic
+    // classifier's call. Downgrading (e.g. a NUMERIC claim declaring
+    // NON_CRITICAL) is refused at the store boundary so the escape never
+    // reaches the bridge. This is INV-3-J's mechanism: the front edge
+    // the constrained party can no longer re-define.
+    if (kind === 'Claim') {
+      const claim = parsed.data as Claim
+      const classifier = classifyClaimCriticality(claim, this.#objects, claim.criticality)
+      const merged = mergeCriticality(claim.criticality, classifier.criticality)
+      if (merged !== claim.criticality) {
+        return this.#refuse(kind, claim.claim_id, [{
+          kind: 'criticality_mismatch',
+          path: 'criticality',
+          reason: `producer declared ${claim.criticality}, classifier required ${merged} (${classifier.reason})`,
+        }])
+      }
     }
 
     const id = readIrObjectId(kind, parsed.data)

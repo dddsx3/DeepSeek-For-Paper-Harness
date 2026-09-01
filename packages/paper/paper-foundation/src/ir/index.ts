@@ -96,6 +96,17 @@ export type {
 } from './problem-contract.ts'
 
 export {
+  CAPTURE_ATTESTATION,
+  IR_FAILURE_KINDS,
+  ModelingIr,
+} from './store.ts'
+
+// TASK 3 repair (3.R3 / INV-3-M): the sole producer-only entry is
+// re-exported here so consumers (and tests) need not import from both
+// the IR barrel and the execution barrel.
+export { ingestCapturedRecord } from '../execution/capture.ts'
+
+export {
   CLAIM_EVIDENCE_FAILURE_KINDS,
   inspectClaimEvidence,
   numericValuesEqual,
@@ -106,6 +117,15 @@ export type {
   ClaimEvidenceFailureKind,
   ClaimEvidenceResolver,
 } from './claim-evidence.ts'
+
+export {
+  CRITICALITY_REASON_PRODUCER_DECLARATION,
+  CRITICALITY_REASON_R1_NUMERIC_BINDING,
+  CRITICALITY_REASON_R2_REQUIRED_OUTPUT,
+  classifyClaimCriticality,
+  mergeCriticality,
+} from './criticality.ts'
+export type { CriticalityVerdict } from './criticality.ts'
 
 export {
   EVIDENCE_AUDIT_CATEGORIES,
@@ -147,8 +167,6 @@ export type {
   IrClaimProblem,
   IrClaimRejection,
 } from './bridge.ts'
-
-export { IR_FAILURE_KINDS, ModelingIr } from './store.ts'
 export type {
   IrAuditEvent,
   IrAuditEventType,

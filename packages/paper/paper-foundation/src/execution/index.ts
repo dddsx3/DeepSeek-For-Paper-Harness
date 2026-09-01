@@ -13,6 +13,7 @@
 export {
   EXECUTION_CAPTURE_FAILURE_KINDS,
   captureExecution,
+  ingestCapturedRecord,
 } from './capture.ts'
 export type {
   ExecutionCaptureFailure,
