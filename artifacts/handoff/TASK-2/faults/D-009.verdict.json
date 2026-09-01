@@ -1,0 +1,12 @@
+{
+  "id": "D-009",
+  "description": "MODEL Claim with no model_refs — schema BLOCKED",
+  "root_cause": "structural",
+  "expected_status": "BLOCKED",
+  "expected_reason_matches": [
+    "missing IR backbone: Claim"
+  ],
+  "expected_ingest_reason_matches": [
+    "model_refs:schema_invalid"
+  ]
+}

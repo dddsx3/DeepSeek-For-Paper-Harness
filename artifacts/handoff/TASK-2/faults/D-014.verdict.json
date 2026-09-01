@@ -1,0 +1,10 @@
+{
+  "id": "D-014",
+  "description": "invalid CRITICAL not in ir_claims — still BLOCKED (snapshot-driven)",
+  "root_cause": "semantic",
+  "expected_status": "BLOCKED",
+  "expected_reason_matches": [
+    "numeric_value_mismatch"
+  ],
+  "expected_ingest_reason_matches": []
+}

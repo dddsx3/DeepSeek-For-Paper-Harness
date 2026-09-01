@@ -1,0 +1,47 @@
+{
+  "task": "TASK 2 — Claim → Result → Run Evidence Chain",
+  "phase": "PHASE 6 — Final Gate Report",
+  "baseline": {
+    "task_1_5r_head": "673063fd18",
+    "task_2_head": "(uncommitted; see changed-files.txt)",
+    "paper_foundation_tests": {
+      "files": 51,
+      "tests": 574,
+      "ir_directory_tests": 256
+    },
+    "tsc_clean": true
+  },
+  "phases": [
+    { "id": "PHASE 0", "status": "PASS", "artifact": "phase-0-topology.md" },
+    { "id": "PHASE 1", "status": "PASS", "evidence": "49 → 51 files; 522 → 574 tests green" },
+    { "id": "PHASE 2", "status": "PASS", "evidence": "src/ir/claim-evidence.ts created; types exported" },
+    { "id": "PHASE 3", "status": "PASS", "evidence": "IrBridgeDecision.evidenceFailures; 8 new bridge tests (D-004/D-005/D-006/D-011/D-013/D-014/D-019/D-020) green" },
+    { "id": "PHASE 4", "status": "PASS", "evidence": "20/20 fault corpus (D-001..D-020); 23/23 validator unit tests" },
+    { "id": "PHASE 5", "status": "PASS", "evidence": "16/16 mutations killed (M-01..M-16); 4-role red-team (RT-C1..C4); CRITICAL escape = 0" },
+    { "id": "PHASE 6", "status": "PASS", "evidence": "this file" }
+  ],
+  "closed_conditions": [
+    { "id": "L1", "description": "All CRITICAL NUMERIC claims have explicit machine binding", "status": "PASS", "evidence": "M-01 mutation killed; D-001 fault corpus entry; tests/ir/redteam.spec.ts NON_CRITICAL NUMERIC without binding" },
+    { "id": "L2", "description": "Claim numeric value/unit match canonical Result exactly", "status": "PASS", "evidence": "M-02/M-03/M-15/M-16 mutations killed; D-005/D-006/D-007/D-017 fault corpus" },
+    { "id": "L3", "description": "Result→RunArtifact→ModelSpec→ProblemSpec chain closed by store", "status": "PASS", "evidence": "TASK 1.5R 12-CLOSED-condition test set re-runs green; refs.ts/store.ts unchanged by TASK 2" },
+    { "id": "L4", "description": "MODEL / QUALITATIVE type-specific contracts active", "status": "PASS", "evidence": "M-06/M-07/M-09/M-12/M-14 mutations killed; D-009/D-010/D-011/D-012 fault corpus" },
+    { "id": "L5", "description": "FORMAL/FAST check ALL CRITICAL claims; valid cannot mask invalid", "status": "PASS", "evidence": "M-04/M-05/M-13 mutations killed; D-013/D-014 fault corpus; bridge.spec.ts D-013/D-014 tests" },
+    { "id": "L6", "description": "D-001..D-018 negative BLOCKED; D-019/D-020 PASS", "status": "PASS", "evidence": "fault corpus 20/20" },
+    { "id": "L7", "description": "4 red-team roles completed; CRITICAL escape = 0", "status": "PASS", "evidence": "redteam.md RT-C1..RT-C4 with 16 findings → regression tests" },
+    { "id": "L8", "description": "≥14 targeted mutations all killed (actual: 16/16)", "status": "PASS", "evidence": "mutation-results.json" },
+    { "id": "L9", "description": "Full paper-foundation regression green; TASK 1.5R regressions green", "status": "PASS", "evidence": "51 files / 574 tests; IR directory 256 tests; all TASK 1.5R spec files re-run green" },
+    { "id": "L10", "description": "known-risks.md delegates real execution / hash bytes / unit conversion / numeric recomputation to TASK 3", "status": "PASS", "evidence": "known-risks.md items 1-4 explicit" },
+    { "id": "L11", "description": "INV-2-A..H each paired with a regression test or mutation", "status": "PASS", "evidence": "invariant.md" },
+    { "id": "L12", "description": "TASK-2 handoff package complete", "status": "PASS", "evidence": "see artifacts/handoff/TASK-2/" }
+  ],
+  "totals": {
+    "phases_passed": 7,
+    "closed_conditions_passed": 12,
+    "mutations_killed": 16,
+    "mutations_survived": 0,
+    "fault_corpus_passed": 20,
+    "fault_corpus_failed": 0,
+    "tests_added": 53,
+    "critical_escape": 0
+  }
+}

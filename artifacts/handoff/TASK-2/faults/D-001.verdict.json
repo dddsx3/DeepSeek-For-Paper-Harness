@@ -1,0 +1,12 @@
+{
+  "id": "D-001",
+  "description": "CRITICAL NUMERIC without numeric_binding (schema BLOCKED)",
+  "root_cause": "structural",
+  "expected_status": "BLOCKED",
+  "expected_reason_matches": [
+    "missing IR backbone: Claim"
+  ],
+  "expected_ingest_reason_matches": [
+    "numeric_binding:schema_invalid"
+  ]
+}

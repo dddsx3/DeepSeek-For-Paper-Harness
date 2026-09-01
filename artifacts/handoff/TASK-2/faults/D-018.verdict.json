@@ -1,0 +1,10 @@
+{
+  "id": "D-018",
+  "description": "Duplicate result_refs — schema BLOCKED (the new refine; Result uniqueness is store-level)",
+  "root_cause": "structural",
+  "expected_status": "BLOCKED",
+  "expected_reason_matches": [],
+  "expected_ingest_reason_matches": [
+    "$:schema_invalid"
+  ]
+}

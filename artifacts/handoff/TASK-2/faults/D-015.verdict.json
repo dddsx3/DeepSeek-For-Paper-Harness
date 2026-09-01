@@ -1,0 +1,12 @@
+{
+  "id": "D-015",
+  "description": "NON_CRITICAL NUMERIC draft without binding — schema BLOCKED",
+  "root_cause": "structural",
+  "expected_status": "BLOCKED",
+  "expected_reason_matches": [
+    "missing IR backbone: Claim"
+  ],
+  "expected_ingest_reason_matches": [
+    "numeric_binding:schema_invalid"
+  ]
+}

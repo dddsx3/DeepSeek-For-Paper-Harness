@@ -1,0 +1,10 @@
+{
+  "id": "D-003",
+  "description": "binding.result_ref resolves to wrong kind (ModelSpec) — store kind mismatch",
+  "root_cause": "structural",
+  "expected_status": "BLOCKED",
+  "expected_reason_matches": [],
+  "expected_ingest_reason_matches": [
+    "result_refs:reference_kind_mismatch"
+  ]
+}

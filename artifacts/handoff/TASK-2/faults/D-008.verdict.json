@@ -1,0 +1,12 @@
+{
+  "id": "D-008",
+  "description": "NUMERIC with only model_ref (no result_refs, no binding) — schema BLOCKED",
+  "root_cause": "structural",
+  "expected_status": "BLOCKED",
+  "expected_reason_matches": [
+    "missing IR backbone: Claim"
+  ],
+  "expected_ingest_reason_matches": [
+    "result_refs:schema_invalid"
+  ]
+}

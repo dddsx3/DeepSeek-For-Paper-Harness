@@ -1,0 +1,10 @@
+{
+  "id": "D-007",
+  "description": "Use close-but-wrong asserted_value (tolerance/rounding disguise) — semantic BLOCKED",
+  "root_cause": "semantic",
+  "expected_status": "BLOCKED",
+  "expected_reason_matches": [
+    "numeric_value_mismatch"
+  ],
+  "expected_ingest_reason_matches": []
+}

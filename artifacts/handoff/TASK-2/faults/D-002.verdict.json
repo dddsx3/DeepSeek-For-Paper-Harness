@@ -1,0 +1,10 @@
+{
+  "id": "D-002",
+  "description": "NUMERIC binding.result_ref missing → store BLOCKED (binding.result_ref not string)",
+  "root_cause": "structural",
+  "expected_status": "BLOCKED",
+  "expected_reason_matches": [],
+  "expected_ingest_reason_matches": [
+    "result_ref:schema_invalid"
+  ]
+}

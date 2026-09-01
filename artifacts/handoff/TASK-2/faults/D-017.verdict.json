@@ -1,0 +1,10 @@
+{
+  "id": "D-017",
+  "description": "-0 vs +0 boundary — JSON path collapses to 0; typed path covered in claim-evidence.spec.ts",
+  "root_cause": "semantic",
+  "expected_status": "BLOCKED",
+  "expected_reason_matches": [
+    "numeric_value_mismatch"
+  ],
+  "expected_ingest_reason_matches": []
+}

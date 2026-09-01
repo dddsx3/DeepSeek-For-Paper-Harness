@@ -1,0 +1,10 @@
+{
+  "id": "D-006",
+  "description": "asserted_unit != Result.unit — semantic BLOCKED",
+  "root_cause": "semantic",
+  "expected_status": "BLOCKED",
+  "expected_reason_matches": [
+    "numeric_unit_mismatch"
+  ],
+  "expected_ingest_reason_matches": []
+}

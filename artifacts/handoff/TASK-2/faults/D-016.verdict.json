@@ -1,0 +1,12 @@
+{
+  "id": "D-016",
+  "description": "Non-finite asserted_value (string 'NaN' coerced) — schema BLOCKED",
+  "root_cause": "structural",
+  "expected_status": "BLOCKED",
+  "expected_reason_matches": [
+    "missing IR backbone: Claim"
+  ],
+  "expected_ingest_reason_matches": [
+    "asserted_value:schema_invalid"
+  ]
+}

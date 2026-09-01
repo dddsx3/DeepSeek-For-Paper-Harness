@@ -1,0 +1,8 @@
+{
+  "id": "D-019",
+  "description": "complete Claim→Result→Run→Model→Problem chain with binding — PASS",
+  "root_cause": "semantic",
+  "expected_status": "PASS",
+  "expected_reason_matches": [],
+  "expected_ingest_reason_matches": []
+}

@@ -1,0 +1,12 @@
+{
+  "id": "D-010",
+  "description": "MODEL Claim with numeric_binding present — schema BLOCKED (numeric_binding must be null)",
+  "root_cause": "structural",
+  "expected_status": "BLOCKED",
+  "expected_reason_matches": [
+    "missing IR backbone: Claim"
+  ],
+  "expected_ingest_reason_matches": [
+    "numeric_binding:schema_invalid"
+  ]
+}

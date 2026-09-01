@@ -1,0 +1,26 @@
+Baseline — TASK 2 PHASE 0
+
+Repository: D:/deepseek-harness/deepseek-harness
+HEAD:      673063fd18 (docs only — agent notes; no production diffs)
+Working:   clean (git status -sb → "## main...origin/main")
+Branch:    main (in sync with origin/main)
+
+Frozen TASK 1.5R baseline (per HANDOFF-AGENT-NOTES.md / gate-report.json):
+  - 49 files / 522 tests green
+  - 18/18 fault corpus (R-001..R-018)
+  - 14/14 mutations killed
+  - 4 red-team roles, CRITICAL escape = 0
+  - 12/12 CLOSED conditions PASS
+  - tsc -p packages/paper/paper-foundation: clean
+
+PHASE 0 gate artifact:
+  artifacts/handoff/TASK-2/phase-0-topology.md
+    §1  producer / consumer / fixtures map
+    §2  edit-surface file index
+    §3  proposed schema delta (non-binding preview)
+    §4  open questions (4)
+    §5  baseline evidence
+
+PHASE 1 has NOT started. No production code has been edited.
+The proposed schema in §3 will only land after user/External Attack
+Gate sign-off, per the task book §4 PHASE 0 Gate row.

@@ -1,0 +1,10 @@
+{
+  "id": "D-004",
+  "description": "binding.result_ref not in result_refs — semantic BLOCKED",
+  "root_cause": "semantic",
+  "expected_status": "BLOCKED",
+  "expected_reason_matches": [
+    "numeric_binding_result_not_in_result_refs"
+  ],
+  "expected_ingest_reason_matches": []
+}

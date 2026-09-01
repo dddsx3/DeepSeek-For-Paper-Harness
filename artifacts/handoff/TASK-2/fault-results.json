@@ -1,0 +1,418 @@
+{
+  "total": 20,
+  "passed": 20,
+  "failed": 0,
+  "verdicts": [
+    {
+      "id": "D-001",
+      "verdict": {
+        "id": "D-001",
+        "description": "CRITICAL NUMERIC without numeric_binding (schema BLOCKED)",
+        "root_cause": "structural",
+        "expected_status": "BLOCKED",
+        "expected_reason_matches": [
+          "missing IR backbone: Claim"
+        ],
+        "expected_ingest_reason_matches": [
+          "numeric_binding:schema_invalid"
+        ]
+      },
+      "status": "BLOCKED",
+      "pass": true,
+      "failures": {
+        "status": null,
+        "reason": null,
+        "ingest": null
+      }
+    },
+    {
+      "id": "D-002",
+      "verdict": {
+        "id": "D-002",
+        "description": "NUMERIC binding.result_ref missing → store BLOCKED (binding.result_ref not string)",
+        "root_cause": "structural",
+        "expected_status": "BLOCKED",
+        "expected_reason_matches": [],
+        "expected_ingest_reason_matches": [
+          "result_ref:schema_invalid"
+        ]
+      },
+      "status": "BLOCKED",
+      "pass": true,
+      "failures": {
+        "status": null,
+        "reason": null,
+        "ingest": null
+      }
+    },
+    {
+      "id": "D-003",
+      "verdict": {
+        "id": "D-003",
+        "description": "binding.result_ref resolves to wrong kind (ModelSpec) — store kind mismatch",
+        "root_cause": "structural",
+        "expected_status": "BLOCKED",
+        "expected_reason_matches": [],
+        "expected_ingest_reason_matches": [
+          "result_refs:reference_kind_mismatch"
+        ]
+      },
+      "status": "BLOCKED",
+      "pass": true,
+      "failures": {
+        "status": null,
+        "reason": null,
+        "ingest": null
+      }
+    },
+    {
+      "id": "D-004",
+      "verdict": {
+        "id": "D-004",
+        "description": "binding.result_ref not in result_refs — semantic BLOCKED",
+        "root_cause": "semantic",
+        "expected_status": "BLOCKED",
+        "expected_reason_matches": [
+          "numeric_binding_result_not_in_result_refs"
+        ],
+        "expected_ingest_reason_matches": []
+      },
+      "status": "BLOCKED",
+      "pass": true,
+      "failures": {
+        "status": null,
+        "reason": null,
+        "ingest": null
+      }
+    },
+    {
+      "id": "D-005",
+      "verdict": {
+        "id": "D-005",
+        "description": "asserted_value != Result.value — semantic BLOCKED",
+        "root_cause": "semantic",
+        "expected_status": "BLOCKED",
+        "expected_reason_matches": [
+          "numeric_value_mismatch"
+        ],
+        "expected_ingest_reason_matches": []
+      },
+      "status": "BLOCKED",
+      "pass": true,
+      "failures": {
+        "status": null,
+        "reason": null,
+        "ingest": null
+      }
+    },
+    {
+      "id": "D-006",
+      "verdict": {
+        "id": "D-006",
+        "description": "asserted_unit != Result.unit — semantic BLOCKED",
+        "root_cause": "semantic",
+        "expected_status": "BLOCKED",
+        "expected_reason_matches": [
+          "numeric_unit_mismatch"
+        ],
+        "expected_ingest_reason_matches": []
+      },
+      "status": "BLOCKED",
+      "pass": true,
+      "failures": {
+        "status": null,
+        "reason": null,
+        "ingest": null
+      }
+    },
+    {
+      "id": "D-007",
+      "verdict": {
+        "id": "D-007",
+        "description": "Use close-but-wrong asserted_value (tolerance/rounding disguise) — semantic BLOCKED",
+        "root_cause": "semantic",
+        "expected_status": "BLOCKED",
+        "expected_reason_matches": [
+          "numeric_value_mismatch"
+        ],
+        "expected_ingest_reason_matches": []
+      },
+      "status": "BLOCKED",
+      "pass": true,
+      "failures": {
+        "status": null,
+        "reason": null,
+        "ingest": null
+      }
+    },
+    {
+      "id": "D-008",
+      "verdict": {
+        "id": "D-008",
+        "description": "NUMERIC with only model_ref (no result_refs, no binding) — schema BLOCKED",
+        "root_cause": "structural",
+        "expected_status": "BLOCKED",
+        "expected_reason_matches": [
+          "missing IR backbone: Claim"
+        ],
+        "expected_ingest_reason_matches": [
+          "result_refs:schema_invalid"
+        ]
+      },
+      "status": "BLOCKED",
+      "pass": true,
+      "failures": {
+        "status": null,
+        "reason": null,
+        "ingest": null
+      }
+    },
+    {
+      "id": "D-009",
+      "verdict": {
+        "id": "D-009",
+        "description": "MODEL Claim with no model_refs — schema BLOCKED",
+        "root_cause": "structural",
+        "expected_status": "BLOCKED",
+        "expected_reason_matches": [
+          "missing IR backbone: Claim"
+        ],
+        "expected_ingest_reason_matches": [
+          "model_refs:schema_invalid"
+        ]
+      },
+      "status": "BLOCKED",
+      "pass": true,
+      "failures": {
+        "status": null,
+        "reason": null,
+        "ingest": null
+      }
+    },
+    {
+      "id": "D-010",
+      "verdict": {
+        "id": "D-010",
+        "description": "MODEL Claim with numeric_binding present — schema BLOCKED (numeric_binding must be null)",
+        "root_cause": "structural",
+        "expected_status": "BLOCKED",
+        "expected_reason_matches": [
+          "missing IR backbone: Claim"
+        ],
+        "expected_ingest_reason_matches": [
+          "numeric_binding:schema_invalid"
+        ]
+      },
+      "status": "BLOCKED",
+      "pass": true,
+      "failures": {
+        "status": null,
+        "reason": null,
+        "ingest": null
+      }
+    },
+    {
+      "id": "D-011",
+      "verdict": {
+        "id": "D-011",
+        "description": "CRITICAL QUALITATIVE with empty evidence_refs — semantic BLOCKED",
+        "root_cause": "semantic",
+        "expected_status": "BLOCKED",
+        "expected_reason_matches": [
+          "qualitative_critical_no_evidence"
+        ],
+        "expected_ingest_reason_matches": []
+      },
+      "status": "BLOCKED",
+      "pass": true,
+      "failures": {
+        "status": null,
+        "reason": null,
+        "ingest": null
+      }
+    },
+    {
+      "id": "D-012",
+      "verdict": {
+        "id": "D-012",
+        "description": "QUALITATIVE with numeric_binding — schema BLOCKED",
+        "root_cause": "structural",
+        "expected_status": "BLOCKED",
+        "expected_reason_matches": [
+          "missing IR backbone: Claim"
+        ],
+        "expected_ingest_reason_matches": [
+          "numeric_binding:schema_invalid"
+        ]
+      },
+      "status": "BLOCKED",
+      "pass": true,
+      "failures": {
+        "status": null,
+        "reason": null,
+        "ingest": null
+      }
+    },
+    {
+      "id": "D-013",
+      "verdict": {
+        "id": "D-013",
+        "description": "valid + invalid CRITICAL — whole delivery BLOCKED",
+        "root_cause": "semantic",
+        "expected_status": "BLOCKED",
+        "expected_reason_matches": [
+          "C-BAD",
+          "numeric_value_mismatch"
+        ],
+        "expected_ingest_reason_matches": []
+      },
+      "status": "BLOCKED",
+      "pass": true,
+      "failures": {
+        "status": null,
+        "reason": null,
+        "ingest": null
+      }
+    },
+    {
+      "id": "D-014",
+      "verdict": {
+        "id": "D-014",
+        "description": "invalid CRITICAL not in ir_claims — still BLOCKED (snapshot-driven)",
+        "root_cause": "semantic",
+        "expected_status": "BLOCKED",
+        "expected_reason_matches": [
+          "numeric_value_mismatch"
+        ],
+        "expected_ingest_reason_matches": []
+      },
+      "status": "BLOCKED",
+      "pass": true,
+      "failures": {
+        "status": null,
+        "reason": null,
+        "ingest": null
+      }
+    },
+    {
+      "id": "D-015",
+      "verdict": {
+        "id": "D-015",
+        "description": "NON_CRITICAL NUMERIC draft without binding — schema BLOCKED",
+        "root_cause": "structural",
+        "expected_status": "BLOCKED",
+        "expected_reason_matches": [
+          "missing IR backbone: Claim"
+        ],
+        "expected_ingest_reason_matches": [
+          "numeric_binding:schema_invalid"
+        ]
+      },
+      "status": "BLOCKED",
+      "pass": true,
+      "failures": {
+        "status": null,
+        "reason": null,
+        "ingest": null
+      }
+    },
+    {
+      "id": "D-016",
+      "verdict": {
+        "id": "D-016",
+        "description": "Non-finite asserted_value (string 'NaN' coerced) — schema BLOCKED",
+        "root_cause": "structural",
+        "expected_status": "BLOCKED",
+        "expected_reason_matches": [
+          "missing IR backbone: Claim"
+        ],
+        "expected_ingest_reason_matches": [
+          "asserted_value:schema_invalid"
+        ]
+      },
+      "status": "BLOCKED",
+      "pass": true,
+      "failures": {
+        "status": null,
+        "reason": null,
+        "ingest": null
+      }
+    },
+    {
+      "id": "D-017",
+      "verdict": {
+        "id": "D-017",
+        "description": "-0 vs +0 boundary — JSON path collapses to 0; typed path covered in claim-evidence.spec.ts",
+        "root_cause": "semantic",
+        "expected_status": "BLOCKED",
+        "expected_reason_matches": [
+          "numeric_value_mismatch"
+        ],
+        "expected_ingest_reason_matches": []
+      },
+      "status": "BLOCKED",
+      "pass": true,
+      "failures": {
+        "status": null,
+        "reason": null,
+        "ingest": null
+      }
+    },
+    {
+      "id": "D-018",
+      "verdict": {
+        "id": "D-018",
+        "description": "Duplicate result_refs — schema BLOCKED (the new refine; Result uniqueness is store-level)",
+        "root_cause": "structural",
+        "expected_status": "BLOCKED",
+        "expected_reason_matches": [],
+        "expected_ingest_reason_matches": [
+          "$:schema_invalid"
+        ]
+      },
+      "status": "BLOCKED",
+      "pass": true,
+      "failures": {
+        "status": null,
+        "reason": null,
+        "ingest": null
+      }
+    },
+    {
+      "id": "D-019",
+      "verdict": {
+        "id": "D-019",
+        "description": "complete Claim→Result→Run→Model→Problem chain with binding — PASS",
+        "root_cause": "semantic",
+        "expected_status": "PASS",
+        "expected_reason_matches": [],
+        "expected_ingest_reason_matches": []
+      },
+      "status": "PASS",
+      "pass": true,
+      "failures": {
+        "status": null,
+        "reason": null,
+        "ingest": null
+      }
+    },
+    {
+      "id": "D-020",
+      "verdict": {
+        "id": "D-020",
+        "description": "FORMAL multi-claim (NUMERIC + MODEL) happy path — PASS",
+        "root_cause": "semantic",
+        "expected_status": "PASS",
+        "expected_reason_matches": [],
+        "expected_ingest_reason_matches": []
+      },
+      "status": "PASS",
+      "pass": true,
+      "failures": {
+        "status": null,
+        "reason": null,
+        "ingest": null
+      }
+    }
+  ]
+}

@@ -1,0 +1,156 @@
+{
+  "task": "TASK 2 — Claim → Result → Run Evidence Chain",
+  "phase": "PHASE 5 — Targeted Mutation",
+  "baseline": "green",
+  "totals": {
+    "total": 16,
+    "killed": 16,
+    "survived": 0
+  },
+  "mutations": [
+    {
+      "id": "M-01",
+      "guard": "NUMERIC binding requirement (PHASE 1 discriminated union)",
+      "status": "killed",
+      "detail": {
+        "vitest": "exit 1",
+        "faultCorpus": "exit 1"
+      }
+    },
+    {
+      "id": "M-02",
+      "guard": "NUMERIC value equality (numericValuesEqual)",
+      "status": "killed",
+      "detail": {
+        "vitest": "exit 1",
+        "faultCorpus": "exit 1"
+      }
+    },
+    {
+      "id": "M-03",
+      "guard": "NUMERIC unit equality",
+      "status": "killed",
+      "detail": {
+        "vitest": "exit 1",
+        "faultCorpus": "exit 1"
+      }
+    },
+    {
+      "id": "M-04",
+      "guard": "snapshot walker inspects every CRITICAL Claim (D-013 reduction)",
+      "status": "killed",
+      "detail": {
+        "vitest": "exit 1",
+        "faultCorpus": "exit 1"
+      }
+    },
+    {
+      "id": "M-05",
+      "guard": "bridge walks the canonical snapshot, not artifact-subset (D-014 reduction)",
+      "status": "killed",
+      "detail": {
+        "vitest": "exit 1",
+        "faultCorpus": "exit 1"
+      }
+    },
+    {
+      "id": "M-06",
+      "guard": "MODEL Claim cannot carry numeric_binding (schema literal null)",
+      "status": "killed",
+      "detail": {
+        "vitest": "exit 1",
+        "faultCorpus": "exit 1"
+      }
+    },
+    {
+      "id": "M-07",
+      "guard": "CRITICAL QUALITATIVE with zero evidence_refs is BLOCKED",
+      "status": "killed",
+      "detail": {
+        "vitest": "exit 1",
+        "faultCorpus": "exit 1"
+      }
+    },
+    {
+      "id": "M-08",
+      "guard": "NUMERIC requires result_refs.min(1) at the schema boundary",
+      "status": "killed",
+      "detail": {
+        "vitest": "exit 1",
+        "faultCorpus": "exit 1"
+      }
+    },
+    {
+      "id": "M-09",
+      "guard": "MODEL requires model_refs.min(1) at the schema boundary",
+      "status": "killed",
+      "detail": {
+        "vitest": "exit 1",
+        "faultCorpus": "exit 1"
+      }
+    },
+    {
+      "id": "M-10",
+      "guard": "binding.result_ref must be in claim.result_refs",
+      "status": "killed",
+      "detail": {
+        "vitest": "exit 1",
+        "faultCorpus": "exit 1"
+      }
+    },
+    {
+      "id": "M-11",
+      "guard": "numeric_binding.result_ref must resolve to a Result",
+      "status": "killed",
+      "detail": {
+        "vitest": "exit 1",
+        "faultCorpus": "exit 1"
+      }
+    },
+    {
+      "id": "M-12",
+      "guard": "MODEL with phantom model_refs is BLOCKED",
+      "status": "killed",
+      "detail": {
+        "vitest": "exit 1",
+        "faultCorpus": "exit 1"
+      }
+    },
+    {
+      "id": "M-13",
+      "guard": "bridge refuses delivery when any CRITICAL Claim is invalid (INV-2-F)",
+      "status": "killed",
+      "detail": {
+        "vitest": "exit 1",
+        "faultCorpus": "exit 1"
+      }
+    },
+    {
+      "id": "M-14",
+      "guard": "MODEL with empty model_refs is BLOCKED (semantic)",
+      "status": "killed",
+      "detail": {
+        "vitest": "exit 1",
+        "faultCorpus": "pass"
+      }
+    },
+    {
+      "id": "M-15",
+      "guard": "numericValuesEqual collapses -0/+0 (D-017 frozen policy)",
+      "status": "killed",
+      "detail": {
+        "vitest": "exit 1",
+        "faultCorpus": "pass"
+      }
+    },
+    {
+      "id": "M-16",
+      "guard": "value mismatch branch in validator runs (defence in depth vs M-02)",
+      "status": "killed",
+      "detail": {
+        "vitest": "exit 1",
+        "faultCorpus": "exit 1"
+      }
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+tests/ir/fault-corpus-d2.spec.ts — 20 tests (D-001..D-020)
+tests/ir/claim-evidence.spec.ts — 23 tests
+tests/ir/bridge.spec.ts — +8 new tests (D-004, D-005, D-006, D-011, D-013, D-014, D-019, D-020)
+tests/ir/redteam.spec.ts — +2 new tests (NON_CRITICAL QUALITATIVE; NON_CRITICAL NUMERIC without binding)
+
+Total TASK 2 additions: 53 tests across 4 spec files.
+
+Verification matrix:
+  - vitest full IR suite: 12 files / 256 tests (was 12 / 222)
+  - vitest full paper-foundation: 51 files / 574 tests (was 49 / 522)
+  - fault corpus standalone: 20 / 20 PASS
+  - targeted mutation: 16 / 16 killed

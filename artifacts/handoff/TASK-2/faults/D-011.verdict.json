@@ -1,0 +1,10 @@
+{
+  "id": "D-011",
+  "description": "CRITICAL QUALITATIVE with empty evidence_refs — semantic BLOCKED",
+  "root_cause": "semantic",
+  "expected_status": "BLOCKED",
+  "expected_reason_matches": [
+    "qualitative_critical_no_evidence"
+  ],
+  "expected_ingest_reason_matches": []
+}

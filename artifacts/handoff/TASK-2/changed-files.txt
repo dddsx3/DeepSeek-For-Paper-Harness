@@ -1,0 +1,26 @@
+# Modified (existing) files
+
+src/ir/schema.ts                     — claimSchema → zod.discriminatedUnion;
+                                        numericBindingSchema (+ types).
+src/ir/bridge.ts                     — IrBridgeDecision.evidenceFailures;
+                                        inspectClaimEvidence call; describe() update.
+src/ir/index.ts                      — exports numericBindingSchema,
+                                        NumericClaimBinding, CLAIM_EVIDENCE_FAILURE_KINDS,
+                                        validateClaimEvidence, inspectClaimEvidence,
+                                        numericValuesEqual.
+tests/ir/fixtures.ts                       — claim() carries numeric_binding; modelClaim(),
+                                              qualitativeClaim() factories.
+tests/ir/bridge.spec.ts              — TASK 2 suite (8 new tests).
+tests/ir/redteam.spec.ts             — RT2-04 split (QUALITATIVE ok; NUMERIC blocked).
+artifacts/handoff/TASK-1.5R/faults/R-012.json  — Claim carries numeric_binding (TASK 2 evolution).
+artifacts/handoff/TASK-1.5R/faults/R-013.json  — Claim carries numeric_binding.
+artifacts/handoff/TASK-1.5R/faults/R-018.json  — Claim carries numeric_binding.
+
+# Added (new) files
+
+src/ir/claim-evidence.ts             — validateClaimEvidence + inspectClaimEvidence +
+                                        CLAIM_EVIDENCE_FAILURE_KINDS + numericValuesEqual
+                                        + ClaimEvidenceResolver type.
+tests/ir/claim-evidence.spec.ts      — direct unit tests (23 cases).
+tests/ir/fault-corpus-d2.spec.ts      — vitest driver for fault corpus.
+artifacts/handoff/TASK-2/            — see handoff package below.
