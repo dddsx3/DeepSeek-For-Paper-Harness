@@ -1,0 +1,76 @@
+{
+  "task": "TASK 2.1 — Evidence Chain Freeze Audit",
+  "phase": "Targeted Mutation",
+  "baseline": "green",
+  "totals": {
+    "total": 8,
+    "killed": 8,
+    "survived": 0
+  },
+  "mutations": [
+    {
+      "id": "E-01",
+      "guard": "INV-2.1-A hash comparison runs (HASH_CHANGED fires)",
+      "status": "killed",
+      "detail": {
+        "vitest": "exit 1"
+      }
+    },
+    {
+      "id": "E-02",
+      "guard": "result value/unit drift detection (RESULT_MISMATCH fires)",
+      "status": "killed",
+      "detail": {
+        "vitest": "exit 1"
+      }
+    },
+    {
+      "id": "E-03",
+      "guard": "run code/environment fingerprint check (RUN_UNVERIFIED fires)",
+      "status": "killed",
+      "detail": {
+        "vitest": "exit 1"
+      }
+    },
+    {
+      "id": "E-04",
+      "guard": "audit verdict is computed from failures, never hardcoded PASS",
+      "status": "killed",
+      "detail": {
+        "vitest": "exit 1"
+      }
+    },
+    {
+      "id": "E-05",
+      "guard": "numeric_binding is part of the evidence-chain hash (INV-2.1-A)",
+      "status": "killed",
+      "detail": {
+        "vitest": "exit 1"
+      }
+    },
+    {
+      "id": "E-06",
+      "guard": "manifest integrity check (RT-E4 tamper detection)",
+      "status": "killed",
+      "detail": {
+        "vitest": "exit 1"
+      }
+    },
+    {
+      "id": "E-07",
+      "guard": "critical-claim failures carry CRITICAL/HIGH severity (verdict rule)",
+      "status": "killed",
+      "detail": {
+        "vitest": "exit 1"
+      }
+    },
+    {
+      "id": "E-08",
+      "guard": "unfrozen / vanishing claims are chain breaks (RT-E4-b self-approval)",
+      "status": "killed",
+      "detail": {
+        "vitest": "exit 1"
+      }
+    }
+  ]
+}

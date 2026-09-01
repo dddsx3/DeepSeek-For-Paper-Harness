@@ -1,0 +1,36 @@
+{
+  "report_version": 1,
+  "generated_at": "2026-09-01T00:00:00.000Z",
+  "generated_from": {
+    "fixture": "tests/ir/fixtures.ts validChain() (TASK 1.5/1.5R/2 canonical example chain)",
+    "store_objects": 15,
+    "repo": "deepseek-harness"
+  },
+  "algorithm": {
+    "canonical_json": "sorted object keys, array order preserved, no whitespace; -0 serialises as 0",
+    "chain_hash": "sha256(canonicalJson({ claim, evidence_refs, results, run_reference })) per claim",
+    "freeze_hash": "sha256(canonicalJson({ claims, results, runs }))",
+    "manifest_hash": "sha256(canonicalJson({ manifest_version, freeze_hash, claims, results, runs }))",
+    "environment_hash": "sha256(canonicalJson({ environment, seed })) — freeze-time fingerprint of DECLARED metadata, not a proof of execution (TASK 3)",
+    "dependency_lock_hash": "sha256(canonicalJson({ input_data_refs, parameter_refs, assumptions })) — same caveat"
+  },
+  "freeze_hash": "e52f731cce9d95c6cd3c3af793b514fec33bd685340f4703ad5456d8ab1ac528",
+  "manifest_hash": "0b3bfbe99b4b9a661498138e77ce0efda122662264749a6ed3a1a97c771ab24b",
+  "claims": [
+    {
+      "claim_id": "C1",
+      "critical": true,
+      "evidence_chain_hash": "fd82388fe3cccb39f478db75bc9932ebe5c0c6263821605963869e057fbecb75"
+    }
+  ],
+  "verification": {
+    "audit_id": "AUD-f73bfae5042b8731",
+    "status": "PASS",
+    "claims_checked": 1,
+    "failures": []
+  },
+  "usage": {
+    "auditor_entry": "auditEvidenceFreeze(ModelingIr.snapshot(ir), manifest)",
+    "anchor_rule": "An external auditor must receive manifest_hash out-of-band (this file) and refuse any audit whose report.manifest_hash differs. Producer agent ≠ auditor agent (RT-E4)."
+  }
+}

@@ -1,0 +1,47 @@
+{
+  "manifest_version": 1,
+  "generated_at": "2026-09-01T00:00:00.000Z",
+  "freeze_hash": "e52f731cce9d95c6cd3c3af793b514fec33bd685340f4703ad5456d8ab1ac528",
+  "manifest_hash": "0b3bfbe99b4b9a661498138e77ce0efda122662264749a6ed3a1a97c771ab24b",
+  "claims": [
+    {
+      "claim_id": "C1",
+      "claim_type": "NUMERIC",
+      "criticality": "CRITICAL",
+      "critical": true,
+      "evidence_refs": [
+        "RES1"
+      ],
+      "result_refs": [
+        "RES1"
+      ],
+      "numeric_binding": {
+        "result_ref": "RES1",
+        "asserted_value": 0.731,
+        "asserted_unit": "m"
+      },
+      "evidence_chain_hash": "fd82388fe3cccb39f478db75bc9932ebe5c0c6263821605963869e057fbecb75",
+      "timestamp": "2026-08-29T00:00:00.000Z"
+    }
+  ],
+  "results": [
+    {
+      "result_id": "RES1",
+      "run_ref": "RUN1",
+      "value": 0.731,
+      "unit": "m",
+      "producer": "RUN1",
+      "timestamp": "2026-08-29T00:00:00.000Z"
+    }
+  ],
+  "runs": [
+    {
+      "run_id": "RUN1",
+      "model_ref": "M1",
+      "code_hash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "environment_hash": "46577bca76f9250cd66687f62f9d2cde74c1674b48217f7185635d068d415a00",
+      "dependency_lock_hash": "0ddd244f41c9f3921f4a0f62b0bbbd0484992d22f51779cac2d000fb580db03b",
+      "timestamp": "2026-08-29T00:00:00.000Z"
+    }
+  ]
+}
