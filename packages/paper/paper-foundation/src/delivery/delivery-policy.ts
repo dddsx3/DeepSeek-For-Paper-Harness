@@ -44,10 +44,20 @@ export type GateStatus = (typeof GATE_STATUSES)[number]
  */
 export const IR_CANONICALIZATION_GATE_ID = 'ir_canonicalization'
 
+/**
+ * Gate id for the execution provenance gate (TASK 3).
+ *
+ * The id was already reserved in the critical list below; TASK 3 gives
+ * it its producer: `src/execution/audit.ts`. Declared here, next to the
+ * critical list it joins, for the same single-source reason as
+ * `IR_CANONICALIZATION_GATE_ID`.
+ */
+export const PROVENANCE_GATE_ID = 'provenance'
+
 export const CRITICAL_GATE_IDS = [
   'runtime_integrity',
   'execution',
-  'provenance',
+  PROVENANCE_GATE_ID,
   IR_CANONICALIZATION_GATE_ID,
   'numeric_consistency',
   'stale_detection',

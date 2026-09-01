@@ -166,6 +166,23 @@ function dependencyLockFingerprint(
   }))
 }
 
+/**
+ * TASK 3 (D4): the declared-environment fingerprint derivations are
+ * exported so the execution layer's capture and replay compute
+ * *identical* fingerprints from the same RunArtifact — one derivation,
+ * one meaning. Renamed publicly; the freeze side uses the same functions.
+ */
+export function declaredEnvironmentFingerprint(run: Readonly<Record<string, unknown>>): string {
+  return environmentFingerprint(run)
+}
+
+export function declaredDependencyLockFingerprint(
+  run: Readonly<Record<string, unknown>>,
+  model: Readonly<Record<string, unknown>> | undefined,
+): string {
+  return dependencyLockFingerprint(run, model)
+}
+
 function chainDigest(store: ReadonlyMap<string, IrObjectRecord>, claim: Claim): string {
   const binding = claim.claim_type === 'NUMERIC' ? claim.numeric_binding : null
   const resultRefs = [...new Set([...claim.result_refs, ...(binding ? [binding.result_ref] : [])])]

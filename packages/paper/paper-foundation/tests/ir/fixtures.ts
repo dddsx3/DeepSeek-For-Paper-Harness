@@ -17,7 +17,14 @@
  * build attacks, and must never mutate the module-level originals.
  */
 
-import { ModelingIr, type IrKind } from '../../src/ir/index.ts'
+import {
+  ModelingIr,
+  canonicalJson,
+  sha256Hex,
+  declaredEnvironmentFingerprint,
+  declaredDependencyLockFingerprint,
+  type IrKind,
+} from '../../src/ir/index.ts'
 
 // ---------------------------------------------------------------------------
 // TASK 1.5 Problem Contract factories.
@@ -248,7 +255,46 @@ export function reviewerFinding(overrides: Record<string, unknown> = {}): Record
   }
 }
 
-/** The eleven kinds with a valid object each, keyed by kind. */
+/**
+ * TASK 3 — the canonical ExecutionRecord for RUN1. Fingerprints are
+ * derived with the SAME functions the capture/replay layer uses (D4),
+ * so the record is consistent with the RunArtifact fixture by
+ * construction and the provenance delivery gate passes on `backboneIr()`.
+ *
+ * `output_json` is the deterministic output document the test runners
+ * emit; its bytes hash feeds `output_hash` and the D7 Result-value
+ * extraction (Result RES1's source_location fragment is
+ * `mean_thickness`).
+ */
+export const EXECUTION_OUTPUT_JSON = JSON.stringify({ mean_thickness: 0.731 })
+
+export function executionRecord(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+  const run = runArtifact()
+  const model = modelSpec()
+  const outputBytesHash = sha256Hex(EXECUTION_OUTPUT_JSON)
+  return {
+    execution_id: 'EXEC1',
+    run_ref: 'RUN1',
+    code_hash: run.code_hash,
+    environment_hash: declaredEnvironmentFingerprint(run),
+    runtime_fingerprint_hash: sha256Hex(canonicalJson({ runtime: 'deterministic-fake' })),
+    dependency_lock_hash: declaredDependencyLockFingerprint(run, model),
+    input_data_refs: [...run.input_data_refs],
+    output_refs: [...run.output_refs],
+    output_hash: sha256Hex(canonicalJson({
+      'file:///runs/RUN1/result.json': outputBytesHash,
+    })),
+    stdout_hash: sha256Hex('execution ok\n'),
+    stderr_hash: sha256Hex(''),
+    exit_status: 0,
+    seed: run.seed,
+    started_at: '2026-09-01T00:00:00.000Z',
+    finished_at: '2026-09-01T00:00:01.000Z',
+    ...overrides,
+  }
+}
+
+/** The twelve kinds with a valid object each, keyed by kind. */
 export function validObjectFor(kind: IrKind): Record<string, unknown> {
   switch (kind) {
     case 'ProblemSpec': return problemSpec()
@@ -262,6 +308,7 @@ export function validObjectFor(kind: IrKind): Record<string, unknown> {
     case 'DataArtifact': return dataArtifact()
     case 'RequirementSpec': return requirementSpec()
     case 'SymbolSpec': return variableSymbol()
+    case 'ExecutionRecord': return executionRecord()
   }
 }
 
@@ -286,6 +333,10 @@ export function validChain(): ReadonlyArray<{ kind: IrKind; value: Record<string
     { kind: 'VerificationResult', value: verificationResult() },
     { kind: 'FigureSpec', value: figureSpec() },
     { kind: 'ReviewerFinding', value: reviewerFinding() },
+    // TASK 3 — appended LAST so every existing `chainThrough(kind)`
+    // prefix stays byte-stable while `backboneIr()` (used by the
+    // executor-level suites) gains the provenance record.
+    { kind: 'ExecutionRecord', value: executionRecord() },
   ]
 }
 

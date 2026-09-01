@@ -39,6 +39,7 @@ export const AUDIT_EVENT_TYPES = [
   'preflight_blocked',
   'capability_check',
   'ir_bridge_blocked',
+  'provenance_gate_blocked',
 ] as const
 
 /** One audited operation kind. */

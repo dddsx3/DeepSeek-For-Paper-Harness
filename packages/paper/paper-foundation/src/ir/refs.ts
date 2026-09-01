@@ -139,6 +139,14 @@ export const IR_REF_FIELDS: Readonly<Record<IrKind, ReadonlyArray<IrRefFieldSpec
   SymbolSpec: [
     { path: 'scope_ref', arity: 'single', target: 'ProblemSpec' as const },
   ],
+  // TASK 3 — Execution Provenance Gate. `run_ref` and `input_data_refs`
+  // are IR-internal and closed at commit; `output_refs` stays an external
+  // locator list (task book D6) — its reality is carried by the record's
+  // byte-level `output_hash` and re-derived by replay, not by the store.
+  ExecutionRecord: [
+    { path: 'run_ref', arity: 'single', target: 'RunArtifact' as const },
+    { path: 'input_data_refs', arity: 'many', target: 'DataArtifact' as const },
+  ],
 }
 
 // This table *is* the reference policy, so it must not be writable at

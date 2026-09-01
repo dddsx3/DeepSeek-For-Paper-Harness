@@ -444,6 +444,9 @@ describe('RT4-01 — the reference table covers every reference-bearing field', 
       DataArtifact: [],
       RequirementSpec: ['source_data_ref'],
       SymbolSpec: ['scope_ref'],
+      // TASK 3: `output_refs` stays an external locator list (task book D6);
+      // its reality is carried by the record's byte-level output_hash.
+      ExecutionRecord: ['run_ref', 'input_data_refs'],
     }
     for (const kind of IR_KINDS) {
       expect(IR_REF_FIELDS[kind].map(f => f.path), `${kind} ref fields`).toEqual(expected[kind])

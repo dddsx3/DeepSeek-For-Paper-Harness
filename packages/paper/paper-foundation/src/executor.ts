@@ -14,8 +14,9 @@ import { compactPrompt, renderSections } from './context.ts'
 import type { PromptSection } from './context.ts'
 import { computeCostUsd, evaluateBudget, resolveModelPrice } from './cost.ts'
 import type { BudgetPolicy, PricingTable } from './cost.ts'
-import { IR_CANONICALIZATION_GATE_ID } from './delivery/delivery-policy.ts'
-import { irBridgeGate } from './ir/bridge.ts'
+import { IR_CANONICALIZATION_GATE_ID, PROVENANCE_GATE_ID } from './delivery/delivery-policy.ts'
+import { executionProvenanceGate } from './execution/audit.ts'
+import { irBridgeGate, requiresIrBackbone } from './ir/bridge.ts'
 import { ModelingIr } from './ir/store.ts'
 import { resolveRunPolicy } from './policy.ts'
 import type { PaperProviderService, PaperRole } from './provider.ts'
@@ -230,6 +231,10 @@ export class WorkflowExecutor {
       // that fails review must not leave a manifest behind either (red team
       // RT125B-02 found the old ordering persisted one for rejected text).
       await this.enforceCanonicalIr(runId, initial.mode)
+      // TASK 3: structural execution provenance — every critical-chain run
+      // must carry a consistent ExecutionRecord before anything is
+      // authorized. Byte-level truth is replay's job (independent audit).
+      await this.enforceExecutionProvenance(runId, initial.mode)
 
       if (!gatePassed && initial.mode !== 'fast') {
         await this.engine.transitionRun(runId, 'failed')
@@ -249,7 +254,7 @@ export class WorkflowExecutor {
       // `recordManifest` refuses without it (TASK 1.25, RT125B-03).
       await this.engine.authorizeDelivery(runId, {
         authorizedAt: new Date().toISOString(),
-        gates: ['review', IR_CANONICALIZATION_GATE_ID],
+        gates: ['review', IR_CANONICALIZATION_GATE_ID, PROVENANCE_GATE_ID],
       })
 
       const artifact = await this.deliver(runId, current)
@@ -298,6 +303,32 @@ export class WorkflowExecutor {
     throw new WorkflowExecutionError(
       'gate-failed',
       `run '${runId}' has no canonical IR to deliver from (${gate.reason})`,
+    )
+  }
+
+  /**
+   * Refuse to deliver unless every critical-chain run carries a
+   * structurally consistent ExecutionRecord (TASK 3, INV-3-G).
+   *
+   * EXPLORATORY is exempt (same mode rule as the canonical-IR gate). The
+   * canonical-IR gate runs first, so a backbone-less store never reaches
+   * this check — the gate's vacuous-PASS-on-empty semantics is thus only
+   * reachable for stores that already carry the full evidence chain.
+   */
+  private async enforceExecutionProvenance(runId: RunId, mode: string): Promise<void> {
+    if (!requiresIrBackbone(mode)) return
+    const gate = executionProvenanceGate(this.options.ir ?? EMPTY_IR, new Date().toISOString())
+    if (gate.status === 'PASS') return
+    await this.audit({
+      eventType: 'provenance_gate_blocked',
+      actor: 'paper-executor',
+      runId,
+      detail: { gate: gate.id, reason: gate.reason, mode },
+    })
+    await this.engine.transitionRun(runId, 'failed')
+    throw new WorkflowExecutionError(
+      'gate-failed',
+      `run '${runId}' has no execution provenance to deliver from (${gate.reason})`,
     )
   }
 

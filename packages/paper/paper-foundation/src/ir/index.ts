@@ -24,6 +24,7 @@ export {
   IR_SCHEMAS,
   claimSchema,
   dataArtifactSchema,
+  executionRecordSchema,
   figureSpecSchema,
   modelSpecSchema,
   numericBindingSchema,
@@ -47,6 +48,7 @@ export type {
   ClaimType,
   DataArtifact,
   DataArtifactRole,
+  ExecutionRecord,
   FigureSpec,
   FindingSeverity,
   IrKind,
@@ -111,6 +113,8 @@ export {
   auditEvidenceFreeze,
   buildEvidenceFreeze,
   canonicalJson,
+  declaredDependencyLockFingerprint,
+  declaredEnvironmentFingerprint,
   sha256Hex,
 } from './evidence-freeze.ts'
 export type {
