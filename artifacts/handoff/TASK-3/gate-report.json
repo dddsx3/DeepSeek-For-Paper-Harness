@@ -1,0 +1,49 @@
+{
+  "task": "TASK 3 — Execution Provenance Gate",
+  "phase": "PHASE 7 — Final Gate Report",
+  "task_book": "TASKBOOK.md v1.0 (ratified; commit 8d3158abe2)",
+  "baseline": {
+    "task_2_1_head": "2775ccf3e0",
+    "paper_foundation_tests": {
+      "files": 68,
+      "tests": 838,
+      "execution_record_tests": 14,
+      "capture_replay_tests": 18,
+      "provenance_gate_tests": 15,
+      "local_runner_contract_tests": 2,
+      "rt_x_attack_tests": 15
+    },
+    "tsc_clean": true
+  },
+  "phases": [
+    { "id": "PHASE 0", "status": "PASS", "artifact": "phase-0-topology.md (F-1 rename, F-2 time-inversion recorded)" },
+    { "id": "PHASE 1", "status": "PASS", "evidence": "ExecutionRecord = IR kind #12; 14/14 schema+closure tests" },
+    { "id": "PHASE 2", "status": "PASS", "evidence": "runner seam + capture; no hand-written exit_status path; capture refusals tested" },
+    { "id": "PHASE 3", "status": "PASS", "evidence": "replay 8 conditions + D7 extraction; EX-01/03/04/05/06/06b all detected" },
+    { "id": "PHASE 4", "status": "PASS", "evidence": "provenance gate ('provenance', already-reserved id) + executor wiring; E2E refusals + happy paths green" },
+    { "id": "PHASE 5", "status": "PASS", "evidence": "fault corpus 48/48 intercepted (EX-01..EX-12 + RT-X1..X4); CRITICAL escape = 0" },
+    { "id": "PHASE 6", "status": "PASS", "evidence": "mutations P-01..P-08: 8/8 killed, 0 survived (after honest survivor fixes: EX-04c, EX-06b, audit-side anchors)" },
+    { "id": "PHASE 7", "status": "PASS", "evidence": "this report; full regression 68 files / 838 tests" }
+  ],
+  "closed_conditions": [
+    { "id": "C1", "description": "ExecutionRecord 完整", "status": "PASS", "evidence": "kind #12; schema/refs/ID map; tests/ir/execution-record.spec.ts" },
+    { "id": "C2", "description": "代码真实性验证", "status": "PASS", "evidence": "capture code-hash refusal + replay EX-03 + P-01 killed" },
+    { "id": "C3", "description": "环境真实性验证", "status": "PASS", "evidence": "dual fingerprints (declared + measured); EX-04/04b/04c; P-04/P-08 killed" },
+    { "id": "C4", "description": "输入输出绑定", "status": "PASS", "evidence": "input/output set-equality + output bytes hash; capture OUTPUT_SET_MISMATCH" },
+    { "id": "C5", "description": "Replay 成功", "status": "PASS", "evidence": "deterministic replay PASS + REAL node process smoke (run-real-execution-smoke.mjs): CHAIN CLOSED" },
+    { "id": "C6", "description": "Result 重算一致", "status": "PASS", "evidence": "D7 exact extraction; EX-01 value mismatch detected" },
+    { "id": "C7", "description": "执行攻击全部拦截", "status": "PASS", "evidence": "execution-results.json: 48/48 intercepted; RT-X1..X4; CRITICAL escape = 0" },
+    { "id": "C8", "description": "Mutation 全杀死", "status": "PASS", "evidence": "mutation-results.json: P-01..P-08 = 8/8 killed" },
+    { "id": "C9", "description": "Independent Auditor 完成", "status": "PASS", "evidence": "runIndependentExecutionAudit (structural + replay merge); INV-3-E/F; manifest tamper refused" },
+    { "id": "C10", "description": "Regression 保持绿色", "status": "PASS", "evidence": "68 files / 838 tests PASS; TASK 1/1.25/1.5/1.5R/2/2.1 suites all green" }
+  ],
+  "totals": {
+    "phases_passed": 8,
+    "closed_conditions_passed": 10,
+    "mutations_killed": 8,
+    "mutations_survived": 0,
+    "corpus_tests_intercepted": 48,
+    "real_process_smoke": "PASS",
+    "critical_escape": 0
+  }
+}

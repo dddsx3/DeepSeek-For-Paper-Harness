@@ -1,0 +1,33 @@
+{
+  "report_version": 1,
+  "generated_at": "2026-09-01T00:00:00.000Z",
+  "generated_from": {
+    "fixture": "tests/ir/fixtures.ts validChain() incl. ExecutionRecord EXEC1",
+    "store_objects": 16
+  },
+  "algorithm": {
+    "freeze_hash": "sha256(canonicalJson({ records, runs }))",
+    "manifest_hash": "sha256(canonicalJson({ manifest_version, freeze_hash, records, runs }))",
+    "environment_hash": "declaredEnvironmentFingerprint(run) — TASK 2.1 derivation, shared code",
+    "dependency_lock_hash": "declaredDependencyLockFingerprint(run, model) — TASK 2.1 derivation, shared code"
+  },
+  "freeze_hash": "2bb13fe1dbb5184c93cbb41a0ca7c27f8a405d3a9053344cf0f4d6a615ef88f2",
+  "manifest_hash": "22c5a958ff72a86de1a52cf10933017f5abcc958f5d1e5c443845369df7e924d",
+  "records": [
+    {
+      "execution_id": "EXEC1",
+      "run_ref": "RUN1",
+      "code_hash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    }
+  ],
+  "verification": {
+    "structural_audit_id": "EAUD-44c9c678df5b559e",
+    "structural_status": "PASS",
+    "execution_checked": 1,
+    "note": "Byte-level truth for arbitrary records is replayExecution(); the deterministic-fake replay of this example is exercised in tests/execution/capture-replay.spec.ts."
+  },
+  "usage": {
+    "auditor_entry": "runIndependentExecutionAudit({ ir, runner, loadCode, timeoutMs })",
+    "anchor_rule": "An external auditor must receive manifest_hash out-of-band (this file) and refuse any audit whose report.manifest_hash differs. Producer agent != auditor agent."
+  }
+}

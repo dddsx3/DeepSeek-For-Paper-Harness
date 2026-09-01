@@ -1,0 +1,14 @@
+tests/ir/execution-record.spec.ts      — 14 tests (kind #12 schema + store closure)
+tests/execution/capture-replay.spec.ts — 18 tests (capture, replay, EX-01..EX-06b, independent audit)
+tests/execution/provenance-gate.spec.ts — 15 tests (gate/audit + EX-07/08/09/10/11 + executor E2E)
+tests/execution/local-runner.spec.ts   — 2 tests (seam contract; real-process smoke is a standalone script)
+tests/rt-x/attacks.spec.ts             — 15 tests (RT-X1..X4 adversarial)
+
+Total TASK 3 additions: 64 tests across 5 new spec files.
+
+Verification matrix:
+  - vitest full paper-foundation: 68 files / 838 tests (was 63 / 775)
+  - fault corpus standalone: 48 / 48 intercepted (execution-results.json)
+  - targeted mutations: 8 / 8 killed (mutation-results.json)
+  - real-process smoke: CHAIN CLOSED (run-real-execution-smoke.mjs)
+  - tsc: 0 errors

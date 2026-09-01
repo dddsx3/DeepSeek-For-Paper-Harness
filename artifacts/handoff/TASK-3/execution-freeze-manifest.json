@@ -1,0 +1,45 @@
+{
+  "manifest_version": 1,
+  "generated_at": "2026-09-01T00:00:00.000Z",
+  "freeze_hash": "2bb13fe1dbb5184c93cbb41a0ca7c27f8a405d3a9053344cf0f4d6a615ef88f2",
+  "manifest_hash": "22c5a958ff72a86de1a52cf10933017f5abcc958f5d1e5c443845369df7e924d",
+  "records": [
+    {
+      "execution_id": "EXEC1",
+      "run_ref": "RUN1",
+      "code_hash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "environment_hash": "46577bca76f9250cd66687f62f9d2cde74c1674b48217f7185635d068d415a00",
+      "runtime_fingerprint_hash": "81f779039ad547f4c986d5b17dee7cceef911dfbd014ed117f3b4c19452e68e5",
+      "dependency_lock_hash": "0ddd244f41c9f3921f4a0f62b0bbbd0484992d22f51779cac2d000fb580db03b",
+      "input_data_refs": [
+        "DA-IN"
+      ],
+      "output_refs": [
+        "file:///runs/RUN1/result.json"
+      ],
+      "output_hash": "211056dce72e913da168e882eccffbaa8b9ff36a351174de4b7f2c7c0b215e51",
+      "stdout_hash": "c2a79be570ae376ab1f000d98d46568b3d36b065028e1eb29864db4a4d83d2d5",
+      "stderr_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "exit_status": 0,
+      "seed": 20260828,
+      "started_at": "2026-09-01T00:00:00.000Z",
+      "finished_at": "2026-09-01T00:00:01.000Z"
+    }
+  ],
+  "runs": [
+    {
+      "run_id": "RUN1",
+      "code_hash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "environment_hash": "46577bca76f9250cd66687f62f9d2cde74c1674b48217f7185635d068d415a00",
+      "dependency_lock_hash": "0ddd244f41c9f3921f4a0f62b0bbbd0484992d22f51779cac2d000fb580db03b",
+      "input_data_refs": [
+        "DA-IN"
+      ],
+      "output_refs": [
+        "file:///runs/RUN1/result.json"
+      ],
+      "seed": 20260828,
+      "critical": true
+    }
+  ]
+}

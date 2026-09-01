@@ -1,0 +1,76 @@
+{
+  "task": "TASK 3 — Execution Provenance Gate",
+  "phase": "PHASE 6 — Targeted Mutation",
+  "baseline": "green",
+  "totals": {
+    "total": 8,
+    "killed": 8,
+    "survived": 0
+  },
+  "mutations": [
+    {
+      "id": "P-01",
+      "guard": "code hash check (record must freeze the run's declared code digest)",
+      "status": "killed",
+      "detail": {
+        "vitest": "exit 1"
+      }
+    },
+    {
+      "id": "P-02",
+      "guard": "output hash check (replayed output bytes must reproduce output_hash)",
+      "status": "killed",
+      "detail": {
+        "vitest": "exit 1"
+      }
+    },
+    {
+      "id": "P-03",
+      "guard": "exit status check (NON_ZERO_EXIT fires)",
+      "status": "killed",
+      "detail": {
+        "vitest": "exit 1"
+      }
+    },
+    {
+      "id": "P-04",
+      "guard": "declared environment fingerprint check (ENVIRONMENT_MISMATCH fires)",
+      "status": "killed",
+      "detail": {
+        "vitest": "exit 1"
+      }
+    },
+    {
+      "id": "P-05",
+      "guard": "replay runs during the independent audit (skip = replay never runs)",
+      "status": "killed",
+      "detail": {
+        "vitest": "exit 1"
+      }
+    },
+    {
+      "id": "P-06",
+      "guard": "execution manifest integrity check (forged manifest refused)",
+      "status": "killed",
+      "detail": {
+        "vitest": "exit 1"
+      }
+    },
+    {
+      "id": "P-07",
+      "guard": "seed binding check (EX-07 seed drift fires)",
+      "status": "killed",
+      "detail": {
+        "vitest": "exit 1"
+      }
+    },
+    {
+      "id": "P-08",
+      "guard": "dependency drift check (EX-04 dependency fingerprint fires)",
+      "status": "killed",
+      "detail": {
+        "vitest": "exit 1"
+      }
+    }
+  ]
+}
