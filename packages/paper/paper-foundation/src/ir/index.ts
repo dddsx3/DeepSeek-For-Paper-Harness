@@ -106,6 +106,26 @@ export type {
 } from './claim-evidence.ts'
 
 export {
+  EVIDENCE_AUDIT_CATEGORIES,
+  EVIDENCE_AUDIT_SEVERITIES,
+  auditEvidenceFreeze,
+  buildEvidenceFreeze,
+  canonicalJson,
+  sha256Hex,
+} from './evidence-freeze.ts'
+export type {
+  EvidenceAuditCategory,
+  EvidenceAuditFailure,
+  EvidenceAuditReport,
+  EvidenceAuditSeverity,
+  EvidenceFreezeManifest,
+  EvidenceFreezeOptions,
+  FrozenClaim,
+  FrozenResult,
+  FrozenRun,
+} from './evidence-freeze.ts'
+
+export {
   IR_BACKBONE_KINDS,
   IR_BACKBONE_EXEMPT_MODES,
   IR_CLAIM_REJECTIONS,
