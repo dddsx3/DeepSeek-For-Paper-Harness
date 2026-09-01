@@ -68,6 +68,10 @@ import {
   validateProblemContract,
   type ProblemContractResolver,
 } from './problem-contract.ts'
+import {
+  type ClaimEvidenceFailure,
+  inspectClaimEvidence,
+} from './claim-evidence.ts'
 
 /**
  * What a store that cannot prove its identity is treated as: nothing at all.
@@ -175,6 +179,13 @@ export interface IrBridgeDecision {
   readonly contract: MinimumProblemContract
   /** TASK 1.5: whether the minimum Problem Contract is satisfied. */
   readonly contractSatisfied: boolean
+  /**
+   * TASK 2: per-Claim semantic evidence failures (INV-2-A..F). Reported
+   * separately from `contractFailures` so an auditor can attribute each
+   * failure to one Claim; merged into the bridge's overall verdict by
+   * `ok = … && evidenceFailures.length === 0`.
+   */
+  readonly evidenceFailures: ReadonlyArray<ClaimEvidenceFailure>
   /** Human-readable, stable, and safe to put in an audit record. */
   readonly reason: string
 }
@@ -223,6 +234,7 @@ export function evaluateIrBridge(
       contractFailures: [{ kind: 'unbound_data_artifact', path: '$', reason: 'bridge evaluation faulted', where: 'global' }],
       contract: EMPTY_MINIMUM_PROBLEM_CONTRACT,
       contractSatisfied: false,
+      evidenceFailures: [],
       reason: `bridge evaluation faulted: ${error instanceof Error ? error.message : 'non-Error throw'}`,
     }
   }
@@ -302,11 +314,20 @@ function evaluateInner(
   const contract = contractReport.contract
   const contractSatisfied = minimumProblemContractSatisfied(contract)
 
+  // TASK 2 — every CRITICAL Claim must satisfy its type-specific evidence
+  // contract (INV-2-F). The walker is invoked unconditionally — even an
+  // EXPLORATORY store with a malformed NUMERIC binding must surface a
+  // BLOCKED, because EXPLORATORY is exempt from the *backbone* requirement
+  // but never from the *shape* contract: schema-invalid objects cannot be
+  // canonical, period. The semantic guard is run for the same reason.
+  const evidenceFailures = inspectClaimEvidence(store)
+
   const ok = problems.length === 0
     && missingBackbone.length === 0
     && !missingCriticalClaim
     && contractFailures.length === 0
     && (!requiresBackbone || contractSatisfied)
+    && evidenceFailures.length === 0
 
   return {
     status: ok ? 'PASS' : 'BLOCKED',
@@ -316,9 +337,10 @@ function evaluateInner(
     contractFailures,
     contract,
     contractSatisfied,
+    evidenceFailures,
     reason: ok
       ? 'canonical IR bridge satisfied'
-      : describe(problems, missingBackbone, missingCriticalClaim, contractFailures, contractSatisfied, requiresBackbone),
+      : describe(problems, missingBackbone, missingCriticalClaim, contractFailures, contractSatisfied, requiresBackbone, evidenceFailures),
   }
 }
 
@@ -367,6 +389,7 @@ function describe(
   contractFailures: ReadonlyArray<ContractFailure>,
   contractSatisfied: boolean,
   requiresBackbone: boolean,
+  evidenceFailures: ReadonlyArray<ClaimEvidenceFailure>,
 ): string {
   const parts: string[] = []
   if (problems.length > 0) {
@@ -379,6 +402,10 @@ function describe(
   if (contractFailures.length > 0) {
     parts.push(`${contractFailures.length} Problem Contract failure(s): `
       + contractFailures.map(f => `${f.where}.${f.path}:${f.kind}`).join(','))
+  }
+  if (evidenceFailures.length > 0) {
+    parts.push(`${evidenceFailures.length} Claim Evidence failure(s): `
+      + evidenceFailures.map(f => `${f.path}:${f.kind}`).join(','))
   }
   if (requiresBackbone && !contractSatisfied) {
     parts.push('minimum Problem Contract not satisfied (RAW_PROBLEM DataArtifact + REQUIRED_OUTPUT RequirementSpec + SymbolSpec)')

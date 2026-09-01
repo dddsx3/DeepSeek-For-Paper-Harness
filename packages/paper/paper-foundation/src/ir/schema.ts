@@ -220,27 +220,93 @@ export type ClaimType = (typeof CLAIM_TYPES)[number]
 export const CLAIM_CRITICALITIES = ['CRITICAL', 'NON_CRITICAL'] as const
 export type ClaimCriticality = (typeof CLAIM_CRITICALITIES)[number]
 
-export const claimSchema = zod
+/**
+ * TASK 2 — Numeric Claim Binding (INV-2-A/B/C).
+ *
+ * A CRITICAL Claim's core number may not live in `text`. The binding is the
+ * only place the canonical machine value lives; `text` is presentational.
+ *
+ * Structural rules ( schema-only — semantic equality lives in
+ * `claim-evidence.ts` ):
+ *   - `result_ref` MUST resolve to a `Result` in the store. Existence + kind
+ *     is guaranteed by `IR_REF_FIELDS.Claim.result_refs` at commit time;
+ *     the schema only checks shape.
+ *   - `asserted_value: zod.number()` rejects NaN / ±Infinity at ingest —
+ *     same path as `Result.value` (D-016).
+ *   - `asserted_unit` is the unit the paper claims; equality with
+ *     `Result.unit` lives in `claim-evidence.ts` (D-006).
+ */
+export const numericBindingSchema = zod
   .object({
-    claim_id: idSchema,
-    text: textSchema,
-    claim_type: zod.enum(CLAIM_TYPES),
-    criticality: zod.enum(CLAIM_CRITICALITIES),
-    evidence_refs: zod.array(refSchema),
-    result_refs: zod.array(refSchema),
-    model_refs: zod.array(refSchema),
+    result_ref: refSchema,
+    asserted_value: zod.number(),
+    asserted_unit: unitSchema,
   })
   .strict()
-  // "All references must resolve" is vacuous for a claim that names nothing.
-  // A CRITICAL claim with zero references is exactly the state INV-007
-  // ("any core number must have machine-traceable provenance") exists to
-  // prevent, so the IR refuses it rather than deferring to a later gate
-  // (red team RT2-04). TASK 2 narrows this per claim type.
-  .refine(
-    c => c.criticality !== 'CRITICAL'
-      || c.evidence_refs.length + c.result_refs.length + c.model_refs.length > 0,
-    { message: 'a CRITICAL Claim must reference at least one Result, ModelSpec or evidence object' },
-  )
+
+/**
+ * TASK 2 — Discriminated union over `claim_type` (INV-2-A, INV-2-E, INV-2-G).
+ *
+ * The discriminator lets TS narrow `claim.claim_type === 'NUMERIC'` →
+ * `claim.numeric_binding` is non-null at the type level. The per-type
+ * structural rules replace the old "at least one reference" refine
+ * (RT2-04), so a CRITICAL claim that names nothing can no longer pass the
+ * store. Semantic checks (value/unit equality, role binding) live in
+ * `claim-evidence.ts`; the schema is strictly the shape contract.
+ *
+ * NUMERIC:
+ *   - `numeric_binding` required and non-null (D-001)
+ *   - `result_refs.min(1)` — store guarantees the binding's `result_ref`
+ *     resolves; semantic guard (`inspectClaimEvidence`) guarantees it is
+ *     *also* listed in `result_refs` (D-004).
+ *
+ * MODEL:
+ *   - `numeric_binding` is the literal `null`; any value at that path is a
+ *     schema BLOCKED (D-010). `model_refs.min(1)` (D-009).
+ *
+ * QUALITATIVE:
+ *   - `numeric_binding` is the literal `null` (D-012). CRITICAL
+ *     QUALITATIVE with empty `evidence_refs` is schema-valid; the semantic
+ *     guard refuses it (D-011).
+ */
+export const claimSchema = zod.discriminatedUnion('claim_type', [
+  zod
+    .object({
+      claim_id: idSchema,
+      text: textSchema,
+      claim_type: zod.literal('NUMERIC'),
+      criticality: zod.enum(CLAIM_CRITICALITIES),
+      numeric_binding: numericBindingSchema,
+      evidence_refs: zod.array(refSchema),
+      result_refs: zod.array(refSchema).min(1),
+      model_refs: zod.array(refSchema),
+    })
+    .strict(),
+  zod
+    .object({
+      claim_id: idSchema,
+      text: textSchema,
+      claim_type: zod.literal('MODEL'),
+      criticality: zod.enum(CLAIM_CRITICALITIES),
+      numeric_binding: zod.null(),
+      evidence_refs: zod.array(refSchema),
+      result_refs: zod.array(refSchema),
+      model_refs: zod.array(refSchema).min(1),
+    })
+    .strict(),
+  zod
+    .object({
+      claim_id: idSchema,
+      text: textSchema,
+      claim_type: zod.literal('QUALITATIVE'),
+      criticality: zod.enum(CLAIM_CRITICALITIES),
+      numeric_binding: zod.null(),
+      evidence_refs: zod.array(refSchema),
+      result_refs: zod.array(refSchema),
+      model_refs: zod.array(refSchema),
+    })
+    .strict(),
+])
 
 export const verificationResultSchema = zod
   .object({
@@ -313,6 +379,7 @@ export type ModelSpec = zod.infer<typeof modelSpecSchema>
 export type RunArtifact = zod.infer<typeof runArtifactSchema>
 export type Result = zod.infer<typeof resultSchema>
 export type Claim = zod.infer<typeof claimSchema>
+export type NumericClaimBinding = zod.infer<typeof numericBindingSchema>
 export type VerificationResult = zod.infer<typeof verificationResultSchema>
 export type FigureSpec = zod.infer<typeof figureSpecSchema>
 export type ReviewerFinding = zod.infer<typeof reviewerFindingSchema>

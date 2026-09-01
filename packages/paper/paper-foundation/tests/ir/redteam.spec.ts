@@ -316,13 +316,44 @@ describe('RT2-04 — a CRITICAL claim with no references is refused', () => {
     expect(ir.put('Claim', claim({ result_refs: ['RES1'] })).accepted).toBe(true)
   })
 
-  it('still allows a NON_CRITICAL claim with no references', () => {
+  // TASK 2 — the relaxed pre-TASK-2 invariant ("a NON_CRITICAL claim
+  // could carry no references and still pass the store") is gone. The
+  // discriminated union replaces "at least one reference" with per-type
+  // structural contracts: NUMERIC requires numeric_binding + ≥1 result,
+  // MODEL requires ≥1 model, QUALITATIVE is the only kind that may omit
+  // refs structurally — but the semantic gate (claim-evidence.ts) blocks
+  // CRITICAL QUALITATIVE with empty evidence_refs (D-011). Either way,
+  // a hand-rolled "no references at all" Claim is no longer legal. The
+  // old "still allows" assertion became "still allows for QUALITATIVE
+  // only", and the corresponding semantic guard takes over for CRITICAL.
+  it('NON_CRITICAL QUALITATIVE may omit references (shape-only contract)', () => {
     const ir = armed()
     const verdict = ir.put('Claim', claim({
+      claim_id: 'C-QUAL-NC',
+      claim_type: 'QUALITATIVE',
       criticality: 'NON_CRITICAL',
+      numeric_binding: null,
       evidence_refs: [], result_refs: [], model_refs: [],
     }))
     expect(verdict.accepted).toBe(true)
+  })
+
+  it('NON_CRITICAL NUMERIC without numeric_binding is BLOCKED (INV-2-G, D-001)', () => {
+    const ir = armed()
+    const verdict = ir.put('Claim', claim({
+      claim_id: 'C-NC-NUMERIC',
+      claim_type: 'NUMERIC',
+      criticality: 'NON_CRITICAL',
+      numeric_binding: undefined,
+      evidence_refs: [], result_refs: [], model_refs: [],
+    }) as Record<string, unknown>)
+    expect(verdict.accepted).toBe(false)
+    if (!verdict.accepted) {
+      // Schema-level: NUMERIC requires numeric_binding, an absent binding
+      // is a missing_required_field. The failure surfaces as schema_invalid
+      // (D-001 — CRITICAL NUMERIC without numeric_binding).
+      expect(verdict.failures.some(f => f.kind === 'schema_invalid')).toBe(true)
+    }
   })
 })
 

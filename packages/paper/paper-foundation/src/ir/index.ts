@@ -26,6 +26,7 @@ export {
   dataArtifactSchema,
   figureSpecSchema,
   modelSpecSchema,
+  numericBindingSchema,
   problemSpecSchema,
   readIrObjectId,
   requirementSpecSchema,
@@ -51,6 +52,7 @@ export type {
   IrKind,
   IrObjectMap,
   ModelSpec,
+  NumericClaimBinding,
   ProblemSpec,
   RequirementSpec,
   RequirementType,
@@ -90,6 +92,18 @@ export type {
   ProblemContractProblem,
   ProblemContractResolver,
 } from './problem-contract.ts'
+
+export {
+  CLAIM_EVIDENCE_FAILURE_KINDS,
+  inspectClaimEvidence,
+  numericValuesEqual,
+  validateClaimEvidence,
+} from './claim-evidence.ts'
+export type {
+  ClaimEvidenceFailure,
+  ClaimEvidenceFailureKind,
+  ClaimEvidenceResolver,
+} from './claim-evidence.ts'
 
 export {
   IR_BACKBONE_KINDS,

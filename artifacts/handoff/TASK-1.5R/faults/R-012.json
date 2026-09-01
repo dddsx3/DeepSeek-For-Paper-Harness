@@ -166,7 +166,12 @@
         ],
         "model_refs": [
           "M1"
-        ]
+        ],
+        "numeric_binding": {
+          "result_ref": "RES1",
+          "asserted_value": 0.731,
+          "asserted_unit": "m"
+        }
       }
     },
     {

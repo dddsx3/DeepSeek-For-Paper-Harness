@@ -27,7 +27,7 @@ import {
   type DeliveryPolicy,
   type GateRecord,
 } from '../../src/delivery/index.ts'
-import { chainThrough, claim, modelSpec, problemSpec } from './fixtures.ts'
+import { chainThrough, claim, modelSpec, problemSpec, result } from './fixtures.ts'
 
 const AT = '2026-08-29T00:00:00.000Z'
 
@@ -287,5 +287,150 @@ describe('the bridge is a reader, never a writer', () => {
     expect(gate.status).toBe('BLOCKED')
     expect(gate.observedAt).toBe(AT)
     expect(gate.reason).toContain('missing IR backbone')
+  })
+})
+
+/**
+ * TASK 2 — every CRITICAL Claim must satisfy its type-specific evidence
+ * contract (INV-2-F). The bridge now reports per-Claim evidence failures
+ * on `IrBridgeDecision.evidenceFailures` and refuses delivery when any
+ * CRITICAL Claim is invalid even if a sibling CRITICAL Claim would have
+ * passed on its own (D-013 / task book §8).
+ */
+describe('TASK 2 — every CRITICAL Claim must satisfy type-specific evidence', () => {
+
+  function irWithValidBinding(claimOverrides: Record<string, unknown> = {}): ModelingIr {
+    const ir = new ModelingIr({ now: () => AT })
+    for (const entry of chainThrough('Result')) {
+      expect(ir.put(entry.kind, entry.value).accepted).toBe(true)
+    }
+    expect(ir.put('Claim', claim(claimOverrides)).accepted).toBe(true)
+    return ir
+  }
+
+  it('D-019: a NUMERIC CRITICAL Claim with binding matching its Result is PASS', () => {
+    const ir = irWithValidBinding()
+    const decision = evaluateIrBridge(ir, [], 'FORMAL')
+    expect(decision.status).toBe('PASS')
+    expect(decision.evidenceFailures).toEqual([])
+  })
+
+  it('D-005: asserted_value different from Result.value is BLOCKED with one evidence failure', () => {
+    const ir = irWithValidBinding({
+      numeric_binding: { result_ref: 'RES1', asserted_value: 0.732, asserted_unit: 'm' },
+    })
+    const decision = evaluateIrBridge(ir, [], 'FORMAL')
+    expect(decision.status).toBe('BLOCKED')
+    expect(decision.evidenceFailures.some(f => f.kind === 'numeric_value_mismatch')).toBe(true)
+    expect(decision.evidenceFailures.every(f => f.kind === 'numeric_value_mismatch')).toBe(true)
+  })
+
+  it('D-006: asserted_unit different from Result.unit is BLOCKED', () => {
+    const ir = irWithValidBinding({
+      numeric_binding: { result_ref: 'RES1', asserted_value: 0.731, asserted_unit: 'cm' },
+    })
+    const decision = evaluateIrBridge(ir, [], 'FORMAL')
+    expect(decision.status).toBe('BLOCKED')
+    expect(decision.evidenceFailures.some(f => f.kind === 'numeric_unit_mismatch')).toBe(true)
+  })
+
+  it('D-004: numeric_binding.result_ref not in claim.result_refs is BLOCKED', () => {
+    // First register a second Result the binding could point at but the
+    // claim does not list in result_refs.
+    const ir = new ModelingIr({ now: () => AT })
+    for (const entry of chainThrough('Result')) {
+      expect(ir.put(entry.kind, entry.value).accepted).toBe(true)
+    }
+    expect(ir.put('Result', { ...result(), result_id: 'RES2', run_ref: 'RUN1' }).accepted).toBe(true)
+    // Build the claim by hand so result_refs contains RES1 (the schema
+    // requires min(1)) while the binding points at RES2.
+    const claimValue = claim({
+      result_refs: ['RES1'],
+      numeric_binding: { result_ref: 'RES2', asserted_value: 0.731, asserted_unit: 'm' },
+    })
+    expect(ir.put('Claim', claimValue).accepted).toBe(true)
+    const decision = evaluateIrBridge(ir, [], 'FORMAL')
+    expect(decision.status).toBe('BLOCKED')
+    expect(decision.evidenceFailures.some(f => f.kind === 'numeric_binding_result_not_in_result_refs')).toBe(true)
+  })
+
+  it('D-013: one valid CRITICAL Claim + one invalid CRITICAL Claim → whole delivery BLOCKED', () => {
+    const ir = new ModelingIr({ now: () => AT })
+    for (const entry of chainThrough('Result')) {
+      expect(ir.put(entry.kind, entry.value).accepted).toBe(true)
+    }
+    // The valid sibling: a well-bound NUMERIC CRITICAL Claim.
+    expect(ir.put('Claim', claim({ claim_id: 'C-GOOD' })).accepted).toBe(true)
+    // The invalid sibling: a NUMERIC CRITICAL Claim with a value mismatch.
+    // Schema requires numeric_binding, so the only way to "miss" the value
+    // is a unit/value delta — we vary `asserted_value`.
+    expect(ir.put('Claim', claim({
+      claim_id: 'C-BAD',
+      numeric_binding: { result_ref: 'RES1', asserted_value: 9.999, asserted_unit: 'm' },
+      text: 'spoofed number',
+      result_refs: ['RES1'],
+    })).accepted).toBe(true)
+
+    const decision = evaluateIrBridge(ir, [], 'FORMAL')
+    expect(decision.status).toBe('BLOCKED')
+    // The bridge must surface the failing claim, not just "no CRITICAL claim".
+    expect(decision.evidenceFailures.some(f => f.path.includes('C-BAD'))).toBe(true)
+    expect(decision.missingCriticalClaim).toBe(false)
+  })
+
+  it('D-014: an invalid CRITICAL Claim NOT listed in ir_claims is still BLOCKED (snapshot-driven)', () => {
+    // Empty ir_claims array — the workflow declared no IR objects. The
+    // bridge, however, still walks the snapshot, so an invalid CRITICAL
+    // Claim already in the store must surface. This closes the omission
+    // attack from task book §8 row 3.
+    const ir = irWithValidBinding({
+      numeric_binding: { result_ref: 'RES1', asserted_value: 0.732, asserted_unit: 'm' },
+    })
+    const decision = evaluateIrBridge(ir, [], 'FORMAL')
+    expect(decision.status).toBe('BLOCKED')
+    expect(decision.evidenceFailures.some(f => f.kind === 'numeric_value_mismatch')).toBe(true)
+  })
+
+  it('D-020: a FORMAL multi-Claim happy path with mixed types PASSES', async () => {
+    // Two CRITICAL Claims (one NUMERIC, one MODEL), both legal.
+    const ir = new ModelingIr({ now: () => AT })
+    for (const entry of chainThrough('Result')) {
+      expect(ir.put(entry.kind, entry.value).accepted).toBe(true)
+    }
+    expect(ir.put('Claim', claim({ claim_id: 'C-NUM' })).accepted).toBe(true)
+    // MODEL claim must declare model_refs and a literal null binding.
+    expect(ir.put('Claim', {
+      claim_id: 'C-MOD',
+      text: 'The model assumes a homogeneous slab.',
+      claim_type: 'MODEL',
+      criticality: 'CRITICAL',
+      numeric_binding: null,
+      evidence_refs: [],
+      result_refs: [],
+      model_refs: ['M1'],
+    }).accepted).toBe(true)
+    const { decision, promoted } = await attemptDelivery(ir, 'FORMAL')
+    expect(decision.allowed).toBe(true)
+    expect(promoted.ok).toBe(true)
+  })
+
+  it('D-011: a CRITICAL QUALITATIVE claim with empty evidence_refs is BLOCKED', () => {
+    const ir = new ModelingIr({ now: () => AT })
+    for (const entry of chainThrough('Result')) {
+      expect(ir.put(entry.kind, entry.value).accepted).toBe(true)
+    }
+    expect(ir.put('Claim', {
+      claim_id: 'C-QUAL-BAD',
+      text: 'A naked qualitative assertion.',
+      claim_type: 'QUALITATIVE',
+      criticality: 'CRITICAL',
+      numeric_binding: null,
+      evidence_refs: [],
+      result_refs: [],
+      model_refs: [],
+    }).accepted).toBe(true)
+    const decision = evaluateIrBridge(ir, [], 'FORMAL')
+    expect(decision.status).toBe('BLOCKED')
+    expect(decision.evidenceFailures.some(f => f.kind === 'qualitative_critical_no_evidence')).toBe(true)
   })
 })

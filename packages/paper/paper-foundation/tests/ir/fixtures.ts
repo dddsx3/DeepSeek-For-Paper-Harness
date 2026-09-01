@@ -166,9 +166,50 @@ export function claim(overrides: Record<string, unknown> = {}): Record<string, u
     text: 'Mean ice thickness at the survey line is 0.731 m.',
     claim_type: 'NUMERIC',
     criticality: 'CRITICAL',
+    numeric_binding: {
+      result_ref: 'RES1',
+      asserted_value: 0.731,
+      asserted_unit: 'm',
+    },
     evidence_refs: ['RES1'],
     result_refs: ['RES1'],
     model_refs: ['M1'],
+    ...overrides,
+  }
+}
+
+/**
+ * TASK 2 — alternate claim factories. Every kind in the discriminated union
+ * has a default-factory so fault fixtures can build any branch in one line.
+ */
+export function numericClaim(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+  return claim(overrides)
+}
+
+export function modelClaim(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+  return {
+    claim_id: 'C-MODEL',
+    text: 'The adopted ice-flow model assumes a homogeneous slab.',
+    claim_type: 'MODEL',
+    criticality: 'CRITICAL',
+    numeric_binding: null,
+    evidence_refs: [],
+    result_refs: [],
+    model_refs: ['M1'],
+    ...overrides,
+  }
+}
+
+export function qualitativeClaim(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+  return {
+    claim_id: 'C-QUAL',
+    text: 'The survey line shows a monotonic thickness trend.',
+    claim_type: 'QUALITATIVE',
+    criticality: 'CRITICAL',
+    numeric_binding: null,
+    evidence_refs: ['RES1'],
+    result_refs: [],
+    model_refs: [],
     ...overrides,
   }
 }
