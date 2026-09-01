@@ -111,3 +111,51 @@ A real workflow wiring is **out of scope** for TASK 2 (task book
 canonical claim/result ingest 与 gate wiring"). The handoff
 documents this explicitly; the next TASK (3) that wires execution
 to the IR will close it.
+
+## 10. Red-team RT-C1-27 — Proxy bypass of `scanIrValue` (LOW)
+
+External red-team RT-C1 found a structural bypass: a
+`numericBindingSchema` value that is a `Proxy` (with `get` traps
+returning the right primitives) is accepted into canonical state.
+`scanIrValue`'s `accessor_key` check does not fire because
+`Object.getOwnPropertyDescriptor` on the proxy returns the target's
+data descriptors, not getter descriptors.
+
+**Real-world impact**: zero. A Proxy carrying `getOwnPropertyNames`
+that returns the configured values cannot smuggle in a number the
+validator doesn't see — the binding is still *load-bearing* through
+the traps. The validator's semantic binding check (which actually
+catches the contract) is unaffected.
+
+**Suggested one-line fix** (deferred): tighten `scanIrValue` to
+refuse any object whose prototype is not `Object.prototype` (and
+arrays whose prototype is not `Array.prototype`).
+
+**Decision**: deferred. TASK 2's frozen scope is identity / binding;
+the Proxy is a structural bypass that no documented workflow path
+can produce.
+
+## 11. Red-team RT-C2-09 followup — `numeric_binding.result_ref` is not in `IR_REF_FIELDS.Claim`
+
+External red-team RT-C2 noted that the binding's `result_ref` is
+only checked by the semantic guard in `claim-evidence.ts` (at
+bridge time), not by the store's `validateRefFields` (at commit
+time). A future renderer that reads the snapshot *without* running
+the bridge could publish a phantom-wrong-kind binding.
+
+**Real-world impact**: low — every documented consumer of the
+snapshot (the bridge, the workflow executor) goes through
+`evaluateIrBridge`, which always invokes `inspectClaimEvidence`.
+But the design intent of TASK 1.5R / TASK 2 is "store owns reference
+existence/kind; bridge owns semantics", so closing the structural
+gap at the store boundary is the right shape.
+
+**Decision**: deferred per task book §3 / phase-0 §3.2: "The
+binding's `result_ref` is *enforced through* `result_refs` (must
+contain it), and `numeric_binding.asserted_value` is *enforced
+through* `Result.value` identity (semantic guard). This is the
+task-book-§3 'structural ref in store, semantic equality in
+validator' split." Adding a nested `numeric_binding.result_ref`
+entry to `IR_REF_FIELDS.Claim` would extend the ref walker with a
+new arity (`single-nested`); that's a TASK 1.5R-style architectural
+change and is out of scope for TASK 2.

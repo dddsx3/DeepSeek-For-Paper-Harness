@@ -38,11 +38,20 @@ mutations killed; all fault corpus entries behave as expected.
 
 | Check | Result |
 |-------|--------|
-| `corepack pnpm exec vitest run packages/paper/paper-foundation/` | **51 files / 574 tests PASS** |
+| `corepack pnpm exec vitest run packages/paper/paper-foundation/` | **61 files / 735 tests PASS** |
 | `corepack pnpm exec vitest run packages/paper/paper-foundation/tests/ir/` | **256 tests PASS** |
+| `corepack pnpm exec vitest run packages/paper/paper-foundation/tests/rt-c{1..4}/` | **142 attacks / 141 BLOCKED / 1 LOW gap** |
 | `tsc --noEmit -p packages/paper/paper-foundation/tsconfig.json` | **0 errors** |
 | Standalone fault corpus (`node run-fault-corpus.mjs`) | **20 / 20** |
 | Targeted mutation (`node run-mutations.mjs`) | **16 / 16 killed, 0 SURVIVED** |
+
+## External red team
+
+Four roles (RT-C1 / RT-C2 / RT-C3 / RT-C4) drove 142 attacks against
+the just-landed TASK 2 in `tests/rt-c{1..4}/`. **CRITICAL escape =
+0.** One LOW gap (RT-C1-27: Proxy bypass `scanIrValue`) is filed in
+`known-risks.md` item 10 and deferred. The full roll-up is in
+`redteam-rtactions.md`; per-role reports in `redteam-rt-c{1..4}.md`.
 
 ## Outstanding items
 

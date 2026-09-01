@@ -3,11 +3,14 @@
   "phase": "PHASE 6 — Final Gate Report",
   "baseline": {
     "task_1_5r_head": "673063fd18",
-    "task_2_head": "(uncommitted; see changed-files.txt)",
+    "task_2_head": "b7d19099fe (pushed; +dc6780d2c5 + b7d19099fe)",
     "paper_foundation_tests": {
-      "files": 51,
-      "tests": 574,
-      "ir_directory_tests": 256
+      "files": 61,
+      "tests": 735,
+      "ir_directory_tests": 256,
+      "redteam_rt_attacks": 142,
+      "redteam_rt_blocked": 141,
+      "redteam_rt_real_gaps": 1
     },
     "tsc_clean": true
   },
