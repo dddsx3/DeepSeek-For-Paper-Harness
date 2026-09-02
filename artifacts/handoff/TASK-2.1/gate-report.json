@@ -12,11 +12,11 @@
   "baseline": {
     "files": 70,
     "total_tests": 856,
-    "passed_tests": 841,
-    "failed_tests": 15,
+    "passed_tests": 842,
+    "failed_tests": 14,
     "failed_test_suites": 19,
     "tsc_clean": true,
-    "baseline_at": "5.0.3a partial commit (4 reviewer-parser tests of 4.2's known-risks item 14 + 5 legacy tests in tests/ir/execution-record.spec.ts rewritten; 1 RT-X3-04 expectation aligned with 3.R1 contract; remaining 15 documented in known-risks items 12..16)"
+    "baseline_at": "5.0.3b partial commit (engine record-vs-run code_hash drift check landed; 4 stale tests are pre-existing 3.5 alignment debt + the 3 record-field-mutation tests need 5.0.4 forge factory)"
   },
   "failures_by_origin": {
     "8_pre_existing": "TASK 1.25 / 1.5R / 2 era: 3 symbol/NFC (tests/ir/redteam.spec.ts) + 5 problem-contract tests in tests/ir/bridge.spec.ts; documented in known-risks.md item 12.",

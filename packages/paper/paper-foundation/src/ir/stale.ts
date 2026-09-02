@@ -167,6 +167,21 @@ function deriveDirectStale(
         upstream_run_id: null,
       })
     } else {
+      // S-002 (5.0.3b follow-up): the record's code_hash disagrees with
+      // the run's declared code_hash. The engine did not previously
+      // compare these two fields directly — a hand-edited record that
+      // disagrees with the run declaration must be STALE, even if the
+      // environment + dependency fingerprints happen to match. The
+      // S-007 byte-level check is the loadCode variant; this is the
+      // string-hash variant (declaration disagreement).
+      if (record.code_hash !== run.code_hash) {
+        out.push({
+          id: run.run_id, kind: 'RunArtifact',
+          reason: 'CODE_MISMATCH',
+          reason_text: `record freezes code ${record.code_hash.slice(0, 12)}…; run declares ${run.code_hash.slice(0, 12)}…`,
+          upstream_run_id: null,
+        })
+      }
       if (record.dependency_lock_hash !== expectedDep) {
         out.push({
           id: run.run_id, kind: 'RunArtifact',
