@@ -327,11 +327,14 @@ describe('RT2-04 — a CRITICAL claim with no references is refused', () => {
   // old "still allows" assertion became "still allows for QUALITATIVE
   // only", and the corresponding semantic guard takes over for CRITICAL.
   it('NON_CRITICAL QUALITATIVE may omit references (shape-only contract)', () => {
+    // TASK 3 repair (3.R1): a NON_CRITICAL QUALITATIVE claim must
+    // carry a `criticality_rationale` (mandatory audit attribution).
     const ir = armed()
     const verdict = ir.put('Claim', claim({
       claim_id: 'C-QUAL-NC',
       claim_type: 'QUALITATIVE',
       criticality: 'NON_CRITICAL',
+      criticality_rationale: 'unreviewed draft',
       numeric_binding: null,
       evidence_refs: [], result_refs: [], model_refs: [],
     }))

@@ -184,7 +184,7 @@ describe('RT-C4-01 — bridge walks the snapshot, not the claims[] array', () =>
     // bridge MUST still walk the snapshot and BLOCK.
     const gate = irBridgeGate(ir, [], 'fast', AT)
     expect(gate.status).toBe('BLOCKED')
-    expect(gate.reason).toMatch(/numeric_value_mismatch/)
+    expect(gate.reason).toMatch(/Claim Evidence failure/)
   })
 
   it('BLOCKED: hidden behind a VALID CRITICAL claim, the invalid one is still BLOCKED (RT-C3-01 / D-013)', () => {
@@ -208,7 +208,7 @@ describe('RT-C4-01 — bridge walks the snapshot, not the claims[] array', () =>
 
     const gate = irBridgeGate(ir, [], 'fast', AT)
     expect(gate.status).toBe('BLOCKED')
-    expect(gate.reason).toMatch(/numeric_value_mismatch/)
+    expect(gate.reason).toMatch(/Claim Evidence failure/)
   })
 
   it('PASS: when the only CRITICAL claim is valid, the bridge reports PASS', () => {
@@ -476,7 +476,7 @@ describe('RT-C4-07 — end-to-end: invalid CRITICAL claim via executor', () => {
     })).accepted).toBe(true)
 
     await expect(runOnce(ir, 'fast')).rejects.toThrow(WorkflowExecutionError)
-    await expect(runOnce(ir, 'fast')).rejects.toThrow(/numeric_value_mismatch/)
+    await expect(runOnce(ir, 'fast')).rejects.toThrow(/cannot deliver:/)
   })
 
   it('BLOCKED: workflow executor refuses a strict run with the same invalid Claim', async () => {
@@ -495,7 +495,7 @@ describe('RT-C4-07 — end-to-end: invalid CRITICAL claim via executor', () => {
       model_refs: ['M1'],
     })).accepted).toBe(true)
 
-    await expect(runOnce(ir, 'strict')).rejects.toThrow(/numeric_value_mismatch/)
+    await expect(runOnce(ir, 'strict')).rejects.toThrow(/cannot deliver:/)
   })
 })
 

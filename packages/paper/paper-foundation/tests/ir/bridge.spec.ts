@@ -27,7 +27,7 @@ import {
   type DeliveryPolicy,
   type GateRecord,
 } from '../../src/delivery/index.ts'
-import { chainThrough, claim, modelSpec, problemSpec, result } from './fixtures.ts'
+import { chainThrough, claim, modelClaim, modelSpec, problemSpec, result } from './fixtures.ts'
 
 const AT = '2026-08-29T00:00:00.000Z'
 
@@ -123,11 +123,18 @@ describe('INV-1.25-B — the workflow cannot reach Deliverable without canonical
   })
 
   it('blocks when the backbone is present but no claim is CRITICAL', () => {
+    // TASK 3 repair (3.R1): a NUMERIC claim can no longer declare
+    // NON_CRITICAL, so to test the backbone-without-critical-claim branch
+    // we use a MODEL claim (which the new contract allows to be
+    // NON_CRITICAL with a rationale). The canonical-IR bridge still
+    // blocks on `missingCriticalClaim`.
     const ir = new ModelingIr({ now: () => AT })
     for (const entry of chainThrough('Result')) {
       expect(ir.put(entry.kind, entry.value).accepted).toBe(true)
     }
-    expect(ir.put('Claim', claim({ criticality: 'NON_CRITICAL' })).accepted).toBe(true)
+    expect(ir.put('Claim', modelClaim({
+      claim_id: 'C-NC', criticality: 'NON_CRITICAL', criticality_rationale: 'draft',
+    })).accepted).toBe(true)
     const decision = evaluateIrBridge(ir, [], 'FORMAL')
     expect(decision.missingBackbone).toEqual([])
     expect(decision.missingCriticalClaim).toBe(true)

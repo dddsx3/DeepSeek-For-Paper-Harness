@@ -26,6 +26,7 @@ import {
   buildExecutionManifest,
   evaluateProvenanceGate,
   executionProvenanceGate as gateFn,
+  ingestCapturedRecord,
 } from '../../src/execution/index.ts'
 import {
   PaperExecutorService,
@@ -168,7 +169,7 @@ describe('evaluateProvenanceGate — structural completeness over critical-chain
     // so the ingest is accepted; the conflicting-record finding is
     // expected separately in EX-10).
     const forged = executionRecord({ execution_id: 'EXEC-SEED', seed: 42 }) as Record<string, unknown>
-    expect(ir.put('ExecutionRecord', forged).accepted).toBe(true)
+    expect(ingestCapturedRecord(ir, forged).accepted).toBe(true)
     const manifest = buildExecutionManifest(ModelingIr.snapshot(ir)!)
     const report = auditExecutionProvenance(ModelingIr.snapshot(ir)!, manifest)
     expect(report.status).toBe('FAIL')
@@ -177,7 +178,7 @@ describe('evaluateProvenanceGate — structural completeness over critical-chain
 
   it('EX-10: two conflicting records for one run are CODE_MISMATCH (evidence disagrees with itself)', () => {
     const ir = backboneIr()
-    expect(ir.put('ExecutionRecord', executionRecord({
+    expect(ingestCapturedRecord(ir, executionRecord({
       execution_id: 'EXEC2',
       stdout_hash: 'b'.repeat(64),
     }) as Record<string, unknown>).accepted).toBe(true)
@@ -190,7 +191,7 @@ describe('evaluateProvenanceGate — structural completeness over critical-chain
   it('INV-3-D: seed null on a critical chain is ENVIRONMENT_MISMATCH', () => {
     const bare = bareChainStore()
     const nullSeed = executionRecord({ seed: null }) as Record<string, unknown>
-    expect(bare.put('ExecutionRecord', nullSeed).accepted).toBe(true)
+    expect(ingestCapturedRecord(bare, nullSeed).accepted).toBe(true)
     const manifest = buildExecutionManifest(ModelingIr.snapshot(bare)!)
     const report = auditExecutionProvenance(ModelingIr.snapshot(bare)!, manifest)
     expect(report.status).toBe('FAIL')
@@ -205,9 +206,9 @@ describe('evaluateProvenanceGate — structural completeness over critical-chain
 
   it('P-01 anchor: a record freezing a different code digest is CODE_MISMATCH', () => {
     const bare = bareChainStore()
-    expect(bare.put('ExecutionRecord', executionRecord({
+    expect(ingestCapturedRecord(bare, executionRecord({
       code_hash: `sha256:${'b'.repeat(64)}`,
-    }) as Record<string, unknown>).accepted).toBe(true)
+    } as Record<string, unknown>)).accepted).toBe(true)
     const manifest = buildExecutionManifest(ModelingIr.snapshot(bare)!)
     const report = auditExecutionProvenance(ModelingIr.snapshot(bare)!, manifest)
     expect(report.status).toBe('FAIL')
@@ -216,9 +217,9 @@ describe('evaluateProvenanceGate — structural completeness over critical-chain
 
   it('P-03 anchor: a captured non-zero exit is NON_ZERO_EXIT at the audit', () => {
     const bare = bareChainStore()
-    expect(bare.put('ExecutionRecord', executionRecord({
+    expect(ingestCapturedRecord(bare, executionRecord({
       exit_status: 1,
-    }) as Record<string, unknown>).accepted).toBe(true)
+    } as Record<string, unknown>)).accepted).toBe(true)
     const manifest = buildExecutionManifest(ModelingIr.snapshot(bare)!)
     const report = auditExecutionProvenance(ModelingIr.snapshot(bare)!, manifest)
     expect(report.status).toBe('FAIL')
@@ -239,7 +240,7 @@ describe('evaluateProvenanceGate — structural completeness over critical-chain
       numeric_binding: { result_ref: 'RES1', asserted_value: 0.731, asserted_unit: 'm' },
       evidence_refs: ['RES1'], result_refs: ['RES1'], model_refs: ['M1'],
     }).accepted).toBe(true)
-    expect(bare.put('ExecutionRecord', executionRecord() as Record<string, unknown>).accepted).toBe(true)
+    expect(ingestCapturedRecord(bare, executionRecord() as Record<string, unknown>).accepted).toBe(true)
     const manifest = buildExecutionManifest(ModelingIr.snapshot(bare)!)
     const report = auditExecutionProvenance(ModelingIr.snapshot(bare)!, manifest)
     expect(report.status).toBe('FAIL')

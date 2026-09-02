@@ -136,32 +136,32 @@ describe('RT-C3-A1 — snapshot/artifact-subset confusion variants', () => {
 // This test pins the contract: NUMERIC binding check is criticality-blind.
 // A downgrade to NON_CRITICAL does not silence a NUMERIC binding failure.
 // ---------------------------------------------------------------------------
-describe('RT-C3-A2 — criticality downgrade does not silence NUMERIC binding failures', () => {
-  it('blocks a NON_CRITICAL NUMERIC Claim with a value mismatch (NUMERIC check is criticality-blind)', () => {
+describe('RT-C3-A2 — criticality is enforced at the store boundary (3.R1)', () => {
+  it('a NUMERIC Claim with criticality NON_CRITICAL is refused at the schema (3.R1 / EX-13)', () => {
+    // The pre-3.R1 test asserted that a NON_CRITICAL NUMERIC Claim with
+    // a binding value mismatch was caught by the walker after the fact.
+    // Post-3.R1 the store boundary itself refuses the downgrade
+    // (NUMERIC must be CRITICAL), so the bridge never sees the bad
+    // object at all — INV-3-I.
     const ir = closedBackboneIr()
-    expect(ir.put('Claim', claim({
+    const verdict = ir.put('Claim', claim({
       claim_id: 'C-NCNUM',
       criticality: 'NON_CRITICAL',
       numeric_binding: { result_ref: 'RES1', asserted_value: 7.777, asserted_unit: 'm' },
-    })).accepted).toBe(true)
-
-    const decision = evaluateIrBridge(ir, [], 'FORMAL')
-    expect(decision.status).toBe('BLOCKED')
-    // The walker surfaces the bad binding even though the claim is not
-    // CRITICAL. Without this guarantee, an attacker could ship the same
-    // number with criticality downgraded to silence the gate.
-    expect(decision.evidenceFailures.some(f => f.kind === 'numeric_value_mismatch')).toBe(true)
-    expect(decision.missingCriticalClaim).toBe(true)
+    }))
+    expect(verdict.accepted).toBe(false)
+    if (!verdict.accepted) {
+      const reason = verdict.failures[0]?.reason ?? ''
+      expect(reason).toMatch(/CRITICAL|discriminator|NUMERIC/)
+    }
   })
 
-  it('does NOT block a NON_CRITICAL QUALITATIVE Claim with empty evidence_refs (by design)', () => {
-    // The contract says: NON_CRITICAL QUALITATIVE is a "low-confidence
-    // draft note" and may exist without evidence_refs. This is by design
-    // (see known-risks.md §1 and RT-C3-03 in redteam.md). Pin the
-    // counterfactual: a NON_CRITICAL QUALITATIVE with empty evidence_refs
-    // passes the walker.
+  it('a NON_CRITICAL QUALITATIVE without criticality_rationale is refused (3.R1 / EX-15)', () => {
+    // Post-3.R1, MODEL/QUALITATIVE can still be NON_CRITICAL, but
+    // they must carry an audit-attributable rationale. The shape
+    // alone is no longer sufficient.
     const ir = closedBackboneIr()
-    expect(ir.put('Claim', claim({
+    const verdict = ir.put('Claim', claim({
       claim_id: 'C-NCQUAL',
       claim_type: 'QUALITATIVE',
       criticality: 'NON_CRITICAL',
@@ -169,10 +169,23 @@ describe('RT-C3-A2 — criticality downgrade does not silence NUMERIC binding fa
       evidence_refs: [],
       result_refs: [],
       model_refs: [],
-    })).accepted).toBe(true)
+    }))
+    expect(verdict.accepted).toBe(false)
+  })
 
-    const failures = inspectClaimEvidence(ModelingIr.snapshot(ir) ?? new Map())
-    expect(failures.filter(f => f.path.includes('C-NCQUAL'))).toEqual([])
+  it('a NON_CRITICAL QUALITATIVE WITH criticality_rationale is accepted (legal draft)', () => {
+    const ir = closedBackboneIr()
+    const verdict = ir.put('Claim', claim({
+      claim_id: 'C-NCQUAL-OK',
+      claim_type: 'QUALITATIVE',
+      criticality: 'NON_CRITICAL',
+      criticality_rationale: 'unreviewed draft',
+      numeric_binding: null,
+      evidence_refs: [],
+      result_refs: [],
+      model_refs: [],
+    }))
+    expect(verdict.accepted).toBe(true)
   })
 
   it('blocks a CRITICAL QUALITATIVE Claim with empty evidence_refs even when a NON_CRITICAL sibling hides behind it', () => {

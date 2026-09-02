@@ -300,12 +300,34 @@ describe('auditEvidenceFreeze — closed failure taxonomy', () => {
     expect(report.failures.some(f => f.claim_id === 'C1' && f.category === 'CHAIN_BROKEN')).toBe(true)
   })
 
-  it('MEDIUM: non-critical claim drift is recorded but never flips the verdict', () => {
-    const ir = buildStore({ claim: { criticality: 'NON_CRITICAL' } })
-    const manifest = buildEvidenceFreeze(snapshotOf(ir), { now: NOW })
+  it('MEDIUM: non-critical QUALITATIVE drift is recorded but never flips the verdict', () => {
+    // TASK 3 repair (3.R1): only MODEL/QUALITATIVE claims can be
+    // NON_CRITICAL today (NUMERIC is forced to CRITICAL). The test
+    // therefore exercises a QUALITATIVE draft — the only kind whose
+    // criticality can be downgraded by the producer.
+    const ir = new ModelingIr({ now: () => '2026-09-01T00:00:00.000Z' })
+    for (const entry of chainThrough('ModelSpec')) {
+      ir.put(entry.kind, entry.value)
+    }
+    expect(ir.put('RunArtifact', runArtifact()).accepted).toBe(true)
+    expect(ir.put('Result', result()).accepted).toBe(true)
+    const baseClaim = {
+      claim_id: 'C-Q', text: 'draft', claim_type: 'QUALITATIVE',
+      criticality: 'NON_CRITICAL',
+      criticality_rationale: 'unreviewed',
+      numeric_binding: null, evidence_refs: [], result_refs: [], model_refs: [],
+    }
+    const v0 = ir.put('Claim', baseClaim)
+    expect(v0.accepted, JSON.stringify(v0)).toBe(true)
+    const manifest = buildEvidenceFreeze(snapshotOf(ir), { now: () => '2026-09-01T00:00:00.000Z' })
     expect(manifest.claims[0]!.critical).toBe(false)
-    const tampered = buildStore({ claim: { criticality: 'NON_CRITICAL', evidence_refs: [] } })
-    const report = auditEvidenceFreeze(snapshotOf(tampered), manifest)
+    // Drift: re-ingest a drift (fresh claim_id) that now cites RES1 as
+    // its evidence — the closed store accepts it; the freeze walk sees
+    // a new claim whose evidence_refs is a known kind; the audit must
+    // record the drift at MEDIUM (since neither claim is critical).
+    const v1 = ir.put('Claim', { ...baseClaim, claim_id: 'C-Q-DRIFT', evidence_refs: ['RES1'] })
+    expect(v1.accepted, JSON.stringify(v1)).toBe(true)
+    const report = auditEvidenceFreeze(snapshotOf(ir), manifest)
     expect(report.claims_checked).toBe(0)
     expect(report.failures.every(f => f.severity === 'MEDIUM')).toBe(true)
     expect(report.status).toBe('PASS')

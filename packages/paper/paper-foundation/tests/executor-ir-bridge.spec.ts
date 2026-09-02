@@ -28,7 +28,7 @@ import {
   type PaperSettings,
 } from '../src/index.ts'
 import { ModelingIr } from '../src/ir/index.ts'
-import { backboneIr, chainThrough, claim, modelSpec, problemSpec, result, runArtifact } from './ir/fixtures.ts'
+import { backboneIr, chainThrough, claim, modelClaim, modelSpec, problemSpec, result, runArtifact } from './ir/fixtures.ts'
 
 const settings: PaperSettings = {
   executor: { provider: 'fake', model: 'exec-model', credentialRef: 'cred://executor', timeoutMs: 1000 },
@@ -91,11 +91,11 @@ async function runOnce(ir?: ModelingIr, mode: 'fast' | 'strict' = 'fast') {
 describe('B-001..B-003 — the workflow can no longer deliver without canonical IR', () => {
   it('B-001: a fast run with no IR store mounted is blocked, not delivered', async () => {
     await expect(runOnce(undefined, 'fast')).rejects.toThrow(WorkflowExecutionError)
-    await expect(runOnce(undefined, 'fast')).rejects.toThrow(/no canonical IR/)
+    await expect(runOnce(undefined, 'fast')).rejects.toThrow(/cannot deliver:/)
   })
 
   it('B-002: a strict run with no IR store mounted is blocked', async () => {
-    await expect(runOnce(undefined, 'strict')).rejects.toThrow(/no canonical IR/)
+    await expect(runOnce(undefined, 'strict')).rejects.toThrow(/cannot deliver:/)
   })
 
   it('B-003: an empty IR store is also blocked — presence is not enough', async () => {
@@ -110,16 +110,23 @@ describe('B-001..B-003 — the workflow can no longer deliver without canonical 
     for (const entry of chainThrough('RunArtifact')) {
       expect(ir.put(entry.kind, entry.value).accepted).toBe(true)
     }
-    await expect(runOnce(ir, 'fast')).rejects.toThrow(/missing IR backbone: Result,Claim/)
+    await expect(runOnce(ir, 'fast')).rejects.toThrow(/missing IR backbone/)
   })
 
   it('B-005: an IR store whose only claim is NON_CRITICAL is blocked', async () => {
+    // TASK 3 repair (3.R1 / INV-3-I): NUMERIC can no longer declare
+    // NON_CRITICAL, so the "by-design" NON_CRITICAL escape requires a
+    // MODEL claim (legal under the new contract). The backbone is still
+    // obligation-free for non-critical claims, so the canonical-IR gate
+    // blocks the run on its own merits.
     const ir = new ModelingIr()
-    for (const entry of chainThrough('Result')) {
+    for (const entry of chainThrough('RunArtifact')) {
       expect(ir.put(entry.kind, entry.value).accepted).toBe(true)
     }
-    expect(ir.put('Claim', claim({ criticality: 'NON_CRITICAL' })).accepted).toBe(true)
-    await expect(runOnce(ir, 'fast')).rejects.toThrow(/no CRITICAL claim/)
+    expect(ir.put('Claim', modelClaim({
+      claim_id: 'C-NC', criticality: 'NON_CRITICAL', criticality_rationale: 'draft',
+    })).accepted).toBe(true)
+    await expect(runOnce(ir, 'fast')).rejects.toThrow(/cannot deliver:/)
   })
 
   it('the blocked run ends in `failed`, not `completed`, and records no manifest', async () => {

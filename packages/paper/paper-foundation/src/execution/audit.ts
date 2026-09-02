@@ -60,6 +60,16 @@ export interface ExecutionAuditReport {
   readonly execution_checked: number
   readonly failures: ReadonlyArray<ExecutionAuditFailure>
   readonly manifest_hash: string
+  /**
+   * TASK 3.6 / INV-3.6: the freshest replay report the auditor has
+   * consumed, with the time at which it was produced. `null` when
+   * the critical chain carries no execution records (or the auditor
+   * ran without replay). The delivery gate uses `now - replayed_at`
+   * to bound the capture-vs-delivery staleness window.
+   */
+  readonly replayed_at: string | null
+  /** sha256 of the auditor's merged report; out-of-band anchor. */
+  readonly replay_report_hash: string
 }
 
 /** The frozen run layer of the execution evidence. */
@@ -179,7 +189,7 @@ export function auditExecutionProvenance(
       severity: 'CRITICAL',
       reason: `execution manifest_hash mismatch: frozen '${manifest.manifest_hash}' vs recomputed '${recomputed}'`,
     })
-    return report(store, manifest, failures, 0)
+    return report(store, manifest, failures, 0, null)
   }
 
   const criticalRunIds = criticalChainRunIds(store)
@@ -317,7 +327,7 @@ export function auditExecutionProvenance(
     }
   }
 
-  return report(store, manifest, failures, checked.length)
+  return report(store, manifest, failures, checked.length, null)
 }
 
 // ---------------------------------------------------------------------------
@@ -352,6 +362,8 @@ export function evaluateProvenanceGate(ir: ModelingIr): ProvenanceGateDecision {
           reason: 'provenance gate requires a canonical ModelingIr store',
         }],
         manifest_hash: 'unavailable',
+        replayed_at: null,
+        replay_report_hash: 'unavailable',
       }
       return { status: 'BLOCKED', report }
     }
@@ -371,6 +383,8 @@ export function evaluateProvenanceGate(ir: ModelingIr): ProvenanceGateDecision {
         reason: `provenance gate faulted: ${error instanceof Error ? error.message : 'non-Error throw'}`,
       }],
       manifest_hash: 'unavailable',
+      replayed_at: null,
+      replay_report_hash: 'unavailable',
     }
     return { status: 'BLOCKED', report }
   }
@@ -471,8 +485,13 @@ export async function runIndependentExecutionAudit(
   }
 
   const status: 'PASS' | 'FAIL' = merged.some(f => f.severity !== 'MEDIUM') ? 'FAIL' : 'PASS'
+  // TASK 3.6: replayed_at records the moment the auditor consumed the
+  // freshest replay. `null` only when no critical-chain run carried a
+  // record (the structural audit alone informs the report; the delivery
+  // gate will then fall back to the default staleness policy).
+  const replayedAt = replays.length > 0 ? new Date().toISOString() : null
   return {
-    report: { ...report, status, failures: merged },
+    report: { ...report, status, failures: merged, replayed_at: replayedAt },
     replays,
   }
 }
@@ -486,15 +505,24 @@ function report(
   manifest: ExecutionManifest,
   failures: ExecutionAuditFailure[],
   executionChecked: number,
+  replayedAt: string | null = null,
 ): ExecutionAuditReport {
   const status: 'PASS' | 'FAIL' = failures.some(f => f.severity !== 'MEDIUM') ? 'FAIL' : 'PASS'
   const digest = sha256Hex(canonicalJson([...store.keys()].sort()))
+  const replayReportHash = sha256Hex(canonicalJson({
+    manifest_hash: manifest.manifest_hash,
+    store_digest: digest,
+    failures: failures.map(f => ({ category: f.category, severity: f.severity })),
+    status,
+  }))
   return {
     audit_id: `EAUD-${sha256Hex(`${manifest.manifest_hash}|${digest}`).slice(0, 16)}`,
     status,
     execution_checked: executionChecked,
     failures,
     manifest_hash: manifest.manifest_hash,
+    replayed_at: replayedAt,
+    replay_report_hash: replayReportHash,
   }
 }
 

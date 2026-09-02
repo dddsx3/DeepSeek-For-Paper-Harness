@@ -23,6 +23,7 @@ import {
   sha256Hex,
   declaredEnvironmentFingerprint,
   declaredDependencyLockFingerprint,
+  CAPTURE_ATTESTATION,
   type IrKind,
 } from '../../src/ir/index.ts'
 
@@ -208,7 +209,7 @@ export function modelClaim(overrides: Record<string, unknown> = {}): Record<stri
 }
 
 export function qualitativeClaim(overrides: Record<string, unknown> = {}): Record<string, unknown> {
-  return {
+  const base: Record<string, unknown> = {
     claim_id: 'C-QUAL',
     text: 'The survey line shows a monotonic thickness trend.',
     claim_type: 'QUALITATIVE',
@@ -217,8 +218,11 @@ export function qualitativeClaim(overrides: Record<string, unknown> = {}): Recor
     evidence_refs: ['RES1'],
     result_refs: [],
     model_refs: [],
-    ...overrides,
   }
+  if ((overrides.criticality ?? base.criticality) === 'NON_CRITICAL' && overrides.criticality_rationale === undefined) {
+    return { ...base, ...overrides, criticality_rationale: 'test draft' }
+  }
+  return { ...base, ...overrides }
 }
 
 export function verificationResult(overrides: Record<string, unknown> = {}): Record<string, unknown> {
@@ -369,6 +373,17 @@ export function chainThrough(kind: IrKind): ReadonlyArray<{ kind: IrKind; value:
 export function backboneIr(): ModelingIr {
   const ir = new ModelingIr({ now: () => '2026-08-29T00:00:00.000Z' })
   for (const entry of validChain()) {
+    // TASK 3 repair (3.R3 / INV-3-M): ExecutionRecord cannot be put
+    // directly — it must go through the producer-only entry. The
+    // chain appends it last (after backbone) so the loop above
+    // already does the right thing via the `ingest*` helper.
+    if (entry.kind === 'ExecutionRecord') {
+      const verdict = ir.putExecutionRecord(entry.value, CAPTURE_ATTESTATION)
+      if (!verdict.accepted) {
+        throw new Error(`backbone fixture failed: ${entry.kind} ${JSON.stringify(verdict.failures)}`)
+      }
+      continue
+    }
     const verdict = ir.put(entry.kind, entry.value)
     if (!verdict.accepted) {
       throw new Error(`backbone fixture failed: ${entry.kind} ${JSON.stringify(verdict.failures)}`)

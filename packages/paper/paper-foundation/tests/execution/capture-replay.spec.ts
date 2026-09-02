@@ -16,6 +16,7 @@ import {
 import {
   LocalProcessRunner,
   captureExecution,
+  ingestCapturedRecord,
   replayExecution,
   runIndependentExecutionAudit,
   type ExecutionOutcome,
@@ -80,7 +81,7 @@ async function captureInto(ir: ReturnType<typeof buildExecutionStore>, runner: E
   const captured = await captureExecution({ ir, runRef: 'RUN1', executionId: 'EXEC1', runner, loadCode, timeoutMs: 5_000 })
   expect(captured.ok, JSON.stringify(captured)).toBe(true)
   if (!captured.ok) throw new Error('unreachable')
-  expect(ir.put('ExecutionRecord', captured.record).accepted).toBe(true)
+  expect(ingestCapturedRecord(ir, captured.record).accepted).toBe(true)
   return captured.record
 }
 
@@ -168,7 +169,7 @@ describe('replayExecution — byte-level truth against the frozen record', () =>
     const record = await captureInto(irA)
 
     const irB = buildExecutionStore({ value: 0.999 })
-    expect(irB.put('ExecutionRecord', record).accepted).toBe(true)
+    expect(ingestCapturedRecord(irB, record).accepted).toBe(true)
     const verdict = await replayExecution({ ir: irB, executionId: 'EXEC1', runner: fakeRunner(), loadCode, timeoutMs: 5_000 })
     expect(verdict.ok).toBe(false)
     expect(verdict.failures.some(f => f.category === 'OUTPUT_MISMATCH' && f.reason.includes('0.999'))).toBe(true)
@@ -200,7 +201,7 @@ describe('replayExecution — byte-level truth against the frozen record', () =>
     // Store B re-declares the run's environment differently; the record
     // still freezes the original declared fingerprint.
     const irB = buildExecutionStore({}, { environment: 'python 2.7 (drifted)' })
-    expect(irB.put('ExecutionRecord', record).accepted).toBe(true)
+    expect(ingestCapturedRecord(irB, record).accepted).toBe(true)
     const verdict = await replayExecution({ ir: irB, executionId: 'EXEC1', runner: fakeRunner(), loadCode, timeoutMs: 5_000 })
     expect(verdict.ok).toBe(false)
     expect(verdict.failures.some(f => f.category === 'ENVIRONMENT_MISMATCH' && f.reason.includes('declared'))).toBe(true)
@@ -213,7 +214,7 @@ describe('replayExecution — byte-level truth against the frozen record', () =>
     const irA = buildExecutionStore()
     const record = await captureInto(irA)
     const irB = buildExecutionStore({}, {}, { assumptions: ['drifted assumption'] })
-    expect(irB.put('ExecutionRecord', record).accepted).toBe(true)
+    expect(ingestCapturedRecord(irB, record).accepted).toBe(true)
     const { buildExecutionManifest: buildManifest, auditExecutionProvenance: auditProvenance } =
       await import('../../src/execution/index.ts')
     const manifest = buildManifest(ModelingIr.snapshot(irB)!)

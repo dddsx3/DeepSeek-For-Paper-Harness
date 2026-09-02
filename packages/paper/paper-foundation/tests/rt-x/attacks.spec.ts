@@ -21,6 +21,7 @@ import { ModelingIr, canonicalJson, requiresIrBackbone, sha256Hex } from '../../
 import {
   captureExecution,
   evaluateProvenanceGate,
+  ingestCapturedRecord,
   replayExecution,
   runIndependentExecutionAudit,
   type ExecutionOutcome,
@@ -71,7 +72,7 @@ async function captureInto(ir: ReturnType<typeof buildExecutionStore>, runner: E
   const captured = await captureExecution({ ir, runRef: 'RUN1', executionId: 'EXEC1', runner, loadCode, timeoutMs: 5_000 })
   expect(captured.ok).toBe(true)
   if (!captured.ok) throw new Error('unreachable')
-  expect(ir.put('ExecutionRecord', captured.record).accepted).toBe(true)
+  expect(ingestCapturedRecord(ir, captured.record).accepted).toBe(true)
 }
 
 // ---------------------------------------------------------------------------
@@ -103,13 +104,13 @@ describe('RT-X1 — Capture Forger', () => {
     // boundary (the task book D8 layering: gate = cheap structural,
     // replay = byte truth).
     const ir = buildExecutionStore()
-    expect(ir.put('ExecutionRecord', await forgedRecord()).accepted).toBe(true)
+    expect(ingestCapturedRecord(ir, await forgedRecord()).accepted).toBe(true)
     expect(evaluateProvenanceGate(ir).status).toBe('PASS')
   })
 
   it('RT-X1-02: …but the replay audit refuses the forged byte digests', async () => {
     const ir = buildExecutionStore()
-    expect(ir.put('ExecutionRecord', await forgedRecord()).accepted).toBe(true)
+    expect(ingestCapturedRecord(ir, await forgedRecord()).accepted).toBe(true)
     const audit = await runIndependentExecutionAudit({
       ir, runner: fakeRunner(), loadCode, timeoutMs: 5_000,
     })
@@ -120,11 +121,11 @@ describe('RT-X1 — Capture Forger', () => {
 
   it('RT-X1-03: a fabricated exit_status is refused by the replay', async () => {
     const ir = buildExecutionStore()
-    expect(ir.put('ExecutionRecord', executionRecord({
+    expect(ingestCapturedRecord(ir, executionRecord({
       execution_id: 'EXEC-LIE',
       exit_status: 0,
       stdout_hash: sha256Hex('i swear it worked\n'),
-    }) as Record<string, unknown>).accepted).toBe(true)
+    } as Record<string, unknown>)).accepted).toBe(true)
     const audit = await runIndependentExecutionAudit({
       ir, runner: fakeRunner(), loadCode, timeoutMs: 5_000,
     })
@@ -209,9 +210,9 @@ describe('RT-X3 — Provenance Omission', () => {
     expect(ir.put('RunArtifact', runArtifact({ run_id: 'RUN2', code_hash: CODE_HASH })).accepted).toBe(true)
     // The forger registers a record for RUN2 (irrelevant) hoping the gate
     // counts it toward RUN1. The gate walks per-run: RUN1 still missing.
-    expect(ir.put('ExecutionRecord', executionRecord({
+    expect(ingestCapturedRecord(ir, executionRecord({
       execution_id: 'EXEC-RUN2', run_ref: 'RUN2',
-    }) as Record<string, unknown>).accepted).toBe(true)
+    } as Record<string, unknown>)).accepted).toBe(true)
     const decision = evaluateProvenanceGate(ir)
     expect(decision.status).toBe('BLOCKED')
     expect(decision.report.failures.some(f =>

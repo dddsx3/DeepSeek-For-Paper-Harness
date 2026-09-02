@@ -1,0 +1,36 @@
+{
+  "report_version": 1,
+  "generated_at": "2026-09-01T00:00:00.000Z",
+  "generated_from": {
+    "fixture": "tests/ir/fixtures.ts validChain() (TASK 3) incl. ExecutionRecord EXEC1",
+    "store_objects": 16
+  },
+  "algorithm": {
+    "freeze_hash": "sha256(canonicalJson({ records, runs }))",
+    "manifest_hash": "sha256(canonicalJson({ manifest_version, freeze_hash, records, runs }))",
+    "replay_report_hash": "sha256(canonicalJson({ manifest_hash, store_digest, failure_kinds, status })) — populated by runIndependentExecutionAudit()",
+    "environment_hash": "declaredEnvironmentFingerprint(run) — TASK 2.1 derivation",
+    "dependency_lock_hash": "declaredDependencyLockFingerprint(run, model) — TASK 2.1 derivation"
+  },
+  "freeze_hash": "2bb13fe1dbb5184c93cbb41a0ca7c27f8a405d3a9053344cf0f4d6a615ef88f2",
+  "manifest_hash": "22c5a958ff72a86de1a52cf10933017f5abcc958f5d1e5c443845369df7e924d",
+  "records": [
+    {
+      "execution_id": "EXEC1",
+      "run_ref": "RUN1",
+      "code_hash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "seed": 20260828
+    }
+  ],
+  "verification": {
+    "structural_audit_id": "EAUD-44c9c678df5b559e",
+    "structural_status": "PASS",
+    "execution_checked": 1,
+    "replayed_at": null,
+    "note": "Replay audit (runIndependentExecutionAudit) is a separate run that fills replayed_at and replay_report_hash; this script only emits the structural freeze."
+  },
+  "usage": {
+    "auditor_entry": "runIndependentExecutionAudit({ ir, runner, loadCode, timeoutMs })",
+    "anchor_rule": "The out-of-band anchor is manifest_hash; producer != auditor. Any audit whose report.manifest_hash differs from the registry is rejected (RT-X1 anchor)."
+  }
+}
