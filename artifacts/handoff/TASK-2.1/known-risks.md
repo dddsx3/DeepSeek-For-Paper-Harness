@@ -110,3 +110,41 @@ Specific tests to rewrite as a follow-up commit:
     match the registry's merged-reason format.
 
 A single follow-up commit can rewrite all 11 in one batch.
+
+## Items added by the 3.5 / 4.2 / 4.3 / 4.5 batch
+
+### 13. Stale engine: 5 of 11 attack tests need code_hash / dependency
+drift paths (S-002 / S-003 / S-004 / S-009) wired through
+`computeStaleRecord()`'s record-vs-run comparison. The engine code
+is in place (src/ir/stale.ts: compare record.code_hash /
+dependency_lock_hash / environment_hash against the canonical
+re-derivations). What remains is the test-side helper that builds
+a fresh chain for each S-00X case; once the helper exists, the
+existing assertions in `tests/ir/stale-engine.spec.ts` will close
+without further engine changes.
+
+### 14. ReviewerFinding runtime unification (TASK 4.2 §3)
+Reviewer output is currently parsed by `parseDefects` in
+`src/executor.ts:570`, which produces the local `ReviewDefect` type
+with severity `'major' | 'minor'`. The IR-side
+`reviewerFindingSchema` uses `FINDING_SEVERITIES = ['CRITICAL', 'MAJOR',
+'MINOR']`. Unifying the two vocabularies — and routing
+critical-severity findings through Oracle Routing (a deterministic
+verifier that overrides a failed review) — is deferred to a TASK 4.2
+follow-up commit. Tests that depend on the current `'major'`
+severity string should expect this rename.
+
+### 15. FigureSpec §15 fields (TASK 4.3) — only `data_hash` shipped
+The full §15 field set (`question_answered / x / y / series / units /
+chart_type / style_profile`) is deferred. The minimum needed for
+`figure_data_consistency` to answer anything is `data_hash` (this
+batch), plus a per-renderer `chart_type`. A `chart_type`-aware
+producer can land in a separate commit; until then the structural
+stub remains and `F-11 (data_hash mismatch)` is detectable but
+`F-05 (figure points at wrong data)` is not.
+
+### 16. EXTERNAL-REVIEW + TASK-INDEX (TASK 4.5)
+The Status snapshot is updated; TASK-INDEX.md is a new single
+source of truth. Subsequent task batches should land a new handoff
+folder and add one row, not a new standalone summary.
+

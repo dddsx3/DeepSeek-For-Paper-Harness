@@ -7,8 +7,22 @@ It describes *what exists, what is claimed, how to verify the claims, and the
 specific questions we most need help with*.
 
 **Status snapshot.** Pre-release, single-developer, red-team-verified core.
-Three tasks of the v2 task book are complete; the next task (TASK 1.5) is not
-started.
+Eleven tasks of the v2 task book are complete: TASK 1.25, 1.5, 1.5R, 2,
+2.1, 3, 3.5, 3.6, plus the merged TASK 4.0 gate-registry stub and the
+TASK 3.5 STALE engine; a TASK 2.1 audit batch (3.R1 criticality, 3.R2
+gate registry, 3.R3 producer-only, 3.R4 CI, 3.R5 handoff, 3.R6 replay-
+delivery staleness) is in. The current gate posture is one real
+provenance producer (`provenance`), one structural stub
+(`runtime_integrity`, `reference_validation`), and five UNIMPLEMENTED
+critical gates (delivery blocked with `producer_unimplemented` for each).
+The TASK 4 admission file (`TASK-4-准入评审与前置任务书.md`) requires
+TASK 4.4 numeric tolerance to ship under a v1.1 task-book amendment
+before TASK 4 can start; the other follow-ups (4.2 reviewer schema
+unification, 4.3 FigureSpec data_hash, 4.5 documentation) are
+self-contained. The current `paper-foundation` suite reports 70 files
+/ 856 tests with 21 historical failures (16 pre-existing + 5 stale-
+engine alignment); see `artifacts/handoff/TASK-2.1/known-risks.md`
+item 12 for the documented follow-up.
 
 ---
 

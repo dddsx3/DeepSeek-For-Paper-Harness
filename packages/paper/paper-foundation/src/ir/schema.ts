@@ -436,12 +436,21 @@ export const executionRecordSchema = zod
  *  shape — see `IR_REF_FIELDS.FigureSpec.data_refs`), and the per-element
  *  runtime check in `problem-contract.ts` rejects anything outside that
  *  union (C-015).
+ *
+ *  TASK 4.3: `data_hash` records the bytes the figure is rendering
+ *  against (sha256:\<64 hex\>). The `figure_data_consistency` gate
+ *  compares the recorded hash to the bytes currently produced by the
+ *  referenced data; a drift flags the figure as F-11 stale. Optional
+ *  during the TASK 4.3 transition: figures that pre-date the field
+ *  still ingest, but the gate surfaces them with reason
+ *  'data_hash_missing' instead of 'data_hash_mismatch'.
  */
 export const figureSpecSchema = zod
   .object({
     figure_id: idSchema,
     data_refs: zod.array(refSchema),
     claim_refs: zod.array(refSchema),
+    data_hash: sha256DigestSchema.optional(),
   })
   .strict()
 

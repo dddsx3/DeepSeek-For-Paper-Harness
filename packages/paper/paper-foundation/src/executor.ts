@@ -232,7 +232,13 @@ export class WorkflowExecutor {
       // parallel `if (gate.status === 'PASS') return` branches remain.
       await this.enforceDelivery(runId, initial.mode)
 
-      if (!gatePassed && initial.mode !== 'fast') {
+      // TASK 4.2: the reviewer gate is now part of the same fail-closed
+      // policy. The previous fast-mode bypass ("if (!gatePassed && mode !==
+      // 'fast')") silenced review failures on the fast path; the registry
+      // already exempts EXPLORATORY from the backbone check, and reviewer
+      // failures now route through the same audit / fail / throw path
+      // as every other gate.
+      if (!gatePassed) {
         await this.engine.transitionRun(runId, 'failed')
         await this.audit({
           eventType: 'gate_failed',
