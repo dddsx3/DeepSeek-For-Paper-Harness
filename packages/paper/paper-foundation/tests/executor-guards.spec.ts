@@ -185,32 +185,42 @@ describe('reviewer output parsing', () => {
     const { ctx } = await harness({ reviewerText })
     const engine = ctx.paperWorkflow.runs
     const run = await engine.startRun({ mode: 'fast', harnessVersion: 'test', configHash: 'sha256:test' })
-    await ctx.paperExecutor.runs.execute(RunId(run.id), 'write one sentence')
+    // TASK 5.0.3c: malformed review now throws (defects are critical,
+    // the gate is fail-closed). The defect events were appended before
+    // the throw, so reading them from the event log works either way.
+    try { await ctx.paperExecutor.runs.execute(RunId(run.id), 'write one sentence') }
+    catch { /* expected when the reviewer emits critical defects */ }
     return engine.listEvents(RunId(run.id))
       .filter(event => event.type === 'defect')
       .map(event => `${String(event.data.severity)}:${String(event.data.description)}`)
   }
 
-  it('treats output with no JSON object as one major defect', async () => {
+  it('treats output with no JSON object as one critical defect', async () => {
+    // TASK 5.0.3c: malformed review is a critical review failure (it
+    // can never be voted away; Oracle Routing requires a verified
+    // answer before delivery).
     expect(await reviewDefects('looks fine to me'))
-      .toContain('major:reviewer returned no JSON object')
+      .toContain('critical:reviewer returned no JSON object')
   })
 
-  it('treats JSON without a defects array as one major defect', async () => {
+  it('treats JSON without a defects array as one critical defect', async () => {
     expect(await reviewDefects('{"verdict":"ok"}'))
-      .toContain('major:reviewer JSON has no defects array')
+      .toContain('critical:reviewer JSON has no defects array')
   })
 
-  it('treats unparsable JSON as one major defect', async () => {
+  it('treats unparsable JSON as one critical defect', async () => {
     expect(await reviewDefects('{"defects":[,]}'))
-      .toContain('major:reviewer returned unparsable JSON')
+      .toContain('critical:reviewer returned unparsable JSON')
   })
 
-  it('keeps described entries, drops shapeless ones, and defaults severity to minor', async () => {
+  it('keeps described entries, drops shapeless ones, and defaults severity to major when missing', async () => {
+    // TASK 5.0.3c: a defect with no `severity` field is mapped to
+    // `major` (the closed enum's default for unknown / missing values);
+    // entries without a string description are dropped.
     const reported = await reviewDefects(
       '{"defects":[{"description":"missing citation"},"nonsense",{"severity":"major","description":"wrong claim"}]}',
     )
-    expect(reported).toContain('minor:missing citation')
+    expect(reported).toContain('major:missing citation')
     expect(reported).toContain('major:wrong claim')
     expect(reported.some(entry => entry.includes('nonsense'))).toBe(false)
   })

@@ -11,6 +11,7 @@ import {
   IR_KINDS,
   ModelingIr,
   executionRecordSchema,
+  ingestCapturedRecord,
   type IrIngestVerdict,
 } from '../../src/ir/index.ts'
 import {
@@ -44,8 +45,11 @@ describe('ExecutionRecord — the 12th canonical kind', () => {
   })
 
   it('ingests the happy fixture into a closed store and freezes it', () => {
+    // TASK 3.R3: the producer-only entry is `ingestCapturedRecord`;
+    // `ir.put('ExecutionRecord', ...)` now correctly refuses. The
+    // happy path goes through the capture path.
     const ir = armed()
-    const verdict = ir.put('ExecutionRecord', executionRecord())
+    const verdict = ingestCapturedRecord(ir, executionRecord())
     expect(verdict.accepted, reasons(verdict)).toBe(true)
     expect(ir.get('EXEC1')?.kind).toBe('ExecutionRecord')
     expect(Object.isFrozen(ir.get('EXEC1'))).toBe(true)
@@ -102,8 +106,14 @@ describe('ExecutionRecord — schema-level invalid fixtures (all red)', () => {
 
 describe('ExecutionRecord — store-level reference closure', () => {
   it('EX-02 variant: a dangling run_ref is unresolved at commit', () => {
+    // TASK 3.R3: the producer-only path is ingestCapturedRecord. Once
+    // a record is past the producer seam, the store boundary closes
+    // it: a run_ref that does not resolve to a RunArtifact is
+    // unresolved_reference. (v1.1 5.0.4 will replace the forging
+    // path with a forgeExecutionRecordForTest helper so this test
+    // no longer depends on the producer seam rejecting forge inputs.)
     const ir = new ModelingIr({ now: () => '2026-09-01T00:00:00.000Z' })
-    const verdict = ir.put('ExecutionRecord', executionRecord())
+    const verdict = ingestCapturedRecord(ir, executionRecord())
     expect(verdict.accepted).toBe(false)
     expect(kinds(verdict)).toContain('unresolved_reference')
   })
@@ -111,21 +121,21 @@ describe('ExecutionRecord — store-level reference closure', () => {
   it('EX-02: run_ref resolving to a Result is a kind mismatch', () => {
     const ir = armed()
     expect(ir.put('Result', { ...validObjectFor('Result'), result_id: 'RES-X' }).accepted).toBe(true)
-    const verdict = ir.put('ExecutionRecord', executionRecord({ run_ref: 'RES-X' }))
+    const verdict = ingestCapturedRecord(ir, executionRecord({ run_ref: 'RES-X' }))
     expect(verdict.accepted).toBe(false)
     expect(kinds(verdict)).toContain('reference_kind_mismatch')
   })
 
   it('a dangling input_data_ref is unresolved at commit', () => {
     const ir = armed()
-    const verdict = ir.put('ExecutionRecord', executionRecord({ input_data_refs: ['DA-GHOST'] }))
+    const verdict = ingestCapturedRecord(ir, executionRecord({ input_data_refs: ['DA-GHOST'] }))
     expect(verdict.accepted).toBe(false)
     expect(kinds(verdict)).toContain('unresolved_reference')
   })
 
   it('an input_data_ref resolving to a ModelSpec is a kind mismatch', () => {
     const ir = armed()
-    const verdict = ir.put('ExecutionRecord', executionRecord({ input_data_refs: ['M1'] }))
+    const verdict = ingestCapturedRecord(ir, executionRecord({ input_data_refs: ['M1'] }))
     expect(verdict.accepted).toBe(false)
     expect(kinds(verdict)).toContain('reference_kind_mismatch')
   })
@@ -134,7 +144,7 @@ describe('ExecutionRecord — store-level reference closure', () => {
     // The record may name external output locators that the IR cannot
     // resolve — their reality is carried by output_hash + replay.
     const ir = armed()
-    const verdict = ir.put('ExecutionRecord', executionRecord({
+    const verdict = ingestCapturedRecord(ir, executionRecord({
       output_refs: ['file:///anywhere/else.json'],
     }))
     expect(verdict.accepted, reasons(verdict)).toBe(true)

@@ -38,8 +38,10 @@ export interface ExecutionOutcome {
 
 /** One structured reviewer finding. */
 export interface ReviewDefect {
-  /** How much the finding matters. */
-  readonly severity: 'major' | 'minor'
+  /** How much the finding matters. TASK 5.0.3c: aligned with the IR's
+   *  FINDING_SEVERITIES set so the runtime review vocabulary matches the
+   *  canonical record shape. */
+  readonly severity: 'critical' | 'major' | 'minor'
   /** What the reviewer objected to. */
   readonly description: string
 }
@@ -217,8 +219,20 @@ export class WorkflowExecutor {
         current = revised.text
       }
 
+      // TASK 5.0.3c / v1.1 §A-7: the reviewer's verdict is no longer a
+      // straight majority. A single CRITICAL finding blocks delivery
+      // unconditionally (a "failed review" is exactly that). MAJOR /
+      // MINOR findings are advisory; the only path past them is the
+      // success path above (defects.length === 0). This is the minimal
+      // Oracle Routing step: critical findings can never be voted away.
+      const criticalCount = defects.filter(d => d.severity === 'critical').length
       const gatePassed = defects.length === 0
-      await this.engine.appendPublic(runId, null, 'gate_result', { gate: 'review', passed: gatePassed })
+      await this.engine.appendPublic(runId, null, 'gate_result', {
+        gate: 'review',
+        passed: gatePassed,
+        defects_total: defects.length,
+        defects_critical: criticalCount,
+      })
 
       // TASK 1.25: the paper may not be delivered unless its mathematical
       // facts exist as canonical IR. Without this call the workflow still had
@@ -586,27 +600,61 @@ function failureOf(error: unknown): LlmFailure {
   }
 }
 
-/** Parse reviewer JSON into defects; malformed output becomes one major defect. */
+/** Parse reviewer JSON into reviewerFindingSchema-shaped defects.
+ *
+ * TASK 5.0.3c (v1.1 §A-7): unify the runtime reviewer's severity
+ * vocabulary with the IR's `FINDING_SEVERITIES` set
+ * (`CRITICAL / MAJOR / MINOR`). The legacy `'major' | 'minor'` enum
+ * was a closed 2-value vocabulary that could not represent critical
+ * findings, which is the precondition for Oracle Routing (critical
+ * unresolved → BLOCKED, never voted away).
+ *
+ * Malformed input still produces a single finding; the severity of
+ * that finding is now `CRITICAL` (malformed review is itself a
+ * critical review failure, not a minor one).
+ */
 function parseDefects(text: string): ReviewDefect[] {
   const start = text.indexOf('{')
   const end = text.lastIndexOf('}')
   if (start === -1 || end <= start) {
-    return [{ severity: 'major', description: 'reviewer returned no JSON object' }]
+    return [{ severity: 'critical', description: 'reviewer returned no JSON object' }]
   }
   try {
     const parsed = JSON.parse(text.slice(start, end + 1)) as { defects?: unknown }
     if (!Array.isArray(parsed.defects)) {
-      return [{ severity: 'major', description: 'reviewer JSON has no defects array' }]
+      return [{ severity: 'critical', description: 'reviewer JSON has no defects array' }]
     }
     return parsed.defects
-      .filter((defect): defect is { severity: string; description: string } =>
+      .filter((defect): defect is { description: string } =>
         typeof defect === 'object' && defect !== null
         && typeof (defect as { description?: unknown }).description === 'string')
-      .map(defect => ({
-        severity: defect.severity === 'major' ? 'major' as const : 'minor' as const,
-        description: defect.description,
-      }))
+      // severity may be missing / unknown; normalizeSeverity maps every
+      // non-'critical' value to 'major' (the closed-enum default) so
+      // an entry with no `severity` field still becomes a real finding.
+      .map(defect => normalizeSeverity(
+        typeof (defect as { severity?: unknown }).severity === 'string'
+          ? (defect as { severity: string }).severity
+          : 'major',
+        (defect as { description: string }).description,
+      ))
   } catch {
-    return [{ severity: 'major', description: 'reviewer returned unparsable JSON' }]
+    return [{ severity: 'critical', description: 'reviewer returned unparsable JSON' }]
   }
+}
+
+/** Coerce a producer-supplied severity to the IR's closed enum, with
+ *  CRITICAL as the safe default for unknown / lowercase / legacy values.
+ *  The mapping is conservative: a producer saying `critical` stays
+ *  critical; anything else is treated as `major` (the lowest
+ *  un-rejected severity in the closed set), which the delivery gate
+ *  treats as advisory rather than blocking. */
+function normalizeSeverity(
+  raw: string,
+  description: string,
+): ReviewDefect {
+  const s = raw.trim().toLowerCase()
+  if (s === 'critical') return { severity: 'critical', description }
+  if (s === 'minor') return { severity: 'minor', description }
+  // `major`, anything else, missing — all map to major (advisory).
+  return { severity: 'major', description }
 }

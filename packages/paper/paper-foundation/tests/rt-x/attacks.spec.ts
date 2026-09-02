@@ -226,7 +226,13 @@ describe('RT-X3 — Provenance Omission', () => {
     expect(ir.put('ExecutionRecord', partial).accepted).toBe(false)
   })
 
-  it('RT-X3-04: non-critical claims place no provenance obligation (by design)', () => {
+  it('RT-X3-04: non-critical claims (with rationale) place no provenance obligation', () => {
+    // TASK 3.R1 / INV-3-I: a QUALITATIVE claim that declares
+    // NON_CRITICAL MUST carry a `criticality_rationale` (the legacy
+    // "NON_CRITICAL QUALITATIVE without rationale" path is closed at
+    // the schema boundary). With the rationale in place, the chain
+    // carries no critical claim, so the provenance gate is vacuously
+    // PASS — no runs are obligation-bearing.
     const ir = new ModelingIr({ now: () => NOW })
     for (const entry of chainThrough('RunArtifact')) {
       ir.put(entry.kind, entry.value)
@@ -234,7 +240,9 @@ describe('RT-X3 — Provenance Omission', () => {
     expect(ir.put('Result', result()).accepted).toBe(true)
     expect(ir.put('Claim', {
       claim_id: 'C1', text: 'draft', claim_type: 'QUALITATIVE',
-      criticality: 'NON_CRITICAL', numeric_binding: null,
+      criticality: 'NON_CRITICAL',
+      criticality_rationale: 'unreviewed draft note',
+      numeric_binding: null,
       evidence_refs: [], result_refs: [], model_refs: [],
     }).accepted).toBe(true)
     // No critical claims → no runs are obligation-bearing.
