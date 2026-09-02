@@ -24,7 +24,8 @@
  *   - A producer cannot be in `CRITICAL_GATE_IDS` and not registered
  *     here; the runner asserts this at module init.
  */
-import type { ModelingIr } from '../ir/store.ts'
+import { ModelingIr } from '../ir/store.ts'
+import { computeStaleReport } from '../ir/stale.js'
 import { executionProvenanceGate } from '../execution/audit.ts'
 import { irBridgeGate, requiresIrBackbone } from '../ir/bridge.ts'
 import {
@@ -137,11 +138,23 @@ registerCriticalGate('numeric_consistency', (_mode, _ir) => ({
   reason: 'TASK 4.4 numeric tolerance policy not yet implemented; structural identity (TASK 2) holds',
   observedAt: new Date().toISOString(),
 }))
-registerCriticalGate('stale_detection', (_mode, _ir) => ({
-  id: 'stale_detection', critical: true, status: 'PASS',
-  reason: 'TASK 3.5 STALE engine not yet implemented; no stale evidence to detect',
-  observedAt: new Date().toISOString(),
-}))
+registerCriticalGate('stale_detection', (_mode, ir) => {
+  // TASK 3.5: walk the IR closure, derive STALE evidence (S-001..S-009),
+  // and refuse delivery if any critical-chain run is STALE.
+  const store = ModelingIr.snapshot(ir)
+  if (store === null) {
+    return { id: 'stale_detection', critical: true, status: 'BLOCKED', reason: 'no canonical store', observedAt: new Date().toISOString() }
+  }
+  const report = computeStaleReport(store)
+  if (report.stale.length === 0) {
+    return { id: 'stale_detection', critical: true, status: 'PASS', reason: 'no STALE evidence detected', observedAt: new Date().toISOString() }
+  }
+  return {
+    id: 'stale_detection', critical: true, status: 'BLOCKED',
+    reason: `stale: ${report.stale.length} finding(s) (${report.stale.slice(0, 3).map(s => s.id + ':' + s.reason).join(',')})`,
+    observedAt: new Date().toISOString(),
+  }
+})
 registerCriticalGate('reference_validation', (_mode, ir) => {
   // TASK 4.0 stub: the IR is already reference-closed at the store
   // boundary (TASK 1.5R / TASK 2.1). A full validation walks every

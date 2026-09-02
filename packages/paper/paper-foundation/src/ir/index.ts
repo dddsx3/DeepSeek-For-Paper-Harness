@@ -101,6 +101,13 @@ export {
   ModelingIr,
 } from './store.ts'
 
+// TASK 3.5 — STALE engine (INV-3.5-A, S-001..S-009).
+export {
+  STALE_REASONS,
+  computeStaleReport,
+} from './stale.ts'
+export type { StaleFinding, StaleReason, StaleReport } from './stale.ts'
+
 // TASK 3 repair (3.R3 / INV-3-M): the sole producer-only entry is
 // re-exported here so consumers (and tests) need not import from both
 // the IR barrel and the execution barrel.
