@@ -16,7 +16,9 @@ import { computeCostUsd, evaluateBudget, resolveModelPrice } from './cost.ts'
 import type { BudgetPolicy, PricingTable } from './cost.ts'
 import { IR_CANONICALIZATION_GATE_ID, PROVENANCE_GATE_ID } from './delivery/delivery-policy.ts'
 import { buildDeliveryPolicy } from './delivery/gate-registry.ts'
-import { evaluateDelivery } from './delivery/delivery-policy.ts'
+import { evaluateDelivery } from "./delivery/delivery-policy.ts"
+import { makeCandidateArtifact } from "./delivery/artifact-states.ts"
+import { promoteCandidateToDeliverable } from "./delivery/promoter.ts"
 import { ModelingIr } from './ir/store.ts'
 import { resolveRunPolicy } from './policy.ts'
 import type { PaperProviderService, PaperRole } from './provider.ts'
@@ -273,7 +275,38 @@ export class WorkflowExecutor {
         gates: ['review', IR_CANONICALIZATION_GATE_ID, PROVENANCE_GATE_ID],
       })
 
+      // TASK 5.0.5 / INV-014: the ONLY path to a DeliverableArtifact
+      // is `promoteCandidateToDeliverable`. The executor no longer
+      // writes the final output directly. The promoter (a) re-checks
+      // the verdict (it must not re-evaluate the policy, just confirm
+      // the precomputed `decision.allowed`), (b) calls `writeFinalOutput`
+      // on success, and (c) emits the `promotion_succeeded` / `_failed`
+      // audit events. `F17-a` (static check) verifies there is no other
+      // write path to the final output.
       const artifact = await this.deliver(runId, current)
+      const promotion = await promoteCandidateToDeliverable(
+        makeCandidateArtifact({
+          id: artifact.id,
+          createdAt: artifact.createdAt,
+          contentHash: artifact.sha256,
+        }),
+        policy,
+        decision,
+        {
+          audit: event => this.audit({ eventType: event.type, actor: 'paper-executor', runId, detail: event }),
+          now: () => new Date().toISOString(),
+          writeFinalOutput: async (_path, content) => { await this.persistFinal(runId, content) },
+        },
+        FINAL_OUTPUT_PATH,
+        current,
+      )
+      if (!promotion.ok) {
+        await this.engine.transitionRun(runId, 'failed')
+        throw new WorkflowExecutionError(
+          'gate-failed',
+          `run '${runId}' cannot deliver: ${promotion.error.kind} (${('gateFailures' in promotion.error ? promotion.error.gateFailures.join(',') : 'from=' + (promotion.error as { from: string }).from)})`,
+        )
+      }
       const manifest = this.buildManifest(this.runOf(runId), artifact, gatePassed)
       await this.engine.recordManifest(runId, manifest)
 
