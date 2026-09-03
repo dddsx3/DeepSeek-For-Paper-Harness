@@ -1,7 +1,7 @@
 {
   "task": "TASK 2.1 (audit batch) + TASK 3.5 + TASK 4.0 (5.0-R disposition) + 4.2 / 4.3 / 4.5 + 5.0-R repair batch",
   "phase": "5.0-R — six pretend-PASS gates eliminated (UNIMPLEMENTED), eleven red tests to zero, gates_impl ledger + RG-09 live, report re-synchronised to the measured 0-failure suite",
-  "batch_verdict": "HONEST_BLOCKED — 5/9 critical gates UNIMPLEMENTED (numeric_consistency landed real in P1-3) (runtime_integrity, execution, reference_validation, requirement_coverage, figure_data_consistency); FORMAL/FAST delivery is BLOCKED by design (producer_unimplemented) until P1 lands real semantics; 0 test failures; EXPLORATORY remains the only deliverable run mode and is marked informal (R1-4). Structural defence ready; content pipeline not yet connected — the honest red the 5.0-R book required.",
+  "batch_verdict": "HONEST_BLOCKED — 3/9 critical gates UNIMPLEMENTED (numeric_consistency/execution/reference_validation landed real in P1) (numeric_consistency landed real in P1-3) (runtime_integrity, requirement_coverage, figure_data_consistency); FORMAL/FAST delivery is BLOCKED by design (producer_unimplemented) until P1 lands real semantics; 0 test failures; EXPLORATORY remains the only deliverable run mode and is marked informal (R1-4). Structural defence ready; content pipeline not yet connected — the honest red the 5.0-R book required.",
   "report_sync": {
     "head_commit": "(5.0-R batch — see git log for the R1+R2 and R3 commits, then this report commit)",
     "baseline_collected_at": "2026-09-03T21:09:00.000Z",
@@ -43,8 +43,8 @@
     },
     {
       "id": "execution",
-      "implementation": "unimplemented",
-      "src": "UNIMPLEMENTED — P1 生产者轨"
+      "implementation": "real",
+      "src": "src/delivery/execution-gate.ts + gate-registry (P1-4: CRITICAL claim chains reach a captured fresh run)"
     },
     {
       "id": "numeric_consistency",
@@ -53,8 +53,8 @@
     },
     {
       "id": "reference_validation",
-      "implementation": "unimplemented",
-      "src": "UNIMPLEMENTED — P1-4"
+      "implementation": "real",
+      "src": "src/delivery/reference-validation.ts + gate-registry (P1-4: IR_REF_FIELDS re-walk)"
     },
     {
       "id": "requirement_coverage",

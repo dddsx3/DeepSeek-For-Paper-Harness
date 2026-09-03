@@ -29,6 +29,8 @@ import { computeStaleReport } from '../ir/stale.js'
 import { executionProvenanceGate } from '../execution/audit.ts'
 import { irBridgeGate, requiresIrBackbone } from '../ir/bridge.ts'
 import { numericConsistencyFindings } from './numeric-consistency.ts'
+import { referenceValidationFindings } from './reference-validation.ts'
+import { executionGateFindings } from './execution-gate.ts'
 import {
   CRITICAL_GATE_IDS,
   DEFAULT_REPLAY_MAX_AGE_MS,
@@ -157,7 +159,24 @@ registerCriticalGate('provenance', (_mode, ir) =>
 // semantics. EXPLORATORY stays exempt (mode-level design). stale_detection
 // below is a REAL producer (computeStaleReport) and stays.
 registerCriticalGate('runtime_integrity', UNIMPLEMENTED)
-registerCriticalGate('execution', UNIMPLEMENTED)
+// P1-4: execution is a REAL gate — every CRITICAL NUMERIC claim's evidence
+// chain must reach a RunArtifact with a committed, non-STALE record.
+registerCriticalGate('execution', (_mode, ir) => {
+  const store = ModelingIr.snapshot(ir)
+  if (store === null) {
+    return { id: 'execution', critical: true, status: 'BLOCKED', reason: 'no canonical store', observedAt: new Date().toISOString() }
+  }
+  const findings = executionGateFindings(store)
+  if (findings.length === 0) {
+    return { id: 'execution', critical: true, status: 'PASS', reason: 'every CRITICAL claim chain reaches a captured, fresh run', observedAt: new Date().toISOString() }
+  }
+  const first = findings[0]!
+  return {
+    id: 'execution', critical: true, status: 'BLOCKED',
+    reason: `execution gate: ${findings.length} finding(s) (${first.kind}: ${first.reason})`,
+    observedAt: new Date().toISOString(),
+  }
+})
 // P1-3: numeric_consistency is a REAL gate — it walks every NUMERIC Claim
 // in the store and runs the claim-evidence semantic guards (exact value +
 // unit equality, role binding; R1-3 frozen, no tolerance layer yet).
@@ -194,7 +213,25 @@ registerCriticalGate('stale_detection', (_mode, ir) => {
     observedAt: new Date().toISOString(),
   }
 })
-registerCriticalGate('reference_validation', UNIMPLEMENTED)
+// P1-4: reference_validation is a REAL gate — an independent re-walk of
+// every IR object's declared reference fields (the store closes refs at
+// admission; the gate re-verifies per delivery).
+registerCriticalGate('reference_validation', (_mode, ir) => {
+  const store = ModelingIr.snapshot(ir)
+  if (store === null) {
+    return { id: 'reference_validation', critical: true, status: 'BLOCKED', reason: 'no canonical store', observedAt: new Date().toISOString() }
+  }
+  const findings = referenceValidationFindings(store)
+  if (findings.length === 0) {
+    return { id: 'reference_validation', critical: true, status: 'PASS', reason: 'all IR-internal references resolve', observedAt: new Date().toISOString() }
+  }
+  const first = findings[0]!
+  return {
+    id: 'reference_validation', critical: true, status: 'BLOCKED',
+    reason: `reference validation: ${findings.length} finding(s) (${first.path}: ${first.reason})`,
+    observedAt: new Date().toISOString(),
+  }
+})
 registerCriticalGate('requirement_coverage', UNIMPLEMENTED)
 registerCriticalGate('figure_data_consistency', UNIMPLEMENTED)
 
