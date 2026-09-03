@@ -73,6 +73,10 @@ export interface LocalProcessRunnerConfig {
   /** Commands whose stdout is recorded as runtime facts (D4), e.g.
    *  `[['node', '-p', 'process.version']]`. */
   readonly environmentFactsCommands?: ReadonlyArray<readonly string[]>
+  /** Optional phase trace (TASK 3 C5 smoke). Off by default; the
+   *  real-process smoke sets it so a CI hang can be attributed to the
+   *  exact await instead of the whole phase. */
+  readonly trace?: (message: string) => void
 }
 
 /**
@@ -91,22 +95,30 @@ export class LocalProcessRunner implements ExecutionRunner {
   }
 
   async run(request: ExecutionRequest): Promise<ExecutionOutcome> {
+    const trace = this.config.trace ?? (() => {})
     const startedAt = new Date().toISOString()
     const cwd = await mkdtemp(join(tmpdir(), 'dsh-exec-'))
     try {
+      trace(`runner: cwd=${cwd}`)
       await writeFile(join(cwd, this.config.entryFile), request.code, 'utf8')
+      trace('runner: entry file written')
       const child = spawn(this.config.command[0]!, this.config.command.slice(1), {
         cwd,
         stdio: ['ignore', 'pipe', 'pipe'],
         timeout: this.config.timeoutMs,
       })
+      trace(`runner: spawned pid=${child.pid}`)
       const stdout = await streamToText(child.stdout)
+      trace('runner: stdout stream ended')
       const stderr = await streamToText(child.stderr)
+      trace('runner: stderr stream ended')
       const exitStatus = await new Promise<number>((resolve) => {
         child.on('exit', (code, signal) => resolve(code ?? (signal === null ? -1 : -1)))
         child.on('error', () => resolve(-1))
       })
+      trace(`runner: child exited exitStatus=${exitStatus}`)
       const runtimeFacts = await this.collectRuntimeFacts()
+      trace('runner: runtime facts collected')
       const outputFiles: ExecutionOutputFile[] = []
       for (let i = 0; i < this.config.outputBasenames.length; i += 1) {
         const basename = this.config.outputBasenames[i]!
@@ -120,6 +132,7 @@ export class LocalProcessRunner implements ExecutionRunner {
         }
         outputFiles.push({ locator: this.config.outputLocators[i]!, bytes })
       }
+      trace('runner: outputs collected')
       const finishedAt = new Date().toISOString()
       return {
         exitStatus,
@@ -132,10 +145,12 @@ export class LocalProcessRunner implements ExecutionRunner {
       }
     } finally {
       await rm(cwd, { recursive: true, force: true }).catch(() => {})
+      trace('runner: cwd removed')
     }
   }
 
   private async collectRuntimeFacts(): Promise<Record<string, string>> {
+    const trace = this.config.trace ?? (() => {})
     const facts: Record<string, string> = {}
     for (const command of this.config.environmentFactsCommands ?? []) {
       const key = command.join(' ')
@@ -143,12 +158,14 @@ export class LocalProcessRunner implements ExecutionRunner {
         stdio: ['ignore', 'pipe', 'pipe'],
         timeout: this.config.timeoutMs,
       })
+      trace(`runner: runtime-fact spawned pid=${child.pid} (${key})`)
       const stdout = await streamToText(child.stdout)
       await new Promise<void>((resolve) => {
         child.on('exit', () => resolve())
         child.on('error', () => resolve())
       })
       facts[key] = stdout.trim()
+      trace(`runner: runtime-fact done (${key})`)
     }
     return facts
   }

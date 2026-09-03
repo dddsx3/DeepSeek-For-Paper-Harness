@@ -78,6 +78,7 @@ async function main() {
     outputLocators: ['file:///runs/RUN1/result.json'],
     timeoutMs: 60_000,
     environmentFactsCommands: [['node', '-p', 'process.version']],
+    trace: (message) => mark(`trace ${message}`),
   }
 
   // CI stall probe (5.0.6): on ubuntu runners the capture below used to
