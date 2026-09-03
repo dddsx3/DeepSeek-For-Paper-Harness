@@ -67,12 +67,20 @@ export interface StaleReport {
  *                   code-bytes check is skipped (the IR-only check
  *                   still finds dependency-mismatch + execution-mismatch
  *                   + transitive STALE).
+ *
+ * P1-4 (sync-hack removal): `loadCode` is STRICTLY synchronous. The STALE
+ * engine is a total, synchronous walk (it runs inside delivery gates);
+ * pretending to await a Promise here was a microtask-flush hack that
+ * crashed whenever the promise was not already settled. A composition
+ * that reads code bytes asynchronously (e.g. `node:fs/promises`) must
+ * resolve them BEFORE calling `computeStaleReport` and hand the resolved
+ * string back through the closure.
  */
 export function computeStaleReport(
   store: ReadonlyMap<string, IrObjectRecord>,
   options: {
     readonly now?: () => string
-    readonly loadCode?: (codeRef: string) => Promise<string> | string
+    readonly loadCode?: (codeRef: string) => string
   } = {},
 ): StaleReport {
   const runs = collectRuns(store)
@@ -116,21 +124,14 @@ function collectRuns(store: ReadonlyMap<string, IrObjectRecord>): RunSnapshot[] 
 function deriveDirectStale(
   store: ReadonlyMap<string, IrObjectRecord>,
   runs: RunSnapshot[],
-  options: { readonly loadCode?: (codeRef: string) => Promise<string> | string },
+  options: { readonly loadCode?: (codeRef: string) => string },
 ): StaleFinding[] {
   const out: StaleFinding[] = []
   for (const { run, record } of runs) {
     // S-007: code bytes vs declared code_hash.
     if (options.loadCode !== undefined) {
       try {
-        const bytes = options.loadCode(run.code_ref)
-        // loadCode may be async; we accept a Promise or a string.
-        const handle = (typeof (bytes as Promise<string>).then === 'function')
-          ? null
-          : (bytes as string)
-        const codeText = handle !== null
-          ? handle
-          : (requirePromise(bytes as Promise<string>))
+        const codeText = options.loadCode(run.code_ref)
         const codeHash = `sha256:${createHash('sha256').update(codeText, 'utf8').digest('hex')}`
         if (codeHash !== run.code_hash) {
           out.push({
@@ -259,24 +260,4 @@ function modelOf(
   const record = store.get(modelRef)
   if (record === undefined || record.kind !== 'ModelSpec') return undefined
   return record.value as Record<string, unknown>
-}
-
-function requirePromise(p: Promise<string>): string {
-  // The STALE engine must be total. We block on the Promise with a
-  // microtask flush so the synchronous walk below remains deterministic.
-  // (S-007 / S-008 tests always pass a resolved promise.)
-  // The cast is safe: TypeScript can't express "either string or
-  // Promise<string>" here, so we coerce.
-  // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-  let resolved: string | undefined
-  let threw: unknown = undefined
-  p.then((v) => { resolved = v }).catch((e) => { threw = e })
-  if (threw !== undefined) throw threw
-  if (resolved === undefined) {
-    // Microtask queue did not flush; yield to the event loop until
-    // the promise resolves. The test environment is single-pass.
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    throw new Error('STALE engine requires synchronous loadCode (Promise must be resolved before computeStaleReport returns)')
-  }
-  return resolved
 }

@@ -50,10 +50,32 @@ export {
   type GateRecord,
 } from './delivery-policy.ts'
 
-/** A gate producer is either a function or the literal UNIMPLEMENTED. */
-export type GateProducer = ((mode: string, ir: ModelingIr) => GateRecord) | typeof UNIMPLEMENTED
-
 export const UNIMPLEMENTED = Symbol.for('paper.UNIMPLEMENTED_GATE_PRODUCER')
+
+/**
+ * Per-invocation context a gate producer receives from
+ * `buildDeliveryPolicy`. Producers that do not need it ignore it.
+ *
+ * P1-4: `loadCode` — the composition's synchronous code-bytes loader
+ * (see `computeStaleReport`). The delivery path has no filesystem; a
+ * composition that resolves code bytes (e.g. `node:fs` read before
+ * building the policy) hands them through here so S-007 byte checks run
+ * in FORMAL delivery instead of being skipped.
+ */
+export interface GateContext {
+  readonly loadCode?: (codeRef: string) => string
+}
+
+/**
+ * A gate producer is either a function or the literal UNIMPLEMENTED.
+ * The third `ctx` argument is per-invocation context injected by
+ * `buildDeliveryPolicy`; producers registered earlier with the legacy
+ * `(mode, ir)` arity keep working (TypeScript allows ignoring extra
+ * arguments).
+ */
+export type GateProducer =
+  | ((mode: string, ir: ModelingIr, ctx: GateContext) => GateRecord)
+  | typeof UNIMPLEMENTED
 
 interface RegisteredGate {
   readonly id: string
@@ -180,12 +202,12 @@ registerCriticalGate('runtime_integrity', (_mode, ir) => {
     observedAt: new Date().toISOString(),
   }
 })
-registerCriticalGate('execution', (_mode, ir) => {
+registerCriticalGate('execution', (_mode, ir, ctx) => {
   const store = ModelingIr.snapshot(ir)
   if (store === null) {
     return { id: 'execution', critical: true, status: 'BLOCKED', reason: 'no canonical store', observedAt: new Date().toISOString() }
   }
-  const findings = executionGateFindings(store)
+  const findings = executionGateFindings(store, ctx.loadCode === undefined ? {} : { loadCode: ctx.loadCode })
   if (findings.length === 0) {
     return { id: 'execution', critical: true, status: 'PASS', reason: 'every CRITICAL claim chain reaches a captured, fresh run', observedAt: new Date().toISOString() }
   }
@@ -215,14 +237,16 @@ registerCriticalGate('numeric_consistency', (_mode, ir) => {
     observedAt: new Date().toISOString(),
   }
 })
-registerCriticalGate('stale_detection', (_mode, ir) => {
+registerCriticalGate('stale_detection', (_mode, ir, ctx) => {
   // TASK 3.5: walk the IR closure, derive STALE evidence (S-001..S-009),
-  // and refuse delivery if any critical-chain run is STALE.
+  // and refuse delivery if any critical-chain run is STALE. P1-4: when
+  // the composition injects `ctx.loadCode` the S-007 byte-level check
+  // runs against real code bytes; without it the IR-only checks stay.
   const store = ModelingIr.snapshot(ir)
   if (store === null) {
     return { id: 'stale_detection', critical: true, status: 'BLOCKED', reason: 'no canonical store', observedAt: new Date().toISOString() }
   }
-  const report = computeStaleReport(store)
+  const report = computeStaleReport(store, ctx.loadCode === undefined ? {} : { loadCode: ctx.loadCode })
   if (report.stale.length === 0) {
     return { id: 'stale_detection', critical: true, status: 'PASS', reason: 'no STALE evidence detected', observedAt: new Date().toISOString() }
   }
@@ -317,6 +341,14 @@ export interface BuildDeliveryPolicyInput {
    */
   readonly runtimeProfileValid?: boolean
   /**
+   * P1-4 — the composition's synchronous code-bytes loader, forwarded to
+   * the stale-consuming producers (execution / stale_detection) as their
+   * per-invocation context. Read code bytes BEFORE building the policy
+   * (the gates are synchronous); omit to keep the IR-only S-007-skip
+   * behaviour. See `GateContext`.
+   */
+  readonly loadCode?: (codeRef: string) => string
+  /**
    * TASK 5.0.8 — the freshest replay evidence this delivery consumed
    * (`ExecutionAuditReport.replayed_at`), offered by the composition
    * that actually ran the replay. The registry never invents evidence:
@@ -395,7 +427,13 @@ export function buildDeliveryPolicy(input: BuildDeliveryPolicyInput): DeliveryPo
       })
       continue
     }
-    gates.push(entry.producer(mode, ir))
+    gates.push(entry.producer(
+      mode,
+      ir,
+      // exactOptionalPropertyTypes: an explicit undefined would be a type
+      // error on GateContext.loadCode, so omit rather than pass through.
+      input.loadCode === undefined ? {} : { loadCode: input.loadCode },
+    ))
   }
 
   return {

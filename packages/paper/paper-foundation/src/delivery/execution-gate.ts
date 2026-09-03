@@ -27,6 +27,7 @@ export interface ExecutionGateFinding {
 /** A null store (no canonical state) has nothing to check. */
 export function executionGateFindings(
   store: ReadonlyMap<string, IrObjectRecord> | null,
+  options: { readonly loadCode?: (codeRef: string) => string } = {},
 ): ReadonlyArray<ExecutionGateFinding> {
   if (store === null) return []
   const findings: ExecutionGateFinding[] = []
@@ -38,7 +39,10 @@ export function executionGateFindings(
     }
   }
   const staleRuns = new Set(
-    computeStaleReport(store)
+    computeStaleReport(
+      store,
+      options.loadCode === undefined ? {} : { loadCode: options.loadCode },
+    )
       .stale.filter(f => f.kind === 'RunArtifact')
       .map(f => f.id),
   )
