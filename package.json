@@ -45,7 +45,7 @@
     "test:task3": "npm run test:task3:fault-corpus && npm run test:task3:mutations && npm run test:task3:replay-smoke && npm run test:task3:report-state",
     "test:task3:fault-corpus": "node artifacts/handoff/TASK-3/run-fault-corpus.mjs",
     "test:task3:mutations": "node artifacts/handoff/TASK-3/run-mutations.mjs",
-    "test:task3:replay-smoke": "node artifacts/handoff/TASK-3/run-real-execution-smoke.mjs",
+    "test:task3:replay-smoke": "tsx artifacts/handoff/TASK-3/run-real-execution-smoke.mjs",
     "test:task3:report-state": "tsx artifacts/handoff/TASK-2.1/verify-report-state.mjs",
     "test:issue-management": "node .github/issue-management/policy.test.mjs",
     "test:snapshot": "vitest run --config vitest.snapshot.config.ts",

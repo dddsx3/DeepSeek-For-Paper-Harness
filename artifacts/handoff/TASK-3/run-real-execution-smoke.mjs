@@ -17,17 +17,34 @@
  */
 
 import { pathToFileURL } from 'node:url'
-import { join, resolve as pathResolve } from 'node:path'
+import { dirname, join, resolve as pathResolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-const __dirname = fileURLToPath(import.meta.url)
-const repoRoot = process.argv[2] ? pathResolve(process.argv[2]) : pathResolve(__dirname, '..', '..', '..')
+/**
+ * Accept a Git-Bash/MSYS path (`/d/repo`) as well as a native one
+ * (`D:\repo`), matching verify-report-state.mjs. On Windows,
+ * `path.resolve('/d/repo')` yields `D:\d\repo` and the whole import
+ * graph vanishes with ERR_MODULE_NOT_FOUND.
+ */
+function resolveRepoRoot(raw) {
+  const msys = /^\/([A-Za-z])\/(.*)$/.exec(raw)
+  return pathResolve(msys === null ? raw : `${msys[1]}:\\${msys[2]}`)
+}
+
+// TASK 3 C5 CI fix (5.0.6 wiring exposed this): `fileURLToPath` returns
+// the FILE's path, not its directory — three `..` from the file lands
+// in <repo>/artifacts, so the CI invocation (no argv) tried to import
+// <repo>/artifacts/packages/... and died with ERR_MODULE_NOT_FOUND.
+// The base must be the script's directory; three `..` from there is the
+// repo root.
+const here = dirname(fileURLToPath(import.meta.url))
+const repoRoot = process.argv[2] ? resolveRepoRoot(process.argv[2]) : pathResolve(here, '..', '..', '..')
 
 const irIndexUrl = pathToFileURL(join(repoRoot, 'packages/paper/paper-foundation/src/ir/index.ts')).href
 const execIndexUrl = pathToFileURL(join(repoRoot, 'packages/paper/paper-foundation/src/execution/index.ts')).href
 const fixturesUrl = pathToFileURL(join(repoRoot, 'packages/paper/paper-foundation/tests/ir/fixtures.ts')).href
 
-const { ModelingIr, sha256Hex } = await import(irIndexUrl)
+const { ModelingIr, sha256Hex, CAPTURE_ATTESTATION } = await import(irIndexUrl)
 const { LocalProcessRunner, captureExecution, replayExecution } = await import(execIndexUrl)
 const { chainThrough, result, runArtifact } = await import(fixturesUrl)
 
@@ -71,7 +88,16 @@ if (!captured.ok) {
   console.error('CAPTURE FAILED:', JSON.stringify(captured.failures, null, 2))
   process.exit(1)
 }
-if (!ir.put('ExecutionRecord', captured.record).accepted) throw new Error('record ingest failed')
+// 3.R3 / INV-3-M: ExecutionRecord cannot be put directly — it must
+// enter canonical state through the producer-only door carrying the
+// capture attestation. This evidence script predates 3.R3 and was
+// silently broken by it (5.0.6 CI wiring exposed the break); the
+// rewrite below mirrors the `backboneIr()` fixture.
+const ingest = ir.putExecutionRecord(captured.record, CAPTURE_ATTESTATION)
+if (!ingest.accepted) {
+  console.error('RECORD INGEST FAILED:', JSON.stringify(ingest.failures, null, 2))
+  process.exit(1)
+}
 
 console.log('capture: exit_status =', captured.record.exit_status)
 console.log('capture: stdout =', JSON.stringify(sha256Hex('real execution ok').slice(0, 12)), '… digest family match:', captured.record.stdout_hash === `sha256:${sha256Hex('real execution ok')}`.slice(0, 0) || 'see hash below')
