@@ -92,3 +92,32 @@ ran out was genuine fork drift that is now fixed:
   usage=0, ...) reflects exhausted quota, not code. A full real-API
   pass is ~62 files / 208 tests; budget several ¥ for one complete run
   before triaging any remaining with-key failures.
+
+## F2. Real-API E2E — now fully green (quota refilled)
+
+With the key topped up to ¥9.96, one rerun of the previously failed E2E
+dropped from 39 tail failures to a single failure, then to zero:
+
+- The one real remaining failure was `packages/paper/paper-foundation/tests/workflow.e2e.ts`
+  (fast acceptance case): `ir_canonicalization:BLOCKED: missing IR
+  backbone … minimum Problem Contract not satisfied`. The executor
+  delivers only when a canonical IR with a closed Problem Contract is
+  mounted (`ctx.get('paperModelingIr')`, TASK 1.25), and the text-then-
+  gate workflow expects the caller to pre-load the backbone — every
+  executor unit suite does `ctx.provide('paperModelingIr', backboneIr())`,
+  but this acceptance harness predates the gate and had never run on the
+  fork (the E2E preflight blocked before Build until the secret existed,
+  and the pre-secret runs never reached the tests). Fix: mount
+  `backboneIr()` in the harness before `PaperExecutorService`.
+- Final state on `4318db5457`: **E2E (real DeepSeek API) = success**,
+  62 files / 208 tests green (the earlier quota-empty tail of ~39
+  "failures" — usage 0, ENOENT, TypeError — was all exhausted-quota
+  noise, confirmed by the clean rerun). `pnpm/action-setup` bumped to v6
+  in e2e.yml too; the run carries **no Node-20 annotations**.
+- Paper harness gates remain green on the same code base (674053db74).
+
+**Prevention:** when touching paper executor / workflow composition, the
+executor unit suites (executor.spec, executor-guards, rt-c4/*) already
+mount `backboneIr()`; any new e2e or integration harness around the
+workflow must do the same or every FAST/STRICT run is BLOCKED at the
+ir_canonicalization gate before a manifest can exist.
