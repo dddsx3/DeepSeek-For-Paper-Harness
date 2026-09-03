@@ -49,6 +49,15 @@ export interface ExecutorConfig {
   readonly finalOutputRoot?: string
   /** P1-1: require and run the structured-output producer on EXECUTE. */
   readonly produceFromExecute?: boolean
+  /** P2-1: deployment-owned code-run configuration (model can never choose
+   *  the command); required for the EXECUTE production chain. */
+  readonly produceRun?: {
+    command: string[]
+    entryFile: string
+    environment: string
+    timeoutMs: number
+    allowExecutable?: string[]
+  }
 }
 
 const modelPrice: s<ModelPrice> = s.object({
@@ -86,6 +95,9 @@ export function resolveExecutorOptions(
     ...(config.finalOutputRoot ? { finalOutputRoot: config.finalOutputRoot } : {}),
     // P1-1: opt-in structured-output producer on the EXECUTE node.
     ...(config.produceFromExecute ? { produceFromExecute: true } : {}),
+    // P2-1: the deployment-owned runner; validated against the built-in
+    // code-run allow-list when the chain executes.
+    ...(config.produceRun === undefined ? {} : { produceRun: config.produceRun }),
     // exactOptionalPropertyTypes: an explicit undefined would be a type
     // error on the optional fields, so omit rather than pass through.
     ...ir === undefined ? {} : { ir },
@@ -113,6 +125,14 @@ export class PaperExecutorService extends Service {
     contextUtilization: s.number().min(0.1).max(1).default(DEFAULT_CONTEXT_UTILIZATION),
     finalOutputRoot: s.string().default(''),
     produceFromExecute: s.boolean().default(false),
+    produceRun: s
+      .object({
+        command: s.array(s.string()).default([]),
+        entryFile: s.string().default(''),
+        environment: s.string().default(''),
+        timeoutMs: s.number().step(1).min(1).default(30_000),
+        allowExecutable: s.array(s.string()),
+      }),
   })
 
   private executor: WorkflowExecutor | undefined

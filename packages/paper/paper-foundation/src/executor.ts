@@ -24,7 +24,10 @@ import { makeCandidateArtifact } from "./delivery/artifact-states.ts"
 import { promoteCandidateToDeliverable } from "./delivery/promoter.ts"
 import { ModelingIr } from './ir/store.ts'
 import { resolveRunPolicy } from './policy.ts'
-import { produceContainerInto } from './produce/ir-producer.ts'
+import { parseModelContainer, produceContainerInto } from './produce/ir-producer.ts'
+import { produceRunExecution } from './produce/execution-producer.ts'
+import { produceInterpretation } from './produce/interpretation-producer.ts'
+import { renderV1Report } from './produce/report-renderer.ts'
 import type { PaperProviderService, PaperRole } from './provider.ts'
 import { backoffDelayMs, classifyFailure } from './resilience.ts'
 import type { BackoffPolicy } from './resilience.ts'
@@ -109,6 +112,22 @@ export interface ExecutorOptions {
    * composition mounts a sink; every real deployment should.
    */
   readonly finalOutputRoot?: string
+  /**
+   * P2-1 (D7 obligation): the ONLY code-run configuration a composition may
+   * inject. `command`/`entryFile` are deployment-owned — the model NEVER
+   * chooses a runner command (task book P2 禁4). When produceFromExecute
+   * meets a container with `code`, the executor requires this option; its
+   * executable must be in the built-in allow-list (node/python by default).
+   */
+  readonly produceRun?: {
+    readonly command: ReadonlyArray<string>
+    readonly entryFile: string
+    /** descriptive environment string recorded on the RunArtifact. */
+    readonly environment: string
+    readonly timeoutMs: number
+    /** default allow-list when omitted: node, python, python3. */
+    readonly allowExecutable?: ReadonlyArray<string>
+  }
   /**
    * P1-1: when true, the EXECUTE node's output MUST be an ir-container-v1
    * typed-JSON (structured-output producer). The producer validates and
@@ -222,6 +241,13 @@ export class WorkflowExecutor {
 
   /** Context windows already resolved per role; `undefined` means the adapter states none. */
   private readonly contextWindows = new Map<PaperRole, number | undefined>()
+
+  /**
+   * P2-1: code-bytes loaders per run, captured when the EXECUTE stage runs
+   * the production chain, forwarded to the FORMAL delivery policy so S-007
+   * checks the bytes that ACTUALLY executed (synchronous contract).
+   */
+  readonly #codeLoaders: Map<string, (ref: string) => string> = new Map()
 
   /**
    * Execute one run end to end. Fast mode delivers after its revise rounds
@@ -454,6 +480,149 @@ export class WorkflowExecutor {
    * the mode in which no fact has been asserted yet.
    */
   /**
+   * P2-1 (D7 obligation): run the FULL production chain inside the EXECUTE
+   * stage when the model's container carries executable code.
+   *
+   * Sequence: container contract kinds are already in the store (P1-1);
+   * here the code REALLY runs (produceRunExecution — the deployment-owned
+   * runnerCommand is the ONLY possible command, the container may only
+   * declare outputBasenames/seed), the ExecutionRecord is captured, the
+   * model's dry-pass interpretation is minted against the REAL output
+   * bytes (jsonPath must resolve to a finite number or the chain refuses
+   * with zero partial Result writes), and the v1 template report becomes
+   * the EXECUTE deliverable text.
+   *
+   * @returns the rendered report text plus a synchronous code loader the
+   *          FORMAL delivery policy uses for S-007.
+   */
+  private async runProductionChain(
+    runId: RunId,
+    ir: ModelingIr,
+    container: {
+      readonly code?: string
+      readonly run?: Record<string, unknown>
+      readonly interpretations?: Record<string, unknown>
+      readonly narrative?: Record<string, unknown>
+      readonly entries: ReadonlyArray<{ kind: string; value: Record<string, unknown> }>
+    },
+  ): Promise<
+    { ok: true; reportText: string; loadCode: (ref: string) => string }
+    | { ok: false; code: string; reason: string }
+  > {
+    const runIdText = String(runId)
+    const runDecl = container.run ?? {}
+    const allowedRunKeys = new Set(['outputBasenames', 'seed'])
+    for (const key of Object.keys(runDecl)) {
+      if (!allowedRunKeys.has(key)) {
+        return { ok: false, code: 'PRODUCE_RUN_DECLARATION_INVALID', reason: `container run block may only declare ${[...allowedRunKeys].join(', ')}; '${key}' is not deployment-negotiable (the model never chooses a runnerCommand — P2 禁4)` }
+      }
+    }
+    const basenames = runDecl['outputBasenames']
+    if (!Array.isArray(basenames) || basenames.length === 0 || basenames.some(b => typeof b !== 'string' || b.length === 0)) {
+      return { ok: false, code: 'PRODUCE_RUN_DECLARATION_INVALID', reason: "container 'run.outputBasenames' must be a non-empty array of file basenames the code will write" }
+    }
+    const produceRun = this.options.produceRun
+    if (produceRun === undefined) {
+      return { ok: false, code: 'CODE_RUN_NOT_CONFIGURED', reason: 'EXECUTE code was declared but options.produceRun (deployment-owned runner) is not mounted' }
+    }
+    const executable = basename(String(produceRun.command[0] ?? ''))
+    // A schema-coerced empty allow-list means "use the built-in defaults"
+    // (an explicit empty list is not a valid policy).
+    const allowSrc = produceRun.allowExecutable !== undefined && produceRun.allowExecutable.length > 0
+      ? produceRun.allowExecutable
+      : ['node', 'python', 'python3']
+    const allow = new Set(allowSrc)
+    if (!allow.has(executable)) {
+      return { ok: false, code: 'CODE_RUN_NOT_CONFIGURED', reason: `deployment runner command '${produceRun.command.join(' ')}' executes '${executable}' which is outside the code-run allow-list [${[...allow].join(', ')}]` }
+    }
+    const modelRefEntry = [...container.entries].find(e => e.kind === 'ModelSpec')
+    const modelRef = modelRefEntry === undefined
+      ? undefined
+      : String((modelRefEntry['value'] as { model_id?: unknown }).model_id ?? '')
+    if (modelRefEntry === undefined || modelRef === undefined || modelRef.length === 0) {
+      return { ok: false, code: 'PRODUCE_CHAIN_NO_MODEL', reason: 'a container with code must declare a ModelSpec with a model_id (the run is an instance of it)' }
+    }
+    const outputBasenames = basenames as string[]
+    const outputLocators = outputBasenames.map(b => `file:///runs/${runIdText}/${b}`)
+    const seedRaw = runDecl['seed']
+    // INV-3-D: FORMAL critical runs need a non-null seed; only a numeric
+    // integer is a reproducible declaration (a string seed would be a
+    // "no seed recorded" statement in disguise).
+    const seed = typeof seedRaw === 'number' && Number.isInteger(seedRaw) ? seedRaw : null
+
+    const executed = await produceRunExecution({
+      ir,
+      runId: runIdText,
+      modelRef,
+      codeText: container.code ?? '',
+      environment: produceRun.environment,
+      seed,
+      outputBasenames,
+      outputLocators,
+      runnerCommand: [...produceRun.command],
+      runnerEntryFile: produceRun.entryFile,
+      timeoutMs: produceRun.timeoutMs,
+    })
+    if (!executed.ok) {
+      return { ok: false, code: executed.code, reason: `code run refused: ${executed.reason}` }
+    }
+    await this.audit({ eventType: 'ir_entry_written', actor: 'paper-executor', runId, detail: { kind: 'RunArtifact', id: executed.runArtifactId, nodeId: 'execute', stage: 'code-run' } })
+    await this.audit({ eventType: 'ir_entry_written', actor: 'paper-executor', runId, detail: { kind: 'ExecutionRecord', id: executed.executionId, nodeId: 'execute', stage: 'code-run' } })
+
+    let reportText: string
+    const interpretations = container.interpretations
+    if (interpretations !== undefined) {
+      // Interpretation sources may name the file basename; resolve them to
+      // the run's canonical locators before the dry pass.
+      const normalized = normalizeInterpretationLocators(interpretations, outputBasenames, outputLocators)
+      if (!normalized.ok) {
+        return { ok: false, code: normalized.code, reason: normalized.reason }
+      }
+      const minted = produceInterpretation({
+        ir,
+        runId: runIdText,
+        interpretations: normalized.value,
+        outputs: executed.outputs,
+      })
+      if (!minted.ok) {
+        return { ok: false, code: minted.code, reason: `interpretation refused: ${minted.reason}` }
+      }
+      for (const id of minted.resultIds) {
+        await this.audit({ eventType: 'ir_entry_written', actor: 'paper-executor', runId, detail: { kind: 'Result', id, nodeId: 'execute', stage: 'interpretation' } })
+      }
+      for (const id of minted.claimIds) {
+        await this.audit({ eventType: 'ir_entry_written', actor: 'paper-executor', runId, detail: { kind: 'Claim', id, nodeId: 'execute', stage: 'interpretation' } })
+      }
+    }
+
+    // v1 template report (P2-4 upgrades this to structured slots): the
+    // result table is injected from the canonical Result records.
+    const snapshot = ModelingIr.snapshot(ir)
+    const results = snapshot === null
+      ? []
+      : [...snapshot.values()]
+          .filter(r => r.kind === 'Result')
+          .map(r => r.value)
+    const rendered = renderV1Report({
+      title: String((container.narrative?.['title'] as string | undefined) ?? 'Paper deliverable (executor production chain)'),
+      results: results.map(r => ({
+        result_id: r.result_id,
+        name: r.name,
+        value: r.value,
+        unit: r.unit,
+        uncertainty: r.uncertainty,
+      })),
+      narrative: container.narrative ?? {},
+    })
+    if (!rendered.ok) {
+      return { ok: false, code: rendered.code, reason: `report render refused: ${rendered.reason}` }
+    }
+    reportText = rendered.text
+    const codeText = container.code ?? ''
+    return { ok: true, reportText, loadCode: () => codeText }
+  }
+
+  /**
    * TASK 3 repair (3.R2 / INV-3-K): the single delivery verdict of one
    * run. The policy is built from the gate registry and evaluated
    * exactly once; whatever `evaluateDelivery` returns is the only
@@ -477,6 +646,12 @@ export class WorkflowExecutor {
       mode,
       ir: this.options.ir ?? EMPTY_IR,
       runtimeProfileValid: this.runtimeGuard.isReady(),
+      // P2-1: when the EXECUTE production chain captured the actual code
+      // bytes, hand them to the delivery policy so S-007 runs (synchronous
+      // loader contract); otherwise the IR-only checks stay.
+      ...(this.#codeLoaders.has(String(runId))
+        ? { loadCode: this.#codeLoaders.get(String(runId))! }
+        : {}),
     })
     const decision = evaluateDelivery(policy)
     if (decision.allowed) return { policy, decision }
@@ -630,6 +805,25 @@ export class WorkflowExecutor {
               runId,
               detail: { kind: entry.kind, id: entry.id, nodeId: node.id },
             })
+          }
+          // P2-1 (D7 obligation): when the container carries executable code
+          // the EXECUTE stage runs the FULL production chain — code-run
+          // (deployment-owned runnerCommand, model can never choose one),
+          // capture, dry-pass interpretation, Result/Claim minting — and
+          // returns the rendered v1 report as the deliverable text. This is
+          // the executor-authoritative path; `demo/run-p1-demo.mjs` is no
+          // longer the only way to a FORMAL delivery.
+          const container = parseModelContainer(text)
+          if (container.ok && (container.container.code?.length ?? 0) > 0) {
+            const chain = await this.runProductionChain(runId, ir, container.container)
+            if (!chain.ok) {
+              const err = new Error(`EXECUTE production chain refused: ${chain.reason}`)
+              ;(err as { code?: string }).code = chain.code
+              throw err
+            }
+            this.#codeLoaders.set(String(runId), chain.loadCode)
+            await this.engine.transitionNode(node.id, 'succeeded')
+            return { nodeId: node.id, text: chain.reportText }
           }
         }
         await this.engine.transitionNode(node.id, 'succeeded')
@@ -851,6 +1045,32 @@ export class WorkflowExecutor {
   private async audit(entry: AuditEntryInput): Promise<void> {
     await this.options.audit?.record(entry)
   }
+}
+
+/**
+ * Resolve interpretation `source.locator`s that name a file basename to the
+ * run's canonical locators before the interpretation dry pass. A basename
+ * that is not one of the run's declared outputs is a refusal — the model
+ * can only read what the code actually produced.
+ */
+function normalizeInterpretationLocators(
+  block: Record<string, unknown>,
+  basenames: ReadonlyArray<string>,
+  locators: ReadonlyArray<string>,
+): { ok: true; value: Record<string, unknown> } | { ok: false; code: string; reason: string } {
+  const copy = structuredClone(block) as { results?: Array<{ source?: { locator?: unknown } }> }
+  const results = copy.results
+  if (!Array.isArray(results)) return { ok: true, value: copy as Record<string, unknown> }
+  for (const result of results) {
+    const loc = result.source?.locator
+    if (typeof loc !== 'string' || loc.startsWith('file://')) continue
+    const index = basenames.indexOf(loc)
+    if (index < 0) {
+      return { ok: false, code: 'INTERPRETATION_SOURCE_INVALID', reason: `result reads '${loc}' which is not one of the run's declared outputs [${basenames.join(', ')}]` }
+    }
+    result.source!.locator = locators[index]!
+  }
+  return { ok: true, value: copy as Record<string, unknown> }
 }
 
 /** Sections one review request carries. E4b: the reviewer prompt teaches

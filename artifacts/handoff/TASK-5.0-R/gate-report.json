@@ -12,12 +12,12 @@
   },
   "baseline": {
     "files": 71,
-    "total_tests": 925,
-    "passed_tests": 925,
+    "total_tests": 929,
+    "passed_tests": 929,
     "failed_tests": 0,
     "failed_test_suites": 0,
     "tsc_clean": true,
-    "baseline_at": "P2-1/E4 slice: review-loop semantics v2 (E4a/b/c) +6 tests; measured full suite incl real-spawn spec"
+    "baseline_at": "P2-1 slice: executor-authoritative FORMAL chain (4 tests: deliver + 3 attacks)"
   },
   "failures_by_origin": {},
   "gates_impl": [
