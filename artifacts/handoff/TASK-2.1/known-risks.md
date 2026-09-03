@@ -211,3 +211,14 @@ missing/stale evidence then blocks delivery. Wiring the executor or the
 production profile to run the independent audit (`runIndependentExecutionAudit`)
 and feed its `replayed_at` into the policy is the remaining integration
 slice; until then the rule is enforced and tested at the policy level.
+
+### 21. 2026-09-03 session postmortem (pointer)
+The full ledger of the TASK 5.0 batch's code fixes, the three-stack CI
+failure chain (smoke root-path resolution → 3.R3 direct-put leftover →
+LocalProcessRunner one-shot-event race), the GitHub Actions Node20
+runtime upgrade, and the Windows / hosted-runner / sandbox platform
+traps lives in
+`artifacts/handoff/TASK-5.0/2026-09-03-postmortem.md` (including the
+pre-push checklist in §E). Read it before re-touching any of: the smoke
+runner, verify-report-state.mjs, LocalProcessRunner, or the paper CI
+workflow.
