@@ -133,15 +133,17 @@ export class LocalProcessRunner implements ExecutionRunner {
       const outputFiles: ExecutionOutputFile[] = []
       for (let i = 0; i < this.config.outputBasenames.length; i += 1) {
         const basename = this.config.outputBasenames[i]!
-        let bytes = ''
         try {
-          bytes = await readFile(join(cwd, basename), 'utf8')
+          const bytes = await readFile(join(cwd, basename), 'utf8')
+          outputFiles.push({ locator: this.config.outputLocators[i]!, bytes })
         } catch {
-          // A missing output file is a finding, not a runner crash — the
-          // replay's output-hash check reports it.
-          bytes = ''
+          // P1-2: a missing output file is ABSENT, not an empty-file impostor.
+          // Pushing a zero-byte stand-in would let capture's output-set check
+          // treat 'the run produced nothing' as 'the run produced the file'
+          // (a model could claim outputs it never wrote). Skip the entry so
+          // capture's sameSet / the replay's output-hash check report it.
+          trace(`runner: declared output '${basename}' was not produced`)
         }
-        outputFiles.push({ locator: this.config.outputLocators[i]!, bytes })
       }
       trace('runner: outputs collected')
       const finishedAt = new Date().toISOString()

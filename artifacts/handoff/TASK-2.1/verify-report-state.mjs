@@ -214,6 +214,16 @@ if (accepted === null) {
       console.error(`RG-06 DRIFT: vitest reports ${report.numFailedTests} failures, gate-report declares ${declared.failed_tests}.`)
       drift += 1
     }
+    // Visibility (2026-09-04): when the counts disagree, name the failures —
+    // a drift report that hides which test is red turns a 2-minute fix into
+    // a blind CI dig.
+    for (const file of report.testResults ?? []) {
+      for (const assertion of file.assertionResults ?? []) {
+        if (assertion.status === 'failed') {
+          console.error(`RG-06 FAILING TEST: ${assertion.fullName}`)
+        }
+      }
+    }
   }
   if (drift === 0) drift = 1
   process.exit(1)
@@ -231,7 +241,7 @@ if (accepted === null) {
 const followUpsObj = gateReport.follow_ups ?? {}
 const followUpKeys = Object.keys(followUpsObj)
 const closedRows = gateReport.closed_conditions ?? []
-const indexTasks = ['TASK 3.5', 'TASK 3.6', 'TASK 4.0', 'TASK 4.2', 'TASK 4.3', 'TASK 5.0', 'TASK 5.0-R']
+const indexTasks = ['TASK 3.5', 'TASK 3.6', 'TASK 4.0', 'TASK 4.2', 'TASK 4.3', 'TASK 5.0', 'TASK 5.0-R', 'TASK-P1']
 const missingFromIndex = []
 for (const t of indexTasks) {
   if (!index.includes(t)) missingFromIndex.push(t)

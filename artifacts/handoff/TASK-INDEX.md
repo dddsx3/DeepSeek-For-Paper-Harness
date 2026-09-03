@@ -22,7 +22,8 @@
 | TASK 4.2   (fast mode bypass removal) | `52b7aded26` | n/a | PASS (executor line) | Reviewer schema unification DONE (5.0.3c); Oracle Routing follow-up |
 | TASK 4.3   (FigureSpec data_hash) | `adc50eaebd` | n/a | PASS (schema) | §15 other fields are the follow-up |
 | TASK 5.0   (Second-repair batch: 5.0.5/6/7/8/11 + capture-path rewrites) | (5.0 batch commits) | `artifacts/handoff/TASK-5.0/handoff.md` | PASS (5.0.1 closed under 5.0-R delegation; 5.0.4/5.0.10 DEFERRED on v1.1) | 5.0.9 superseded by P2; 5.0.4 attestation hardening + 5.0.10 numeric tolerance await v1.1 |
-| TASK 5.0-R (补漏批次: six-stub elimination, eleven reds to zero, gates_impl + RG-09, exploratory run mode, real final-output sink) | (5.0-R commits) | `artifacts/handoff/TASK-5.0-R/` | PASS (873/874 tests, 0 failures; RG-06/07/09 agree; 6 gates UNIMPLEMENTED & ledgered) | P1 生产者轨 is the next batch; EXPLORATORY marked informal (R1-4) |
+| TASK-P1  (生产者轨: typed-JSON producer, real capture, nine real gates, FORMAL demo, pass corpus) | (P1 commits) | `artifacts/handoff/TASK-P1/` | PARTIAL (producer + capture + 9/9 gates real + 906/906 tests; demo/pass-corpus/handoff pending) | FORMAL demo + pass corpus + handoff remain; decision-log D3 (figure vacuous) awaits author sign-off |
+| TASK 5.0-R (补漏批次: six-stub elimination, eleven reds to zero, gates_impl + RG-09, exploratory run mode, real final-output sink) | (5.0-R commits) | `artifacts/handoff/TASK-5.0-R/` | PASS (874/874 tests at close; RG-06/07/09 agree; six stubs -> UNIMPLEMENTED then real via P1) | P1 生产者轨 is the next batch; EXPLORATORY marked informal (R1-4) |
 
 ## Pending tasks (not yet started)
 

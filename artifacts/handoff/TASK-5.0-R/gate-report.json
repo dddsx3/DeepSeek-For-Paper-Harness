@@ -4,7 +4,7 @@
   "batch_verdict": "9/9 critical gates real (figure vacuous until P2; decision-log D3). FORMAL delivery now reachable for figure-less papers; the honest gates are live — P1-5 demo and pass corpus are the next slice.",
   "report_sync": {
     "head_commit": "(5.0-R batch — see git log for the R1+R2 and R3 commits, then this report commit)",
-    "baseline_collected_at": "2026-09-03T21:09:00.000Z",
+    "baseline_collected_at": "2026-09-04T00:40:00.000Z",
     "vitest_json_path": "artifacts/handoff/TASK-2.1/.vitest-baseline-*.json (per-run, removed after reading)",
     "rule": "INV-3-Q + RG-09 — gate-report.json must not claim PASS/DONE while a known failure or an UNIMPLEMENTED gate exists; the batch_verdict field is machine-checked by RG-09(c).",
     "self_check": "RG-06 (vitest_count vs report_count), RG-07 (gate-report vs TASK-INDEX incl. TASK 5.0-R), RG-09 (gates_impl ledger vs criticalGateImplementationReport + verdict rule)",
@@ -12,12 +12,12 @@
   },
   "baseline": {
     "files": 71,
-    "total_tests": 874,
-    "passed_tests": 874,
+    "total_tests": 906,
+    "passed_tests": 906,
     "failed_tests": 0,
     "failed_test_suites": 0,
     "tsc_clean": true,
-    "baseline_at": "5.0-R batch: redteam15 chain mounting moved to putExecutionRecord + CAPTURE_ATTESTATION (7 red -> green, assertions untouched); stale-engine drift expressed on forged captures + gate-integration runtimeProfileValid + reason assertions aligned to the evaluateDelivery id:status:reason contract (4 red -> green); RunMode 'exploratory' added and executor mechanism suites migrated. Measured with the repo-default vitest worker configuration."
+    "baseline_at": "P1 gates slice: 9/9 critical gates real (numeric/execution/reference/requirement/runtime/figure vacuous) + 19 gate acceptance tests; runner no longer imitates missing outputs. Measured with repo-default vitest workers."
   },
   "failures_by_origin": {},
   "gates_impl": [
