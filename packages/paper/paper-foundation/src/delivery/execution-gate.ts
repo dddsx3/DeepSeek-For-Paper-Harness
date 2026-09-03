@@ -1,10 +1,10 @@
 /**
  * P1-4 — execution gate v0.1 (real; replaces the "structural stub").
  *
- * Real check (task book P1-4): every CRITICAL NUMERIC Claim's evidence
- * chain — Claim -> result_refs -> Result -> run_ref -> RunArtifact — must
- * reach a RunArtifact that carries a committed, non-STALE ExecutionRecord.
- * A claim chain whose run has NO record (the model "claims it ran" without
+ * Real check (task book P1-4): every CRITICAL claim's evidence chain —
+ * Claim -> result_refs -> Result -> run_ref -> RunArtifact — must reach a
+ * RunArtifact that carries a committed, non-STALE ExecutionRecord. A claim
+ * chain whose run has NO record (the model "claims it ran" without
  * evidence) or whose record disagrees with the run declaration is BLOCKED.
  *
  * Claims with no result_refs (MODEL/QUALITATIVE without numeric binding)
@@ -24,9 +24,11 @@ export interface ExecutionGateFinding {
   readonly reason: string
 }
 
+/** A null store (no canonical state) has nothing to check. */
 export function executionGateFindings(
-  store: ReadonlyMap<string, IrObjectRecord>,
+  store: ReadonlyMap<string, IrObjectRecord> | null,
 ): ReadonlyArray<ExecutionGateFinding> {
+  if (store === null) return []
   const findings: ExecutionGateFinding[] = []
   const runsWithRecord = new Set<string>()
   for (const record of store.values()) {
@@ -45,7 +47,6 @@ export function executionGateFindings(
     if (record.kind !== 'Claim') continue
     const claim = record.value as {
       claim_id: string
-      claim_type: string
       criticality: string
       result_refs: ReadonlyArray<string>
     }

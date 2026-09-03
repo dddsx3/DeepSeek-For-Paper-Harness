@@ -22,13 +22,11 @@ export interface NumericConsistencyFinding {
   readonly reason: string
 }
 
-/** Every NUMERIC claim is checked; a claim with no problems contributes
- *  nothing. A store without claims (pre-P1 data) yields an empty list —
- *  vacuously consistent, which is the honest reading of "no claim to
- *  check". */
+/** A null store (no canonical state) has nothing to check. */
 export function numericConsistencyFindings(
-  store: ReadonlyMap<string, IrObjectRecord>,
+  store: ReadonlyMap<string, IrObjectRecord> | null,
 ): ReadonlyArray<NumericConsistencyFinding> {
+  if (store === null) return []
   const resolve = resolverFromStore(store)
   const findings: NumericConsistencyFinding[] = []
   for (const record of store.values()) {

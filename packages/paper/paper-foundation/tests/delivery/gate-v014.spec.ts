@@ -35,7 +35,7 @@ describe('P1-4 reference_validation', () => {
 
   it('a synthetic map with a dangling ref surfaces a finding (defence in depth)', () => {
     const map = new Map<string, IrObjectRecord>([
-      ['P1', { kind: 'ProblemSpec', value: { problem_id: 'P1', raw_problem_ref: 'DA-MISSING', requirement_refs: [] } }],
+      ['P1', { seq: 1, kind: 'ProblemSpec', id: 'P1', value: { problem_id: 'P1', raw_problem_ref: 'DA-MISSING', requirement_refs: [] }, ingestedAt: 'x' } as unknown as IrObjectRecord],
     ])
     const findings = referenceValidationFindings(map)
     expect(findings.length).toBeGreaterThan(0)

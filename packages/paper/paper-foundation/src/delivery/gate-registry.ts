@@ -31,6 +31,8 @@ import { irBridgeGate, requiresIrBackbone } from '../ir/bridge.ts'
 import { numericConsistencyFindings } from './numeric-consistency.ts'
 import { referenceValidationFindings } from './reference-validation.ts'
 import { executionGateFindings } from './execution-gate.ts'
+import { requirementCoverageFindings } from './requirement-coverage.ts'
+import { runtimeIntegrityFindings } from './runtime-integrity.ts'
 import {
   CRITICAL_GATE_IDS,
   DEFAULT_REPLAY_MAX_AGE_MS,
@@ -158,9 +160,25 @@ registerCriticalGate('provenance', (_mode, ir) =>
 // delivery is BLOCKED with `producer_unimplemented` until P1 lands real
 // semantics. EXPLORATORY stays exempt (mode-level design). stale_detection
 // below is a REAL producer (computeStaleReport) and stays.
-registerCriticalGate('runtime_integrity', UNIMPLEMENTED)
-// P1-4: execution is a REAL gate — every CRITICAL NUMERIC claim's evidence
-// chain must reach a RunArtifact with a committed, non-STALE record.
+// P1: runtime_integrity is a REAL gate — every committed ExecutionRecord
+// must carry well-formed runtime fingerprints/digests (the profile-readiness
+// half is enforced upstream by assertRuntimeReady / runtimeProfileValid).
+registerCriticalGate('runtime_integrity', (_mode, ir) => {
+  const store = ModelingIr.snapshot(ir)
+  if (store === null) {
+    return { id: 'runtime_integrity', critical: true, status: 'BLOCKED', reason: 'no canonical store', observedAt: new Date().toISOString() }
+  }
+  const findings = runtimeIntegrityFindings(store)
+  if (findings.length === 0) {
+    return { id: 'runtime_integrity', critical: true, status: 'PASS', reason: 'captured runtime fingerprints are well-formed', observedAt: new Date().toISOString() }
+  }
+  const first = findings[0]!
+  return {
+    id: 'runtime_integrity', critical: true, status: 'BLOCKED',
+    reason: `runtime integrity: ${findings.length} finding(s) (${first.kind}: ${first.reason})`,
+    observedAt: new Date().toISOString(),
+  }
+})
 registerCriticalGate('execution', (_mode, ir) => {
   const store = ModelingIr.snapshot(ir)
   if (store === null) {
@@ -232,7 +250,25 @@ registerCriticalGate('reference_validation', (_mode, ir) => {
     observedAt: new Date().toISOString(),
   }
 })
-registerCriticalGate('requirement_coverage', UNIMPLEMENTED)
+// P1-4: requirement_coverage is a REAL gate (A7 v0 frozen) — every
+// ProblemSpec's REQUIRED_OUTPUTs must be paid by distinct reaching CRITICAL
+// results (fail-closed count bound).
+registerCriticalGate('requirement_coverage', (_mode, ir) => {
+  const store = ModelingIr.snapshot(ir)
+  if (store === null) {
+    return { id: 'requirement_coverage', critical: true, status: 'BLOCKED', reason: 'no canonical store', observedAt: new Date().toISOString() }
+  }
+  const findings = requirementCoverageFindings(store)
+  if (findings.length === 0) {
+    return { id: 'requirement_coverage', critical: true, status: 'PASS', reason: 'every REQUIRED_OUTPUT is covered (A7 v0)', observedAt: new Date().toISOString() }
+  }
+  const first = findings[0]!
+  return {
+    id: 'requirement_coverage', critical: true, status: 'BLOCKED',
+    reason: `requirement coverage: ${findings.length} finding(s) (${first.requirementId}: ${first.reason})`,
+    observedAt: new Date().toISOString(),
+  }
+})
 registerCriticalGate('figure_data_consistency', UNIMPLEMENTED)
 
 // Fail-fast at module init (INV-3-L).

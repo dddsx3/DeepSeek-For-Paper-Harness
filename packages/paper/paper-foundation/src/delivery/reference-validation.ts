@@ -21,9 +21,11 @@ export interface ReferenceValidationFinding {
   readonly reason: string
 }
 
+/** A null store (no canonical state) has nothing to check. */
 export function referenceValidationFindings(
-  store: ReadonlyMap<string, IrObjectRecord>,
+  store: ReadonlyMap<string, IrObjectRecord> | null,
 ): ReadonlyArray<ReferenceValidationFinding> {
+  if (store === null) return []
   const resolve: IrRefResolver = (ref: string) => store.get(ref)?.kind
   const findings: ReferenceValidationFinding[] = []
   for (const record of store.values()) {

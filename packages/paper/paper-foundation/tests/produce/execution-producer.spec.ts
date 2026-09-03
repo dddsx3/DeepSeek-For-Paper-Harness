@@ -88,7 +88,7 @@ describe('P1-2 execution producer — positive (real node child)', () => {
     expect(records.map(r => r.execution_id)).toContain(`EXEC-${RUN_ID}`)
     expect(records[0]!.exit_status).toBe(0)
     expect(records[0]!.run_ref).toBe(RUN_ID)
-    expect(computeStaleReport(ModelingIr.snapshot(ir)).stale.filter(s => s.kind === 'RunArtifact')).toHaveLength(0)
+    expect(computeStaleReport(ModelingIr.snapshot(ir)!).stale.filter(s => s.kind === 'RunArtifact')).toHaveLength(0)
   }, 60_000)
 })
 
