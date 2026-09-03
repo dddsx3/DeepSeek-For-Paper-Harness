@@ -96,7 +96,14 @@ describe('WorkflowExecutor', () => {
     expect(nodes).toEqual(['plan', 'execute', 'review', 'deliver'])
   })
 
-  it('delivers a fast run with defects after its single revise round', async () => {
+  // TASK 4.2 removed the fast-mode bypass: the review gate used to be
+  // silenced on the fast path ("if (!gatePassed && mode !== 'fast')"),
+  // so a defect surviving the single revise round was still delivered
+  // with `gates.review === false`. That exemption is gone — a mode may
+  // change how a check runs, never whether it runs (INV-3-P). Only the
+  // outcome moved: the revise round still happens and both defects are
+  // still recorded.
+  it('refuses a fast run whose defects survive its single revise round', async () => {
     const { ctx } = await harness((system) => {
       if (system.includes('reviewer')) return '{"defects":[{"severity":"minor","description":"tone too dry"}]}'
       if (system.includes('editor')) return 'warmer deliverable text'
@@ -104,15 +111,19 @@ describe('WorkflowExecutor', () => {
     })
     const engine = ctx.paperWorkflow.runs
     const run = await engine.startRun({ mode: 'fast', harnessVersion: 'test', configHash: 'sha256:test' })
-    const outcome = await ctx.paperExecutor.runs.execute(RunId(run.id), 'write one sentence')
 
-    expect(outcome.run.status).toBe('completed')
-    expect(outcome.manifest.gates.review).toBe(false)
+    await expect(ctx.paperExecutor.runs.execute(RunId(run.id), 'write one sentence'))
+      .rejects.toThrow('failed its review gate')
+
+    expect(engine.getRun(RunId(run.id))?.status).toBe('failed')
     const nodeTitles = engine.listNodes(RunId(run.id)).map(node => node.title)
     expect(nodeTitles).toContain('revise #1')
     expect(nodeTitles).toContain('review #2')
     const events = engine.listEvents(RunId(run.id))
     expect(events.filter(event => event.type === 'defect')).toHaveLength(2)
+    // No promotion, therefore no deliverable: the promoter is the only
+    // writer and it is never reached on a refused run (INV-014).
+    expect(engine.getManifest(RunId(run.id))).toBeUndefined()
   })
 
   it('fails a strict run when defects persist past the policy ceiling', async () => {

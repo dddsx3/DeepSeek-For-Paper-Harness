@@ -9,7 +9,7 @@
 import { createHash } from 'node:crypto'
 import { BlockAssembler, createUserMessage } from '@deepseek-ai/dsh-llm'
 import type { LlmFailure, TokenUsage } from '@deepseek-ai/dsh-llm'
-import type { AuditEntryInput } from './audit.ts'
+import type { AuditEntryInput, AuditEventType } from './audit.ts'
 import { compactPrompt, renderSections } from './context.ts'
 import type { PromptSection } from './context.ts'
 import { computeCostUsd, evaluateBudget, resolveModelPrice } from './cost.ts'
@@ -17,6 +17,7 @@ import type { BudgetPolicy, PricingTable } from './cost.ts'
 import { IR_CANONICALIZATION_GATE_ID, PROVENANCE_GATE_ID } from './delivery/delivery-policy.ts'
 import { buildDeliveryPolicy } from './delivery/gate-registry.ts'
 import { evaluateDelivery } from "./delivery/delivery-policy.ts"
+import type { DeliveryDecision, DeliveryPolicy } from "./delivery/delivery-policy.ts"
 import { makeCandidateArtifact } from "./delivery/artifact-states.ts"
 import { promoteCandidateToDeliverable } from "./delivery/promoter.ts"
 import { ModelingIr } from './ir/store.ts'
@@ -36,6 +37,20 @@ export interface ExecutionOutcome {
   readonly run: RunRecord
   /** Manifest recorded at delivery. */
   readonly manifest: Manifest
+}
+
+/**
+ * TASK 5.0.5 / INV-3-K: the one delivery verdict of a run, carried from
+ * `evaluateDelivery` to the promoter. Bundling the policy with its
+ * decision is deliberate — the promoter needs both (it re-checks the
+ * FAST-mode critical-gate set against `policy.gates`) but must not
+ * re-run the policy, so the pair is produced once and passed through.
+ */
+export interface DeliveryVerdict {
+  /** The policy that was evaluated; never a freshly built one. */
+  readonly policy: DeliveryPolicy
+  /** The verdict `evaluateDelivery` returned for that policy. */
+  readonly decision: DeliveryDecision
 }
 
 /** One structured reviewer finding. */
@@ -122,6 +137,30 @@ const TRIM_DEFECTS = 1
 const TRIM_DRAFT = 2
 const TRIM_TASK = 3
 const KEEP = Infinity
+
+/**
+ * TASK 5.0.5 / INV-014: the single sink the promoter writes a
+ * deliverable to. Declared once, at module scope, so that "the final
+ * output has exactly one write path" is checkable by inspection — a
+ * second literal would be a second path.
+ */
+const FINAL_OUTPUT_PATH = '/var/paper-harness/final'
+
+/**
+ * The two promotion outcomes the promoter is contractually allowed to
+ * emit (`promoteCandidateToDeliverable` emits exactly one of them per
+ * call). Anything else is a contract break between two in-process
+ * modules, so it is refused rather than relabelled: an unknown
+ * promotion event must never be filed under a kind that implies a
+ * different verdict.
+ */
+const PROMOTION_AUDIT_TYPES: readonly AuditEventType[] = ['promotion_succeeded', 'promotion_failed']
+
+function promotionAuditType(type: string): AuditEventType {
+  const found = PROMOTION_AUDIT_TYPES.find(candidate => candidate === type)
+  if (found === undefined) throw new Error(`promoter emitted an undeclared audit event: '${type}'`)
+  return found
+}
 
 const SYSTEM_PROMPTS: Record<PaperRole, string> = {
   executor: 'You are a careful task executor. Produce complete, correct output for the given task. Be concise.',
@@ -246,7 +285,10 @@ export class WorkflowExecutor {
       // resulting policy is handed to `evaluateDelivery`; whatever it
       // returns is the only thing the executor reasons about. No
       // parallel `if (gate.status === 'PASS') return` branches remain.
-      await this.enforceDelivery(runId, initial.mode)
+      //
+      // TASK 5.0.5: the verdict is returned so the promoter below can be
+      // handed the *same* decision instead of re-evaluating the policy.
+      const verdict = await this.enforceDelivery(runId, initial.mode)
 
       // TASK 4.2: the reviewer gate is now part of the same fail-closed
       // policy. The previous fast-mode bypass ("if (!gatePassed && mode !==
@@ -283,19 +325,24 @@ export class WorkflowExecutor {
       // on success, and (c) emits the `promotion_succeeded` / `_failed`
       // audit events. `F17-a` (static check) verifies there is no other
       // write path to the final output.
-      const artifact = await this.deliver(runId, current)
+      const { artifact, createdAt } = await this.deliver(runId, current)
       const promotion = await promoteCandidateToDeliverable(
         makeCandidateArtifact({
           id: artifact.id,
-          createdAt: artifact.createdAt,
+          createdAt,
           contentHash: artifact.sha256,
         }),
-        policy,
-        decision,
+        verdict.policy,
+        verdict.decision,
         {
-          audit: event => this.audit({ eventType: event.type, actor: 'paper-executor', runId, detail: event }),
+          audit: event => this.audit({
+            eventType: promotionAuditType(event.type),
+            actor: 'paper-executor',
+            runId,
+            detail: { ...event },
+          }),
           now: () => new Date().toISOString(),
-          writeFinalOutput: async (_path, content) => { await this.persistFinal(runId, content) },
+          writeFinalOutput: async (path, content) => { await this.persistFinal(runId, path, content) },
         },
         FINAL_OUTPUT_PATH,
         current,
@@ -340,16 +387,32 @@ export class WorkflowExecutor {
    * the mode in which no fact has been asserted yet.
    */
   /**
-   * TASK 3 repair (3.R2 / INV-3-K): the single delivery verdict. Builds
-   * the policy from the gate registry, runs `evaluateDelivery`, and
-   * refuses delivery whenever the policy fails. No `if (gate.status
-   * === 'PASS') return` branch — every gate is read once, in
-   * `CRITICAL_GATE_IDS` order, and the verdict is the policy's.
+   * TASK 3 repair (3.R2 / INV-3-K): the single delivery verdict of one
+   * run. The policy is built from the gate registry and evaluated
+   * exactly once; whatever `evaluateDelivery` returns is the only
+   * thing this executor — and, through it, the promoter — reasons
+   * about. No `if (gate.status === 'PASS') return` branch, and no
+   * second evaluation: the promoter is handed this record so a policy
+   * cannot be refreshed between the verdict and the write.
+   *
+   * @param runId - the run being judged.
+   * @param mode - the run's execution mode.
+   * @returns the policy that was evaluated together with its verdict.
    */
-  private async enforceDelivery(runId: RunId, mode: string): Promise<void> {
-    const policy = buildDeliveryPolicy({ mode, ir: this.options.ir ?? EMPTY_IR })
+  private async enforceDelivery(runId: RunId, mode: string): Promise<DeliveryVerdict> {
+    // TASK 5.0.11: the policy is now told the runtime guard's *actual*
+    // readiness instead of assuming it. `assertRuntimeReady` at the top
+    // of `execute` would already have thrown on a mismatch, so this is
+    // not a second gate — it is the policy no longer claiming a check
+    // it never made (INV-3-O). Compositions that mount no guard get
+    // `false`, and delivery is refused.
+    const policy = buildDeliveryPolicy({
+      mode,
+      ir: this.options.ir ?? EMPTY_IR,
+      runtimeProfileValid: this.runtimeGuard.isReady(),
+    })
     const decision = evaluateDelivery(policy)
-    if (decision.allowed) return
+    if (decision.allowed) return { policy, decision }
     // Record one audit entry per failure kind so external auditors can
     // triage without re-running the executor.
     for (const failure of decision.failures) {
@@ -367,14 +430,50 @@ export class WorkflowExecutor {
     )
   }
 
-  /** Deliver the final text: one delivery node plus its stored artifact. */
-  private async deliver(runId: RunId, text: string): Promise<ArtifactRecord> {
+  /**
+   * Deliver the final text: one delivery node plus its stored artifact.
+   *
+   * TASK 5.0.5: also returns the moment the artifact was produced. The
+   * durable `ArtifactRecord` carries no creation time of its own (see
+   * `known-risks.md`), and the promoter requires one for the
+   * `CandidateArtifact` it promotes, so the executor — the only
+   * component that observes the artifact's creation — stamps it here
+   * rather than inventing one further down the pipeline.
+   */
+  private async deliver(runId: RunId, text: string): Promise<{ artifact: ArtifactRecord; createdAt: string }> {
     const node = await this.engine.addNode({ runId, type: 'deliver', title: 'deliver' })
     await this.engine.transitionNode(node.id, 'ready')
     await this.engine.transitionNode(node.id, 'running')
+    const createdAt = new Date().toISOString()
     const artifact = await this.storeArtifact(runId, node.id, text)
     await this.engine.transitionNode(node.id, 'succeeded')
-    return artifact
+    return { artifact, createdAt }
+  }
+
+  /**
+   * TASK 5.0.5 / INV-014: the only writer of the final output sink, and
+   * it is reachable from exactly one caller — the promoter's
+   * `writeFinalOutput`, which the promoter does not invoke on any
+   * failure path. Handing the promoter this callback is what makes
+   * "no promotion, no final output" true by construction rather than
+   * by convention.
+   *
+   * The composition has no real sink mounted yet, so the write is
+   * recorded on the audit trail instead: the path, the byte count, and
+   * the content digest are the evidence a later auditor replays the
+   * delivery against. This is deliberately NOT a silent no-op.
+   */
+  private async persistFinal(runId: RunId, path: string, content: string): Promise<void> {
+    await this.audit({
+      eventType: 'final_output_written',
+      actor: 'paper-executor',
+      runId,
+      detail: {
+        path,
+        bytes: Buffer.byteLength(content, 'utf8'),
+        sha256: createHash('sha256').update(content).digest('hex'),
+      },
+    })
   }
 
   /** Run one model-backed node through ready, running, and its outcome. */
@@ -658,17 +757,15 @@ function parseDefects(text: string): ReviewDefect[] {
       return [{ severity: 'critical', description: 'reviewer JSON has no defects array' }]
     }
     return parsed.defects
-      .filter((defect): defect is { description: string } =>
+      .filter((defect): defect is { description: string; severity?: unknown } =>
         typeof defect === 'object' && defect !== null
         && typeof (defect as { description?: unknown }).description === 'string')
       // severity may be missing / unknown; normalizeSeverity maps every
       // non-'critical' value to 'major' (the closed-enum default) so
       // an entry with no `severity` field still becomes a real finding.
       .map(defect => normalizeSeverity(
-        typeof (defect as { severity?: unknown }).severity === 'string'
-          ? (defect as { severity: string }).severity
-          : 'major',
-        (defect as { description: string }).description,
+        typeof defect.severity === 'string' ? defect.severity : 'major',
+        defect.description,
       ))
   } catch {
     return [{ severity: 'critical', description: 'reviewer returned unparsable JSON' }]

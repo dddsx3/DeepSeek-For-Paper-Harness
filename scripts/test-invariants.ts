@@ -49,6 +49,16 @@ export const testInvariantCompanions: Readonly<Record<string, () => Promise<Test
 const MANUAL_INVARIANT_TEST_EXCEPTIONS = [
   '/packages/runtime-diagnostics/invariants/tests/service.spec.ts',
   '/packages/examples/agent-spine-demo/tests/agent-core.spec.ts',
+  // TASK 5.0 batch: this suite constructs its own invariant topology by
+  // hand (it mounts `InvariantRegistry` and the paper companion itself
+  // inside the test body), but its file name does not match the
+  // `*invariant*.spec.ts` convention above. Left on the auto-mount, the
+  // setup's companion fiber and the test's own explicit mount race for
+  // the same owner name — "package is already registered" — and the
+  // outcome depended on worker scheduling. Declaring the file manual
+  // makes the explicit mount the only one, which is what the test has
+  // always meant to exercise.
+  '/packages/paper/paper-foundation/tests/service-guards.spec.ts',
 ] as const
 
 interface InvariantHost {

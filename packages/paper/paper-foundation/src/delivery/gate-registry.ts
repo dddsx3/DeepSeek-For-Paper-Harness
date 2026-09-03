@@ -200,6 +200,19 @@ export interface BuildDeliveryPolicyInput {
   readonly mode: string
   readonly ir: ModelingIr
   readonly now?: () => string
+  /**
+   * Whether the runtime guard reports a readied profile (TASK 5.0.11).
+   * The verdict belongs to the guard, which owns readiness; the registry
+   * has no way to observe it, so the caller must state it.
+   *
+   * Omitting it is a **refusal, not a pass** (INV-3-O): a policy built
+   * without being told the guard's state must not assert that the
+   * profile was validated. The previous hardcoded `true` made
+   * `evaluateDelivery`'s `runtime_profile_invalid` failure unreachable
+   * from production — dead safety code, which is worse than no code
+   * because it reads like coverage.
+   */
+  readonly runtimeProfileValid?: boolean
 }
 
 /**
@@ -275,9 +288,10 @@ export function buildDeliveryPolicy(input: BuildDeliveryPolicyInput): DeliveryPo
     staleArtifactIds: [],
     unresolvedReferenceIds: [],
     requiredOutputs: [],
-    // Task book v2 §17: the runtime profile is checked by the runtime
-    // guard before this code path is reached. The default true keeps
-    // the policy contract honoured even when the gate is UNIMPLEMENTED.
-    runtimeProfileValid: true,
+    // TASK 5.0.11: supplied by the caller from the runtime guard's real
+    // readiness state — never invented here. A caller that does not
+    // pass it is declaring that it does not know, and "does not know"
+    // is a refusal (see the field's docs on BuildDeliveryPolicyInput).
+    runtimeProfileValid: input.runtimeProfileValid ?? false,
   }
 }

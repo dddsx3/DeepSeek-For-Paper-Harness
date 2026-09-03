@@ -133,6 +133,24 @@ export class PaperRuntimeGuard extends Service {
   }
 
   /**
+   * Whether the guard has been readied.
+   *
+   * TASK 5.0.11: the query form of {@link assertRuntimeReady}. The
+   * delivery policy carries a `runtimeProfileValid` field, and it used
+   * to be hardcoded `true` on the theory that the guard is always
+   * checked before the policy is built. That made the field a constant
+   * PASS — a check that never runs but always agrees. `buildDeliveryPolicy`
+   * now asks, and this is the answer it is given.
+   *
+   * It returns readiness only. Mode compatibility is a property of a
+   * *run*, so it stays on `assertRuntimeReady(runMode)`, which the
+   * executor calls before the run starts.
+   */
+  isReady(): boolean {
+    return this.ready
+  }
+
+  /**
    * Assert the guard is readied and the active profile is compatible with
    * the run mode recorded on the call. EXPLORATORY profiles accept any run
    * mode; FORMAL/FAST profiles require a run mode that maps to them

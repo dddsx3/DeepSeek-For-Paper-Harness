@@ -16,11 +16,12 @@
 | TASK 2     (Claim → Result evidence) | `ffad0e63bf` | `artifacts/handoff/TASK-2/` | PASS (10/10) | — |
 | TASK 2.1   (Evidence Freeze + Audit) | `4f64b72315` | `artifacts/handoff/TASK-2.1/` | PASS (C1..C10) | Follow-ups item 12 (legacy test rewrite) |
 | TASK 3     (Execution Provenance Gate v1.0) | `8d3158abe2` task book / `ffad0e63bf` impl | `artifacts/handoff/TASK-3/` | PASS (C1..C10) | — |
-| TASK 3.5   (STALE engine) | (this batch) | `artifacts/handoff/TASK-2.1/` (audit batch) | PARTIAL (5/11 stale align) | Wired producer; S-002/S-003/S-004/S-009 engine align is the follow-up |
-| TASK 3.6   (Replay–Delivery staleness) | (this batch) | `artifacts/handoff/TASK-2.1/` | PASS (report shape) | The `delivery_replay_max_age` policy itself is the next handoff |
-| TASK 4.0   (Gate registry + 5 stub producers) | (this batch) | (folded into TASK 3) | PARTIAL (5 stubs) | Each stub awaits its real implementation (4.2 / 4.3 / 4.4) |
-| TASK 4.2   (fast mode bypass removal) | (this batch) | n/a | PASS (executor line) | Reviewer schema unification + Oracle Routing are follow-ups |
-| TASK 4.3   (FigureSpec data_hash) | (this batch) | n/a | PASS (schema) | §15 other fields are the follow-up |
+| TASK 3.5   (STALE engine) | `adc50eaebd` | `artifacts/handoff/TASK-2.1/` (audit batch) | PARTIAL (7/11 stale align) | Wired producer; S-002 closed; S-003/S-004/S-009 need the 5.0.4 forge factory |
+| TASK 3.6   (Replay–Delivery staleness) | `4064a28baf` | `artifacts/handoff/TASK-2.1/` | PASS (report shape) | The `delivery_replay_max_age` policy itself is the next handoff (5.0.8) |
+| TASK 4.0   (Gate registry + 5 stub producers) | `cf462f928b` | (folded into TASK 3) | PARTIAL (5 stubs) | Each stub awaits its real implementation (5.0.1 / 4.3 / 4.4) |
+| TASK 4.2   (fast mode bypass removal) | `52b7aded26` | n/a | PASS (executor line) | Reviewer schema unification DONE (5.0.3c); Oracle Routing follow-up |
+| TASK 4.3   (FigureSpec data_hash) | `adc50eaebd` | n/a | PASS (schema) | §15 other fields are the follow-up |
+| TASK 5.0   (Second-repair batch: 5.0.5/6/7/11 + capture-path rewrites) | (this batch) | `artifacts/handoff/TASK-5.0/handoff.md` | PARTIAL (4 sub-tasks landed; 5.0.1/4/10 DEFERRED on v1.1) | 5.0.8 replay-max-age policy; 5.0.9 FigureSpec data_hash comparison; 5.0.1/5.0.4/5.0.10 await v1.1 |
 
 ## Pending tasks (not yet started)
 

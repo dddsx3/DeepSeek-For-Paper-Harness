@@ -40,6 +40,17 @@ export const AUDIT_EVENT_TYPES = [
   'capability_check',
   'ir_bridge_blocked',
   'provenance_gate_blocked',
+  // TASK 5.0.5: the promoter is the only component that mints a
+  // DeliverableArtifact (INV-014) and it reports both outcomes on the
+  // audit trail. The two names are part of the promoter's own contract
+  // (`promoteCandidateToDeliverable`); they are declared here so the
+  // executor can forward them verbatim instead of relabelling a
+  // promotion event as some unrelated kind.
+  'promotion_succeeded',
+  'promotion_failed',
+  // TASK 5.0.5: written once per successful promotion by the single
+  // final-output sink the promoter calls (INV-014).
+  'final_output_written',
 ] as const
 
 /** One audited operation kind. */

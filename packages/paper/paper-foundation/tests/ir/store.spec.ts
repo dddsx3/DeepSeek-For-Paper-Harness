@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { ModelingIr } from '../../src/ir/index.ts'
+import { CAPTURE_ATTESTATION, ModelingIr } from '../../src/ir/index.ts'
 import type { IrAuditEvent, IrObjectRecord } from '../../src/ir/index.ts'
 import { chainThrough, claim, figureSpec, modelSpec, problemSpec, result, runArtifact, validChain, verificationResult } from './fixtures.ts'
 
@@ -16,7 +16,14 @@ describe('ModelingIr — canonical state', () => {
   it('ingests the full legal chain and exposes it in ingest order', () => {
     const ir = new ModelingIr()
     for (const entry of validChain()) {
-      expect(ir.put(entry.kind, entry.value).accepted).toBe(true)
+      // TASK 3 (3.R3 / INV-3-M): ExecutionRecord enters canonical state
+      // only through the producer-only door — `put` refuses it by
+      // design, so the chain's final entry carries the capture
+      // attestation, exactly as the `backboneIr()` fixture does.
+      const verdict = entry.kind === 'ExecutionRecord'
+        ? ir.putExecutionRecord(entry.value, CAPTURE_ATTESTATION)
+        : ir.put(entry.kind, entry.value)
+      expect(verdict.accepted, `${entry.kind} must ingest`).toBe(true)
     }
     // Derived, not literal: TASK 1.5 inserted four kinds ahead of
     // ProblemSpec, and a hardcoded length would rot on the next ontology change.

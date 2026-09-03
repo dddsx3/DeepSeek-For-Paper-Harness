@@ -11,18 +11,22 @@ Eleven tasks of the v2 task book are complete: TASK 1.25, 1.5, 1.5R, 2,
 2.1, 3, 3.5, 3.6, plus the merged TASK 4.0 gate-registry stub and the
 TASK 3.5 STALE engine; a TASK 2.1 audit batch (3.R1 criticality, 3.R2
 gate registry, 3.R3 producer-only, 3.R4 CI, 3.R5 handoff, 3.R6 replay-
-delivery staleness) is in. The current gate posture is one real
-provenance producer (`provenance`), one structural stub
-(`runtime_integrity`, `reference_validation`), and five UNIMPLEMENTED
-critical gates (delivery blocked with `producer_unimplemented` for each).
-The TASK 4 admission file (`TASK-4-准入评审与前置任务书.md`) requires
-TASK 4.4 numeric tolerance to ship under a v1.1 task-book amendment
-before TASK 4 can start; the other follow-ups (4.2 reviewer schema
-unification, 4.3 FigureSpec data_hash, 4.5 documentation) are
-self-contained. The current `paper-foundation` suite reports 70 files
-/ 856 tests with 21 historical failures (16 pre-existing + 5 stale-
-engine alignment); see `artifacts/handoff/TASK-2.1/known-risks.md`
-item 12 for the documented follow-up.
+delivery staleness) is in. The TASK 5.0 second-repair batch has landed
+its self-contained slices: 5.0.5 (promoter wiring — `persistFinal` /
+`FINAL_OUTPUT_PATH`, one delivery verdict handed to the promoter,
+INV-014 / INV-3-K), 5.0.6 (`test:task3` aggregator repaired plus a
+dedicated `.github/workflows/paper-harness.yml` CI caller), 5.0.7
+(TASK-3 §12 red-team reports RT-X1..X4 + baseline summary), and 5.0.11
+(`runtimeProfileValid` real-ized — refusal by default, RG-08 tests);
+5.0.1 / 5.0.4 / 5.0.10 remain DEFERRED on the v1.1 amendment, and
+5.0.8 (replay-max-age policy) and 5.0.9 (FigureSpec data_hash
+comparison) are the next self-contained slices. The suite baseline is
+71 files / 861 tests / 11 documented failures (7 pre-existing IR-
+contract in `redteam15.spec.ts`, 4 stale-engine alignment blocked on
+the 5.0.4 forge factory); the RG-06/RG-07 verifier enforces that
+baseline in CI and reports PASS. See
+`artifacts/handoff/TASK-5.0/handoff.md` and
+`artifacts/handoff/TASK-2.1/known-risks.md` items 17–19.
 
 ---
 

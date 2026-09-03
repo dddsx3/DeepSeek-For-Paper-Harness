@@ -269,7 +269,19 @@ describe('the executor enforces provenance end-to-end', () => {
     for (const entry of chainThrough('ReviewerFinding')) {
       ir.put(entry.kind, entry.value)
     }
-    await expect(runOnce(ir, 'fast')).rejects.toThrow(/no execution provenance/)
+    // The refusal message is assembled by `evaluateDelivery` as
+    // `critical_gate:<id>:<status>:<gate reason>`, and the gate reason
+    // for a record-less critical chain is `execution provenance
+    // blocked: N failure(s) [<run_id>:MISSING_EXECUTION]` (see
+    // `executionProvenanceGate`). The older 'no execution provenance'
+    // phrasing does not exist anywhere in `src/`, so the assertion
+    // pins the stable parts instead of a sentence.
+    const error: unknown = await runOnce(ir, 'fast').catch(caught => caught)
+    expect(error).toBeInstanceOf(Error)
+    const message = (error as Error).message
+    expect(message).toMatch(/cannot deliver/)
+    expect(message).toMatch(/provenance:BLOCKED/)
+    expect(message).toMatch(/MISSING_EXECUTION/)
   })
 
   it('E2E: the canonical backbone (with its record) still delivers', async () => {

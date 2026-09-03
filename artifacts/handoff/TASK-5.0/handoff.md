@@ -17,18 +17,18 @@
 | Sub-task | Status | Note |
 |----------|--------|------|
 | **5.0.1** stub gates → BLOCKED + EXPLORATORY back door | **DEFERRED** | v1.1 §A-2 required. The 6 stub gates are still in place; verifier + RG-01..05 attack suite is ready. |
-| **5.0.2** gate-report.json rewrite | **DONE** | `artifacts/handoff/TASK-2.1/gate-report.json` rewritten to the real state; `verify-report-state.mjs` enforces RG-06 + RG-07. |
-| **5.0.3a** legacy 11 tests rewrite | **PARTIAL** | 5 tests in `tests/ir/execution-record.spec.ts` rewritten to `ingestCapturedRecord`; RT-X3-04 expectation aligned with 3.R1. 5 tests in `capture-replay.spec.ts` / `provenance-gate.spec.ts` still need the v1.1 forge factory. |
-| **5.0.3b** stale engine + helper | **PARTIAL** | Engine now compares `record.code_hash` to `run.code_hash` directly (S-002 closed). S-003 / S-004 / S-009 require record-field mutation, which is the v1.1 forge factory's job. |
+| **5.0.2** gate-report.json rewrite | **DONE** | `artifacts/handoff/TASK-2.1/gate-report.json` re-synchronised to the measured suite (71 files / 861 tests / 11 failures); `verify-report-state.mjs` enforces RG-06 + RG-07 and is wired into CI. |
+| **5.0.3a** legacy 11 tests rewrite | **DONE** | The 5 capture-path tests (capture-replay / provenance-gate) rewritten onto `ingestCapturedRecord`; `tests/ir/store.spec.ts` full-chain moved onto `putExecutionRecord(record, CAPTURE_ATTESTATION)`. `tests/ir/execution-record.spec.ts` was rewritten in the previous batch. What remains red is redteam15 (7, pre-existing) and stale-engine (4, needs the 5.0.4 forge factory). |
+| **5.0.3b** stale engine + helper | **PARTIAL** | Engine compares `record.code_hash` vs `run.code_hash` (S-002 closed). S-003 / S-004 / S-009 need record-field mutation, which is the v1.1 forge factory's job. |
 | **5.0.3c** reviewer severity unification + Oracle Routing | **DONE** | `parseDefects` now uses the IR `FINDING_SEVERITIES` set (`CRITICAL / MAJOR / MINOR`); malformed review → `CRITICAL` (fail-closed). 4 reviewer-parser tests closed. |
 | **5.0.4** attestation hardening | **DEFERRED** | v1.1 §A-8 required. `Symbol.for → Symbol`, drop `CAPTURE_ATTESTATION` barrel export, add `forgeExecutionRecordForTest()`. |
-| **5.0.5** promoter wiring | **PARTIAL** | `executor.execute` now calls `promoteCandidateToDeliverable`; `makeCandidateArtifact` is imported; `persistFinal` is wired. See §3 below — needs tsc + vitest pass. |
-| **5.0.6** `test:task3` broken link + CI wiring | **NOT STARTED** | 4 `test:task3*` scripts already exist; the `test:task3` aggregator at `package.json:45` points to a non-existent path — change it to `&& test:task3:fault-corpus && test:task3:mutations && test:task3:replay-smoke`. |
-| **5.0.7** §12 handoff + RT-X1..X4 per-role reports | **NOT STARTED** | 4 files missing in `artifacts/handoff/TASK-3/`: `redteam.md`, `redteam-rt-x1.md`…`redteam-rt-x4.md`, `baseline-summary.txt`. |
+| **5.0.5** promoter wiring | **DONE** | `persistFinal` + `FINAL_OUTPUT_PATH` added; `enforceDelivery` returns the ONE verdict and the promoter receives that same `{policy, decision}` pair (INV-3-K, no re-evaluation); `persistFinal` is reachable only through the promoter's `writeFinalOutput` (INV-014); audit vocabulary gained `promotion_succeeded` / `promotion_failed` / `final_output_written`. tsc clean; executor suites green. |
+| **5.0.6** `test:task3` broken link + CI wiring | **DONE** | The aggregator pointed at a non-existent path (`artifacts/handoff/TASK-3.1/run-3-of-3.ts`); it is now `fault-corpus && mutations && replay-smoke && report-state`, with `test:task3:report-state` added. CI caller: `.github/workflows/paper-harness.yml`. |
+| **5.0.7** §12 handoff + RT-X1..X4 per-role reports | **DONE** | `artifacts/handoff/TASK-3/redteam.md` + `redteam-rt-x1..x4.md` extracted from the *executed* attack suite (`tests/rt-x/attacks.spec.ts`), plus `baseline-summary.txt` regenerated from a real run. |
 | **5.0.8** `delivery_replay_max_age` policy | **NOT STARTED** | `ExecutionAuditReport.replayed_at` + `replay_report_hash` are in place (3.R6). Wire the policy. |
 | **5.0.9** FigureSpec `data_hash` required + real comparison | **NOT STARTED** | Field is optional; needs required + F05/F11 detection. |
 | **5.0.10** TASK 4.4 numeric tolerance + unit registry | **DEFERRED** | v1.1 §A-1 required. Replay recomputation stays exact; cross-source comparison gets tolerance. |
-| **5.0.11** `runtimeProfileValid` real-ization | **NOT STARTED** | Hardcoded `true`; needs real guard state. RG-08 attack test ready. |
+| **5.0.11** `runtimeProfileValid` real-ization | **DONE** | `buildDeliveryPolicy` takes the guard's real readiness and **defaults to refusal** when not told (INV-3-O — the old hardcoded `true` made `runtime_profile_invalid` unreachable); `PaperRuntimeGuard.isReady()` added; RG-08 regression tests in `tests/delivery/gate-registry-profile.spec.ts`. |
 
 ## 1. What I changed in this session (file + diff intent)
 

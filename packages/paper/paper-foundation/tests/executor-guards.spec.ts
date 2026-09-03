@@ -26,6 +26,14 @@ import {
 } from '../src/index.ts'
 import { backboneIr } from './ir/fixtures.ts'
 
+/**
+ * TASK 5.0.5: the audit events a *successful* promotion adds to a run's
+ * trail — the sink write first, then the promoter's verdict. Tests that
+ * assert on the audit sequence filter these out so they keep
+ * asserting what they were written to assert (INV-014).
+ */
+const PROMOTION_EVENTS = ['final_output_written', 'promotion_succeeded']
+
 const settings: PaperSettings = {
   executor: { provider: 'fake', model: 'fake-model', credentialRef: 'cred://executor', timeoutMs: 1000 },
   reviewer: { provider: 'fake', model: 'fake-model', credentialRef: 'cred://reviewer', timeoutMs: 1000 },
@@ -155,8 +163,16 @@ describe('executor run guards', () => {
     expect(outcome.run.status).toBe('completed')
     const warning = engine.listEvents(RunId(run.id)).find(event => event.type === 'usage')
     expect(warning?.data).toMatchObject({ budgetState: 'warning', limitUsd: 10, spentUsd: 6 })
-    expect(ctx.paperAudit.list(run.id).map(entry => entry.eventType))
+    const auditTypes = ctx.paperAudit.list(run.id).map(entry => entry.eventType)
+    // TASK 5.0.5: a delivered run now also carries the two promotion
+    // events — the sink write, then the promoter's verdict (INV-014).
+    // They are filtered out of the original expectation so this test
+    // keeps asserting exactly what it was written to assert, and are
+    // then checked explicitly.
+    expect(auditTypes.filter(type => !PROMOTION_EVENTS.includes(type)))
       .toEqual(['workflow_started', 'workflow_completed'])
+    expect(auditTypes).toContain('final_output_written')
+    expect(auditTypes).toContain('promotion_succeeded')
   })
 
   it('classifies a thrown non-provider value and pauses after its attempts', async () => {

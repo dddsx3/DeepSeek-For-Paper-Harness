@@ -1,0 +1,86 @@
+name: Paper harness gates
+
+# TASK 5.0.6 — the paper-safety gates were scripts with no CI caller
+# (`test:task3` itself pointed at a path that does not exist). This
+# workflow is the missing caller. It is deliberately separate from
+# `ci.yml`: that file is the upstream harness's own gate stack, and
+# these jobs assert the *paper* layer's evidence chain (fault corpus,
+# mutations, real-process replay, gate-report honesty) which has a
+# different failure meaning and a different runtime profile.
+#
+# `test:task3:report-state` (RG-06 / RG-07) is the load-bearing one: it
+# fails the build when `artifacts/handoff/TASK-2.1/gate-report.json`
+# claims a state the suite no longer produces — INV-3-Q as a CI check
+# rather than a promise.
+
+on:
+  pull_request:
+    paths:
+      - 'packages/paper/**'
+      - 'artifacts/handoff/**'
+      - 'package.json'
+      - '.github/workflows/paper-harness.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'packages/paper/**'
+      - 'artifacts/handoff/**'
+      - 'package.json'
+      - '.github/workflows/paper-harness.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  paper-gates:
+    name: paper / task3 gates
+    runs-on: ubuntu-24.04
+    env:
+      PRIMARY_NODE_VERSION: '24'
+      DSH_TELEMETRY_DISABLED: '1'
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+
+      - name: Install (immutable)
+        run: pnpm install --frozen-lockfile
+
+      # EX-01..EX-12 + RT-X1..X4: every attack in the execution corpus
+      # must still be intercepted. Emits execution-results.json.
+      - name: TASK 3 fault corpus
+        run: pnpm run test:task3:fault-corpus
+
+      # P-01..P-08: weaken one guard at a time; a survivor is a missing test.
+      - name: TASK 3 mutations
+        run: pnpm run test:task3:mutations
+
+      # C5: a real node child runs, is captured, and replays.
+      - name: TASK 3 real-process replay smoke
+        run: pnpm run test:task3:replay-smoke
+
+      # RG-06 + RG-07: the declared baseline must match reality.
+      - name: TASK 5.0 gate-report self-check
+        run: pnpm run test:task3:report-state
+
+      - name: Upload gate evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: paper-gate-evidence
+          path: |
+            artifacts/handoff/TASK-3/execution-results.json
+            artifacts/handoff/TASK-3/mutation-results.json
+          if-no-files-found: warn

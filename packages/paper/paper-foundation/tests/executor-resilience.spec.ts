@@ -19,6 +19,14 @@ import {
 } from '../src/index.ts'
 import { backboneIr } from './ir/fixtures.ts'
 
+/**
+ * TASK 5.0.5: the audit events a successful promotion adds to a run's
+ * trail — the sink write first, then the promoter's verdict (INV-014).
+ * Filtered out of the legacy audit-sequence expectations so those
+ * assertions keep testing what they were written to test.
+ */
+const PROMOTION_EVENTS = ['final_output_written', 'promotion_succeeded']
+
 const settings: PaperSettings = {
   executor: { provider: 'fake', model: 'fake-model', credentialRef: 'cred://executor', timeoutMs: 1000 },
   reviewer: { provider: 'fake', model: 'fake-model', credentialRef: 'cred://reviewer', timeoutMs: 1000 },
@@ -120,8 +128,11 @@ describe('executor resilience', () => {
       .filter(event => event.type === 'request_started')
       .map(event => event.data.attempt)
     expect(attempts.slice(0, 2)).toEqual([1, 2])
-    expect(ctx.paperAudit.list(run.id).map(entry => entry.eventType))
+    const auditTypes = ctx.paperAudit.list(run.id).map(entry => entry.eventType)
+    expect(auditTypes.filter(type => !PROMOTION_EVENTS.includes(type)))
       .toEqual(['workflow_started', 'provider_retry', 'workflow_completed'])
+    expect(auditTypes).toContain('final_output_written')
+    expect(auditTypes).toContain('promotion_succeeded')
   })
 
   it('blocks a credential failure without retrying and fails the run', async () => {

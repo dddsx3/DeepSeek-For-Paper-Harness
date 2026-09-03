@@ -1,0 +1,32 @@
+TASK 3 baseline summary (regression baseline at the 5.0.5/5.0.6/5.0.7/5.0.11 batch)
+generated: 2026-09-03T03:29:31.131Z
+
+command:
+  node node_modules/vitest/vitest.mjs run --project=thread-safe \
+    --reporter=json --outputFile.json=<report> packages/paper/paper-foundation/
+  (identical to the invocation verify-report-state.mjs uses; worker count = repo default)
+
+typecheck: tsc -p packages/paper/paper-foundation/tsconfig.json --noEmit — clean
+
+suite: 861 tests, 850 passed, 11 failed, 0 pending, 71 files
+
+known failures (all documented in artifacts/handoff/TASK-2.1/known-risks.md):
+  D:/deepseek-harness/deepseek-harness/packages/paper/paper-foundation/tests/ir/redteam15.spec.ts (7)
+    - RT-A-01 — non-finite numbers cannot enter canonical state still accepts a finite parameter value (guard is not a blanket refusal)
+    - RT-B-01 — a ModelSpec owned by no ProblemSpec still faces the symbol guards blocks a PARAMETER used as a variable by an unowned ModelSpec
+    - RT-B-01 — a ModelSpec owned by no ProblemSpec still faces the symbol guards passes when an unowned ModelSpec claims no symbols at all
+    - RT-C-01 — the minimum contract is bound to a ProblemSpec, not counted globally blocks a ProblemSpec that declares no REQUIRED_OUTPUT requirement
+    - RT-C-01 — the minimum contract is bound to a ProblemSpec, not counted globally does not credit a REQUIRED_OUTPUT that no ProblemSpec references
+    - RT-C-02 — the minimum contract is a gate of its own blocks delivery when no SymbolSpec is declared at all
+    - RT-D-01 — same-scope token uniqueness is Unicode-aware still accepts a genuine NFC token (guard is not a blanket refusal)
+  D:/deepseek-harness/deepseek-harness/packages/paper/paper-foundation/tests/ir/stale-engine.spec.ts (4)
+    - TASK 3.5 — direct STALE on a run (S-001..S-006) S-003: a record whose environment_hash drifted is STALE (EXECUTION_MISMATCH)
+    - TASK 3.5 — direct STALE on a run (S-001..S-006) S-004: a record whose dependency_lock_hash drifted is STALE (DEPENDENCY_MISMATCH)
+    - TASK 3.5 — byte-level + immutable + transitive (S-007..S-009) S-009: RequirementSpec change invalidates the citing Claim (STALE_TRANSITIVE)
+    - TASK 3.5 — delivery gate integration (the load-bearing outcome) the stale_detection critical gate is BLOCKED when the chain is STALE
+
+failure accounting:
+  7  tests/ir/redteam15.spec.ts — pre-existing TASK 1.5R/2-era contract-wording debt (known-risks items 7/12)
+  4  tests/ir/stale-engine.spec.ts — S-003/S-004/S-009 record-field-mutation cases + stale gate integration;
+     the mutation fixtures need the 5.0.4 forge factory (v1.1 §A-8), so they stay red until ratification
+  0  capture-path / legacy executor tests — all rewritten onto the producer-only ingest door in this batch

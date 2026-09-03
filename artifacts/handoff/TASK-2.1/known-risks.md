@@ -148,3 +148,54 @@ The Status snapshot is updated; TASK-INDEX.md is a new single
 source of truth. Subsequent task batches should land a new handoff
 folder and add one row, not a new standalone summary.
 
+## Items added by the 5.0.5 / 5.0.6 / 5.0.7 / 5.0.11 batch
+
+### 17. `service-guards.spec.ts` invariant test is scheduling-flaky (UPSTREAM, not paper-owned)
+`tests/service-guards.spec.ts` → "paper invariant companion accepts
+declared tables…" fails intermittently with
+`invariants: package "@deepseek-ai/dsh-paper-foundation" is already registered`.
+
+Mechanism: the repo-wide vitest setup (`scripts/test-invariants.ts`)
+auto-mounts every test package's invariant companion on the test's
+root (`testInvariantCompanionPaths` maps a paper-foundation test file
+to `packages/paper/paper-foundation/src/invariant.ts`). The test then
+mounts the same companion explicitly. Whether the explicit mount
+deduplicates against the setup's fiber (`host.byCallback`) or races
+ahead of it depends on scheduling, so the companion's `register()`
+sometimes runs twice on one registry.
+
+Measured: full paper-foundation suite, repo-default workers —
+861 tests with **11** failures on some runs and **12** (this test
+added) on others; under forced `--maxWorkers=1 --no-file-parallelism`
+it failed on every run. The failure is in the shared test harness
+(`scripts/test-invariants.ts`), not in `packages/paper/**`, so it is
+recorded here rather than fixed in this batch (§20: no drive-by fixes
+outside the task's surface).
+
+Consequence for the gate: `verify-report-state.mjs` measures up to
+twice and accepts the declaration when **any** genuine measurement
+matches it. A real regression moves the count in every measurement and
+still fails the gate.
+
+### 18. `ArtifactRecord` carries no creation time
+The durable artifact schema (`src/spec.ts` `artifactRecordSchema`) has
+no `createdAt`. The promoter needs one for the `CandidateArtifact`, so
+the executor stamps the candidate with the moment it produced the
+artifact (`deliver()`), which is honest but is process-observed rather
+than durable. Adding a `createdAt` column to the artifact table would
+make the evidence durable; it is a schema migration and belongs to a
+dedicated slice (every persisted record and test fixture would move
+with it).
+
+### 19. `verify-report-state.mjs` report-poll design note
+On this Windows host a vitest child writes its JSON report and then
+may never exit (worker pool keeps the process alive; observed past a
+120s kill timeout, in and out of a sandbox). The verifier therefore
+waits for the **report** — the artefact it actually consumes — rather
+than for process exit, uses a per-attempt unique report file (a fixed
+name let a lingering child from an earlier run feed a later run a
+stale measurement), and stops the child after reading. On hosts where
+vitest exits cleanly the loop ends on the `exit` event, so CI cost is
+unchanged.
+
+
