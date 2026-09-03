@@ -22,7 +22,7 @@
 | TASK 4.2   (fast mode bypass removal) | `52b7aded26` | n/a | PASS (executor line) | Reviewer schema unification DONE (5.0.3c); Oracle Routing follow-up |
 | TASK 4.3   (FigureSpec data_hash) | `adc50eaebd` | n/a | PASS (schema) | §15 other fields are the follow-up |
 | TASK 5.0   (Second-repair batch: 5.0.5/6/7/8/11 + capture-path rewrites) | (5.0 batch commits) | `artifacts/handoff/TASK-5.0/handoff.md` | PASS (5.0.1 closed under 5.0-R delegation; 5.0.4/5.0.10 DEFERRED on v1.1) | 5.0.9 superseded by P2; 5.0.4 attestation hardening + 5.0.10 numeric tolerance await v1.1 |
-| TASK-P1  (生产者轨: typed-JSON producer, real capture, nine real gates, FORMAL demo, pass corpus) | (P1 commits, head `c86351a370`) | `artifacts/handoff/TASK-P1/` | DONE (code+gates: producer / execution+interpretation producers / 9/9 gates real / FORMAL demo + pass corpus 3/3 DELIVER, FBR 0/3, wrong 2/2 KILLED / 919/919 / verifier RG-06/07/09 PASS) | 作者复签 D1/D3/D7 (decision-log); executor 内嵌整链 + firewall code-run + 真实 provider 遵从率 -> P2 |
+| TASK-P1 (生产者轨) | `d823b7cea` | `artifacts/handoff/TASK-P1/` | PARTIAL → DONE（D1/D3/D7 于 2026-09-04 复签闭口；E4a/E4b/E4c 代签选 A 回执入 decision-log） | P2: executor 内嵌整链（D7 义务）；figure vacuous 解除（D3 义务） |
 | TASK 5.0-R (补漏批次: six-stub elimination, eleven reds to zero, gates_impl + RG-09, exploratory run mode, real final-output sink) | (5.0-R commits) | `artifacts/handoff/TASK-5.0-R/` | PASS (874/874 tests at close; RG-06/07/09 agree; six stubs -> UNIMPLEMENTED then real via P1) | P1 生产者轨 is the next batch; EXPLORATORY marked informal (R1-4) |
 
 ## Pending tasks (not yet started)

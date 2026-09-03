@@ -249,3 +249,12 @@ without `--project=thread-safe` hangs; the sandbox may block bulk deletes
 Contact/return path: reply to whoever sent you this document, or open an
 issue on the repository. All findings will be tracked in
 `artifacts/handoff/` and credited in the handoff.
+
+---
+
+## 批次状态快照
+
+- 2026-09-04：TASK-P1 三个作者复签项（D1 count-bound 覆盖 / D3 figure vacuous /
+  D7 pipeline 权威路径）经审计方推荐代签全部闭口；下一批次 TASK-P2 按
+  `artifacts/handoff/TASK-P2/` 计划执行（executor 整链内嵌 → 遵从率探针 →
+  Figure 数据闭环 → 报告 v2）。

@@ -32,3 +32,24 @@
 ## 状态（2026-09-04）
 - D1 已实现待复签；D3 已实现（vacuous v0）待复签；D4/D5/D6 已实现无复签；D7 待复签。
 - 作者复签入口：D1 ☐、D3 A/B ☐、D7 ☐。
+
+## 复签记录（2026-09-04，作者委托审计方代签）
+
+- **D1** ☑ 批准（A7 count-bound 覆盖 v0）。语义一一对应在 IR v1 不可判定属实；
+  COUNT 界 fail-closed 方向正确。附带义务：P3 引入 reviewer 语义核对前，
+  known-risks #4 的"文本声称 A 实际证明 B"缺口保持显式在册，不得关闭。
+- **D3** ☑ 选 A（接受 figure vacuous v0，9/9 real 登记）。空集真值 + 有图即
+  BLOCK 是诚实语义；demo 的 FORMAL 可交付性依赖该裁决。附带义务：P2
+  figure_data_consistency 真校验落地之日，本 vacuous 语义即解除并在
+  `gates_impl` 同步（D3-closed 记录随 P2 提交写入）。
+- **D7** ☑ 接受（P1 以 pipeline composition 形态收口；executor 内嵌整链推 P2）。
+  附带义务：executor 内嵌 code-run + interpretation 整链列为 **P2 首个必做项**，
+  且 P2 出口必须包含"executor 权威路径首次 FORMAL 交付测试"（不再只有 demo
+  runner 独苗路径）。
+
+## E4 裁决单签批回执（P2 任务书 §9，作者委托审计方按推荐项代签，2026-09-04）
+
+- **E4a** ☑ 选 A（review 缺陷跨轮累积语义；critical 永不过期）。
+- **E4b** ☑ 选 A（reviewer severity 三值词表 + 未知值 fail-closed）。
+- **E4c** ☑ 选 A（fast 模式非关键缺陷放行 + advisory_defects 审计；strict 零容忍不变）。
+- 附带义务：三项落地映射 + 红测随 P2-1 提交（executor review 循环是 P2-1 前置）。
