@@ -1,5 +1,7 @@
 # AGENTS.md
 
+> **纪律前置（必读）**：`DISCIPLINE.md` 是跨批次、跨执行者的全局纪律（诚实红灯/声称-代码一致/IR 入口/平台编码禁令等），任何改动与任务书批次执行前先读它。本文件只讲工程与仓库约定。
+
 DeepSeek Harness is a plugin-based agent harness on vendored Cordis: **everything is a plugin**. Read [docs/architecture.md](docs/architecture.md) before changing `packages/`; follow [docs/AGENTS.md](docs/AGENTS.md) for documentation.
 
 ## Pre-release stance: foundation over blast radius
