@@ -20,3 +20,5 @@
 - S-009 RequirementSpec 传递：P1-4 冻结闭包算法 A7 后实现（§5.7 边界内禁止先动传播图）。
 - figure_data_consistency：P2（无 Figure 数据）。
 - EXPLORATORY 失去"唯一可用"地位后的模式分档产品语义（草稿 vs 提交）：作者 P2 前定稿。
+
+10. **locally-killed mutation runs leave source mutations behind** (observed 2026-09-03): on Windows the mutations runner's per-mutation vitest child does not exit, so killing the wrapper mid-run skips its restore step — one mutation (audit.ts exit_status guard -> `if (false)`) survived into the working tree and was caught only by a full git-status sweep before commit. Prevention: (a) never run the mutation wrapper locally on Windows; run it on CI (Linux) or with a wrapper that restores in a `finally`; (b) before any commit, `git status --short` must show ONLY intended files — treat any stray `src/` modification as an un-restored mutation.
