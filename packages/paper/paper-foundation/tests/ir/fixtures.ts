@@ -283,8 +283,8 @@ export function executionRecord(overrides: Record<string, unknown> = {}): Record
     environment_hash: declaredEnvironmentFingerprint(run),
     runtime_fingerprint_hash: sha256Hex(canonicalJson({ runtime: 'deterministic-fake' })),
     dependency_lock_hash: declaredDependencyLockFingerprint(run, model),
-    input_data_refs: [...run.input_data_refs],
-    output_refs: [...run.output_refs],
+    input_data_refs: [...(run.input_data_refs as ReadonlyArray<string>)],
+    output_refs: [...(run.output_refs as ReadonlyArray<string>)],
     output_hash: sha256Hex(canonicalJson({
       'file:///runs/RUN1/result.json': outputBytesHash,
     })),

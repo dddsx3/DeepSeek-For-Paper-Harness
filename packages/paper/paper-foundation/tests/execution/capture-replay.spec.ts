@@ -7,23 +7,21 @@
  * contracts, including the real LocalProcessRunner end-to-end (C5
  * evidence: an actual node process, captured, replayed, verified).
  */
-import { describe, expect, it } from 'vitest'
+import {  describe,  expect,  it  } from 'vitest'
 import {
   ModelingIr,
   canonicalJson,
   sha256Hex,
 } from '../../src/ir/index.ts'
 import {
-  LocalProcessRunner,
   captureExecution,
   ingestCapturedRecord,
   replayExecution,
   runIndependentExecutionAudit,
   type ExecutionOutcome,
   type ExecutionRunner,
-  type LocalProcessRunnerConfig,
 } from '../../src/execution/index.ts'
-import { chainThrough, result, runArtifact } from '../ir/fixtures.ts'
+import {  chainThrough,  result,  runArtifact  } from '../ir/fixtures.ts'
 
 const NOW = '2026-09-01T00:00:00.000Z'
 const CODE = 'console.log("executing");\n'

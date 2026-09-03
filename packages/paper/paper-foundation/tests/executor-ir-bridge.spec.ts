@@ -10,14 +10,14 @@
  * Each test below is also a fault-corpus fixture (B-001..B-005).
  */
 
-import { describe, expect, it } from 'vitest'
-import { Context } from '@deepseek-ai/cordis'
-import type { GenerateOptions, StreamChunk } from '@deepseek-ai/dsh-llm'
+import {  describe,  expect,  it  } from 'vitest'
+import {  Context  } from '@deepseek-ai/cordis'
+import type {  GenerateOptions,  StreamChunk  } from '@deepseek-ai/dsh-llm'
 import Storage from '@deepseek-ai/dsh-storage'
-import { DomainFacility } from '@deepseek-ai/dsh-storage-domain'
-import { MemoryMediaPool, MemoryStorageBackend } from '../../../storage/storage-domain/tests/helpers/memory-backend.ts'
+import {  DomainFacility  } from '@deepseek-ai/dsh-storage-domain'
+import {  MemoryMediaPool,  MemoryStorageBackend  } from '../../../storage/storage-domain/tests/helpers/memory-backend.ts'
 import PaperRuntimeGuard from '../src/runtime/runtime-guard.ts'
-import { createExploratoryProfile } from '../src/runtime/profile.ts'
+import {  createExploratoryProfile  } from '../src/runtime/profile.ts'
 import {
   PaperExecutorService,
   PaperFoundationService,
@@ -27,8 +27,8 @@ import {
   WorkflowExecutionError,
   type PaperSettings,
 } from '../src/index.ts'
-import { ModelingIr } from '../src/ir/index.ts'
-import { backboneIr, chainThrough, claim, modelClaim, modelSpec, problemSpec, result, runArtifact } from './ir/fixtures.ts'
+import {  ModelingIr  } from '../src/ir/index.ts'
+import {  backboneIr,  chainThrough,  modelClaim } from './ir/fixtures.ts'
 
 const settings: PaperSettings = {
   executor: { provider: 'fake', model: 'exec-model', credentialRef: 'cred://executor', timeoutMs: 1000 },

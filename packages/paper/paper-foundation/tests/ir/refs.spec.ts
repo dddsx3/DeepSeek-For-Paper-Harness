@@ -1,7 +1,7 @@
-import { describe, expect, it } from 'vitest'
-import { IR_REF_FIELDS, validateRefFields } from '../../src/ir/index.ts'
-import type { IrKind } from '../../src/ir/index.ts'
-import { claim, dataArtifact, figureSpec, modelSpec, result, runArtifact, verificationResult } from './fixtures.ts'
+import {  describe,  expect,  it  } from 'vitest'
+import {  IR_REF_FIELDS,  validateRefFields  } from '../../src/ir/index.ts'
+import type {  IrKind  } from '../../src/ir/index.ts'
+import {  claim,  figureSpec,  modelSpec,  result,  runArtifact,  verificationResult  } from './fixtures.ts'
 
 /** A store snapshot that only knows about these ids. */
 const REGISTRY: ReadonlyMap<string, IrKind> = new Map<string, IrKind>([

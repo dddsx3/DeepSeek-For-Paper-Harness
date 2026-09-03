@@ -7,19 +7,18 @@
  * it is a real member of the closed critical set (D8), and the executor
  * enforces it end-to-end before `authorizeDelivery`.
  */
-import { describe, expect, it } from 'vitest'
-import { Context } from '@deepseek-ai/cordis'
-import type { GenerateOptions, StreamChunk } from '@deepseek-ai/dsh-llm'
+import {  describe,  expect,  it  } from 'vitest'
+import {  Context  } from '@deepseek-ai/cordis'
+import type {  GenerateOptions,  StreamChunk  } from '@deepseek-ai/dsh-llm'
 import Storage from '@deepseek-ai/dsh-storage'
-import { DomainFacility } from '@deepseek-ai/dsh-storage-domain'
-import { MemoryMediaPool, MemoryStorageBackend } from '../../../../storage/storage-domain/tests/helpers/memory-backend.ts'
+import {  DomainFacility  } from '@deepseek-ai/dsh-storage-domain'
+import {  MemoryMediaPool,  MemoryStorageBackend  } from '../../../../storage/storage-domain/tests/helpers/memory-backend.ts'
 import {
   CRITICAL_GATE_IDS,
   PROVENANCE_GATE_ID,
 } from '../../src/delivery/delivery-policy.ts'
 import {
   ModelingIr,
-  type ExecutionRecord,
 } from '../../src/ir/index.ts'
 import {
   auditExecutionProvenance,
@@ -34,10 +33,9 @@ import {
   PaperSettingsService,
   RunId,
   WorkflowEngineService,
-  WorkflowExecutionError,
   type PaperSettings,
 } from '../../src/index.ts'
-import { requiresIrBackbone } from '../../src/ir/bridge.ts'
+import {  requiresIrBackbone  } from '../../src/ir/bridge.ts'
 import {
   backboneIr,
   chainThrough,

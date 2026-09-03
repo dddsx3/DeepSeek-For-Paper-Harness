@@ -39,14 +39,14 @@
  *   - Renderer / EquationSpec (TASK 7)
  */
 
-import { describe, expect, it } from 'vitest'
-import { Context } from '@deepseek-ai/cordis'
-import type { GenerateOptions, StreamChunk } from '@deepseek-ai/dsh-llm'
+import {  describe,  expect,  it  } from 'vitest'
+import {  Context  } from '@deepseek-ai/cordis'
+import type {  GenerateOptions,  StreamChunk  } from '@deepseek-ai/dsh-llm'
 import Storage from '@deepseek-ai/dsh-storage'
-import { DomainFacility } from '@deepseek-ai/dsh-storage-domain'
-import { MemoryMediaPool, MemoryStorageBackend } from '../../../../storage/storage-domain/tests/helpers/memory-backend.ts'
+import {  DomainFacility  } from '@deepseek-ai/dsh-storage-domain'
+import {  MemoryMediaPool,  MemoryStorageBackend  } from '../../../../storage/storage-domain/tests/helpers/memory-backend.ts'
 import PaperRuntimeGuard from '../../src/runtime/runtime-guard.ts'
-import { createExploratoryProfile } from '../../src/runtime/profile.ts'
+import {  createExploratoryProfile  } from '../../src/runtime/profile.ts'
 import {
   PaperExecutorService,
   PaperFoundationService,
@@ -66,19 +66,9 @@ import {
   backboneIr,
   chainThrough,
   claim,
-  inputDataArtifact,
-  dataArtifact,
   modelClaim,
   numericClaim,
   qualitativeClaim,
-  requiredOutput,
-  requirementSpec,
-  runArtifact,
-  result,
-  problemSpec,
-  modelSpec,
-  variableSymbol,
-  parameterSymbol,
 } from '../ir/fixtures.ts'
 
 const settings: PaperSettings = {
@@ -398,7 +388,7 @@ describe('RT-C4-05 — MODEL claim must resolve to a ModelSpec', () => {
       model_refs: ['RES1'], // points at a Result, not a ModelSpec
     }))
     expect(verdict.accepted).toBe(false)
-    expect(verdict.failures.some(f => f.kind === 'reference_kind_mismatch')).toBe(true)
+    expect((verdict.accepted ? [] : verdict.failures).some(f => f.kind === 'reference_kind_mismatch')).toBe(true)
   })
 
   it('BLOCKED: CRITICAL MODEL claim naming a missing ModelSpec is REFUSED at the store boundary', () => {
@@ -410,7 +400,7 @@ describe('RT-C4-05 — MODEL claim must resolve to a ModelSpec', () => {
       model_refs: ['M-NOT-REGISTERED'],
     }))
     expect(verdict.accepted).toBe(false)
-    expect(verdict.failures.some(f => f.kind === 'unresolved_reference')).toBe(true)
+    expect((verdict.accepted ? [] : verdict.failures).some(f => f.kind === 'unresolved_reference')).toBe(true)
   })
 })
 

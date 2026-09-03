@@ -20,9 +20,9 @@
  * the test must be marked as documenting the gap.
  */
 
-import { describe, expect, it } from 'vitest'
-import { ModelingIr, evaluateIrBridge } from '../../src/ir/index.ts'
-import { chainThrough } from '../ir/fixtures.ts'
+import {  describe,  expect,  it  } from 'vitest'
+import {  ModelingIr,  evaluateIrBridge  } from '../../src/ir/index.ts'
+import {  chainThrough  } from '../ir/fixtures.ts'
 
 const AT = '2026-09-01T00:00:00.000Z'
 
@@ -40,7 +40,7 @@ describe('RT-C1-27 gap — numeric_binding Proxy is accepted', () => {
     const proxy = new Proxy(
       { result_ref: 'RES1', asserted_value: 0.731, asserted_unit: 'm' },
       {
-        get(target, key) {
+        get(_target, key) {
           if (key === 'result_ref') return 'RES1'
           if (key === 'asserted_value') return 0.731
           if (key === 'asserted_unit') return 'm'
@@ -69,7 +69,7 @@ describe('RT-C1-27 gap — numeric_binding Proxy is accepted', () => {
     const proxy = new Proxy(
       { result_ref: 'RES1', asserted_value: 0.731, asserted_unit: 'm' },
       {
-        get(target, key) {
+        get(_target, key) {
           if (key === 'result_ref') return 'RES1'
           if (key === 'asserted_value') return 0.731
           if (key === 'asserted_unit') return 'm'

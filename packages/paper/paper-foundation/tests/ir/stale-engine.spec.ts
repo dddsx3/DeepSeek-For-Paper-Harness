@@ -14,12 +14,11 @@
  * Every test asserts the observable verdict; an attack that succeeds
  * is a gap, an attack that is blocked is coverage.
  */
-import { describe, expect, it } from 'vitest'
+import {  describe,  expect,  it  } from 'vitest'
 import {
   CAPTURE_ATTESTATION,
   ModelingIr,
   computeStaleReport,
-  ingestCapturedRecord,
   type ExecutionRecord,
   type IrObjectRecord,
 } from '../../src/ir/index.ts'
@@ -42,21 +41,6 @@ function storeWithBackbone(loadBytes: string | null = null): ModelingIr {
     ir.put('RunArtifact', { ...runArtifact(), code_ref: 'file:///code-v2.py' } as never)
   }
   return ir
-}
-
-function storeWithFreshRecord(): ModelingIr {
-  // Like storeWithBackbone, but ingests a fresh record so the chain
-  // is NOT STALE — used by S-005.
-  const ir = storeWithBackbone()
-  ingest(ir)
-  return ir
-}
-
-function ingest(ir: ModelingIr): void {
-  if (ir.has('EXEC1')) return
-  const rec: ExecutionRecord = executionRecord() as ExecutionRecord
-  const v = ir.putExecutionRecord(rec, CAPTURE_ATTESTATION)
-  expect(v.accepted, JSON.stringify(v)).toBe(true)
 }
 
 describe('TASK 3.5 — direct STALE on a run (S-001..S-006)', () => {

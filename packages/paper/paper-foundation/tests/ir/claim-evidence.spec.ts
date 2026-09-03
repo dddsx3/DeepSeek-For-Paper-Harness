@@ -12,7 +12,7 @@
  * unit test (and vice versa); the file is the place to land both
  * kinds of regression.
  */
-import { describe, expect, it } from 'vitest'
+import {  describe,  expect,  it  } from 'vitest'
 import {
   CLAIM_EVIDENCE_FAILURE_KINDS,
   ModelingIr,
@@ -22,7 +22,6 @@ import {
 } from '../../src/ir/index.ts'
 import {
   backboneIr,
-  chainThrough,
   claim,
   modelClaim,
   qualitativeClaim,

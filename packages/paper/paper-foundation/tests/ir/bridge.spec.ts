@@ -9,7 +9,7 @@
  * end-to-end attempt rather than as three isolated units.
  */
 
-import { describe, expect, it } from 'vitest'
+import {  describe,  expect,  it  } from 'vitest'
 import {
   IR_BACKBONE_KINDS,
   IR_KINDS,
@@ -27,7 +27,7 @@ import {
   type DeliveryPolicy,
   type GateRecord,
 } from '../../src/delivery/index.ts'
-import { chainThrough, claim, modelClaim, modelSpec, problemSpec, result } from './fixtures.ts'
+import {  chainThrough,  claim,  modelClaim,  result  } from './fixtures.ts'
 
 const AT = '2026-08-29T00:00:00.000Z'
 

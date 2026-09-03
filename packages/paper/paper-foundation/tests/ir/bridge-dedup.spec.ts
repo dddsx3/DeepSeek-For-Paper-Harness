@@ -84,8 +84,8 @@ describe('PHASE 3 — the bridge emits no structural reference failures', () => 
     for (const failure of decision.contractFailures) {
       expect(['unbound_data_artifact', 'symbol_role_mismatch', 'cross_source_requirement']).toContain(failure.kind)
     }
-    expect(decision.contractFailures.some(f => f.kind === 'unresolved_reference')).toBe(false)
-    expect(decision.contractFailures.some(f => f.kind === 'reference_kind_mismatch')).toBe(false)
+    expect(decision.contractFailures.some(f => (f.kind as string) === 'unresolved_reference')).toBe(false)
+    expect(decision.contractFailures.some(f => (f.kind as string) === 'reference_kind_mismatch')).toBe(false)
     expect(decision.status).toBe('BLOCKED')
   })
 })

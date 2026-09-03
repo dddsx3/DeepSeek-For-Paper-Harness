@@ -14,7 +14,7 @@
  * attack already resolves. That keeps the failure reason attributable to the
  * field under attack alone.
  *
- * Assertions are structural (`kind` + `path` on `verdict.failures`) instead
+ * Assertions are structural (`kind` + `path` on `failuresOf(verdict)`) instead
  * of matching the exact reason sentence, so the regressions stay stable when
  * a diagnostic string is reworded.
  *
@@ -24,13 +24,11 @@
  *   path   the field under attack
  *   target the ref that violates existence / kind closure
  */
-import { describe, expect, it } from 'vitest'
-import { ModelingIr, type IrIngestVerdict, type IrFailure } from '../../src/ir/index.ts'
+import {  describe,  expect,  it  } from 'vitest'
+import {  ModelingIr,  type IrIngestVerdict,  type IrFailure  } from '../../src/ir/index.ts'
 import {
   dataArtifact,
-  figureSpec,
   modelSpec,
-  problemSpec,
   runArtifact,
   chainThrough,
 } from './fixtures.ts'
@@ -41,7 +39,7 @@ function seedThrough(kind: Parameters<ModelingIr['put']>[0]): ModelingIr {
   for (const entry of chainThrough(kind)) {
     const verdict = ir.put(entry.kind, entry.value) as IrIngestVerdict
     if (!verdict.accepted) {
-      throw new Error(`seed failed at ${entry.kind}: ${JSON.stringify(verdict.failures)}`)
+      throw new Error(`seed failed at ${entry.kind}: ${JSON.stringify(failuresOf(verdict))}`)
     }
   }
   return ir
@@ -56,6 +54,19 @@ function hasFailure(
   return failures.some(f => f.kind === kind && f.path === path)
 }
 
+/**
+ * Discriminate the ingest verdict so the rejected-branch `failures`
+ * field is reachable from plain (non-control-flow) test code. The
+ * union member that carries `failures` is only the `accepted: false`
+ * one; reading it unconditionally on the union is a type error, so the
+ * helper surfaces `[]` on the accepted branch (where the failure
+ * assertion below is false either way).
+ */
+function failuresOf(verdict: IrIngestVerdict): ReadonlyArray<IrFailure> {
+  const v: IrIngestVerdict = verdict
+  return v.accepted ? [] : v.failures
+}
+
 describe('R-001 — ProblemSpec.raw_problem_ref points at an unregistered id', () => {
   it('store refuses with unresolved_reference', () => {
     const ir = new ModelingIr({ now: () => '2026-08-30T00:00:00.000Z' })
@@ -65,7 +76,7 @@ describe('R-001 — ProblemSpec.raw_problem_ref points at an unregistered id', (
       requirement_refs: [],
     }) as IrIngestVerdict
     expect(verdict.accepted).toBe(false)
-    expect(hasFailure(verdict.failures, 'unresolved_reference', 'raw_problem_ref')).toBe(true)
+    expect(hasFailure(failuresOf(verdict), 'unresolved_reference', 'raw_problem_ref')).toBe(true)
     expect(ir.has('P1')).toBe(false)
   })
 })
@@ -82,7 +93,7 @@ describe('R-002 — ProblemSpec.requirement_refs points at an unregistered id', 
       requirement_refs: ['R-DOES-NOT-EXIST'],
     }) as IrIngestVerdict
     expect(verdict.accepted).toBe(false)
-    expect(hasFailure(verdict.failures, 'unresolved_reference', 'requirement_refs')).toBe(true)
+    expect(hasFailure(failuresOf(verdict), 'unresolved_reference', 'requirement_refs')).toBe(true)
     expect(ir.has('P1')).toBe(false)
   })
 })
@@ -99,7 +110,7 @@ describe('R-003 — ProblemSpec.requirement_refs points at a DataArtifact (kind 
       requirement_refs: ['DA-RAW'],
     }) as IrIngestVerdict
     expect(verdict.accepted).toBe(false)
-    expect(hasFailure(verdict.failures, 'reference_kind_mismatch', 'requirement_refs')).toBe(true)
+    expect(hasFailure(failuresOf(verdict), 'reference_kind_mismatch', 'requirement_refs')).toBe(true)
   })
 })
 
@@ -114,7 +125,7 @@ describe('R-004 — ModelSpec.variable_refs points at an unregistered id', () =>
       dependencies: [],
     }) as IrIngestVerdict
     expect(verdict.accepted).toBe(false)
-    expect(hasFailure(verdict.failures, 'unresolved_reference', 'variable_refs')).toBe(true)
+    expect(hasFailure(failuresOf(verdict), 'unresolved_reference', 'variable_refs')).toBe(true)
   })
 })
 
@@ -127,7 +138,7 @@ describe('R-005 — ModelSpec.variable_refs points at a Result (kind mismatch)',
       variable_refs: ['RES1'],
     }) as IrIngestVerdict
     expect(verdict.accepted).toBe(false)
-    expect(hasFailure(verdict.failures, 'reference_kind_mismatch', 'variable_refs')).toBe(true)
+    expect(hasFailure(failuresOf(verdict), 'reference_kind_mismatch', 'variable_refs')).toBe(true)
   })
 })
 
@@ -143,7 +154,7 @@ describe('R-006 — parameter_refs[].symbol_ref points at an unregistered id', (
     expect(verdict.accepted).toBe(false)
     // The path must be stable and nested so the audit trail names the exact
     // offender (parameter_refs.<index>.symbol_ref).
-    expect(hasFailure(verdict.failures, 'unresolved_reference', 'parameter_refs.0.symbol_ref')).toBe(true)
+    expect(hasFailure(failuresOf(verdict), 'unresolved_reference', 'parameter_refs.0.symbol_ref')).toBe(true)
   })
 })
 
@@ -157,7 +168,7 @@ describe('R-007 — parameter_refs[].symbol_ref points at a DataArtifact (kind m
       dependencies: [],
     }) as IrIngestVerdict
     expect(verdict.accepted).toBe(false)
-    expect(hasFailure(verdict.failures, 'reference_kind_mismatch', 'parameter_refs.0.symbol_ref')).toBe(true)
+    expect(hasFailure(failuresOf(verdict), 'reference_kind_mismatch', 'parameter_refs.0.symbol_ref')).toBe(true)
   })
 })
 
@@ -170,7 +181,7 @@ describe('R-008 — RunArtifact.input_data_refs points at an unregistered id', (
       input_data_refs: ['DA-DOES-NOT-EXIST'],
     }) as IrIngestVerdict
     expect(verdict.accepted).toBe(false)
-    expect(hasFailure(verdict.failures, 'unresolved_reference', 'input_data_refs')).toBe(true)
+    expect(hasFailure(failuresOf(verdict), 'unresolved_reference', 'input_data_refs')).toBe(true)
   })
 })
 
@@ -183,7 +194,7 @@ describe('R-009 — RunArtifact.input_data_refs points at a Result (kind mismatc
       input_data_refs: ['RES1'],
     }) as IrIngestVerdict
     expect(verdict.accepted).toBe(false)
-    expect(hasFailure(verdict.failures, 'reference_kind_mismatch', 'input_data_refs')).toBe(true)
+    expect(hasFailure(failuresOf(verdict), 'reference_kind_mismatch', 'input_data_refs')).toBe(true)
   })
 })
 
@@ -196,7 +207,7 @@ describe('R-010 — FigureSpec.data_refs points at a ModelSpec (kind mismatch)',
       claim_refs: [],
     }) as IrIngestVerdict
     expect(verdict.accepted).toBe(false)
-    expect(hasFailure(verdict.failures, 'reference_kind_mismatch', 'data_refs')).toBe(true)
+    expect(hasFailure(failuresOf(verdict), 'reference_kind_mismatch', 'data_refs')).toBe(true)
   })
 })
 
@@ -209,7 +220,7 @@ describe('R-011 — FigureSpec.data_refs points at an unregistered id', () => {
       claim_refs: [],
     }) as IrIngestVerdict
     expect(verdict.accepted).toBe(false)
-    expect(hasFailure(verdict.failures, 'unresolved_reference', 'data_refs')).toBe(true)
+    expect(hasFailure(failuresOf(verdict), 'unresolved_reference', 'data_refs')).toBe(true)
   })
 })
 

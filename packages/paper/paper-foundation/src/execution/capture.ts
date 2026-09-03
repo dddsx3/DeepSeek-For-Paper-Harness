@@ -187,7 +187,12 @@ function sameSet(a: ReadonlyArray<string>, b: ReadonlyArray<string>): boolean {
  */
 export function ingestCapturedRecord(
   ir: ModelingIr,
-  record: ExecutionRecord,
+  // Loose by design (mirrors `putExecutionRecord`): the seam
+  // schema-validates whatever crosses it, and forged / partial /
+  // overridden record shapes must be expressible to prove the runtime
+  // refusal paths (RT-X1..RT-X3). The real producer's output satisfies
+  // the closed schema, so this widening costs nothing on the happy path.
+  record: Record<string, unknown>,
 ): ReturnType<ModelingIr['putExecutionRecord']> {
   return ir.putExecutionRecord(record, CAPTURE_ATTESTATION)
 }

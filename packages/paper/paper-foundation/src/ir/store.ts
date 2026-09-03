@@ -255,20 +255,26 @@ export class ModelingIr {
    * `CAPTURE_ATTESTATION` symbol (constructed inside the capture
    * module — never exported, never re-exported, never serializable);
    * any other value is refused with `producer_required`.
+   *
+   * The record is typed `Record<string, unknown>`, not the closed
+   * schema type: the seam's job is to *schema-validate whatever
+   * crosses it* (`#admit`), and attack tests deliberately hand it
+   * forged / partial / overridden shapes to prove the runtime refusal.
+   * A statically-closed parameter would make those tests untyped.
    */
   putExecutionRecord(
-    record: import('./schema.ts').ExecutionRecord,
+    record: Record<string, unknown>,
     attestation: typeof CAPTURE_ATTESTATION,
   ): IrIngestVerdict<'ExecutionRecord'> {
     if (attestation !== CAPTURE_ATTESTATION) {
-      return this.#refuse('ExecutionRecord', record.execution_id, [
+      return this.#refuse('ExecutionRecord', bestEffortId('ExecutionRecord', record), [
         { kind: 'producer_required', path: '$', reason: 'attestation does not match the capture module\'s symbol (INV-3-M)' },
       ])
     }
     try {
       return this.#admit('ExecutionRecord' as 'ExecutionRecord', record as unknown)
     } catch (error) {
-      return this.#refuse('ExecutionRecord', record.execution_id, [
+      return this.#refuse('ExecutionRecord', bestEffortId('ExecutionRecord', record), [
         { kind: 'internal_error', path: '$', reason: describeError(error) },
       ])
     }

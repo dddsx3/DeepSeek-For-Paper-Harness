@@ -13,13 +13,12 @@
  * gap) or was blocked (developers already closed it). Findings are
  * enumerated in artifacts/handoff/TASK-2/redteam-rt-c3.md.
  */
-import { describe, expect, it } from 'vitest'
+import {  describe,  expect,  it  } from 'vitest'
 import {
   ModelingIr,
   evaluateIrBridge,
-  inspectClaimEvidence,
 } from '../../src/ir/index.ts'
-import type { IrObjectRecord } from '../../src/ir/index.ts'
+import type {  IrObjectRecord  } from '../../src/ir/index.ts'
 import {
   backboneIr,
   chainThrough,

@@ -12,7 +12,7 @@
  *     claim-evidence path — claim must not silently accept them).
  */
 
-import { describe, expect, it } from 'vitest'
+import {  describe,  expect,  it  } from 'vitest'
 import {
   CRITICAL_GATE_IDS,
   IR_CANONICALIZATION_GATE_ID,
@@ -33,7 +33,6 @@ import {
 } from '../../src/ir/index.ts'
 import {
   backboneIr,
-  claim,
   chainThrough,
   numericClaim,
   qualitativeClaim,
@@ -50,7 +49,7 @@ function freshIr(): ModelingIr {
 // missing / downgraded / duplicated.
 // ===========================================================================
 describe('RT-C4-10 — promoter enforces ir_canonicalization presence as critical', () => {
-  const allPassExcept: GateRecord[] = (excludeId: string): GateRecord[] => {
+  const allPassExcept = (excludeId: string): GateRecord[] => {
     const out: GateRecord[] = []
     for (const id of CRITICAL_GATE_IDS) {
       if (id === excludeId) continue
@@ -317,7 +316,7 @@ describe('RT-C4-16 — gate-forgery', () => {
   })
 
   it('a policy with NO IR_CANONICALIZATION_GATE_ID is BLOCKED — the bridge cannot be silently bypassed', () => {
-    const gatesWithoutCanonicalization = CRITICAL_GATE_IDS
+    const gatesWithoutCanonicalization: GateRecord[] = CRITICAL_GATE_IDS
       .filter(id => id !== IR_CANONICALIZATION_GATE_ID)
       .map(id => ({ id, status: 'PASS', critical: true, observedAt: AT }))
     const policy: DeliveryPolicy = {

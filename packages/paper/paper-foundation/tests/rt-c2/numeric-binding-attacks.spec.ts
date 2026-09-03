@@ -211,7 +211,7 @@ describe('RT-C2-11 — FP round-trip drift disguised as a match', () => {
   it('numericValuesEqual rejects 0.7310000001 vs 0.731', () => {
     expect(numericValuesEqual(0.7310000001, 0.731)).toBe(false)
     // Sanity: the FP literals are not aliased.
-    expect(0.731 === 0.7310000001).toBe(false)
+    expect((0.731 as number) === (0.7310000001 as number)).toBe(false)
   })
 
   it('semantic guard catches the drift — BLOCKED', () => {

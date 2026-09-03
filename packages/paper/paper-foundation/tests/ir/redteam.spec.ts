@@ -8,7 +8,7 @@
  * shut.
  */
 
-import { describe, expect, it } from 'vitest'
+import {  describe,  expect,  it  } from 'vitest'
 import {
   ID_FIELD_BY_KIND,
   IR_KINDS,
@@ -16,8 +16,8 @@ import {
   IR_SCHEMAS,
   ModelingIr,
 } from '../../src/ir/index.ts'
-import type { IrAuditEvent } from '../../src/ir/index.ts'
-import { chainThrough, claim, dataArtifact, problemSpec, result } from './fixtures.ts'
+import type {  IrAuditEvent  } from '../../src/ir/index.ts'
+import {  chainThrough,  claim,  dataArtifact,  result  } from './fixtures.ts'
 
 function armed(events: IrAuditEvent[] = []): ModelingIr {
   const ir = new ModelingIr({ audit: e => events.push(e), now: () => '2026-08-28T00:00:00.000Z' })
