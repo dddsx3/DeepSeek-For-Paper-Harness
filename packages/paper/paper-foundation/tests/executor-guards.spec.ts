@@ -243,14 +243,15 @@ describe('reviewer output parsing', () => {
       .toContain('critical:reviewer returned unparsable JSON')
   })
 
-  it('keeps described entries, drops shapeless ones, and defaults severity to major when missing', async () => {
-    // TASK 5.0.3c: a defect with no `severity` field is mapped to
-    // `major` (the closed enum's default for unknown / missing values);
-    // entries without a string description are dropped.
+  it('keeps described entries, drops shapeless ones, and fails closed on a missing severity', async () => {
+    // TASK 5.0.3c -> E4b (P2): a defect with no `severity` field is
+    // CRITICAL — an unclassifiable finding blocks, it is never silently
+    // downgraded to major/minor; entries without a string description are
+    // dropped; an explicit three-value severity keeps its value.
     const reported = await reviewDefects(
       '{"defects":[{"description":"missing citation"},"nonsense",{"severity":"major","description":"wrong claim"}]}',
     )
-    expect(reported).toContain('major:missing citation')
+    expect(reported).toContain('critical:missing citation')
     expect(reported).toContain('major:wrong claim')
     expect(reported.some(entry => entry.includes('nonsense'))).toBe(false)
   })

@@ -12,12 +12,12 @@
   },
   "baseline": {
     "files": 71,
-    "total_tests": 919,
-    "passed_tests": 919,
+    "total_tests": 925,
+    "passed_tests": 925,
     "failed_tests": 0,
     "failed_test_suites": 0,
     "tsc_clean": true,
-    "baseline_at": "P1-5 slice: FORMAL demo pipeline + pass corpus + loadCode wiring + P1-3 producers (13 new tests). execution-producer.spec (real spawn) counted by CI on Linux."
+    "baseline_at": "P2-1/E4 slice: review-loop semantics v2 (E4a/b/c) +6 tests; measured full suite incl real-spawn spec"
   },
   "failures_by_origin": {},
   "gates_impl": [

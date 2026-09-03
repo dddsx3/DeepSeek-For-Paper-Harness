@@ -123,6 +123,18 @@ export const manifestSchema = z.object({
   informal: z.boolean(),
   finalArtifactId: artifactIdSchema.nullable(),
   gates: z.record(z.string(), z.boolean()),
+  // E4c (P2): fast-mode delivery may carry MINOR review defects; when it
+  // does they are recorded here so the manifest never hides them. Absent
+  // for strict/formal/exploratory deliveries and clean fast deliveries.
+  advisory_defects: z
+    .array(
+      z.object({
+        id: z.string().min(1),
+        severity: z.enum(['critical', 'major', 'minor']),
+        description: z.string(),
+      }).strict(),
+    )
+    .optional(),
   usage: usageSchema,
   redacted: z.literal(true),
 })

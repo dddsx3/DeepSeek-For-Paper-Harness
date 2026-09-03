@@ -58,9 +58,13 @@ export interface DeliveryVerdict {
 
 /** One structured reviewer finding. */
 export interface ReviewDefect {
-  /** How much the finding matters. TASK 5.0.3c: aligned with the IR's
-   *  FINDING_SEVERITIES set so the runtime review vocabulary matches the
-   *  canonical record shape. */
+  /** Stable id the review protocol carries across rounds (E4a): later
+   *  verdicts reference this id in `resolved` — a defect with no id can
+   *  never be resolved and never expires. */
+  readonly id: string
+  /** How much the finding matters. E4b: three-value vocabulary aligned
+   *  with FINDING_SEVERITIES (critical | major | minor); an unknown
+   *  severity is fail-closed (parsed as critical), never downgraded. */
   readonly severity: 'critical' | 'major' | 'minor'
   /** What the reviewer objected to. */
   readonly description: string
@@ -251,20 +255,50 @@ export class WorkflowExecutor {
       ])
 
       let current = draft.text
-      let defects: ReviewDefect[] = []
+      // E4a (P2, sign-off A): defects accumulate ACROSS rounds. A defect
+      // leaves the set ONLY through an explicit `resolved` id in a later
+      // review verdict; a clean-looking review that resolves nothing cannot
+      // silently age a CRITICAL out — critical never expires without its
+      // resolved record. Review rounds carry an unresolved-defect ledger and
+      // ask the reviewer to adjudicate it (remaining/resolved) instead of
+      // re-discovering defects from scratch each round.
+      const unresolved = new Map<string, ReviewDefect>()
+      let advisoryDefects: ReviewDefect[] = []
+      let gatePassed = false
       for (let round = 0; round <= policy.maxReviseRounds; round += 1) {
         const review = await this.runNode(
           runId, 'review', round === 0 ? 'review' : `review #${round + 1}`, 'reviewer',
-          reviewSections(task, current),
+          reviewSections(task, current, [...unresolved.values()]),
         )
-        defects = parseDefects(review.text)
-        for (const defect of defects) {
+        const report = parseReviewReport(review.text, [...unresolved.keys()])
+        for (const id of report.resolved) unresolved.delete(id)
+        for (const defect of report.defects) {
+          const prior = unresolved.get(defect.id)
+          if (prior !== undefined && prior.severity === 'critical' && defect.severity !== 'critical') {
+            // Fail-closed: a re-reported critical cannot be downgraded in
+            // place — the only legal exit for a critical is `resolved`.
+            unresolved.set(defect.id, { ...prior, description: defect.description })
+          } else {
+            unresolved.set(defect.id, defect)
+          }
+        }
+        for (const defect of unresolved.values()) {
           await this.engine.appendPublic(runId, review.nodeId, 'defect', {
             severity: defect.severity,
             description: defect.description,
+            defectId: defect.id,
           })
         }
-        if (defects.length === 0 || round === policy.maxReviseRounds) break
+        // E4a: a resolved record is the ONLY way a defect leaves the ledger.
+        // When nothing is unresolved the paper is clean; otherwise the editor
+        // gets the remaining rounds to fix it and the reviewer adjudicates
+        // again — the gate below decides at the ceiling, and a CRITICAL with
+        // no resolved record never expires.
+        if (unresolved.size === 0) {
+          gatePassed = true
+          break
+        }
+        if (round === policy.maxReviseRounds) break
         const revised = await this.runNode(
           runId, 'revise', `revise #${round + 1}`, 'editorAi',
           [
@@ -272,7 +306,7 @@ export class WorkflowExecutor {
             { name: 'draft', text: `Current text:\n${current}`, trimPriority: TRIM_DRAFT },
             {
               name: 'defects',
-              text: `Defects:\n${defects.map(defect => `- [${defect.severity}] ${defect.description}`).join('\n')}`,
+              text: `Defects:\n${[...unresolved.values()].map(defect => `- [${defect.id}] [${defect.severity}] ${defect.description}`).join('\n')}`,
               trimPriority: TRIM_DEFECTS,
             },
             { name: 'instruction', text: 'Return the corrected text only.', trimPriority: KEEP },
@@ -281,19 +315,27 @@ export class WorkflowExecutor {
         current = revised.text
       }
 
-      // TASK 5.0.3c / v1.1 §A-7: the reviewer's verdict is no longer a
-      // straight majority. A single CRITICAL finding blocks delivery
-      // unconditionally (a "failed review" is exactly that). MAJOR /
-      // MINOR findings are advisory; the only path past them is the
-      // success path above (defects.length === 0). This is the minimal
-      // Oracle Routing step: critical findings can never be voted away.
-      const criticalCount = defects.filter(d => d.severity === 'critical').length
-      const gatePassed = defects.length === 0
+      // E4c (P2, sign-off A): fast mode may deliver with MINOR defects left
+      // (advisory, audited); MAJOR/CRITICAL still block. strict / formal /
+      // exploratory keep zero tolerance — any unresolved defect blocks.
+      if (!gatePassed && initial.mode === 'fast') {
+        const outstanding = [...unresolved.values()]
+        if (outstanding.every(d => d.severity === 'minor')) {
+          gatePassed = true
+          advisoryDefects = outstanding
+        }
+      }
+      if (!gatePassed && initial.mode !== 'fast') {
+        gatePassed = unresolved.size === 0
+      }
+      const outstandingList = [...unresolved.values()]
+      const criticalCount = outstandingList.filter(d => d.severity === 'critical').length
       await this.engine.appendPublic(runId, null, 'gate_result', {
         gate: 'review',
         passed: gatePassed,
-        defects_total: defects.length,
+        defects_total: outstandingList.length,
         defects_critical: criticalCount,
+        advisory: advisoryDefects.length,
       })
 
       // TASK 1.25: the paper may not be delivered unless its mathematical
@@ -323,7 +365,11 @@ export class WorkflowExecutor {
           eventType: 'gate_failed',
           actor: 'paper-executor',
           runId,
-          detail: { gate: 'review', defects: defects.length, reviews: policy.maxReviseRounds + 1 },
+          detail: {
+            gate: 'review',
+            defects: outstandingList.length,
+            reviews: policy.maxReviseRounds + 1,
+          },
         })
         throw new WorkflowExecutionError(
           'gate-failed',
@@ -375,7 +421,7 @@ export class WorkflowExecutor {
           `run '${runId}' cannot deliver: ${promotion.error.kind} (${('gateFailures' in promotion.error ? promotion.error.gateFailures.join(',') : 'from=' + (promotion.error as { from: string }).from)})`,
         )
       }
-      const manifest = this.buildManifest(this.runOf(runId), artifact, gatePassed)
+      const manifest = this.buildManifest(this.runOf(runId), artifact, gatePassed, advisoryDefects)
       await this.engine.recordManifest(runId, manifest)
 
       await this.engine.transitionRun(runId, 'completed')
@@ -770,7 +816,12 @@ export class WorkflowExecutor {
     return record
   }
 
-  private buildManifest(run: RunRecord, artifact: ArtifactRecord, gatePassed: boolean): Manifest {
+  private buildManifest(
+    run: RunRecord,
+    artifact: ArtifactRecord,
+    gatePassed: boolean,
+    advisoryDefects: ReadonlyArray<ReviewDefect> = [],
+  ): Manifest {
     return {
       schemaVersion: 1,
       runId: run.id,
@@ -781,6 +832,10 @@ export class WorkflowExecutor {
       informal: run.mode === 'exploratory',
       finalArtifactId: artifact.id,
       gates: { review: gatePassed },
+      // E4c: fast deliveries with advisory MINOR defects record them so the
+      // manifest never hides a review finding (exactOptionalPropertyTypes:
+      // omit rather than pass an explicit empty array).
+      ...(advisoryDefects.length === 0 ? {} : { advisory_defects: advisoryDefects.map(d => ({ id: d.id, severity: d.severity, description: d.description })) }),
       usage: run.usage,
       redacted: true,
     }
@@ -798,19 +853,44 @@ export class WorkflowExecutor {
   }
 }
 
-/** Sections one review request carries. */
-function reviewSections(task: PromptSection, delivered: string): PromptSection[] {
+/** Sections one review request carries. E4b: the reviewer prompt teaches
+ *  the three-value severity vocabulary (critical | major | minor) with its
+ *  definitions; E4a: from round 1 the reviewer is handed the unresolved
+ *  ledger and asked to adjudicate it (remaining / resolved), instead of
+ *  re-discovering defects with no memory. */
+function reviewSections(
+  task: PromptSection,
+  delivered: string,
+  priorUnresolved: ReadonlyArray<ReviewDefect> = [],
+): PromptSection[] {
+  const firstRound = priorUnresolved.length === 0
+  const severityGuide = [
+    'severity is one of: "critical" (delivery-blocking: data integrity,',
+    'numeric escape, provenance), "major" (structural deviation), "minor"',
+    '(wording/presentation).',
+  ].join(' ')
+  const shape = firstRound
+    ? '{"defects":[{"id":"D1","severity":"critical|major|minor","description":"..."}]}'
+    : '{"defects":[{"id":"D1","severity":"critical|major|minor","description":"..."}],"resolved":["D1"]}'
+  const instruction = [
+    'Review the delivered text for defects.',
+    severityGuide,
+    firstRound
+      ? 'Return JSON only: ' + shape + '. An empty defects array means the text is clean.'
+      : [
+          'Previously reported defects (adjudicate each one):',
+          priorUnresolved.map(d => `- ${d.id} [${d.severity}] ${d.description}`).join('\n'),
+          'Return JSON only: ' + shape + '.',
+          '  "defects": defects STILL present in the current text (reuse the original',
+          '    id; a defect no longer present must NOT be listed here),',
+          '  "resolved": ids from the list above that the editor has genuinely fixed.',
+          'A defect that is absent from BOTH lists is treated as still unresolved.',
+        ].join('\n'),
+  ].join('\n')
   return [
     task,
     { name: 'draft', text: `Delivered text:\n${delivered}`, trimPriority: TRIM_DRAFT },
-    {
-      name: 'instruction',
-      text: [
-        'List defects, or return an empty list. Respond with JSON only in this shape:',
-        '{"defects":[{"severity":"major|minor","description":"..."}]}',
-      ].join('\n'),
-      trimPriority: KEEP,
-    },
+    { name: 'instruction', text: instruction, trimPriority: KEEP },
   ]
 }
 
@@ -829,59 +909,79 @@ function failureOf(error: unknown): LlmFailure {
   }
 }
 
-/** Parse reviewer JSON into reviewerFindingSchema-shaped defects.
- *
- * TASK 5.0.3c (v1.1 §A-7): unify the runtime reviewer's severity
- * vocabulary with the IR's `FINDING_SEVERITIES` set
- * (`CRITICAL / MAJOR / MINOR`). The legacy `'major' | 'minor'` enum
- * was a closed 2-value vocabulary that could not represent critical
- * findings, which is the precondition for Oracle Routing (critical
- * unresolved → BLOCKED, never voted away).
- *
- * Malformed input still produces a single finding; the severity of
- * that finding is now `CRITICAL` (malformed review is itself a
- * critical review failure, not a minor one).
- */
-function parseDefects(text: string): ReviewDefect[] {
+/** A review round's parsed verdict (E4a): what remains + what is resolved. */
+export interface ReviewReport {
+  /** Defects the reviewer reports as STILL PRESENT (auto-id when absent). */
+  readonly defects: ReadonlyArray<ReviewDefect>
+  /** ids from the prior ledger the reviewer confirms the editor fixed. */
+  readonly resolved: ReadonlyArray<string>
+}
+
+function criticalDefect(description: string): ReviewDefect {
+  return { id: 'MALFORMED', severity: 'critical', description }
+}
+
+/** Parse a review verdict. E4b: an unknown severity is fail-closed — the
+ *  entry becomes a CRITICAL finding (never silently downgraded to major);
+ *  a defect with no id gets a deterministic local id (D<k>), which means a
+ *  legacy-format reviewer can never *resolve* it later — only report it.
+ *  Malformed output is itself a single critical review failure. */
+function parseReviewReport(
+  text: string,
+  knownIds: ReadonlyArray<string>,
+): ReviewReport {
   const start = text.indexOf('{')
   const end = text.lastIndexOf('}')
   if (start === -1 || end <= start) {
-    return [{ severity: 'critical', description: 'reviewer returned no JSON object' }]
+    return { defects: [criticalDefect('reviewer returned no JSON object')], resolved: [] }
   }
   try {
-    const parsed = JSON.parse(text.slice(start, end + 1)) as { defects?: unknown }
+    const parsed = JSON.parse(text.slice(start, end + 1)) as { defects?: unknown; resolved?: unknown }
     if (!Array.isArray(parsed.defects)) {
-      return [{ severity: 'critical', description: 'reviewer JSON has no defects array' }]
+      return { defects: [criticalDefect('reviewer JSON has no defects array')], resolved: [] }
     }
-    return parsed.defects
-      .filter((defect): defect is { description: string; severity?: unknown } =>
-        typeof defect === 'object' && defect !== null
-        && typeof (defect as { description?: unknown }).description === 'string')
-      // severity may be missing / unknown; normalizeSeverity maps every
-      // non-'critical' value to 'major' (the closed-enum default) so
-      // an entry with no `severity` field still becomes a real finding.
-      .map(defect => normalizeSeverity(
-        typeof defect.severity === 'string' ? defect.severity : 'major',
-        defect.description,
+    const resolved = Array.isArray(parsed.resolved)
+      ? parsed.resolved.filter((id): id is string => typeof id === 'string')
+      : []
+    const seen = new Set(knownIds)
+    const defects: ReviewDefect[] = []
+    let autoIndex = 1
+    for (const entry of parsed.defects) {
+      if (typeof entry !== 'object' || entry === null) continue
+      const raw = entry as { description?: unknown; severity?: unknown; id?: unknown }
+      if (typeof raw.description !== 'string') continue
+      // A listed id reuses its history; a fresh entry gets a local id.
+      const rawId = typeof raw.id === 'string' && raw.id.length > 0 ? raw.id : null
+      if (rawId !== null && !seen.has(rawId)) seen.add(rawId)
+      const id = rawId ?? `D${autoIndex}`
+      autoIndex += 1
+      defects.push(normalizeSeverity(
+        typeof raw.severity === 'string' ? raw.severity : '',
+        raw.description,
+        id,
       ))
+    }
+    return { defects, resolved }
   } catch {
-    return [{ severity: 'critical', description: 'reviewer returned unparsable JSON' }]
+    return { defects: [criticalDefect('reviewer returned unparsable JSON')], resolved: [] }
   }
 }
 
-/** Coerce a producer-supplied severity to the IR's closed enum, with
- *  CRITICAL as the safe default for unknown / lowercase / legacy values.
- *  The mapping is conservative: a producer saying `critical` stays
- *  critical; anything else is treated as `major` (the lowest
- *  un-rejected severity in the closed set), which the delivery gate
- *  treats as advisory rather than blocking. */
+/** Map a producer-supplied severity onto the closed three-value enum.
+ *  E4b: fail-closed — anything that is not exactly one of the three values
+ *  is CRITICAL (an unclassifiable review entry blocks, it is never
+ *  downgraded to major/minor). */
 function normalizeSeverity(
   raw: string,
   description: string,
+  id: string,
 ): ReviewDefect {
   const s = raw.trim().toLowerCase()
-  if (s === 'critical') return { severity: 'critical', description }
-  if (s === 'minor') return { severity: 'minor', description }
-  // `major`, anything else, missing — all map to major (advisory).
-  return { severity: 'major', description }
+  if (s === 'critical') return { id, severity: 'critical', description }
+  if (s === 'major') return { id, severity: 'major', description }
+  if (s === 'minor') return { id, severity: 'minor', description }
+  // E4b fail-closed: an unclassifiable severity is a CRITICAL finding that
+  // keeps its original description — the review is untrustworthy, never
+  // silently downgraded.
+  return { id, severity: 'critical', description }
 }
