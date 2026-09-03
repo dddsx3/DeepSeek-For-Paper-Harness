@@ -354,7 +354,7 @@ describe.skipIf(!existsSync(dshBin))('dsh BUILT bin (node lib/bin.js, no tsx)', 
       })
       expect(headlessHelp.code).toBe(0)
       expect(headlessHelp.stderr).toBe('')
-      expect(headlessHelp.stdout).toContain('Usage: dph --profile headless')
+      expect(headlessHelp.stdout).toContain('Usage: dsh --profile headless')
 
       const missingTask = await runBuiltBin(['--profile', 'headless'], {
         DPH_HOME: home,
