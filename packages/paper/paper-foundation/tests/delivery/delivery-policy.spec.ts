@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   CRITICAL_GATE_IDS,
+  DEFAULT_REPLAY_MAX_AGE_MS,
   evaluateDelivery,
   type DeliveryPolicy,
   type GateRecord,
@@ -25,6 +26,8 @@ function emptyPolicy(overrides: Partial<DeliveryPolicy> = {}): DeliveryPolicy {
     unresolvedReferenceIds: [],
     requiredOutputs: [],
     runtimeProfileValid: true,
+    replayedAt: null,
+    deliveryReplayMaxAgeMs: null,
     ...overrides,
   }
 }
@@ -141,5 +144,63 @@ describe('DeliveryPolicy — D-001..D-008 attack matrix', () => {
     const decision = evaluateDelivery(emptyPolicy({ runtimeProfileValid: false }))
     expect(decision.allowed).toBe(false)
     expect(decision.failures.some(f => f.kind === 'runtime_profile_invalid')).toBe(true)
+  })
+})
+
+describe('TASK 5.0.8 — delivery_replay_max_age (EX-25..EX-27)', () => {
+  const NOW_MS = Date.parse('2026-09-02T00:00:00.000Z')
+  const FRESH = new Date(NOW_MS - 60_000).toISOString() // 1 minute old
+  const STALE = new Date(NOW_MS - (DEFAULT_REPLAY_MAX_AGE_MS + 60_000)).toISOString() // past the window
+
+  it('EX-25: a declared window with NO replay evidence blocks delivery (replay_stale)', () => {
+    const decision = evaluateDelivery(
+      emptyPolicy({ replayedAt: null, deliveryReplayMaxAgeMs: DEFAULT_REPLAY_MAX_AGE_MS }),
+      NOW_MS,
+    )
+    expect(decision.allowed).toBe(false)
+    expect(decision.failures).toContainEqual({
+      kind: 'replay_stale',
+      reason: 'no replay evidence (replayedAt is null)',
+    })
+  })
+
+  it('EX-26: replay evidence older than the declared window blocks delivery', () => {
+    const decision = evaluateDelivery(
+      emptyPolicy({ replayedAt: STALE, deliveryReplayMaxAgeMs: DEFAULT_REPLAY_MAX_AGE_MS }),
+      NOW_MS,
+    )
+    expect(decision.allowed).toBe(false)
+    expect(decision.failures.some(f =>
+      f.kind === 'replay_stale' && f.reason.includes('older than the declared'))).toBe(true)
+  })
+
+  it('EX-27a: fresh replay evidence inside the window delivers', () => {
+    const decision = evaluateDelivery(
+      emptyPolicy({ replayedAt: FRESH, deliveryReplayMaxAgeMs: DEFAULT_REPLAY_MAX_AGE_MS }),
+      NOW_MS,
+    )
+    expect(decision.allowed).toBe(true)
+  })
+
+  it('EX-27b: null window is the explicit no-requirement downgrade (missing evidence is fine)', () => {
+    const decision = evaluateDelivery(
+      emptyPolicy({ replayedAt: null, deliveryReplayMaxAgeMs: null }),
+      NOW_MS,
+    )
+    expect(decision.allowed).toBe(true)
+  })
+
+  it('EX-27c: unparseable replayed_at is a refusal, not a pass', () => {
+    const decision = evaluateDelivery(
+      emptyPolicy({ replayedAt: 'not-a-date', deliveryReplayMaxAgeMs: DEFAULT_REPLAY_MAX_AGE_MS }),
+      NOW_MS,
+    )
+    expect(decision.allowed).toBe(false)
+    expect(decision.failures.some(f => f.kind === 'replay_stale')).toBe(true)
+  })
+
+  it('the verdict is deterministic under an injected clock', () => {
+    const policy = emptyPolicy({ replayedAt: FRESH, deliveryReplayMaxAgeMs: DEFAULT_REPLAY_MAX_AGE_MS })
+    expect(evaluateDelivery(policy, NOW_MS)).toEqual(evaluateDelivery(policy, NOW_MS))
   })
 })

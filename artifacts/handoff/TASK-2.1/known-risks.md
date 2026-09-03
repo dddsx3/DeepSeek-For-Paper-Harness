@@ -199,3 +199,15 @@ vitest exits cleanly the loop ends on the `exit` event, so CI cost is
 unchanged.
 
 
+
+### 20. 5.0.8 enforcement point is the audit composition, not the executor
+The executor's per-run delivery path performs no replay audit, so a
+`buildDeliveryPolicy` call from it carries no `replayEvidence` and the
+policy declares no replay obligation (`deliveryReplayMaxAgeMs: null`).
+The `delivery_replay_max_age` guarantee becomes live exactly where the
+auditor runs: a composition that offers `replayEvidence` gets the 24h
+`DEFAULT_REPLAY_MAX_AGE_MS` window (or an explicit override), and
+missing/stale evidence then blocks delivery. Wiring the executor or the
+production profile to run the independent audit (`runIndependentExecutionAudit`)
+and feed its `replayed_at` into the policy is the remaining integration
+slice; until then the rule is enforced and tested at the policy level.

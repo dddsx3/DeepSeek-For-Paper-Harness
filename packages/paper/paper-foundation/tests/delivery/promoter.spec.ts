@@ -27,6 +27,8 @@ function okPolicy(overrides: Partial<DeliveryPolicy> = {}): DeliveryPolicy {
     unresolvedReferenceIds: [],
     requiredOutputs: [],
     runtimeProfileValid: true,
+    replayedAt: null,
+    deliveryReplayMaxAgeMs: null,
     ...overrides,
   }
 }

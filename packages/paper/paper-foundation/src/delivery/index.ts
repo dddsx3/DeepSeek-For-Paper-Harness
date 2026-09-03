@@ -30,6 +30,7 @@ export type {
 
 export {
   CRITICAL_GATE_IDS,
+  DEFAULT_REPLAY_MAX_AGE_MS,
   GATE_STATUSES,
   IR_CANONICALIZATION_GATE_ID,
   evaluateDelivery,

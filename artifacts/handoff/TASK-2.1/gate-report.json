@@ -1,9 +1,9 @@
 {
   "task": "TASK 2.1 (audit batch) + TASK 3.5 + TASK 4.0 + 4.2 / 4.3 / 4.5 (partial)",
-  "phase": "5.0.5..5.0.7 + 5.0.11 — promoter wiring landed, report re-synchronised to the measured suite",
+  "phase": "5.0.5..5.0.11 + 5.0.8 — promoter wiring, CI caller, RT-X reports, runtimeProfileValid and delivery_replay_max_age policy landed; report re-synchronised to the measured suite",
   "report_sync": {
-    "head_commit": "(this batch — see git log for the 5.0.5..5.0.11 commit)",
-    "baseline_collected_at": "2026-09-03T02:35:00.000Z",
+    "head_commit": "(this batch — see git log for the 5.0.5..5.0.11 + 5.0.8 commits)",
+    "baseline_collected_at": "2026-09-03T08:50:00.000Z",
     "vitest_json_path": "artifacts/handoff/TASK-2.1/.vitest-baseline-*.json (per-run, removed after reading)",
     "rule": "INV-3-Q — gate-report.json must not claim PASS while a known failure or a stub implementation exists.",
     "self_check": "RG-06 (vitest_count vs report_count), RG-07 (gate-report vs TASK-INDEX)",
@@ -11,12 +11,12 @@
   },
   "baseline": {
     "files": 71,
-    "total_tests": 861,
-    "passed_tests": 850,
+    "total_tests": 871,
+    "passed_tests": 860,
     "failed_tests": 11,
     "failed_test_suites": 10,
     "tsc_clean": true,
-    "baseline_at": "5.0.5 + 5.0.6 + 5.0.7 + 5.0.11 batch: promoter wiring (persistFinal / FINAL_OUTPUT_PATH / single delivery verdict), test:task3 aggregator fixed + CI workflow, TASK-3 §12 red-team reports, runtimeProfileValid real-ized. Measured with the repo-default vitest worker configuration; the 5 legacy capture-path tests and the store.spec chain test were rewritten onto the producer-only ingest door in this batch."
+    "baseline_at": "5.0.5..5.0.11 + 5.0.8 batch: promoter wiring, test:task3 + CI, TASK-3 §12 red-team reports, runtimeProfileValid real-ized, delivery_replay_max_age policy (EX-25..27 + registry wiring, +10 tests). Measured with the repo-default vitest worker configuration."
   },
   "failures_by_origin": {
     "7_pre_existing_ir_contract": "TASK 1.5R / 2 era refinements in tests/ir/redteam15.spec.ts (RT-A-01 finite-value, RT-B-01 unowned-ModelSpec x2, RT-C-01 REQUIRED_OUTPUT x2, RT-C-02 minimum-contract gate, RT-D-01 NFC token). Documented in known-risks.md item 7/12; not introduced by this batch and unchanged by reverting it.",
@@ -45,18 +45,18 @@
     { "id": "C7",  "description": "Execution attack 全部拦截 (13 / 13 RT-X + EX)", "status": "PARTIAL", "note": "Red-team attack coverage is honest (13/13). 5.0.3c unified the reviewer parser vocabulary and closed the 4 reviewer-parser tests. The remaining 4 problem-contract tests in tests/ir/bridge.spec.ts and the 5 legacy 3.R3 producer-only tests are documented in known-risks items 12..14." },
     { "id": "C8",  "description": "Mutations 全杀死 (E-01..E-08 = 8 / 8)", "status": "PASS" },
     { "id": "C9",  "description": "Independent Auditor 完成 (runIndependentExecutionAudit, structural + replay merged)", "status": "PASS" },
-    { "id": "C10", "description": "Regression 保持绿色 (71 files / 861 tests)", "status": "BLOCKED", "note": "11 historical failures (7 pre-existing IR-contract in redteam15 + 4 stale-engine alignment) — every one is documented in failures_by_origin and known-risks; the harness is honest about its limits. Down from 26 at the start of the 5.0 batch." },
+    { "id": "C10", "description": "Regression 保持绿色 (71 files / 871 tests)", "status": "BLOCKED", "note": "11 historical failures (7 pre-existing IR-contract in redteam15 + 4 stale-engine alignment) — every one is documented in failures_by_origin and known-risks; the harness is honest about its limits. Down from 26 at the start of the 5.0 batch." },
     { "id": "C11", "description": "criticality 机制化 (3.R1 / INV-3-I,J)", "status": "PASS" },
     { "id": "C12", "description": "Producer 鉴权 (3.R3 / INV-3-M)", "status": "PASS" },
     { "id": "C13", "description": "交付裁决唯一化 (3.R2 / INV-3-K, evaluator=evaluateDelivery only)", "status": "PARTIAL", "note": "The structural 'one function' invariant now holds end to end: the executor builds the policy once, hands the SAME verdict to the promoter, and persistFinal is reachable only through the promoter's writeFinalOutput (5.0.5). 4.0's gate producer stubs remain; 5.0.1 will fix them (DEFERRED v1.1). runtimeProfileValid is no longer a constant (5.0.11)." },
     { "id": "C14", "description": "CI 复现性 (test:task3 + test:task3:fault-corpus + test:task3:mutations + test:task3:replay-smoke + test:task3:report-state)", "status": "PASS", "note": "5.0.6: the test:task3 aggregator pointed at a non-existent path (artifacts/handoff/TASK-3.1/run-3-of-3.ts) and is now a real chain over the four runners, with the RG-06/RG-07 verifier as its last step; .github/workflows/paper-harness.yml is the CI caller." },
-    { "id": "C15", "description": "Replay–delivery staleness 窗口闭合 (3.R6 / replayed_at + replay_report_hash)", "status": "PARTIAL", "note": "The fields exist on the report. The delivery_replay_max_age POLICY is the next handoff (5.0.8)." },
+    { "id": "C15", "description": "Replay–delivery staleness 窗口闭合 (3.R6 / replayed_at + replay_report_hash + 5.0.8 policy)", "status": "PASS", "note": "5.0.8: `delivery_replay_max_age` is a real DeliveryPolicy pair (replayedAt / deliveryReplayMaxAgeMs). evaluateDelivery refuses missing or stale replay evidence under any declared window (kind replay_stale, EX-25..27 + deterministic injected-clock tests); buildDeliveryPolicy never invents evidence — a policy built without replayEvidence carries no obligation, and the moment evidence is offered the 24h DEFAULT_REPLAY_MAX_AGE_MS applies unless explicitly waived. The enforcement point is the composition that runs the auditor and can offer the evidence." },
     { "id": "C16", "description": "Handoff package 与 §12 一致, PHASE 4 表述已分层修正", "status": "PASS", "note": "5.0.7: redteam.md + redteam-rt-x1..x4.md + baseline-summary.txt are now in artifacts/handoff/TASK-3/, alongside TASK-INDEX.md, known-risks.md, execution-freeze-manifest.json and the hash report." }
   ],
   "totals": {
     "phases": 1,
-    "closed_passed": 9,
-    "closed_partial": 3,
+    "closed_passed": 10,
+    "closed_partial": 2,
     "closed_blocked": 1,
     "closed_deferred_v1_1": 2,
     "mutations_killed": 8,
@@ -73,10 +73,10 @@
     "5_0_5_promoter_wiring": "DONE in this batch — persistFinal + FINAL_OUTPUT_PATH added; enforceDelivery returns the ONE verdict and the promoter receives that same decision (INV-3-K); audit vocabulary extended with promotion_succeeded / promotion_failed / final_output_written",
     "5_0_6_test_task3_fix": "DONE in this batch — aggregator chain repaired, test:task3:report-state added, .github/workflows/paper-harness.yml wires all four into CI",
     "5_0_7_handoff_complete": "DONE in this batch — redteam.md + redteam-rt-x1..x4.md extracted from the executed attack suite + baseline-summary.txt regenerated from a real run",
-    "5_0_8_replay_max_age": "policy + EX-25..27 attack suite (next handoff)",
+    "5_0_8_replay_max_age": "DONE in this batch — DeliveryPolicy pair + evaluateDelivery replay_stale rule (EX-25..27, injected clock) + buildDeliveryPolicy wiring (no invented evidence; 24h default once evidence is offered; explicit null waiver) + registry tests. Enforcement point documented: the composition that runs the auditor must offer replayEvidence.",
     "5_0_9_figure_data_hash": "data_hash required + real comparison (F05 / F11)",
     "5_0_10_numeric_tolerance": "v1.1-ratification-pending (4.4 numeric tolerance + unit registry, F19)",
     "5_0_11_runtime_profile_valid": "DONE in this batch — buildDeliveryPolicy takes the guard's real readiness and defaults to REFUSAL when it is not told (INV-3-O); PaperRuntimeGuard.isReady() added; RG-08 regression tests in tests/delivery/gate-registry-profile.spec.ts"
   },
-  "v1_1_pending_summary": "Three follow-ups require v1.1 ratification before they can ship: 5.0.1 (stub gates → BLOCKED), 5.0.4 (attestation hardening), 5.0.10 (numeric tolerance + unit registry). Of the remaining follow-ups, 5.0.5 / 5.0.6 / 5.0.7 / 5.0.11 and the capture-path half of 5.0.3a shipped in this batch; 5.0.8 and 5.0.9 are the next self-contained slices."
+  "v1_1_pending_summary": "Three follow-ups require v1.1 ratification before they can ship: 5.0.1 (stub gates → BLOCKED), 5.0.4 (attestation hardening), 5.0.10 (numeric tolerance + unit registry). Of the remaining follow-ups, 5.0.5 / 5.0.6 / 5.0.7 / 5.0.8 / 5.0.11 and the capture-path half of 5.0.3a shipped in this batch; 5.0.9 is the next self-contained slice."
 }

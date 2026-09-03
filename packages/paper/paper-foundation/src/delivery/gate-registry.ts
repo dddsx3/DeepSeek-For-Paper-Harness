@@ -30,6 +30,7 @@ import { executionProvenanceGate } from '../execution/audit.ts'
 import { irBridgeGate, requiresIrBackbone } from '../ir/bridge.ts'
 import {
   CRITICAL_GATE_IDS,
+  DEFAULT_REPLAY_MAX_AGE_MS,
   type DeliveryPolicy,
   type GateRecord,
 } from './delivery-policy.ts'
@@ -213,6 +214,24 @@ export interface BuildDeliveryPolicyInput {
    * because it reads like coverage.
    */
   readonly runtimeProfileValid?: boolean
+  /**
+   * TASK 5.0.8 — the freshest replay evidence this delivery consumed
+   * (`ExecutionAuditReport.replayed_at`), offered by the composition
+   * that actually ran the replay. The registry never invents evidence:
+   * when this is absent the policy carries NO replay obligation (see
+   * the return wiring below), and when it is present the policy
+   * enforces replay freshness fail-closed.
+   */
+  readonly replayEvidence?: { readonly replayedAt: string | null }
+  /**
+   * TASK 5.0.8 — the caller's replay-staleness window in milliseconds,
+   * or `null` for the explicit no-requirement downgrade. Only consulted
+   * when `replayEvidence` is present: a caller that declares a window
+   * without evidence is refused by the policy (missing evidence is a
+   * `replay_stale` failure). Omitted + evidence present → the
+   * `DEFAULT_REPLAY_MAX_AGE_MS` (24h) window applies.
+   */
+  readonly deliveryReplayMaxAgeMs?: number | null
 }
 
 /**
@@ -293,5 +312,17 @@ export function buildDeliveryPolicy(input: BuildDeliveryPolicyInput): DeliveryPo
     // pass it is declaring that it does not know, and "does not know"
     // is a refusal (see the field's docs on BuildDeliveryPolicyInput).
     runtimeProfileValid: input.runtimeProfileValid ?? false,
+    // TASK 5.0.8: replay evidence is never invented either. A policy
+    // built without `replayEvidence` carries no replay obligation
+    // (`deliveryReplayMaxAgeMs: null`) — the executor's per-run path
+    // performs no replay, and replay-freshness enforcement belongs to
+    // the composition that ran the auditor and can offer the evidence.
+    // The moment evidence is offered without an explicit window, the
+    // 24h `DEFAULT_REPLAY_MAX_AGE_MS` applies, and missing/stale
+    // evidence becomes a `replay_stale` refusal.
+    replayedAt: input.replayEvidence?.replayedAt ?? null,
+    deliveryReplayMaxAgeMs: input.replayEvidence === undefined
+      ? null
+      : ('deliveryReplayMaxAgeMs' in input ? input.deliveryReplayMaxAgeMs : DEFAULT_REPLAY_MAX_AGE_MS),
   }
 }

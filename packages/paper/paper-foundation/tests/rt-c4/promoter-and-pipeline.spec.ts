@@ -67,6 +67,8 @@ describe('RT-C4-10 — promoter enforces ir_canonicalization presence as critica
       unresolvedReferenceIds: [],
       requiredOutputs: [],
       runtimeProfileValid: true,
+      replayedAt: null,
+      deliveryReplayMaxAgeMs: null,
     }
     const decision: DeliveryDecision = evaluateDelivery(policy)
     expect(decision.allowed).toBe(false)
@@ -84,6 +86,8 @@ describe('RT-C4-10 — promoter enforces ir_canonicalization presence as critica
       unresolvedReferenceIds: [],
       requiredOutputs: [],
       runtimeProfileValid: true,
+      replayedAt: null,
+      deliveryReplayMaxAgeMs: null,
     }
     const decision: DeliveryDecision = evaluateDelivery(policy)
     expect(decision.allowed).toBe(false)
@@ -102,6 +106,8 @@ describe('RT-C4-10 — promoter enforces ir_canonicalization presence as critica
       unresolvedReferenceIds: [],
       requiredOutputs: [],
       runtimeProfileValid: true,
+      replayedAt: null,
+      deliveryReplayMaxAgeMs: null,
     }
     const decision: DeliveryDecision = evaluateDelivery(policy)
     expect(decision.allowed).toBe(false)
@@ -122,6 +128,8 @@ describe('RT-C4-11 — promoter refuses to mint from non-CANDIDATE state', () =>
       unresolvedReferenceIds: [],
       requiredOutputs: [],
       runtimeProfileValid: true,
+      replayedAt: null,
+      deliveryReplayMaxAgeMs: null,
     }
     const decision = evaluateDelivery(policy)
     expect(decision.allowed).toBe(true)
@@ -301,6 +309,8 @@ describe('RT-C4-16 — gate-forgery', () => {
       unresolvedReferenceIds: [],
       requiredOutputs: [],
       runtimeProfileValid: true,
+      replayedAt: null,
+      deliveryReplayMaxAgeMs: null,
     }
     const decision = evaluateDelivery(policy)
     expect(decision.allowed).toBe(true)
@@ -317,6 +327,8 @@ describe('RT-C4-16 — gate-forgery', () => {
       unresolvedReferenceIds: [],
       requiredOutputs: [],
       runtimeProfileValid: true,
+      replayedAt: null,
+      deliveryReplayMaxAgeMs: null,
     }
     const decision = evaluateDelivery(policy)
     expect(decision.allowed).toBe(false)

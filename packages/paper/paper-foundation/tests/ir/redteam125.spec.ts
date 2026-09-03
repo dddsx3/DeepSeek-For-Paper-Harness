@@ -48,6 +48,8 @@ function policyWith(gates: GateRecord[]): DeliveryPolicy {
     unresolvedReferenceIds: [],
     requiredOutputs: [],
     runtimeProfileValid: true,
+    replayedAt: null,
+    deliveryReplayMaxAgeMs: null,
   }
 }
 

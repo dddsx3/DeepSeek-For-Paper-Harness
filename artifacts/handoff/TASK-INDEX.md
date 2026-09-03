@@ -21,7 +21,7 @@
 | TASK 4.0   (Gate registry + 5 stub producers) | `cf462f928b` | (folded into TASK 3) | PARTIAL (5 stubs) | Each stub awaits its real implementation (5.0.1 / 4.3 / 4.4) |
 | TASK 4.2   (fast mode bypass removal) | `52b7aded26` | n/a | PASS (executor line) | Reviewer schema unification DONE (5.0.3c); Oracle Routing follow-up |
 | TASK 4.3   (FigureSpec data_hash) | `adc50eaebd` | n/a | PASS (schema) | §15 other fields are the follow-up |
-| TASK 5.0   (Second-repair batch: 5.0.5/6/7/11 + capture-path rewrites) | (this batch) | `artifacts/handoff/TASK-5.0/handoff.md` | PARTIAL (4 sub-tasks landed; 5.0.1/4/10 DEFERRED on v1.1) | 5.0.8 replay-max-age policy; 5.0.9 FigureSpec data_hash comparison; 5.0.1/5.0.4/5.0.10 await v1.1 |
+| TASK 5.0   (Second-repair batch: 5.0.5/6/7/8/11 + capture-path rewrites) | (this batch) | `artifacts/handoff/TASK-5.0/handoff.md` | PARTIAL (5 sub-tasks landed; 5.0.1/4/10 DEFERRED on v1.1) | 5.0.9 FigureSpec data_hash comparison; 5.0.1/5.0.4/5.0.10 await v1.1 |
 
 ## Pending tasks (not yet started)
 

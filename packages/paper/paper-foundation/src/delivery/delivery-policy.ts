@@ -15,8 +15,10 @@
  *   - FAST mode can skip non-critical gates only.
  *   - FAST mode CANNOT skip any critical gate. Any attempt to express
  *     "skip critical under FAST" in this module is a TASK 0 violation.
- *   - `allowed` is a deterministic function of the inputs; no clock, no
- *     randomness, no I/O.
+ *   - `allowed` is a deterministic function of the inputs; no randomness,
+ *     no I/O. The one clock in the module is the replay-staleness window
+ *     (TASK 5.0.8), and it is an explicit input (`now`) with a real
+ *     default, never a hidden read of the wall clock inside the verdict.
  */
 
 import type { RuntimeMode } from '../runtime/profile.ts'
@@ -68,6 +70,18 @@ export const CRITICAL_GATE_IDS = [
 
 export type CriticalGateId = (typeof CRITICAL_GATE_IDS)[number]
 
+/**
+ * TASK 5.0.8 — the default replay-staleness window (24h).
+ *
+ * The task book offered "24h default" or "explicit declaration downgrade"
+ * for the `delivery_replay_max_age` policy (handoff §8.3). This module
+ * implements both halves: a policy built without a declared max age gets
+ * this default (fail-closed), and a caller may explicitly declare
+ * `deliveryReplayMaxAgeMs: null` to waive the requirement (the
+ * downgrade) or a different number to override it.
+ */
+export const DEFAULT_REPLAY_MAX_AGE_MS = 24 * 60 * 60 * 1000
+
 export interface GateRecord {
   readonly id: string
   readonly status: GateStatus
@@ -92,6 +106,21 @@ export interface DeliveryPolicy {
   readonly unresolvedReferenceIds: ReadonlyArray<string>
   readonly requiredOutputs: ReadonlyArray<RequiredOutput>
   readonly runtimeProfileValid: boolean
+  /**
+   * TASK 5.0.8 — the freshest replay evidence this delivery consumed
+   * (`ExecutionAuditReport.replayed_at`), or `null` when no replay ran.
+   * `null` is a fact, not a waiver: whether `null` blocks delivery is
+   * decided by `deliveryReplayMaxAgeMs`.
+   */
+  readonly replayedAt: string | null
+  /**
+   * TASK 5.0.8 — the maximum allowed age of replay evidence in
+   * milliseconds. `null` is the explicit-declaration downgrade: the
+   * policy declares NO replay-staleness requirement. Any non-null value
+   * makes `evaluateDelivery` fail-closed on missing or stale replay
+   * evidence (`replay_stale`).
+   */
+  readonly deliveryReplayMaxAgeMs: number | null
 }
 
 export interface DeliveryFailure {
@@ -115,11 +144,21 @@ export interface DeliveryDecision {
  *   3. `unresolvedReferenceIds` must be empty.
  *   4. Every entry in `requiredOutputs` must have `covered: true`.
  *   5. `runtimeProfileValid` must be `true`.
+ *   6. (TASK 5.0.8) When `deliveryReplayMaxAgeMs` is non-null, replay
+ *      evidence (`replayedAt`) must exist and be younger than the
+ *      window; otherwise `replay_stale` blocks delivery. `null` window
+ *      is the explicit no-requirement downgrade.
  *
  * FAST mode only changes which non-critical gates are considered; the
  * `critical` filter above is mode-independent.
+ *
+ * @param policy - the policy to judge.
+ * @param nowMs - injected clock for the replay-staleness rule. The
+ *   verdict is otherwise a pure function of its inputs; passing a fixed
+ *   time makes it deterministic in tests. Production omits it and the
+ *   wall clock is read exactly once, for the staleness rule only.
  */
-export function evaluateDelivery(policy: DeliveryPolicy): DeliveryDecision {
+export function evaluateDelivery(policy: DeliveryPolicy, nowMs?: number): DeliveryDecision {
   const failures: DeliveryFailure[] = []
 
   // 1a. Missing critical gate check. The loop below can only reject gates it
@@ -188,6 +227,26 @@ export function evaluateDelivery(policy: DeliveryPolicy): DeliveryDecision {
   // 5. Runtime profile validity.
   if (!policy.runtimeProfileValid) {
     failures.push({ kind: 'runtime_profile_invalid', reason: 'profile not valid' })
+  }
+
+  // 6. Replay staleness (TASK 5.0.8). A null window is the explicit
+  //    no-requirement downgrade; any non-null window makes replay
+  //    evidence mandatory AND fresh. Missing evidence is a refusal —
+  //    a delivery that consumed no replay must never be treated as
+  //    "within the window" by accident. The single clock read of the
+  //    verdict happens here, once, from the injected `nowMs`.
+  if (policy.deliveryReplayMaxAgeMs !== null) {
+    if (policy.replayedAt === null) {
+      failures.push({ kind: 'replay_stale', reason: 'no replay evidence (replayedAt is null)' })
+    } else {
+      const ageMs = (nowMs ?? Date.now()) - Date.parse(policy.replayedAt)
+      if (!Number.isFinite(ageMs) || ageMs > policy.deliveryReplayMaxAgeMs) {
+        failures.push({
+          kind: 'replay_stale',
+          reason: `replay evidence at ${policy.replayedAt} is older than the declared ${policy.deliveryReplayMaxAgeMs}ms window`,
+        })
+      }
+    }
   }
 
   return { allowed: failures.length === 0, failures }

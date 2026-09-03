@@ -57,6 +57,8 @@ function policyWith(
     unresolvedReferenceIds: [],
     requiredOutputs: [],
     runtimeProfileValid: true,
+    replayedAt: null,
+    deliveryReplayMaxAgeMs: null,
   }
 }
 
@@ -248,6 +250,8 @@ describe('INV-1.25-C — a critical gate cannot be omitted to pass', () => {
       unresolvedReferenceIds: [],
       requiredOutputs: [],
       runtimeProfileValid: true,
+      replayedAt: null,
+      deliveryReplayMaxAgeMs: null,
     }
     const decision = evaluateDelivery(policy)
     expect(decision.allowed).toBe(false)
@@ -265,6 +269,8 @@ describe('INV-1.25-C — a critical gate cannot be omitted to pass', () => {
       unresolvedReferenceIds: [],
       requiredOutputs: [],
       runtimeProfileValid: true,
+      replayedAt: null,
+      deliveryReplayMaxAgeMs: null,
     })
     expect(decision.allowed).toBe(false)
     expect(decision.failures.filter(f => f.kind === 'critical_gate_missing')).toHaveLength(
