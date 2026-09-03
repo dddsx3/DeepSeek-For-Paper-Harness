@@ -70,33 +70,44 @@ describe('TASK 3.5 — direct STALE on a run (S-001..S-006)', () => {
   })
 
   it('S-003: a record whose environment_hash drifted is STALE (EXECUTION_MISMATCH)', () => {
-    // Fresh chain; mutate the run's seed AFTER ingesting the record.
-    // The record's environment_hash freezes {environment, seed=20260828};
-    // the run now declares seed=9999 → re-derivation differs.
+    // 5.0-R (decision 5): the measurement source is the IR itself — the
+    // RunArtifact declares the environment, the ExecutionRecord freezes
+    // what actually ran; the engine re-derives the declared fingerprint
+    // and compares. The store is immutable, so "drift" cannot be written
+    // by overwriting the run (that put is refused with duplicate_id); it
+    // is expressed on the capture, exactly as S-002 does for code_hash: a
+    // forged record whose environment_hash disagrees with the run's
+    // declaration is EXECUTION_MISMATCH.
     const ir = new ModelingIr({ now: () => '2026-09-01T00:00:00.000Z' })
     for (const entry of chainThrough('Result')) {
       ir.put(entry.kind, entry.value)
     }
-    ir.put('RunArtifact', { ...runArtifact(), seed: 9999 } as never)
-    const rec: ExecutionRecord = executionRecord() as ExecutionRecord
-    ir.putExecutionRecord(rec, CAPTURE_ATTESTATION)
+    const forged: ExecutionRecord = {
+      ...executionRecord() as ExecutionRecord,
+      execution_id: 'EXEC2',
+      environment_hash: 'sha256:' + 'c'.repeat(64),
+    }
+    ir.putExecutionRecord(forged, CAPTURE_ATTESTATION)
     const report = computeStaleReport(ModelingIr.snapshot(ir) as ReadonlyMap<string, IrObjectRecord>)
     expect(report.stale.some(s => s.reason === 'EXECUTION_MISMATCH')).toBe(true)
   })
 
   it('S-004: a record whose dependency_lock_hash drifted is STALE (DEPENDENCY_MISMATCH)', () => {
-    // Fresh chain; ingest the canonical record, THEN drift the model
-    // by adding an extra assumption. The record\'s dependency_lock_hash
-    // freezes the original model\'s hash; the engine sees a drift.
+    // 5.0-R (decision 5): same immutable-store discipline as S-003 — the
+    // drift (model assumptions / input data changed between the declared
+    // run and the capture) is expressed on the forged record's
+    // dependency_lock_hash, and the engine compares it to the fingerprint
+    // re-derived from the run + its model.
     const ir = new ModelingIr({ now: () => '2026-09-01T00:00:00.000Z' })
     for (const entry of chainThrough('Result')) {
       ir.put(entry.kind, entry.value)
     }
-    const baseModel = chainThrough('ModelSpec').find(e => e.kind === 'ModelSpec')?.value
-    expect(baseModel).toBeDefined()
-    const rec: ExecutionRecord = executionRecord() as ExecutionRecord
-    ir.putExecutionRecord(rec, CAPTURE_ATTESTATION)
-    ir.put('ModelSpec', { ...baseModel, assumptions: [...(baseModel as { assumptions?: string[] }).assumptions ?? [], 'drifted'] } as never)
+    const forged: ExecutionRecord = {
+      ...executionRecord() as ExecutionRecord,
+      execution_id: 'EXEC3',
+      dependency_lock_hash: 'sha256:' + 'd'.repeat(64),
+    }
+    ir.putExecutionRecord(forged, CAPTURE_ATTESTATION)
     const report = computeStaleReport(ModelingIr.snapshot(ir) as ReadonlyMap<string, IrObjectRecord>)
     expect(report.stale.some(s => s.reason === 'DEPENDENCY_MISMATCH' || s.reason === 'EXECUTION_MISMATCH')).toBe(true)
   })
@@ -156,17 +167,23 @@ describe('TASK 3.5 — byte-level + immutable + transitive (S-007..S-009)', () =
   })
 
   it('S-009: RequirementSpec change invalidates the citing Claim (STALE_TRANSITIVE)', () => {
-    // Fresh chain; ingest the canonical record, then drift the run\'s
-    // environment. The run is directly STALE; the citing Claim is
-    // STALE_TRANSITIVE. (The RequirementSpec walk is TASK 4.0 territory;
-    // this test pins the transitive propagation only.)
+    // 5.0-R (decision 5 + §5.7 boundary): a RequirementSpec->Claim walk is
+    // TASK 4.0 coverage-closure territory (P1-4) and the STALE propagation
+    // graph is frozen in this batch, so this test pins what the engine
+    // DOES own: a directly-STALE run (here: a forged capture whose
+    // environment_hash disagrees with the run declaration, S-003 style)
+    // propagates STALE_TRANSITIVE to the citing Claim through the run's
+    // Result. The RequirementSpec-specific walk lands with P1-4.
     const ir = new ModelingIr({ now: () => '2026-09-01T00:00:00.000Z' })
-    for (const entry of chainThrough('Result')) {
+    for (const entry of chainThrough('Claim')) {
       ir.put(entry.kind, entry.value)
     }
-    const rec: ExecutionRecord = executionRecord() as ExecutionRecord
-    ir.putExecutionRecord(rec, CAPTURE_ATTESTATION)
-    ir.put('RunArtifact', { ...runArtifact(), environment: 'python 9.99' } as never)
+    const forged: ExecutionRecord = {
+      ...executionRecord() as ExecutionRecord,
+      execution_id: 'EXEC4',
+      environment_hash: 'sha256:' + 'e'.repeat(64),
+    }
+    ir.putExecutionRecord(forged, CAPTURE_ATTESTATION)
     const report = computeStaleReport(ModelingIr.snapshot(ir) as ReadonlyMap<string, IrObjectRecord>)
     expect(report.stale.some(s => s.id === 'RUN1' && s.reason === 'EXECUTION_MISMATCH')).toBe(true)
     expect(report.stale.some(s => s.id === 'C1' && s.reason === 'STALE_TRANSITIVE')).toBe(true)
@@ -182,10 +199,16 @@ describe('TASK 3.5 — delivery gate integration (the load-bearing outcome)', ()
     for (const entry of chainThrough('Result')) {
       ir.put(entry.kind, entry.value)
     }
-    const policy = buildDeliveryPolicy({ mode: 'fast', ir })
+    // 5.0-R (R3-2a): the runtime guard is readied (TASK 5.0.11) — these
+    // integration cases assert the stale_detection gate, not the runtime
+    // profile dimension, so the caller states readiness explicitly.
+    const policy = buildDeliveryPolicy({ mode: 'fast', ir, runtimeProfileValid: true })
     const decision = evaluateDelivery(policy)
     expect(decision.allowed).toBe(false)
-    expect(decision.failures.some(f => f.kind === 'critical_gate' && f.reason.startsWith('stale:'))).toBe(true)
+    // evaluateDelivery prefixes gate failures with `${id}:${status}:` —
+    // a BLOCKED stale_detection gate is the only failure that starts
+    // 'stale_detection:'. The assertion targets that exact contract.
+    expect(decision.failures.some(f => f.kind === 'critical_gate' && f.reason.startsWith('stale_detection:BLOCKED:stale:'))).toBe(true)
   })
 
   it('a fresh chain (with record) passes the stale_detection gate', async () => {
@@ -193,10 +216,12 @@ describe('TASK 3.5 — delivery gate integration (the load-bearing outcome)', ()
     const { evaluateDelivery } = await import('../../src/delivery/delivery-policy.js')
     // backboneIr carries a fresh record.
     const ir = backboneIr()
-    const policy = buildDeliveryPolicy({ mode: 'fast', ir })
+    const policy = buildDeliveryPolicy({ mode: 'fast', ir, runtimeProfileValid: true })
     const decision = evaluateDelivery(policy)
     // Other gates may still refuse (stubs / delivery flow), but the
-    // stale_detection reason must NOT be present.
-    expect(decision.failures.some(f => f.reason.startsWith('stale:'))).toBe(false)
+    // stale_detection gate must NOT have BLOCKED (reason contract:
+    // `${id}:${status}:${reason}`, so a BLOCKED stale gate starts
+    // 'stale_detection:BLOCKED:').
+    expect(decision.failures.some(f => f.reason.startsWith('stale_detection:BLOCKED:'))).toBe(false)
   })
 })

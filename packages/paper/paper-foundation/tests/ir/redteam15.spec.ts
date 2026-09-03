@@ -15,7 +15,12 @@
  */
 
 import { describe, expect, it } from 'vitest'
-import { ModelingIr, evaluateIrBridge, type IrKind } from '../../src/ir/index.ts'
+import {
+  CAPTURE_ATTESTATION,
+  ModelingIr,
+  evaluateIrBridge,
+  type IrKind,
+} from '../../src/ir/index.ts'
 import { findDuplicateSymbolTokens } from '../../src/ir/problem-contract.ts'
 import { validChain, variableSymbol } from './fixtures.ts'
 
@@ -32,7 +37,15 @@ function build(
   for (const entry of [...validChain(), ...extra]) {
     if (omit.includes(entry.kind)) continue
     const value = { ...entry.value, ...(overrides[entry.kind] ?? {}) }
-    const verdict = ir.put(entry.kind, value)
+    // 5.0-R (R3-1): ExecutionRecord cannot enter via `put` (INV-3-M /
+    // 3.R3 closed that door) — it must go through the producer-only
+    // `putExecutionRecord(record, CAPTURE_ATTESTATION)` door, exactly as
+    // the stale-engine and backbone fixtures do. Assertions unchanged:
+    // this migration restores the seven RT-A/B/C/D suites' coverage that
+    // the direct-put refusal had been silently blocking.
+    const verdict = entry.kind === 'ExecutionRecord'
+      ? ir.putExecutionRecord(value as never, CAPTURE_ATTESTATION)
+      : ir.put(entry.kind, value)
     if (!verdict.accepted) refused.push({ kind: entry.kind, failures: verdict.failures })
   }
   return { ir, refused }
