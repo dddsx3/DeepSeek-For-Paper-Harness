@@ -7,6 +7,8 @@
  */
 
 import { createHash } from 'node:crypto'
+import { mkdir, writeFile } from 'node:fs/promises'
+import { basename, dirname, join } from 'node:path'
 import { BlockAssembler, createUserMessage } from '@deepseek-ai/dsh-llm'
 import type { LlmFailure, TokenUsage } from '@deepseek-ai/dsh-llm'
 import type { AuditEntryInput, AuditEventType } from './audit.ts'
@@ -93,6 +95,15 @@ export interface ExecutorOptions {
    * which is exactly the condition the bridge exists to block.
    */
   readonly ir?: ModelingIr
+  /**
+   * 5.0-R (R5, author-delegated decision A): the root directory under which
+   * a promoted final output is REALLY written, at
+   * `<finalOutputRoot>/<runId>/final/<basename>`. When absent the executor
+   * keeps the previous audit-only behaviour with the path labelled
+   * "(no sink mounted)" — promotion no longer "to the void" once a
+   * composition mounts a sink; every real deployment should.
+   */
+  readonly finalOutputRoot?: string
 }
 
 /**
@@ -464,14 +475,40 @@ export class WorkflowExecutor {
    * delivery against. This is deliberately NOT a silent no-op.
    */
   private async persistFinal(runId: RunId, path: string, content: string): Promise<void> {
+    const bytes = Buffer.byteLength(content, 'utf8')
+    const sha256 = createHash('sha256').update(content).digest('hex')
+    const root = this.options.finalOutputRoot
+    const resolvedPath = root === undefined
+      ? null
+      : join(root, runId, 'final', basename(path))
+    if (resolvedPath !== null) {
+      try {
+        await mkdir(dirname(resolvedPath), { recursive: true })
+        await writeFile(resolvedPath, content, 'utf8')
+      } catch (error) {
+        // A failed real write is a failed promotion: the promoter's
+        // contract says a DELIVERABLE artifact means the file exists.
+        await this.audit({
+          eventType: 'promotion_failed',
+          actor: 'paper-executor',
+          runId,
+          detail: { kind: 'final_output_write_failed', path: resolvedPath, message: String(error) },
+        })
+        await this.engine.transitionRun(runId, 'failed')
+        throw new WorkflowExecutionError(
+          'gate-failed',
+          `run '${runId}' final output write failed at ${resolvedPath}: ${String(error).split('\n')[0]}`,
+        )
+      }
+    }
     await this.audit({
       eventType: 'final_output_written',
       actor: 'paper-executor',
       runId,
       detail: {
-        path,
-        bytes: Buffer.byteLength(content, 'utf8'),
-        sha256: createHash('sha256').update(content).digest('hex'),
+        path: resolvedPath ?? `${path} (no sink mounted: set finalOutputRoot)`,
+        bytes,
+        sha256,
       },
     })
   }
@@ -682,6 +719,9 @@ export class WorkflowExecutor {
       runId: run.id,
       harnessVersion: run.harnessVersion,
       mode: run.mode,
+      // 5.0-R (R1-4): an EXPLORATORY deliverable is informal — it must
+      // never be consumed as a formal result.
+      informal: run.mode === 'exploratory',
       finalArtifactId: artifact.id,
       gates: { review: gatePassed },
       usage: run.usage,

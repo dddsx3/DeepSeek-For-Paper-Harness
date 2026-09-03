@@ -2,12 +2,12 @@
   "task": "TASK 3 — Execution Provenance Gate",
   "phase": "PHASE 5 — Execution Fault Corpus (EX-01..EX-12 + RT-X1..X4)",
   "corpus": "tests/execution/ + tests/rt-x/ (each EX/RT-X id is a named regression)",
-  "vitest_exit": 0,
+  "vitest_exit": 143,
   "vitest_stderr_tail": "\u001b[33mThe plugin \"vite-tsconfig-paths\" is detected. Vite now supports tsconfig paths resolution natively via the \u001b[1mresolve.tsconfigPaths\u001b[22m option. You can remove the plugin and set \u001b[1mresolve.tsconfigPaths: true\u001b[22m in your Vite config instead.\u001b[39m\n\u001b[33mThe plugin \"vite-tsconfig-paths\" is detected. Vite now supports tsconfig paths resolution natively via the \u001b[1mresolve.tsconfigPaths\u001b[22m option. You can remove the plugin and set \u001b[1mresolve.tsconfigPaths: true\u001b[22m in your Vite config instead.\u001b[39m\n",
-  "total_tests": 48,
-  "passed": 48,
+  "total_tests": 49,
+  "passed": 49,
   "failed": 0,
   "pending": 0,
-  "verdict": "ALL ATTACKS INTERCEPTED",
+  "verdict": "ATTACK ESCAPED OR SUITE BROKEN",
   "expectation": "Every EX-01..EX-12 and RT-X test asserts the attack is BLOCKED/FAIL; a green suite is the evidence."
 }

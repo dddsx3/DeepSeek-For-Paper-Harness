@@ -38,7 +38,7 @@ function userText(options: GenerateOptions): string {
   return first !== undefined && first.type === 'text' ? first.text : ''
 }
 
-async function harness(script: Script) {
+async function harness(script: Script, executorConfig: Record<string, unknown> = {}) {
   const ctx = new Context()
   await ctx.plugin(Storage)
   ctx.storage.backend.register('memory', new MemoryStorageBackend(new MemoryMediaPool()))
@@ -65,7 +65,7 @@ async function harness(script: Script) {
   // Without it these runs are text-only and the bridge blocks them; these
   // suites are about context budgeting, retries and cost, not about the IR.
   ctx.provide('paperModelingIr', backboneIr())
-  await ctx.plugin(PaperExecutorService)
+  await ctx.plugin(PaperExecutorService, executorConfig)
   return { ctx }
 }
 
@@ -170,5 +170,27 @@ describe('WorkflowExecutor', () => {
     expect(pushed).toHaveLength(lastSeq)
     const seqs = pushed.map(entry => Number(entry.split(':')[0]))
     expect([...seqs].sort((left, right) => left - right)).toEqual(seqs)
+  })
+
+  it('5.0-R R5: writes the promoted final output to the mounted sink', async () => {
+    const { mkdtemp, readFile } = await import('node:fs/promises')
+    const { tmpdir } = await import('node:os')
+    const { join } = await import('node:path')
+    const { createHash } = await import('node:crypto')
+    const root = await mkdtemp(join(tmpdir(), 'dsh-final-'))
+    const { ctx } = await harness(approvingScript, { finalOutputRoot: root })
+    const engine = ctx.paperWorkflow.runs
+    const run = await engine.startRun({ mode: 'exploratory', harnessVersion: 'test', configHash: 'sha256:r5' })
+    const outcome = await ctx.paperExecutor.runs.execute(RunId(run.id), 'write one summary sentence')
+    expect(outcome.run.status).toBe('completed')
+    // Promotion landed real bytes: <root>/<runId>/final/final exists and
+    // its sha256 matches the deliverable the approving script produced.
+    const file = join(root, run.id, 'final', 'final')
+    const bytes = await readFile(file, 'utf8')
+    expect(bytes).toBe('The final deliverable text.')
+    expect(createHash('sha256').update(bytes).digest('hex')).toMatch(/^[0-9a-f]{64}$/)
+    expect(outcome.manifest.finalArtifactId).not.toBeNull()
+    // 5.0-R (R1-4): an EXPLORATORY deliverable is explicitly informal.
+    expect(outcome.manifest.informal).toBe(true)
   })
 })

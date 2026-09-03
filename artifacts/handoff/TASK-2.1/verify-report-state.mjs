@@ -30,7 +30,7 @@
 import { spawn } from 'node:child_process'
 import { existsSync, readFileSync, statSync, unlinkSync } from 'node:fs'
 import { dirname, join, resolve as pathResolve } from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 /**
@@ -225,23 +225,73 @@ if (accepted === null) {
 // BLOCKED) and follow_ups (which is a record, not an array, keyed by
 // task). The lightweight cross-check: every task in the index that is
 // not marked [PASS] must appear in gate-report's follow_ups OR have a
-// matching closed_conditions row.
+// matching closed_conditions row. Any task the index lists as [PASS]
+// must have zero unexplained reds — enforced by RG-06 (0 failures) for
+// the whole suite and by RG-09 below for the gate ledger.
 const followUpsObj = gateReport.follow_ups ?? {}
 const followUpKeys = Object.keys(followUpsObj)
 const closedRows = gateReport.closed_conditions ?? []
-const indexTasks = ['TASK 3.5', 'TASK 4.0', 'TASK 4.2', 'TASK 4.3', 'TASK 4.5']
+const indexTasks = ['TASK 3.5', 'TASK 3.6', 'TASK 4.0', 'TASK 4.2', 'TASK 4.3', 'TASK 5.0', 'TASK 5.0-R']
+const missingFromIndex = []
 for (const t of indexTasks) {
-  if (index.includes(t)) {
-    const inFollowUps = followUpKeys.some((k) => k.startsWith(t))
-    const inClosed = closedRows.some((c) => (c.description ?? '').includes(t))
-    if (!inFollowUps && !inClosed) {
-      // Task mentioned only in known-risks / summary is acceptable.
-    }
-  }
+  if (!index.includes(t)) missingFromIndex.push(t)
+}
+if (missingFromIndex.length > 0) {
+  console.error(`RG-07 DRIFT: TASK-INDEX.md does not mention: ${missingFromIndex.join(', ')}`)
+  process.exit(1)
 }
 
+// ---------------------------------------------------------------------------
+// RG-09 (5.0-R / R2.3 + R4): the gate ledger must not lie.
+//
+// (a) Load the registry's own implementation report (criticalGateImplementationReport,
+//     exported from the paper delivery package). (b) gate-report's `gates_impl`
+//     section must agree with it id-for-id. (c) INV-3-Q extension: while any
+//     critical gate is UNIMPLEMENTED, the report must NOT claim a PASS/DONE
+//     verdict — FORMAL/FAST delivery being BLOCKED by design is the honest
+//     state, and a report that calls the batch complete while six gates are
+//     unimplemented is a pretend-PASS at the report layer.
+// ---------------------------------------------------------------------------
+let registryReport
+try {
+  const mod = await import(pathToFileURL(join(
+    repoRoot, 'packages/paper/paper-foundation/src/delivery/gate-registry.ts',
+  )).href)
+  registryReport = mod.criticalGateImplementationReport()
+} catch (error) {
+  console.error(`RG-09 ERROR: could not load criticalGateImplementationReport: ${String(error).split('\n')[0]}`)
+  process.exit(1)
+}
+const gatesImpl = gateReport.gates_impl
+if (!Array.isArray(gatesImpl)) {
+  console.error('RG-09 DRIFT: gate-report.json has no gates_impl array (5.0-R R4.1).')
+  process.exit(1)
+}
+const registryById = new Map(registryReport.map((g) => [g.id, g.implementation]))
+const reportById = new Map(gatesImpl.map((g) => [g.id, g.implementation]))
+let ledgerDrift = 0
+for (const id of [...new Set([...registryById.keys(), ...reportById.keys()])]) {
+  if (registryById.get(id) !== reportById.get(id)) {
+    console.error(`RG-09 DRIFT: gate '${id}' registry=${registryById.get(id) ?? 'ABSENT'} vs gate-report=${reportById.get(id) ?? 'ABSENT'}`)
+    ledgerDrift += 1
+  }
+}
+if (ledgerDrift > 0) process.exit(1)
+const unimplemented = registryReport.filter((g) => g.implementation === 'unimplemented')
+if (unimplemented.length > 0) {
+  const verdict = String(gateReport.batch_verdict ?? '')
+  if (/^(PASS|DONE|COMPLETE)/i.test(verdict)) {
+    console.error(`RG-09 DRIFT: ${unimplemented.length} gate(s) UNIMPLEMENTED but gate-report.batch_verdict='${verdict}' claims completion (INV-3-Q).`)
+    process.exit(1)
+  }
+  console.error(`RG-09 NOTE: ${unimplemented.length} critical gate(s) UNIMPLEMENTED (${unimplemented.map((g) => g.id).join(', ')}) — FORMAL/FAST delivery BLOCKED by design until P1.`)
+} else {
+  console.error('RG-09 NOTE: all critical gates have real producers (P1 complete).')
+}
+console.error('RG-09: gates_impl ledger matches the registry.')
+
 if (accepted !== null) {
-  console.log(`verify-report-state: PASS (vitest ${accepted.numPassedTests}/${accepted.numTotalTests}, ${accepted.numFailedTests} failures match gate-report).`)
+  console.log(`verify-report-state: PASS (vitest ${accepted.numPassedTests}/${accepted.numTotalTests}, ${accepted.numFailedTests} failures match gate-report; RG-06/07/09 agree).`)
   process.exit(0)
 }
 process.exit(1)

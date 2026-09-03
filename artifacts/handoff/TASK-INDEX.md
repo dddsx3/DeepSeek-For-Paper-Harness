@@ -16,12 +16,13 @@
 | TASK 2     (Claim → Result evidence) | `ffad0e63bf` | `artifacts/handoff/TASK-2/` | PASS (10/10) | — |
 | TASK 2.1   (Evidence Freeze + Audit) | `4f64b72315` | `artifacts/handoff/TASK-2.1/` | PASS (C1..C10) | Follow-ups item 12 (legacy test rewrite) |
 | TASK 3     (Execution Provenance Gate v1.0) | `8d3158abe2` task book / `ffad0e63bf` impl | `artifacts/handoff/TASK-3/` | PASS (C1..C10) | — |
-| TASK 3.5   (STALE engine) | `adc50eaebd` | `artifacts/handoff/TASK-2.1/` (audit batch) | PARTIAL (7/11 stale align) | Wired producer; S-002 closed; S-003/S-004/S-009 need the 5.0.4 forge factory |
-| TASK 3.6   (Replay–Delivery staleness) | `4064a28baf` | `artifacts/handoff/TASK-2.1/` | PASS (report shape) | The `delivery_replay_max_age` policy itself is the next handoff (5.0.8) |
-| TASK 4.0   (Gate registry + 5 stub producers) | `cf462f928b` | (folded into TASK 3) | PARTIAL (5 stubs) | Each stub awaits its real implementation (5.0.1 / 4.3 / 4.4) |
+| TASK 3.5   (STALE engine) | `adc50eaebd` + 5.0-R | `artifacts/handoff/TASK-2.1/` + `artifacts/handoff/TASK-5.0-R/` | PASS (5.0-R: 4 stale reds closed; S-003/004 drift on forged captures; gate integration aligned to evaluateDelivery contract; kill probes recorded) | S-009 RequirementSpec walk deferred to P1-4 (closure algorithm A7 frozen first) |
+| TASK 3.6   (Replay–Delivery staleness) | `4064a28baf` + 5.0.8 | `artifacts/handoff/TASK-2.1/` | PASS | `delivery_replay_max_age` policy landed (5.0.8); enforcement point = the audit composition |
+| TASK 4.0   (Gate registry + producers) | 5.0-R | (registry in `src/delivery/gate-registry.ts`) | PARTIAL → six gates UNIMPLEMENTED (honest BLOCKED in FORMAL/FAST); ir_canonicalization/provenance/stale_detection real | Real v0.1 semantics land in P1 (execution/numeric_consistency/reference_validation/requirement_coverage); figure_data_consistency in P2 |
 | TASK 4.2   (fast mode bypass removal) | `52b7aded26` | n/a | PASS (executor line) | Reviewer schema unification DONE (5.0.3c); Oracle Routing follow-up |
 | TASK 4.3   (FigureSpec data_hash) | `adc50eaebd` | n/a | PASS (schema) | §15 other fields are the follow-up |
-| TASK 5.0   (Second-repair batch: 5.0.5/6/7/8/11 + capture-path rewrites) | (this batch) | `artifacts/handoff/TASK-5.0/handoff.md` | PARTIAL (5 sub-tasks landed; 5.0.1/4/10 DEFERRED on v1.1) | 5.0.9 FigureSpec data_hash comparison; 5.0.1/5.0.4/5.0.10 await v1.1 |
+| TASK 5.0   (Second-repair batch: 5.0.5/6/7/8/11 + capture-path rewrites) | (5.0 batch commits) | `artifacts/handoff/TASK-5.0/handoff.md` | PASS (5.0.1 closed under 5.0-R delegation; 5.0.4/5.0.10 DEFERRED on v1.1) | 5.0.9 superseded by P2; 5.0.4 attestation hardening + 5.0.10 numeric tolerance await v1.1 |
+| TASK 5.0-R (补漏批次: six-stub elimination, eleven reds to zero, gates_impl + RG-09, exploratory run mode, real final-output sink) | (5.0-R commits) | `artifacts/handoff/TASK-5.0-R/` | PASS (873/874 tests, 0 failures; RG-06/07/09 agree; 6 gates UNIMPLEMENTED & ledgered) | P1 生产者轨 is the next batch; EXPLORATORY marked informal (R1-4) |
 
 ## Pending tasks (not yet started)
 

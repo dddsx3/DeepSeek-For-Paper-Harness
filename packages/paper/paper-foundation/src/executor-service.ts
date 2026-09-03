@@ -45,6 +45,8 @@ export interface ExecutorConfig {
   readonly pricing?: PricingTable
   /** Fraction of a model's context window one request may occupy. */
   readonly contextUtilization?: number
+  /** 5.0-R (R5): root under which promoted final outputs are really written. */
+  readonly finalOutputRoot?: string
 }
 
 const modelPrice: s<ModelPrice> = s.object({
@@ -77,6 +79,9 @@ export function resolveExecutorOptions(
       capMs: config.backoffCapMs ?? DEFAULT_BACKOFF_CAP_MS,
     },
     contextUtilization: config.contextUtilization ?? DEFAULT_CONTEXT_UTILIZATION,
+    // 5.0-R (R5): a real sink root makes promotion write bytes. The empty
+    // string is the schema-level "not mounted" marker.
+    ...(config.finalOutputRoot ? { finalOutputRoot: config.finalOutputRoot } : {}),
     // exactOptionalPropertyTypes: an explicit undefined would be a type
     // error on the optional fields, so omit rather than pass through.
     ...ir === undefined ? {} : { ir },
@@ -102,6 +107,7 @@ export class PaperExecutorService extends Service {
     backoffCapMs: s.number().step(1).min(1).default(DEFAULT_BACKOFF_CAP_MS),
     pricing: s.dict(s.dict(modelPrice)).default({}),
     contextUtilization: s.number().min(0.1).max(1).default(DEFAULT_CONTEXT_UTILIZATION),
+    finalOutputRoot: s.string().default(''),
   })
 
   private executor: WorkflowExecutor | undefined

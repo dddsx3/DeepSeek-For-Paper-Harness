@@ -46,3 +46,5 @@ packages/typert/generator/tests/.explicit-service-*/
 packages/typert/generator/tests/.generated-*/
 paper-harness-*-review-*.zip
 packages/typert/generator/tests/.rendered-model-*/
+artifacts/handoff/TASK-3/.vitest-corpus.json
+artifacts/handoff/TASK-3/.vitest-corpus.json

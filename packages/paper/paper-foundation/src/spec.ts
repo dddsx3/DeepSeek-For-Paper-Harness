@@ -117,6 +117,10 @@ export const manifestSchema = z.object({
   runId: runIdSchema,
   harnessVersion: z.string().min(1),
   mode: runModeSchema,
+  // 5.0-R (R1-4): EXPLORATORY runs deliver informal artifacts only —
+  // never usable as a formal deliverable. Required (not optional) so a
+  // manifest cannot forget to declare its status.
+  informal: z.boolean(),
   finalArtifactId: artifactIdSchema.nullable(),
   gates: z.record(z.string(), z.boolean()),
   usage: usageSchema,

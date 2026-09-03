@@ -222,3 +222,11 @@ traps lives in
 pre-push checklist in §E). Read it before re-touching any of: the smoke
 runner, verify-report-state.mjs, LocalProcessRunner, or the paper CI
 workflow.
+
+### 22. 5.0-R pointer (stale ledgers superseded)
+5.0-R closed the redteam15 (7) and stale-engine (4) reds documented in
+items 7/12/13; the six pretend-PASS gate producers are UNIMPLEMENTED and
+machine-ledgered (RG-09); RunMode gained 'exploratory'; persistFinal
+gained a real sink. The consolidated 5.0-R risk list, kill probes and
+diff-review live in `artifacts/handoff/TASK-5.0-R/`. Read items 7/12/13
+here only as history.
