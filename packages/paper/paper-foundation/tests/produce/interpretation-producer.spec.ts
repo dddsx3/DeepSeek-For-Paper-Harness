@@ -188,4 +188,22 @@ describe('P1-3 renderV1Report (IR-injected numbers, guarded conclusion)', () => 
     const verdict = renderV1Report({ title: 't', results, narrative: { conclusion: 'The thickness is consistent with the survey.' } })
     expect(verdict.ok).toBe(true)
   })
+
+  it('a unit exponent like km^-1 is not mistaken for a numeric literal', () => {
+    const verdict = renderV1Report({
+      title: 't',
+      results: [{ result_id: 'RES-D', name: 'ridge_density', value: 2.4, unit: 'km^-1', uncertainty: 0.3 }],
+      narrative: { conclusion: 'Ridge density along the corridor is 2.4 km^-1.' },
+    })
+    expect(verdict.ok).toBe(true)
+  })
+
+  it('an uncertainty literal in the conclusion is allowed (machine number too)', () => {
+    const verdict = renderV1Report({
+      title: 't',
+      results,
+      narrative: { conclusion: 'Mean ice thickness is 0.731 m ± 0.012 m.' },
+    })
+    expect(verdict.ok).toBe(true)
+  })
 })

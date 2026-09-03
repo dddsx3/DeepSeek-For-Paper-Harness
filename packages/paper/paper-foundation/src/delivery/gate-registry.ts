@@ -159,16 +159,21 @@ registerCriticalGate('ir_canonicalization', (_mode, ir) =>
 
 /**
  * P1-1 (task book P1-1): the bridge's `claims` argument — every artifact
- * the workflow declares to be an IR object — is now read from the canonical
- * store instead of the hard-coded empty list the registry shipped with.
- * Claims enter the store only through the producer/capture doors, so a
- * store without claims (pre-P1 data paths) behaves exactly as before.
+ * the workflow declares to be an IR object — is now derived from the
+ * canonical store instead of the hard-coded empty list the registry
+ * shipped with. The bridge's claim shape is a DECLARATION
+ * `{ artifact_id, ir_kind, ir_ref }` ("I claim this id is an IR object of
+ * this kind"), not a Claim record — this derivation feeds every canonical
+ * record back as a self-declaration, so the ir_canonicalization gate
+ * verifies the whole store's registration id-for-id. A store without
+ * records (pre-P1 data paths) behaves exactly as before.
  */
 function collectStoredClaims(ir: ModelingIr): ReadonlyArray<unknown> {
-  return ir
-    .list()
-    .filter(record => record.kind === 'Claim')
-    .map(record => record.value)
+  return ir.list().map(record => ({
+    artifact_id: record.id,
+    ir_kind: record.kind,
+    ir_ref: record.id,
+  }))
 }
 
 registerCriticalGate('provenance', (_mode, ir) =>

@@ -53,7 +53,13 @@ export interface RunExecutionInput {
 }
 
 export type RunExecutionVerdict =
-  | { ok: true; runArtifactId: string; executionId: string }
+  | {
+      ok: true
+      runArtifactId: string
+      executionId: string
+      /** P1-3: the REAL produced output bytes for interpretation. */
+      outputs: ReadonlyArray<import('./interpretation-producer.ts').OutputBytes>
+    }
   | { ok: false; code: string; reason: string }
 
 const NO_INPUT_HASH = sha256Hex('no-input-data')
@@ -142,5 +148,10 @@ export async function produceRunExecution(input: RunExecutionInput): Promise<Run
       reason: failure !== undefined ? `${failure.kind}: ${failure.reason}` : 'store refused the captured record',
     }
   }
-  return { ok: true, runArtifactId: runId, executionId }
+  return {
+    ok: true,
+    runArtifactId: runId,
+    executionId,
+    outputs: captured.outputs.map(o => ({ locator: o.locator, bytes: o.bytes })),
+  }
 }

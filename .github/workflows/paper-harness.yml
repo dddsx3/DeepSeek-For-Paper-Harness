@@ -85,6 +85,15 @@ jobs:
       - name: TASK 5.0 gate-report self-check
         run: pnpm run test:task3:report-state
 
+      # P1-5: FORMAL end-to-end demo + pass corpus. A REAL node child runs
+      # the paper leaf's code; Result/Claim are minted from the real output
+      # bytes; the v1 report is rendered (IR-injected numbers); nine gates
+      # (all real) run in FORMAL mode with S-007 code bytes checked via
+      # loadCode from the persisted run dir; legal leaves must deliver
+      # (False Block Rate 0/3) and wrong leaves must be killed.
+      - name: P1-5 FORMAL demo + pass corpus
+        run: pnpm run test:p1:demo
+
       - name: Upload gate evidence
         if: always()
         uses: actions/upload-artifact@v7
@@ -93,4 +102,5 @@ jobs:
           path: |
             artifacts/handoff/TASK-3/execution-results.json
             artifacts/handoff/TASK-3/mutation-results.json
+            artifacts/handoff/TASK-P1/demo/output/
           if-no-files-found: warn

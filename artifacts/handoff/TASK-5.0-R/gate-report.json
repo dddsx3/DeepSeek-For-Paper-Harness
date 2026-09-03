@@ -12,12 +12,12 @@
   },
   "baseline": {
     "files": 71,
-    "total_tests": 906,
-    "passed_tests": 906,
+    "total_tests": 919,
+    "passed_tests": 919,
     "failed_tests": 0,
     "failed_test_suites": 0,
     "tsc_clean": true,
-    "baseline_at": "P1 gates slice: 9/9 critical gates real (numeric/execution/reference/requirement/runtime/figure vacuous) + 19 gate acceptance tests; runner no longer imitates missing outputs. Measured with repo-default vitest workers."
+    "baseline_at": "P1-5 slice: FORMAL demo pipeline + pass corpus + loadCode wiring + P1-3 producers (13 new tests). execution-producer.spec (real spawn) counted by CI on Linux."
   },
   "failures_by_origin": {},
   "gates_impl": [

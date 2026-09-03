@@ -40,8 +40,19 @@ export interface ExecutionCaptureFailure {
   readonly reason: string
 }
 
+export interface CaptureOutputFile {
+  readonly locator: string
+  readonly bytes: string
+}
+
 export type ExecutionCaptureResult =
-  | { readonly ok: true; readonly record: ExecutionRecord }
+  | {
+      readonly ok: true
+      readonly record: ExecutionRecord
+      /** P1-3: the REAL produced output bytes, so a downstream stage can
+       *  turn the run's result file into a canonical Result. */
+      readonly outputs: ReadonlyArray<CaptureOutputFile>
+    }
   | { readonly ok: false; readonly failures: ReadonlyArray<ExecutionCaptureFailure> }
 
 export interface CaptureExecutionInput {
@@ -153,7 +164,11 @@ export async function captureExecution(input: CaptureExecutionInput): Promise<Ex
     }
   }
 
-  return { ok: true, record: parsed.value }
+  return {
+    ok: true,
+    record: parsed.value,
+    outputs: outcome.outputFiles.map(f => ({ locator: f.locator, bytes: f.bytes })),
+  }
 }
 
 function safeParseRecord(record: unknown): { ok: true; value: ExecutionRecord } | { ok: false; reason: string } {

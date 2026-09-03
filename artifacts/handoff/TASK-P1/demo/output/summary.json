@@ -1,0 +1,35 @@
+{
+  "legal": [
+    {
+      "id": "POLAR-ICE",
+      "status": "PASS",
+      "sha256": "0f43aa540cd0a8bf087953018f874f362c89c9e0d046c906a495e4121427ca70"
+    },
+    {
+      "id": "MELT-POND",
+      "status": "PASS",
+      "sha256": "4e6b6d1619d3f624088496137c3c22f4df914524ac1fd04e09771840e6db5920"
+    },
+    {
+      "id": "RIDGE-DENSITY",
+      "status": "PASS",
+      "sha256": "09e79914ceff2091eea46aace29af65885183c05cb704546bbe7eb6188be6fdc"
+    }
+  ],
+  "wrong": [
+    {
+      "id": "TOO-GOOD",
+      "status": "KILLED",
+      "refusedAt": "renderV1Report",
+      "code": "conflicting_conclusion_number",
+      "reason": "conclusion contains numeric literal(s) [0.732] that are not Result values/uncertainties [0.731, 0.012] — key numbers may only be injected from the IR (P1-3)"
+    },
+    {
+      "id": "OVER-PROMISE",
+      "status": "KILLED",
+      "refusedAt": "delivery gates",
+      "reason": "requirement_coverage:BLOCKED:requirement coverage: 2 finding(s) (R-OUT: REQUIRED_OUTPUT 'R-OUT' of problem 'P1' is not covered: only 1/2 distinct CRITICAL results reach this problem (A7 v0 fail-closed))"
+    }
+  ],
+  "falseBlockRate": "0/3"
+}

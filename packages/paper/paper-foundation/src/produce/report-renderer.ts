@@ -31,7 +31,10 @@ export type RenderVerdict =
   | { ok: true; text: string }
   | { ok: false; code: 'conflicting_conclusion_number'; reason: string }
 
-const NUMBER_LITERAL = /[-+]?(?:\d+\.?\d*|\.\d+)/gu
+// A numeric literal whose leading '-' belongs to a unit exponent ('km^-1')
+// or an identifier ('x-1') is excluded by the two lookbehinds; a genuinely
+// signed number ('-0.731') keeps its sign (preceding char is a space).
+const NUMBER_LITERAL = /(?<![A-Za-z^])(?<![A-Za-z^]-)[-+]?(?:\d+\.?\d*|\.\d+)(?![A-Za-z])/gu
 
 /** Render the v1 template report. `narrative` is the container's raw block. */
 export function renderV1Report(input: {
@@ -40,7 +43,14 @@ export function renderV1Report(input: {
   /** raw container narrative block (e.g. { conclusion, methods }). */
   readonly narrative: Record<string, unknown>
 }): RenderVerdict {
-  const resultValues = new Set(input.results.map(r => String(r.value)))
+  // Allowed literals: every Result value AND its uncertainty — both are
+  // machine numbers injected from the IR. A unit exponent like 'km^-1'
+  // never matches (boundaries exclude [A-Za-z^]).
+  const allowed = new Set<string>()
+  for (const result of input.results) {
+    allowed.add(String(result.value))
+    if (result.uncertainty !== null) allowed.add(String(result.uncertainty))
+  }
 
   // ---- Conclusion guard: every numeric literal must be a Result value. ----
   const conclusion = input.narrative['conclusion']
@@ -49,9 +59,7 @@ export function renderV1Report(input: {
     const tokens: string[] = []
     for (const match of String(conclusion).matchAll(NUMBER_LITERAL)) tokens.push(match[0])
     for (const token of tokens) {
-      // Allow the guard's own syntax: nothing special — a literal that is
-      // not a Result value is a conflict. Units and words are untouched.
-      if (!resultValues.has(token) && !token.startsWith('±')) {
+      if (!allowed.has(token)) {
         conflicts.push(token)
       }
     }
@@ -60,7 +68,7 @@ export function renderV1Report(input: {
       return {
         ok: false,
         code: 'conflicting_conclusion_number',
-        reason: `conclusion contains numeric literal(s) [${uniq.join(', ')}] that are not Result values [${[...resultValues].join(', ')}] — key numbers may only be injected from the IR (P1-3)`,
+        reason: `conclusion contains numeric literal(s) [${uniq.join(', ')}] that are not Result values/uncertainties [${[...allowed].join(', ')}] — key numbers may only be injected from the IR (P1-3)`,
       }
     }
   }
