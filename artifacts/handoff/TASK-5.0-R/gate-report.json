@@ -1,7 +1,7 @@
 {
   "task": "TASK 2.1 (audit batch) + TASK 3.5 + TASK 4.0 (5.0-R disposition) + 4.2 / 4.3 / 4.5 + 5.0-R repair batch",
   "phase": "5.0-R — six pretend-PASS gates eliminated (UNIMPLEMENTED), eleven red tests to zero, gates_impl ledger + RG-09 live, report re-synchronised to the measured 0-failure suite",
-  "batch_verdict": "HONEST_BLOCKED — 1/9 critical gate UNIMPLEMENTED (figure_data_consistency — no Figure data until P2; P1-5 demo decision logged in TASK-P1 decision-log) (numeric_consistency/execution/reference_validation landed real in P1) (numeric_consistency landed real in P1-3) (figure_data_consistency); FORMAL/FAST delivery is BLOCKED by design (producer_unimplemented) until P1 lands real semantics; 0 test failures; EXPLORATORY remains the only deliverable run mode and is marked informal (R1-4). Structural defence ready; content pipeline not yet connected — the honest red the 5.0-R book required.",
+  "batch_verdict": "9/9 critical gates real (figure vacuous until P2; decision-log D3). FORMAL delivery now reachable for figure-less papers; the honest gates are live — P1-5 demo and pass corpus are the next slice.",
   "report_sync": {
     "head_commit": "(5.0-R batch — see git log for the R1+R2 and R3 commits, then this report commit)",
     "baseline_collected_at": "2026-09-03T21:09:00.000Z",
@@ -63,8 +63,8 @@
     },
     {
       "id": "figure_data_consistency",
-      "implementation": "unimplemented",
-      "src": "UNIMPLEMENTED — P2 (no Figure data exists yet)"
+      "implementation": "real",
+      "src": "src/delivery/figure-consistency.ts + gate-registry (P1 vacuous v0: no FigureSpec -> PASS; any FigureSpec -> BLOCKED p2-pending)"
     }
   ],
   "closed_conditions": [

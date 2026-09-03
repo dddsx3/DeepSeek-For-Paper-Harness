@@ -33,6 +33,7 @@ import { referenceValidationFindings } from './reference-validation.ts'
 import { executionGateFindings } from './execution-gate.ts'
 import { requirementCoverageFindings } from './requirement-coverage.ts'
 import { runtimeIntegrityFindings } from './runtime-integrity.ts'
+import { figureConsistencyFindings } from './figure-consistency.ts'
 import {
   CRITICAL_GATE_IDS,
   DEFAULT_REPLAY_MAX_AGE_MS,
@@ -269,7 +270,24 @@ registerCriticalGate('requirement_coverage', (_mode, ir) => {
     observedAt: new Date().toISOString(),
   }
 })
-registerCriticalGate('figure_data_consistency', UNIMPLEMENTED)
+// P1 (decision-log D3): figure gate is vacuously real until P2 — no FigureSpec
+// means nothing to check (PASS); any FigureSpec is BLOCKED p2-pending (fail-closed).
+registerCriticalGate('figure_data_consistency', (_mode, ir) => {
+  const store = ModelingIr.snapshot(ir)
+  if (store === null) {
+    return { id: 'figure_data_consistency', critical: true, status: 'BLOCKED', reason: 'no canonical store', observedAt: new Date().toISOString() }
+  }
+  const findings = figureConsistencyFindings(store)
+  if (findings.length === 0) {
+    return { id: 'figure_data_consistency', critical: true, status: 'PASS', reason: 'no FigureSpec present (P2 defines figure semantics)', observedAt: new Date().toISOString() }
+  }
+  const first = findings[0]!
+  return {
+    id: 'figure_data_consistency', critical: true, status: 'BLOCKED',
+    reason: `figure data consistency: ${findings.length} finding(s) (${first.figureId}: ${first.reason})`,
+    observedAt: new Date().toISOString(),
+  }
+})
 
 // Fail-fast at module init (INV-3-L).
 runRegistryStartupAssert()
