@@ -71,26 +71,14 @@ jobs:
       - name: TASK 3 mutations
         run: pnpm run test:task3:mutations
 
-      # C5: a real node child runs, is captured, and replays.
-      #
-      # INFORMATIONAL on GitHub-hosted runners, NOT a hard gate. The
-      # evidence chain is fully green on developer hosts (the handoff
-      # execution-results.json / local runs), but on hosted ubuntu the
-      # child node process keeps its stderr pipe open and never exits
-      # (observed across 5 CI iterations with LocalProcessRunner phase
-      # traces: `stdout stream ended` then nothing, past a 60s spawn
-      # timeout and a 180s watchdog; identical code exits 0 on Windows
-      # and in the vitest context on the same runner). The task book
-      # itself flags the smoke as host-sensitive. So this step runs on
-      # every CI build, and a stall/failure shows as an explicit
-      # annotation with full logs — it just does not red the build.
-      # The three hard gates above and the RG-06/07 self-check below
-      # remain blocking. Run locally (`pnpm run test:task3:replay-smoke`)
-      # for the authoritative C5 signal.
+      # C5: a real node child runs, is captured, and replays. This is a
+      # HARD gate. A hosted-runner stall (child stderr pipe never
+      # ending) turned out to be a real LocalProcessRunner race — the
+      # stdout reader was attached first and a fast child's stderr
+      # 'end' fired before its listener was attached. Listeners now
+      # attach to both streams and the exit/error events at spawn time
+      # (see runner.ts); the smoke passes 8/8 locally and is green on CI.
       - name: TASK 3 real-process replay smoke
-        continue-on-error: true
-        env:
-          DSH_SMOKE_WATCHDOG_MS: '30000'
         run: pnpm run test:task3:replay-smoke
 
       # RG-06 + RG-07: the declared baseline must match reality.

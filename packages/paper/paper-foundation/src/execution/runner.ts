@@ -108,14 +108,25 @@ export class LocalProcessRunner implements ExecutionRunner {
         timeout: this.config.timeoutMs,
       })
       trace(`runner: spawned pid=${child.pid}`)
-      const stdout = await streamToText(child.stdout)
-      trace('runner: stdout stream ended')
-      const stderr = await streamToText(child.stderr)
-      trace('runner: stderr stream ended')
-      const exitStatus = await new Promise<number>((resolve) => {
+      // Listen to BOTH streams AND the exit/error events immediately,
+      // before awaiting anything. A fast child can close its pipes and
+      // exit before listeners attached later would fire — 'end'/'exit'
+      // fire exactly once, so a late listener never fires and the await
+      // hangs forever. (Observed: CI stall where stdout ended in 31ms
+      // and the stderr reader was attached only after stdout resolved;
+      // reproduced locally with a short watchdog.) Reading concurrently
+      // also drains both pipes so a chatty child cannot deadlock.
+      const stdoutRead = streamToText(child.stdout)
+      const stderrRead = streamToText(child.stderr)
+      const exitStatusPromise = new Promise<number>((resolve) => {
         child.on('exit', (code, signal) => resolve(code ?? (signal === null ? -1 : -1)))
         child.on('error', () => resolve(-1))
       })
+      const stdout = await stdoutRead
+      trace('runner: stdout stream ended')
+      const stderr = await stderrRead
+      trace('runner: stderr stream ended')
+      const exitStatus = await exitStatusPromise
       trace(`runner: child exited exitStatus=${exitStatus}`)
       const runtimeFacts = await this.collectRuntimeFacts()
       trace('runner: runtime facts collected')
@@ -159,11 +170,16 @@ export class LocalProcessRunner implements ExecutionRunner {
         timeout: this.config.timeoutMs,
       })
       trace(`runner: runtime-fact spawned pid=${child.pid} (${key})`)
-      const stdout = await streamToText(child.stdout)
-      await new Promise<void>((resolve) => {
+      // Same missed-event discipline as run(): attach the readers and
+      // the exit/error listeners before awaiting anything, so a fast
+      // child cannot slip an 'end'/'exit' past a late listener.
+      const stdoutRead = streamToText(child.stdout)
+      const exited = new Promise<void>((resolve) => {
         child.on('exit', () => resolve())
         child.on('error', () => resolve())
       })
+      const stdout = await stdoutRead
+      await exited
       facts[key] = stdout.trim()
       trace(`runner: runtime-fact done (${key})`)
     }
