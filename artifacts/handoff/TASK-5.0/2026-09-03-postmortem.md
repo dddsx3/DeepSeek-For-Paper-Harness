@@ -61,3 +61,34 @@ CI hygiene fixes in the same batch: `pnpm/action-setup@v4 → v6` and `actions/u
 4. If you touched `artifacts/handoff/**`, `package.json`, or paper sources, expect the **Paper harness gates** workflow to run after push; watch it (`gh run watch`) to green.
 5. Do not claim a task done while any of the 11 known suite failures or 3 v1.1-deferred stubs are open (INV-3-Q; the ledger is in `artifacts/handoff/TASK-INDEX.md` + `TASK-2.1/gate-report.json`).
 6. Never attach a one-shot event listener after an intervening await (B3 pattern); never long-run top-level awaits (B4).
+
+## F. Real-API E2E unlock (option A) — findings while the ¥1 quota lasted
+
+The repo's real-API E2E workflow ran for the first time once the
+`DEEPSEEK_API_KEY_EXTERNAL` secret existed. Everything before the quota
+ran out was genuine fork drift that is now fixed:
+
+- **Host-build type-check of test files had never run** (fork pushes
+  straight to main; e2e Preflight previously blocked before Build). The
+  first unlocked Build exposed ~78 type errors across ~20 paper test
+  files (unused specifiers, `Record<string, unknown>` vs strict ingest
+  params, verdict-union `.failures` reads, literal comparisons, a
+  mistyped GateRecord[] function...). Fixed to 0 errors, all
+  behavior-preserving; see the commit "make the paper test corpus
+  typecheck under the host build (78 -> 0)". **Prevention:** after any
+  paper test/source edit run `npx tsc -b tsconfig.host.json` locally,
+  not just the package tsconfig.
+- **Fork branding drift in upstream CLI e2e**: `apps/cli/tests/built-bin.e2e.ts`
+  asserted `Usage: dsh ...`; the fork's web profile app prints
+  `Usage: dph --profile web` (args.ts `.name('dph')`) while the headless
+  profile app still prints `dsh`. Assertions now follow reality (web =
+  dph, headless = dsh).
+- **paper workflow.e2e.ts** mounted a default FORMAL guard but ran
+  `fast` workflows; TASK -1 `assertRuntimeReady` rejects that. It now
+  mounts `createFastProfile()`.
+- **Quota reality**: the ¥1 key was consumed mid-suite (account balance
+  went to -0.03 CNY / is_available=false), so the tail of the E2E run
+  (subagent spawn ENOENT, workflow-worker TypeError, headless-agent
+  usage=0, ...) reflects exhausted quota, not code. A full real-API
+  pass is ~62 files / 208 tests; budget several ¥ for one complete run
+  before triaging any remaining with-key failures.
