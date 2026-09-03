@@ -428,29 +428,32 @@ export const executionRecordSchema = zod
   })
 
 
-/** Schema-only in TASK 1 — TASK 7 owns the renderer and the style profile.
+/** Schema-only in TASK 1 — P2-3 owns the renderer and the style profile.
  *
- *  TASK 1.5: `data_refs` no longer resolves to `Result`-only; the canonical
- *  union is `Result | DataArtifact`. The store-level reference check lives
- *  in `refs.ts` (which encodes the per-element kind check as a `one-of`
- *  shape — see `IR_REF_FIELDS.FigureSpec.data_refs`), and the per-element
- *  runtime check in `problem-contract.ts` rejects anything outside that
- *  union (C-015).
+ *  TASK 1.5: `data_refs` resolves to `Result | DataArtifact`; the
+ *  store-level reference check lives in `refs.ts` (one-of shape,
+ *  `IR_REF_FIELDS.FigureSpec.data_refs`).
  *
- *  TASK 4.3: `data_hash` records the bytes the figure is rendering
- *  against (sha256:\<64 hex\>). The `figure_data_consistency` gate
- *  compares the recorded hash to the bytes currently produced by the
- *  referenced data; a drift flags the figure as F-11 stale. Optional
- *  during the TASK 4.3 transition: figures that pre-date the field
- *  still ingest, but the gate surfaces them with reason
- *  'data_hash_missing' instead of 'data_hash_mismatch'.
+ *  P2-3 (D3 obligation, vacuous lifted): `data_hash` is REQUIRED — every
+ *  FigureSpec must name the bytes it renders against
+ *  (sha256:<64 hex> = hash of the canonical render input the harness
+ *  derives from `data_refs`). The `figure_data_consistency` gate recomputes
+ *  that input and compares; a schema-bypassed write without a hash is
+ *  rejected at the boundary. `chart_type`/`caption`/axis labels are the
+ *  model's structural declarations — the numbers NEVER come from the model,
+ *  they are read from the referenced Results; `chart_type` is one of the
+ *  fixed renderer's three (line | scatter | bar).
  */
 export const figureSpecSchema = zod
   .object({
     figure_id: idSchema,
     data_refs: zod.array(refSchema),
     claim_refs: zod.array(refSchema),
-    data_hash: sha256DigestSchema.optional(),
+    chart_type: zod.enum(['line', 'scatter', 'bar']).optional(),
+    caption: zod.string().max(4096).optional(),
+    x_label: zod.string().max(256).optional(),
+    y_label: zod.string().max(256).optional(),
+    data_hash: sha256DigestSchema,
   })
   .strict()
 

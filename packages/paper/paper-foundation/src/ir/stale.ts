@@ -33,7 +33,7 @@ import {
   sha256Hex,
 } from './evidence-freeze.ts'
 import type { IrObjectRecord } from './store.ts'
-import type { Claim, ExecutionRecord, Result, RunArtifact } from './schema.ts'
+import type { Claim, ExecutionRecord, FigureSpec, Result, RunArtifact } from './schema.ts'
 
 /** Closed set of STALE reasons. An attacker cannot invent a verdict. */
 export const STALE_REASONS = [
@@ -46,7 +46,7 @@ export type StaleReason = (typeof STALE_REASONS)[number]
 
 export interface StaleFinding {
   readonly id: string                       // run_id | result_id | claim_id
-  readonly kind: 'RunArtifact' | 'Result' | 'Claim'
+  readonly kind: 'RunArtifact' | 'Result' | 'Claim' | 'FigureSpec'
   readonly reason: StaleReason
   readonly reason_text: string
   readonly upstream_run_id: string | null
@@ -246,6 +246,30 @@ function deriveTransitiveStale(
         id: claim.claim_id, kind: 'Claim',
         reason: 'STALE_TRANSITIVE',
         reason_text: `claim '${claim.claim_id}' cites a stale result or run`,
+        upstream_run_id: null,
+      })
+    }
+  }
+  // 3) Figures that draw a stale Result or rest on a stale Claim are stale
+  //    (P2-3: the header's promised FigureSpec propagation now has code).
+  const staleClaimIds = new Set(out.filter(f => f.kind === 'Claim').map(f => f.id))
+  for (const record of store.values()) {
+    if (record.kind !== 'FigureSpec') continue
+    const figure = record.value as FigureSpec
+    let stale = false
+    for (const ref of figure.data_refs) {
+      if (staleResultIds.has(ref)) { stale = true; break }
+    }
+    if (!stale) {
+      for (const ref of figure.claim_refs) {
+        if (staleClaimIds.has(ref)) { stale = true; break }
+      }
+    }
+    if (stale) {
+      out.push({
+        id: figure.figure_id, kind: 'FigureSpec',
+        reason: 'STALE_TRANSITIVE',
+        reason_text: `figure '${figure.figure_id}' draws a stale result or rests on a stale claim`,
         upstream_run_id: null,
       })
     }

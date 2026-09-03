@@ -151,8 +151,13 @@ describe('IR schemas — closed vocabulary', () => {
     expect(runArtifactSchema.safeParse({ ...validObjectFor('RunArtifact'), seed: 1.5 }).success).toBe(false)
   })
 
-  it('FigureSpec is schema-only and still demands the provenance fields', () => {
-    expect(figureSpecSchema.safeParse({ figure_id: 'F1', data_refs: [], claim_refs: [] }).success).toBe(true)
-    expect(figureSpecSchema.safeParse({ figure_id: 'F1', claim_refs: [] }).success).toBe(false)
+  it('FigureSpec is schema-only and demands the data_hash provenance field (P2-3)', () => {
+    const hash = `sha256:${'d'.repeat(64)}`
+    expect(figureSpecSchema.safeParse({ figure_id: 'F1', data_refs: [], claim_refs: [], data_hash: hash }).success).toBe(true)
+    // data_hash is REQUIRED since P2-3 (D3 obligation) — a figure must name
+    // the bytes it renders against; claim_refs/data_refs remain optional at
+    // the schema boundary.
+    expect(figureSpecSchema.safeParse({ figure_id: 'F1', data_refs: [], claim_refs: [] }).success).toBe(false)
+    expect(figureSpecSchema.safeParse({ figure_id: 'F1', data_refs: [], claim_refs: [], data_hash: hash, chart_type: 'pie' }).success).toBe(false)
   })
 })

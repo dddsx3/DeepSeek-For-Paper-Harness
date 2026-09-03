@@ -241,6 +241,8 @@ export function figureSpec(overrides: Record<string, unknown> = {}): Record<stri
     figure_id: 'F1',
     data_refs: ['RES1'],
     claim_refs: ['C1'],
+    chart_type: 'line',
+    data_hash: `sha256:${'b'.repeat(64)}`,
     ...overrides,
   }
 }

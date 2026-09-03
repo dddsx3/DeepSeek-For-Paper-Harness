@@ -12,12 +12,12 @@
   },
   "baseline": {
     "files": 71,
-    "total_tests": 929,
-    "passed_tests": 929,
+    "total_tests": 940,
+    "passed_tests": 940,
     "failed_tests": 0,
     "failed_test_suites": 0,
     "tsc_clean": true,
-    "baseline_at": "P2-1 slice: executor-authoritative FORMAL chain (4 tests: deliver + 3 attacks)"
+    "baseline_at": "P2-3 slice A: figure real data closure (schema data_hash required / real gate / producer / deterministic renderer / STALE figure propagation) 940/940"
   },
   "failures_by_origin": {},
   "gates_impl": [

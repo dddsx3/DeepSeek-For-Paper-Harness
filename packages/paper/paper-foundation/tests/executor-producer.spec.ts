@@ -46,7 +46,10 @@ const settings: PaperSettings = {
 function legalContainer(): string {
   return JSON.stringify({
     __dsh_paper: MODEL_CONTAINER_VERSION,
-    code: 'console.log("ok")',
+    // No `code`: a code-carrying container would trigger the P2-1
+    // production chain (needs options.produceRun); this suite tests the
+    // container→store shape that predates the chain (the chain itself is
+    // covered by executor-authoritative.spec.ts).
     entries: [
       { kind: 'DataArtifact', value: dataArtifact() },
       { kind: 'RequirementSpec', value: requirementSpec() },
