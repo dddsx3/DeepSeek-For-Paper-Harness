@@ -335,7 +335,7 @@ describe.skipIf(!existsSync(dshBin))('dsh BUILT bin (node lib/bin.js, no tsx)', 
       })
       expect(web.code).toBe(0)
       expect(web.stderr).toBe('')
-      expect(web.stdout).toContain('Usage: dsh --profile web')
+      expect(web.stdout).toContain('Usage: dph --profile web')
       expect(web.stdout).toContain('--port <port>')
       expect(web.stdout).not.toContain('dsh web: http://')
 
@@ -354,7 +354,7 @@ describe.skipIf(!existsSync(dshBin))('dsh BUILT bin (node lib/bin.js, no tsx)', 
       })
       expect(headlessHelp.code).toBe(0)
       expect(headlessHelp.stderr).toBe('')
-      expect(headlessHelp.stdout).toContain('Usage: dsh --profile headless')
+      expect(headlessHelp.stdout).toContain('Usage: dph --profile headless')
 
       const missingTask = await runBuiltBin(['--profile', 'headless'], {
         DPH_HOME: home,
