@@ -12,12 +12,12 @@
   },
   "baseline": {
     "files": 71,
-    "total_tests": 940,
-    "passed_tests": 940,
+    "total_tests": 946,
+    "passed_tests": 946,
     "failed_tests": 0,
     "failed_test_suites": 0,
     "tsc_clean": true,
-    "baseline_at": "P2-3 slice A: figure real data closure (schema data_hash required / real gate / producer / deterministic renderer / STALE figure propagation) 940/940"
+    "baseline_at": "P2 handoff: figure closure + report v2 slots + executor chain (946 incl real-spawn spec; demo-v2/probe are script-level)"
   },
   "failures_by_origin": {},
   "gates_impl": [

@@ -27,7 +27,7 @@ import { resolveRunPolicy } from './policy.ts'
 import { parseModelContainer, produceContainerInto } from './produce/ir-producer.ts'
 import { produceRunExecution } from './produce/execution-producer.ts'
 import { produceInterpretation } from './produce/interpretation-producer.ts'
-import { renderV1Report } from './produce/report-renderer.ts'
+import { renderReportV2 } from './produce/report-renderer.ts'
 import type { PaperProviderService, PaperRole } from './provider.ts'
 import { backoffDelayMs, classifyFailure } from './resilience.ts'
 import type { BackoffPolicy } from './resilience.ts'
@@ -570,6 +570,7 @@ export class WorkflowExecutor {
     await this.audit({ eventType: 'ir_entry_written', actor: 'paper-executor', runId, detail: { kind: 'ExecutionRecord', id: executed.executionId, nodeId: 'execute', stage: 'code-run' } })
 
     let reportText: string
+    let figureAssets: Array<{ figureId: string; data_hash: string; svg: string }> = []
     const interpretations = container.interpretations
     if (interpretations !== undefined) {
       // Interpretation sources may name the file basename; resolve them to
@@ -593,17 +594,23 @@ export class WorkflowExecutor {
       for (const id of minted.claimIds) {
         await this.audit({ eventType: 'ir_entry_written', actor: 'paper-executor', runId, detail: { kind: 'Claim', id, nodeId: 'execute', stage: 'interpretation' } })
       }
+      for (const figure of minted.figures) {
+        await this.audit({ eventType: 'ir_entry_written', actor: 'paper-executor', runId, detail: { kind: 'FigureSpec', id: figure.figureId, nodeId: 'execute', stage: 'interpretation' } })
+        figureAssets.push(figure)
+      }
     }
 
-    // v1 template report (P2-4 upgrades this to structured slots): the
-    // result table is injected from the canonical Result records.
+    // v2 template report (P2-4): result table injected from the IR, the
+    // conclusion may be structured slots or guarded prose, and any minted
+    // figure's REAL rendered bytes are embedded with provenance.
     const snapshot = ModelingIr.snapshot(ir)
     const results = snapshot === null
       ? []
       : [...snapshot.values()]
           .filter(r => r.kind === 'Result')
           .map(r => r.value)
-    const rendered = renderV1Report({
+    const figureDecls = (container.interpretations?.['figures'] as Array<{ figure_id: string; caption?: string; data_refs?: ReadonlyArray<string> }> | undefined) ?? []
+    const rendered = renderReportV2({
       title: String((container.narrative?.['title'] as string | undefined) ?? 'Paper deliverable (executor production chain)'),
       results: results.map(r => ({
         result_id: r.result_id,
@@ -613,6 +620,17 @@ export class WorkflowExecutor {
         uncertainty: r.uncertainty,
       })),
       narrative: container.narrative ?? {},
+      figures: figureAssets.map((asset) => {
+        const decl = figureDecls.find(d => d.figure_id === asset.figureId)
+        return {
+          figureId: asset.figureId,
+          ...(decl?.caption === undefined ? {} : { caption: decl.caption }),
+          svg: asset.svg,
+          data_hash: asset.data_hash,
+          resultRefs: decl?.data_refs ?? [],
+          rendererVersion: 'okabe-ito-v1/svg',
+        }
+      }),
     })
     if (!rendered.ok) {
       return { ok: false, code: rendered.code, reason: `report render refused: ${rendered.reason}` }

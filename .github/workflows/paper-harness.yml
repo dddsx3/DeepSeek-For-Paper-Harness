@@ -94,6 +94,14 @@ jobs:
       - name: P1-5 FORMAL demo + pass corpus
         run: pnpm run test:p1:demo
 
+      # P2: executor-authoritative demo v2 (D7). The EXECUTOR is the only
+      # entry — the production chain runs inside the execute stage, the v2
+      # report carries figures (real rendered SVG bytes + provenance) and
+      # structured conclusion slots; strict-mode nine-gate delivery promotes
+      # to a real final file. Legal 4/4 DELIVER (FBR 0/4), wrong 2/2 KILLED.
+      - name: P2 executor-authoritative demo v2
+        run: pnpm run test:p2:demo
+
       - name: Upload gate evidence
         if: always()
         uses: actions/upload-artifact@v7
@@ -103,4 +111,38 @@ jobs:
             artifacts/handoff/TASK-3/execution-results.json
             artifacts/handoff/TASK-3/mutation-results.json
             artifacts/handoff/TASK-P1/demo/output/
+            artifacts/handoff/TASK-P2/demo-v2/output/
+          if-no-files-found: warn
+
+  # P2-2: provider adherence probe (manual). Real ≥20 first-attempt calls
+  # need DEEPSEEK_API_KEY — CI never holds it, so this job is
+  # workflow_dispatch-only and the script reports explicit SKIPPED (never
+  # silent PASS) when the key is absent.
+  p2-provider-probe:
+    name: P2 / provider adherence probe (manual)
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-24.04
+    env:
+      DSH_TELEMETRY_DISABLED: '1'
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+      - name: Install (immutable)
+        run: pnpm install --frozen-lockfile
+      - name: Run adherence probe
+        env:
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+          DEEPSEEK_BASE_URL: ${{ secrets.DEEPSEEK_BASE_URL }}
+        run: pnpm run test:p2:probe
+      - name: Upload probe evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: p2-probe-evidence
+          path: artifacts/handoff/TASK-P2/probe/output/
           if-no-files-found: warn

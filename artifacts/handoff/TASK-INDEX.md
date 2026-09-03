@@ -23,6 +23,7 @@
 | TASK 4.3   (FigureSpec data_hash) | `adc50eaebd` | n/a | PASS (schema) | §15 other fields are the follow-up |
 | TASK 5.0   (Second-repair batch: 5.0.5/6/7/8/11 + capture-path rewrites) | (5.0 batch commits) | `artifacts/handoff/TASK-5.0/handoff.md` | PASS (5.0.1 closed under 5.0-R delegation; 5.0.4/5.0.10 DEFERRED on v1.1) | 5.0.9 superseded by P2; 5.0.4 attestation hardening + 5.0.10 numeric tolerance await v1.1 |
 | TASK-P1 (生产者轨) | `d823b7cea` | `artifacts/handoff/TASK-P1/` | PARTIAL → DONE（D1/D3/D7 于 2026-09-04 复签闭口；E4a/E4b/E4c 代签选 A 回执入 decision-log） | P2: executor 内嵌整链（D7 义务）；figure vacuous 解除（D3 义务） |
+| TASK-P2 (执行器整链 + 图表数据闭环: E4 review v2 / executor 权威链 / figure 真数据闭环 / 报告 v2 槽位 / demo v2 / 遵从率探针) | `f3485ee0e1` 起 (head at handoff) | `artifacts/handoff/TASK-P2/` | DONE（P2-1 executor 权威 FORMAL 链 4/4 + demo v2 4/4 DELIVER FBR 0/4 + wrong 2/2 KILLED；figure 门 vacuous→real 语义更替已登记；gates_impl 9 real 保持；探针 fake 自检 1.0，真实段 manual 待 key） | 作者: 无新增复签；真实遵从率实跑（<0.8 降级义务）、SVG→位图、formal RunMode、DF 图型 → 后续任务书 |
 | TASK 5.0-R (补漏批次: six-stub elimination, eleven reds to zero, gates_impl + RG-09, exploratory run mode, real final-output sink) | (5.0-R commits) | `artifacts/handoff/TASK-5.0-R/` | PASS (874/874 tests at close; RG-06/07/09 agree; six stubs -> UNIMPLEMENTED then real via P1) | P1 生产者轨 is the next batch; EXPLORATORY marked informal (R1-4) |
 
 ## Pending tasks (not yet started)

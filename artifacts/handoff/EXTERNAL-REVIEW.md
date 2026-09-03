@@ -258,3 +258,7 @@ issue on the repository. All findings will be tracked in
   D7 pipeline 权威路径）经审计方推荐代签全部闭口；下一批次 TASK-P2 按
   `artifacts/handoff/TASK-P2/` 计划执行（executor 整链内嵌 → 遵从率探针 →
   Figure 数据闭环 → 报告 v2）。
+- 2026-09-04：TASK-P2（executor 整链与图表数据闭环）批次收口 —— E4 review 语义、
+  executor 权威 FORMAL 链（D7 义务）、figure 数据闭环真校验（D3 义务 vacuous
+  解除）、报告 v2 槽位 + 图资产、demo v2（executor 入口）4/4 DELIVER /
+  2/2 KILLED；遵从率探针 fake 自检 1.0、真实 ≥20 次调用待 manual（key）。

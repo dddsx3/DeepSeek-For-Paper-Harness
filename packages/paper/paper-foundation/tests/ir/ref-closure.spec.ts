@@ -205,6 +205,7 @@ describe('R-010 — FigureSpec.data_refs points at a ModelSpec (kind mismatch)',
       figure_id: 'F-WRONG-KIND',
       data_refs: ['M1'],
       claim_refs: [],
+      data_hash: 'sha256:0000000000000000000000000000000000000000000000000000000000000000',
     }) as IrIngestVerdict
     expect(verdict.accepted).toBe(false)
     expect(hasFailure(failuresOf(verdict), 'reference_kind_mismatch', 'data_refs')).toBe(true)
@@ -218,6 +219,7 @@ describe('R-011 — FigureSpec.data_refs points at an unregistered id', () => {
       figure_id: 'F-MISSING',
       data_refs: ['DA-DOES-NOT-EXIST'],
       claim_refs: [],
+      data_hash: 'sha256:0000000000000000000000000000000000000000000000000000000000000000',
     }) as IrIngestVerdict
     expect(verdict.accepted).toBe(false)
     expect(hasFailure(failuresOf(verdict), 'unresolved_reference', 'data_refs')).toBe(true)
@@ -231,6 +233,7 @@ describe('R-012 — FigureSpec.data_refs → Result is accepted (legal union mem
       figure_id: 'F-RESULT',
       data_refs: ['RES1'],
       claim_refs: [],
+      data_hash: 'sha256:0000000000000000000000000000000000000000000000000000000000000000',
     }) as IrIngestVerdict
     expect(verdict.accepted).toBe(true)
   })
@@ -244,6 +247,7 @@ describe('R-013 — FigureSpec.data_refs → DataArtifact is accepted (legal uni
       figure_id: 'F-DATAARTIFACT',
       data_refs: ['DA-RAW'],
       claim_refs: [],
+      data_hash: 'sha256:0000000000000000000000000000000000000000000000000000000000000000',
     }) as IrIngestVerdict
     expect(verdict.accepted).toBe(true)
   })

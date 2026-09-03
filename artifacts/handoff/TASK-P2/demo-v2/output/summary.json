@@ -1,0 +1,37 @@
+{
+  "legal": [
+    {
+      "id": "Polar ice thickness",
+      "status": "PASS",
+      "sha256": "6271f0c25e6d692a7b19f2baf1e556b26fd17687d097ef5cd708dc5c1f7b42a9"
+    },
+    {
+      "id": "Melt pond fraction",
+      "status": "PASS",
+      "sha256": "96f4ebb416b7444519714c0a37d35cb1c8ae1de19029afc6d58d87f300f3d38c"
+    },
+    {
+      "id": "Ridge density",
+      "status": "PASS",
+      "sha256": "8fd36af92a8ac001b535ba8dd341b882de461643dbbfdbac39ae4ff54dc749b9"
+    },
+    {
+      "id": "Polar ice with figure",
+      "status": "PASS",
+      "sha256": "3c398379427123a3e40df058d916616e60ca64cb74082cc91240e85d309a52b1"
+    }
+  ],
+  "wrong": [
+    {
+      "id": "Polar ice thickness",
+      "status": "KILLED",
+      "message": "node '945901d8-b089-4fc8-8250-4fc78116a58a' exhausted 3 attempts: EXECUTE output was not a schema-valid ir-container-v1 (BLOCKED)"
+    },
+    {
+      "id": "Polar ice with figure",
+      "status": "KILLED",
+      "message": "node 'ebe06bf6-8ed3-478a-ad1e-fb958b5ce540' exhausted 3 attempts: EXECUTE output was not a schema-valid ir-container-v1 (BLOCKED)"
+    }
+  ],
+  "falseBlockRate": "0/4"
+}

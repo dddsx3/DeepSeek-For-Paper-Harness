@@ -1,0 +1,15 @@
+{
+  "generated_at": "2026-09-03T21:24:09.954Z",
+  "fakeSelfCheck": {
+    "calls": 20,
+    "adherence": 1,
+    "trusted": true
+  },
+  "realSection": {
+    "status": "SKIPPED",
+    "reason": "DEEPSEEK_API_KEY not set — real calls not counted (P2-6: no silent PASS)",
+    "attempts": 0,
+    "adherence": null
+  },
+  "note": "Adherence = (container parses AND code really runs AND all Results pass the numeric gates) / total first attempts. Retries recorded separately, never counted as first-try adherence."
+}

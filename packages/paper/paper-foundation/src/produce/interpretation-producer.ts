@@ -33,6 +33,7 @@ import { z as zod } from 'zod'
 import { ModelingIr } from '../ir/store.ts'
 import { IR_SCHEMAS } from '../ir/schema.ts'
 import { readIrObjectId } from '../ir/index.ts'
+import { produceFigures } from '../figure/producer.ts'
 
 /** One executed output file's bytes (P1-2's capture outcome). */
 export interface OutputBytes {
@@ -76,6 +77,24 @@ export const interpretationSchema = zod
           .strict(),
       )
       .optional(),
+    // P2-3 (slice B): structural figure declarations. The producer derives
+    // data_hash from the store and renders the bytes — numbers never come
+    // from the model (see src/figure/producer.ts).
+    figures: zod
+      .array(
+        zod
+          .object({
+            figure_id: zod.string().min(1),
+            chart_type: zod.enum(['line', 'scatter', 'bar']),
+            data_refs: zod.array(zod.string()).min(1),
+            claim_refs: zod.array(zod.string()).optional(),
+            caption: zod.string().max(4096).optional(),
+            x_label: zod.string().max(256).optional(),
+            y_label: zod.string().max(256).optional(),
+          })
+          .strict(),
+      )
+      .optional(),
   })
   .strict()
 
@@ -85,11 +104,25 @@ export type InterpretationFailureCode =
   | 'result_source_missing'      // declared locator not among executed outputs
   | 'result_source_invalid'      // output unparsable / path missing / not a number
   | 'claim_binding_unknown'      // NUMERIC claim's bound Result does not exist
+  | 'figure_declaration_invalid' // figure structure/guard refusal (P2-3)
+  | 'figure_data_invalid'        // figure data/dangling/type refusal (P2-3)
   | 'record_schema_violation'    // a minted Result/Claim fails its closed IR schema
   | 'store_refused'              // store admission (incl. 1.5R closure) refused
 
+/** One minted figure's render assets (P2-3 slice B). */
+export interface MintedFigure {
+  readonly figureId: string
+  readonly data_hash: string
+  readonly svg: string
+}
+
 export type InterpretationVerdict =
-  | { ok: true; resultIds: ReadonlyArray<string>; claimIds: ReadonlyArray<string> }
+  | {
+      ok: true
+      resultIds: ReadonlyArray<string>
+      claimIds: ReadonlyArray<string>
+      figures: ReadonlyArray<MintedFigure>
+    }
   | { ok: false; code: InterpretationFailureCode; reason: string }
 
 interface ParsedInterpretation {
@@ -363,5 +396,18 @@ export function produceInterpretation(input: {
     }
     claimIds.push(String(readIrObjectId('Claim', record)))
   }
-  return { ok: true, resultIds, claimIds }
+  // P2-3 (slice B): structural figure declarations are minted AFTER the
+  // Results they draw exist in the store (data_refs must resolve).
+  const figures: MintedFigure[] = []
+  if ((block.figures?.length ?? 0) > 0) {
+    const minted = produceFigures(ir, block.figures ?? [])
+    if (!minted.ok) {
+      return { ok: false, code: minted.code, reason: minted.reason }
+    }
+    for (const asset of minted.assets) {
+      figures.push({ figureId: asset.figureId, data_hash: asset.data_hash, svg: asset.svg })
+    }
+  }
+
+  return { ok: true, resultIds, claimIds, figures }
 }

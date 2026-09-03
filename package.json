@@ -48,6 +48,8 @@
     "test:task3:replay-smoke": "node --experimental-transform-types artifacts/handoff/TASK-3/run-real-execution-smoke.mjs",
     "test:task3:report-state": "tsx artifacts/handoff/TASK-2.1/verify-report-state.mjs",
     "test:p1:demo": "tsx artifacts/handoff/TASK-P1/demo/run-p1-demo.mjs",
+    "test:p2:demo": "tsx artifacts/handoff/TASK-P2/demo-v2/run-p2-demo.mjs",
+    "test:p2:probe": "tsx artifacts/handoff/TASK-P2/probe/run-p2-probe.mjs",
     "test:issue-management": "node .github/issue-management/policy.test.mjs",
     "test:snapshot": "vitest run --config vitest.snapshot.config.ts",
     "test:snapshot:record": "cross-env DSH_SNAPSHOT=record vitest run --config vitest.snapshot.config.ts --update",
