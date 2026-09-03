@@ -63,6 +63,7 @@ const WATCHDOG_MS = 180_000
 
 async function main() {
   const NOW = '2026-09-01T00:00:00.000Z'
+  const mark = message => console.log(`[smoke] ${new Date().toISOString()} ${message}`)
   const realCode = [
     'const fs = require("node:fs");',
     'fs.writeFileSync("result.json", JSON.stringify({ mean_thickness: 0.731 }));',
@@ -79,6 +80,16 @@ async function main() {
     environmentFactsCommands: [['node', '-p', 'process.version']],
   }
 
+  // CI stall probe (5.0.6): on ubuntu runners the capture below used to
+  // hang with no output until the watchdog. Run the real child ONCE
+  // through the production runner before the capture so a stall can be
+  // attributed to a specific await instead of the whole phase.
+  mark('probe: running the real child through LocalProcessRunner')
+  const probe = await new LocalProcessRunner(config).run({
+    code: realCode,
+  })
+  mark(`probe: exit_status=${probe.exitStatus} stdout=${JSON.stringify(probe.stdout)}`)
+
   const ir = new ModelingIr({ now: () => NOW })
   for (const entry of chainThrough('ModelSpec')) {
     ir.put(entry.kind, entry.value)
@@ -92,12 +103,14 @@ async function main() {
     evidence_refs: ['RES1'], result_refs: ['RES1'], model_refs: ['M1'],
   }).accepted) throw new Error('claim ingest failed')
 
+  mark('capture: starting captureExecution')
   const captured = await captureExecution({
     ir, runRef: 'RUN1', executionId: 'EXEC-REAL',
     runner: new LocalProcessRunner(config),
     loadCode: async () => realCode,
     timeoutMs: 60_000,
   })
+  mark('capture: captureExecution resolved')
   if (!captured.ok) {
     console.error('CAPTURE FAILED:', JSON.stringify(captured.failures, null, 2))
     return 1
@@ -118,12 +131,14 @@ async function main() {
   console.log('capture: stdout_hash =', captured.record.stdout_hash)
   console.log('capture: runtime_fingerprint_hash =', captured.record.runtime_fingerprint_hash)
 
+  mark('replay: starting replayExecution')
   const verdict = await replayExecution({
     ir, executionId: 'EXEC-REAL',
     runner: new LocalProcessRunner(config),
     loadCode: async () => realCode,
     timeoutMs: 60_000,
   })
+  mark('replay: replayExecution resolved')
 
   const summary = {
     evidence: 'TASK 3 C5 — real-process capture + replay',
@@ -139,6 +154,7 @@ async function main() {
 
 const watchdog = setTimeout(() => {
   console.error(`run-real-execution-smoke: stalled — capture/replay did not settle within ${WATCHDOG_MS / 1000}s`)
+  console.error(`run-real-execution-smoke: node=${process.version} platform=${process.platform} arch=${process.arch} execPath=${process.execPath}`)
   process.exit(2)
 }, WATCHDOG_MS)
 
