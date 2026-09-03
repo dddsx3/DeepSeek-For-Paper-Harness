@@ -71,6 +71,21 @@ export interface ModelContainer {
   readonly code?: string
   /** Free-prose narration bound for the v1 template report (P1-3 renders). */
   readonly narrative?: Record<string, unknown>
+  /**
+   * P1-3 — how to turn the run's REAL outputs into canonical Result/Claim
+   * records. The model declares *structure* (which file+json path carries a
+   * quantity, what unit it is) but never the numbers themselves — values are
+   * read from the executed output bytes, so the digits only ever flow IR →
+   * Result → Claim (INV-2-A/B). Raw passthrough; shape is the producer's
+   * `interpretationSchema`.
+   */
+  readonly interpretations?: Record<string, unknown>
+  /**
+   * P1-2 — the run the model's code proposes: output file basenames the
+   * runner must collect and their canonical locators (same order). Raw
+   * passthrough; consumed by the execution-capture composition.
+   */
+  readonly run?: Record<string, unknown>
 }
 
 /** A container with every entry's schema already checked (dry pass). */
@@ -115,6 +130,8 @@ export function parseModelContainer(text: string): { ok: true; container: Valida
     entries,
     ...(typeof raw['code'] === 'string' ? { code: raw['code'] as string } : {}),
     ...(typeof raw['narrative'] === 'object' && raw['narrative'] !== null ? { narrative: raw['narrative'] as Record<string, unknown> } : {}),
+    ...(typeof raw['interpretations'] === 'object' && raw['interpretations'] !== null ? { interpretations: raw['interpretations'] as Record<string, unknown> } : {}),
+    ...(typeof raw['run'] === 'object' && raw['run'] !== null ? { run: raw['run'] as Record<string, unknown> } : {}),
   }
   return { ok: true, container: container as ValidatedContainer }
 }
