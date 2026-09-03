@@ -21,7 +21,7 @@ export interface PaperNodeView {
 export interface PaperRunView {
   readonly id: string
   readonly status: 'planning' | 'running' | 'paused' | 'completed' | 'failed' | 'cancelled'
-  readonly mode: 'fast' | 'strict'
+  readonly mode: 'fast' | 'strict' | 'exploratory'
   readonly createdAt: string
   readonly updatedAt: string
   readonly usage: { readonly inputTokens: number; readonly outputTokens: number; readonly costUsd: number }
@@ -61,7 +61,7 @@ export interface PaperApi {
     get(request: RpcRequest<{ runId: string }>): Promise<RpcResponse<{ run: PaperRunView }>>
 
     /** Create a new planning run; the run id and first event are durable. */
-    start(request: RpcRequest<{ mode: 'fast' | 'strict' }>): Promise<RpcResponse<{ run: PaperRunView }>>
+    start(request: RpcRequest<{ mode: 'fast' | 'strict' | 'exploratory' }>): Promise<RpcResponse<{ run: PaperRunView }>>
 
     /** Transition one run to paused. */
     pause(request: RpcRequest<{ runId: string }>): Promise<RpcResponse<{ run: PaperRunView }>>

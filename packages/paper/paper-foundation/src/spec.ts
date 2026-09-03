@@ -31,7 +31,16 @@ export const nodeStateSchema = z.enum(['pending', 'ready', 'running', 'succeeded
 /** Supported workflow node responsibilities. */
 export const nodeTypeSchema = z.enum(['plan', 'execute', 'review', 'revise', 'deliver'])
 /** Runtime mode controlling the later workflow policy. */
-export const runModeSchema = z.enum(['fast', 'strict'])
+// 5.0-R (decision 1 amendment, author-approved): 'exploratory' becomes a
+// first-class RUN mode, matching the RuntimeMode the guard profiles already
+// distinguish. It is the only run mode whose delivery is backbone-exempt
+// (`requiresIrBackbone('EXPLORATORY') === false`), so the executor's
+// mechanism suites (budget/retry/context/review/manifest/audit — which
+// assert nothing about the six not-yet-implemented critical gates) can run
+// a full deliverable workflow without pretending those gates exist. Fast/
+// strict remain the backbone-required formal modes and stay BLOCKED until
+// P1 implements the six gates' real semantics.
+export const runModeSchema = z.enum(['fast', 'strict', 'exploratory'])
 
 /** Persisted usage accounting for a run. */
 export const usageSchema = z.object({

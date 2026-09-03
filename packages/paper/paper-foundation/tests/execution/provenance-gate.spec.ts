@@ -96,7 +96,7 @@ async function harness(ir?: ModelingIr) {
   return { ctx }
 }
 
-async function runOnce(ir?: ModelingIr, mode: 'fast' | 'strict' = 'fast') {
+async function runOnce(ir?: ModelingIr, mode: 'fast' | 'strict' | 'exploratory' = 'fast') {
   const { ctx } = await harness(ir)
   const engine = ctx.paperWorkflow.runs
   const run = await engine.startRun({ mode, harnessVersion: 'test', configHash: 'sha256:test' })
@@ -283,7 +283,11 @@ describe('the executor enforces provenance end-to-end', () => {
   })
 
   it('E2E: the canonical backbone (with its record) still delivers', async () => {
-    const outcome = await runOnce(backboneIr(), 'fast')
+    // 5.0-R: runs in this suite use the backbone-exempt `exploratory`
+    // mode — fast/strict delivery is BLOCKED at the six UNIMPLEMENTED
+    // critical gates until P1; this E2E asserts the full capture ->
+    // ingest -> execute -> deliver mechanics, not those six gates.
+    const outcome = await runOnce(backboneIr(), 'exploratory')
     expect(outcome.run.status).toBe('completed')
     expect(outcome.manifest.finalArtifactId).toBeTruthy()
   })

@@ -24,7 +24,7 @@ export const Config: s<PaperSettings> = s.object({
   executor: providerRouteConfig,
   reviewer: providerRouteConfig,
   editorAi: providerRouteConfig,
-  defaultMode: s.union(['fast', 'strict'] as const).default('fast'),
+  defaultMode: s.union(['fast', 'strict', 'exploratory'] as const).default('fast'),
 })
 
 declare module '@deepseek-ai/cordis' {

@@ -82,6 +82,28 @@ export function registeredCriticalGateIds(): ReadonlyArray<string> {
 }
 
 /**
+ * Machine-readable implementation ledger (5.0-R / R2.2). Enumerates, in
+ * CRITICAL_GATE_IDS order, whether each critical gate currently has a
+ * real producer or is registered as UNIMPLEMENTED. `verify-report-state.mjs`
+ * (RG-09) loads this to keep gate-report.json's `gates_impl` section in
+ * lockstep with the code — "which gate is a stub" stops being prose.
+ */
+export function criticalGateImplementationReport(): ReadonlyArray<{
+  readonly id: string
+  readonly implementation: 'real' | 'unimplemented'
+}> {
+  return CRITICAL_GATE_IDS.map((id) => {
+    const entry = registry.get(id)
+    return {
+      id,
+      implementation: entry !== undefined && entry.producer !== UNIMPLEMENTED
+        ? 'real'
+        : 'unimplemented',
+    }
+  })
+}
+
+/**
  * Assert at module init that every member of CRITICAL_GATE_IDS is
  * registered — and that the registry never lies about being empty.
  * Importing `runRegistryStartupAssert` is enough to fail fast on
@@ -110,35 +132,18 @@ registerCriticalGate('ir_canonicalization', (_mode, ir) =>
 registerCriticalGate('provenance', (_mode, ir) =>
   executionProvenanceGate(ir, new Date().toISOString()))
 
-// The remaining 7 critical gates from CRITICAL_GATE_IDS receive minimal
-// producers as part of TASK 4.0 (this repair batch). Each producer is
-// the smallest possible: it reads the canonical state through the
-// public IR surface and emits PASS / BLOCKED with a stable reason. They
-// are NOT full implementations of the gates' deeper semantics (stale
-// detection, numeric recomputation, etc. are deferred) — they only
-// answer the structural question "is the IR internally consistent?".
-registerCriticalGate('runtime_integrity', (_mode, ir) => ({
-  id: 'runtime_integrity', critical: true, status: 'PASS',
-  reason: ir !== null && ir !== undefined ? 'runtime guard verified at composition init' : 'ir is null',
-  observedAt: new Date().toISOString(),
-}))
-registerCriticalGate('execution', (_mode, ir) => {
-  if (ir === null || ir === undefined) {
-    return { id: 'execution', critical: true, status: 'BLOCKED', reason: 'no canonical store', observedAt: new Date().toISOString() }
-  }
-  // TASK 4.0 stub: a run is "execution-ready" iff every CRITICAL
-  // Claim chain reaches a RunArtifact that carries a structurally
-  // consistent ExecutionRecord. Full byte truth is TASK 4.0's
-  // replay gate (the provenance gate already enforces this
-  // structurally).
-  const snapshot = ir as unknown as { size?: number }
-  return { id: 'execution', critical: true, status: 'PASS', reason: `execution gate (TASK 4.0 stub): ${snapshot?.size ?? 0} object(s) registered`, observedAt: new Date().toISOString() }
-})
-registerCriticalGate('numeric_consistency', (_mode, _ir) => ({
-  id: 'numeric_consistency', critical: true, status: 'PASS',
-  reason: 'TASK 4.4 numeric tolerance policy not yet implemented; structural identity (TASK 2) holds',
-  observedAt: new Date().toISOString(),
-}))
+// 5.0-R (R1-1 / A-2, author-delegated): the six producers that shipped as
+// minimal "TASK 4.0 stub" functions always returned PASS regardless of the
+// store (numeric_consistency did not even read `ir`). A critical gate that
+// cannot fail is not a gate — it is a pretend-PASS (INV-3-O). Per the
+// ratification record (artifacts/handoff/TASK-5.0-R/v1.1-ratification.md
+// decision 1), all six are now registered as UNIMPLEMENTED so FORMAL/FAST
+// delivery is BLOCKED with `producer_unimplemented` until P1 lands real
+// semantics. EXPLORATORY stays exempt (mode-level design). stale_detection
+// below is a REAL producer (computeStaleReport) and stays.
+registerCriticalGate('runtime_integrity', UNIMPLEMENTED)
+registerCriticalGate('execution', UNIMPLEMENTED)
+registerCriticalGate('numeric_consistency', UNIMPLEMENTED)
 registerCriticalGate('stale_detection', (_mode, ir) => {
   // TASK 3.5: walk the IR closure, derive STALE evidence (S-001..S-009),
   // and refuse delivery if any critical-chain run is STALE.
@@ -156,36 +161,9 @@ registerCriticalGate('stale_detection', (_mode, ir) => {
     observedAt: new Date().toISOString(),
   }
 })
-registerCriticalGate('reference_validation', (_mode, ir) => {
-  // TASK 4.0 stub: the IR is already reference-closed at the store
-  // boundary (TASK 1.5R / TASK 2.1). A full validation walks every
-  // ref field; this stub reports PASS as long as the store is a
-  // canonical ModelingIr, and BLOCKED otherwise.
-  const isCanonical = ir !== null && ir !== undefined
-  return {
-    id: 'reference_validation', critical: true,
-    status: isCanonical ? 'PASS' : 'BLOCKED',
-    reason: isCanonical ? 'IR is reference-closed at commit (TASK 1.5R)' : 'store is not canonical',
-    observedAt: new Date().toISOString(),
-  }
-})
-registerCriticalGate('requirement_coverage', (_mode, ir) => {
-  // TASK 4.0 stub: every CRITICAL chain run must be reachable from a
-  // RequirementSpec. Full coverage math is deferred.
-  if (ir === null || ir === undefined) {
-    return { id: 'requirement_coverage', critical: true, status: 'BLOCKED', reason: 'no store', observedAt: new Date().toISOString() }
-  }
-  return { id: 'requirement_coverage', critical: true, status: 'PASS', reason: 'requirement coverage gate (TASK 4.0 stub)', observedAt: new Date().toISOString() }
-})
-registerCriticalGate('figure_data_consistency', (_mode, ir) => {
-  // TASK 4.3 extends FigureSpec with `data_hash`. Until then, this
-  // gate is a structural stub: a FigureSpec with empty data_refs is
-  // refused (the IR's existing rule), otherwise PASS.
-  if (ir === null || ir === undefined) {
-    return { id: 'figure_data_consistency', critical: true, status: 'BLOCKED', reason: 'no store', observedAt: new Date().toISOString() }
-  }
-  return { id: 'figure_data_consistency', critical: true, status: 'PASS', reason: 'figure_data_consistency gate (TASK 4.3 stub)', observedAt: new Date().toISOString() }
-})
+registerCriticalGate('reference_validation', UNIMPLEMENTED)
+registerCriticalGate('requirement_coverage', UNIMPLEMENTED)
+registerCriticalGate('figure_data_consistency', UNIMPLEMENTED)
 
 // Fail-fast at module init (INV-3-L).
 runRegistryStartupAssert()

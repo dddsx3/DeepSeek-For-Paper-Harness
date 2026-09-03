@@ -588,7 +588,7 @@ export class WorkflowExecutor {
   }
 
   /** Refuse to start another model call once the day's ceiling is reached. */
-  private async assertBudget(runId: RunId, mode: 'fast' | 'strict'): Promise<void> {
+  private async assertBudget(runId: RunId, mode: 'fast' | 'strict' | 'exploratory'): Promise<void> {
     const verdict = evaluateBudget(this.spentTodayUsd(), this.options.budget, mode)
     if (verdict.state === 'ok') return
     await this.engine.appendPublic(runId, null, 'usage', {

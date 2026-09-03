@@ -209,6 +209,7 @@ export function migrateRunMode(mode: string | undefined): RunMode {
   const normalized = mode.trim().toLowerCase()
   if (normalized === 'fast' || normalized === 'quick') return 'fast'
   if (normalized === 'strict' || normalized === 'full') return 'strict'
+  if (normalized === 'exploratory' || normalized === 'draft') return 'exploratory'
   throw new LegacyMigrationError('run mode', `'${mode}' is not a known mode`)
 }
 

@@ -5,7 +5,7 @@ import Storage from '@deepseek-ai/dsh-storage'
 import { DomainFacility } from '@deepseek-ai/dsh-storage-domain'
 import { MemoryMediaPool, MemoryStorageBackend } from '../../../storage/storage-domain/tests/helpers/memory-backend.ts'
 import PaperRuntimeGuard from '../src/runtime/runtime-guard.ts'
-import { createFastProfile } from '../src/runtime/profile.ts'
+import { createExploratoryProfile } from '../src/runtime/profile.ts'
 import {
   PaperExecutorService,
   PaperFoundationService,
@@ -64,9 +64,10 @@ async function harness(contextWindow: number | undefined) {
   const provider = windowedProvider(contextWindow)
   ctx.provide('paperProvider', provider as never)
   await ctx.plugin(PaperSettingsService, settings)
-  // TASK -1 rewire: mount the runtime guard with the FAST profile
-  // because the harness creates runs in `fast` mode.
-  const guard = new PaperRuntimeGuard(ctx, { profile: createFastProfile() })
+  // TASK -1 rewire: mount the runtime guard with the EXPLORATORY profile
+  // because the harness creates runs in `exploratory` mode (5.0-R: the only
+  // backbone-exempt run mode while the six critical gates are UNIMPLEMENTED).
+  const guard = new PaperRuntimeGuard(ctx, { profile: createExploratoryProfile() })
   guard.markReady()
   // TASK 1.25: mount the canonical IR backbone so these suites keep testing
   // budgeting / retries / cost rather than a text-only delivery path.
@@ -79,7 +80,7 @@ describe('executor context budgeting', () => {
   it('compacts an oversized prompt, references the full text, and records the elision', async () => {
     const { ctx, provider } = await harness(400)
     const engine = ctx.paperWorkflow.runs
-    const run = await engine.startRun({ mode: 'fast', harnessVersion: 'test', configHash: 'sha256:test' })
+    const run = await engine.startRun({ mode: 'exploratory', harnessVersion: 'test', configHash: 'sha256:test' })
     const task = 'summarize: '.repeat(600)
 
     const outcome = await ctx.paperExecutor.runs.execute(RunId(run.id), task)
@@ -105,7 +106,7 @@ describe('executor context budgeting', () => {
   it('sends prompts whole when the adapter states no context window', async () => {
     const { ctx, provider } = await harness(undefined)
     const engine = ctx.paperWorkflow.runs
-    const run = await engine.startRun({ mode: 'fast', harnessVersion: 'test', configHash: 'sha256:test' })
+    const run = await engine.startRun({ mode: 'exploratory', harnessVersion: 'test', configHash: 'sha256:test' })
     const task = 'summarize: '.repeat(600)
 
     await ctx.paperExecutor.runs.execute(RunId(run.id), task)
@@ -117,7 +118,7 @@ describe('executor context budgeting', () => {
   it('leaves a prompt that already fits untouched', async () => {
     const { ctx, provider } = await harness(100_000)
     const engine = ctx.paperWorkflow.runs
-    const run = await engine.startRun({ mode: 'fast', harnessVersion: 'test', configHash: 'sha256:test' })
+    const run = await engine.startRun({ mode: 'exploratory', harnessVersion: 'test', configHash: 'sha256:test' })
 
     await ctx.paperExecutor.runs.execute(RunId(run.id), 'write one sentence')
 

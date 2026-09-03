@@ -40,7 +40,7 @@ import {
   type ProviderRoute,
 } from '../src/index.ts'
 import PaperRuntimeGuard from '../src/runtime/runtime-guard.ts'
-import { createFastProfile } from '../src/runtime/profile.ts'
+import { createExploratoryProfile } from '../src/runtime/profile.ts'
 import { backboneIr } from './ir/fixtures.ts'
 
 const API_KEY = process.env.DEEPSEEK_API_KEY
@@ -57,7 +57,11 @@ afterEach(async () => {
 })
 
 function settingsWith(route: ProviderRoute): PaperSettings {
-  return { executor: route, reviewer: route, editorAi: route, defaultMode: 'fast' }
+  // 5.0-R: runs are `exploratory` — the only backbone-exempt run mode
+  // while the six critical gates are UNIMPLEMENTED (their real semantics
+  // land in P1; the acceptance target here is the durable record the real
+  // provider leaves behind, not the six gates' future verdicts).
+  return { executor: route, reviewer: route, editorAi: route, defaultMode: 'exploratory' }
 }
 
 const LIVE_ROUTE: ProviderRoute = {
@@ -84,16 +88,17 @@ async function harness(route: ProviderRoute = LIVE_ROUTE) {
   await ctx.plugin(PaperSettingsService, settingsWith(route))
   await ctx.plugin(PaperAuditService, {})
   // TASK -1 rewire: mount the runtime guard before the executor so the
-  // service's static inject can find it.
-  const guard = new PaperRuntimeGuard(ctx, { profile: createFastProfile() })
+  // service's static inject can find it. EXPLORATORY profile accepts the
+  // `exploratory` run mode (5.0-R decision 1 amendment).
+  const guard = new PaperRuntimeGuard(ctx, { profile: createExploratoryProfile() })
   guard.markReady()
   // TASK 1.25 / 3.R3: the executor delivers only when a canonical IR
   // carrying a closed Problem Contract is mounted (3.R2 single verdict;
-  // otherwise every FAST run is BLOCKED at ir_canonicalization before it
-  // can leave a manifest). The text-then-gate workflow expects the caller
-  // to pre-load the backbone — exactly as the executor unit suites do
-  // with backboneIr(). Without this line this acceptance suite could only
-  // ever observe gate failures, never the durable record it asserts.
+  // otherwise every backbone-required run is BLOCKED before it can leave
+  // a manifest). The text-then-gate workflow expects the caller to
+  // pre-load the backbone — exactly as the executor unit suites do with
+  // backboneIr(). The e2e keeps the backbone mounted so the acceptance
+  // suite asserts the durable record, not gate failures.
   ctx.provide('paperModelingIr', backboneIr())
   await ctx.plugin(PaperExecutorService, {
     backoffBaseMs: 1000,
@@ -104,11 +109,11 @@ async function harness(route: ProviderRoute = LIVE_ROUTE) {
 }
 
 describe.skipIf(KEYLESS)('paper workflow against the live provider', () => {
-  it('completes a fast run and leaves a manifest, artifact, usage, and audit trail', async () => {
+  it('completes an exploratory run and leaves a manifest, artifact, usage, and audit trail', async () => {
     const { ctx } = await harness()
     const engine = ctx.paperWorkflow.runs
     const started = await engine.startRun({
-      mode: 'fast',
+      mode: 'exploratory',
       harnessVersion: 'e2e',
       configHash: 'sha256:e2e',
     })
@@ -157,7 +162,7 @@ describe.skipIf(KEYLESS)('paper workflow against the live provider', () => {
     const { ctx } = await harness({ ...LIVE_ROUTE, credentialRef: 'PAPER_E2E_ABSENT_KEY' })
     const engine = ctx.paperWorkflow.runs
     const started = await engine.startRun({
-      mode: 'fast',
+      mode: 'exploratory',
       harnessVersion: 'e2e',
       configHash: 'sha256:e2e-absent-credential',
     })

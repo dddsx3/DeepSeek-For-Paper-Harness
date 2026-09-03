@@ -87,7 +87,7 @@ export function computeCostUsd(
 export function evaluateBudget(
   spentUsd: number,
   policy: BudgetPolicy,
-  mode: 'fast' | 'strict',
+  mode: 'fast' | 'strict' | 'exploratory',
 ): BudgetVerdict {
   if (policy.dailyBudgetUsd <= 0) return { state: 'ok', limitUsd: Infinity, spentUsd }
   const limitUsd = policy.dailyBudgetUsd * (mode === 'strict' ? policy.strictMultiplier : 1)

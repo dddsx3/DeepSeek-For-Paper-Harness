@@ -12,7 +12,10 @@ export interface RunPolicy {
 
 /**
  * Resolve one mode's policy. Fast mode delivers after a single revise round;
- * strict mode allows three and fails the run when defects persist.
+ * strict and exploratory modes allow three and fail the run when defects
+ * persist. Exploratory shares strict's round ceiling: its difference from
+ * the formal modes is the backbone-exempt delivery gate (5.0-R decision 1),
+ * not a looser review loop — the review gate treats every mode alike.
  * @param mode - the run's execution mode.
  * @returns the policy bound to that mode.
  */

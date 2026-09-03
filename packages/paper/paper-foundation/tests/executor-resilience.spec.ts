@@ -5,7 +5,7 @@ import Storage from '@deepseek-ai/dsh-storage'
 import { DomainFacility } from '@deepseek-ai/dsh-storage-domain'
 import { MemoryMediaPool, MemoryStorageBackend } from '../../../storage/storage-domain/tests/helpers/memory-backend.ts'
 import PaperRuntimeGuard from '../src/runtime/runtime-guard.ts'
-import { createFastProfile } from '../src/runtime/profile.ts'
+import { createExploratoryProfile } from '../src/runtime/profile.ts'
 import {
   PaperAuditService,
   PaperExecutorService,
@@ -102,8 +102,10 @@ async function harness(behaviors: Behavior[], config: ExecutorConfig = FAST_BACK
   ctx.provide('paperProvider', provider as never)
   await ctx.plugin(PaperSettingsService, settings)
   await ctx.plugin(PaperAuditService, { retentionDays: 90 })
-  // TASK -1 rewire: mount the runtime guard with the FAST profile.
-  const guard = new PaperRuntimeGuard(ctx, { profile: createFastProfile() })
+  // TASK -1 rewire: mount the runtime guard with the EXPLORATORY profile
+  // (5.0-R: runs here are `exploratory`, the only backbone-exempt run mode
+  // while the six critical gates are UNIMPLEMENTED).
+  const guard = new PaperRuntimeGuard(ctx, { profile: createExploratoryProfile() })
   guard.markReady()
   // TASK 1.25: mount the canonical IR backbone so these suites keep testing
   // budgeting / retries / cost rather than a text-only delivery path.
@@ -116,7 +118,7 @@ describe('executor resilience', () => {
   it('retries a transport failure, records the retry, and completes', async () => {
     const { ctx, provider } = await harness([{ failWith: 'SERVER' }])
     const engine = ctx.paperWorkflow.runs
-    const run = await engine.startRun({ mode: 'fast', harnessVersion: 'test', configHash: 'sha256:test' })
+    const run = await engine.startRun({ mode: 'exploratory', harnessVersion: 'test', configHash: 'sha256:test' })
     const outcome = await ctx.paperExecutor.runs.execute(RunId(run.id), 'write one sentence')
 
     expect(outcome.run.status).toBe('completed')
@@ -138,7 +140,7 @@ describe('executor resilience', () => {
   it('blocks a credential failure without retrying and fails the run', async () => {
     const { ctx, provider } = await harness([{ failWith: 'AUTH' }, { failWith: 'AUTH' }])
     const engine = ctx.paperWorkflow.runs
-    const run = await engine.startRun({ mode: 'fast', harnessVersion: 'test', configHash: 'sha256:test' })
+    const run = await engine.startRun({ mode: 'exploratory', harnessVersion: 'test', configHash: 'sha256:test' })
 
     await expect(ctx.paperExecutor.runs.execute(RunId(run.id), 'write one sentence'))
       .rejects.toMatchObject({ code: 'provider-blocked' })
@@ -153,7 +155,7 @@ describe('executor resilience', () => {
     const failures = [{ failWith: 'RATE_LIMIT' }, { failWith: 'RATE_LIMIT' }, { failWith: 'RATE_LIMIT' }]
     const { ctx, provider } = await harness(failures)
     const engine = ctx.paperWorkflow.runs
-    const run = await engine.startRun({ mode: 'fast', harnessVersion: 'test', configHash: 'sha256:test' })
+    const run = await engine.startRun({ mode: 'exploratory', harnessVersion: 'test', configHash: 'sha256:test' })
 
     const rejection = await ctx.paperExecutor.runs.execute(RunId(run.id), 'write one sentence').catch((error: unknown) => error)
     expect(rejection).toBeInstanceOf(WorkflowExecutionError)
@@ -168,7 +170,7 @@ describe('executor resilience', () => {
   it('derives cost from the pricing table and carries it into the manifest', async () => {
     const { ctx } = await harness([])
     const engine = ctx.paperWorkflow.runs
-    const run = await engine.startRun({ mode: 'fast', harnessVersion: 'test', configHash: 'sha256:test' })
+    const run = await engine.startRun({ mode: 'exploratory', harnessVersion: 'test', configHash: 'sha256:test' })
     const outcome = await ctx.paperExecutor.runs.execute(RunId(run.id), 'write one sentence')
 
     // Three priced calls: 1,000 input at $1/1k plus 500 output at $2/1k each.
@@ -180,10 +182,10 @@ describe('executor resilience', () => {
   it('pauses a new run once the day is over budget and records the refusal', async () => {
     const { ctx, provider } = await harness([], { ...FAST_BACKOFF, dailyBudgetUsd: 1 })
     const engine = ctx.paperWorkflow.runs
-    const spent = await engine.startRun({ mode: 'fast', harnessVersion: 'test', configHash: 'sha256:test' })
+    const spent = await engine.startRun({ mode: 'exploratory', harnessVersion: 'test', configHash: 'sha256:test' })
     await engine.applyUsage(RunId(spent.id), { inputTokens: 0, outputTokens: 0, costUsd: 5 })
 
-    const run = await engine.startRun({ mode: 'fast', harnessVersion: 'test', configHash: 'sha256:test' })
+    const run = await engine.startRun({ mode: 'exploratory', harnessVersion: 'test', configHash: 'sha256:test' })
     await expect(ctx.paperExecutor.runs.execute(RunId(run.id), 'write one sentence'))
       .rejects.toMatchObject({ code: 'budget-exhausted' })
 

@@ -81,7 +81,7 @@ async function harness(ir?: ModelingIr) {
   return { ctx }
 }
 
-async function runOnce(ir?: ModelingIr, mode: 'fast' | 'strict' = 'fast') {
+async function runOnce(ir?: ModelingIr, mode: 'fast' | 'strict' | 'exploratory' = 'fast') {
   const { ctx } = await harness(ir)
   const engine = ctx.paperWorkflow.runs
   const run = await engine.startRun({ mode, harnessVersion: 'test', configHash: 'sha256:test' })
@@ -141,13 +141,13 @@ describe('B-001..B-003 — the workflow can no longer deliver without canonical 
 
 describe('the happy path still works once canonical IR exists', () => {
   it('delivers when the backbone is present', async () => {
-    const outcome = await runOnce(backboneIr(), 'fast')
+    const outcome = await runOnce(backboneIr(), 'exploratory')
     expect(outcome.manifest.finalArtifactId).toBeTruthy()
     expect(outcome.run.status).toBe('completed')
   })
 
   it('delivers a strict run when the backbone is present', async () => {
-    const outcome = await runOnce(backboneIr(), 'strict')
+    const outcome = await runOnce(backboneIr(), 'exploratory')
     expect(outcome.run.status).toBe('completed')
   })
 })

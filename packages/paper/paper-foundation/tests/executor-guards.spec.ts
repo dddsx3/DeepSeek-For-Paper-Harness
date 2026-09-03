@@ -5,7 +5,7 @@ import Storage from '@deepseek-ai/dsh-storage'
 import { DomainFacility } from '@deepseek-ai/dsh-storage-domain'
 import { MemoryMediaPool, MemoryStorageBackend } from '../../../storage/storage-domain/tests/helpers/memory-backend.ts'
 import PaperRuntimeGuard from '../src/runtime/runtime-guard.ts'
-import { createFastProfile } from '../src/runtime/profile.ts'
+import { createExploratoryProfile } from '../src/runtime/profile.ts'
 import {
   DEFAULT_BACKOFF_BASE_MS,
   DEFAULT_BACKOFF_CAP_MS,
@@ -25,6 +25,7 @@ import {
   type PaperSettings,
 } from '../src/index.ts'
 import { backboneIr } from './ir/fixtures.ts'
+import { resolveRunPolicy } from '../src/policy.ts'
 
 /**
  * TASK 5.0.5: the audit events a *successful* promotion adds to a run's
@@ -77,9 +78,10 @@ async function harness(options: HarnessOptions = {}) {
   } as never)
   await ctx.plugin(PaperSettingsService, settings)
   await ctx.plugin(PaperAuditService, {})
-  // TASK -1 rewire: mount the runtime guard with the FAST profile
-  // because the harness creates runs in `fast` mode.
-  const guard = new PaperRuntimeGuard(ctx, { profile: createFastProfile() })
+  // TASK -1 rewire: mount the runtime guard with the EXPLORATORY profile
+  // because the harness creates runs in `exploratory` mode (5.0-R: the only
+  // backbone-exempt run mode while the six critical gates are UNIMPLEMENTED).
+  const guard = new PaperRuntimeGuard(ctx, { profile: createExploratoryProfile() })
   guard.markReady()
   // TASK 1.25: mount the canonical IR backbone so these suites keep testing
   // budgeting / retries / cost rather than a text-only delivery path.
@@ -121,6 +123,18 @@ describe('executor policy resolution', () => {
       audit,
     })
   })
+
+  // 5.0-R (decision 1 amendment): with fast/strict delivery BLOCKED until
+  // P1 implements the six critical gates, the fast=1 / strict=3 revise
+  // round split is pinned here as pure policy, not through full runs.
+  it('resolves fast to a single revise round', () => {
+    expect(resolveRunPolicy('fast')).toEqual({ maxReviseRounds: 1, maxNodeAttempts: 3 })
+  })
+
+  it('resolves strict and exploratory to three revise rounds', () => {
+    expect(resolveRunPolicy('strict')).toEqual({ maxReviseRounds: 3, maxNodeAttempts: 3 })
+    expect(resolveRunPolicy('exploratory')).toEqual({ maxReviseRounds: 3, maxNodeAttempts: 3 })
+  })
 })
 
 describe('executor run guards', () => {
@@ -133,7 +147,7 @@ describe('executor run guards', () => {
   it('executes a run that is already running without re-transitioning it', async () => {
     const { ctx } = await harness()
     const engine = ctx.paperWorkflow.runs
-    const run = await engine.startRun({ mode: 'fast', harnessVersion: 'test', configHash: 'sha256:test' })
+    const run = await engine.startRun({ mode: 'exploratory', harnessVersion: 'test', configHash: 'sha256:test' })
     await engine.transitionRun(run.id, 'running')
 
     const outcome = await ctx.paperExecutor.runs.execute(RunId(run.id), 'write one sentence')
@@ -154,10 +168,10 @@ describe('executor run guards', () => {
       },
     })
     const engine = ctx.paperWorkflow.runs
-    const spent = await engine.startRun({ mode: 'fast', harnessVersion: 'test', configHash: 'sha256:test' })
+    const spent = await engine.startRun({ mode: 'exploratory', harnessVersion: 'test', configHash: 'sha256:test' })
     await engine.applyUsage(RunId(spent.id), { inputTokens: 0, outputTokens: 0, costUsd: 6 })
 
-    const run = await engine.startRun({ mode: 'fast', harnessVersion: 'test', configHash: 'sha256:test' })
+    const run = await engine.startRun({ mode: 'exploratory', harnessVersion: 'test', configHash: 'sha256:test' })
     const outcome = await ctx.paperExecutor.runs.execute(RunId(run.id), 'write one sentence')
 
     expect(outcome.run.status).toBe('completed')
@@ -178,7 +192,7 @@ describe('executor run guards', () => {
   it('classifies a thrown non-provider value and pauses after its attempts', async () => {
     const { ctx } = await harness({ throwing: 'socket vanished' })
     const engine = ctx.paperWorkflow.runs
-    const run = await engine.startRun({ mode: 'fast', harnessVersion: 'test', configHash: 'sha256:test' })
+    const run = await engine.startRun({ mode: 'exploratory', harnessVersion: 'test', configHash: 'sha256:test' })
 
     await expect(ctx.paperExecutor.runs.execute(RunId(run.id), 'write one sentence'))
       .rejects.toMatchObject({ code: 'provider-unavailable' })
@@ -188,7 +202,7 @@ describe('executor run guards', () => {
   it('blocks immediately on a thrown value that carries a blocking code', async () => {
     const { ctx } = await harness({ throwing: Object.assign(new Error('no credential'), { code: 'AUTH' }) })
     const engine = ctx.paperWorkflow.runs
-    const run = await engine.startRun({ mode: 'fast', harnessVersion: 'test', configHash: 'sha256:test' })
+    const run = await engine.startRun({ mode: 'exploratory', harnessVersion: 'test', configHash: 'sha256:test' })
 
     await expect(ctx.paperExecutor.runs.execute(RunId(run.id), 'write one sentence'))
       .rejects.toMatchObject({ code: 'provider-blocked' })
@@ -200,7 +214,7 @@ describe('reviewer output parsing', () => {
   async function reviewDefects(reviewerText: string): Promise<string[]> {
     const { ctx } = await harness({ reviewerText })
     const engine = ctx.paperWorkflow.runs
-    const run = await engine.startRun({ mode: 'fast', harnessVersion: 'test', configHash: 'sha256:test' })
+    const run = await engine.startRun({ mode: 'exploratory', harnessVersion: 'test', configHash: 'sha256:test' })
     // TASK 5.0.3c: malformed review now throws (defects are critical,
     // the gate is fail-closed). The defect events were appended before
     // the throw, so reading them from the event log works either way.

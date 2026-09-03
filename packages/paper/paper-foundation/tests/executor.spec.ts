@@ -77,10 +77,10 @@ const approvingScript: Script = (system, prompt) => {
 }
 
 describe('WorkflowExecutor', () => {
-  it('completes a fast run whose review passes on the first pass', async () => {
+  it('completes an exploratory run whose review passes on the first pass', async () => {
     const { ctx } = await harness(approvingScript)
     const engine = ctx.paperWorkflow.runs
-    const run = await engine.startRun({ mode: 'fast', harnessVersion: 'test', configHash: 'sha256:test' })
+    const run = await engine.startRun({ mode: 'exploratory', harnessVersion: 'test', configHash: 'sha256:test' })
     const outcome = await ctx.paperExecutor.runs.execute(RunId(run.id), 'write one summary sentence')
 
     expect(outcome.run.status).toBe('completed')
@@ -101,16 +101,20 @@ describe('WorkflowExecutor', () => {
   // so a defect surviving the single revise round was still delivered
   // with `gates.review === false`. That exemption is gone — a mode may
   // change how a check runs, never whether it runs (INV-3-P). Only the
-  // outcome moved: the revise round still happens and both defects are
-  // still recorded.
-  it('refuses a fast run whose defects survive its single revise round', async () => {
+  // outcome moved: the revise rounds still happen and every round's
+  // defect is still recorded. 5.0-R: runs in this suite use the
+  // backbone-exempt `exploratory` mode (three revise rounds), because
+  // fast/strict delivery is BLOCKED at the six UNIMPLEMENTED gates until
+  // P1; the fast=1/strict=3 round split is pinned in
+  // executor-guards.spec.ts as resolveRunPolicy unit tests.
+  it('refuses a run whose defects survive its revise rounds', async () => {
     const { ctx } = await harness((system) => {
       if (system.includes('reviewer')) return '{"defects":[{"severity":"minor","description":"tone too dry"}]}'
       if (system.includes('editor')) return 'warmer deliverable text'
       return 'draft deliverable text'
     })
     const engine = ctx.paperWorkflow.runs
-    const run = await engine.startRun({ mode: 'fast', harnessVersion: 'test', configHash: 'sha256:test' })
+    const run = await engine.startRun({ mode: 'exploratory', harnessVersion: 'test', configHash: 'sha256:test' })
 
     await expect(ctx.paperExecutor.runs.execute(RunId(run.id), 'write one sentence'))
       .rejects.toThrow('failed its review gate')
@@ -120,19 +124,20 @@ describe('WorkflowExecutor', () => {
     expect(nodeTitles).toContain('revise #1')
     expect(nodeTitles).toContain('review #2')
     const events = engine.listEvents(RunId(run.id))
-    expect(events.filter(event => event.type === 'defect')).toHaveLength(2)
+    // Three revise rounds in exploratory mode -> four reviews, four defects.
+    expect(events.filter(event => event.type === 'defect')).toHaveLength(4)
     // No promotion, therefore no deliverable: the promoter is the only
     // writer and it is never reached on a refused run (INV-014).
     expect(engine.getManifest(RunId(run.id))).toBeUndefined()
   })
 
-  it('fails a strict run when defects persist past the policy ceiling', async () => {
+  it('fails a run when defects persist past the policy ceiling', async () => {
     const { ctx } = await harness((system) => {
       if (system.includes('reviewer')) return '{"defects":[{"severity":"major","description":"missing citation"}]}'
       return 'draft text'
     })
     const engine = ctx.paperWorkflow.runs
-    const run = await engine.startRun({ mode: 'strict', harnessVersion: 'test', configHash: 'sha256:test' })
+    const run = await engine.startRun({ mode: 'exploratory', harnessVersion: 'test', configHash: 'sha256:test' })
     await expect(ctx.paperExecutor.runs.execute(RunId(run.id), 'write one sentence'))
       .rejects.toThrow('failed its review gate')
 
@@ -156,7 +161,7 @@ describe('WorkflowExecutor', () => {
     const pushed: string[] = []
     ctx.on('paper/run-event', (event) => { pushed.push(`${event.seq}:${event.type}`) })
     const engine = ctx.paperWorkflow.runs
-    const run = await engine.startRun({ mode: 'fast', harnessVersion: 'test', configHash: 'sha256:test' })
+    const run = await engine.startRun({ mode: 'exploratory', harnessVersion: 'test', configHash: 'sha256:test' })
     await ctx.paperExecutor.runs.execute(RunId(run.id), 'write one summary sentence')
 
     expect(pushed[0]).toBe('1:plan_ready')
