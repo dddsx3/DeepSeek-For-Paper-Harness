@@ -364,7 +364,9 @@ export function inspectClaimEvidence(
 // Internal helpers
 // ---------------------------------------------------------------------------
 
-function resolverFromStore(
+/** Exported so critical gates (P1-3 numeric_consistency) run the SAME
+ *  semantic guards against the canonical store that ingest would run. */
+export function resolverFromStore(
   store: ReadonlyMap<string, IrObjectRecord>,
 ): ClaimEvidenceResolver {
   return (ref: string) => {

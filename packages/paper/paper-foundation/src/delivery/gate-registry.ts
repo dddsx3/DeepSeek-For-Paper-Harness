@@ -28,6 +28,7 @@ import { ModelingIr } from '../ir/store.ts'
 import { computeStaleReport } from '../ir/stale.js'
 import { executionProvenanceGate } from '../execution/audit.ts'
 import { irBridgeGate, requiresIrBackbone } from '../ir/bridge.ts'
+import { numericConsistencyFindings } from './numeric-consistency.ts'
 import {
   CRITICAL_GATE_IDS,
   DEFAULT_REPLAY_MAX_AGE_MS,
@@ -157,7 +158,25 @@ registerCriticalGate('provenance', (_mode, ir) =>
 // below is a REAL producer (computeStaleReport) and stays.
 registerCriticalGate('runtime_integrity', UNIMPLEMENTED)
 registerCriticalGate('execution', UNIMPLEMENTED)
-registerCriticalGate('numeric_consistency', UNIMPLEMENTED)
+// P1-3: numeric_consistency is a REAL gate — it walks every NUMERIC Claim
+// in the store and runs the claim-evidence semantic guards (exact value +
+// unit equality, role binding; R1-3 frozen, no tolerance layer yet).
+registerCriticalGate('numeric_consistency', (_mode, ir) => {
+  const store = ModelingIr.snapshot(ir)
+  if (store === null) {
+    return { id: 'numeric_consistency', critical: true, status: 'BLOCKED', reason: 'no canonical store', observedAt: new Date().toISOString() }
+  }
+  const findings = numericConsistencyFindings(store)
+  if (findings.length === 0) {
+    return { id: 'numeric_consistency', critical: true, status: 'PASS', reason: 'no numeric inconsistency found', observedAt: new Date().toISOString() }
+  }
+  const first = findings[0]!
+  return {
+    id: 'numeric_consistency', critical: true, status: 'BLOCKED',
+    reason: `numeric inconsistency: ${findings.length} finding(s) (${first.path}: ${first.reason})`,
+    observedAt: new Date().toISOString(),
+  }
+})
 registerCriticalGate('stale_detection', (_mode, ir) => {
   // TASK 3.5: walk the IR closure, derive STALE evidence (S-001..S-009),
   // and refuse delivery if any critical-chain run is STALE.

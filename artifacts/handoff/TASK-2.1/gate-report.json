@@ -1,7 +1,7 @@
 {
   "task": "TASK 2.1 (audit batch) + TASK 3.5 + TASK 4.0 (5.0-R disposition) + 4.2 / 4.3 / 4.5 + 5.0-R repair batch",
   "phase": "5.0-R — six pretend-PASS gates eliminated (UNIMPLEMENTED), eleven red tests to zero, gates_impl ledger + RG-09 live, report re-synchronised to the measured 0-failure suite",
-  "batch_verdict": "HONEST_BLOCKED — 6/9 critical gates UNIMPLEMENTED (runtime_integrity, execution, numeric_consistency, reference_validation, requirement_coverage, figure_data_consistency); FORMAL/FAST delivery is BLOCKED by design (producer_unimplemented) until P1 lands real semantics; 0 test failures; EXPLORATORY remains the only deliverable run mode and is marked informal (R1-4). Structural defence ready; content pipeline not yet connected — the honest red the 5.0-R book required.",
+  "batch_verdict": "HONEST_BLOCKED — 5/9 critical gates UNIMPLEMENTED (numeric_consistency landed real in P1-3) (runtime_integrity, execution, reference_validation, requirement_coverage, figure_data_consistency); FORMAL/FAST delivery is BLOCKED by design (producer_unimplemented) until P1 lands real semantics; 0 test failures; EXPLORATORY remains the only deliverable run mode and is marked informal (R1-4). Structural defence ready; content pipeline not yet connected — the honest red the 5.0-R book required.",
   "report_sync": {
     "head_commit": "(5.0-R batch — see git log for the R1+R2 and R3 commits, then this report commit)",
     "baseline_collected_at": "2026-09-03T21:09:00.000Z",
@@ -21,35 +21,148 @@
   },
   "failures_by_origin": {},
   "gates_impl": [
-    { "id": "ir_canonicalization",     "implementation": "real",         "src": "src/delivery/gate-registry.ts (irBridgeGate)" },
-    { "id": "provenance",              "implementation": "real",         "src": "src/delivery/gate-registry.ts (executionProvenanceGate)" },
-    { "id": "stale_detection",         "implementation": "real",         "src": "src/delivery/gate-registry.ts (computeStaleReport)" },
-    { "id": "runtime_integrity",       "implementation": "unimplemented", "src": "UNIMPLEMENTED — P1 生产者轨" },
-    { "id": "execution",               "implementation": "unimplemented", "src": "UNIMPLEMENTED — P1 生产者轨" },
-    { "id": "numeric_consistency",     "implementation": "unimplemented", "src": "UNIMPLEMENTED — P1-3 (4.4 numeric tolerance frozen under R1-3)" },
-    { "id": "reference_validation",    "implementation": "unimplemented", "src": "UNIMPLEMENTED — P1-4" },
-    { "id": "requirement_coverage",    "implementation": "unimplemented", "src": "UNIMPLEMENTED — P1-4 (closure algorithm A7 to be frozen first)" },
-    { "id": "figure_data_consistency", "implementation": "unimplemented", "src": "UNIMPLEMENTED — P2 (no Figure data exists yet)" }
+    {
+      "id": "ir_canonicalization",
+      "implementation": "real",
+      "src": "src/delivery/gate-registry.ts (irBridgeGate)"
+    },
+    {
+      "id": "provenance",
+      "implementation": "real",
+      "src": "src/delivery/gate-registry.ts (executionProvenanceGate)"
+    },
+    {
+      "id": "stale_detection",
+      "implementation": "real",
+      "src": "src/delivery/gate-registry.ts (computeStaleReport)"
+    },
+    {
+      "id": "runtime_integrity",
+      "implementation": "unimplemented",
+      "src": "UNIMPLEMENTED — P1 生产者轨"
+    },
+    {
+      "id": "execution",
+      "implementation": "unimplemented",
+      "src": "UNIMPLEMENTED — P1 生产者轨"
+    },
+    {
+      "id": "numeric_consistency",
+      "implementation": "real",
+      "src": "src/delivery/numeric-consistency.ts + gate-registry (P1-3: NUMERIC claims vs bound Result, exact, R1-3)"
+    },
+    {
+      "id": "reference_validation",
+      "implementation": "unimplemented",
+      "src": "UNIMPLEMENTED — P1-4"
+    },
+    {
+      "id": "requirement_coverage",
+      "implementation": "unimplemented",
+      "src": "UNIMPLEMENTED — P1-4 (closure algorithm A7 to be frozen first)"
+    },
+    {
+      "id": "figure_data_consistency",
+      "implementation": "unimplemented",
+      "src": "UNIMPLEMENTED — P2 (no Figure data exists yet)"
+    }
   ],
   "closed_conditions": [
-    { "id": "C1",  "description": "ExecutionRecord 完整 (canonical kind #12, schema, store closure)", "status": "PASS" },
-    { "id": "C2",  "description": "criticality 机制化 (3.R1 / INV-3-I,J)", "status": "PASS" },
-    { "id": "C3",  "description": "代码真实性 (replay code-hash, EX-03)", "status": "PASS" },
-    { "id": "C4",  "description": "环境真实性 (declared + measured fingerprint, EX-04)", "status": "PASS" },
-    { "id": "C5",  "description": "Replay 成功 (deterministic fake + real node smoke, real-execution-smoke.mjs)", "status": "PASS" },
-    { "id": "C6",  "description": "Result 重算一致 (D7 exact, EX-01 / EX-06 / EX-06b)", "status": "PASS" },
-    { "id": "C7",  "description": "Execution attack 全部拦截 (RT-X + EX)", "status": "PASS", "note": "13/13 attack cases green; the 4 previously-red problem-contract guard suites (RT-A/B/C/D) regained real coverage in 5.0-R via the attest-aware mount." },
-    { "id": "C8",  "description": "Mutations 全杀死 (E-01..E-08 = 8 / 8)", "status": "PASS" },
-    { "id": "C9",  "description": "Independent Auditor 完成 (runIndependentExecutionAudit, structural + replay merged)", "status": "PASS" },
-    { "id": "C10", "description": "Regression 保持绿色 (71 files / 873 tests / 0 failures)", "status": "PASS", "note": "5.0-R took the suite from 871/11 to 873/0. redteam15 and stale-engine reds are gone; each fix carries a kill probe recorded in TASK-5.0-R." },
-    { "id": "C11", "description": "criticality 机制化 (3.R1 / INV-3-I,J)", "status": "PASS" },
-    { "id": "C12", "description": "Producer 鉴权 (3.R3 / INV-3-M)", "status": "PASS" },
-    { "id": "C13", "description": "交付裁决唯一化 (3.R2 / INV-3-K, evaluator=evaluateDelivery only)", "status": "PASS", "note": "One verdict path end to end; the six pretend-PASS producers are gone (UNIMPLEMENTED, machine-ledgered), runtimeProfileValid real, replay window closed, persistFinal write semantics land in this batch (R5)." },
-    { "id": "C14", "description": "CI 复现性 (test:task3 + fault-corpus + mutations + replay-smoke + report-state)", "status": "PASS" },
-    { "id": "C15", "description": "Replay–delivery staleness 窗口闭合 (3.R6 / replayed_at + replay_report_hash + 5.0.8 policy)", "status": "PASS" },
-    { "id": "C16", "description": "Handoff package 与 §12 一致, PHASE 4 表述已分层修正", "status": "PASS" },
-    { "id": "C17", "description": "5.0-R: 六桩清零 — no critical gate may be an unconditional-PASS stub; every gate real or UNIMPLEMENTED + machine ledger (criticalGateImplementationReport) + RG-09", "status": "PASS", "note": "gate-registry registers 6 UNIMPLEMENTED + 3 real; RG-09 in verify-report-state.mjs cross-checks gate-report.gates_impl against the registry and refuses a PASS/DONE verdict while any gate is unimplemented. Kill evidence: a tampered gates_impl entry makes RG-09 red." },
-    { "id": "C18", "description": "5.0-R: RunMode 'exploratory' + executor mechanism suites keep running honestly", "status": "PASS", "note": "runModeSchema adds 'exploratory' (the only backbone-exempt run mode); executor mechanism suites (budget/retry/context/review/manifest/audit) migrated with assertions preserved; fast=1/strict=3 round split pinned as resolveRunPolicy unit tests." }
+    {
+      "id": "C1",
+      "description": "ExecutionRecord 完整 (canonical kind #12, schema, store closure)",
+      "status": "PASS"
+    },
+    {
+      "id": "C2",
+      "description": "criticality 机制化 (3.R1 / INV-3-I,J)",
+      "status": "PASS"
+    },
+    {
+      "id": "C3",
+      "description": "代码真实性 (replay code-hash, EX-03)",
+      "status": "PASS"
+    },
+    {
+      "id": "C4",
+      "description": "环境真实性 (declared + measured fingerprint, EX-04)",
+      "status": "PASS"
+    },
+    {
+      "id": "C5",
+      "description": "Replay 成功 (deterministic fake + real node smoke, real-execution-smoke.mjs)",
+      "status": "PASS"
+    },
+    {
+      "id": "C6",
+      "description": "Result 重算一致 (D7 exact, EX-01 / EX-06 / EX-06b)",
+      "status": "PASS"
+    },
+    {
+      "id": "C7",
+      "description": "Execution attack 全部拦截 (RT-X + EX)",
+      "status": "PASS",
+      "note": "13/13 attack cases green; the 4 previously-red problem-contract guard suites (RT-A/B/C/D) regained real coverage in 5.0-R via the attest-aware mount."
+    },
+    {
+      "id": "C8",
+      "description": "Mutations 全杀死 (E-01..E-08 = 8 / 8)",
+      "status": "PASS"
+    },
+    {
+      "id": "C9",
+      "description": "Independent Auditor 完成 (runIndependentExecutionAudit, structural + replay merged)",
+      "status": "PASS"
+    },
+    {
+      "id": "C10",
+      "description": "Regression 保持绿色 (71 files / 873 tests / 0 failures)",
+      "status": "PASS",
+      "note": "5.0-R took the suite from 871/11 to 873/0. redteam15 and stale-engine reds are gone; each fix carries a kill probe recorded in TASK-5.0-R."
+    },
+    {
+      "id": "C11",
+      "description": "criticality 机制化 (3.R1 / INV-3-I,J)",
+      "status": "PASS"
+    },
+    {
+      "id": "C12",
+      "description": "Producer 鉴权 (3.R3 / INV-3-M)",
+      "status": "PASS"
+    },
+    {
+      "id": "C13",
+      "description": "交付裁决唯一化 (3.R2 / INV-3-K, evaluator=evaluateDelivery only)",
+      "status": "PASS",
+      "note": "One verdict path end to end; the six pretend-PASS producers are gone (UNIMPLEMENTED, machine-ledgered), runtimeProfileValid real, replay window closed, persistFinal write semantics land in this batch (R5)."
+    },
+    {
+      "id": "C14",
+      "description": "CI 复现性 (test:task3 + fault-corpus + mutations + replay-smoke + report-state)",
+      "status": "PASS"
+    },
+    {
+      "id": "C15",
+      "description": "Replay–delivery staleness 窗口闭合 (3.R6 / replayed_at + replay_report_hash + 5.0.8 policy)",
+      "status": "PASS"
+    },
+    {
+      "id": "C16",
+      "description": "Handoff package 与 §12 一致, PHASE 4 表述已分层修正",
+      "status": "PASS"
+    },
+    {
+      "id": "C17",
+      "description": "5.0-R: 六桩清零 — no critical gate may be an unconditional-PASS stub; every gate real or UNIMPLEMENTED + machine ledger (criticalGateImplementationReport) + RG-09",
+      "status": "PASS",
+      "note": "gate-registry registers 6 UNIMPLEMENTED + 3 real; RG-09 in verify-report-state.mjs cross-checks gate-report.gates_impl against the registry and refuses a PASS/DONE verdict while any gate is unimplemented. Kill evidence: a tampered gates_impl entry makes RG-09 red."
+    },
+    {
+      "id": "C18",
+      "description": "5.0-R: RunMode 'exploratory' + executor mechanism suites keep running honestly",
+      "status": "PASS",
+      "note": "runModeSchema adds 'exploratory' (the only backbone-exempt run mode); executor mechanism suites (budget/retry/context/review/manifest/audit) migrated with assertions preserved; fast=1/strict=3 round split pinned as resolveRunPolicy unit tests."
+    }
   ],
   "totals": {
     "phases": 1,
