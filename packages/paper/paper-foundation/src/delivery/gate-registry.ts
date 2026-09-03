@@ -127,7 +127,21 @@ export function runRegistryStartupAssert(): void {
 // ---------------------------------------------------------------------------
 
 registerCriticalGate('ir_canonicalization', (_mode, ir) =>
-  irBridgeGate(ir, [], _mode, new Date().toISOString()))
+  irBridgeGate(ir, collectStoredClaims(ir), _mode, new Date().toISOString()))
+
+/**
+ * P1-1 (task book P1-1): the bridge's `claims` argument — every artifact
+ * the workflow declares to be an IR object — is now read from the canonical
+ * store instead of the hard-coded empty list the registry shipped with.
+ * Claims enter the store only through the producer/capture doors, so a
+ * store without claims (pre-P1 data paths) behaves exactly as before.
+ */
+function collectStoredClaims(ir: ModelingIr): ReadonlyArray<unknown> {
+  return ir
+    .list()
+    .filter(record => record.kind === 'Claim')
+    .map(record => record.value)
+}
 
 registerCriticalGate('provenance', (_mode, ir) =>
   executionProvenanceGate(ir, new Date().toISOString()))

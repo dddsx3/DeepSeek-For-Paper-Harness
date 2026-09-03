@@ -24,6 +24,7 @@ import { makeCandidateArtifact } from "./delivery/artifact-states.ts"
 import { promoteCandidateToDeliverable } from "./delivery/promoter.ts"
 import { ModelingIr } from './ir/store.ts'
 import { resolveRunPolicy } from './policy.ts'
+import { produceContainerInto } from './produce/ir-producer.ts'
 import type { PaperProviderService, PaperRole } from './provider.ts'
 import { backoffDelayMs, classifyFailure } from './resilience.ts'
 import type { BackoffPolicy } from './resilience.ts'
@@ -104,6 +105,15 @@ export interface ExecutorOptions {
    * composition mounts a sink; every real deployment should.
    */
   readonly finalOutputRoot?: string
+  /**
+   * P1-1: when true, the EXECUTE node's output MUST be an ir-container-v1
+   * typed-JSON (structured-output producer). The producer validates and
+   * writes the model-declared kinds into `ir`; a refused container counts
+   * as a failed EXECUTE attempt (retried up to the node ceiling, then the
+   * run is BLOCKED with the producer's reason). Requires a mounted `ir`.
+   * Default false keeps the pre-P1 free-prose EXECUTE protocol intact.
+   */
+  readonly produceFromExecute?: boolean
 }
 
 /**
@@ -547,6 +557,35 @@ export class WorkflowExecutor {
       try {
         const { text, usage } = await this.call(role, prompt)
         await this.recordUsage(runId, route.provider, route.model, usage)
+        // P1-1: on the produce-from-EXECUTE path the node output must be an
+        // ir-container-v1; the structured-output producer writes the model's
+        // declared kinds into the canonical store. A refused container is a
+        // failed attempt (retried by the loop below like any other failure);
+        // once the ceiling is spent the run is BLOCKED (see the exhaust
+        // branch). Every written entry is audited so the trail reconstructs
+        // the run's IR evolution.
+        if (type === 'execute' && this.options.produceFromExecute === true) {
+          const ir = this.options.ir
+          if (ir === undefined) {
+            const err = new Error('produceFromExecute requires a mounted ModelingIr (options.ir)')
+            ;(err as { code?: string }).code = 'IR_PRODUCER_NOT_CONFIGURED'
+            throw err
+          }
+          const verdict = produceContainerInto(ir, text)
+          if (!verdict.ok) {
+            const err = new Error(`EXECUTE output refused by the IR producer: ${verdict.reason}`)
+            ;(err as { code?: string }).code = 'IR_PRODUCER_REFUSED'
+            throw err
+          }
+          for (const entry of verdict.entries) {
+            await this.audit({
+              eventType: 'ir_entry_written',
+              actor: 'paper-executor',
+              runId,
+              detail: { kind: entry.kind, id: entry.id, nodeId: node.id },
+            })
+          }
+        }
         await this.engine.transitionNode(node.id, 'succeeded')
         return { nodeId: node.id, text }
       } catch (error: unknown) {
@@ -578,8 +617,26 @@ export class WorkflowExecutor {
       }
     }
 
-    // Attempts are spent and the failure was retryable: pause for review
-    // rather than fail, so a resumed run continues from this node.
+    // Attempts are spent and the failure was retryable. On the P1-1
+    // produce-from-EXECUTE path the retries existed to let the model emit a
+    // schema-valid container; once the ceiling is spent the run is BLOCKED
+    // (a persistent producer refusal is not a resumable transport pause).
+    // Otherwise pause for review so a resumed run continues from this node.
+    if (this.options.produceFromExecute === true && type === 'execute') {
+      // The node already sits in 'failed' (set by the catch path on its
+      // last attempt); only the RUN transitions here.
+      await this.engine.transitionRun(runId, 'failed')
+      await this.audit({
+        eventType: 'gate_failed',
+        actor: 'paper-executor',
+        runId,
+        detail: { gate: 'ir_producer', reason: `EXECUTE output refused ${policy.maxNodeAttempts} times` },
+      })
+      throw new WorkflowExecutionError(
+        'gate-failed',
+        `node '${node.id}' exhausted ${policy.maxNodeAttempts} attempts: EXECUTE output was not a schema-valid ir-container-v1 (BLOCKED)`,
+      )
+    }
     await this.engine.transitionNode(node.id, 'paused')
     await this.engine.transitionRun(runId, 'paused')
     throw new WorkflowExecutionError(

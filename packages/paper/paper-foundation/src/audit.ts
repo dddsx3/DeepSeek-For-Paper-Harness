@@ -51,6 +51,9 @@ export const AUDIT_EVENT_TYPES = [
   // TASK 5.0.5: written once per successful promotion by the single
   // final-output sink the promoter calls (INV-014).
   'final_output_written',
+  // P1-1: one entry written to canonical IR by the structured-output
+  // producer (kind + id), so the trail reconstructs the run's IR evolution.
+  'ir_entry_written',
 ] as const
 
 /** One audited operation kind. */

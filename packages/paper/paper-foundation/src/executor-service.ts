@@ -47,6 +47,8 @@ export interface ExecutorConfig {
   readonly contextUtilization?: number
   /** 5.0-R (R5): root under which promoted final outputs are really written. */
   readonly finalOutputRoot?: string
+  /** P1-1: require and run the structured-output producer on EXECUTE. */
+  readonly produceFromExecute?: boolean
 }
 
 const modelPrice: s<ModelPrice> = s.object({
@@ -82,6 +84,8 @@ export function resolveExecutorOptions(
     // 5.0-R (R5): a real sink root makes promotion write bytes. The empty
     // string is the schema-level "not mounted" marker.
     ...(config.finalOutputRoot ? { finalOutputRoot: config.finalOutputRoot } : {}),
+    // P1-1: opt-in structured-output producer on the EXECUTE node.
+    ...(config.produceFromExecute ? { produceFromExecute: true } : {}),
     // exactOptionalPropertyTypes: an explicit undefined would be a type
     // error on the optional fields, so omit rather than pass through.
     ...ir === undefined ? {} : { ir },
@@ -108,6 +112,7 @@ export class PaperExecutorService extends Service {
     pricing: s.dict(s.dict(modelPrice)).default({}),
     contextUtilization: s.number().min(0.1).max(1).default(DEFAULT_CONTEXT_UTILIZATION),
     finalOutputRoot: s.string().default(''),
+    produceFromExecute: s.boolean().default(false),
   })
 
   private executor: WorkflowExecutor | undefined

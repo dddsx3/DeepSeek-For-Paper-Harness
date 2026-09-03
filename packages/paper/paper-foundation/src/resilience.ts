@@ -33,6 +33,9 @@ const BLOCKING_CODES: ReadonlySet<string> = new Set([
   'CONTEXT_WINDOW_EXCEEDED',
   'UNSUPPORTED_REASONING_EFFORT',
   'ABORTED',
+  // P1-1: the produce-from-EXECUTE path is enabled without a mounted IR
+  // store — a deployment error, retrying cannot fix it.
+  'IR_PRODUCER_NOT_CONFIGURED',
 ])
 
 /** Codes whose repair is an edit of the request content, not another attempt. */
