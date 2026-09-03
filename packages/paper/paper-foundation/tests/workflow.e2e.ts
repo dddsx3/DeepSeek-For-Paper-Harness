@@ -41,6 +41,7 @@ import {
 } from '../src/index.ts'
 import PaperRuntimeGuard from '../src/runtime/runtime-guard.ts'
 import { createFastProfile } from '../src/runtime/profile.ts'
+import { backboneIr } from './ir/fixtures.ts'
 
 const API_KEY = process.env.DEEPSEEK_API_KEY
 const KEYLESS = API_KEY === undefined || API_KEY === ''
@@ -86,6 +87,14 @@ async function harness(route: ProviderRoute = LIVE_ROUTE) {
   // service's static inject can find it.
   const guard = new PaperRuntimeGuard(ctx, { profile: createFastProfile() })
   guard.markReady()
+  // TASK 1.25 / 3.R3: the executor delivers only when a canonical IR
+  // carrying a closed Problem Contract is mounted (3.R2 single verdict;
+  // otherwise every FAST run is BLOCKED at ir_canonicalization before it
+  // can leave a manifest). The text-then-gate workflow expects the caller
+  // to pre-load the backbone — exactly as the executor unit suites do
+  // with backboneIr(). Without this line this acceptance suite could only
+  // ever observe gate failures, never the durable record it asserts.
+  ctx.provide('paperModelingIr', backboneIr())
   await ctx.plugin(PaperExecutorService, {
     backoffBaseMs: 1000,
     backoffCapMs: 4000,
