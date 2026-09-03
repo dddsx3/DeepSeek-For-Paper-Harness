@@ -58,8 +58,10 @@ const { LocalProcessRunner, captureExecution, replayExecution } = await import(e
 const { chainThrough, result, runArtifact } = await import(fixturesUrl)
 
 /** Whole-flow wall clock: the capture + replay of two real children is
- *  normally a few seconds; 180s means something genuinely stalled. */
-const WATCHDOG_MS = 180_000
+ *  normally a few seconds; the default (180s) means something genuinely
+ *  stalled. CI sets DSH_SMOKE_WATCHDOG_MS to a short value so a
+ *  host-runner stall fails fast instead of holding the job. */
+const WATCHDOG_MS = Number(process.env.DSH_SMOKE_WATCHDOG_MS ?? 180_000)
 
 async function main() {
   const NOW = '2026-09-01T00:00:00.000Z'
