@@ -1,6 +1,8 @@
 # TASK-P1 — 执行计划（plan；源自 P1 任务书，2026-09-03 起）
 
-> 状态：PLAN（5.0-R 准入已达成，等待作者"开始 P1"）。
+> 状态：**EXECUTED（2026-09-04）**。§3 全序列落地（见 summary.md）；三处冻结
+> 决策待作者复签：D1（A7 count-bound）/ D3（figure vacuous v0）/ D7（demo 以
+> pipeline composition 收口、executor 内嵌整链推 P2）。复签入口 decision-log.md。
 > 纪律继承：本批执行全程遵守 `DISCIPLINE.md`（AGENTS.md 引用）。
 
 ## 1. 准入门槛复核（已实证达成，记录于此）
