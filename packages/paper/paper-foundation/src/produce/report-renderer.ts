@@ -33,13 +33,29 @@ export interface ResultRow {
   readonly uncertainty: number | null
 }
 
-/** A structured conclusion claim (P2-4 slot). */
+/**
+ * P3-2 (E6 sign-off A): the CLOSED set of representation declarations a
+ * conclusion claim may carry. `verbatim` is the P2-4 default; `rounded` and
+ * `with_uncertainty` are the ONLY ways a non-verbatim number may enter the
+ * conclusion, and each is deterministically checked against the IR values
+ * before the slot is allowed. The default zero-tolerance semantics are not
+ * relaxed on any path: an undeclared ≈/rounding stays a refusal (禁2/禁6).
+ */
+export type SlotRepresentation =
+  | { readonly kind: 'verbatim' }
+  | { readonly kind: 'rounded'; readonly dp: number }
+  | { readonly kind: 'with_uncertainty'; readonly uncertainty_refs: ReadonlyArray<string> }
+
+/** A structured conclusion claim (P2-4 slot; P3-2 adds `representation`). */
 export interface ConclusionSlot {
   readonly text: string
-  /** Result ids whose value must appear verbatim in `text`. */
+  /** Result ids whose value must appear verbatim in `text` — unless the
+   *  claim carries a `representation` declaration that widens this. */
   readonly quantity_refs: ReadonlyArray<string>
   readonly uncertainty_refs?: ReadonlyArray<string>
   readonly comparison?: string
+  /** P3-2: the explicit representation contract for this claim. */
+  readonly representation?: SlotRepresentation
 }
 
 /** One rendered figure asset ready for embedding. */
@@ -65,6 +81,55 @@ function numericLiterals(text: string): string[] {
   const out: string[] = []
   for (const match of text.matchAll(NUMBER_LITERAL)) out.push(match[0])
   return out
+}
+
+/**
+ * P3-2: format a source value at the declared decimal places using the ONE
+ * rounding rule this harness knows — half-up on the decimal string, the same
+ * function used to validate the claim, so a declared `rounded: { dp }` slot
+ * can only contain exactly this rendering (声明即契约). Negative numbers,
+ * scientific notation, and non-finite values carry no v1 promise and are
+ * refused fail-closed (任务书 §7 风险 3 / D-P3.2).
+ */
+function formatRounded(value: number, dp: number): string | null {
+  if (!Number.isFinite(value) || value < 0) return null
+  const plain = String(value)
+  if (plain.includes('e') || plain.includes('E')) return null
+  // Normalize through fixed-point so 0.731@dp2 -> 0.73 with half-up carried
+  // on the decimal digits (0.005@dp2 -> 0.01, never banker's rounding).
+  const scaled = Number(value.toFixed(20))
+  const fixed = scaled.toFixed(dp)
+  if (fixed.includes('e') || fixed.includes('E')) return null
+  return fixed
+}
+
+/**
+ * P3-2: parse and validate a raw `representation` declaration. Returns the
+ * normalized declaration or a refusal reason — never upgrades a malformed
+ * declaration to verbatim (fail-closed, 攻击 4: negative dp / science form).
+ */
+function parseRepresentation(raw: unknown): { ok: true; value: SlotRepresentation } | { ok: false; reason: string } {
+  if (raw === undefined) return { ok: true, value: { kind: 'verbatim' } }
+  if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) {
+    return { ok: false, reason: 'representation must be an object with a closed-set kind (verbatim | rounded | with_uncertainty)' }
+  }
+  const kind = (raw as { kind?: unknown }).kind
+  if (kind === 'verbatim') return { ok: true, value: { kind: 'verbatim' } }
+  if (kind === 'rounded') {
+    const dp = (raw as { dp?: unknown }).dp
+    if (typeof dp !== 'number' || !Number.isInteger(dp) || dp < 0 || dp > 20) {
+      return { ok: false, reason: `rounded representation requires an integer dp 0..20 (v1: negative/scientific fail-closed), got ${JSON.stringify(dp)}` }
+    }
+    return { ok: true, value: { kind: 'rounded', dp } }
+  }
+  if (kind === 'with_uncertainty') {
+    const refs = (raw as { uncertainty_refs?: unknown }).uncertainty_refs
+    if (!Array.isArray(refs) || refs.length === 0 || refs.some(r => typeof r !== 'string')) {
+      return { ok: false, reason: 'with_uncertainty representation requires a non-empty uncertainty_refs string array' }
+    }
+    return { ok: true, value: { kind: 'with_uncertainty', uncertainty_refs: refs } }
+  }
+  return { ok: false, reason: `representation kind '${String(kind)}' is outside the closed set (verbatim | rounded | with_uncertainty)` }
 }
 
 /** @internal shared assembly; `conclusionKind` routes the guards. */
@@ -96,6 +161,12 @@ function renderReport(input: {
       if (!Array.isArray(slot.quantity_refs) || slot.quantity_refs.length === 0) {
         return { ok: false, code: 'conflicting_conclusion_number', reason: 'a conclusion claim must name ≥1 quantity_ref (P2-4 slot)' }
       }
+      // P3-2: the representation declaration gates every non-verbatim path.
+      // A malformed declaration is a refusal — never silently verbatim.
+      const representation = parseRepresentation(slot.representation)
+      if (!representation.ok) {
+        return { ok: false, code: 'conflicting_conclusion_number', reason: `conclusion claim representation declaration is invalid: ${representation.reason}` }
+      }
       const slotAllowed = new Set<string>()
       for (const ref of slot.quantity_refs) {
         const result = resultById.get(ref)
@@ -112,16 +183,61 @@ function renderReport(input: {
         }
         slotAllowed.add(String(uncertainty))
       }
-      // 逐字一致: every quantity_ref's value must appear in the claim text.
+      if (representation.value.kind === 'rounded') {
+        // P3-2 rounded path: the declared decimal rendering of each bound
+        // value joins the allowed set, and every rounded quantity in the
+        // text must BE that rendering (single half-up rule, same function).
+        for (const ref of slot.quantity_refs) {
+          const result = resultById.get(ref)
+          if (result === undefined) continue
+          const rounded = formatRounded(result.value, representation.value.dp)
+          if (rounded === null) {
+            return { ok: false, code: 'conflicting_conclusion_number', reason: `rounded representation for '${ref}' cannot render ${result.value} at dp=${representation.value.dp} (v1: negative/scientific fail-closed)` }
+          }
+          slotAllowed.add(rounded)
+        }
+      }
+      if (representation.value.kind === 'with_uncertainty') {
+        // P3-2 with_uncertainty path: every declared uncertainty_ref must
+        // resolve to a Result that actually records that uncertainty, and
+        // the ± value joins the allowed set bound to this claim (攻击 3:
+        // a ref whose ± does not match the table is a refusal).
+        for (const ref of representation.value.uncertainty_refs) {
+          const result = resultById.get(ref)
+          const uncertainty = result?.uncertainty ?? null
+          if (result === undefined || uncertainty === null) {
+            return { ok: false, code: 'conflicting_conclusion_number', reason: `with_uncertainty declaration references '${ref}' which is not a Result with a recorded ± value (P3-2)` }
+          }
+          slotAllowed.add(String(uncertainty))
+        }
+      }
+      // 逐字一致: every quantity_ref's value must appear in the claim text
+      // (P3-2: on a declared rounded slot, the declared rendering stands in
+      // for the raw value — the claim states 0.73, the table stays 0.731).
       for (const ref of slot.quantity_refs) {
-        const valueText = String(resultById.get(ref)!.value)
+        const result = resultById.get(ref)
+        if (result === undefined) continue
+        const valueText = representation.value.kind === 'rounded'
+          ? formatRounded(result.value, representation.value.dp)
+          : String(result.value)
+        if (valueText === null) continue // already refused above
         if (!slot.text.includes(valueText)) {
           return { ok: false, code: 'conflicting_conclusion_number', reason: `conclusion claim for '${ref}' does not state the Result value ${valueText} verbatim` }
         }
       }
+      if (representation.value.kind === 'with_uncertainty') {
+        // The ± companion must also appear in the text — a with_uncertainty
+        // declaration that never states the uncertainty buys nothing.
+        for (const ref of representation.value.uncertainty_refs) {
+          const uncertainty = resultById.get(ref)?.uncertainty ?? null
+          if (uncertainty === null || !slot.text.includes(String(uncertainty))) {
+            return { ok: false, code: 'conflicting_conclusion_number', reason: `with_uncertainty claim for '${ref}' does not state its recorded ± ${uncertainty} value` }
+          }
+        }
+      }
       for (const token of numericLiterals(slot.text)) {
         if (!slotAllowed.has(token)) {
-          return { ok: false, code: 'conflicting_conclusion_number', reason: `conclusion claim contains numeric literal '${token}' outside its bound quantities [${[...slotAllowed].join(', ')}] — key numbers only from the IR (P1-3/P2-4)` }
+          return { ok: false, code: 'conflicting_conclusion_number', reason: `conclusion claim contains numeric literal '${token}' outside its declared quantities [${[...slotAllowed].join(', ')}] — key numbers only from the IR (P1-3/P2-4/P3-2)` }
         }
       }
     }
