@@ -85,7 +85,9 @@ async function runLeaf(containerJson) {
         })
         .join(' ')
       if (joined.includes('numbered execution plan')) return stream('1. measure along the survey line')
-      if (joined.includes('Produce the deliverable')) return stream(containerJson)
+      // P3-3: the producing EXECUTE instruction now carries the
+      // ir-container-v1 teaching segment — route on either marker.
+      if (joined.includes('Produce the deliverable') || joined.includes('ir-container-v1')) return stream(containerJson)
       return stream('revised text')
     },
   })
