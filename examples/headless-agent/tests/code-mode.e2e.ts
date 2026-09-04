@@ -58,7 +58,8 @@ async function codeModeHarness(cwd: string): Promise<Context> {
   await harness.plugin(ToolRuntime, { mode: 'code' })
   await harness.plugin(AgentRegistry)
   await harness.plugin(AgentLoop, { agents: [] })
-  await harness.plugin(LlmDeepSeek)
+  // Vendor-decoupling: endpoint from env (no vendor default).
+  await harness.plugin(LlmDeepSeek, { baseURL: process.env.DEEPSEEK_BASE_URL ?? 'http://127.0.0.1:1' })
   await harness.plugin(LocalSubprocessRuntime)
   await harness.plugin(BashEnvPlugin)
   await harness.plugin(LocalBashExecutor, { cwd, timeoutMs: 30_000 })

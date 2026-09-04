@@ -18,7 +18,8 @@ describe.skipIf(!process.env.DEEPSEEK_API_KEY)('first-prompt title provider with
     const ctx = new Context()
     contexts.push(ctx)
     await ctx.plugin(LlmRuntime)
-    await ctx.plugin(LlmDeepSeek, { thinking: 'disabled' })
+    // Vendor-decoupling: endpoint from env (no vendor default).
+    await ctx.plugin(LlmDeepSeek, { baseURL: process.env.DEEPSEEK_BASE_URL ?? 'http://127.0.0.1:1', thinking: 'disabled' })
     await ctx.plugin(SessionStore)
     await ctx.plugin(SessionTitleService, {
       fallbackMaxWords: 5,

@@ -16,7 +16,8 @@ export async function fsHarness(fsCwd: string, persona = ''): Promise<Context> {
   const ctx = new Context()
   await mountAgentLoopTestDependencies(ctx, { systemPrompt: { persona } })
   await ctx.plugin(AgentLoop, { agents: [] })
-  await ctx.plugin(LlmDeepSeek)
+  // Vendor-decoupling: endpoint from env (no vendor default).
+  await ctx.plugin(LlmDeepSeek, { baseURL: process.env.DEEPSEEK_BASE_URL ?? 'http://127.0.0.1:1' })
   await ctx.plugin(LocalFileSystem, { cwd: fsCwd })
   await ctx.plugin(FsPolicy)
   await ctx.plugin(ToolFs)

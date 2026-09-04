@@ -92,3 +92,26 @@
 - `pi-ai-provider-e2e.yml`（Azure OpenAI + Anthropic，手动触发、无 push
   触发）未动——它本就是 opt-in 双供应商验证，不构成预置路由；如需中立化
   可后续套用同款变量族。
+
+## 补丁 2（E2E CI 红修复 — 逐挂载点显式化）
+
+ed85b08084 推送后 E2E CI 红：一批内联组合/测试挂 llm-deepseek 时没配端点，
+原本靠被删除的隐式官方默认才起得来——解耦政策正确生效，这些挂载点补显式
+配置：
+
+- 内联 yml 组合（env 表达式，空串不绑任何供应商）：
+  `examples/acp-agent/{cordis,retry.cordis,tests/{fs-search,persistent-pwsh,
+  pwsh}.cordis}.yml`、`examples/jsonrpc-agent/{cordis,minimal}.cordis.yml`、
+  `python/sdk-runtime` 的 runtime cordis.yml。
+- TS 测试挂载（env 或回环占位，绝不写供应商字面量）：agent-instructions /
+  request-cache / session-title / subagent-spawn-in-process / workflow-worker-
+  thread / paper workflow.e2e / tool-fs harness / sdk server（生产入口，
+  env 驱动）/ sdk server.spec×2 / pi-ai adapter.e2e 交叉对照 / code-mode
+  本地栈 / acp-demo 内联 fixture（keyless 冒烟，回环字面量——永不调模型）。
+- `verify-vendor-neutrality` 白名单补 `artifacts/handoff/TASK-P3D/`（本 handoff
+  文档引用 URL 属文档记录，非路由）。
+
+Windows 本地验证边界（如实）：acp-demo keyless smoke 与 sdk plugin-apply 两
+个用例在**改动前的 HEAD 上同样失败**（stdio 子进程握手类测试的本地环境限
+制，CI Linux 绿）；其余受影响单测 275/277 中 2 个失败均为该两类既有项。最
+终判定以 CI 为准。

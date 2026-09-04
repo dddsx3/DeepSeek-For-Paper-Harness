@@ -28,7 +28,8 @@ export async function spawnHarness(workdir: string): Promise<Context> {
     systemPrompt: { persona: 'You are a coding agent. Report only when the requested work is done.' },
   })
   await ctx.plugin(AgentLoop, { agents: [] })
-  await ctx.plugin(LlmDeepSeek)
+  // Vendor-decoupling: endpoint from env (no vendor default).
+  await ctx.plugin(LlmDeepSeek, { baseURL: process.env.DEEPSEEK_BASE_URL ?? 'http://127.0.0.1:1' })
   await ctx.plugin(LocalSubprocessRuntime)
   await ctx.plugin(BashEnvPlugin)
   await ctx.plugin(LocalBashExecutor, { cwd: workdir, timeoutMs: 30_000 })

@@ -119,7 +119,11 @@ export class HarnessSdkJsonRpcServer {
     this.maxTokens = params.maxTokens
     if (!this.hasAdapterFor(this.provider)) {
       if (this.provider !== 'deepseek-official') throw new Error(`no adapter registered for provider "${this.provider}"`)
-      this.llmFiber = await this.ctx.plugin(LlmDeepSeek, {})
+      // Vendor-decoupling: NO preset endpoint — $DSH_E2E_LLM_BASE_URL /
+      // $DEEPSEEK_BASE_URL name it; the adapter refuses to boot without one.
+      this.llmFiber = await this.ctx.plugin(LlmDeepSeek, {
+        baseURL: process.env.DSH_E2E_LLM_BASE_URL || process.env.DEEPSEEK_BASE_URL || '',
+      })
     }
     return { serverInfo: { name: 'deepseek-harness-sdk-runtime', version: '0.0.1' } }
   }

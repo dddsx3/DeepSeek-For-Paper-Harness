@@ -80,7 +80,9 @@ async function harness(route: ProviderRoute = LIVE_ROUTE) {
   await ctx.plugin(StorageJson, { root: join(root, 'storage') })
   await ctx.plugin(StorageDomain, { backend: 'json' })
   await ctx.plugin(LlmRuntime)
-  await ctx.plugin(LlmDeepSeek, { apiKeyEnv: route.credentialRef })
+  // Vendor-decoupling: endpoint from env (no vendor default); the adapter
+  // refuses an unset endpoint so a misconfigured run fails loudly here.
+  await ctx.plugin(LlmDeepSeek, { apiKeyEnv: route.credentialRef, baseURL: process.env.DEEPSEEK_BASE_URL ?? 'http://127.0.0.1:1' })
   await ctx.plugin(PaperFoundationService)
   await ctx.plugin(WorkflowEngineService)
   await ctx.plugin(PaperProviderService)

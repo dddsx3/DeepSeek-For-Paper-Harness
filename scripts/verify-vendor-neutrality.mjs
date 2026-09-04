@@ -79,6 +79,9 @@ const ALLOWLIST_PREFIXES = [
   // archived artifacts keep matching their scripts.
   'artifacts/handoff/TASK-P2/probe/',
   'artifacts/handoff/TASK-P3/probe-v2/',
+  // Batch handoff docs QUOTE vendor URLs while documenting the decoupling
+  // rule itself — documentation, not routing.
+  'artifacts/handoff/TASK-P3D/',
 ]
 
 const SEARCH_SCOPES = [
