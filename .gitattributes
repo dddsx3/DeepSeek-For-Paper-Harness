@@ -1,0 +1,33 @@
+# Vendored digital-assets branch `digital-assets` — git attributes.
+#
+# This branch carries the vendored digital-asset library (templates,
+# skills, prompt assets, previews, tool scripts). It is stored on an
+# INDEPENDENT branch (not merged into main) and is intended for
+# restoration, audit, and controlled distribution. None of these files
+# are part of the paper-foundation / agent-loop runtime (those live on
+# main). Tracking is here for archival / asset-record purposes only.
+#
+# 1. Disable linguist detection for the asset tree: a single *.md or
+#    *.json inside does not represent the branch's primary language;
+#    GitHub should not call it "Markdown" or "JSON" at the repo level.
+*           linguist-detectable=false
+*           linguist-generated=true
+
+# 2. Binary assets — no text diff, no merge machinery. The v2 tree's
+#    binary set: preview images, docx samples, packaged minified libs,
+#    and the KaTeX bundle.
+*.png       -text diff
+*.jpg       -text diff
+*.jpeg      -text diff
+*.gif       -text diff
+*.svg       -text diff
+*.ico       -text diff
+*.pdf       -text diff
+*.docx      -text diff
+*.ttf       -text diff
+*.ttc       -text diff
+*.otf       -text diff
+*.woff      -text diff
+*.woff2     -text diff
+*.eot       -text diff
+*.min.js    -text diff
