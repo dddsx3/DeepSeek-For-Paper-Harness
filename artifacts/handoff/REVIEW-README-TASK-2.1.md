@@ -19,7 +19,7 @@ Repository HEAD at packaging time: `4f64b72315`, working tree clean,
 ## 2. Verification commands (PowerShell, repo root)
 
 ```powershell
-cd "D:\deepseek-harness\deepseek-harness"
+cd "<repo>"
 
 # types
 node_modules\.bin\tsc --noEmit -p packages/paper/paper-foundation/tsconfig.json
@@ -29,20 +29,20 @@ $env:NODE_OPTIONS="--max-old-space-size=4096"
 corepack pnpm exec vitest run --project=thread-safe --maxWorkers=1 --no-file-parallelism packages/paper/paper-foundation/
 
 # TASK 1.5R reference-closure fault corpus (expected 18/18)
-node_modules\.bin\tsx artifacts/handoff/TASK-1.5R/run-fault-corpus.mjs "D:\deepseek-harness\deepseek-harness"
+node_modules\.bin\tsx artifacts/handoff/TASK-1.5R/run-fault-corpus.mjs "<repo>"
 
 # TASK 2 fault corpus D-001..D-020 (expected 20/20)
-node_modules\.bin\tsx artifacts/handoff/TASK-2/run-fault-corpus.mjs "D:\deepseek-harness\deepseek-harness"
+node_modules\.bin\tsx artifacts/handoff/TASK-2/run-fault-corpus.mjs "<repo>"
 
 # TASK 2 targeted mutations (expected 16/16 killed; ~4 min)
-node artifacts/handoff/TASK-2/run-mutations.mjs "D:\deepseek-harness\deepseek-harness"
+node artifacts/handoff/TASK-2/run-mutations.mjs "<repo>"
 
 # TASK 2.1 targeted mutations (expected 8/8 killed)
-node artifacts/handoff/TASK-2.1/run-mutations.mjs "D:\deepseek-harness\deepseek-harness"
+node artifacts/handoff/TASK-2.1/run-mutations.mjs "<repo>"
 
 # regenerate + re-audit the freeze snapshot (expected: audit PASS,
 # manifest_hash 0b3bfbe99b4b… unchanged)
-node_modules\.bin\tsx artifacts/handoff/TASK-2.1/generate-freeze.mjs "D:\deepseek-harness\deepseek-harness"
+node_modules\.bin\tsx artifacts/handoff/TASK-2.1/generate-freeze.mjs "<repo>"
 ```
 
 ## 3. Gate results at packaging time

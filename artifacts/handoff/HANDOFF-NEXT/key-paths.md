@@ -171,4 +171,4 @@ git push origin main
 
 ---
 
-_本文件路径均相对于仓库根 `D:\deepseek-harness\deepseek-harness\`。_
+_本文件路径均相对于仓库根 `<repo>\`。_

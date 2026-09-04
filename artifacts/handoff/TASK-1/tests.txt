@@ -14,7 +14,7 @@ aths resolution natively via the resolve.tsconfigPaths option. You can
  remove the plugin and set resolve.tsconfigPaths: true in your Vite co
 nfig instead.
 
- RUN  v4.1.8 D:/deepseek-harness/deepseek-harness
+ RUN  v4.1.8 <repo>
 
  ✓  thread-safe  packages/paper/paper-foundation/tests/delivery/promoter.spec.ts > Promoter — Candidate -> Deliverable > happy path: candidate + allowed decision + FORMAL → delivers, audit promotion_succeeded, finalOutputPath set 7ms
  ✓  thread-safe  packages/paper/paper-foundation/tests/delivery/promoter.spec.ts > Promoter — Candidate -> Deliverable > writeFinalOutput is called EXACTLY once on success (no double-write) 1ms

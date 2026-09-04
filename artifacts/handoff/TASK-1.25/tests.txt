@@ -14,7 +14,7 @@ aths resolution natively via the resolve.tsconfigPaths option. You can
  remove the plugin and set resolve.tsconfigPaths: true in your Vite co
 nfig instead.
 
- RUN  v4.1.8 D:/deepseek-harness/deepseek-harness
+ RUN  v4.1.8 <repo>
 
  ✓  thread-safe  packages/paper/paper-foundation/tests/ir/bridge.spec.ts > INV-1.25-B — the workflow cannot reach Deliverable without canonical IR > blocks delivery in FORMAL mode when the IR is empty 12ms
  ✓  thread-safe  packages/paper/paper-foundation/tests/ir/bridge.spec.ts > INV-1.25-B — the workflow cannot reach Deliverable without canonical IR > blocks delivery in FAST mode too — critical gates are not skippable 1ms

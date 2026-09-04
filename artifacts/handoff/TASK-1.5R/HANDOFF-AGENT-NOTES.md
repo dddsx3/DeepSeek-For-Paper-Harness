@@ -237,8 +237,8 @@ load-bearing"，构造两个 NFC 合法但 token 相同的 SymbolSpec。
 **教训**：amend 要确认目标 commit 是对的；不熟悉时宁可 reset 重做
 
 ### 4.8 PATH 误把左斜杠当参数
-**症状**：曾经有命令把 `D:/deepseek-harness` 当成多个参数
-**修复**：永远用双引号包路径 `"D:/deepseek-harness/deepseek-harness"`
+**症状**：曾经有命令把 `<repo>/` 当成多个参数
+**修复**：永远用双引号包路径 `"<repo>"`
 
 ---
 
@@ -289,13 +289,13 @@ NODE_OPTIONS="--max-old-space-size=4096" corepack pnpm exec vitest run \
 node_modules/.bin/tsc --noEmit -p packages/paper/paper-foundation/tsconfig.json
 
 # 4. fault corpus
-node artifacts/handoff/TASK-1.5R/run-fault-corpus.mjs "D:/deepseek-harness/deepseek-harness"
+node artifacts/handoff/TASK-1.5R/run-fault-corpus.mjs "<repo>"
 
 # 5. mutations（4-6 分钟）
-node artifacts/handoff/TASK-1.5R/run-mutations.mjs "D:/deepseek-harness/deepseek-harness"
+node artifacts/handoff/TASK-1.5R/run-mutations.mjs "<repo>"
 
 # 6. 确认 git 与远程同步
-git -C "D:/deepseek-harness/deepseek-harness" status -sb   # 期望 "## main...origin/main"
+git -C "<repo>" status -sb   # 期望 "## main...origin/main"
 ```
 
 如果第 1-5 步有任何失败，先看 `CONTINUATION.md` §2（vitest OOM workaround）

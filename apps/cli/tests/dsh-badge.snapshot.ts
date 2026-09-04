@@ -27,7 +27,13 @@ describe('dsh badge assembled snapshot', () => {
     })
     const disabledSnapshot = JSON.parse(disabled.stdout) as unknown
     const enabledSnapshot = JSON.parse(
-      enabled.stdout.replaceAll(badgeAssetsPath, '{{badgeAssetsPath}}'),
+      // The child emits Windows backslash paths while fileURLToPath yields
+      // forward slashes; normalize both spellings so the placeholder holds
+      // on every host (and the snapshot stays machine-independent).
+      enabled.stdout
+        .replaceAll(badgeAssetsPath, '{{badgeAssetsPath}}')
+        .replaceAll(badgeAssetsPath.replaceAll('/', String.fromCharCode(92)), '{{badgeAssetsPath}}')
+        .replaceAll(JSON.stringify(badgeAssetsPath).replaceAll('/', String.fromCharCode(92) + String.fromCharCode(92)).slice(1, -1), '{{badgeAssetsPath}}'),
     ) as unknown
 
     expect(disabled.stderr).toBe('')
@@ -72,7 +78,7 @@ describe('dsh badge assembled snapshot', () => {
             {
               "text": "<skill_content name="dsh-badge">
       <skill_resources>
-      Base directory for this skill: D:\\deepseek-harness\\deepseek-harness\\packages\\skill\\skill-badge\\assets\\
+      Base directory for this skill: {{badgeAssetsPath}}
       Resolve relative paths mentioned by this skill against the base directory before using them. Load referenced resources only as needed.
       </skill_resources>
 
@@ -152,7 +158,7 @@ describe('dsh badge assembled snapshot', () => {
             "provider": "dsh-badge",
             "resourceBase": {
               "kind": "directory",
-              "path": "D:\\deepseek-harness\\deepseek-harness\\packages\\skill\\skill-badge\\assets\\",
+              "path": "{{badgeAssetsPath}}",
             },
           },
         },
@@ -166,7 +172,7 @@ describe('dsh badge assembled snapshot', () => {
           "provider": "dsh-badge",
           "resourceBase": {
             "kind": "directory",
-            "path": "D:\\deepseek-harness\\deepseek-harness\\packages\\skill\\skill-badge\\assets\\",
+            "path": "{{badgeAssetsPath}}",
           },
           "source": "bundled",
         },

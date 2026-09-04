@@ -11,7 +11,7 @@
 
 ```bash
 # ① 回到仓库根，确认 HEAD 与远端一致
-cd "D:/deepseek-harness/deepseek-harness"
+cd "<repo>"
 git rev-parse HEAD            # 期望 d873ac40f40b32b63737b838899ca868fd4eb6ed
 git status --short            # 见 §2，先处理两处 TASK-P2 噪声改动
 
@@ -202,7 +202,7 @@ npx vitest run --reporter=dot
 | `packages/paper/paper-foundation/tests/executor-review-v2.spec.ts` | E4 账本回归（P3-1 须保持不回归） |
 | `DISCIPLINE.md` | 跨批次全局纪律（诚实红灯/声称-代码一致/IR 入口/平台编码禁令） |
 | `.workbuddy/memory/2026-09-04.md` | 本批推进 checkpoint 日志（P2 收口→P3 启动细节） |
-| `D:/deepseek-harness/deepseek-harness/.workbuddy/memory/MEMORY.md` | 项目长期记忆（纪律/任务书批次状态） |
+| `<repo>/.workbuddy/memory/MEMORY.md` | 项目长期记忆（纪律/任务书批次状态） |
 
 ---
 *本手册由上一 agent 于 P3-1 代码+测试就绪、其余未开工时点撰写，确保下一位 agent 从精确状态无缝接手。*

@@ -1,5 +1,5 @@
 
-[1m[30m[46m RUN [49m[39m[22m [36mv4.1.8 [39m[90mD:/deepseek-harness/deepseek-harness[39m
+[1m[30m[46m RUN [49m[39m[22m [36mv4.1.8 [39m[90m<repo>[39m
 
  [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-foundation/tests/provider.spec.ts[2m > [22mPaperProviderService[2m > [22mresolves a role through the provider-neutral LLM registry[32m 11[2mms[22m[39m
  [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-foundation/tests/runtime/profile.spec.ts[2m > [22mPaperRuntimeProfile — FORMAL[2m > [22mdeclares FORMAL mode[32m 3[2mms[22m[39m

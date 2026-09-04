@@ -11,7 +11,7 @@ typecheck: tsc -p packages/paper/paper-foundation/tsconfig.json --noEmit — cle
 suite: 861 tests, 850 passed, 11 failed, 0 pending, 71 files
 
 known failures (all documented in artifacts/handoff/TASK-2.1/known-risks.md):
-  D:/deepseek-harness/deepseek-harness/packages/paper/paper-foundation/tests/ir/redteam15.spec.ts (7)
+  <repo>/packages/paper/paper-foundation/tests/ir/redteam15.spec.ts (7)
     - RT-A-01 — non-finite numbers cannot enter canonical state still accepts a finite parameter value (guard is not a blanket refusal)
     - RT-B-01 — a ModelSpec owned by no ProblemSpec still faces the symbol guards blocks a PARAMETER used as a variable by an unowned ModelSpec
     - RT-B-01 — a ModelSpec owned by no ProblemSpec still faces the symbol guards passes when an unowned ModelSpec claims no symbols at all
@@ -19,7 +19,7 @@ known failures (all documented in artifacts/handoff/TASK-2.1/known-risks.md):
     - RT-C-01 — the minimum contract is bound to a ProblemSpec, not counted globally does not credit a REQUIRED_OUTPUT that no ProblemSpec references
     - RT-C-02 — the minimum contract is a gate of its own blocks delivery when no SymbolSpec is declared at all
     - RT-D-01 — same-scope token uniqueness is Unicode-aware still accepts a genuine NFC token (guard is not a blanket refusal)
-  D:/deepseek-harness/deepseek-harness/packages/paper/paper-foundation/tests/ir/stale-engine.spec.ts (4)
+  <repo>/packages/paper/paper-foundation/tests/ir/stale-engine.spec.ts (4)
     - TASK 3.5 — direct STALE on a run (S-001..S-006) S-003: a record whose environment_hash drifted is STALE (EXECUTION_MISMATCH)
     - TASK 3.5 — direct STALE on a run (S-001..S-006) S-004: a record whose dependency_lock_hash drifted is STALE (DEPENDENCY_MISMATCH)
     - TASK 3.5 — byte-level + immutable + transitive (S-007..S-009) S-009: RequirementSpec change invalidates the citing Claim (STALE_TRANSITIVE)
