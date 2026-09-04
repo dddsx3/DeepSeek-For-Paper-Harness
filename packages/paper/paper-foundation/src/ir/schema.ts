@@ -442,14 +442,17 @@ export const executionRecordSchema = zod
  *  rejected at the boundary. `chart_type`/`caption`/axis labels are the
  *  model's structural declarations — the numbers NEVER come from the model,
  *  they are read from the referenced Results; `chart_type` is one of the
- *  fixed renderer's three (line | scatter | bar).
+ *  fixed renderer's four (line | scatter | bar | table) — P3-4 adds
+ *  `table` (one row per data_ref: name/value/unit/uncertainty), which
+ *  still reads Results ONLY (禁4: DataArtifact row semantics are out of
+ *  scope until designed).
  */
 export const figureSpecSchema = zod
   .object({
     figure_id: idSchema,
     data_refs: zod.array(refSchema),
     claim_refs: zod.array(refSchema),
-    chart_type: zod.enum(['line', 'scatter', 'bar']).optional(),
+    chart_type: zod.enum(['line', 'scatter', 'bar', 'table']).optional(),
     caption: zod.string().max(4096).optional(),
     x_label: zod.string().max(256).optional(),
     y_label: zod.string().max(256).optional(),

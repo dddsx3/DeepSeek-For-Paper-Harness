@@ -11,13 +11,13 @@
     "v1.1_status": "PARTIAL — 5.0.1 (six stubs -> UNIMPLEMENTED) shipped under the 5.0-R author-delegated ratification; 5.0.4 (attestation hardening) and 5.0.10 (numeric tolerance) remain v1.1-ratification-pending."
   },
   "baseline": {
-    "files": 87,
-    "total_tests": 965,
-    "passed_tests": 965,
+    "files": 88,
+    "total_tests": 975,
+    "passed_tests": 975,
     "failed_tests": 0,
     "failed_test_suites": 0,
     "tsc_clean": true,
-    "baseline_at": "P3 handoff: P3-1 semantic review + P3-2 representation declarations (965 incl real-spawn spec; demo-v2/probe are script-level)"
+    "baseline_at": "P3 handoff: P3-1 semantic review + P3-2 representation + P3-4 figure uniqueness/table (975 incl real-spawn spec; demo-v2/probe are script-level)"
   },
   "failures_by_origin": {},
   "gates_impl": [

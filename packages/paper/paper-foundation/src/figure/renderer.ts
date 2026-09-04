@@ -18,7 +18,7 @@ import { canonicalJson, sha256Hex } from '../ir/evidence-freeze.ts'
 import type { IrObjectRecord } from '../ir/store.ts'
 
 export const FIGURE_STYLE_PROFILE = 'okabe-ito-v1'
-export const FIGURE_CHART_TYPES = ['line', 'scatter', 'bar'] as const
+export const FIGURE_CHART_TYPES = ['line', 'scatter', 'bar', 'table'] as const
 export type FigureChartType = (typeof FIGURE_CHART_TYPES)[number]
 
 /** Okabe–Ito palette (colourblind-safe). */
@@ -106,6 +106,7 @@ function fmt(v: number): string {
 
 /** Render one canonical input to deterministic SVG bytes (no time/rand). */
 export function renderFigureSvg(input: RenderInput): string {
+  if (input.chart_type === 'table') return renderTableSvg(input)
   const W = 680
   const H = 420
   const L = 72
@@ -136,7 +137,7 @@ export function renderFigureSvg(input: RenderInput): string {
   parts.push(`<line x1="${L}" y1="${T}" x2="${L}" y2="${T + plotH}" stroke="${INK}" stroke-width="1"/>`)
   parts.push(`<line x1="${L}" y1="${T + plotH}" x2="${W - R}" y2="${T + plotH}" stroke="${INK}" stroke-width="1"/>`)
 
-  const color = (i: number): string => SERIES_COLORS[i % SERIES_COLORS.length]!
+  const color = (i: number): string => SERIES_COLORS[i % SERIES_COLORS.length] ?? INK
   input.series.forEach((s, i) => {
     const px = x(i)
     const py = y(s.value)
@@ -150,7 +151,7 @@ export function renderFigureSvg(input: RenderInput): string {
     }
   })
   if (input.chart_type === 'line' && input.series.length > 1) {
-    const points = input.series.map((_, i) => `${fmt(x(i))},${fmt(y(input.series[i]!.value))}`).join(' ')
+    const points = input.series.map((s, i) => `${fmt(x(i))},${fmt(y(s.value))}`).join(' ')
     parts.push(`<polyline points="${points}" fill="none" stroke="${color(0)}" stroke-width="2"/>`)
   }
   if (input.y_label !== undefined) {
@@ -173,4 +174,44 @@ function escapeXml(text: string): string {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&apos;')
+}
+
+/**
+ * P3-4: the `table` chart type — one row per data_ref (量名 / 值 / 单位 /
+ * 不确定度), rendered as a deterministic SVG table. The numbers are the
+ * store's Result values verbatim (the render input already guarantees they
+ * were derived, never authored); DataArtifacts never reach here (the render
+ * input refuses them for every chart type, 禁4).
+ */
+function renderTableSvg(input: RenderInput): string {
+  const W = 680
+  const rowH = 26
+  const headerH = 30
+  const H = headerH + rowH * input.series.length + 14
+  const cols = [72, 300, 470, 570, 668]
+  const parts: string[] = []
+  parts.push(`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="img">`)
+  parts.push(`<rect x="0" y="0" width="${W}" height="${H}" fill="#FFFFFF"/>`)
+  const header = ['量名', '数值', '单位', '不确定度']
+  header.forEach((label, i) => {
+    parts.push(`<text x="${cols[i]}" y="20" text-anchor="start" font-family="sans-serif" font-size="12" font-weight="600" fill="${INK}">${escapeXml(label)}</text>`)
+  })
+  parts.push(`<line x1="8" y1="${headerH - 4}" x2="${W - 8}" y2="${headerH - 4}" stroke="${INK}" stroke-width="1"/>`)
+  input.series.forEach((s, row) => {
+    const y = headerH + row * rowH + 18
+    const uncertainty = s.uncertainty === null ? '—' : `±${fmt(s.uncertainty)}`
+    const cells = [s.label, fmt(s.value), s.unit, uncertainty]
+    cells.forEach((cell, i) => {
+      const mono = i === 1 || i === 3
+      parts.push(`<text x="${cols[i]}" y="${y}" text-anchor="start" font-family="${mono ? 'monospace' : 'sans-serif'}" font-size="12" fill="${INK}">${escapeXml(cell)}</text>`)
+    })
+    if (row > 0) {
+      parts.push(`<line x1="8" y1="${headerH + row * rowH + 4}" x2="${W - 8}" y2="${headerH + row * rowH + 4}" stroke="${GRID}" stroke-width="1"/>`)
+    }
+  })
+  if (input.caption !== undefined) {
+    parts.push(`<text x="8" y="${H - 2}" text-anchor="start" font-family="sans-serif" font-size="11" fill="${INK}">${escapeXml(input.caption)}</text>`)
+  }
+  parts.push('</svg>')
+  return parts.join('\n') + '\n'
 }

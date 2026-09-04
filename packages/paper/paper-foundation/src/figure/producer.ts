@@ -18,12 +18,12 @@
  */
 
 import { IR_SCHEMAS } from '../ir/schema.ts'
-import { figureRenderInput, renderFigureSvg } from './renderer.ts'
+import { FIGURE_STYLE_PROFILE, figureRenderInput, renderFigureSvg } from './renderer.ts'
 import { ModelingIr } from '../ir/store.ts'
 
 export interface FigureDeclaration {
   readonly figure_id: string
-  readonly chart_type?: 'line' | 'scatter' | 'bar'
+  readonly chart_type?: 'line' | 'scatter' | 'bar' | 'table'
   readonly data_refs: ReadonlyArray<string>
   readonly claim_refs?: ReadonlyArray<string>
   readonly caption?: string
@@ -36,6 +36,18 @@ export type FigureProductionVerdict =
   | { ok: false; code: 'figure_declaration_invalid' | 'figure_data_invalid' | 'record_schema_violation' | 'store_refused'; reason: string }
 
 const NUMBER_LITERAL = /(?<![A-Za-z^])(?<![A-Za-z^]-)[-+]?(?:\d+\.?\d*|\.\d+)(?![A-Za-z])/gu
+
+/**
+ * P3-4 (E7 sign-off A): the uniqueness key of one figure asset —
+ * (sorted data_refs, chart_type, style_profile). A second declaration with
+ * an identical key is a duplicate asset (the OVER-PROMISE family in figure
+ * form: same data, same chart, same style = zero new information), refused
+ * at production time with zero partial writes. Different chart_type over
+ * the same refs (line + bar) stays legal — that is a new view, not a copy.
+ */
+function figureUniquenessKey(data_refs: ReadonlyArray<string>, chart_type: string | undefined): string {
+  return `${[...data_refs].sort().join('|')}::${chart_type ?? 'line'}::${FIGURE_STYLE_PROFILE}`
+}
 
 /** Guard caption/axis labels: numeric literals must be referenced values. */
 function guardLabelNumbers(decl: FigureDeclaration, allowed: ReadonlyArray<string>): string | null {
@@ -62,6 +74,7 @@ export function produceFigures(
   }
   // Structural validation + dedupe.
   const seen = new Set<string>()
+  const seenKeys = new Set<string>()
   const records: Array<Record<string, unknown>> = []
   const assets: Array<{ figureId: string; svg: string; data_hash: string }> = []
   for (const raw of declarations) {
@@ -79,6 +92,14 @@ export function produceFigures(
     if (!Array.isArray(decl.data_refs) || decl.data_refs.length === 0 || decl.data_refs.some(r => typeof r !== 'string')) {
       return { ok: false, code: 'figure_declaration_invalid', reason: `figure '${decl.figure_id}' needs a non-empty data_refs array of Result ids` }
     }
+    // P3-4 uniqueness key: the same (sorted refs, chart_type, style) as an
+    // already-declared figure is a duplicate asset — refused before any
+    // record is minted (零部分写入, 禁5).
+    const uniqKey = figureUniquenessKey(decl.data_refs, decl.chart_type)
+    if (seenKeys.has(uniqKey)) {
+      return { ok: false, code: 'figure_declaration_invalid', reason: `figure '${decl.figure_id}' duplicates an earlier declaration's uniqueness key (sorted data_refs + chart_type + style_profile) — same data, same chart, same style carries no new information (P3-4/E7, 禁5)` }
+    }
+    seenKeys.add(uniqKey)
     const derived = figureRenderInput(store, {
       data_refs: decl.data_refs,
       ...(decl.chart_type === undefined ? {} : { chart_type: decl.chart_type }),
