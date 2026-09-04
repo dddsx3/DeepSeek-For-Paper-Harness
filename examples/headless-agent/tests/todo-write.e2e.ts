@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import type { Context } from '@deepseek-ai/cordis'
 import { codingHarness, TODO_SYSTEM_PROMPT, waitForIdle } from './harness.ts'
 import { SessionId } from '@deepseek-ai/dsh-session'
+import { resolveE2eLlmRoute as e2eRoute } from './e2e-llm-route.ts'
 
 /**
  * A REAL model drives the REAL todo_write tool: verify the WORLD (the session
@@ -27,7 +28,7 @@ describe.skipIf(!process.env.DEEPSEEK_API_KEY)('todo_write: real model records a
   it('appends a todo/write event with the model-produced task list', async () => {
     workdir = await mkdtemp(join(tmpdir(), 'dsh-todo-write-e2e-'))
     ctx = await codingHarness(workdir, { persona: TODO_SYSTEM_PROMPT })
-    const agent = ctx.agentLoop.create(SessionId('e2e-todo'), { provider: 'deepseek-official', model: 'deepseek-v4-flash' })
+    const agent = ctx.agentLoop.create(SessionId('e2e-todo'), { provider: e2eRoute()?.provider ?? 'deepseek-official', model: e2eRoute()?.model ?? 'e2e-model' })
 
     agent.followup(createUserMessage({
       content: [{ type: 'text', text:

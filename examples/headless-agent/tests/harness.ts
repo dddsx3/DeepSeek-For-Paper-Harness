@@ -15,10 +15,12 @@ import JsonlSessionPersistence from '@deepseek-ai/dsh-session-persistence-jsonl'
 import * as SessionCheckpointPolicy from '@deepseek-ai/dsh-session-checkpoint-policy'
 import { BasicCompactionEngine } from '@deepseek-ai/dsh-compaction-basic'
 import type { BasicCompactionConfig } from '@deepseek-ai/dsh-compaction-basic'
+import { resolveE2eLlmRoute } from './e2e-llm-route.ts'
 
 /**
  * Shared harness for the headless-agent e2e suites: the full plugin stack
- * with the real DeepSeek adapter and the real bash + todo_write tools. Lives
+ * with the resolved LLM adapter route (vendor-neutral, see
+ * {@link resolveE2eLlmRoute}) and the real bash + todo_write tools. Lives
  * outside the *.e2e.ts pattern so importing it never re-registers another
  * file's tests.
  */
@@ -59,8 +61,17 @@ export async function codingHarness(workdir: string, options: CodingHarnessOptio
     systemPrompt: { persona: options.persona ?? '' },
   })
   await ctx.plugin(AgentLoop, { agents: [] })
-  await ctx.plugin(LlmDeepSeek, options.modelContextWindow === undefined ? {} : {
-    models: [{ id: 'deepseek-v4-flash', contextWindow: options.modelContextWindow }],
+  // Vendor-neutral route (vendor-decoupling batch): endpoint + model come
+  // from $DSH_E2E_LLM_* (falling back to the legacy DEEPSEEK_* names) —
+  // never a built-in vendor default. The adapter itself refuses an unset
+  // endpoint, so a misconfigured run fails loudly instead of silently
+  // routing to any single vendor.
+  const route = resolveE2eLlmRoute()
+  await ctx.plugin(LlmDeepSeek, {
+    ...(route === undefined ? {} : { baseURL: route.baseURL }),
+    ...(options.modelContextWindow === undefined ? {} : {
+      models: [{ id: route?.model ?? 'e2e-model', contextWindow: options.modelContextWindow }],
+    }),
   })
   await ctx.plugin(LocalSubprocessRuntime)
   await ctx.plugin(BashEnvPlugin)

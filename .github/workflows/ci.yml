@@ -88,6 +88,12 @@ jobs:
           DSH_ARCHIVE_BASE_REF: ${{ github.event.pull_request.base.sha }}
         run: pnpm run check:ci:static
 
+      # Vendor-decoupling guard: no preset LLM vendor endpoint may ship in
+      # compositions, workflows, or runtime source. Named constants and
+      # recorded test fixtures are allowlisted inside the script itself.
+      - name: Vendor neutrality guard
+        run: node scripts/verify-vendor-neutrality.mjs
+
   node-24-coverage:
     if: github.event_name == 'pull_request'
     runs-on: >-

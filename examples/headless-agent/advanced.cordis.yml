@@ -9,8 +9,10 @@
         config:
           agents:
             - id: main
-              provider: deepseek-official
-              model: deepseek-v4-pro
+              # Vendor-decoupling batch: route from env (legacy default kept
+              # only as the explicit env fallback, replay corpora note below).
+              provider: !!js process.env.DSH_E2E_LLM_PROVIDER || 'deepseek-official'
+              model: !!js process.env.DSH_E2E_LLM_MODEL || 'deepseek-v4-pro'
               cwd: !!js process.cwd()
           workspaceContext:
             maxBytes: 65536

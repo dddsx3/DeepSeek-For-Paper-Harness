@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import type { Context } from '@deepseek-ai/cordis'
 import { codingHarness, finalText, SYSTEM_PROMPT, waitForIdle } from './harness.ts'
 import { SessionId } from '@deepseek-ai/dsh-session'
+import { resolveE2eLlmRoute as e2eRoute } from './e2e-llm-route.ts'
 
 /**
  * Key-gated smoke for mid-session compaction. It verifies the compact event
@@ -45,7 +46,7 @@ describe.skipIf(!process.env.DEEPSEEK_API_KEY)('compaction: a long session compa
       },
       persistenceRoot: join(workdir, '.sessions'),
     })
-    const agent = ctx.agentLoop.create(SessionId('e2e-compaction'), { provider: 'deepseek-official', model: 'deepseek-v4-flash' })
+    const agent = ctx.agentLoop.create(SessionId('e2e-compaction'), { provider: e2eRoute()?.provider ?? 'deepseek-official', model: e2eRoute()?.model ?? 'e2e-model' })
 
     agent.followup(createUserMessage({
       content: [{

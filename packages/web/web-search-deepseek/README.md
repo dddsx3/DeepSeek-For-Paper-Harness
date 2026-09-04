@@ -20,7 +20,7 @@ It reuses the `DEEPSEEK_API_KEY` credential reference (no new secret) but **not*
 |---|---|---|
 | `apiKey` | omitted | Literal DeepSeek API key. Prefer `apiKeyEnv` so no secret enters configuration; a non-empty literal wins. |
 | `apiKeyEnv` | `DEEPSEEK_API_KEY` | Credential reference resolved for each search through `ctx.credentials`, or from the process environment when that seam is absent. A missing value fails the call as `WEB_PROVIDER_CREDENTIAL_MISSING`. |
-| `baseURL` | `https://api.deepseek.com/anthropic/v1` | Anthropic-compatible endpoint base; `/messages` is appended. Falls back to `$DEEPSEEK_SEARCH_BASE_URL` from any environment layer; do not reuse `$DEEPSEEK_BASE_URL`, which belongs to the chat-completions LLM adapter. An unparseable value makes the provider unavailable. |
+| `baseURL` | _required_ | Anthropic-compatible endpoint base; `/messages` is appended. NO default: the provider refuses to resolve until this key (or `$DEEPSEEK_SEARCH_BASE_URL` from any environment layer) names the endpoint — the vendor-decoupling rule that keeps any deployment from silently routing to one vendor. Do not reuse `$DEEPSEEK_BASE_URL`, which belongs to the chat-completions LLM adapter. An unparseable value makes the provider unavailable. `DEEPSEEK_DEFAULT_BASE_URL` (the vendor's documented endpoint) is exported for compositions that deliberately target it. |
 | `model` | `deepseek-v4-flash` | Anthropic-format model name. |
 | `apiVersion` | `2023-06-01` | `anthropic-version` header value. |
 | `maxTokens` | `4096` | Positive-integer upper bound on generated tokens for the Messages request. |

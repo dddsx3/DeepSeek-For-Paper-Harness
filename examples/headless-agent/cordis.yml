@@ -15,17 +15,26 @@
 - id: credentials
   name: '@deepseek-ai/dsh-credentials-local'
 
-# The DeepSeek adapter. Swap to '@deepseek-ai/dsh-llm-pi-ai' for the pi-ai-backed
-# twin (a `providers` dict keyed by route; `reasoning: high` replaces
-# thinking/reasoningEffort). Shipped default: full thinking at max effort on
-# every request. Exact-model resolution materializes request defaults before
-# the request header is logged.
+# The DeepSeek-protocol adapter (vendor-decoupling batch): the ENDPOINT IS
+# NOT PRESET. A run must tell it where to send — `baseURL` below resolves the
+# $DSH_E2E_LLM_BASE_URL / $DEEPSEEK_BASE_URL environment variables (the app
+# bin loads the gitignored root `.env`), and the adapter refuses to start
+# without one so no deployment is silently bound to any single vendor
+# (official or relay). Any OpenAI-compatible relay works here. Swap to
+# '@deepseek-ai/dsh-llm-pi-ai' for the multi-provider twin (a `providers`
+# dict keyed by route — the shape to use when one deployment mixes vendors).
+# Shipped default: full thinking at max effort on every request. Exact-model
+# resolution materializes request defaults before the request header is logged.
 - id: llm-deepseek
   name: '@deepseek-ai/dsh-llm-deepseek'
   config:
+    # !!js tag below keeps this a computed value, not a preset endpoint.
+    baseURL: !!js process.env.DSH_E2E_LLM_BASE_URL || process.env.DEEPSEEK_BASE_URL || ''
     thinking: enabled
     reasoningEffort: max
     models:
+      # Model ids the adapter will accept when a request names them; they are
+      # NOT a vendor routing — the endpoint decides what these ids mean.
       - id: deepseek-v4-pro
         contextWindow: 128000
       - id: deepseek-v4-flash
@@ -46,11 +55,12 @@
   config:
     agents:
       - id: main
-        provider: deepseek-official
-        # Stays on flash: the goal/ralph replay corpora were recorded on it, and
-        # their nested-include overlays cannot re-pin the app config (a config
-        # patch cannot target an entry behind a nested include).
-        model: deepseek-v4-flash
+        # Vendor-decoupling batch: route identity comes from the environment
+        # ($DSH_E2E_LLM_PROVIDER / $DSH_E2E_LLM_MODEL, legacy DEEPSEEK_* fallback
+        # keeps the goal/ralph replay corpora's flash default), never a preset
+        # vendor binding in the composition.
+        provider: !!js process.env.DSH_E2E_LLM_PROVIDER || 'deepseek-official'
+        model: !!js process.env.DSH_E2E_LLM_MODEL || 'deepseek-v4-flash'
         cwd: !!js process.cwd()
     workspaceContext:
       maxBytes: 65536

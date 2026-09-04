@@ -27,10 +27,15 @@ import type {
 export const DEEPSEEK_PROVIDER_ID = 'deepseek-official'
 
 /**
- * Default endpoint: DeepSeek's Anthropic-compatible API, `/v1` included
- * (`/messages` is appended). This is NOT the chat-completions base
- * (`https://api.deepseek.com`) `@deepseek-ai/dsh-llm-deepseek` uses, so this
- * provider does NOT reuse `$DEEPSEEK_BASE_URL` — only the API key is shared.
+ * The vendor's documented Anthropic-compatible endpoint (`/v1` included,
+ * `/messages` is appended), exported as a NAMED constant for compositions
+ * that deliberately target it. Vendor-decoupling batch: it is NOT a
+ * fallback — the provider refuses to resolve without an explicit `baseURL`
+ * (config or `$DEEPSEEK_SEARCH_BASE_URL`), so no deployment is silently
+ * routed to any single vendor. This is NOT the chat-completions base
+ * (`https://api.deepseek.com`) `@deepseek-ai/dsh-llm-deepseek` uses, so
+ * this provider does NOT reuse `$DEEPSEEK_BASE_URL` — only the API key is
+ * shared.
  */
 export const DEEPSEEK_DEFAULT_BASE_URL = 'https://api.deepseek.com/anthropic/v1'
 

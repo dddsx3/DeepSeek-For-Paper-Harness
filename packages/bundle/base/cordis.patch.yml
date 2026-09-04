@@ -406,10 +406,17 @@
       config:
         searchProvider: deepseek-official
 
+    # Vendor-decoupling batch: NO preset endpoint. The provider refuses to
+    # resolve until the deployment names where search requests go — set
+    # `baseURL` here, or the `web-search-deepseek:` settings section, or
+    # $DEEPSEEK_SEARCH_BASE_URL. `DEEPSEEK_DEFAULT_BASE_URL` remains exported
+    # for compositions that deliberately target the vendor's documented
+    # endpoint. A relay with an Anthropic-compatible /messages API works too.
     - id: web-search-deepseek
       name: '@deepseek-ai/dsh-web-search-deepseek'
       config:
         apiKeyEnv: DEEPSEEK_API_KEY
+        baseURL: !!js process.env.DEEPSEEK_SEARCH_BASE_URL || ''
 
     - id: tool-web
       name: '@deepseek-ai/dsh-tool-web'
@@ -443,9 +450,16 @@
     - id: fs-sandbox
       name: '@deepseek-ai/dsh-fs-sandbox'
 
-    # The native DeepSeek adapter. No key or endpoint is inlined: both resolve per
-    # request from the `llm-deepseek:` settings section over this entry, with the
-    # key coming from the credential store below. Thinking defaults are a deployment
-    # choice.
+    # The native DeepSeek-protocol adapter. No key or endpoint is inlined: both
+    # resolve per request from the `llm-deepseek:` settings section over this
+    # entry, with the key coming from the credential store below. Thinking
+    # defaults are a deployment choice.
+    # Vendor-decoupling batch: NO preset endpoint — the adapter refuses to boot
+    # until the deployment names one (`baseURL` here, the settings section, or
+    # $DEEPSEEK_BASE_URL). Any OpenAI-compatible relay works; the empty-string
+    # expression below defers to the settings/env layers instead of defaulting
+    # to any vendor.
     - id: llm-deepseek
       name: '@deepseek-ai/dsh-llm-deepseek'
+      config:
+        baseURL: !!js process.env.DEEPSEEK_BASE_URL || ''

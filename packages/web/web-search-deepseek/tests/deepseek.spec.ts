@@ -404,7 +404,7 @@ describe('web-search-deepseek plugin registration', () => {
     vi.stubGlobal('fetch', vi.fn(async () => jsonResponse(searchResponse())))
     const ctx = new Context()
     await ctx.plugin(WebRuntime, { searchProvider: DEEPSEEK_PROVIDER_ID })
-    const fiber = await ctx.plugin(deepseekPlugin, { apiKey: 'ds-key' })
+    const fiber = await ctx.plugin(deepseekPlugin, { apiKey: 'ds-key', baseURL: 'https://api.deepseek.test/anthropic/v1' })
     await expect(ctx.web.search({ query: 'q' })).resolves.toMatchObject({ truncated: false })
     await fiber.dispose()
     await expect(ctx.web.search({ query: 'q' }))
@@ -454,14 +454,16 @@ describe('web-search-deepseek plugin registration', () => {
     const loader = Object.create(Loader.prototype) as Loader
     const unwrapped = loader.unwrapExports(deepseekPlugin) as Parameters<Context['plugin']>[0]
     // A collapsed export shape (dropped inject) would throw "without inject" here.
-    const fiber = await ctx.plugin(unwrapped, { apiKey: 'ds-key' })
+    const fiber = await ctx.plugin(unwrapped, { apiKey: 'ds-key', baseURL: 'https://api.deepseek.test/anthropic/v1' })
     await expect(ctx.web.search({ query: 'q' })).resolves.toMatchObject({ truncated: false })
     await fiber.dispose()
   })
 
-  it('falls back to the env key and defaults when config omits them', async () => {
+  it('falls back to the env key and the env endpoint when config omits them', async () => {
     const prev = process.env.DEEPSEEK_API_KEY
+    const prevBase = process.env.DEEPSEEK_SEARCH_BASE_URL
     process.env.DEEPSEEK_API_KEY = 'env-key'
+    process.env.DEEPSEEK_SEARCH_BASE_URL = 'https://env-relay.test/anthropic/v1'
     try {
       const fetchMock = vi.fn(async () => jsonResponse(searchResponse()))
       vi.stubGlobal('fetch', fetchMock)
@@ -470,13 +472,33 @@ describe('web-search-deepseek plugin registration', () => {
       deepseekPlugin.apply(ctx, {})
       await ctx.web.search({ query: 'q' })
       const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit]
-      expect(url).toBe('https://api.deepseek.com/anthropic/v1/messages')
+      expect(url).toBe('https://env-relay.test/anthropic/v1/messages')
       expect((init.headers as Record<string, string>)['x-api-key']).toBe('env-key')
       expect(JSON.parse(init.body as string)).toMatchObject({ model: 'deepseek-v4-flash' })
       await ctx.fiber.dispose()
     } finally {
       if (prev === undefined) delete process.env.DEEPSEEK_API_KEY
       else process.env.DEEPSEEK_API_KEY = prev
+      if (prevBase === undefined) delete process.env.DEEPSEEK_SEARCH_BASE_URL
+      else process.env.DEEPSEEK_SEARCH_BASE_URL = prevBase
+    }
+  })
+
+  it('vendor-decoupling: refuses to resolve with NO endpoint (no implicit vendor default)', async () => {
+    const prev = process.env.DEEPSEEK_API_KEY
+    const prevBase = process.env.DEEPSEEK_SEARCH_BASE_URL
+    process.env.DEEPSEEK_API_KEY = 'env-key'
+    delete process.env.DEEPSEEK_SEARCH_BASE_URL
+    try {
+      const ctx = new Context()
+      await ctx.plugin(WebRuntime, { searchProvider: DEEPSEEK_PROVIDER_ID })
+      expect(() => deepseekPlugin.apply(ctx, {}))
+        .toThrow(/no endpoint configured/)
+      await ctx.fiber.dispose()
+    } finally {
+      if (prev === undefined) delete process.env.DEEPSEEK_API_KEY
+      else process.env.DEEPSEEK_API_KEY = prev
+      if (prevBase !== undefined) process.env.DEEPSEEK_SEARCH_BASE_URL = prevBase
     }
   })
 
@@ -517,7 +539,7 @@ describe('web-search-deepseek plugin registration', () => {
     try {
       const ctx = new Context()
       await ctx.plugin(WebRuntime, { searchProvider: DEEPSEEK_PROVIDER_ID })
-      await ctx.plugin(deepseekPlugin, {})
+      await ctx.plugin(deepseekPlugin, { baseURL: 'https://api.deepseek.test/anthropic/v1' })
       let caught: unknown
       try {
         await ctx.web.search({ query: 'q' })

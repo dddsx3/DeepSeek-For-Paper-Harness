@@ -56,8 +56,10 @@ function adapterOf(
   files?: LlmDeepSeek.DeepSeekFileStore,
 ): DeepSeekAdapter {
   const { apiKey, ...rest } = config
+  // Vendor-decoupling batch: the adapter ships no implicit endpoint, so unit
+  // tests that never touch transport default to a harmless explicit one.
   return new DeepSeekAdapter({
-    options: () => resolveAdapterOptions(rest),
+    options: () => resolveAdapterOptions({ baseURL: 'http://unit.test', ...rest }),
     resolveApiKey: () => Promise.resolve(apiKey ?? 'k'),
     resolveUserId: () => TEST_USER_ID,
     resolveAttachments: () => attachments,
@@ -1596,7 +1598,7 @@ describe('plugin registration and config', () => {
   it.each(['low', 'high', 'max'] as const)(
     'rejects disabled-thinking effort %s at the resolver boundary',
     (reasoningEffort) => {
-      expect(() => resolveAdapterOptions({ thinking: 'disabled', reasoningEffort }))
+      expect(() => resolveAdapterOptions({ baseURL: 'http://unit.test', thinking: 'disabled', reasoningEffort }))
         .toThrow(/only reasoningEffort "off"/)
     },
   )
@@ -1623,7 +1625,7 @@ describe('plugin registration and config', () => {
   })
 
   it('defaults an adapter-supplied catalog entry to text input', async () => {
-    const connection = resolveAdapterOptions({ models: [] })
+    const connection = resolveAdapterOptions({ baseURL: 'http://unit.test', models: [] })
     const adapter = new DeepSeekAdapter({
       options: () => ({ ...connection, models: [{ id: 'adapter-model' }] }),
       resolveApiKey: () => Promise.resolve('k'),
@@ -1735,16 +1737,17 @@ describe('plugin registration and config', () => {
   ]
 
   it.each(invalidProgrammaticModalities)('rejects programmatic modality config that bypasses the schema', (models, message) => {
-    expect(() => resolveAdapterOptions({ models: [...models] })).toThrow(message)
+    expect(() => resolveAdapterOptions({ baseURL: 'http://unit.test', models: [...models] })).toThrow(message)
   })
 
   it.each([0, 1.5])('rejects a per-model output cap of %s', (maxTokens) => {
-    expect(() => resolveAdapterOptions({ models: [{ id: 'bad-cap', maxTokens }] }))
+    expect(() => resolveAdapterOptions({ baseURL: 'http://unit.test', models: [{ id: 'bad-cap', maxTokens }] }))
       .toThrow(/maxTokens must be a positive integer/)
   })
 
   it('rejects image request limits on a text-only catalog model', () => {
     expect(() => resolveAdapterOptions({
+      baseURL: 'http://unit.test',
       models: [{ id: 'text-only', inputModalities: ['text'], imagePixelBudget: 1 }],
     })).toThrow(/text-only catalog model .* cannot declare image request limits/)
   })
@@ -1756,6 +1759,7 @@ describe('plugin registration and config', () => {
     ['imageMaxBytes', 1.5, /imageMaxBytes must be a positive safe integer/],
   ] as const)('rejects per-model %s=%s', (field, value, message) => {
     expect(() => resolveAdapterOptions({
+      baseURL: 'http://unit.test',
       models: [{ id: 'vision', inputModalities: ['image'], [field]: value }],
     })).toThrow(message)
   })
@@ -1790,7 +1794,7 @@ describe('plugin registration and config', () => {
   it.each([0, 1.5])(
     'rejects invalid adapter-wide default context capacity %s',
     async (defaultContextWindow) => {
-      expect(() => resolveAdapterOptions({ defaultContextWindow }))
+      expect(() => resolveAdapterOptions({ baseURL: 'http://unit.test', defaultContextWindow }))
         .toThrow(/defaultContextWindow must be a positive integer/)
 
       const ctx = new Context()
@@ -1806,7 +1810,7 @@ describe('plugin registration and config', () => {
   it.each([0, 1.5, Number.MAX_SAFE_INTEGER + 1])(
     'rejects invalid adapter-wide maxTokens %s',
     async (maxTokens) => {
-      expect(() => resolveAdapterOptions({ maxTokens }))
+      expect(() => resolveAdapterOptions({ baseURL: 'http://unit.test', maxTokens }))
         .toThrow(/maxTokens must be a positive safe integer/)
 
       const ctx = new Context()
@@ -1850,13 +1854,13 @@ describe('plugin registration and config', () => {
     ['fileQuotaCleanupBatch', 0, /fileQuotaCleanupBatch must be an integer from 1 through 1000/],
     ['fileQuotaCleanupBatch', 1_001, /fileQuotaCleanupBatch must be an integer from 1 through 1000/],
   ] as const)('rejects %s=%s', (field, value, message) => {
-    expect(() => resolveAdapterOptions({ [field]: value })).toThrow(message)
+    expect(() => resolveAdapterOptions({ baseURL: 'http://unit.test', [field]: value })).toThrow(message)
   })
 
   it.each([0, 1.5, Number.MAX_SAFE_INTEGER + 1])(
     'rejects invalid request file bound %s',
     async (maxRequestFilesBytes) => {
-      expect(() => resolveAdapterOptions({ maxRequestFilesBytes }))
+      expect(() => resolveAdapterOptions({ baseURL: 'http://unit.test', maxRequestFilesBytes }))
         .toThrow(/maxRequestFilesBytes must be a positive safe integer/)
 
       const ctx = new Context()
@@ -1872,7 +1876,7 @@ describe('plugin registration and config', () => {
   it.each([0, 1.5, Number.MAX_SAFE_INTEGER + 1])(
     'rejects invalid inline request image bound %s',
     async (maxInlineRequestImageBytes) => {
-      expect(() => resolveAdapterOptions({ maxInlineRequestImageBytes }))
+      expect(() => resolveAdapterOptions({ baseURL: 'http://unit.test', maxInlineRequestImageBytes }))
         .toThrow(/maxInlineRequestImageBytes must be a positive safe integer/)
 
       const ctx = new Context()
@@ -1975,14 +1979,14 @@ describe('plugin registration and config', () => {
     ])
     expect(resolveAdapterOptions({ baseURL: 'https://gateway.internal' }, shell).baseURL).toBe('https://gateway.internal')
   })
-  it('defaults to the public base URL without config or env', async () => {
+  it('vendor-decoupling: refuses registration without config or env endpoint (no implicit vendor default)', async () => {
     vi.stubEnv('DEEPSEEK_API_KEY', 'k')
     vi.stubEnv('DEEPSEEK_BASE_URL', undefined)
     const ctx = new Context()
     await ctx.plugin(LlmRuntime)
-    // Registration succeeds; no call is made (would hit api.deepseek.com).
-    await ctx.plugin(LlmDeepSeek, {})
-    expect(ctx.llm.listProviders()).toEqual([{ id: 'deepseek-official', name: 'DeepSeek' }])
+    // The removed implicit default would have silently routed every
+    // deployment to api.deepseek.com; now the refusal is loud.
+    await expect(ctx.plugin(LlmDeepSeek, {})).rejects.toThrow(/no endpoint configured/)
   })
 
   it('adapter is constructible directly for embedding over the shared resolver', async () => {
@@ -2009,9 +2013,9 @@ describe('plugin registration and config', () => {
   })
 
   it('rejects invalid idle watchdog bounds for direct and plugin composition', async () => {
-    expect(() => resolveAdapterOptions({ streamIdleTimeoutMs: Number.POSITIVE_INFINITY }))
+    expect(() => resolveAdapterOptions({ baseURL: 'http://unit.test', streamIdleTimeoutMs: Number.POSITIVE_INFINITY }))
       .toThrow(/streamIdleTimeoutMs.*positive finite/)
-    expect(() => resolveAdapterOptions({ streamIdleTimeoutMs: MAX_TIMER_DELAY_MS + 1 }))
+    expect(() => resolveAdapterOptions({ baseURL: 'http://unit.test', streamIdleTimeoutMs: MAX_TIMER_DELAY_MS + 1 }))
       .toThrow(/streamIdleTimeoutMs.*no greater/)
 
     const ctx = new Context()
@@ -2027,9 +2031,9 @@ describe('plugin registration and config', () => {
   })
 
   it('validates Files API timeout bounds independently of the stream idle deadline', async () => {
-    expect(() => resolveAdapterOptions({ filesApiTimeoutMs: Number.POSITIVE_INFINITY }))
+    expect(() => resolveAdapterOptions({ baseURL: 'http://unit.test', filesApiTimeoutMs: Number.POSITIVE_INFINITY }))
       .toThrow(/filesApiTimeoutMs.*positive finite/)
-    expect(() => resolveAdapterOptions({ filesApiTimeoutMs: MAX_TIMER_DELAY_MS + 1 }))
+    expect(() => resolveAdapterOptions({ baseURL: 'http://unit.test', filesApiTimeoutMs: MAX_TIMER_DELAY_MS + 1 }))
       .toThrow(/filesApiTimeoutMs.*no greater/)
 
     const ctx = new Context()
@@ -2042,7 +2046,7 @@ describe('plugin registration and config', () => {
       baseURL: 'http://127.0.0.1:1',
       filesApiTimeoutMs: MAX_TIMER_DELAY_MS + 1,
     })).rejects.toThrow(/filesApiTimeoutMs/)
-    expect(resolveAdapterOptions({ filesApiTimeoutMs: 100, streamIdleTimeoutMs: 100 }))
+    expect(resolveAdapterOptions({ baseURL: 'http://unit.test', filesApiTimeoutMs: 100, streamIdleTimeoutMs: 100 }))
       .toMatchObject({ filesApiTimeoutMs: 100, streamIdleTimeoutMs: 100 })
   })
 

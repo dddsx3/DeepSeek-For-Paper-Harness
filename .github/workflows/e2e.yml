@@ -1,21 +1,30 @@
-name: E2E (real DeepSeek API)
+name: E2E (real provider API)
 
 # Real-API end-to-end suite (`pnpm run test:e2e`). Unlike ci.yml this job
-# consumes the DEEPSEEK_API_KEY_EXTERNAL secret (mapped to the env var
-# DEEPSEEK_API_KEY the tests read) and hits the external API at
-# https://api.deepseek.com (DEEPSEEK_BASE_URL is pinned to it explicitly so a
-# stray repo-root .env can't redirect the run).
+# consumes provider credentials from repo secrets and hits whichever
+# endpoint those secrets name.
+#
+# VENDOR-DECOUPLING BATCH — this workflow is vendor-neutral on purpose:
+#   - Preferred: DSH_E2E_LLM_*_EXTERNAL secrets (API key / base URL / model /
+#     provider route) — any OpenAI-compatible endpoint (relay or official)
+#     works; the tests and example compositions read them through the
+#     vendor-neutral resolver.
+#   - Legacy: DEEPSEEK_API_KEY_EXTERNAL (+ optional DEEPSEEK_BASE_URL_EXTERNAL
+#     — NOT set here means the endpoint comes from the runner env/.env).
+#   - NO base URL is preset anywhere in this file. The llm-deepseek adapter
+#     refuses to boot without an explicit endpoint, so a repo that configured
+#     neither secret family gets a loud failure, never a silent vendor route.
 #
 # pull_request IS a trigger, but GitHub withholds repo secrets from BOTH forked
 # PRs and Dependabot PRs (the latter are same-repo, fork==false, but still
 # keyless). The job-level `if:` below skips the whole job for those untrusted
 # PRs. The Dependabot test keys on the PR AUTHOR (pull_request.user.login), not
 # github.actor (the run trigger) — a maintainer reopening a Dependabot PR would
-# make github.actor human while the PR is still keyless. When the job runs, the
-# secret is expected, so the preflight hard-fails if it's missing (a missing
-# secret would otherwise make the self-skipping suite report a false green). A
-# job skipped by a job-level `if:` reports as a SUCCESSFUL check, so this
-# workflow is safe to use as a required status check if desired.
+# make github.actor human while the PR is still keyless. When the job runs, a
+# credential is expected, so the preflight hard-fails if neither family has a
+# key (a missing secret would otherwise make the self-skipping suite report a
+# false green). A job skipped by a job-level `if:` reports as a SUCCESSFUL
+# check, so this workflow is safe to use as a required status check if desired.
 #
 # SECURITY — NEVER change this trigger to `pull_request_target`. `pull_request`
 # checks out and runs the PR's HEAD code WITHOUT secrets for forks, which is what
@@ -82,23 +91,29 @@ jobs:
       - name: Prepare bubblewrap (unrestrict userns)
         run: bash scripts/prepare-ci-bubblewrap.sh
 
-      # Guard against a false green: the e2e suites self-skip when the key is
-      # absent, so a missing/misconfigured secret would otherwise pass as
-      # "all skipped". This job only runs on trusted events (the `if:` above
-      # excludes keyless PRs), so the secret MUST be present — fail loudly if not.
-      - name: Preflight (require DEEPSEEK_API_KEY)
+      # Guard against a false green: the e2e suites self-skip when no
+      # credential is present, so a repo with neither secret family
+      # configured would otherwise pass as "all skipped". This job only
+      # runs on trusted events (the `if:` above excludes keyless PRs), so a
+      # key from EITHER family must be present — fail loudly if not.
+      # (The key itself is only consumed by the test step below.)
+      - name: Preflight (require a provider credential)
         env:
-          # Repo secret DEEPSEEK_API_KEY_EXTERNAL holds the external-API key;
-          # the tests read process.env.DEEPSEEK_API_KEY, so map it across here.
-          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY_EXTERNAL }}
+          DSH_E2E_LLM_API_KEY_EXTERNAL: ${{ secrets.DSH_E2E_LLM_API_KEY_EXTERNAL }}
+          DEEPSEEK_API_KEY_EXTERNAL: ${{ secrets.DEEPSEEK_API_KEY_EXTERNAL }}
         run: |
           set -euo pipefail
-          if [ -z "${DEEPSEEK_API_KEY:-}" ]; then
-            echo "::error::DEEPSEEK_API_KEY is empty. The e2e suite would self-skip and"
-            echo "::error::report a false green. Configure the repo secret DEEPSEEK_API_KEY_EXTERNAL."
+          if [ -n "${DSH_E2E_LLM_API_KEY_EXTERNAL:-}" ]; then
+            echo "DSH_E2E_LLM credential present."
+          elif [ -n "${DEEPSEEK_API_KEY_EXTERNAL:-}" ]; then
+            echo "Legacy DEEPSEEK credential present (endpoint must be set via DEEPSEEK_BASE_URL_EXTERNAL or the runner env)."
+          else
+            echo "::error::No provider credential. The e2e suite would self-skip and"
+            echo "::error::report a false green. Configure DSH_E2E_LLM_API_KEY_EXTERNAL"
+            echo "::error::(vendor-neutral; pair with DSH_E2E_LLM_BASE_URL_EXTERNAL) or the"
+            echo "::error::legacy DEEPSEEK_API_KEY_EXTERNAL."
             exit 1
           fi
-          echo "DEEPSEEK_API_KEY present."
 
       # The e2e suites boot the example bins in `lib` mode (DSH_EXAMPLE_MODE=lib):
       # the built artifact under plain Node, resolving plugins through real package
@@ -109,12 +124,23 @@ jobs:
       # Real-API end-to-end tests only. The keyless gates (lint/typecheck/
       # coverage/snapshot/etc.) already run in ci.yml (pull requests) and
       # ci-master.yml (master push standby).
-      # DEEPSEEK_BASE_URL is pinned to the external API; the secret is scoped to
-      # this step (and preflight) only — never exposed to checkout/setup/install.
-      - name: E2E tests (real DeepSeek API)
+      #
+      # Vendor-decoupling batch: the endpoint is NO LONGER preset to any
+      # vendor (official or relay). The suite routes through the
+      # vendor-neutral DSH_E2E_LLM_* variables; the legacy DEEPSEEK_* names
+      # stay as the compatibility fallback so existing credentialed repos
+      # keep working. Secrets are scoped to this step (and preflight) only —
+      # never exposed to checkout/setup/install. The deepseek adapter
+      # refuses to boot without an explicit base URL, so a misconfigured run
+      # fails loudly here instead of silently routing anywhere.
+      - name: E2E tests (real provider API)
         env:
+          DSH_E2E_LLM_API_KEY: ${{ secrets.DSH_E2E_LLM_API_KEY_EXTERNAL }}
+          DSH_E2E_LLM_BASE_URL: ${{ secrets.DSH_E2E_LLM_BASE_URL_EXTERNAL }}
+          DSH_E2E_LLM_MODEL: ${{ secrets.DSH_E2E_LLM_MODEL_EXTERNAL }}
+          DSH_E2E_LLM_PROVIDER: ${{ secrets.DSH_E2E_LLM_PROVIDER_EXTERNAL }}
           DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY_EXTERNAL }}
-          DEEPSEEK_BASE_URL: https://api.deepseek.com
+          DEEPSEEK_BASE_URL: ${{ secrets.DEEPSEEK_BASE_URL_EXTERNAL }}
           DSH_E2E_MAX_WORKERS: 14
           DSH_EXAMPLE_MODE: lib
         run: pnpm run test:e2e

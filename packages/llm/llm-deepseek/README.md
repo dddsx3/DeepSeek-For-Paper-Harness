@@ -15,7 +15,7 @@ The package root exposes the Cordis plugin contract and `DeepSeekAdapter`; wire 
   name: '@deepseek-ai/dsh-llm-deepseek'
   config:
     apiKeyEnv: DEEPSEEK_API_KEY  # default; resolved per request via ctx.credentials, then the environment
-    baseURL: https://api.deepseek.com # optional; $DEEPSEEK_BASE_URL then the public API when omitted
+    baseURL: https://your-relay.example/v1 # REQUIRED; $DEEPSEEK_BASE_URL also honored. No default: the adapter refuses to boot without an explicit endpoint (vendor-decoupling rule — official or relay must be a deliberate choice)
     thinking: enabled        # optional; provider default is enabled
     reasoningEffort: high    # optional; off | low | high | max — omitted ⇒ high
     maxTokens: 256000        # optional positive per-request output cap; this is the default

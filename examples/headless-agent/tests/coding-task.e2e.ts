@@ -7,6 +7,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import type { Context } from '@deepseek-ai/cordis'
 import { codingHarness, finalText, SYSTEM_PROMPT, waitForIdle } from './harness.ts'
 import { SessionId } from '@deepseek-ai/dsh-session'
+import { resolveE2eLlmRoute as e2eRoute } from './e2e-llm-route.ts'
 
 /**
  * The swebench-style smoke test: a real model fixes a real bug in a temp
@@ -55,7 +56,7 @@ describe.skipIf(!process.env.DEEPSEEK_API_KEY)('coding task: fix a failing test 
     expect(before.status).not.toBe(0)
 
     ctx = await codingHarness(workdir, { persona: SYSTEM_PROMPT })
-    const agent = ctx.agentLoop.create(SessionId('e2e-task'), { provider: 'deepseek-official', model: 'deepseek-v4-flash' })
+    const agent = ctx.agentLoop.create(SessionId('e2e-task'), { provider: e2eRoute()?.provider ?? 'deepseek-official', model: e2eRoute()?.model ?? 'e2e-model' })
 
     agent.followup(createUserMessage({
       content: [{

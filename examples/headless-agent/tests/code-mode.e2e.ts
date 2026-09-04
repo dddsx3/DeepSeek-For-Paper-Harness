@@ -25,6 +25,7 @@ import LocalJobRegistry from '@deepseek-ai/dsh-jobs-local'
 import * as ToolTasks from '@deepseek-ai/dsh-tool-jobs'
 import CordisHostRunner from '@deepseek-ai/dsh-cordis-host-runner'
 import * as ToolCordis from '@deepseek-ai/dsh-tool-cordis'
+import { resolveE2eLlmRoute as e2eRoute } from './e2e-llm-route.ts'
 
 /**
  * With-key Code Mode proof: a real model receives only `run_code`, composes two
@@ -77,7 +78,10 @@ async function workspaceCodeModeHarness(): Promise<Context> {
   await harness.plugin(ToolFs)
   await harness.plugin(WorkspaceContext, { maxBytes: 65536 })
   await harness.plugin(AgentLoop, { agents: [] })
-  await harness.plugin(LlmDeepSeek, { models: [{ id: 'deepseek-v4-flash' }] })
+  // Vendor-neutral endpoint (vendor-decoupling batch): route from env, no default.
+  const route = e2eRoute()
+  if (route === undefined) throw new Error('e2e route unresolved — set DSH_E2E_LLM_* / DEEPSEEK_API_KEY')
+  await harness.plugin(LlmDeepSeek, { baseURL: route.baseURL, models: [{ id: route.model }] })
   await harness.plugin(WorkerThreadCodeRuntime, {})
   return harness
 }
@@ -353,7 +357,7 @@ describe.skipIf(!process.env.DEEPSEEK_API_KEY)('Code Mode: real model writes a p
   it('collapses the wire tool list to [run_code], bridges sub-calls, and returns curated output', async () => {
     workdir = await mkdtemp(join(tmpdir(), 'dsh-code-mode-e2e-'))
     ctx = await codeModeHarness(workdir)
-    const agent = ctx.agentLoop.create(SessionId('e2e-code-mode'), { provider: 'deepseek-official', model: 'deepseek-v4-flash' })
+    const agent = ctx.agentLoop.create(SessionId('e2e-code-mode'), { provider: e2eRoute()?.provider ?? 'deepseek-official', model: e2eRoute()?.model ?? 'e2e-model' })
 
     agent.followup(createUserMessage({
       content: [{
@@ -405,7 +409,7 @@ describe.skipIf(!process.env.DEEPSEEK_API_KEY)('Code Mode: real model writes a p
     const handle = await ctx.agents.create({
       sessionId: SessionId('e2e-code-mode-workspace-session'),
       meta: { cwd: workdir },
-      agentOptions: { provider: 'deepseek-official', model: 'deepseek-v4-flash' },
+      agentOptions: { provider: e2eRoute()?.provider ?? 'deepseek-official', model: e2eRoute()?.model ?? 'e2e-model' },
     })
 
     handle.agent.followup(createUserMessage({

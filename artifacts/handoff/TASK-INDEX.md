@@ -72,3 +72,4 @@ artifacts/handoff/
 - The real-process smoke (`run-real-execution-smoke.mjs`) is its own job
   with a 30-60s wall-clock budget; it runs the canonical
   backboneIR through capture + replay against a real node child.
+| TASK-P3D (供应商解耦: 适配器去隐式默认 / E2E 中立变量族 / e2e.yml 去官方 pin / CI 守卫) | (this batch) | `artifacts/handoff/TASK-P3D/` | DONE（llm-deepseek 与 web-search-deepseek 端点必填、无隐式官方路由；E2E 走 DSH_E2E_LLM_* 变量族；ci.yml 挂 verify-vendor-neutrality 守卫防回潮；llm-deepseek+web-search 395/395、bundle 36/36、keyless e2e 1/1） | 作者: 仓库 Settings 配 DSH_E2E_LLM_*_EXTERNAL secrets 使 E2E 走中转；pi-ai-provider-e2e.yml（手动双供应商验证）未动属 opt-in |

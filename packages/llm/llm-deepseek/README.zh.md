@@ -15,7 +15,7 @@ harness LLM（大语言模型）seam 的 DeepSeek chat-completions 适配器：�
   name: '@deepseek-ai/dsh-llm-deepseek'
   config:
     apiKeyEnv: DEEPSEEK_API_KEY  # default; resolved per request via ctx.credentials, then the environment
-    baseURL: https://api.deepseek.com # optional; $DEEPSEEK_BASE_URL then the public API when omitted
+    baseURL: https://your-relay.example/v1 # 必填；亦可用 $DEEPSEEK_BASE_URL。无默认值：未显式给出端点前适配器拒绝启动（供应商解耦纪律——官方或中转必须是显式选择）
     thinking: enabled        # optional; provider default is enabled
     reasoningEffort: high    # optional; off | low | high | max — omitted ⇒ high
     maxTokens: 256000        # optional positive per-request output cap; this is the default

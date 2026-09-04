@@ -16,7 +16,6 @@ import type {} from '@deepseek-ai/dsh-web'
 import {
   DeepSeekSearchProvider,
   DEEPSEEK_DEFAULT_API_VERSION,
-  DEEPSEEK_DEFAULT_BASE_URL,
   DEEPSEEK_DEFAULT_MAX_TOKENS,
   DEEPSEEK_DEFAULT_MAX_USES,
   DEEPSEEK_DEFAULT_MODEL,
@@ -81,6 +80,23 @@ export const Config: z<Config> = z.object({
  */
 const SEARCH_BASE_URL_ENV = 'DEEPSEEK_SEARCH_BASE_URL'
 
+/**
+ * Vendor decoupling: the search endpoint is REQUIRED, never defaulted. A
+ * deployment that configured neither `baseURL` nor $DEEPSEEK_SEARCH_BASE_URL
+ * gets a loud refusal naming both knobs — `DEEPSEEK_DEFAULT_BASE_URL` stays
+ * exported for compositions that deliberately reference the vendor's
+ * documented endpoint.
+ */
+function requireSearchBaseURL(resolved: string | undefined): string {
+  if (resolved === undefined || resolved === '') {
+    throw new Error(
+      `web-search-deepseek: no endpoint configured. Set config.baseURL (or the ${SEARCH_BASE_URL_ENV} environment variable) to the search endpoint this deployment should call`
+      + ' — the provider intentionally ships no default so no deployment is silently bound to any single vendor.',
+    )
+  }
+  return resolved
+}
+
 /** Settings namespace carrying this provider's endpoint, model, and key reference. */
 export const WEB_SEARCH_DEEPSEEK_SETTINGS_NAMESPACE = settingsNamespace('web-search-deepseek')
 
@@ -107,9 +123,13 @@ function resolveOptions(ctx: Context, config: Config): DeepSeekSearchProviderOpt
       return ambient !== undefined && ambient.value.length > 0 ? ambient.value : undefined
     },
     apiKeyEnv,
-    baseURL: config.baseURL
-      ?? launchEnvironmentOf(ctx).get(SEARCH_BASE_URL_ENV)?.value
-      ?? DEEPSEEK_DEFAULT_BASE_URL,
+    // Vendor decoupling: NO implicit endpoint. Config `baseURL` or
+    // $DEEPSEEK_SEARCH_BASE_URL must name where search requests go;
+    // refusing beats silently routing every deployment to one vendor.
+    baseURL: requireSearchBaseURL(
+      config.baseURL
+      ?? launchEnvironmentOf(ctx).get(SEARCH_BASE_URL_ENV)?.value,
+    ),
     model: config.model ?? DEEPSEEK_DEFAULT_MODEL,
     apiVersion: config.apiVersion ?? DEEPSEEK_DEFAULT_API_VERSION,
     maxTokens: config.maxTokens ?? DEEPSEEK_DEFAULT_MAX_TOKENS,
@@ -125,6 +145,15 @@ function resolveOptions(ctx: Context, config: Config): DeepSeekSearchProviderOpt
 
 /** Register the DeepSeek search provider with `ctx.web`. */
 export function apply(ctx: Context, config: Config): void {
+  // Vendor-decoupling batch: refuse AT REGISTRATION when neither config nor
+  // environment names an endpoint — the removed implicit default used to
+  // silently route every deployment to one vendor. The settings section
+  // still installs after this check so a later settings update can supply
+  // the endpoint (the per-search projection re-reads it).
+  requireSearchBaseURL(
+    config.baseURL
+    ?? launchEnvironmentOf(ctx).get(SEARCH_BASE_URL_ENV)?.value,
+  )
   let current: () => Config = () => config
   installSettingsSection(ctx, WEB_SEARCH_DEEPSEEK_SETTINGS_NAMESPACE, Config, config, {
     setSource: (source) => {

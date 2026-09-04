@@ -178,11 +178,37 @@ export const Config: z<Config> = z.object({
   retryPolicy: RetryPolicySchema,
 })
 
-/** Public API default; the internal endpoint comes from $DEEPSEEK_BASE_URL. */
+/**
+ * The vendor's documented public endpoint, exported as a NAMED constant for
+ * compositions that deliberately target it. It is NOT a fallback: since the
+ * vendor-decoupling batch the adapter refuses to run without an explicit
+ * `baseURL` (config or `$DEEPSEEK_BASE_URL`) so no deployment silently routes
+ * to any single vendor — official or relay. Reference it explicitly in
+ * configuration to use it.
+ */
 export const PUBLIC_BASE_URL = 'https://api.deepseek.com'
 
 /** Environment variable naming this provider's endpoint, honored only from trusted layers. */
 const BASE_URL_ENV = 'DEEPSEEK_BASE_URL'
+
+/**
+ * Vendor decoupling: the endpoint is REQUIRED, never defaulted. A deployment
+ * that configured neither `baseURL` nor $DEEPSEEK_BASE_URL gets a load-time
+ * refusal naming both knobs — it must name its endpoint (official, relay, or
+ * self-hosted) explicitly. `PUBLIC_BASE_URL` stays exported for compositions
+ * that deliberately reference the vendor's documented endpoint.
+ */
+function resolveRequiredBaseURL(configured: string | undefined, environment: LaunchEnvironmentSnapshot | undefined): string {
+  const fromEnv = environment?.get(BASE_URL_ENV)?.value
+  const resolved = configured ?? fromEnv
+  if (resolved === undefined || resolved === '') {
+    throw new Error(
+      `llm-deepseek: no endpoint configured. Set config.baseURL (or the ${BASE_URL_ENV} environment variable) to the endpoint this deployment should call`
+      + ' — the adapter intentionally ships no default so no deployment is silently bound to any single vendor.',
+    )
+  }
+  return resolved
+}
 
 /**
  * One resolution's complete request facts. Connection and credential facts
@@ -356,9 +382,10 @@ export function resolveAdapterOptions(config: Config, environment?: LaunchEnviro
   }
   return {
     apiKeyEnv: credentialRef(config.apiKeyEnv ?? DEFAULT_API_KEY_ENV),
-    baseURL: config.baseURL
-      ?? environment?.get(BASE_URL_ENV)?.value
-      ?? PUBLIC_BASE_URL,
+    // Vendor decoupling: NO implicit endpoint. The adapter must be told
+    // where to send (config `baseURL` or $DEEPSEEK_BASE_URL); refusing
+    // load-time beats silently routing every deployment to one vendor.
+    baseURL: resolveRequiredBaseURL(config.baseURL, environment),
     defaults: {
       thinking: config.thinking,
       reasoningEffort: config.reasoningEffort,
