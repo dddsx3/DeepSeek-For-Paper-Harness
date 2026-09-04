@@ -50,6 +50,8 @@
     "test:p1:demo": "tsx artifacts/handoff/TASK-P1/demo/run-p1-demo.mjs",
     "test:p2:demo": "tsx artifacts/handoff/TASK-P2/demo-v2/run-p2-demo.mjs",
     "test:p2:probe": "tsx artifacts/handoff/TASK-P2/probe/run-p2-probe.mjs",
+    "test:p3:demo": "tsx artifacts/handoff/TASK-P3/demo-v3/run-p3-demo.mjs",
+    "test:p3:probe": "tsx artifacts/handoff/TASK-P3/probe-v2/run-probe-v2.mjs",
     "test:issue-management": "node .github/issue-management/policy.test.mjs",
     "test:snapshot": "vitest run --config vitest.snapshot.config.ts",
     "test:snapshot:record": "cross-env DSH_SNAPSHOT=record vitest run --config vitest.snapshot.config.ts --update",

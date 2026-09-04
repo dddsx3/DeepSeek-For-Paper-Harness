@@ -102,6 +102,15 @@ jobs:
       - name: P2 executor-authoritative demo v2
         run: pnpm run test:p2:demo
 
+      # P3: executor-authoritative demo v3 — corpus v3. Same executor entry;
+      # legal 5 (P2 quartet + ROUNDED-LEGAL declaration leaf) DELIVER with
+      # FBR 0/5 and semantic false-kill 0/5; wrong 6 (SEMANTIC-OVERCLAIM /
+      # ROUND-ESCAPE / DUP-FIGURE / TOO-GOOD-V2 / CAPTION-ESCAPE /
+      # OVER-PROMISE) KILLED — any green kill fails the step (禁9,
+      # script-level). Summary is UUID-redacted: re-runs are byte-identical.
+      - name: P3 executor-authoritative demo v3
+        run: pnpm run test:p3:demo
+
       - name: Upload gate evidence
         if: always()
         uses: actions/upload-artifact@v7
@@ -112,6 +121,45 @@ jobs:
             artifacts/handoff/TASK-3/mutation-results.json
             artifacts/handoff/TASK-P1/demo/output/
             artifacts/handoff/TASK-P2/demo-v2/output/
+            artifacts/handoff/TASK-P3/demo-v3/output/
+          if-no-files-found: warn
+
+  # P3-3: provider adherence probe v2 (manual). Real ≥20 first-attempt calls
+  # need a provider key — CI never holds one, so this job is
+  # workflow_dispatch-only and the script reports explicit SKIPPED (never
+  # silent PASS) when the key is absent (禁7). PAPER_PROBE_* allows measuring
+  # any OpenAI-compatible endpoint under the same discipline; results and the
+  # failure-mode classification are archived under TASK-P3/probe-v2.
+  p3-provider-probe-v2:
+    name: P3 / provider adherence probe v2 (manual)
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-24.04
+    env:
+      DSH_TELEMETRY_DISABLED: '1'
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+      - name: Install (immutable)
+        run: pnpm install --frozen-lockfile
+      - name: Run adherence probe v2
+        env:
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+          DEEPSEEK_BASE_URL: ${{ secrets.DEEPSEEK_BASE_URL }}
+          PAPER_PROBE_API_KEY: ${{ secrets.PAPER_PROBE_API_KEY }}
+          PAPER_PROBE_BASE_URL: ${{ secrets.PAPER_PROBE_BASE_URL }}
+          PAPER_PROBE_MODEL: ${{ secrets.PAPER_PROBE_MODEL }}
+        run: pnpm run test:p3:probe
+      - name: Upload probe v2 evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: p3-probe-v2-evidence
+          path: artifacts/handoff/TASK-P3/probe-v2/output/
           if-no-files-found: warn
 
   # P2-2: provider adherence probe (manual). Real ≥20 first-attempt calls

@@ -1,0 +1,39 @@
+{
+  "generated_at": "2026-09-04T07:00:46.314Z",
+  "fakeSelfCheck": {
+    "calls": 20,
+    "adherence": 1,
+    "trusted": true
+  },
+  "realSection": {
+    "status": "COMPLETED",
+    "reason": "",
+    "endpoint": "https://api.gmi-serving.com/v1",
+    "model": "MiniMaxAI/MiniMax-M3",
+    "attempts": 20,
+    "firstAttemptAdherence": 0,
+    "transportRetries": 0,
+    "failureModes": {
+      "declaration-drift": 17,
+      "escape-attempt": 0,
+      "run-failure": 2,
+      "numeric-gate-refusal": 0,
+      "transport-error": 1
+    },
+    "downgrade": {
+      "downgraded": true,
+      "to": "EXPLORATORY",
+      "combinationIdentity": "https://api.gmi-serving.com/v1 + MiniMaxAI/MiniMax-M3 + ir-container-v1 + EXECUTE_PROTOCOL_TEACHING v0",
+      "note": "adherence < 0.8 — this provider+protocol+teaching combination is EXPLORATORY-downgraded (literal, not aspirational; recorded in the batch decision-log)"
+    }
+  },
+  "teachingSegment": "EXECUTE_PROTOCOL_TEACHING v0 (imported verbatim from src/executor.ts — instruction and probe cannot drift)",
+  "failureModeVocabulary": [
+    "declaration-drift",
+    "escape-attempt",
+    "run-failure",
+    "numeric-gate-refusal",
+    "transport-error"
+  ],
+  "note": "Adherence = (container parses AND code really runs AND all Results pass the numeric gates) / total FIRST attempts. Transport retries are waited out, never counted as attempts. Same-question re-runs may be re-attempted; retries never fold into first-attempt adherence."
+}

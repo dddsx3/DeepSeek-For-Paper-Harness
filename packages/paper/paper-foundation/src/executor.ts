@@ -117,6 +117,30 @@ export interface SemanticContext {
   readonly claims: ReadonlyArray<{ claim_id: string; criticality: string; result_refs: ReadonlyArray<string> }>
 }
 
+/**
+ * P3-3 (teaching segment v0): the ir-container-v1 protocol lecture carried
+ * by the EXECUTE instruction whenever `produceFromExecute` is on. It names
+ * ONLY schema-native structure — the run block's closed fields, the
+ * declaration-based interpretations/figures, and jsonPath as the single
+ * number channel — and never requires or demonstrates any free-form format
+ * outside the container schema (禁10). Kept adjacent to the executor so
+ * the probe (probe v2) and the instruction can never drift apart.
+ */
+export const EXECUTE_PROTOCOL_TEACHING = [
+  'Produce ONE JSON object — the ir-container-v1 — and nothing else. No prose, no markdown fences, no schema of your own.',
+  'Shape: {"__dsh_paper":"ir-container-v1","entries":[...],"code":"...","run":{...},"interpretations":{...},"narrative":{...}}.',
+  '  entries: an array of objects, each EXACTLY {"kind": <KIND>, "value": <object>}. The kind strings are: "DataArtifact", "RequirementSpec", "ProblemSpec", "SymbolSpec", "ModelSpec". The kind itself is the record type; everything else lives inside "value".',
+  '    DataArtifact value: {"data_id","role":"RAW_PROBLEM","locator","content_hash","media_type","description"} — "RAW_PROBLEM" is the ROLE FIELD INSIDE the value, never a kind.',
+  '    RequirementSpec value: {"requirement_id","source_data_ref","requirement_type":"REQUIRED_OUTPUT","statement"} — "REQUIRED_OUTPUT" is the requirement_type field, never a kind.',
+  '    ProblemSpec value: {"problem_id","raw_problem_ref","requirement_refs"}; SymbolSpec value: {"symbol_id","scope_ref","token","meaning","unit","role":"VARIABLE"}; ModelSpec value: {"model_id","problem_refs","assumptions","variable_refs","parameter_refs","equations","constraints","objective","dependencies"}.',
+  '  code: executable Node JavaScript that WRITES the measured numbers to the declared output files. All arithmetic happens here; never state a computed number anywhere else.',
+  '  run: the ONLY fields are "outputBasenames" (the file names your code writes) and "seed" (an integer). No other key is accepted.',
+  '  interpretations: declaration-based. results: [{ result_id, name, source: { locator: <one outputBasenames entry>, jsonPath: <path to the number inside that file> }, unit }]. The locator must be one of your declared outputs; every Result reads its value via jsonPath — never a literal number.',
+  '  interpretations.figures (optional): [{ figure_id, chart_type: "line"|"scatter"|"bar"|"table", data_refs: [Result ids], caption? }] — structure only; the harness renders the bytes and computes every hash.',
+  '  narrative: { title, conclusion: { claims: [{ text, quantity_refs: [Result ids], representation? }] } } — a conclusion number must be the bound Result value verbatim, or an explicitly declared rendering: {"kind":"rounded","dp":<0..20>} or {"kind":"with_uncertainty","uncertainty_refs":[...]}.',
+  'The container is refused (and the attempt fails) if: any entry kind is not one of the five strings above, any number appears outside code/declarations, a jsonPath is missing or does not resolve to a finite number, the run block carries a foreign key, or the conclusion states an undeclared rounding.',
+].join('\n')
+
 /** Minimal audit sink the executor needs; {@link PaperAuditService} satisfies it. */
 export interface AuditSink {
   /**
@@ -321,7 +345,20 @@ export class WorkflowExecutor {
       const draft = await this.runNode(runId, 'execute', 'execute', 'executor', [
         task,
         { name: 'plan', text: `Plan:\n${plan.text}`, trimPriority: TRIM_PLAN },
-        { name: 'instruction', text: 'Produce the deliverable text for the task.', trimPriority: KEEP },
+        {
+          name: 'instruction',
+          // P3-3 (teaching segment v0): when the EXECUTE node's output is
+          // consumed as an ir-container-v1, the protocol is TAUGHT in the
+          // instruction itself — adherence is a property of protocol +
+          // teaching as a combination, so they ship together. The segment
+          // only describes schema-native structure (禁10: no free-form
+          // format is required or demonstrated); the plain prose
+          // instruction stays for non-producing runs.
+          text: this.options.produceFromExecute === true
+            ? EXECUTE_PROTOCOL_TEACHING
+            : 'Produce the deliverable text for the task.',
+          trimPriority: KEEP,
+        },
       ])
 
       let current = draft.text

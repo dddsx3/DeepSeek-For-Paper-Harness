@@ -262,3 +262,13 @@ issue on the repository. All findings will be tracked in
   executor 权威 FORMAL 链（D7 义务）、figure 数据闭环真校验（D3 义务 vacuous
   解除）、报告 v2 槽位 + 图资产、demo v2（executor 入口）4/4 DELIVER /
   2/2 KILLED；遵从率探针 fake 自检 1.0、真实 ≥20 次调用待 manual（key）。
+- 2026-09-04：TASK-P3（语义收口与真实遵从实证）批次收口 —— E5 评审语义核对 v1
+  （三类闭集 + 证据域 + E4 账本复用，P1 D1 义务兑现、known-risks #4 关闭）、
+  E6 表达层 representation 声明制（rounded/with_uncertainty，默认零容差不动）、
+  E7 figure 唯一性键 + table 图型（禁4/禁5 保持）；EXECUTE instruction 内置
+  ir-container-v1 教学段 + probe v2 真实实测（GMI + MiniMax-M3：20 次首次
+  尝试 0/20 → 组合 EXPLORATORY 降级字面生效；DeepSeek 侧仍部分关闭待 key）；
+  收口组 formal 别名/F1–F4 同步；demo v3 + corpus v3（5/5 DELIVER FBR 0/5 +
+  6/6 KILLED，summary UUID 脱敏重跑零脏）。全量 976/976；known-risks
+  #2 定稿（原文口径关闭）、#5 收窄至声明制域、#6 按声明收窄、#3 部分关闭
+  如实保持。

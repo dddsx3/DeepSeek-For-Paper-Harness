@@ -101,7 +101,9 @@ async function harness(executeOutput: () => string): Promise<Harness> {
       if (options.system?.includes('reviewer')) out = '{"defects":[]}'
       else if (options.system?.includes('editor')) out = 'revised'
       else if (prompt.includes('short numbered execution plan')) out = '1. draft'
-      else if (prompt.includes('Produce the deliverable')) out = executeOutput()
+      // P3-3: the producing EXECUTE instruction now carries the
+      // ir-container-v1 teaching segment — route on either marker.
+      else if (prompt.includes('Produce the deliverable') || prompt.includes('ir-container-v1')) out = executeOutput()
       return fakeStream(out)
     },
   } as never)

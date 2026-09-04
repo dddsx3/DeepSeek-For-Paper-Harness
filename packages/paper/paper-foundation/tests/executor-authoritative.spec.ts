@@ -112,7 +112,7 @@ async function harness(executeText: string) {
       if (system.includes('reviewer')) return stream('{"defects":[]}')
       if (system.includes('editor')) return stream('revised text')
       const joined = (request.messages ?? [])
-        .map(m => {
+        .map((m) => {
           const c = (m as { content?: unknown }).content
           if (typeof c === 'string') return c
           if (Array.isArray(c)) {
@@ -122,8 +122,10 @@ async function harness(executeText: string) {
         })
         .join(' ')
       if (joined.includes('numbered execution plan')) return stream('1. measure along the survey line')
-      if (joined.includes('Produce the deliverable')) return stream(executeText)
-      console.log('AUTH-PROBE joined=', JSON.stringify(joined).slice(0,300)) 
+      // P3-3: on the producing path the EXECUTE instruction carries the
+      // ir-container-v1 protocol teaching segment — route on it (the old
+      // plain 'Produce the deliverable' text is the non-producing path).
+      if (joined.includes('Produce the deliverable') || joined.includes('ir-container-v1')) return stream(executeText)
       return stream('revised text')
     },
   } as never)

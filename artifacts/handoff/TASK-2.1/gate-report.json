@@ -12,12 +12,12 @@
   },
   "baseline": {
     "files": 88,
-    "total_tests": 975,
-    "passed_tests": 975,
+    "total_tests": 976,
+    "passed_tests": 976,
     "failed_tests": 0,
     "failed_test_suites": 0,
     "tsc_clean": true,
-    "baseline_at": "P3 handoff: P3-1 semantic review + P3-2 representation + P3-4 figure uniqueness/table (975 incl real-spawn spec; demo-v2/probe are script-level)"
+    "baseline_at": "P3 handoff: semantic review + representation + figure uniqueness/table + teaching (976 incl real-spawn spec; demo-v2/v3+probe are script-level)"
   },
   "failures_by_origin": {},
   "gates_impl": [

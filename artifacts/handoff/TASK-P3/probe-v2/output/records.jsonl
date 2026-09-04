@@ -1,0 +1,40 @@
+{"mode":"fake","attempt":1,"firstTry":true,"stage":"full","failureMode":null}
+{"mode":"fake","attempt":2,"firstTry":true,"stage":"full","failureMode":null}
+{"mode":"fake","attempt":3,"firstTry":true,"stage":"full","failureMode":null}
+{"mode":"fake","attempt":4,"firstTry":true,"stage":"full","failureMode":null}
+{"mode":"fake","attempt":5,"firstTry":true,"stage":"full","failureMode":null}
+{"mode":"fake","attempt":6,"firstTry":true,"stage":"full","failureMode":null}
+{"mode":"fake","attempt":7,"firstTry":true,"stage":"full","failureMode":null}
+{"mode":"fake","attempt":8,"firstTry":true,"stage":"full","failureMode":null}
+{"mode":"fake","attempt":9,"firstTry":true,"stage":"full","failureMode":null}
+{"mode":"fake","attempt":10,"firstTry":true,"stage":"full","failureMode":null}
+{"mode":"fake","attempt":11,"firstTry":true,"stage":"full","failureMode":null}
+{"mode":"fake","attempt":12,"firstTry":true,"stage":"full","failureMode":null}
+{"mode":"fake","attempt":13,"firstTry":true,"stage":"full","failureMode":null}
+{"mode":"fake","attempt":14,"firstTry":true,"stage":"full","failureMode":null}
+{"mode":"fake","attempt":15,"firstTry":true,"stage":"full","failureMode":null}
+{"mode":"fake","attempt":16,"firstTry":true,"stage":"full","failureMode":null}
+{"mode":"fake","attempt":17,"firstTry":true,"stage":"full","failureMode":null}
+{"mode":"fake","attempt":18,"firstTry":true,"stage":"full","failureMode":null}
+{"mode":"fake","attempt":19,"firstTry":true,"stage":"full","failureMode":null}
+{"mode":"fake","attempt":20,"firstTry":true,"stage":"full","failureMode":null}
+{"mode":"real","attempt":1,"problem":"Polar ice thickness","firstTry":false,"stage":"produce","reason":"entry 'DataArtifact' violates its closed IR schema — content_hash: content_hash must be sha256:<64 lowercase hex>","failureMode":"declaration-drift"}
+{"mode":"real","attempt":2,"problem":"Melt pond fraction","firstTry":false,"stage":"transport","reason":"TypeError: fetch failed","failureMode":"transport-error"}
+{"mode":"real","attempt":3,"problem":"Ridge density","firstTry":false,"stage":"produce","reason":"entry 'DataArtifact' violates its closed IR schema — content_hash: content_hash must be sha256:<64 lowercase hex>","failureMode":"declaration-drift"}
+{"mode":"real","attempt":4,"problem":"Polar ice with figure","firstTry":false,"stage":"execution","reason":"unresolved_reference: 'M1' is not registered (expected ModelSpec)","failureMode":"run-failure"}
+{"mode":"real","attempt":5,"problem":"Estimate mean sea-ice thickness and report it rounded to two decimals with its uncertainty.","firstTry":false,"stage":"produce","reason":"entry 'DataArtifact' violates its closed IR schema — content_hash: content_hash must be sha256:<64 lowercase hex>","failureMode":"declaration-drift"}
+{"mode":"real","attempt":6,"problem":"Polar ice thickness","firstTry":false,"stage":"produce","reason":"entry 'DataArtifact' violates its closed IR schema — content_hash: content_hash must be sha256:<64 lowercase hex>","failureMode":"declaration-drift"}
+{"mode":"real","attempt":7,"problem":"Melt pond fraction","firstTry":false,"stage":"produce","reason":"entry 'DataArtifact' violates its closed IR schema — content_hash: content_hash must be sha256:<64 lowercase hex>","failureMode":"declaration-drift"}
+{"mode":"real","attempt":8,"problem":"Ridge density","firstTry":false,"stage":"produce","reason":"entry 'ModelSpec' violates its closed IR schema — dependencies: Invalid input: expected array, received undefined","failureMode":"declaration-drift"}
+{"mode":"real","attempt":9,"problem":"Polar ice with figure","firstTry":false,"stage":"produce","reason":"entry 'DataArtifact' violates its closed IR schema — content_hash: content_hash must be sha256:<64 lowercase hex>","failureMode":"declaration-drift"}
+{"mode":"real","attempt":10,"problem":"Estimate mean sea-ice thickness and report it rounded to two decimals with its uncertainty.","firstTry":false,"stage":"execution","reason":"unresolved_reference: 'M1' is not registered (expected ModelSpec)","failureMode":"run-failure"}
+{"mode":"real","attempt":11,"problem":"Polar ice thickness","firstTry":false,"stage":"produce","reason":"entry 'DataArtifact' violates its closed IR schema — content_hash: content_hash must be sha256:<64 lowercase hex>","failureMode":"declaration-drift"}
+{"mode":"real","attempt":12,"problem":"Melt pond fraction","firstTry":false,"stage":"produce","reason":"entry 'ModelSpec' violates its closed IR schema — objective: Invalid input: expected string, received array","failureMode":"declaration-drift"}
+{"mode":"real","attempt":13,"problem":"Ridge density","firstTry":false,"stage":"parse","reason":"not a schema-valid container","failureMode":"declaration-drift"}
+{"mode":"real","attempt":14,"problem":"Polar ice with figure","firstTry":false,"stage":"produce","reason":"entry 'DataArtifact' violates its closed IR schema — content_hash: content_hash must be sha256:<64 lowercase hex>","failureMode":"declaration-drift"}
+{"mode":"real","attempt":15,"problem":"Estimate mean sea-ice thickness and report it rounded to two decimals with its uncertainty.","firstTry":false,"stage":"produce","reason":"entry 'DataArtifact' violates its closed IR schema — content_hash: content_hash must be sha256:<64 lowercase hex>","failureMode":"declaration-drift"}
+{"mode":"real","attempt":16,"problem":"Polar ice thickness","firstTry":false,"stage":"produce","reason":"entry 'ModelSpec' violates its closed IR schema — parameter_refs.0: Invalid input: expected object, received string","failureMode":"declaration-drift"}
+{"mode":"real","attempt":17,"problem":"Melt pond fraction","firstTry":false,"stage":"produce","reason":"entry 'DataArtifact' violates its closed IR schema — content_hash: content_hash must be sha256:<64 lowercase hex>","failureMode":"declaration-drift"}
+{"mode":"real","attempt":18,"problem":"Ridge density","firstTry":false,"stage":"produce","reason":"entry 'ModelSpec' could not be admitted: reference_kind_mismatch: 'ridge_density_prob' resolves to DataArtifact, expected ModelSpec (append-only store; a duplicate id is a conflict, not an update)","failureMode":"declaration-drift"}
+{"mode":"real","attempt":19,"problem":"Polar ice with figure","firstTry":false,"stage":"produce","reason":"entry 'DataArtifact' violates its closed IR schema — content_hash: content_hash must be sha256:<64 lowercase hex>","failureMode":"declaration-drift"}
+{"mode":"real","attempt":20,"problem":"Estimate mean sea-ice thickness and report it rounded to two decimals with its uncertainty.","firstTry":false,"stage":"produce","reason":"entry 'ProblemSpec' could not be admitted: unresolved_reference: 'DA-001' is not registered (expected DataArtifact) (append-only store; a duplicate id is a conflict, not an update)","failureMode":"declaration-drift"}
