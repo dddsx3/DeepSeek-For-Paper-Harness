@@ -18,10 +18,10 @@ import { computeCostUsd, evaluateBudget, resolveModelPrice } from './cost.ts'
 import type { BudgetPolicy, PricingTable } from './cost.ts'
 import { IR_CANONICALIZATION_GATE_ID, PROVENANCE_GATE_ID } from './delivery/delivery-policy.ts'
 import { buildDeliveryPolicy } from './delivery/gate-registry.ts'
-import { evaluateDelivery } from "./delivery/delivery-policy.ts"
-import type { DeliveryDecision, DeliveryPolicy } from "./delivery/delivery-policy.ts"
-import { makeCandidateArtifact } from "./delivery/artifact-states.ts"
-import { promoteCandidateToDeliverable } from "./delivery/promoter.ts"
+import { evaluateDelivery } from './delivery/delivery-policy.ts'
+import type { DeliveryDecision, DeliveryPolicy } from './delivery/delivery-policy.ts'
+import { makeCandidateArtifact } from './delivery/artifact-states.ts'
+import { promoteCandidateToDeliverable } from './delivery/promoter.ts'
 import { ModelingIr } from './ir/store.ts'
 import { resolveRunPolicy } from './policy.ts'
 import { parseModelContainer, produceContainerInto } from './produce/ir-producer.ts'
@@ -59,6 +59,32 @@ export interface DeliveryVerdict {
   readonly decision: DeliveryDecision
 }
 
+/**
+ * P3-1 (E5): the CLOSED set of semantic reviewer findings. Semantic
+ * permission is limited to these three — everything else is not a semantic
+ * finding and can never become one (a domain-external finding is refused at
+ * parse time, never silently upgraded to critical).
+ */
+export const SEMANTIC_FINDING_KINDS = [
+  'claim_without_evidence',      // prose claims something no Result/Claim supports
+  'number_rewrite_mismatch',     // a restated/rounded number disagrees with its source
+  'scope_overclaim',             // conclusion reaches beyond the REQUIRED_OUTPUTs
+] as const
+export type SemanticFindingKind = (typeof SEMANTIC_FINDING_KINDS)[number]
+
+/** Severity each semantic kind carries — the reviewer cannot choose it. */
+export function semanticSeverity(kind: SemanticFindingKind): 'critical' | 'major' {
+  return kind === 'number_rewrite_mismatch' ? 'major' : 'critical'
+}
+
+/** Evidence a semantic finding MUST carry (E5 hallucination guard). */
+export interface ReviewEvidence {
+  /** Verbatim span of the delivered text the finding is about. */
+  readonly text_span: string
+  /** Canonical ids (Result / RequirementSpec / Claim) backing the finding. */
+  readonly ref_ids: ReadonlyArray<string>
+}
+
 /** One structured reviewer finding. */
 export interface ReviewDefect {
   /** Stable id the review protocol carries across rounds (E4a): later
@@ -67,10 +93,28 @@ export interface ReviewDefect {
   readonly id: string
   /** How much the finding matters. E4b: three-value vocabulary aligned
    *  with FINDING_SEVERITIES (critical | major | minor); an unknown
-   *  severity is fail-closed (parsed as critical), never downgraded. */
+   *  severity is fail-closed (parsed as critical), never downgraded.
+   *  A semantic finding's severity is fixed by its kind (P3-1). */
   readonly severity: 'critical' | 'major' | 'minor'
   /** What the reviewer objected to. */
   readonly description: string
+  /** P3-1: set only for the three closed semantic kinds. */
+  readonly semantic?: SemanticFindingKind
+  /** P3-1: mandatory for semantic findings, absent otherwise. */
+  readonly evidence?: ReviewEvidence
+}
+
+/**
+ * P3-1: the canonical context the reviewer is allowed to see when judging
+ * semantics — nothing beyond the store (no filesystem, no web).
+ */
+export interface SemanticContext {
+  /** Result rows (id, name, value, unit, uncertainty). */
+  readonly results: ReadonlyArray<{ result_id: string; name: string; value: number; unit: string; uncertainty: number | null }>
+  /** REQUIRED_OUTPUT requirement ids + statements. */
+  readonly requiredOutputs: ReadonlyArray<{ requirement_id: string; statement: string }>
+  /** Claim ids with their bound results and criticality. */
+  readonly claims: ReadonlyArray<{ claim_id: string; criticality: string; result_refs: ReadonlyArray<string> }>
 }
 
 /** Minimal audit sink the executor needs; {@link PaperAuditService} satisfies it. */
@@ -294,9 +338,12 @@ export class WorkflowExecutor {
       for (let round = 0; round <= policy.maxReviseRounds; round += 1) {
         const review = await this.runNode(
           runId, 'review', round === 0 ? 'review' : `review #${round + 1}`, 'reviewer',
-          reviewSections(task, current, [...unresolved.values()]),
+          reviewSections(task, current, [...unresolved.values()], this.semanticContextOf()),
         )
-        const report = parseReviewReport(review.text, [...unresolved.keys()])
+        const report = parseReviewReport(review.text, [...unresolved.keys()], {
+          context: this.semanticContextOf(),
+          delivered: current,
+        })
         for (const id of report.resolved) unresolved.delete(id)
         for (const defect of report.defects) {
           const prior = unresolved.get(defect.id)
@@ -569,8 +616,7 @@ export class WorkflowExecutor {
     await this.audit({ eventType: 'ir_entry_written', actor: 'paper-executor', runId, detail: { kind: 'RunArtifact', id: executed.runArtifactId, nodeId: 'execute', stage: 'code-run' } })
     await this.audit({ eventType: 'ir_entry_written', actor: 'paper-executor', runId, detail: { kind: 'ExecutionRecord', id: executed.executionId, nodeId: 'execute', stage: 'code-run' } })
 
-    let reportText: string
-    let figureAssets: Array<{ figureId: string; data_hash: string; svg: string }> = []
+    const figureAssets: Array<{ figureId: string; data_hash: string; svg: string }> = []
     const interpretations = container.interpretations
     if (interpretations !== undefined) {
       // Interpretation sources may name the file basename; resolve them to
@@ -607,8 +653,8 @@ export class WorkflowExecutor {
     const results = snapshot === null
       ? []
       : [...snapshot.values()]
-          .filter(r => r.kind === 'Result')
-          .map(r => r.value)
+        .filter(r => r.kind === 'Result')
+        .map(r => r.value)
     const figureDecls = (container.interpretations?.['figures'] as Array<{ figure_id: string; caption?: string; data_refs?: ReadonlyArray<string> }> | undefined) ?? []
     const rendered = renderReportV2({
       title: String((container.narrative?.['title'] as string | undefined) ?? 'Paper deliverable (executor production chain)'),
@@ -635,9 +681,8 @@ export class WorkflowExecutor {
     if (!rendered.ok) {
       return { ok: false, code: rendered.code, reason: `report render refused: ${rendered.reason}` }
     }
-    reportText = rendered.text
     const codeText = container.code ?? ''
-    return { ok: true, reportText, loadCode: () => codeText }
+    return { ok: true, reportText: rendered.text, loadCode: () => codeText }
   }
 
   /**
@@ -668,7 +713,7 @@ export class WorkflowExecutor {
       // bytes, hand them to the delivery policy so S-007 runs (synchronous
       // loader contract); otherwise the IR-only checks stay.
       ...(this.#codeLoaders.has(String(runId))
-        ? { loadCode: this.#codeLoaders.get(String(runId))! }
+        ? { loadCode: this.#codeLoaders.get(String(runId)) ?? (() => '') }
         : {}),
     })
     const decision = evaluateDelivery(policy)
@@ -1047,10 +1092,59 @@ export class WorkflowExecutor {
       // E4c: fast deliveries with advisory MINOR defects record them so the
       // manifest never hides a review finding (exactOptionalPropertyTypes:
       // omit rather than pass an explicit empty array).
-      ...(advisoryDefects.length === 0 ? {} : { advisory_defects: advisoryDefects.map(d => ({ id: d.id, severity: d.severity, description: d.description })) }),
+      ...(advisoryDefects.length === 0
+        ? {}
+        : { advisory_defects: advisoryDefects.map(d => ({ id: d.id, severity: d.severity, description: d.description })) }),
       usage: run.usage,
       redacted: true,
     }
+  }
+
+  /**
+   * P3-1 (E5): the canonical context the reviewer may see and cite — result
+   * rows, REQUIRED_OUTPUTs and claim summaries, derived from the store and
+   * nothing else. `undefined` when no store is mounted: semantic findings
+   * then cannot be verified and are discarded rather than trusted.
+   */
+  private semanticContextOf(): SemanticContext | undefined {
+    const ir = this.options.ir
+    if (ir === undefined) return undefined
+    const snapshot = ModelingIr.snapshot(ir)
+    if (snapshot === null) return undefined
+    const results: Array<{ result_id: string; name: string; value: number; unit: string; uncertainty: number | null }> = []
+    const requiredOutputs: Array<{ requirement_id: string; statement: string }> = []
+    const claims: Array<{ claim_id: string; criticality: string; result_refs: ReadonlyArray<string> }> = []
+    for (const record of snapshot.values()) {
+      if (record.kind === 'Result') {
+        const result = record.value as {
+          result_id: string
+          name: string
+          value: number
+          unit: string
+          uncertainty: number | null
+        }
+        results.push({
+          result_id: result.result_id,
+          name: result.name,
+          value: result.value,
+          unit: result.unit,
+          uncertainty: result.uncertainty,
+        })
+        continue
+      }
+      if (record.kind === 'RequirementSpec') {
+        const requirement = record.value as { requirement_id: string; requirement_type: string; statement: string }
+        if (requirement.requirement_type === 'REQUIRED_OUTPUT') {
+          requiredOutputs.push({ requirement_id: requirement.requirement_id, statement: requirement.statement })
+        }
+        continue
+      }
+      if (record.kind === 'Claim') {
+        const claim = record.value as { claim_id: string; criticality: string; result_refs?: ReadonlyArray<string> }
+        claims.push({ claim_id: claim.claim_id, criticality: claim.criticality, result_refs: claim.result_refs ?? [] })
+      }
+    }
+    return { results, requiredOutputs, claims }
   }
 
   /** Resolve one run or fail loud; the executor never operates on a vanished run. */
@@ -1080,13 +1174,19 @@ function normalizeInterpretationLocators(
   const results = copy.results
   if (!Array.isArray(results)) return { ok: true, value: copy as Record<string, unknown> }
   for (const result of results) {
-    const loc = result.source?.locator
+    const source = result.source
+    const loc = source?.locator
     if (typeof loc !== 'string' || loc.startsWith('file://')) continue
     const index = basenames.indexOf(loc)
     if (index < 0) {
       return { ok: false, code: 'INTERPRETATION_SOURCE_INVALID', reason: `result reads '${loc}' which is not one of the run's declared outputs [${basenames.join(', ')}]` }
     }
-    result.source!.locator = locators[index]!
+    // `source` is non-null here (loc came from `source?.locator` as a string),
+    // but the assignment target must be narrowed explicitly — this suite's
+    // lint forbids non-null assertions in src.
+    if (source !== undefined && locators[index] !== undefined) {
+      source.locator = locators[index]
+    }
   }
   return { ok: true, value: copy as Record<string, unknown> }
 }
@@ -1100,36 +1200,78 @@ function reviewSections(
   task: PromptSection,
   delivered: string,
   priorUnresolved: ReadonlyArray<ReviewDefect> = [],
+  semanticContext: SemanticContext | undefined = undefined,
 ): PromptSection[] {
   const firstRound = priorUnresolved.length === 0
   const severityGuide = [
     'severity is one of: "critical" (delivery-blocking: data integrity,',
-    'numeric escape, provenance), "major" (structural deviation), "minor"',
-    '(wording/presentation).',
+    'numeric escape, provenance, unsupported claim), "major" (structural',
+    'deviation), "minor" (wording/presentation).',
   ].join(' ')
+  const semanticGuide = semanticContext === undefined
+    ? ''
+    : [
+      '',
+      'Semantic findings are limited to these three kinds (anything else is not a',
+      'semantic finding and will be discarded):',
+      '  1) "claim_without_evidence" — the text asserts something no Result/Claim backs.',
+      '  2) "number_rewrite_mismatch" — a restated/rounded number disagrees with its source.',
+      '  3) "scope_overclaim" — the conclusion reaches beyond the REQUIRED_OUTPUTs.',
+      'A semantic finding MUST carry "evidence": {"text_span": <a verbatim span of the',
+      'delivered text>, "ref_ids": [<ids from the canonical context below>]}. A semantic',
+      'finding without evidence, or whose span is not in the text, or whose ref_ids do not',
+      'resolve in the context, is discarded (it never blocks delivery).',
+      'Severity of a semantic finding is fixed by its kind — you cannot choose it.',
+    ].join('\n')
   const shape = firstRound
-    ? '{"defects":[{"id":"D1","severity":"critical|major|minor","description":"..."}]}'
-    : '{"defects":[{"id":"D1","severity":"critical|major|minor","description":"..."}],"resolved":["D1"]}'
+    ? '{"defects":[{"id":"D1","severity":"critical|major|minor","description":"...","semantic":"claim_without_evidence","evidence":{"text_span":"...","ref_ids":["RES-OUT"]}}]}'
+    : '{"defects":[{"id":"D1","severity":"critical|major|minor","description":"...","semantic":"claim_without_evidence","evidence":{"text_span":"...","ref_ids":["RES-OUT"]}}],"resolved":["D1"]}'
   const instruction = [
     'Review the delivered text for defects.',
     severityGuide,
+    semanticGuide,
     firstRound
       ? 'Return JSON only: ' + shape + '. An empty defects array means the text is clean.'
       : [
-          'Previously reported defects (adjudicate each one):',
-          priorUnresolved.map(d => `- ${d.id} [${d.severity}] ${d.description}`).join('\n'),
-          'Return JSON only: ' + shape + '.',
-          '  "defects": defects STILL present in the current text (reuse the original',
-          '    id; a defect no longer present must NOT be listed here),',
-          '  "resolved": ids from the list above that the editor has genuinely fixed.',
-          'A defect that is absent from BOTH lists is treated as still unresolved.',
-        ].join('\n'),
-  ].join('\n')
+        'Previously reported defects (adjudicate each one):',
+        priorUnresolved.map(d => `- ${d.id} [${d.severity}] ${d.description}`).join('\n'),
+        'Return JSON only: ' + shape + '.',
+        '  "defects": defects STILL present in the current text (reuse the original',
+        '    id; a defect no longer present must NOT be listed here),',
+        '  "resolved": ids from the list above that the editor has genuinely fixed.',
+        'A defect that is absent from BOTH lists is treated as still unresolved.',
+      ].join('\n'),
+    semanticContext === undefined ? '' : '"semantic" and "evidence" are optional: omit them for non-semantic findings.',
+  ].filter(line => line.length > 0).join('\n')
   return [
     task,
+    ...(semanticContext === undefined ? [] : [{
+      name: 'canonical-context',
+      text: `Canonical context (the ONLY evidence you may cite):\n${renderSemanticContext(semanticContext)}`,
+      trimPriority: KEEP,
+    }]),
     { name: 'draft', text: `Delivered text:\n${delivered}`, trimPriority: TRIM_DRAFT },
     { name: 'instruction', text: instruction, trimPriority: KEEP },
   ]
+}
+
+/** Render the canonical context block the reviewer may cite (P3-1 E5). */
+function renderSemanticContext(context: SemanticContext): string {
+  const lines: string[] = []
+  lines.push('REQUIRED_OUTPUTs:')
+  for (const requirement of context.requiredOutputs) {
+    lines.push(`- ${requirement.requirement_id}: ${requirement.statement}`)
+  }
+  lines.push('Results:')
+  for (const result of context.results) {
+    const uncertainty = result.uncertainty === null ? '' : ` ±${result.uncertainty}`
+    lines.push(`- ${result.result_id}: ${result.name} = ${result.value} ${result.unit}${uncertainty}`)
+  }
+  lines.push('Claims:')
+  for (const claim of context.claims) {
+    lines.push(`- ${claim.claim_id} [${claim.criticality}] results: ${claim.result_refs.join(', ')}`)
+  }
+  return lines.join('\n')
 }
 
 /** Await one backoff delay. */
@@ -1167,6 +1309,7 @@ function criticalDefect(description: string): ReviewDefect {
 function parseReviewReport(
   text: string,
   knownIds: ReadonlyArray<string>,
+  semantic: { readonly context: SemanticContext | undefined; readonly delivered: string } | undefined = undefined,
 ): ReviewReport {
   const start = text.indexOf('{')
   const end = text.lastIndexOf('}')
@@ -1186,13 +1329,27 @@ function parseReviewReport(
     let autoIndex = 1
     for (const entry of parsed.defects) {
       if (typeof entry !== 'object' || entry === null) continue
-      const raw = entry as { description?: unknown; severity?: unknown; id?: unknown }
+      const raw = entry as {
+        description?: unknown
+        severity?: unknown
+        id?: unknown
+        semantic?: unknown
+        evidence?: unknown
+      }
       if (typeof raw.description !== 'string') continue
       // A listed id reuses its history; a fresh entry gets a local id.
       const rawId = typeof raw.id === 'string' && raw.id.length > 0 ? raw.id : null
       if (rawId !== null && !seen.has(rawId)) seen.add(rawId)
       const id = rawId ?? `D${autoIndex}`
       autoIndex += 1
+      // ---- P3-1 (E5): semantic findings are closed + evidence-bound. ----
+      if (raw.semantic !== undefined) {
+        const parsedSemantic = parseSemanticFinding(raw, id, semantic)
+        // A domain-external or evidence-less semantic finding is DISCARDED
+        // (never upgraded, never blocking — 禁 1 / attack 3 / attack 4).
+        if (parsedSemantic !== null) defects.push(parsedSemantic)
+        continue
+      }
       defects.push(normalizeSeverity(
         typeof raw.severity === 'string' ? raw.severity : '',
         raw.description,
@@ -1202,6 +1359,43 @@ function parseReviewReport(
     return { defects, resolved }
   } catch {
     return { defects: [criticalDefect('reviewer returned unparsable JSON')], resolved: [] }
+  }
+}
+
+/**
+ * Parse one semantic finding (P3-1). Returns null when the finding must be
+ * discarded: kind outside the closed set of three, no canonical context to
+ * check against, missing/empty evidence, a text_span that is not verbatim in
+ * the delivered text, or a ref_id that does not resolve in the context.
+ */
+function parseSemanticFinding(
+  raw: { description?: unknown; semantic?: unknown; evidence?: unknown },
+  id: string,
+  semantic: { readonly context: SemanticContext | undefined; readonly delivered: string } | undefined,
+): ReviewDefect | null {
+  if (!(SEMANTIC_FINDING_KINDS as ReadonlyArray<string>).includes(String(raw.semantic))) return null
+  const kind = String(raw.semantic) as SemanticFindingKind
+  if (semantic === undefined || semantic.context === undefined) return null
+  const description = String(raw.description ?? '')
+  const evidence = raw.evidence as { text_span?: unknown; ref_ids?: unknown } | undefined
+  if (evidence === null || typeof evidence !== 'object') return null
+  const span = evidence?.text_span
+  if (typeof span !== 'string' || span.length === 0) return null
+  if (!semantic.delivered.includes(span)) return null
+  const refIds = evidence?.ref_ids
+  if (!Array.isArray(refIds) || refIds.length === 0 || refIds.some(r => typeof r !== 'string')) return null
+  const domain = new Set<string>([
+    ...semantic.context.results.map(r => r.result_id),
+    ...semantic.context.requiredOutputs.map(r => r.requirement_id),
+    ...semantic.context.claims.map(c => c.claim_id),
+  ])
+  if (!refIds.every(ref => domain.has(ref as string))) return null
+  return {
+    id,
+    severity: semanticSeverity(kind),
+    description,
+    semantic: kind,
+    evidence: { text_span: span, ref_ids: refIds.map(String) },
   }
 }
 
