@@ -151,6 +151,13 @@ describe('enum normalization', () => {
     expect(() => migrateNodeState('melted')).toThrow(LegacyMigrationError)
     expect(() => migrateNodeType('ponder')).toThrow(LegacyMigrationError)
   })
+
+  it('P3-5 (D-P3.1): formal is a registered strict alias — case-insensitive, gate set untouched', () => {
+    expect(migrateRunMode('formal')).toBe('strict')
+    expect(migrateRunMode('FORMAL')).toBe('strict')
+    // The closed RunMode set itself does not grow: unknown names still throw.
+    expect(() => migrateRunMode('SUPER')).toThrow(LegacyMigrationError)
+  })
 })
 
 describe('migrateLegacyRun', () => {

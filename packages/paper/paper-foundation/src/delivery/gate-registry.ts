@@ -200,7 +200,10 @@ registerCriticalGate('runtime_integrity', (_mode, ir) => {
   if (findings.length === 0) {
     return { id: 'runtime_integrity', critical: true, status: 'PASS', reason: 'captured runtime fingerprints are well-formed', observedAt: new Date().toISOString() }
   }
-  const first = findings[0]!
+  const first = findings.at(0)
+  // Unreachable in practice: the empty case returned PASS above. Fallback
+  // text keeps the BLOCK reason honest without a non-null assertion.
+  ?? ({ kind: 'none', reason: 'findings were reported as non-empty', path: 'unknown', requirementId: 'unknown', figureId: 'unknown', nodePath: 'unknown' })
   return {
     id: 'runtime_integrity', critical: true, status: 'BLOCKED',
     reason: `runtime integrity: ${findings.length} finding(s) (${first.kind}: ${first.reason})`,
@@ -216,7 +219,10 @@ registerCriticalGate('execution', (_mode, ir, ctx) => {
   if (findings.length === 0) {
     return { id: 'execution', critical: true, status: 'PASS', reason: 'every CRITICAL claim chain reaches a captured, fresh run', observedAt: new Date().toISOString() }
   }
-  const first = findings[0]!
+  const first = findings.at(0)
+  // Unreachable in practice: the empty case returned PASS above. Fallback
+  // text keeps the BLOCK reason honest without a non-null assertion.
+  ?? ({ kind: 'none', reason: 'findings were reported as non-empty', path: 'unknown', requirementId: 'unknown', figureId: 'unknown', nodePath: 'unknown' })
   return {
     id: 'execution', critical: true, status: 'BLOCKED',
     reason: `execution gate: ${findings.length} finding(s) (${first.kind}: ${first.reason})`,
@@ -235,7 +241,10 @@ registerCriticalGate('numeric_consistency', (_mode, ir) => {
   if (findings.length === 0) {
     return { id: 'numeric_consistency', critical: true, status: 'PASS', reason: 'no numeric inconsistency found', observedAt: new Date().toISOString() }
   }
-  const first = findings[0]!
+  const first = findings.at(0)
+  // Unreachable in practice: the empty case returned PASS above. Fallback
+  // text keeps the BLOCK reason honest without a non-null assertion.
+  ?? ({ kind: 'none', reason: 'findings were reported as non-empty', path: 'unknown', requirementId: 'unknown', figureId: 'unknown', nodePath: 'unknown' })
   return {
     id: 'numeric_consistency', critical: true, status: 'BLOCKED',
     reason: `numeric inconsistency: ${findings.length} finding(s) (${first.path}: ${first.reason})`,
@@ -273,7 +282,10 @@ registerCriticalGate('reference_validation', (_mode, ir) => {
   if (findings.length === 0) {
     return { id: 'reference_validation', critical: true, status: 'PASS', reason: 'all IR-internal references resolve', observedAt: new Date().toISOString() }
   }
-  const first = findings[0]!
+  const first = findings.at(0)
+  // Unreachable in practice: the empty case returned PASS above. Fallback
+  // text keeps the BLOCK reason honest without a non-null assertion.
+  ?? ({ kind: 'none', reason: 'findings were reported as non-empty', path: 'unknown', requirementId: 'unknown', figureId: 'unknown', nodePath: 'unknown' })
   return {
     id: 'reference_validation', critical: true, status: 'BLOCKED',
     reason: `reference validation: ${findings.length} finding(s) (${first.path}: ${first.reason})`,
@@ -292,15 +304,23 @@ registerCriticalGate('requirement_coverage', (_mode, ir) => {
   if (findings.length === 0) {
     return { id: 'requirement_coverage', critical: true, status: 'PASS', reason: 'every REQUIRED_OUTPUT is covered (A7 v0)', observedAt: new Date().toISOString() }
   }
-  const first = findings[0]!
+  const first = findings.at(0)
+  // Unreachable in practice: the empty case returned PASS above. Fallback
+  // text keeps the BLOCK reason honest without a non-null assertion.
+  ?? ({ kind: 'none', reason: 'findings were reported as non-empty', path: 'unknown', requirementId: 'unknown', figureId: 'unknown', nodePath: 'unknown' })
   return {
     id: 'requirement_coverage', critical: true, status: 'BLOCKED',
     reason: `requirement coverage: ${findings.length} finding(s) (${first.requirementId}: ${first.reason})`,
     observedAt: new Date().toISOString(),
   }
 })
-// P1 (decision-log D3): figure gate is vacuously real until P2 — no FigureSpec
-// means nothing to check (PASS); any FigureSpec is BLOCKED p2-pending (fail-closed).
+// P2-3 lifted the D3 vacuous hold: the gate is REALLY checking. Per
+// FigureSpec it re-derives the canonical render input from the store and
+// compares the declared data_hash against the re-derived one (一致 PASS /
+// 不一致 BLOCK — 换数据 or stale); every data_ref must resolve to a numeric
+// Result the fixed renderer can draw. P3-4 adds the producer-side
+// uniqueness key, so a stored figure set also cannot contain same-key
+// duplicates.
 registerCriticalGate('figure_data_consistency', (_mode, ir) => {
   const store = ModelingIr.snapshot(ir)
   if (store === null) {
@@ -308,9 +328,12 @@ registerCriticalGate('figure_data_consistency', (_mode, ir) => {
   }
   const findings = figureConsistencyFindings(store)
   if (findings.length === 0) {
-    return { id: 'figure_data_consistency', critical: true, status: 'PASS', reason: 'no FigureSpec present (P2 defines figure semantics)', observedAt: new Date().toISOString() }
+    return { id: 'figure_data_consistency', critical: true, status: 'PASS', reason: 'no FigureSpec findings: every figure re-derives its declared data_hash from the store (hash re-derivation comparison)', observedAt: new Date().toISOString() }
   }
-  const first = findings[0]!
+  const first = findings.at(0)
+  // Unreachable in practice: the empty case returned PASS above. Fallback
+  // text keeps the BLOCK reason honest without a non-null assertion.
+  ?? ({ kind: 'none', reason: 'findings were reported as non-empty', path: 'unknown', requirementId: 'unknown', figureId: 'unknown', nodePath: 'unknown' })
   return {
     id: 'figure_data_consistency', critical: true, status: 'BLOCKED',
     reason: `figure data consistency: ${findings.length} finding(s) (${first.figureId}: ${first.reason})`,

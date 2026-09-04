@@ -208,7 +208,11 @@ export function migrateRunMode(mode: string | undefined): RunMode {
   if (mode === undefined) return 'fast'
   const normalized = mode.trim().toLowerCase()
   if (normalized === 'fast' || normalized === 'quick') return 'fast'
-  if (normalized === 'strict' || normalized === 'full') return 'strict'
+  // P3-5 / D-P3.1: 'formal' is registered here as an explicit strict alias.
+  // The RunMode closed set stays {fast, strict, exploratory} (no gate
+  // semantics move, 禁8) — 'formal' names the delivery-layer concept and
+  // resolves to strict, the mode whose nine-gate delivery IS the formal one.
+  if (normalized === 'strict' || normalized === 'full' || normalized === 'formal') return 'strict'
   if (normalized === 'exploratory' || normalized === 'draft') return 'exploratory'
   throw new LegacyMigrationError('run mode', `'${mode}' is not a known mode`)
 }
