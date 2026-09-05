@@ -1,6 +1,6 @@
 # TASK-P3 — summary（交付出口矩阵）
 
-> 批次：语义收口与遵从实证（P3-1..P3-6）。上游：TASK-P2（`d873ac40f4`）。
+> 批次：语义收口与遵从实证（P3-1..P3-6）。上游：TASK-P2（`9336d639ed`）。
 > 本批 HEAD 由 TASK-INDEX P3 行记录；全部提交经 lefthook pre-commit
 > （oxlint staged 0 错误）。
 

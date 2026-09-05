@@ -2,7 +2,7 @@
 
 > 本文件是 **agent → agent** 的交接说明，独立于任务书 §6 的交付清单。
 > 目标：下一位 agent 无需向我追问，即可从当前精确状态继续推进到 P3 全批收口。
-> 上游：TASK-P2 HEAD `d873ac40f4`（已推远端，工作树本应干净）。
+> 上游：TASK-P2 HEAD `9336d639ed`（已推远端，工作树本应干净）。
 > 当前时间：2026-09-04。本批推进中曾遇模型提供商 429 限流，只影响 agent 自身工具调用，**不影响 fake-provider 单测**（单测走本地内存 fake provider，无外部调用）。
 
 ---
@@ -12,7 +12,7 @@
 ```bash
 # ① 回到仓库根，确认 HEAD 与远端一致
 cd "<repo>"
-git rev-parse HEAD            # 期望 d873ac40f40b32b63737b838899ca868fd4eb6ed
+git rev-parse HEAD            # 期望 9336d639ed0b32b63737b838899ca868fd4eb6ed
 git status --short            # 见 §2，先处理两处 TASK-P2 噪声改动
 
 # ② 还原两处无关的 TASK-P2 噪声改动（见 §2 警告），保持工作树只含 P3 意图
@@ -38,7 +38,7 @@ npx vitest run --reporter=dot
 
 | 项 | 状态 |
 |---|---|
-| P2 全批 | ✅ 已收口并推送（`d873ac40f4`，双 CI 绿，946/946） |
+| P2 全批 | ✅ 已收口并推送（`9336d639ed`，双 CI 绿，946/946） |
 | P3 任务书 | ✅ 已读，E5/E6/E7 三张裁决单均**选 A 代签入库**（`artifacts/handoff/TASK-P3/decision-log.md`） |
 | 门禁 G0/G1 | ✅ 达标（P2 handoff 完整；三裁决代签完成） |
 | 门禁 G2（基线全绿） | ⚠️ 上批末次证据在册，但 P3-1 新改动**尚未跑测验证**（被 429 打断） |

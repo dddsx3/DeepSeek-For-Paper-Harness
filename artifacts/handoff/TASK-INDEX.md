@@ -10,21 +10,21 @@
 
 | Task | Head commit | Handoff | Local gate | Follow-ups |
 |------|-------------|---------|------------|-------------|
-| TASK 1.25  (IR canonical gate + executor) | `2775ccf3e0` | `artifacts/handoff/TASK-1.25/` | PASS (B-001..B-005) | — |
-| TASK 1.5   (Reference Closure) | `2775ccf3e0` | `artifacts/handoff/TASK-1.5/` | PASS (18/18) | — |
-| TASK 1.5R  (Canonical Closure + RT4-01) | `2775ccf3e0` | `artifacts/handoff/TASK-1.5R/` | PASS (12/12) | — |
-| TASK 2     (Claim → Result evidence) | `ffad0e63bf` | `artifacts/handoff/TASK-2/` | PASS (10/10) | — |
-| TASK 2.1   (Evidence Freeze + Audit) | `4f64b72315` | `artifacts/handoff/TASK-2.1/` | PASS (C1..C10) | Follow-ups item 12 (legacy test rewrite) |
-| TASK 3     (Execution Provenance Gate v1.0) | `8d3158abe2` task book / `ffad0e63bf` impl | `artifacts/handoff/TASK-3/` | PASS (C1..C10) | — |
-| TASK 3.5   (STALE engine) | `adc50eaebd` + 5.0-R | `artifacts/handoff/TASK-2.1/` + `artifacts/handoff/TASK-5.0-R/` | PASS (5.0-R: 4 stale reds closed; S-003/004 drift on forged captures; gate integration aligned to evaluateDelivery contract; kill probes recorded) | S-009 RequirementSpec walk deferred to P1-4 (closure algorithm A7 frozen first) |
-| TASK 3.6   (Replay–Delivery staleness) | `4064a28baf` + 5.0.8 | `artifacts/handoff/TASK-2.1/` | PASS | `delivery_replay_max_age` policy landed (5.0.8); enforcement point = the audit composition |
+| TASK 1.25  (IR canonical gate + executor) | `ba14aed3ef` | `artifacts/handoff/TASK-1.25/` | PASS (B-001..B-005) | — |
+| TASK 1.5   (Reference Closure) | `ba14aed3ef` | `artifacts/handoff/TASK-1.5/` | PASS (18/18) | — |
+| TASK 1.5R  (Canonical Closure + RT4-01) | `ba14aed3ef` | `artifacts/handoff/TASK-1.5R/` | PASS (12/12) | — |
+| TASK 2     (Claim → Result evidence) | `9812933b0c` | `artifacts/handoff/TASK-2/` | PASS (10/10) | — |
+| TASK 2.1   (Evidence Freeze + Audit) | `7721c47095` | `artifacts/handoff/TASK-2.1/` | PASS (C1..C10) | Follow-ups item 12 (legacy test rewrite) |
+| TASK 3     (Execution Provenance Gate v1.0) | `bc5e90982b` task book / `9812933b0c` impl | `artifacts/handoff/TASK-3/` | PASS (C1..C10) | — |
+| TASK 3.5   (STALE engine) | `e57d8dc168` + 5.0-R | `artifacts/handoff/TASK-2.1/` + `artifacts/handoff/TASK-5.0-R/` | PASS (5.0-R: 4 stale reds closed; S-003/004 drift on forged captures; gate integration aligned to evaluateDelivery contract; kill probes recorded) | S-009 RequirementSpec walk deferred to P1-4 (closure algorithm A7 frozen first) |
+| TASK 3.6   (Replay–Delivery staleness) | `23be463651` + 5.0.8 | `artifacts/handoff/TASK-2.1/` | PASS | `delivery_replay_max_age` policy landed (5.0.8); enforcement point = the audit composition |
 | TASK 4.0   (Gate registry + producers) | 5.0-R | (registry in `src/delivery/gate-registry.ts`) | PARTIAL → six gates UNIMPLEMENTED (honest BLOCKED in FORMAL/FAST); ir_canonicalization/provenance/stale_detection real | Real v0.1 semantics land in P1 (execution/numeric_consistency/reference_validation/requirement_coverage); figure_data_consistency in P2 |
-| TASK 4.2   (fast mode bypass removal) | `52b7aded26` | n/a | PASS (executor line) | Reviewer schema unification DONE (5.0.3c); Oracle Routing follow-up |
-| TASK 4.3   (FigureSpec data_hash) | `adc50eaebd` | n/a | PASS (schema) | §15 other fields are the follow-up |
+| TASK 4.2   (fast mode bypass removal) | `79cfd2b4f2` | n/a | PASS (executor line) | Reviewer schema unification DONE (5.0.3c); Oracle Routing follow-up |
+| TASK 4.3   (FigureSpec data_hash) | `e57d8dc168` | n/a | PASS (schema) | §15 other fields are the follow-up |
 | TASK 5.0   (Second-repair batch: 5.0.5/6/7/8/11 + capture-path rewrites) | (5.0 batch commits) | `artifacts/handoff/TASK-5.0/handoff.md` | PASS (5.0.1 closed under 5.0-R delegation; 5.0.4/5.0.10 DEFERRED on v1.1) | 5.0.9 superseded by P2; 5.0.4 attestation hardening + 5.0.10 numeric tolerance await v1.1 |
 | TASK-P1 (生产者轨) | `d823b7cea` | `artifacts/handoff/TASK-P1/` | PARTIAL → DONE（D1/D3/D7 于 2026-09-04 复签闭口；E4a/E4b/E4c 代签选 A 回执入 decision-log） | P2: executor 内嵌整链（D7 义务）；figure vacuous 解除（D3 义务） |
-| TASK-P2 (执行器整链 + 图表数据闭环: E4 review v2 / executor 权威链 / figure 真数据闭环 / 报告 v2 槽位 / demo v2 / 遵从率探针) | `f3485ee0e1` 起 (head at handoff) | `artifacts/handoff/TASK-P2/` | DONE（P2-1 executor 权威 FORMAL 链 4/4 + demo v2 4/4 DELIVER FBR 0/4 + wrong 2/2 KILLED；figure 门 vacuous→real 语义更替已登记；gates_impl 9 real 保持；探针 fake 自检 1.0，真实段 manual 待 key） | 作者: 无新增复签；真实遵从率实跑（<0.8 降级义务）、SVG→位图、formal RunMode、DF 图型 → 后续任务书 |
-| TASK-P3 (语义收口与真实遵从实证: E5 评审语义核对 / E6 表达层声明制 / E7 figure 唯一性 + table / EXECUTE 教学段 + probe v2 实测 / 收口组 / demo v3 + corpus v3) | `05d67a2130` 起 (head at handoff) | `artifacts/handoff/TASK-P3/` | DONE（P3-1 语义闭集+证据域 6/6；P3-2 representation 声明制 13/13；P3-4 唯一性键+table 10/10；全量 976/976；demo v3 5/5 DELIVER FBR 0/5 语义误杀 0/5 + 6/6 KILLED 重跑零脏；probe v2 真实实测 0/20 → GMI/MiniMax 组合 EXPLORATORY 降级字面生效，DeepSeek 侧仍部分关闭待 key；E5/E6/E7 代签选 A） | 作者: master CI 全仓 lint 欠账（上游遗留 ~20 处，known-risks P3-7）；DeepSeek 官方端点遵从实测；真实 reviewer 语义误杀率；P4 候选（PNG 位图/多序列 x 轴/DataArtifact 行语义/用户外壳） |
+| TASK-P2 (执行器整链 + 图表数据闭环: E4 review v2 / executor 权威链 / figure 真数据闭环 / 报告 v2 槽位 / demo v2 / 遵从率探针) | `9e14845ef8` 起 (head at handoff) | `artifacts/handoff/TASK-P2/` | DONE（P2-1 executor 权威 FORMAL 链 4/4 + demo v2 4/4 DELIVER FBR 0/4 + wrong 2/2 KILLED；figure 门 vacuous→real 语义更替已登记；gates_impl 9 real 保持；探针 fake 自检 1.0，真实段 manual 待 key） | 作者: 无新增复签；真实遵从率实跑（<0.8 降级义务）、SVG→位图、formal RunMode、DF 图型 → 后续任务书 |
+| TASK-P3 (语义收口与真实遵从实证: E5 评审语义核对 / E6 表达层声明制 / E7 figure 唯一性 + table / EXECUTE 教学段 + probe v2 实测 / 收口组 / demo v3 + corpus v3) | `4c58664810` 起 (head at handoff) | `artifacts/handoff/TASK-P3/` | DONE（P3-1 语义闭集+证据域 6/6；P3-2 representation 声明制 13/13；P3-4 唯一性键+table 10/10；全量 976/976；demo v3 5/5 DELIVER FBR 0/5 语义误杀 0/5 + 6/6 KILLED 重跑零脏；probe v2 真实实测 0/20 → GMI/MiniMax 组合 EXPLORATORY 降级字面生效，DeepSeek 侧仍部分关闭待 key；E5/E6/E7 代签选 A） | 作者: master CI 全仓 lint 欠账（上游遗留 ~20 处，known-risks P3-7）；DeepSeek 官方端点遵从实测；真实 reviewer 语义误杀率；P4 候选（PNG 位图/多序列 x 轴/DataArtifact 行语义/用户外壳） |
 | TASK 5.0-R (补漏批次: six-stub elimination, eleven reds to zero, gates_impl + RG-09, exploratory run mode, real final-output sink) | (5.0-R commits) | `artifacts/handoff/TASK-5.0-R/` | PASS (874/874 tests at close; RG-06/07/09 agree; six stubs -> UNIMPLEMENTED then real via P1) | P1 生产者轨 is the next batch; EXPLORATORY marked informal (R1-4) |
 
 ## Pending tasks (not yet started)

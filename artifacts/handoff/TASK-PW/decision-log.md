@@ -1,6 +1,6 @@
 # TASK-PW — decision-log（弱模型遵从分层）
 
-> 上游：TASK-P3 + TASK-P3D（HEAD `2971c23b21`，第四轮复审计判定两批 DONE、无待复签项）。
+> 上游：TASK-P3 + TASK-P3D（HEAD `58fccc3dd6`，第四轮复审计判定两批 DONE、无待复签项）。
 > 本文件先签批、后实现（G1）；裁决单全文见任务书文件一 §11。
 
 ## §11 三张裁决单签批回执
