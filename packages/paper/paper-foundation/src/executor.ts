@@ -32,6 +32,16 @@ import { renderReportV2 } from './produce/report-renderer.ts'
 import type { PaperProviderService, PaperRole } from './provider.ts'
 import { backoffDelayMs, classifyFailure } from './resilience.ts'
 import type { BackoffPolicy } from './resilience.ts'
+import {
+  NONE_RETRY_BUDGET,
+  degradeTier,
+  driftCorrection,
+  failureClassOf,
+  initialTier,
+  noneGuide,
+  type FailureClass,
+  type Tier,
+} from './probe/probe.ts'
 import type { PaperRuntimeGuard } from './runtime/runtime-guard.ts'
 import type { PaperSettingsService } from './settings.ts'
 import type { ArtifactRecord, Manifest, NodeRecord, RunId, RunRecord } from './spec.ts'
@@ -317,6 +327,31 @@ export class WorkflowExecutor {
    * checks the bytes that ACTUALLY executed (synchronous contract).
    */
   readonly #codeLoaders: Map<string, (ref: string) => string> = new Map()
+
+  /**
+   * TASK-PW W4: the protocol tier the EXECUTE path currently expects of the
+   * model, per run. Starts at T1 (full declarations); NONE exhaustion for
+   * the run degrades it toward T2 then T3 (W-B: a model that never produces
+   * a container is guided, then stepped down — the tier ledger feeds W2/W3).
+   * `undefined` = not a producing run / no degradation happened yet.
+   */
+  readonly #tierByRun: Map<string, Tier> = new Map()
+
+  /**
+   * TASK-PW W4: guided-retry budget spent per run and per class (NONE and
+   * DRIFT have independent budgets; ESCAPE has no budget at all — W-B).
+   */
+  readonly #noneSpent: Map<string, number> = new Map()
+  readonly #driftSpent: Map<string, number> = new Map()
+
+  /**
+   * TASK-PW W4: the protocol tier a run currently expects of the model.
+   * Defaults to T1 (full declarations); NONE exhaustion steps it down
+   * (W-B: NONE 耗尽记 failure 并降层). Read by the W5 probe registry.
+   */
+  tierOf(runId: RunId): Tier {
+    return this.#tierByRun.get(String(runId)) ?? initialTier()
+  }
 
   /**
    * Execute one run end to end. Fast mode delivers after its revise rounds
@@ -962,7 +997,11 @@ export class WorkflowExecutor {
     })
     await this.engine.transitionNode(node.id, 'ready')
     const route = this.settings.snapshot()[role]
-    const prompt = await this.fitPrompt(runId, node.id, role, sections)
+    let prompt = await this.fitPrompt(runId, node.id, role, sections)
+    // TASK-PW W4: guided-retry budget spent for THIS run (NONE and DRIFT
+    // each have their own counter; ESCAPE has none at all).
+    const runKey = String(runId)
+    const spentOf = (map: Map<string, number>): number => map.get(runKey) ?? 0
 
     for (let attempt = 1; attempt <= policy.maxNodeAttempts; attempt += 1) {
       await this.engine.transitionNode(node.id, 'running')
@@ -997,6 +1036,9 @@ export class WorkflowExecutor {
           if (!verdict.ok) {
             const err = new Error(`EXECUTE output refused by the IR producer: ${verdict.reason}`)
             ;(err as { code?: string }).code = verdict.code
+            // TASK-PW W4: carry the failure class so the catch below can
+            // apply class-specific budgets (ESCAPE zero / NONE+DRIFT guided).
+            ;(err as { w4Class?: FailureClass }).w4Class = failureClassOf(verdict.code, text)
             throw err
           }
           for (const entry of verdict.entries) {
@@ -1020,6 +1062,7 @@ export class WorkflowExecutor {
             if (!chain.ok) {
               const err = new Error(`EXECUTE production chain refused: ${chain.reason}`)
               ;(err as { code?: string }).code = chain.code
+              ;(err as { w4Class?: FailureClass }).w4Class = failureClassOf(chain.code)
               throw err
             }
             this.#codeLoaders.set(String(runId), chain.loadCode)
@@ -1031,8 +1074,81 @@ export class WorkflowExecutor {
         return { nodeId: node.id, text }
       } catch (error: unknown) {
         const failure = failureOf(error)
-        const action = classifyFailure(failure.code)
+        const w4Class = (error as { w4Class?: FailureClass }).w4Class
         await this.engine.transitionNode(node.id, 'failed')
+
+        // TASK-PW W4: on the producing EXECUTE path refusals are
+        // classified, and each class has its own retry budget (W-B).
+        if (type === 'execute' && this.options.produceFromExecute === true && w4Class !== undefined) {
+          if (w4Class === 'ESCAPE') {
+            // Zero budget, hard refusal: an escape is never retried — a
+            // retry would be a second chance at the same prohibition
+            // (W4 attack 1: ESCAPE 后重试 → 拒).
+            await this.engine.transitionRun(runId, 'failed')
+            await this.audit({
+              eventType: 'escape_refused',
+              actor: 'paper-executor',
+              runId,
+              detail: { code: failure.code, role, attempt },
+            })
+            throw new WorkflowExecutionError(
+              'gate-failed',
+              `node '${node.id}' ESCAPE refused: ${failure.code} (zero retry budget — W4)`,
+            )
+          }
+          if (w4Class === 'NONE' || w4Class === 'DRIFT') {
+            const spentMap = w4Class === 'NONE' ? this.#noneSpent : this.#driftSpent
+            const spent = spentOf(spentMap)
+            if (spent >= NONE_RETRY_BUDGET) {
+              // Budget exhausted: record the failure and (NONE only — W-B)
+              // step the protocol tier down, then fail the run.
+              await this.engine.transitionRun(runId, 'failed')
+              if (w4Class === 'NONE') {
+                const from = this.tierOf(runId)
+                const to = degradeTier(from)
+                this.#tierByRun.set(runKey, to)
+                await this.audit({
+                  eventType: 'tier_degraded',
+                  actor: 'paper-executor',
+                  runId,
+                  detail: { from, to, class: w4Class, budget: NONE_RETRY_BUDGET },
+                })
+              }
+              await this.audit({
+                eventType: 'gate_failed',
+                actor: 'paper-executor',
+                runId,
+                detail: { gate: 'ir_producer', reason: `${w4Class} guidance budget exhausted` },
+              })
+              throw new WorkflowExecutionError(
+                'gate-failed',
+                `node '${node.id}' exhausted ${NONE_RETRY_BUDGET} guided retries (${w4Class}): EXECUTE output was not a schema-valid ir-container-v1 (BLOCKED)`,
+              )
+            }
+            spentMap.set(runKey, spent + 1)
+            // Guide the next attempt: NONE shows the layer's options + the
+            // minimal example; DRIFT corrects only the offending field and
+            // hands back the registered id table (W4).
+            const guide = w4Class === 'NONE' ? noneGuide() : driftCorrection(failure.message)
+            prompt = await this.fitPrompt(runId, node.id, role, [
+              ...sections,
+              { name: 'w4-guidance', text: guide, trimPriority: KEEP },
+            ])
+            await this.audit({
+              eventType: 'provider_retry',
+              actor: 'paper-executor',
+              runId,
+              detail: { code: failure.code, role, attempt, w4Class },
+            })
+            await this.engine.transitionNode(node.id, 'ready')
+            await delay(backoffDelayMs(attempt, this.options.backoff, failure.providerRetryAfterMs))
+            continue
+          }
+        }
+
+        // Everything else (RUN / TRANSPORT / non-producing nodes): the
+        // existing transport semantics apply unchanged.
+        const action = classifyFailure(failure.code)
         if (action === 'block' || action === 'revise') {
           await this.engine.transitionRun(runId, 'failed')
           await this.audit({

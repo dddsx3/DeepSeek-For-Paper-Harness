@@ -54,6 +54,11 @@ export const AUDIT_EVENT_TYPES = [
   // P1-1: one entry written to canonical IR by the structured-output
   // producer (kind + id), so the trail reconstructs the run's IR evolution.
   'ir_entry_written',
+  // TASK-PW W4: an ESCAPE-class EXECUTE output was hard-refused with zero
+  // retry budget (W-B); and a NONE/DRIFT guided budget was exhausted and
+  // the run's protocol tier was stepped down (T1 → T2 → T3).
+  'escape_refused',
+  'tier_degraded',
 ] as const
 
 /** One audited operation kind. */

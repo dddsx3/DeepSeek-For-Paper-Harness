@@ -62,6 +62,17 @@ export type { CompactionOutcome, ElidedSection, PromptSection } from './context.
 export { backoffDelayMs, classifyFailure } from './resilience.ts'
 export type { BackoffPolicy, FailureAction } from './resilience.ts'
 export {
+  NONE_RETRY_BUDGET,
+  REGISTERED_ID_TABLE,
+  degradeTier,
+  driftCorrection,
+  failureClassOf,
+  initialTier,
+  noneBudgetPolicy,
+  noneGuide,
+} from './probe/probe.ts'
+export type { FailureClass, Tier } from './probe/probe.ts'
+export {
   REDACTED, redactSensitiveDetail, redactSensitiveText, redactSensitiveValue,
 } from './redact.ts'
 export {
