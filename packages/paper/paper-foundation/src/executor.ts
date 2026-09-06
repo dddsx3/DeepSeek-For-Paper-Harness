@@ -49,6 +49,12 @@ import {
   startGuidedSession,
   type GuidedSession,
 } from './produce/guided-steps.ts'
+import {
+  admitTemplateFill,
+  assembleTemplateContainer,
+  defaultTemplateCandidates,
+  templateFillPrompt,
+} from './produce/template-fill.ts'
 import type { PaperRuntimeGuard } from './runtime/runtime-guard.ts'
 import type { PaperSettingsService } from './settings.ts'
 import type { ArtifactRecord, Manifest, NodeRecord, RunId, RunRecord } from './spec.ts'
@@ -1078,16 +1084,33 @@ export class WorkflowExecutor {
         attempt,
       })
       try {
-        // TASK-PW W2: on the T2 producing path the guided-step wizard owns
-        // every provider call for this node (three tiny declarations, each
-        // with its own instruction); the one-shot EXECUTE call is skipped.
-        // On any other path the normal single call + token accounting runs.
-        const isT2Execute = type === 'execute'
+        // TASK-PW W2/W3: on the T2/T3 producing paths the wizard owns every
+        // provider call for this node — T2 walks three tiny declarations,
+        // T3 is a single closed fill-in — and the harness assembles the
+        // container from the admitted payloads; the one-shot EXECUTE call
+        // is skipped there. On any other path the normal single call runs.
+        const tier = this.tierOf(runId)
+        const isGuidedTier = type === 'execute'
           && this.options.produceFromExecute === true
-          && this.tierOf(runId) === 'T2'
+          && (tier === 'T2' || tier === 'T3')
         let text: string
-        if (isT2Execute) {
+        if (tier === 'T2' && type === 'execute' && this.options.produceFromExecute === true) {
           text = await this.runGuidedExecute(runId, role, taskText ?? '')
+        } else if (tier === 'T3' && type === 'execute' && this.options.produceFromExecute === true) {
+          const stepPrompt = templateFillPrompt(defaultTemplateCandidates())
+          const { text: callText, usage } = await this.call(role, stepPrompt)
+          await this.recordUsage(runId, route.provider, route.model, usage)
+          const admitted = admitTemplateFill(callText)
+          if (!admitted.ok) {
+            const err = new Error(`T3 fill-in refused: ${admitted.reason}`)
+            ;(err as { code?: string }).code = admitted.code
+            // T3 refusals are ESCAPE-class (zero budget): the model has no
+            // invention space on the smallest face; a number or a container
+            // or a free choice is a hard refusal, never guided.
+            ;(err as { w4Class?: FailureClass }).w4Class = 'ESCAPE'
+            throw err
+          }
+          text = assembleTemplateContainer(admitted.fill, taskText ?? '')
         } else {
           const { text: callText, usage } = await this.call(role, prompt)
           await this.recordUsage(runId, route.provider, route.model, usage)
@@ -1112,6 +1135,7 @@ export class WorkflowExecutor {
           // the model container is applied — the model references them by id
           // and must never re-declare them (W-C input-asset domain).
           const reserved = await this.registerInputAssets(runId, ir, taskText ?? '')
+          const harnessAssembled = isGuidedTier
 
           const verdict = produceContainerInto(ir, text, undefined, { reservedIds: reserved })
           if (!verdict.ok) {
@@ -1119,11 +1143,11 @@ export class WorkflowExecutor {
             ;(err as { code?: string }).code = verdict.code
             // TASK-PW W4: carry the failure class so the catch below can
             // apply class-specific budgets (ESCAPE zero / NONE+DRIFT guided).
-            // On the T2 path `text` is the HARNESS-assembled container — a
+            // On the T2/T3 paths `text` is the HARNESS-assembled container — a
             // producer refusal of it is a harness-side contract problem, not
             // a model failure, so it must not re-enter under DRIFT guidance
             // (which would loop the wizard on an un-fixable shape).
-            ;(err as { w4Class?: FailureClass }).w4Class = isT2Execute
+            ;(err as { w4Class?: FailureClass }).w4Class = harnessAssembled
               ? 'ESCAPE'
               : failureClassOf(verdict.code, text)
             throw err

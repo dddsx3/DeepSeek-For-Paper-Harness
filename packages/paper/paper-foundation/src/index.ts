@@ -81,6 +81,13 @@ export {
 } from './produce/guided-steps.ts'
 export type { GuidedCandidates, GuidedLedger, GuidedRefusalCode, GuidedSession, GuidedStepId, GuidedStepVerdict } from './produce/guided-steps.ts'
 export {
+  admitTemplateFill,
+  assembleTemplateContainer,
+  defaultTemplateCandidates,
+  templateFillPrompt,
+} from './produce/template-fill.ts'
+export type { TemplateCandidates, TemplateFill, TemplateRefusalCode, TemplateSlot } from './produce/template-fill.ts'
+export {
   REDACTED, redactSensitiveDetail, redactSensitiveText, redactSensitiveValue,
 } from './redact.ts'
 export {

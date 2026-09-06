@@ -11,13 +11,13 @@
     "v1.1_status": "PARTIAL — 5.0.1 (six stubs -> UNIMPLEMENTED) shipped under the 5.0-R author-delegated ratification; 5.0.4 (attestation hardening) and 5.0.10 (numeric tolerance) remain v1.1-ratification-pending."
   },
   "baseline": {
-    "files": 91,
-    "total_tests": 1007,
-    "passed_tests": 1007,
+    "files": 92,
+    "total_tests": 1018,
+    "passed_tests": 1018,
     "failed_tests": 0,
     "failed_test_suites": 0,
     "tsc_clean": true,
-    "baseline_at": "TASK-PW W2: T2 guided-step wizard wired into the EXECUTE path (initialTier=T2; step refusals under W4 budgets; T1-face zero regression) — 1007 incl real-spawn spec"
+    "baseline_at": "TASK-PW W3: T3 template-fill protocol (smallest face, closed candidates, 数字零通道) wired into EXECUTE path — 1018 incl real-spawn spec"
   },
   "failures_by_origin": {},
   "gates_impl": [

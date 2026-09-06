@@ -135,6 +135,12 @@ function queuedProvider(outputs: string[]) {
         cursor += 1
         return stream(out ?? '')
       }
+      // T3 template-fill prompt.
+      if (joined.includes('T3 template fill-in')) {
+        const out = outputs[Math.min(cursor, outputs.length - 1)]
+        cursor += 1
+        return stream(out ?? '')
+      }
       if (joined.includes('ir-container-v1') || joined.includes('Produce the deliverable')) {
         const out = outputs[Math.min(cursor, outputs.length - 1)]
         cursor += 1
@@ -240,6 +246,75 @@ describe('T2 guided steps — executor end to end', () => {
       claims: [{ claim_id: 'C-OUT', text: 'x is 0.731', result_refs: ['RES-NOPE'], criticality: 'CRITICAL' }],
     })
     const { ctx, runId, outcome } = await tierHarness('T2', [STEP1_OK, STEP2_OK, badStep3, STEP3_OK])
+    expect(outcome.status).toBe('rejected')
+    const audit = ctx.paperAudit.list(runId).map((e: { eventType: string }) => e.eventType)
+    expect(audit).toContain('escape_refused')
+    expect(audit).not.toContain('provider_retry')
+  })
+})
+
+describe('T3 template fill — executor end to end', () => {
+  const FILL_OK = JSON.stringify({
+    symbol_id: 'SYM-q',
+    unit: 'm',
+    output_file: 'result.json',
+    json_path: 'mean_thickness',
+  })
+
+  /** T1 one-shot baseline mirroring the T3 assembled facts exactly. */
+  function t3T1Container(): string {
+    return JSON.stringify({
+      __dsh_paper: 'ir-container-v1',
+      entries: [
+        { kind: 'SymbolSpec', value: { symbol_id: 'SYM-q', scope_ref: 'P1', token: 'q', meaning: 'mean_thickness', unit: 'm', role: 'VARIABLE' } },
+        { kind: 'ModelSpec', value: { model_id: 'M1', problem_refs: ['P1'], assumptions: ['homogeneous slab'], variable_refs: ['SYM-q'], parameter_refs: [], equations: ['q = measured'], constraints: [], objective: 'estimate mean_thickness', dependencies: [] } },
+      ],
+      code: [
+        'const fs = require("node:fs");',
+        'fs.writeFileSync("result.json", JSON.stringify({ mean_thickness: 0.731 }));',
+        'console.log("run ok");',
+      ].join('\n'),
+      run: { outputBasenames: ['result.json'], seed: 20260903 },
+      interpretations: {
+        results: [
+          { result_id: 'RES-OUT', name: 'mean_thickness', source: { locator: 'result.json', jsonPath: 'mean_thickness' }, unit: 'm', uncertainty: null },
+        ],
+        claims: [
+          { claim_id: 'C-OUT', text: 'mean_thickness is 0.731 m', claim_type: 'NUMERIC', criticality: 'CRITICAL', result_refs: ['RES-OUT'], model_refs: ['M1'], evidence_refs: ['RES-OUT'] },
+        ],
+      },
+      narrative: { title: 'estimate ice thickness', conclusion: 'mean_thickness is 0.731 m' },
+    })
+  }
+
+  it('happy path: one fill-in delivers the SAME report sha256 as the T1 container path', async () => {
+    const t1 = await tierHarness('T1', [t3T1Container()])
+    expect(t1.outcome.status, 'T1 ' + (t1.outcome as { message?: string }).message).toBe('resolved')
+    const t3 = await tierHarness('T3', [FILL_OK])
+    expect(t3.outcome.status, 'T3 ' + (t3.outcome as { message?: string }).message).toBe('resolved')
+    const t1Report = await finalReport(t1)
+    const t3Report = await finalReport(t3)
+    // T3 填充一次 → 与 T1 等价交付(同 report、同 sha256): the assembled
+    // container flows through the same chain, so the promoted report is
+    // byte-identical.
+    expect(sha256(t3Report)).toBe(sha256(t1Report))
+  })
+
+  it('attack 1: a free number in the T3 fill-in is ESCAPE — zero budget, run failed', async () => {
+    const withNumber = '{"symbol_id": "SYM-q", "unit": "m", "output_file": "result.json", "json_path": "mean_thickness", "note": "0.731"}'
+    const { ctx, runId, outcome } = await tierHarness('T3', [withNumber])
+    expect(outcome.status).toBe('rejected')
+    const audit = ctx.paperAudit.list(runId).map((e: { eventType: string }) => e.eventType)
+    expect(audit).toContain('escape_refused')
+    expect(audit).not.toContain('provider_retry')
+  })
+
+  it('attack 2: a container-shaped payload in T3 is ESCAPE — zero budget', async () => {
+    const container = JSON.stringify({
+      __dsh_paper: 'ir-container-v1',
+      entries: [{ kind: 'ModelSpec', value: { model_id: 'M1' } }],
+    })
+    const { ctx, runId, outcome } = await tierHarness('T3', [container])
     expect(outcome.status).toBe('rejected')
     const audit = ctx.paperAudit.list(runId).map((e: { eventType: string }) => e.eventType)
     expect(audit).toContain('escape_refused')
