@@ -12,12 +12,12 @@
   },
   "baseline": {
     "files": 88,
-    "total_tests": 976,
-    "passed_tests": 976,
+    "total_tests": 985,
+    "passed_tests": 985,
     "failed_tests": 0,
     "failed_test_suites": 0,
     "tsc_clean": true,
-    "baseline_at": "P3 handoff: semantic review + representation + figure uniqueness/table + teaching (976 incl real-spawn spec; demo-v2/v3+probe are script-level)"
+    "baseline_at": "TASK-PW W1: impossible-field cleanup (audit F-A closure) — model face narrowed to SymbolSpec/ModelSpec/DataArtifact {data_id,locator}; 985 incl real-spawn spec; demo-v2/v3+probe are script-level"
   },
   "failures_by_origin": {},
   "gates_impl": [
