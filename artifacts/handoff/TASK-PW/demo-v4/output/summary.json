@@ -1,0 +1,174 @@
+{
+  "leaves": [
+    {
+      "id": "POLAR-ICE",
+      "baseId": "POLAR-ICE",
+      "tier": "T1",
+      "status": "PASS",
+      "sha256": "6271f0c25e6d692a7b19f2baf1e556b26fd17687d097ef5cd708dc5c1f7b42a9"
+    },
+    {
+      "id": "MELT-POND",
+      "baseId": "MELT-POND",
+      "tier": "T1",
+      "status": "PASS",
+      "sha256": "96f4ebb416b7444519714c0a37d35cb1c8ae1de19029afc6d58d87f300f3d38c"
+    },
+    {
+      "id": "RIDGE-DENSITY",
+      "baseId": "RIDGE-DENSITY",
+      "tier": "T1",
+      "status": "PASS",
+      "sha256": "8fd36af92a8ac001b535ba8dd341b882de461643dbbfdbac39ae4ff54dc749b9"
+    },
+    {
+      "id": "FIGURED-ICE",
+      "baseId": "FIGURED-ICE",
+      "tier": "T1",
+      "status": "PASS",
+      "sha256": "3c398379427123a3e40df058d916616e60ca64cb74082cc91240e85d309a52b1"
+    },
+    {
+      "id": "ROUNDED-LEGAL",
+      "baseId": "ROUNDED-LEGAL",
+      "tier": "T1",
+      "status": "PASS",
+      "sha256": "bcc358300dba0eacacb69dd2cb60d817ac55d5cbcaa68e4462e91869c82a3c65"
+    },
+    {
+      "id": "POLAR-ICE-T2",
+      "baseId": "POLAR-ICE",
+      "tier": "T2",
+      "status": "PASS",
+      "sha256": "a5a3d6699ae663e3c476b041a75116c11532079d07ede9d38c00d381ff5c98e4"
+    },
+    {
+      "id": "MELT-POND-T2",
+      "baseId": "MELT-POND",
+      "tier": "T2",
+      "status": "PASS",
+      "sha256": "a2e61e01ed77c42cf764f37a79b23fd1c67aa3b2a897f3408a49f08a3db2a054"
+    },
+    {
+      "id": "POLAR-ICE-T3",
+      "baseId": "POLAR-ICE",
+      "tier": "T3",
+      "status": "PASS",
+      "sha256": "5f6f0dd32d53909bda3dd2a8477b2b5915944c8684a05059ae98fdd3bd9bee97"
+    },
+    {
+      "id": "ROUNDED-LEGAL-T3",
+      "baseId": "ROUNDED-LEGAL",
+      "tier": "T3",
+      "status": "PASS",
+      "sha256": "3a6dcfd576c04b46550402552351653da298397fa6d8b913b90b816acb73efc2"
+    }
+  ],
+  "tierRegistry": [
+    {
+      "id": "POLAR-ICE",
+      "baseId": "POLAR-ICE",
+      "tier": "T1",
+      "status": "PASS",
+      "sha256": "6271f0c25e6d692a7b19f2baf1e556b26fd17687d097ef5cd708dc5c1f7b42a9",
+      "meaning": "full declaration (one-shot container)"
+    },
+    {
+      "id": "MELT-POND",
+      "baseId": "MELT-POND",
+      "tier": "T1",
+      "status": "PASS",
+      "sha256": "96f4ebb416b7444519714c0a37d35cb1c8ae1de19029afc6d58d87f300f3d38c",
+      "meaning": "full declaration (one-shot container)"
+    },
+    {
+      "id": "RIDGE-DENSITY",
+      "baseId": "RIDGE-DENSITY",
+      "tier": "T1",
+      "status": "PASS",
+      "sha256": "8fd36af92a8ac001b535ba8dd341b882de461643dbbfdbac39ae4ff54dc749b9",
+      "meaning": "full declaration (one-shot container)"
+    },
+    {
+      "id": "FIGURED-ICE",
+      "baseId": "FIGURED-ICE",
+      "tier": "T1",
+      "status": "PASS",
+      "sha256": "3c398379427123a3e40df058d916616e60ca64cb74082cc91240e85d309a52b1",
+      "meaning": "full declaration (one-shot container)"
+    },
+    {
+      "id": "ROUNDED-LEGAL",
+      "baseId": "ROUNDED-LEGAL",
+      "tier": "T1",
+      "status": "PASS",
+      "sha256": "bcc358300dba0eacacb69dd2cb60d817ac55d5cbcaa68e4462e91869c82a3c65",
+      "meaning": "full declaration (one-shot container)"
+    },
+    {
+      "id": "POLAR-ICE-T2",
+      "baseId": "POLAR-ICE",
+      "tier": "T2",
+      "status": "PASS",
+      "sha256": "a5a3d6699ae663e3c476b041a75116c11532079d07ede9d38c00d381ff5c98e4",
+      "meaning": "guided steps (run → Result → claims wizard)"
+    },
+    {
+      "id": "POLAR-ICE-T2-T1EQ",
+      "baseId": "POLAR-ICE",
+      "tier": "T1",
+      "status": "PASS",
+      "sha256": "a5a3d6699ae663e3c476b041a75116c11532079d07ede9d38c00d381ff5c98e4",
+      "meaning": "one-shot twin of POLAR-ICE-T2"
+    },
+    {
+      "id": "MELT-POND-T2",
+      "baseId": "MELT-POND",
+      "tier": "T2",
+      "status": "PASS",
+      "sha256": "a2e61e01ed77c42cf764f37a79b23fd1c67aa3b2a897f3408a49f08a3db2a054",
+      "meaning": "guided steps (run → Result → claims wizard)"
+    },
+    {
+      "id": "MELT-POND-T2-T1EQ",
+      "baseId": "MELT-POND",
+      "tier": "T1",
+      "status": "PASS",
+      "sha256": "a2e61e01ed77c42cf764f37a79b23fd1c67aa3b2a897f3408a49f08a3db2a054",
+      "meaning": "one-shot twin of MELT-POND-T2"
+    },
+    {
+      "id": "POLAR-ICE-T3",
+      "baseId": "POLAR-ICE",
+      "tier": "T3",
+      "status": "PASS",
+      "sha256": "5f6f0dd32d53909bda3dd2a8477b2b5915944c8684a05059ae98fdd3bd9bee97",
+      "meaning": "template fill-in (smallest face, closed candidates)"
+    },
+    {
+      "id": "POLAR-ICE-T3-T1EQ",
+      "baseId": "POLAR-ICE",
+      "tier": "T1",
+      "status": "PASS",
+      "sha256": "5f6f0dd32d53909bda3dd2a8477b2b5915944c8684a05059ae98fdd3bd9bee97",
+      "meaning": "one-shot twin of POLAR-ICE-T3"
+    },
+    {
+      "id": "ROUNDED-LEGAL-T3",
+      "baseId": "ROUNDED-LEGAL",
+      "tier": "T3",
+      "status": "PASS",
+      "sha256": "3a6dcfd576c04b46550402552351653da298397fa6d8b913b90b816acb73efc2",
+      "meaning": "template fill-in (smallest face, closed candidates)"
+    },
+    {
+      "id": "ROUNDED-LEGAL-T3-T1EQ",
+      "baseId": "ROUNDED-LEGAL",
+      "tier": "T1",
+      "status": "PASS",
+      "sha256": "3a6dcfd576c04b46550402552351653da298397fa6d8b913b90b816acb73efc2",
+      "meaning": "one-shot twin of ROUNDED-LEGAL-T3"
+    }
+  ],
+  "falseBlockRate": "0/9"
+}

@@ -29,10 +29,36 @@
 |---|---|---|
 | G0 | P3/P3D handoff 完整、无待复签 | ✓（TASK-INDEX 两行 DONE；第四轮复审计无 ☐） |
 | G1 | W-A/W-B/W-C 签批 | ✓（本文件，三张均选 A 代签入库） |
-| G2 | 基线全绿 | 本机已核：tsc 引用链 exit 0；vitest 88 文件/976 测试全过（第四轮复审计 §二实测）；demo v3 exit 0 5/5+6/6；工作树零脏 |
-| G3 | 探针 key | GMI key 可用性待本批开工时确认（P3 实测同款）；不可用 → W6 走部分关闭先例（禁 7） |
+| G2 | 基线全绿 | 逐提交同步 gate-report(976→985→993→1003→1007→1018→1025);最终 93 文件 / 1025 测试全绿;demo v4 9/9 exit 0;probe v3 fake 三层 trusted exit 0 |
+| G3 | 探针 key | 本批 key 不在环境 → W6 按部分关闭先例走禁 7:probe v3 real 段显式 SKIPPED(D-PW.2);key 就绪后 `pnpm run test:pw:probe` 归档 |
 
 ## 偏差声明（D-PW.x，随实现逐条登记）
 
 - D-PW.1（如需要）：数字资产轨与本批的并行关系按任务书文件一 §10.5——
   skills 数字资产并入在 §8（P4 候选），不阻塞 TASK-PW 主轨。
+
+## 实现登记（W1..W6 落地后追加）
+
+| 里程碑 | 状态 | 证据 |
+|---|---|---|
+| W1 不可能字段清除 | ✓ | MODEL_FACE_KINDS 白名单 + 三拒绝码红测；P1-5 demo 移植 exit 0 |
+| W4 NONE/DRIFT 分离 | ✓ | failureClassOf 五类 + 引导预算 2 + 降层；executor-tier.spec 8 绿 |
+| W2 T2 引导小步 | ✓ | guided-steps.spec 10 绿 + executor-guided T2 happy/3 攻击 |
+| W3 T3 模板填充 | ✓ | template-fill.spec 8 绿 + executor-guided T3 happy/2 攻击 |
+| W5 能力探针 v1 + 注册表 | ✓ | registry.spec 7 绿；probe-v1 5/5 升级 exit 0 |
+| W6 probe v3 + corpus v4 + demo v4 + CI | ✓（fake 层；real 禁 7 SKIPPED） | probe-v3 fake T1/T2/T3=1.0 trusted exit 0；demo-v4 9/9 FBR 0/9；pw-provider-probe-v3 manual job 入库 |
+
+## 偏差声明（D-PW.x，随实现逐条登记）
+
+- D-PW.1：数字资产轨与本批并行（§10.5 P4 候选），不阻塞主轨。
+- D-PW.2（probe v3 real 未跑）：GMI/MiniMax key 不在环境 → 按禁 7 显式
+  SKIPPED（probe-v3/output/summary.json status=SKIPPED，永不静默 PASS）；
+  key 就绪后 `pnpm run test:pw:probe` 归档，按 adherence 实况登记各层
+  FORMAL/EXPLORATORY（字面降级，同 P3-3 先例）。
+- D-PW.3（probe-v1 vs probe-v3 分工）：v1 = 注册表 plumbing 自检（5 题）；
+  v3 = 分层真实测量（每层 ≥5 次、≥20 合计，复用 W4 分类 + W2/W3 准入链 +
+  W5 注册表记录）。不重复。
+- D-PW.4（demo v4 "与 T1 等价" 基线）：T2/T3 正例与"harness 组装容器的 T1
+  一次性 twin"做 byte-identical 断言（assembleGuidedContainer /
+  assembleTemplateContainer 输出以 T1 路径重放）；corpus T1 全叶仍用 P3 原
+  容器（FBR 0/5 独立成立，禁 9 重演面不混入）。

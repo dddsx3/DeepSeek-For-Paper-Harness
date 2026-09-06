@@ -1,0 +1,169 @@
+{
+  "generated_at": "2026-09-06T15:14:27.473Z",
+  "identity": {
+    "provider": "fake",
+    "model": "m",
+    "endpoint": "file://fake",
+    "tier": "T1"
+  },
+  "fakeSelfCheck": {
+    "T1": {
+      "attempts": [
+        {
+          "attempt": 1,
+          "firstTry": true,
+          "stage": "full"
+        },
+        {
+          "attempt": 2,
+          "firstTry": true,
+          "stage": "full"
+        },
+        {
+          "attempt": 3,
+          "firstTry": true,
+          "stage": "full"
+        },
+        {
+          "attempt": 4,
+          "firstTry": true,
+          "stage": "full"
+        },
+        {
+          "attempt": 5,
+          "firstTry": true,
+          "stage": "full"
+        }
+      ],
+      "adherence": 1,
+      "trusted": true
+    },
+    "T2": {
+      "attempts": [
+        {
+          "attempt": 1,
+          "firstTry": true,
+          "stage": "full"
+        },
+        {
+          "attempt": 2,
+          "firstTry": true,
+          "stage": "full"
+        },
+        {
+          "attempt": 3,
+          "firstTry": true,
+          "stage": "full"
+        },
+        {
+          "attempt": 4,
+          "firstTry": true,
+          "stage": "full"
+        },
+        {
+          "attempt": 5,
+          "firstTry": true,
+          "stage": "full"
+        }
+      ],
+      "adherence": 1,
+      "trusted": true
+    },
+    "T3": {
+      "attempts": [
+        {
+          "attempt": 1,
+          "firstTry": true,
+          "stage": "full"
+        },
+        {
+          "attempt": 2,
+          "firstTry": true,
+          "stage": "full"
+        },
+        {
+          "attempt": 3,
+          "firstTry": true,
+          "stage": "full"
+        },
+        {
+          "attempt": 4,
+          "firstTry": true,
+          "stage": "full"
+        },
+        {
+          "attempt": 5,
+          "firstTry": true,
+          "stage": "full"
+        }
+      ],
+      "adherence": 1,
+      "trusted": true
+    }
+  },
+  "registry": [
+    {
+      "provider": "fake",
+      "model": "m",
+      "endpoint": "file://fake",
+      "tier": "T1",
+      "date": "2026-09-06",
+      "structuralAdherence": 1,
+      "firstTrySuccess": 1,
+      "retryBudgetUsed": 0,
+      "attempts": 5
+    },
+    {
+      "provider": "fake",
+      "model": "m",
+      "endpoint": "file://fake",
+      "tier": "T2",
+      "date": "2026-09-06",
+      "structuralAdherence": 1,
+      "firstTrySuccess": 1,
+      "retryBudgetUsed": 0,
+      "attempts": 5
+    },
+    {
+      "provider": "fake",
+      "model": "m",
+      "endpoint": "file://fake",
+      "tier": "T3",
+      "date": "2026-09-06",
+      "structuralAdherence": 1,
+      "firstTrySuccess": 1,
+      "retryBudgetUsed": 0,
+      "attempts": 5
+    }
+  ],
+  "verdicts": [
+    {
+      "identity": "fake/m/T1",
+      "verdict": {
+        "ok": true,
+        "to": "T1"
+      }
+    },
+    {
+      "identity": "fake/m/T2",
+      "verdict": {
+        "ok": true,
+        "to": "T2"
+      }
+    },
+    {
+      "identity": "fake/m/T3",
+      "verdict": {
+        "ok": true,
+        "to": "T3"
+      }
+    }
+  ],
+  "realSection": {
+    "status": "SKIPPED",
+    "reason": "no provider key in the environment (PAPER_PROBE_API_KEY / DEEPSEEK_API_KEY) — real calls not counted, no silent PASS (禁7)",
+    "perTier": null,
+    "downgrades": null
+  },
+  "note": "probe v3 — per-tier adherence measured on FIRST attempts; the T2/T3 tiers exercise their admission chains and then the SAME execution pipeline as T1 (同信任链). Upgrade verdicts gate FORMAL (双指标 ≥0.8 且零重试预算). No key → explicit SKIPPED (禁7)."
+}
