@@ -137,12 +137,15 @@ function driftContainer(): string {
   })
 }
 
-/**
- * A provider whose EXECUTE output comes from a queue of strings (the first
- * non-plan call consumes one). Records every prompt it saw so a test can
- * assert the guidance was actually carried on the retry.
- */
-function queuedProvider(outputs: string[]) {
+/** A provider whose EXECUTE output comes from a queue of strings (the first
+ *  non-plan call consumes one). Records every prompt it saw. */
+interface QueuedProvider {
+  readonly seen: string[]
+  resolveRole(): Promise<{ route: { role: string } }>
+  stream(request: { system?: string; messages?: Array<{ content?: unknown }> }): AsyncGenerator<{ type: string; [k: string]: unknown }>
+}
+
+function queuedProvider(outputs: string[]): QueuedProvider {
   const seen: string[] = []
   let cursor = 0
   return {
@@ -169,7 +172,7 @@ function queuedProvider(outputs: string[]) {
       }
       return stream('revised text')
     },
-  } as never
+  }
 }
 
 interface HarnessResult {
@@ -177,6 +180,7 @@ interface HarnessResult {
   ir: ModelingIr
   engine: unknown
   runId: string
+  finalRoot: string
   outcome: { status: 'resolved' } | { status: 'rejected'; code?: string; message: string }
 }
 
@@ -305,7 +309,7 @@ describe('W4 red-team leaves on the producing EXECUTE path', () => {
 })
 
 /** harness() with an externally created provider so `seen` is inspectable. */
-async function harnessWithProvider(provider: ReturnType<typeof queuedProvider>): Promise<HarnessResult> {
+async function harnessWithProvider(provider: QueuedProvider): Promise<HarnessResult> {
   const ctx = new Context()
   await ctx.plugin(Storage)
   ctx.storage.backend.register('memory', new MemoryStorageBackend(new MemoryMediaPool()))
