@@ -25,6 +25,7 @@
  * @module @deepseek-ai/dsh-paper-foundation/src/produce
  */
 
+import { z as zod } from 'zod'
 import { ModelingIr } from '../ir/store.ts'
 import { IR_SCHEMAS } from '../ir/schema.ts'
 import { readIrObjectId, type IrKind } from '../ir/index.ts'
@@ -36,14 +37,45 @@ export const MODEL_CONTAINER_VERSION = 'ir-container-v1'
 /**
  * IR kinds the EXECUTE-stage model may declare. Everything else it claims
  * to be IR is refused with a stable code (see below).
+ *
+ * TASK-PW W1 (W-C sign-off A, input-asset externalization): the problem-side
+ * kinds moved OUT of the model's declaration domain —
+ *   - `ProblemSpec`, `RequirementSpec`: harness-registered before the
+ *     container is applied (the harness owns the problem statement and the
+ *     requirement; the model references them by id);
+ *   - `DataArtifact`: stays declarable but ONLY in its output-pointer form
+ *     `{ data_id, locator }` — no `content_hash` (the harness computes every
+ *     hash over real bytes after the run — the impossible-field rule, audit
+ *     finding F-A), no `role`/`media_type`/`description` (harness-assigned).
+ * Re-declaring a harness-registered id is a declaration refusal, not an
+ * append-only conflict (the teaching makes the domain unreachable up front).
  */
-export const PRODUCIBLE_KINDS: ReadonlyArray<IrKind> = [
+export const MODEL_FACE_KINDS: ReadonlyArray<IrKind> = [
+  'SymbolSpec',
+  'ModelSpec',
+  'DataArtifact',
+] as const
+
+/** Kinds the harness registers itself; the model face refuses them. */
+export const HARNESS_REGISTERED_KINDS: ReadonlyArray<IrKind> = [
   'DataArtifact',
   'RequirementSpec',
-  'SymbolSpec',
   'ProblemSpec',
-  'ModelSpec',
 ]
+
+/**
+ * The model-face DataArtifact shape: an output pointer and nothing else.
+ * Deliberately NOT the full IR DataArtifact schema — `content_hash` (the
+ * sha256 of bytes that do not exist until the run) is the impossible field
+ * this schema exists to keep out of the model's declaration domain.
+ */
+export const modelOutputArtifactSchema = zod
+  .object({
+    data_id: zod.string().min(1),
+    /** Run output basename the harness will hash after the run. */
+    locator: zod.string().min(1),
+  })
+  .strict()
 
 /** Stable refusal codes a caller (the executor) routes on. */
 export type ProduceFailureCode =
@@ -51,11 +83,24 @@ export type ProduceFailureCode =
   | 'schema_violation'           // any entry failed its closed IR schema
   | 'execution_record_forbidden' // model tried to smuggle an ExecutionRecord (INV-3-M)
   | 'kind_not_producible'        // RunArtifact/Result/Claim/… come from real stages, not the model
+  | 'input_asset_domain'         // W1: ProblemSpec/RequirementSpec are harness-registered, not model-declarable
+  | 'hash_field_forbidden'       // W1: content_hash is the impossible field (F-A) — never model-writable
+  | 'registered_id_redeclared'   // W1: the model re-declared a harness-registered id
   | 'conflicting_id'             // duplicate of an id already in the store (append-only semantics)
   | 'store_refused'              // the store's own admission (incl. 1.5R closure) refused an entry
 
 export type ProduceVerdict =
-  | { ok: true; entries: ReadonlyArray<{ kind: IrKind; id: string }> }
+  | {
+    ok: true
+    entries: ReadonlyArray<{ kind: IrKind; id: string }>
+    /**
+       * W1: model-declared output artifacts, carried out of admission
+       * UNWRITTEN — the harness mints their full IR records after the run,
+       * with sha256 computed over the real captured bytes (the impossible
+       * field never passes through the model's hands).
+       */
+    pendingOutputArtifacts: ReadonlyArray<{ data_id: string; locator: string }>
+  }
   | { ok: false; code: ProduceFailureCode; reason: string }
 
 interface ModelEntry {
@@ -137,42 +182,103 @@ export function parseModelContainer(text: string): { ok: true; container: Valida
 }
 
 /**
- * Validate every entry against its closed IR schema (dry), then write the
- * whole container through the store's public put path. All-or-nothing: no
+ * Validate every entry against the model face (dry), then write the
+ * writable entries through the store's public put path. All-or-nothing: no
  * write happens unless every entry validates AND every put succeeds.
+ *
+ * W1 domain rules (W-C sign-off A):
+ *   - `ProblemSpec` / `RequirementSpec` entries are refused outright — the
+ *     harness registers the problem assets; the model only references ids.
+ *   - `DataArtifact` entries carry the output-pointer shape only; they are
+ *     validated and returned as `pendingOutputArtifacts` (never written at
+ *     admission — the hash does not exist yet).
+ *   - Any entry whose id is in `opts.reservedIds` (the harness-registered
+ *     id set) is a re-declaration of a harness asset → refusal.
  *
  * @param ir - the canonical store to write into.
  * @param text - raw model EXECUTE output.
  * @param onEntry - called once per accepted write (kind, id) so the caller
  *        can audit the IR evolution entry by entry.
+ * @param opts - W1 domain controls: `reservedIds` is the set of
+ *        harness-registered ids the model must reference, never re-declare.
  */
 export function produceContainerInto(
   ir: ModelingIr,
   text: string,
   onEntry?: (kind: IrKind, id: string) => void,
+  opts?: { reservedIds?: ReadonlySet<string> },
 ): ProduceVerdict {
   const parsed = parseModelContainer(text)
   if (!parsed.ok) return parsed
   const { container } = parsed
+  const reserved = opts?.reservedIds
 
-  // Pass 1 — kind whitelist + closed-schema dry validation (no writes yet).
+  // Pass 1 — kind whitelist + model-face validation (no writes yet).
   const validated: ModelEntry[] = []
+  const pendingOutputArtifacts: Array<{ data_id: string; locator: string }> = []
   for (const entry of container.entries) {
     if (entry.kind === 'ExecutionRecord') {
       return {
         ok: false,
         code: 'execution_record_forbidden',
-        reason: "an ExecutionRecord cannot ride in a model container: the only legal door is putExecutionRecord(record, CAPTURE_ATTESTATION) (INV-3-M)",
+        reason: 'an ExecutionRecord cannot ride in a model container: the only legal door is putExecutionRecord(record, CAPTURE_ATTESTATION) (INV-3-M)',
       }
     }
-    if (!PRODUCIBLE_KINDS.includes(entry.kind as IrKind)) {
+    if (entry.kind === 'ProblemSpec' || entry.kind === 'RequirementSpec') {
+      return {
+        ok: false,
+        code: 'input_asset_domain',
+        reason: `kind '${entry.kind}' is harness-registered (TASK-PW W1 input-asset domain): the problem statement and requirement are the harness's assets — reference them by id (${[...HARNESS_REGISTERED_KINDS].length > 0 ? 'e.g. the registered ProblemSpec/RequirementSpec ids' : ''}); declaring them is a domain violation, not a schema error`,
+      }
+    }
+    if (!MODEL_FACE_KINDS.includes(entry.kind as IrKind)) {
       return {
         ok: false,
         code: 'kind_not_producible',
-        reason: `kind '${entry.kind}' is not producible by the EXECUTE model (P1-1 whitelist: ${PRODUCIBLE_KINDS.join(', ')}); it belongs to the execution-capture or downstream stages`,
+        reason: `kind '${entry.kind}' is not producible by the EXECUTE model (model-face whitelist: ${MODEL_FACE_KINDS.join(', ')}); it belongs to the harness, the execution-capture, or downstream stages`,
       }
     }
     const kind = entry.kind as IrKind
+    const valueId = typeof entry.value['data_id'] === 'string'
+      ? entry.value['data_id']
+      : typeof entry.value['symbol_id'] === 'string'
+        ? entry.value['symbol_id']
+        : typeof entry.value['model_id'] === 'string'
+          ? entry.value['model_id']
+          : undefined
+    if (reserved !== undefined && valueId !== undefined && reserved.has(valueId)) {
+      return {
+        ok: false,
+        code: 'registered_id_redeclared',
+        reason: `entry '${kind}' re-declares '${valueId}', a harness-registered asset id (TASK-PW W1): registered assets are referenced by id, never re-declared`,
+      }
+    }
+    if (kind === 'DataArtifact') {
+      // W1 impossible-field rule: content_hash must never appear in the
+      // model's declaration domain — a dedicated refusal (not a generic
+      // schema error) so the correction message can name the rule.
+      if (entry.value['content_hash'] !== undefined) {
+        return {
+          ok: false,
+          code: 'hash_field_forbidden',
+          reason: "a model-declared DataArtifact cannot carry 'content_hash' — the sha256 of bytes that do not exist until the run is computed by the harness over the real captured output (impossible-field rule, audit finding F-A); declare { data_id, locator } only",
+        }
+      }
+      const faceCheck = modelOutputArtifactSchema.safeParse(entry.value)
+      if (!faceCheck.success) {
+        const first = faceCheck.error.issues[0]
+        const at = first !== undefined
+          ? first.path.length > 0 ? `${first.path.join('.')}: ` : ''
+          : ''
+        return {
+          ok: false,
+          code: 'schema_violation',
+          reason: `entry 'DataArtifact' violates the model-face output-pointer schema ({ data_id, locator }) — ${at}${first?.message ?? 'invalid'}`,
+        }
+      }
+      pendingOutputArtifacts.push({ data_id: faceCheck.data.data_id, locator: faceCheck.data.locator })
+      continue
+    }
     const schemaCheck = IR_SCHEMAS[kind].safeParse(entry.value)
     if (!schemaCheck.success) {
       const first = schemaCheck.error.issues[0]
@@ -208,5 +314,5 @@ export function produceContainerInto(
     written.push({ kind, id })
     onEntry?.(kind, id)
   }
-  return { ok: true, entries: written }
+  return { ok: true, entries: written, pendingOutputArtifacts }
 }

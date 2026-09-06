@@ -66,11 +66,15 @@ const textSchema = zod.string().min(1).max(65_536)
 /**
  * Closed set of roles a DataArtifact may play. `RAW_PROBLEM` is the wrapper
  * for the externally-located problem statement; `INPUT_DATA` is the wrapper
- * for an externally-located data file consumed by a RunArtifact. Adding a new
- * role requires editing this enum AND threading the role check through every
- * consumer; the closed shape is the whole point.
+ * for an externally-located data file consumed by a RunArtifact; `RUN_OUTPUT`
+ * (TASK-PW W1) is the wrapper for a run-produced output file — minted ONLY by
+ * the harness after the run, with the sha256 computed over the real captured
+ * bytes (the model never declares content_hash — the impossible-field rule,
+ * audit finding F-A). Adding a new role requires editing this enum AND
+ * threading the role check through every consumer; the closed shape is the
+ * whole point.
  */
-export const DATA_ARTIFACT_ROLES = ['RAW_PROBLEM', 'INPUT_DATA'] as const
+export const DATA_ARTIFACT_ROLES = ['RAW_PROBLEM', 'INPUT_DATA', 'RUN_OUTPUT'] as const
 export type DataArtifactRole = (typeof DATA_ARTIFACT_ROLES)[number]
 
 /**

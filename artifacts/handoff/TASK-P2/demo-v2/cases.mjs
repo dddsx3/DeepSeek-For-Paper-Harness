@@ -26,10 +26,10 @@ function baseContainer(caseDef) {
   ].join('\n')
   return {
     __dsh_paper: 'ir-container-v1',
+    // TASK-PW W1: DA-RAW / R-OUT / P1 are harness-registered (the executor
+    // registers them from the task text before this container is applied) —
+    // the model face carries only modeling-side kinds, referenced by id.
     entries: [
-      { kind: 'DataArtifact', value: { data_id: 'DA-RAW', role: 'RAW_PROBLEM', locator: `file:///problem/${caseDef.id}.txt`, content_hash: HASH, media_type: 'text/markdown', description: caseDef.problem } },
-      { kind: 'RequirementSpec', value: { requirement_id: 'R-OUT', source_data_ref: 'DA-RAW', requirement_type: 'REQUIRED_OUTPUT', statement: `Produce ${caseDef.quantityName}.` } },
-      { kind: 'ProblemSpec', value: { problem_id: 'P1', raw_problem_ref: 'DA-RAW', requirement_refs: ['R-OUT'] } },
       { kind: 'SymbolSpec', value: { symbol_id: 'SYM-q', scope_ref: 'P1', token: 'q', meaning: caseDef.quantityName, unit: caseDef.unit, role: 'VARIABLE' } },
       { kind: 'ModelSpec', value: { model_id: 'M1', problem_refs: ['P1'], assumptions: ['homogeneous slab'], variable_refs: ['SYM-q'], parameter_refs: [], equations: ['q = measured'], constraints: [], objective: 'estimate', dependencies: [] } },
     ],
@@ -91,15 +91,20 @@ const figured = {
   ],
 }
 
-export const legalCases = [polar, pond, ridge, figured].map(c => containerOf(c))
+export const legalCaseDefs = [polar, pond, ridge, figured].map(c => ({ def: c, container: containerOf(c) }))
 
-export const wrongCases = [
+const wrongDefs = [
   // TOO-GOOD on v2 slots: 0.732 vs bound Result 0.731.
-  containerOf({ ...polar, id: 'TOO-GOOD-V2', conclusion: { claims: [{ text: 'Mean ice thickness along the survey line is 0.732 m.', quantity_refs: ['RES-OUT'] }] } }),
+  { ...polar, id: 'TOO-GOOD-V2', conclusion: { claims: [{ text: 'Mean ice thickness along the survey line is 0.732 m.', quantity_refs: ['RES-OUT'] }] } },
   // Caption numeric escape (P2-3 attack 1): the figure caption quotes a
   // number the Result does not have.
-  containerOf({ ...figured, id: 'CAPTION-ESCAPE', figures: [{ figure_id: 'FIG-1', chart_type: 'bar', data_refs: ['RES-OUT'], caption: 'Thickness 0.8 m' }] }),
+  { ...figured, id: 'CAPTION-ESCAPE', figures: [{ figure_id: 'FIG-1', chart_type: 'bar', data_refs: ['RES-OUT'], caption: 'Thickness 0.8 m' }] },
 ]
+
+export const wrongCaseDefs = wrongDefs.map(c => ({ def: c, container: containerOf(c) }))
+
+export const legalCases = legalCaseDefs.map(c => c.container)
+export const wrongCases = wrongCaseDefs.map(c => c.container)
 
 function containerOf(caseDef) {
   return JSON.stringify(baseContainer(caseDef))

@@ -40,7 +40,6 @@ import {
 } from '../src/index.ts'
 import { ModelingIr } from '../src/ir/store.ts'
 
-const HASH = 'sha256:' + 'a'.repeat(64)
 
 /** The POLAR-ICE container, assembled the way the EXECUTE model would emit
  *  it (only structure; the numeric value lives in the code it writes). */
@@ -59,9 +58,8 @@ function polarContainer(overrides: {
   return JSON.stringify({
     __dsh_paper: 'ir-container-v1',
     entries: [
-      { kind: 'DataArtifact', value: { data_id: 'DA-RAW', role: 'RAW_PROBLEM', locator: 'file:///problem/polar.txt', content_hash: HASH, media_type: 'text/markdown', description: 'Estimate mean sea-ice thickness.' } },
-      { kind: 'RequirementSpec', value: { requirement_id: 'R-OUT', source_data_ref: 'DA-RAW', requirement_type: 'REQUIRED_OUTPUT', statement: 'Produce mean ice thickness.' } },
-      { kind: 'ProblemSpec', value: { problem_id: 'P1', raw_problem_ref: 'DA-RAW', requirement_refs: ['R-OUT'] } },
+      // TASK-PW W1: DA-RAW / R-OUT / P1 are harness-registered before this
+      // container is applied — the model face carries only modeling-side kinds.
       { kind: 'SymbolSpec', value: { symbol_id: 'SYM-q', scope_ref: 'P1', token: 'q', meaning: 'mean ice thickness', unit: 'm', role: 'VARIABLE' } },
       { kind: 'ModelSpec', value: { model_id: 'M1', problem_refs: ['P1'], assumptions: ['homogeneous slab'], variable_refs: ['SYM-q'], parameter_refs: [], equations: ['q = measured'], constraints: [], objective: 'estimate thickness', dependencies: [] } },
     ],
@@ -154,7 +152,18 @@ async function harness(executeText: string) {
 describe('P2-1 executor-authoritative FORMAL chain', () => {
   it('delivers POLAR-ICE end to end with Result/Claim/record in the store and a 0.731 report on disk', async () => {
     const { produceContainerInto } = await import('../src/produce/ir-producer.ts')
-    const probe = produceContainerInto(new ModelingIr(), polarContainer())
+    // TASK-PW W1: mirror the executor's input-asset registration — the
+    // model-face container references P1, which the harness registers first.
+    const probeIr = new ModelingIr()
+    for (const [kind, value] of [
+      ['DataArtifact', { data_id: 'DA-RAW', role: 'RAW_PROBLEM', locator: 'file:///problems/run/task.md', content_hash: 'sha256:' + 'c'.repeat(64), media_type: 'text/markdown', description: 'Estimate mean sea-ice thickness.' }],
+      ['RequirementSpec', { requirement_id: 'R-OUT', source_data_ref: 'DA-RAW', requirement_type: 'REQUIRED_OUTPUT', statement: 'Estimate mean sea-ice thickness.' }],
+      ['ProblemSpec', { problem_id: 'P1', raw_problem_ref: 'DA-RAW', requirement_refs: ['R-OUT'] }],
+    ] as const) {
+      const admitted = probeIr.put(kind, value as Record<string, unknown>)
+      if (!admitted.accepted) throw new Error('registration refused: ' + String(admitted.failures[0]?.reason))
+    }
+    const probe = produceContainerInto(probeIr, polarContainer())
     if (!probe.ok) throw new Error(`container refused: ${probe.code}: ${probe.reason}`)
     const { ir, engine, runId, finalRoot, outcome } = await harness(polarContainer())
     expect(outcome.status, JSON.stringify(outcome)).toBe('resolved')

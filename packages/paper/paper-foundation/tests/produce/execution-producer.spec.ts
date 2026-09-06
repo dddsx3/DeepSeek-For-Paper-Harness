@@ -41,17 +41,21 @@ function nodeCode(): string {
   ].join('\n')
 }
 
-/** Produce the P1-1 contract chain (DataArtifact..ModelSpec) into `ir`. */
+/**
+ * Produce the contract chain into `ir`. TASK-PW W1: the input assets are
+ * harness-registered (mirroring the executor's registerInputAssets with full
+ * IR shapes); the model face then writes only the modeling-side kinds.
+ */
 function seedContract(ir: ModelingIr, modelOverrides: Record<string, unknown> = {}): void {
+  ir.put('DataArtifact', dataArtifact())
+  ir.put('RequirementSpec', requirementSpec())
+  ir.put('RequirementSpec', requiredOutput())
+  ir.put('RequirementSpec', constraintRequirement())
+  ir.put('ProblemSpec', problemSpec())
   const container = JSON.stringify({
     __dsh_paper: MODEL_CONTAINER_VERSION,
     code: nodeCode(),
     entries: [
-      { kind: 'DataArtifact', value: dataArtifact() },
-      { kind: 'RequirementSpec', value: requirementSpec() },
-      { kind: 'RequirementSpec', value: requiredOutput() },
-      { kind: 'RequirementSpec', value: constraintRequirement() },
-      { kind: 'ProblemSpec', value: problemSpec() },
       { kind: 'SymbolSpec', value: variableSymbol() },
       { kind: 'SymbolSpec', value: parameterSymbol() },
       { kind: 'ModelSpec', value: modelSpec(modelOverrides) },

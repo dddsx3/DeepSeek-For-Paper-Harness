@@ -35,10 +35,10 @@ function baseContainer(caseDef) {
   ].join('\n')
   return {
     __dsh_paper: 'ir-container-v1',
+    // TASK-PW W1: DA-RAW / R-OUT / P1 are harness-registered (the executor
+    // registers them from the task text before this container is applied) —
+    // the model face carries only modeling-side kinds, referenced by id.
     entries: [
-      { kind: 'DataArtifact', value: { data_id: 'DA-RAW', role: 'RAW_PROBLEM', locator: `file:///problem/${caseDef.id}.txt`, content_hash: HASH, media_type: 'text/markdown', description: caseDef.problem } },
-      { kind: 'RequirementSpec', value: { requirement_id: 'R-OUT', source_data_ref: 'DA-RAW', requirement_type: 'REQUIRED_OUTPUT', statement: `Produce ${caseDef.quantityName}.` } },
-      { kind: 'ProblemSpec', value: { problem_id: 'P1', raw_problem_ref: 'DA-RAW', requirement_refs: ['R-OUT'] } },
       { kind: 'SymbolSpec', value: { symbol_id: 'SYM-q', scope_ref: 'P1', token: 'q', meaning: caseDef.quantityName, unit: caseDef.unit, role: 'VARIABLE' } },
       { kind: 'ModelSpec', value: { model_id: 'M1', problem_refs: ['P1'], assumptions: ['homogeneous slab'], variable_refs: ['SYM-q'], parameter_refs: [], equations: ['q = measured'], constraints: [], objective: 'estimate', dependencies: [] } },
     ],
@@ -109,24 +109,24 @@ const rounded = {
   },
 }
 
-export const legalCases = [polar, pond, ridge, figured, rounded].map(c => containerOf(c))
+export const legalCaseDefs = [polar, pond, ridge, figured, rounded].map(c => ({ def: c, container: containerOf(c) }))
 
-export const wrongCases = [
+const wrongDefs = [
   // P3-1 kill: prose overclaim — the narrative promises a comparison the
   // store has no Result for. The deterministic layer refuses (0.99 is not a
   // bound value); on the reviewer path this is an evidenced
   // claim_without_evidence finding (P3-1 attack 1 as a corpus leaf).
-  containerOf({
+  ({
     ...polar, id: 'SEMANTIC-OVERCLAIM', title: 'SEMANTIC-OVERCLAIM kill',
     conclusion: 'Mean ice thickness is 0.731 m, outperforming every baseline by 0.99.',
   }),
   // P3-2 kill: ≈ without a representation declaration.
-  containerOf({
+  ({
     ...rounded, id: 'ROUND-ESCAPE', title: 'ROUND-ESCAPE kill',
     conclusion: { claims: [{ text: 'Mean ice thickness is ≈0.73 m.', quantity_refs: ['RES-OUT'] }] },
   }),
   // P3-4 kill: same uniqueness key twice (same refs + chart_type + style).
-  containerOf({
+  ({
     ...figured, id: 'DUP-FIGURE', title: 'DUP-FIGURE kill',
     figures: [
       { figure_id: 'FIG-1', chart_type: 'bar', data_refs: ['RES-OUT'], caption: 'Thickness bars' },
@@ -134,13 +134,18 @@ export const wrongCases = [
     ],
   }),
   // P2 kills re-run on v3 (禁9: kills never expire with the version bump).
-  containerOf({ ...polar, id: 'TOO-GOOD-V2', title: 'TOO-GOOD-V2 kill', conclusion: { claims: [{ text: 'Mean ice thickness along the survey line is 0.732 m.', quantity_refs: ['RES-OUT'] }] } }),
-  containerOf({ ...figured, id: 'CAPTION-ESCAPE', title: 'CAPTION-ESCAPE kill', figures: [{ figure_id: 'FIG-1', chart_type: 'bar', data_refs: ['RES-OUT'], caption: 'Thickness 0.8 m' }] }),
-  containerOf({
+  ({ ...polar, id: 'TOO-GOOD-V2', title: 'TOO-GOOD-V2 kill', conclusion: { claims: [{ text: 'Mean ice thickness along the survey line is 0.732 m.', quantity_refs: ['RES-OUT'] }] } }),
+  ({ ...figured, id: 'CAPTION-ESCAPE', title: 'CAPTION-ESCAPE kill', figures: [{ figure_id: 'FIG-1', chart_type: 'bar', data_refs: ['RES-OUT'], caption: 'Thickness 0.8 m' }] }),
+  ({
     ...polar, id: 'OVER-PROMISE', title: 'OVER-PROMISE kill',
     conclusion: 'Mean ice thickness is 0.731 m and ridge density is 2.4 km^-1 across both corridors.',
   }),
 ]
+
+export const wrongCaseDefs = wrongDefs.map(c => ({ def: c, container: containerOf(c) }))
+
+export const legalCases = legalCaseDefs.map(c => c.container)
+export const wrongCases = wrongCaseDefs.map(c => c.container)
 
 function containerOf(caseDef) {
   return JSON.stringify(baseContainer(caseDef))

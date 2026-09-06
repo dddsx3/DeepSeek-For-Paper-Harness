@@ -39,7 +39,7 @@ import {
   WorkflowEngineService,
 } from '../../../../packages/paper/paper-foundation/src/index.ts'
 import { ModelingIr } from '../../../../packages/paper/paper-foundation/src/ir/store.ts'
-import { legalCases, wrongCases } from './cases.mjs'
+import { legalCaseDefs, wrongCaseDefs } from './cases.mjs'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const OUT_ROOT = join(here, 'output')
@@ -69,7 +69,7 @@ function redact(text) {
 }
 
 /** Run one container through the executor as the single entry. */
-async function runLeaf(containerJson) {
+async function runLeaf(containerJson, taskText) {
   const ctx = new Context()
   await ctx.plugin(Storage)
   ctx.storage.backend.register('memory', new MemoryStorageBackend(new MemoryMediaPool()))
@@ -114,7 +114,7 @@ async function runLeaf(containerJson) {
   const engine = ctx.paperWorkflow.runs
   const run = await engine.startRun({ mode: 'strict', harnessVersion: 'test', configHash: 'sha256:p3demo' })
   try {
-    const outcome = await ctx.paperExecutor.runs.execute(RunId(run.id), 'estimate the quantity')
+    const outcome = await ctx.paperExecutor.runs.execute(RunId(run.id), taskText)
     return { ok: true, ctx, ir, engine, runId: String(run.id), finalRoot, outcome }
   } catch (error) {
     return { ok: false, error: error instanceof Error ? error.message : String(error), ctx, ir, engine, runId: String(run.id), finalRoot }
@@ -125,9 +125,9 @@ async function main() {
   const summary = { legal: [], wrong: [], falseBlockRate: null, semanticFalseKillRate: null }
   let exit = 0
 
-  for (const container of legalCases) {
+  for (const { def, container } of legalCaseDefs) {
     try {
-      const result = await runLeaf(container)
+      const result = await runLeaf(container, def.problem)
       if (!result.ok) {
         summary.legal.push({ id: 'unknown', status: 'FALSE_BLOCK', message: redact(result.error) })
         exit = 1
@@ -143,8 +143,7 @@ async function main() {
       const finalDir = join(result.finalRoot, result.runId, 'final')
       const files = await readdir(finalDir)
       const report = await readFile(join(finalDir, files[0]), 'utf8')
-      const parsed = JSON.parse(container)
-      const id = String(parsed.narrative?.title ?? 'leaf')
+      const id = String(def.title)
       const caseOut = join(OUT_ROOT, id)
       mkdirSync(caseOut, { recursive: true })
       await writeFile(join(caseOut, 'report.md'), report, 'utf8')
@@ -178,33 +177,32 @@ async function main() {
     }
   }
 
-  for (const container of wrongCases) {
-    const result = await runLeaf(container)
+  for (const { def, container } of wrongCaseDefs) {
+    const result = await runLeaf(container, def.problem)
     if (result.ok && result.engine?.getRun(RunId(result.runId))?.status === 'completed') {
       summary.wrong.push({ id: 'escape', status: 'ESCAPED' })
       exit = 1
       continue
     }
-    const parsed = JSON.parse(container)
-    const id = String(parsed.narrative?.title ?? 'leaf')
+    const id = String(def.title)
     summary.wrong.push({ id, status: 'KILLED', message: redact(result.ok ? `run ${String(result.engine?.getRun(RunId(result.runId))?.status)}` : (result.error?.split('\n')[0] ?? '')) })
     console.log(`[KILL] ${id}: refused (run not completed)`)
   }
 
   const legalPass = summary.legal.filter(c => c.status === 'PASS').length
-  summary.falseBlockRate = `${legalCases.length - legalPass}/${legalCases.length}`
+  summary.falseBlockRate = `${legalCaseDefs.length - legalPass}/${legalCaseDefs.length}`
   // FBR 双口径: 结构 FBR + 语义误杀率 (evidenced semantic findings on legal leaves).
   // The fake reviewer returns a clean verdict, so any semantic false-kill
   // would have to be minted by the harness itself — 0 expected; recorded so
   // a future regression is visible in the summary, not just in the specs.
   const semanticFalseKills = summary.legal.filter(c => (c.message ?? '').includes('semantic')).length
-  summary.semanticFalseKillRate = `${semanticFalseKills}/${legalCases.length}`
+  summary.semanticFalseKillRate = `${semanticFalseKills}/${legalCaseDefs.length}`
   const killed = summary.wrong.filter(c => c.status === 'KILLED').length
-  console.log(`\nlegal PASS ${legalPass}/${legalCases.length} (False Block Rate ${summary.falseBlockRate}; semantic false-kill ${summary.semanticFalseKillRate})`)
-  console.log(`wrong KILLED ${killed}/${wrongCases.length}`)
+  console.log(`\nlegal PASS ${legalPass}/${legalCaseDefs.length} (False Block Rate ${summary.falseBlockRate}; semantic false-kill ${summary.semanticFalseKillRate})`)
+  console.log(`wrong KILLED ${killed}/${wrongCaseDefs.length}`)
   mkdirSync(OUT_ROOT, { recursive: true })
   await writeFile(join(OUT_ROOT, 'summary.json'), JSON.stringify(summary, null, 2), 'utf8')
-  if (legalPass !== legalCases.length || killed !== wrongCases.length || exit !== 0) {
+  if (legalPass !== legalCaseDefs.length || killed !== wrongCaseDefs.length || exit !== 0) {
     console.error('P3 demo v3: not all legal leaves delivered and/or not all wrong leaves killed')
     process.exitCode = 1
   } else {

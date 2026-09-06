@@ -25,13 +25,8 @@ import {
 } from '../src/index.ts'
 import { ModelingIr } from '../src/ir/store.ts'
 import {
-  dataArtifact,
-  requirementSpec,
-  requiredOutput,
-  constraintRequirement,
   variableSymbol,
   parameterSymbol,
-  problemSpec,
   modelSpec,
 } from './ir/fixtures.ts'
 import { MODEL_CONTAINER_VERSION } from '../src/produce/ir-producer.ts'
@@ -50,12 +45,11 @@ function legalContainer(): string {
     // production chain (needs options.produceRun); this suite tests the
     // container→store shape that predates the chain (the chain itself is
     // covered by executor-authoritative.spec.ts).
+    // TASK-PW W1: the model face carries modeling-side kinds only. The
+    // harness-registered input assets (DA-RAW / R-OUT / P1) are pre-registered
+    // in the store by the test harness (mirroring the executor's
+    // registerInputAssets) so the reference closure resolves.
     entries: [
-      { kind: 'DataArtifact', value: dataArtifact() },
-      { kind: 'RequirementSpec', value: requirementSpec() },
-      { kind: 'RequirementSpec', value: requiredOutput() },
-      { kind: 'RequirementSpec', value: constraintRequirement() },
-      { kind: 'ProblemSpec', value: problemSpec() },
       { kind: 'SymbolSpec', value: variableSymbol() },
       { kind: 'SymbolSpec', value: parameterSymbol() },
       { kind: 'ModelSpec', value: modelSpec() },
@@ -132,14 +126,20 @@ describe('P1-1 executor wiring — produceFromExecute', () => {
     const { ctx, ir } = await harness(legalContainer)
     const result = await run(ctx)
     expect(result.status, result.message).toBe('completed')
+    // TASK-PW W1: ProblemSpec/RequirementSpec/DataArtifact are now
+    // harness-registered (registerInputAssets) — the model face wrote only
+    // SymbolSpec x2 + ModelSpec; the store holds the registered assets too.
     const kinds = new Set(ir.list().map(r => r.kind))
     expect(kinds.has('ProblemSpec')).toBe(true)
     expect(kinds.has('ModelSpec')).toBe(true)
     expect(kinds.has('SymbolSpec')).toBe(true)
-    expect(ir.list().filter(r => r.kind === 'RequirementSpec')).toHaveLength(3)
+    expect(kinds.has('DataArtifact')).toBe(true)
+    expect(kinds.has('RequirementSpec')).toBe(true)
     const audit = ctx.paperAudit.list().map(e => e.eventType)
     const written = audit.filter(t => t === 'ir_entry_written')
-    expect(written).toHaveLength(8)
+    // 3 model-written + 3 harness-registered =
+    // 6 ir_entry_written events.
+    expect(written).toHaveLength(6)
   })
 
   it('refuses a schema-violating container, retries, and BLOCKs the run (no IR written)', async () => {
@@ -153,6 +153,8 @@ describe('P1-1 executor wiring — produceFromExecute', () => {
     const err = { code: 'gate-failed', message: result.message }
     expect(err?.code).toBe('gate-failed')
     expect(String(err?.message)).toMatch(/not a schema-valid|EXECUTE output refused/)
-    expect(ir.size).toBe(0)
+    // W1: the harness-registered input assets (3) are legitimately present;
+    // the model's poisoned container wrote nothing on top of them.
+    expect(ir.size).toBe(3)
   })
 })

@@ -23,6 +23,7 @@ import type { DeliveryDecision, DeliveryPolicy } from './delivery/delivery-polic
 import { makeCandidateArtifact } from './delivery/artifact-states.ts'
 import { promoteCandidateToDeliverable } from './delivery/promoter.ts'
 import { ModelingIr } from './ir/store.ts'
+import { sha256Hex } from './ir/index.ts'
 import { resolveRunPolicy } from './policy.ts'
 import { parseModelContainer, produceContainerInto } from './produce/ir-producer.ts'
 import { produceRunExecution } from './produce/execution-producer.ts'
@@ -129,16 +130,16 @@ export interface SemanticContext {
 export const EXECUTE_PROTOCOL_TEACHING = [
   'Produce ONE JSON object — the ir-container-v1 — and nothing else. No prose, no markdown fences, no schema of your own.',
   'Shape: {"__dsh_paper":"ir-container-v1","entries":[...],"code":"...","run":{...},"interpretations":{...},"narrative":{...}}.',
-  '  entries: an array of objects, each EXACTLY {"kind": <KIND>, "value": <object>}. The kind strings are: "DataArtifact", "RequirementSpec", "ProblemSpec", "SymbolSpec", "ModelSpec". The kind itself is the record type; everything else lives inside "value".',
-  '    DataArtifact value: {"data_id","role":"RAW_PROBLEM","locator","content_hash","media_type","description"} — "RAW_PROBLEM" is the ROLE FIELD INSIDE the value, never a kind.',
-  '    RequirementSpec value: {"requirement_id","source_data_ref","requirement_type":"REQUIRED_OUTPUT","statement"} — "REQUIRED_OUTPUT" is the requirement_type field, never a kind.',
-  '    ProblemSpec value: {"problem_id","raw_problem_ref","requirement_refs"}; SymbolSpec value: {"symbol_id","scope_ref","token","meaning","unit","role":"VARIABLE"}; ModelSpec value: {"model_id","problem_refs","assumptions","variable_refs","parameter_refs","equations","constraints","objective","dependencies"}.',
+  '  entries: an array of objects, each EXACTLY {"kind": <KIND>, "value": <object>}. The ONLY kinds you may declare are "SymbolSpec", "ModelSpec", and (optionally) "DataArtifact". The harness has ALREADY registered the problem assets for you — DataArtifact "DA-RAW" (the raw problem), RequirementSpec "R-OUT" (the requirement), ProblemSpec "P1" (the binding). NEVER declare those three: reference them by id instead (your ModelSpec sets problem_refs: ["P1"]). Re-declaring a registered id refuses the container.',
+  '    SymbolSpec value: {"symbol_id","scope_ref":"P1","token","meaning","unit","role":"VARIABLE"}.',
+  '    ModelSpec value: {"model_id","problem_refs":["P1"],"assumptions","variable_refs","parameter_refs","equations","constraints","objective","dependencies"} — dependencies is an array; every field is required.',
+  '    DataArtifact (optional, output-pointer form) value: {"data_id","locator"} — locator is one of YOUR outputBasenames. NEVER write content_hash anywhere: every sha256 is computed by the harness over real bytes (declaring one refuses the container — the hash of bytes that do not exist yet cannot be known).',
   '  code: executable Node JavaScript that WRITES the measured numbers to the declared output files. All arithmetic happens here; never state a computed number anywhere else.',
   '  run: the ONLY fields are "outputBasenames" (the file names your code writes) and "seed" (an integer). No other key is accepted.',
   '  interpretations: declaration-based. results: [{ result_id, name, source: { locator: <one outputBasenames entry>, jsonPath: <path to the number inside that file> }, unit }]. The locator must be one of your declared outputs; every Result reads its value via jsonPath — never a literal number.',
   '  interpretations.figures (optional): [{ figure_id, chart_type: "line"|"scatter"|"bar"|"table", data_refs: [Result ids], caption? }] — structure only; the harness renders the bytes and computes every hash.',
   '  narrative: { title, conclusion: { claims: [{ text, quantity_refs: [Result ids], representation? }] } } — a conclusion number must be the bound Result value verbatim, or an explicitly declared rendering: {"kind":"rounded","dp":<0..20>} or {"kind":"with_uncertainty","uncertainty_refs":[...]}.',
-  'The container is refused (and the attempt fails) if: any entry kind is not one of the five strings above, any number appears outside code/declarations, a jsonPath is missing or does not resolve to a finite number, the run block carries a foreign key, or the conclusion states an undeclared rounding.',
+  'The container is refused (and the attempt fails) if: you declare kind "ProblemSpec" or "RequirementSpec", or re-declare "DA-RAW"; you write content_hash anywhere; an entry kind is not one of the three above; a number appears outside code/declarations; a jsonPath is missing or does not resolve to a finite number; the run block carries a foreign key; or the conclusion states an undeclared rounding.',
 ].join('\n')
 
 /** Minimal audit sink the executor needs; {@link PaperAuditService} satisfies it. */
@@ -359,7 +360,7 @@ export class WorkflowExecutor {
             : 'Produce the deliverable text for the task.',
           trimPriority: KEEP,
         },
-      ])
+      ], input)
 
       let current = draft.text
       // E4a (P2, sign-off A): defects accumulate ACROSS rounds. A defect
@@ -564,6 +565,70 @@ export class WorkflowExecutor {
    * the mode in which no fact has been asserted yet.
    */
   /**
+   * TASK-PW W1 (W-C sign-off A): register the problem-side input assets the
+   * model is never allowed to declare — the RAW_PROBLEM DataArtifact (whose
+   * content_hash the harness computes over the real task text), the
+   * REQUIRED_OUTPUT RequirementSpec (statement = the task as asked), and the
+   * ProblemSpec binding them. The model references these ids; re-declaring
+   * them is a declaration refusal (see produceContainerInto's domain rules).
+   *
+   * Idempotent within a store: a second execute against the same IR skips
+   * registration (the assets are already there).
+   *
+   * @returns the reserved id set handed to the container admission so a
+   *          model-declared id collision is a domain refusal.
+   */
+  private async registerInputAssets(
+    runId: RunId,
+    ir: ModelingIr,
+    taskText: string,
+  ): Promise<ReadonlySet<string>> {
+    const RESERVED = new Set<string>(['DA-RAW', 'R-OUT', 'P1'])
+    if (ir.get('DA-RAW') !== undefined) return RESERVED
+
+    const problemBytes = taskText
+    const problemHash = `sha256:${sha256Hex(problemBytes)}`
+    const problemLocator = `file:///problems/${String(runId)}/task.md`
+
+    const putOrThrow = (kind: 'DataArtifact' | 'RequirementSpec' | 'ProblemSpec', value: Record<string, unknown>) => {
+      const verdict = ir.put(kind, value)
+      if (!verdict.accepted) {
+        const failure = verdict.failures[0]
+        throw new Error(`input asset registration refused (${kind}): ${failure !== undefined ? `${failure.kind}: ${failure.reason}` : 'store refused'}`)
+      }
+      return value
+    }
+
+    const daRaw = putOrThrow('DataArtifact', {
+      data_id: 'DA-RAW',
+      role: 'RAW_PROBLEM',
+      locator: problemLocator,
+      content_hash: problemHash,
+      media_type: 'text/markdown',
+      description: taskText.slice(0, 512),
+    })
+    void daRaw
+    await this.audit({ eventType: 'ir_entry_written', actor: 'paper-executor', runId, detail: { kind: 'DataArtifact', id: 'DA-RAW', stage: 'input-registration' } })
+
+    putOrThrow('RequirementSpec', {
+      requirement_id: 'R-OUT',
+      source_data_ref: 'DA-RAW',
+      requirement_type: 'REQUIRED_OUTPUT',
+      statement: taskText.slice(0, 2048),
+    })
+    await this.audit({ eventType: 'ir_entry_written', actor: 'paper-executor', runId, detail: { kind: 'RequirementSpec', id: 'R-OUT', stage: 'input-registration' } })
+
+    putOrThrow('ProblemSpec', {
+      problem_id: 'P1',
+      raw_problem_ref: 'DA-RAW',
+      requirement_refs: ['R-OUT'],
+    })
+    await this.audit({ eventType: 'ir_entry_written', actor: 'paper-executor', runId, detail: { kind: 'ProblemSpec', id: 'P1', stage: 'input-registration' } })
+
+    return RESERVED
+  }
+
+  /**
    * P2-1 (D7 obligation): run the FULL production chain inside the EXECUTE
    * stage when the model's container carries executable code.
    *
@@ -589,6 +654,7 @@ export class WorkflowExecutor {
       readonly narrative?: Record<string, unknown>
       readonly entries: ReadonlyArray<{ kind: string; value: Record<string, unknown> }>
     },
+    pendingOutputArtifacts: ReadonlyArray<{ data_id: string; locator: string }> = [],
   ): Promise<
     { ok: true; reportText: string; loadCode: (ref: string) => string }
     | { ok: false; code: string; reason: string }
@@ -652,6 +718,33 @@ export class WorkflowExecutor {
     }
     await this.audit({ eventType: 'ir_entry_written', actor: 'paper-executor', runId, detail: { kind: 'RunArtifact', id: executed.runArtifactId, nodeId: 'execute', stage: 'code-run' } })
     await this.audit({ eventType: 'ir_entry_written', actor: 'paper-executor', runId, detail: { kind: 'ExecutionRecord', id: executed.executionId, nodeId: 'execute', stage: 'code-run' } })
+
+    // TASK-PW W1 (hash backfill): the model's declared output artifacts are
+    // minted HERE with the sha256 computed over the real captured bytes —
+    // the model declared only { data_id, locator } and never a hash (the
+    // impossible-field rule). A locator that is not one of the run's real
+    // outputs refuses (locator closure: pointing semantics only).
+    const outputBytes = new Map(executed.outputs.map(o => [o.locator, o.bytes]))
+    for (const pending of pendingOutputArtifacts) {
+      const outputLocator = `file:///runs/${runIdText}/${pending.locator}`
+      const bytes = outputBytes.get(outputLocator)
+      if (bytes === undefined) {
+        return { ok: false, code: 'OUTPUT_ARTIFACT_LOCATOR_INVALID', reason: `output artifact '${pending.data_id}' points at '${pending.locator}' which the run did not produce (declared outputs: [${outputBasenames.join(', ')}]) — a DataArtifact locator may only name a run output basename (W1 locator closure)` }
+      }
+      const minted = ir.put('DataArtifact', {
+        data_id: pending.data_id,
+        role: 'RUN_OUTPUT',
+        locator: outputLocator,
+        content_hash: `sha256:${sha256Hex(bytes)}`,
+        media_type: 'application/json',
+        description: 'run-produced output artifact; hash computed by the harness over the captured bytes',
+      })
+      if (!minted.accepted) {
+        const failure = minted.failures[0]
+        return { ok: false, code: 'OUTPUT_ARTIFACT_REFUSED', reason: `output artifact '${pending.data_id}' could not be registered: ${failure !== undefined ? `${failure.kind}: ${failure.reason}` : 'store refused'}` }
+      }
+      await this.audit({ eventType: 'ir_entry_written', actor: 'paper-executor', runId, detail: { kind: 'DataArtifact', id: pending.data_id, nodeId: 'execute', stage: 'hash-backfill' } })
+    }
 
     const figureAssets: Array<{ figureId: string; data_hash: string; svg: string }> = []
     const interpretations = container.interpretations
@@ -851,6 +944,9 @@ export class WorkflowExecutor {
     title: string,
     role: PaperRole,
     sections: readonly PromptSection[],
+    /** TASK-PW W1: the raw task text, threaded only for the producing
+     *  EXECUTE path (the harness registers the input assets from it). */
+    taskText?: string,
   ): Promise<{ nodeId: NodeRecord['id']; text: string }> {
     const mode = this.runOf(runId).mode
     const policy = resolveRunPolicy(mode)
@@ -892,10 +988,15 @@ export class WorkflowExecutor {
             ;(err as { code?: string }).code = 'IR_PRODUCER_NOT_CONFIGURED'
             throw err
           }
-          const verdict = produceContainerInto(ir, text)
+          // TASK-PW W1: the harness registers the problem-side input assets
+          // (RAW_PROBLEM DataArtifact + RequirementSpec + ProblemSpec) BEFORE
+          // the model container is applied — the model references them by id
+          // and must never re-declare them (W-C input-asset domain).
+          const reserved = await this.registerInputAssets(runId, ir, taskText ?? '')
+          const verdict = produceContainerInto(ir, text, undefined, { reservedIds: reserved })
           if (!verdict.ok) {
             const err = new Error(`EXECUTE output refused by the IR producer: ${verdict.reason}`)
-            ;(err as { code?: string }).code = 'IR_PRODUCER_REFUSED'
+            ;(err as { code?: string }).code = verdict.code
             throw err
           }
           for (const entry of verdict.entries) {
@@ -915,7 +1016,7 @@ export class WorkflowExecutor {
           // longer the only way to a FORMAL delivery.
           const container = parseModelContainer(text)
           if (container.ok && (container.container.code?.length ?? 0) > 0) {
-            const chain = await this.runProductionChain(runId, ir, container.container)
+            const chain = await this.runProductionChain(runId, ir, container.container, verdict.pendingOutputArtifacts)
             if (!chain.ok) {
               const err = new Error(`EXECUTE production chain refused: ${chain.reason}`)
               ;(err as { code?: string }).code = chain.code
