@@ -57,6 +57,44 @@ async function runLeaf(caseDef) {
 
   // ---- P1-1: contract kinds into the canonical store. ----
   const ir = new ModelingIr()
+  // TASK-PW W1: DA-RAW / R-OUT / R-OUT2 / P1 are harness-registered
+  // BEFORE the model-face container is applied — mirroring the
+  // executor's registerInputAssets (the harness computes the real
+  // problem hash; the model never declares input assets or hashes).
+  const putInputAsset = (kind, value) => {
+    const admitted = ir.put(kind, value)
+    if (!admitted.accepted) {
+      const failure = admitted.failures[0]
+      throw new Error(`input asset registration refused (${kind}): ${failure !== undefined ? `${failure.kind}: ${failure.reason}` : 'store refused'}`)
+    }
+  }
+  putInputAsset('DataArtifact', {
+    data_id: 'DA-RAW',
+    role: 'RAW_PROBLEM',
+    locator: `file:///problems/${runId}/task.md`,
+    content_hash: `sha256:${sha256(caseDef.problemText)}`,
+    media_type: 'text/markdown',
+    description: caseDef.problemText,
+  })
+  putInputAsset('RequirementSpec', {
+    requirement_id: 'R-OUT',
+    source_data_ref: 'DA-RAW',
+    requirement_type: 'REQUIRED_OUTPUT',
+    statement: `Produce ${caseDef.quantity.name}.`,
+  })
+  if (caseDef.extraOutput !== undefined) {
+    putInputAsset('RequirementSpec', {
+      requirement_id: 'R-OUT2',
+      source_data_ref: 'DA-RAW',
+      requirement_type: 'REQUIRED_OUTPUT',
+      statement: caseDef.extraOutput,
+    })
+  }
+  putInputAsset('ProblemSpec', {
+    problem_id: 'P1',
+    raw_problem_ref: 'DA-RAW',
+    requirement_refs: caseDef.extraOutput === undefined ? ['R-OUT'] : ['R-OUT', 'R-OUT2'],
+  })
   const produce = produceContainerInto(ir, text)
   if (!produce.ok) {
     return { ok: false, refusedAt: 'produceContainerInto', code: produce.code, reason: produce.reason }

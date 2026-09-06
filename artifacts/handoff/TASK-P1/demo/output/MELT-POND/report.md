@@ -15,4 +15,4 @@ The melt-pond fraction of the sampled area is 0.042.
 Optical classification over the orthophoto grid.
 
 ---
-*v1 template report — machine numbers rendered from canonical IR Result records; prose conclusion may not introduce key numbers.*
+*template report v2 — machine numbers rendered from canonical IR Result records; conclusion numbers arrive via slots or guarded prose; figures are rendered by the fixed harness renderer.*

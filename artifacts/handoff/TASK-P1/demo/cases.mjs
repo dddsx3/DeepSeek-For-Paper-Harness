@@ -19,8 +19,6 @@
  * @module artifacts/handoff/TASK-P1/demo/cases
  */
 
-const HASH_PLACEHOLDER = 'sha256:' + 'a'.repeat(64)
-
 /** Assemble the canonical container the model would emit for a case. */
 export function containerFor(caseDef) {
   const key = caseDef.quantity.key
@@ -32,51 +30,11 @@ export function containerFor(caseDef) {
     `fs.writeFileSync("result.json", ${JSON.stringify(outputJson)});`,
     'console.log("run ok");',
   ].join('\n')
-  const requirementRefs = caseDef.extraOutput === undefined
-    ? ['R-OUT']
-    : ['R-OUT', 'R-OUT2']
   const entries = [
-    {
-      kind: 'DataArtifact',
-      value: {
-        data_id: 'DA-RAW',
-        role: 'RAW_PROBLEM',
-        locator: `file:///problem/${caseDef.id}.txt`,
-        content_hash: HASH_PLACEHOLDER,
-        media_type: 'text/markdown',
-        description: caseDef.problemText,
-      },
-    },
-    {
-      kind: 'RequirementSpec',
-      value: {
-        requirement_id: 'R-OUT',
-        source_data_ref: 'DA-RAW',
-        requirement_type: 'REQUIRED_OUTPUT',
-        statement: `Produce ${caseDef.quantity.name}.`,
-      },
-    },
-  ]
-  if (caseDef.extraOutput !== undefined) {
-    entries.push({
-      kind: 'RequirementSpec',
-      value: {
-        requirement_id: 'R-OUT2',
-        source_data_ref: 'DA-RAW',
-        requirement_type: 'REQUIRED_OUTPUT',
-        statement: caseDef.extraOutput,
-      },
-    })
-  }
-  entries.push(
-    {
-      kind: 'ProblemSpec',
-      value: {
-        problem_id: 'P1',
-        raw_problem_ref: 'DA-RAW',
-        requirement_refs: requirementRefs,
-      },
-    },
+    // TASK-PW W1: DA-RAW / R-OUT / P1 (+ R-OUT2 when extraOutput) are
+    // harness-registered before this container is applied (mirroring the
+    // executor's registerInputAssets) — the model face carries only
+    // modeling-side kinds, referenced by id.
     {
       kind: 'SymbolSpec',
       value: {
@@ -102,7 +60,7 @@ export function containerFor(caseDef) {
         dependencies: [],
       },
     },
-  )
+  ]
   return {
     __dsh_paper: 'ir-container-v1',
     entries,

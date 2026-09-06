@@ -15,4 +15,4 @@ Ridge density along the corridor is 2.4 km^-1.
 Peak detection on the laser profile.
 
 ---
-*v1 template report — machine numbers rendered from canonical IR Result records; prose conclusion may not introduce key numbers.*
+*template report v2 — machine numbers rendered from canonical IR Result records; conclusion numbers arrive via slots or guarded prose; figures are rendered by the fixed harness renderer.*

@@ -15,4 +15,4 @@ Mean ice thickness along the survey line is 0.731 m.
 Deterministic averaging over the survey cells.
 
 ---
-*v1 template report — machine numbers rendered from canonical IR Result records; prose conclusion may not introduce key numbers.*
+*template report v2 — machine numbers rendered from canonical IR Result records; conclusion numbers arrive via slots or guarded prose; figures are rendered by the fixed harness renderer.*
