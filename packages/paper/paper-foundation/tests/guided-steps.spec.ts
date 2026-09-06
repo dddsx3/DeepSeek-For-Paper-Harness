@@ -127,23 +127,23 @@ describe('T2 guided steps — red-team leaves', () => {
   it('攻击2a: a free data_id (not a harness candidate) is refused', () => {
     const afterStep1 = admitted(admitGuidedStep(startGuidedSession(), 1, RUN_JSON))
     const free = JSON.stringify({ results: [{ data_id: 'MY-INVENTED-ID', locator: 'result.json', jsonPath: 'mean_thickness', unit: 'm' }] })
-    const verdict = admitGuidedStep(afterStep1, 2, free)
-    expect(verdict.code).toBe('free_id')
+    const { code } = refused(admitGuidedStep(afterStep1, 2, free))
+    expect(code).toBe('free_id')
   })
 
   it('攻击2b: a unit outside the closed table is refused', () => {
     const afterStep1 = admitted(admitGuidedStep(startGuidedSession(), 1, RUN_JSON))
     const freeUnit = JSON.stringify({ results: [{ data_id: 'RES-OUT', locator: 'result.json', jsonPath: 'mean_thickness', unit: 'parsecs' }] })
-    const verdict = admitGuidedStep(afterStep1, 2, freeUnit)
-    expect(verdict.code).toBe('free_structure')
+    const { code } = refused(admitGuidedStep(afterStep1, 2, freeUnit))
+    expect(code).toBe('free_structure')
   })
 
   it('攻击3: a claim referencing an unledgered result is refused', () => {
     let session = admitted(admitGuidedStep(startGuidedSession(), 1, RUN_JSON))
     session = admitted(admitGuidedStep(session, 2, RESULT_JSON))
     const dangling = JSON.stringify({ claims: [{ claim_id: 'C-OUT', text: 'x is 0.731', result_refs: ['RES-NOPE'], criticality: 'CRITICAL' }] })
-    const verdict = admitGuidedStep(session, 3, dangling)
-    expect(verdict.code).toBe('unledgered_reference')
+    const { code } = refused(admitGuidedStep(session, 3, dangling))
+    expect(code).toBe('unledgered_reference')
   })
 
   it('攻击4: a full container smuggled past the wizard is refused', () => {
@@ -151,8 +151,8 @@ describe('T2 guided steps — red-team leaves', () => {
       __dsh_paper: 'ir-container-v1',
       entries: [{ kind: 'ModelSpec', value: { model_id: 'M1' } }],
     })
-    const verdict = admitGuidedStep(startGuidedSession(), 1, full)
-    expect(verdict.code).toBe('bypass_container')
+    const { code } = refused(admitGuidedStep(startGuidedSession(), 1, full))
+    expect(code).toBe('bypass_container')
   })
 
   it('step out of order is refused (步 1 未准入不进入步 2)', () => {
@@ -164,7 +164,7 @@ describe('T2 guided steps — red-team leaves', () => {
   })
 
   it('prose (non-JSON) in a step is refused as schema_violation', () => {
-    const verdict = admitGuidedStep(startGuidedSession(), 1, 'I will write the run declaration carefully.')
-    expect(verdict.code).toBe('schema_violation')
+    const { code } = refused(admitGuidedStep(startGuidedSession(), 1, 'I will write the run declaration carefully.'))
+    expect(code).toBe('schema_violation')
   })
 })
