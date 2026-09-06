@@ -202,9 +202,9 @@ async function finalReport(result: HarnessResult): Promise<string> {
 describe('T2 guided steps — executor end to end', () => {
   it('happy path: three steps deliver the SAME report sha256 as the T1 container path', async () => {
     const t1 = await tierHarness('T1', [t1Container()])
-    expect(t1.outcome.status, t1.outcome.message).toBe('resolved')
+    expect(t1.outcome.status, 'T1 ' + (t1.outcome as { message?: string }).message).toBe('resolved')
     const t2 = await tierHarness('T2', [STEP1_OK, STEP2_OK, STEP3_OK])
-    expect(t2.outcome.status, t2.outcome.message).toBe('resolved')
+    expect(t2.outcome.status, 'T2 ' + (t2.outcome as { message?: string }).message).toBe('resolved')
     const t1Report = await finalReport(t1)
     const t2Report = await finalReport(t2)
     // T2 三步走完 → 与 T1 等价交付: the assembled container flows through
@@ -228,7 +228,7 @@ describe('T2 guided steps — executor end to end', () => {
     })
     const { ctx, runId, outcome, provider } = await tierHarness('T2',
       [STEP1_OK, mixedStep2, STEP2_OK, STEP3_OK])
-    expect(outcome.status, outcome.message).toBe('resolved')
+    expect(outcome.status, (outcome as { message?: string }).message).toBe('resolved')
     expect(ctx.paperAudit.list(runId).map((e: { eventType: string }) => e.eventType)).toContain('provider_retry')
     const guidance = provider.seen.find(p => p.includes('RETRY GUIDANCE'))
     expect(guidance).toBeDefined()
