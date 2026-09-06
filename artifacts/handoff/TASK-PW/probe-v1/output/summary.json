@@ -1,0 +1,108 @@
+{
+  "generated_at": "2026-09-06T11:54:53.139Z",
+  "identity": {
+    "provider": "fake",
+    "model": "m",
+    "endpoint": "file://fake",
+    "tier": "T1"
+  },
+  "records": [
+    {
+      "question": "T1-a",
+      "tier": "T1",
+      "ok": true,
+      "structural": true,
+      "reason": ""
+    },
+    {
+      "question": "T1-b",
+      "tier": "T1",
+      "ok": true,
+      "structural": true,
+      "reason": ""
+    },
+    {
+      "question": "T2-a",
+      "tier": "T2",
+      "ok": true,
+      "structural": true,
+      "reason": "",
+      "retries": 0
+    },
+    {
+      "question": "T2-b",
+      "tier": "T2",
+      "ok": true,
+      "structural": true,
+      "reason": "",
+      "retries": 0
+    },
+    {
+      "question": "T3-a",
+      "tier": "T3",
+      "ok": true,
+      "structural": true,
+      "reason": "",
+      "retries": 0
+    }
+  ],
+  "registry": [
+    {
+      "provider": "fake",
+      "model": "m",
+      "endpoint": "file://fake",
+      "tier": "T1",
+      "date": "2026-09-06",
+      "structuralAdherence": 1,
+      "firstTrySuccess": 1,
+      "retryBudgetUsed": 0,
+      "attempts": 2
+    },
+    {
+      "provider": "fake",
+      "model": "m",
+      "endpoint": "file://fake",
+      "tier": "T2",
+      "date": "2026-09-06",
+      "structuralAdherence": 1,
+      "firstTrySuccess": 1,
+      "retryBudgetUsed": 0,
+      "attempts": 2
+    },
+    {
+      "provider": "fake",
+      "model": "m",
+      "endpoint": "file://fake",
+      "tier": "T3",
+      "date": "2026-09-06",
+      "structuralAdherence": 1,
+      "firstTrySuccess": 1,
+      "retryBudgetUsed": 0,
+      "attempts": 1
+    }
+  ],
+  "verdicts": [
+    {
+      "identity": "fake/m/T1",
+      "verdict": {
+        "ok": true,
+        "to": "T1"
+      }
+    },
+    {
+      "identity": "fake/m/T2",
+      "verdict": {
+        "ok": true,
+        "to": "T2"
+      }
+    },
+    {
+      "identity": "fake/m/T3",
+      "verdict": {
+        "ok": true,
+        "to": "T3"
+      }
+    }
+  ],
+  "note": "probe v1 — 5 题跨三协议层, registry 记录 structure/first-try 双指标 + retryBudgetUsed;升级必经 upgradeVerdict(双指标 ≥0.8 且零重试预算)"
+}

@@ -1,0 +1,5 @@
+{"question":"T1-a","tier":"T1","ok":true,"structural":true,"reason":""}
+{"question":"T1-b","tier":"T1","ok":true,"structural":true,"reason":""}
+{"question":"T2-a","tier":"T2","ok":true,"structural":true,"reason":"","retries":0}
+{"question":"T2-b","tier":"T2","ok":true,"structural":true,"reason":"","retries":0}
+{"question":"T3-a","tier":"T3","ok":true,"structural":true,"reason":"","retries":0}

@@ -72,6 +72,8 @@ export {
   noneGuide,
 } from './probe/probe.ts'
 export type { FailureClass, Tier } from './probe/probe.ts'
+export { CombinationRegistry, upgradeVerdict } from './probe/registry.ts'
+export type { CombinationIdentity, CombinationRecord, UpgradeVerdict } from './probe/registry.ts'
 export {
   admitGuidedStep,
   assembleGuidedContainer,
