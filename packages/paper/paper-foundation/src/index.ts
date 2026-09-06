@@ -73,6 +73,14 @@ export {
 } from './probe/probe.ts'
 export type { FailureClass, Tier } from './probe/probe.ts'
 export {
+  admitGuidedStep,
+  assembleGuidedContainer,
+  defaultCandidates,
+  guidedStepPrompt,
+  startGuidedSession,
+} from './produce/guided-steps.ts'
+export type { GuidedCandidates, GuidedLedger, GuidedRefusalCode, GuidedSession, GuidedStepId, GuidedStepVerdict } from './produce/guided-steps.ts'
+export {
   REDACTED, redactSensitiveDetail, redactSensitiveText, redactSensitiveValue,
 } from './redact.ts'
 export {

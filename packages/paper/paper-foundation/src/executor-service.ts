@@ -58,6 +58,10 @@ export interface ExecutorConfig {
     timeoutMs: number
     allowExecutable?: string[]
   }
+  /** TASK-PW W2: the guided-step protocol tier a producing run starts in.
+   *  T1 = full declaration (default), T2 = guided steps, T3 = template
+   *  fill. The executor degrades T1 → T2 → T3 on NONE exhaustion (W4). */
+  readonly initialTier?: 'T1' | 'T2' | 'T3'
 }
 
 const modelPrice: s<ModelPrice> = s.object({
@@ -98,6 +102,9 @@ export function resolveExecutorOptions(
     // P2-1: the deployment-owned runner; validated against the built-in
     // code-run allow-list when the chain executes.
     ...(config.produceRun === undefined ? {} : { produceRun: config.produceRun }),
+    // TASK-PW W2: the tier a producing run starts at; `undefined` resolves
+    // to T1 (initialTier()) inside the executor.
+    ...(config.initialTier === undefined ? {} : { initialTier: config.initialTier }),
     // exactOptionalPropertyTypes: an explicit undefined would be a type
     // error on the optional fields, so omit rather than pass through.
     ...ir === undefined ? {} : { ir },
@@ -133,6 +140,9 @@ export class PaperExecutorService extends Service {
         timeoutMs: s.number().step(1).min(1).default(30_000),
         allowExecutable: s.array(s.string()),
       }),
+    // TASK-PW W2: T2 guided-step sessions opt in at the composition; the
+    // executor's enforced tier still resolves from the W4 ledger.
+    initialTier: s.union(['T1', 'T2', 'T3'] as const),
   })
 
   private executor: WorkflowExecutor | undefined

@@ -216,6 +216,12 @@ export interface ExecutorOptions {
    * Default false keeps the pre-P1 free-prose EXECUTE protocol intact.
    */
   readonly produceFromExecute?: boolean
+  /**
+   * TASK-PW W2: the protocol tier a producing run starts in (T1 / T2 / T3).
+   * Defaults to T1 when absent; `tierOf()` is the single reader, so the
+   * W4 NONE-degradation ledger stays authoritative.
+   */
+  readonly initialTier?: Tier
 }
 
 /**
@@ -350,7 +356,7 @@ export class WorkflowExecutor {
    * (W-B: NONE 耗尽记 failure 并降层). Read by the W5 probe registry.
    */
   tierOf(runId: RunId): Tier {
-    return this.#tierByRun.get(String(runId)) ?? initialTier()
+    return this.#tierByRun.get(String(runId)) ?? this.options.initialTier ?? initialTier()
   }
 
   /**

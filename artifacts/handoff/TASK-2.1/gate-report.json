@@ -11,13 +11,13 @@
     "v1.1_status": "PARTIAL — 5.0.1 (six stubs -> UNIMPLEMENTED) shipped under the 5.0-R author-delegated ratification; 5.0.4 (attestation hardening) and 5.0.10 (numeric tolerance) remain v1.1-ratification-pending."
   },
   "baseline": {
-    "files": 89,
-    "total_tests": 993,
-    "passed_tests": 993,
+    "files": 90,
+    "total_tests": 1003,
+    "passed_tests": 1003,
     "failed_tests": 0,
     "failed_test_suites": 0,
     "tsc_clean": true,
-    "baseline_at": "TASK-PW W4: NONE/DRIFT/ESCAPE/RUN/TRANSPORT five-class failure separation + retry budgets (W-B) — 993 incl real-spawn spec; demo-v2/v3+probe are script-level"
+    "baseline_at": "TASK-PW W2: T2 guided-step protocol (step state machine + step schemas + append-only ledger; W-A) — 1003 incl real-spawn spec; demo-v2/v3+probe are script-level"
   },
   "failures_by_origin": {},
   "gates_impl": [
