@@ -160,7 +160,7 @@ interface HarnessResult {
   outcome: { status: 'resolved' } | { status: 'rejected'; code?: string; message: string }
 }
 
-async function tierHarness(tier: 'T1' | 'T2', outputs: string[]): Promise<HarnessResult> {
+async function tierHarness(tier: 'T1' | 'T2' | 'T3', outputs: string[]): Promise<HarnessResult> {
   const ctx = new Context()
   await ctx.plugin(Storage)
   ctx.storage.backend.register('memory', new MemoryStorageBackend(new MemoryMediaPool()))
