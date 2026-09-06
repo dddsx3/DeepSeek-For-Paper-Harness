@@ -208,7 +208,14 @@ async function harness(outputs: string[]): Promise<HarnessResult> {
   const run = await engine.startRun({ mode: 'strict', harnessVersion: 'test', configHash: 'sha256:wtier' })
   const outcome = await ctx.paperExecutor.runs.execute(RunId(run.id), 'estimate ice thickness')
     .then(() => ({ status: 'resolved' as const }))
-    .catch((error: unknown) => ({ status: 'rejected' as const, code: (error as { code?: string }).code, message: (error as { message: string }).message }))
+    .catch((error: unknown) => {
+      const code = (error as { code?: string }).code
+      return {
+        status: 'rejected' as const,
+        ...(code === undefined ? {} : { code }),
+        message: (error as { message: string }).message,
+      }
+    })
   return { ctx, ir, engine, runId: String(run.id), finalRoot, outcome }
 }
 
@@ -326,6 +333,13 @@ async function harnessWithProvider(provider: ReturnType<typeof queuedProvider>):
   const run = await engine.startRun({ mode: 'strict', harnessVersion: 'test', configHash: 'sha256:wtier' })
   const outcome = await ctx.paperExecutor.runs.execute(RunId(run.id), 'estimate ice thickness')
     .then(() => ({ status: 'resolved' as const }))
-    .catch((error: unknown) => ({ status: 'rejected' as const, code: (error as { code?: string }).code, message: (error as { message: string }).message }))
+    .catch((error: unknown) => {
+      const code = (error as { code?: string }).code
+      return {
+        status: 'rejected' as const,
+        ...(code === undefined ? {} : { code }),
+        message: (error as { message: string }).message,
+      }
+    })
   return { ctx, ir, engine, runId: String(run.id), finalRoot, outcome }
 }
