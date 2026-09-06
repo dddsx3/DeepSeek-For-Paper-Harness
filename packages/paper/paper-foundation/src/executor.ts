@@ -42,6 +42,13 @@ import {
   type FailureClass,
   type Tier,
 } from './probe/probe.ts'
+import {
+  admitGuidedStep,
+  assembleGuidedContainer,
+  guidedStepPrompt,
+  startGuidedSession,
+  type GuidedSession,
+} from './produce/guided-steps.ts'
 import type { PaperRuntimeGuard } from './runtime/runtime-guard.ts'
 import type { PaperSettingsService } from './settings.ts'
 import type { ArtifactRecord, Manifest, NodeRecord, RunId, RunRecord } from './spec.ts'
@@ -349,6 +356,60 @@ export class WorkflowExecutor {
    */
   readonly #noneSpent: Map<string, number> = new Map()
   readonly #driftSpent: Map<string, number> = new Map()
+
+  /** TASK-PW W2: per-run T2 guided-step sessions (executor memory only). */
+  readonly #guidedByRun: Map<string, GuidedSession> = new Map()
+
+  /** TASK-PW W2: pending W4 guidance to append to the next guided step
+   *  prompt (DRIFT correction / NONE minimal example). */
+  readonly #guidedGuidance: Map<string, string> = new Map()
+
+  /**
+   * TASK-PW W2: drive one T2 guided-step session through the three
+   * declarations and return the assembled ir-container-v1. Each step is a
+   * provider call whose payload is admitted against the step schema; a
+   * refusal throws with a W4 failure class so the outer attempt loop applies
+   * the class budgets (schema/foreign-key → DRIFT guidance, everything else
+   * → ESCAPE zero budget).
+   */
+  private async runGuidedExecute(
+    runId: RunId,
+    role: PaperRole,
+    taskText: string,
+  ): Promise<string> {
+    const runKey = String(runId)
+    const route = this.settings.snapshot()[role]
+    let session = this.#guidedByRun.get(runKey) ?? startGuidedSession()
+    this.#guidedByRun.set(runKey, session)
+    while (session.step !== 'done') {
+      const step = session.step
+      const pendingGuidance = this.#guidedGuidance.get(runKey)
+      this.#guidedGuidance.delete(runKey)
+      const stepPrompt = pendingGuidance === undefined
+        ? guidedStepPrompt(step, session.candidates)
+        : `${guidedStepPrompt(step, session.candidates)}\n\n${pendingGuidance}`
+      const { text, usage } = await this.call(role, stepPrompt)
+      await this.recordUsage(runId, route.provider, route.model, usage)
+      const admission = admitGuidedStep(session, step, text)
+      if (!admission.ok) {
+        const err = new Error(`T2 guided step ${step} refused: ${admission.reason}`)
+        ;(err as { code?: string }).code = admission.code
+        // Schema/foreign-key refusals are a DRIFT (correctable with the
+        // guidance prompt already in the message); free ids / unledgered
+        // references / bypass containers are ESCAPE (zero budget, W4).
+        ;(err as { w4Class?: FailureClass }).w4Class =
+          admission.code === 'step_foreign_key' || admission.code === 'schema_violation'
+            ? 'DRIFT'
+            : 'ESCAPE'
+        throw err
+      }
+      session = admission.session
+      this.#guidedByRun.set(runKey, session)
+    }
+    const assembled = assembleGuidedContainer(session, taskText)
+    this.#guidedByRun.delete(runKey)
+    return assembled
+  }
 
   /**
    * TASK-PW W4: the protocol tier a run currently expects of the model.
@@ -1017,8 +1078,21 @@ export class WorkflowExecutor {
         attempt,
       })
       try {
-        const { text, usage } = await this.call(role, prompt)
-        await this.recordUsage(runId, route.provider, route.model, usage)
+        // TASK-PW W2: on the T2 producing path the guided-step wizard owns
+        // every provider call for this node (three tiny declarations, each
+        // with its own instruction); the one-shot EXECUTE call is skipped.
+        // On any other path the normal single call + token accounting runs.
+        const isT2Execute = type === 'execute'
+          && this.options.produceFromExecute === true
+          && this.tierOf(runId) === 'T2'
+        let text: string
+        if (isT2Execute) {
+          text = await this.runGuidedExecute(runId, role, taskText ?? '')
+        } else {
+          const { text: callText, usage } = await this.call(role, prompt)
+          await this.recordUsage(runId, route.provider, route.model, usage)
+          text = callText
+        }
         // P1-1: on the produce-from-EXECUTE path the node output must be an
         // ir-container-v1; the structured-output producer writes the model's
         // declared kinds into the canonical store. A refused container is a
@@ -1038,13 +1112,20 @@ export class WorkflowExecutor {
           // the model container is applied — the model references them by id
           // and must never re-declare them (W-C input-asset domain).
           const reserved = await this.registerInputAssets(runId, ir, taskText ?? '')
+
           const verdict = produceContainerInto(ir, text, undefined, { reservedIds: reserved })
           if (!verdict.ok) {
             const err = new Error(`EXECUTE output refused by the IR producer: ${verdict.reason}`)
             ;(err as { code?: string }).code = verdict.code
             // TASK-PW W4: carry the failure class so the catch below can
             // apply class-specific budgets (ESCAPE zero / NONE+DRIFT guided).
-            ;(err as { w4Class?: FailureClass }).w4Class = failureClassOf(verdict.code, text)
+            // On the T2 path `text` is the HARNESS-assembled container — a
+            // producer refusal of it is a harness-side contract problem, not
+            // a model failure, so it must not re-enter under DRIFT guidance
+            // (which would loop the wizard on an un-fixable shape).
+            ;(err as { w4Class?: FailureClass }).w4Class = isT2Execute
+              ? 'ESCAPE'
+              : failureClassOf(verdict.code, text)
             throw err
           }
           for (const entry of verdict.entries) {
@@ -1136,6 +1217,10 @@ export class WorkflowExecutor {
             // minimal example; DRIFT corrects only the offending field and
             // hands back the registered id table (W4).
             const guide = w4Class === 'NONE' ? noneGuide() : driftCorrection(failure.message)
+            // TASK-PW W2: on the T2 wizard path the correction must reach the
+            // NEXT STEP prompt, not the (skipped) one-shot EXECUTE prompt —
+            // stash it for runGuidedExecute to append.
+            this.#guidedGuidance.set(runKey, guide)
             prompt = await this.fitPrompt(runId, node.id, role, [
               ...sections,
               { name: 'w4-guidance', text: guide, trimPriority: KEEP },

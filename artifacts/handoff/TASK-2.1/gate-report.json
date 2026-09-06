@@ -11,13 +11,13 @@
     "v1.1_status": "PARTIAL — 5.0.1 (six stubs -> UNIMPLEMENTED) shipped under the 5.0-R author-delegated ratification; 5.0.4 (attestation hardening) and 5.0.10 (numeric tolerance) remain v1.1-ratification-pending."
   },
   "baseline": {
-    "files": 90,
-    "total_tests": 1003,
-    "passed_tests": 1003,
+    "files": 91,
+    "total_tests": 1007,
+    "passed_tests": 1007,
     "failed_tests": 0,
     "failed_test_suites": 0,
     "tsc_clean": true,
-    "baseline_at": "TASK-PW W2: T2 guided-step protocol (step state machine + step schemas + append-only ledger; W-A) — 1003 incl real-spawn spec; demo-v2/v3+probe are script-level"
+    "baseline_at": "TASK-PW W2: T2 guided-step wizard wired into the EXECUTE path (initialTier=T2; step refusals under W4 budgets; T1-face zero regression) — 1007 incl real-spawn spec"
   },
   "failures_by_origin": {},
   "gates_impl": [
