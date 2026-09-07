@@ -154,21 +154,125 @@ function environmentFingerprint(run: Readonly<Record<string, unknown>>): string 
   return sha256Hex(canonicalJson({ environment: run['environment'], seed: run['seed'] }))
 }
 
+// ---------------------------------------------------------------------------
+// Dependency fingerprints (TASK-T1 Sprint 2, expert plan §1.3).
+//
+// Three fingerprints, three responsibilities — one hash must never carry
+// two different kinds of drift:
+//
+//   - EDGE  (what I depend on)        — the business drift gate. Anchors the
+//     *set* of dependency references, canonical-sorted, so input order never
+//     changes the fingerprint (REF-004 / DEP-005). The store is append-only
+//     and objects are immutable post-ingest, so a reference already names
+//     one immutable revision: an AssumptionSpec with the same id can never
+//     change content under the lock (the revision qualifier the expert plan
+//     asks for is delivered by append-only immutability — "A42@rev2" is a
+//     *different id*, A42-2).
+//   - OBJECT (what the object is)      — sha256 over one canonical object's
+//     bytes, namespaced. Used for integrity/corruption detection, never as
+//     the business drift anchor.
+//   - CLOSURE (what my dependencies' content is, wholesale) — derived from
+//     per-object fingerprints; used for artifact integrity, reproducibility
+//     audit, and debugging — not for the business drift gate.
+//
+// Every hash input is namespaced (`"DEP-EDGE-v1"` / `"ASSUMPTION-v1"` / …)
+// so canonical bytes from different semantic spaces can never collide into
+// the same hash input (expert plan P0-B).
+// ---------------------------------------------------------------------------
+
+/** Namespace prefixes keep hash inputs from different semantic spaces disjoint. */
+export const FINGERPRINT_NAMESPACES = {
+  dependencyEdge: 'DEP-EDGE-v1',
+  assumptionObject: 'ASSUMPTION-v1',
+  equationObject: 'EQUATION-v1',
+  modelObject: 'MODEL-v1',
+} as const
+
+/** Lexicographic sort — the canonical order for every ref array entering a fingerprint. */
+export function canonicalSortRefs(refs: ReadonlyArray<string>): ReadonlyArray<string> {
+  return [...refs].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0))
+}
+
+/**
+ * Object fingerprint: what ONE canonical object is (namespaced, canonical
+ * bytes). `kind` picks the namespace; `value` is the parsed canonical object.
+ * Integrity primitive — the business drift gate never anchors on this.
+ */
+export function objectFingerprint(
+  namespace: 'ASSUMPTION-v1' | 'EQUATION-v1' | 'MODEL-v1',
+  value: Readonly<Record<string, unknown>>,
+): string {
+  return sha256Hex(`${namespace}||${canonicalJson(value)}`)
+}
+
+/**
+ * Edge fingerprint: what a run's model DEPENDS ON (REF-004). The dependency
+ * set is canonical-sorted before hashing, so the same set in a different
+ * input order produces the same fingerprint (DEP-005), and adding or
+ * removing any dependency reference changes it (DEP-001/DEP-003).
+ *
+ * `parameter_refs` is ModelSpec's nested `{symbol_ref, value}` array — it
+ * enters through its canonical bytes (sorted by the serialized member), not
+ * as a bare string list.
+ */
+export function dependencyEdgeFingerprint(edge: {
+  readonly input_data_refs: ReadonlyArray<string>
+  readonly parameter_refs: ReadonlyArray<unknown>
+  readonly assumption_refs: ReadonlyArray<string>
+  readonly equation_refs: ReadonlyArray<string>
+  readonly unresolved_model?: string | undefined
+}): string {
+  return sha256Hex(canonicalJson({
+    namespace: FINGERPRINT_NAMESPACES.dependencyEdge,
+    input_data_refs: canonicalSortRefs(edge.input_data_refs),
+    parameter_refs: [...edge.parameter_refs].sort((a, b) =>
+      canonicalJson(a) < canonicalJson(b) ? -1 : canonicalJson(a) > canonicalJson(b) ? 1 : 0),
+    assumption_refs: canonicalSortRefs(edge.assumption_refs),
+    equation_refs: canonicalSortRefs(edge.equation_refs),
+    unresolved_model: edge.unresolved_model,
+  }))
+}
+
+/**
+ * Closure fingerprint: the *content* of everything the run depends on,
+ * wholesale (per-object fingerprints of every referenced assumption /
+ * equation, canonical-sorted by ref id). Reproducibility-audit and
+ * corruption-detection primitive: object content changing under a stable
+ * ref set flips this, while the edge fingerprint stays anchored on refs.
+ */
+export function dependencyClosureFingerprint(
+  edge: {
+    readonly assumption_refs: ReadonlyArray<string>
+    readonly equation_refs: ReadonlyArray<string>
+  },
+  resolveObject: (ref: string) => Readonly<Record<string, unknown>> | undefined,
+): string {
+  const members: ReadonlyArray<{ ref: string; namespace: string; object_fingerprint: string }> = [
+    ...canonicalSortRefs(edge.assumption_refs).map(ref => ({
+      ref,
+      namespace: FINGERPRINT_NAMESPACES.assumptionObject,
+      object_fingerprint: objectFingerprint('ASSUMPTION-v1', resolveObject(ref) ?? { missing: ref }),
+    })),
+    ...canonicalSortRefs(edge.equation_refs).map(ref => ({
+      ref,
+      namespace: FINGERPRINT_NAMESPACES.equationObject,
+      object_fingerprint: objectFingerprint('EQUATION-v1', resolveObject(ref) ?? { missing: ref }),
+    })),
+  ]
+  return sha256Hex(canonicalJson({ namespace: 'DEP-CLOSURE-v1', members }))
+}
+
 function dependencyLockFingerprint(
   run: Readonly<Record<string, unknown>>,
   model: Readonly<Record<string, unknown>> | undefined,
 ): string {
-  return sha256Hex(canonicalJson({
-    input_data_refs: run['input_data_refs'],
-    parameter_refs: model?.['parameter_refs'] ?? [],
-    // TASK-T1: the dependency lock covers the model's assumption/equation
-    // DEPENDENCIES (referenced AssumptionSpec/EquationSpec ids), not the
-    // free text that used to live on ModelSpec. A model whose assumption or
-    // equation set changes is a dependency-lock drift.
-    assumption_refs: model?.['assumption_refs'] ?? [],
-    equation_refs: model?.['equation_refs'] ?? [],
-    unresolved_model: model === undefined ? run['model_ref'] : undefined,
-  }))
+  return dependencyEdgeFingerprint({
+    input_data_refs: (run['input_data_refs'] as ReadonlyArray<string> | undefined) ?? [],
+    parameter_refs: (model?.['parameter_refs'] as ReadonlyArray<unknown> | undefined) ?? [],
+    assumption_refs: (model?.['assumption_refs'] as ReadonlyArray<string> | undefined) ?? [],
+    equation_refs: (model?.['equation_refs'] as ReadonlyArray<string> | undefined) ?? [],
+    unresolved_model: model === undefined ? String(run['model_ref']) : undefined,
+  })
 }
 
 /**

@@ -1,22 +1,40 @@
 # 中间态状态文档 — DeepSeek-For-Paper-Harness
 
 > 用途:本文件是给**业界专家咨询**用的中间态快照:当前项目状态、已完成与未完成项、
-> 以及需要外部意见的开放问题。对应仓库 HEAD = `739fdb209c`
-> (TASK-M1 外壳 + 真实用户模拟批次,2026-09-07 推送)。
+> 以及需要外部意见的开放问题。对应仓库工作树(TASK-T1-S2 已落地待提交;HEAD =
+> `23776c5206` TASK-T1,2026-09-07)。
 >
 > 定位:项目是独立产品(基于 dsh 基座),核心是一个「论文写作 agent 执行链」:
 > LLM 负责模型/解释/narrative,harness 负责事实、状态、来源、执行、一致性、准入、交付。
 
 ---
 
-## 0. 本批新增(TASK-T1,任务书第一阶段)
+## 0. 本批新增(TASK-T1 + TASK-T1-S2,任务书第一阶段 + 专家计划书 P0-A)
 
-作业已按「下一阶段工程任务书」开始第一阶段(冻结 IR v1 科学事实边界):三个新 canonical
-对象(AssumptionSpec / EquationSpec / ExperimentSpec)接入 IR_KINDS/SCHEMAS/REF_FIELDS/store/bridge;
-ModelSpec 的 assumptions/equations 自由文本改为引用(assumption_refs/equation_refs,杜绝第二真值源);
-SymbolSpec 补 shape/domain/index_set(必填)。两条架构 mutation(duplicate truth source / bypass
-reference)已由 `tests/ir/ir-contract.spec.ts` 钉死。全部回归绿(paper-foundation 1040/1040、
-P1/P2/P3 demo、shell)。交接细节与三个待专家复核的决策点见 `artifacts/handoff/TASK-T1/HANDOFF.md`。
+作业已按「下一阶段工程任务书」完成第一阶段(TASK-T1:三个新 canonical 对象
+AssumptionSpec/EquationSpec/ExperimentSpec 接入全链,ModelSpec 自由文本改引用,
+SymbolSpec 补 shape/domain/index_set,基线 1025→1040),随后按专家计划书
+《LLM Harness 下一步最可行推进计划书 v1》把 **P0-A(Commit 1 freeze-ir-semantics)
+收尾**(TASK-T1-S2):专家对 TASK-T1 三个决策点的裁决全部落地——
+
+1. **引用环(专家 §1.1)**:维持 EquationSpec 无 model_ref 单向引用;新增
+   REF-001..005 规则体系——跨 scope 引用(store 边界 `reference_scope_mismatch`
+   失败码)、派生反向索引 `models_by_equation`(`src/ir/derivation.ts`,重算式
+   非存储、不参与任何哈希)、六条验收测试;
+2. **UNKNOWN 哨兵(专家 §1.2,SCH-SEM-001)**:shape/domain 改为 required key +
+   typed UNKNOWN——"模型不知道"是合法 canonical 状态,UNKNOWN→BLOCK 归 G002 门;
+3. **三层指纹(专家 §1.3)**:edge(DEP-EDGE-v1,业务漂移门)/ object(命名空间
+   完整性)/ closure(复现审计)分职责;ref 数组 canonical-sort 入哈希
+   (DEP-005);revision 化由 append-only 不可变交付(同 id 永不变内容);
+4. 20 条 invariant(`tests/ir/ir-semantics.spec.ts`),基线 1040→**1060/95 文件**;
+5. **新 relay key(z-ai/glm-5.3-free,第二模型族)**:real-provider 加进程级
+   并发信号量(默认上限 1 严格串行)+ 429/5xx 指数退避;key 入 gitignored
+   `.env.local`,只服务 Track 2/3(探针/实测),CI 保持 fake/replay。
+
+交接细节见 `artifacts/handoff/TASK-T1-S2/HANDOFF.md`。下一批按专家序是
+P0-B 剩余(fingerprint version + golden fixture)→ Commit 2(CI 解耦 +
+cassette)→ Commit 3(telemetry + LCB 统计门)→ P1-C(第二模型族 T3
+qualification)→ P1-D(T3.5)。
 
 ---
 

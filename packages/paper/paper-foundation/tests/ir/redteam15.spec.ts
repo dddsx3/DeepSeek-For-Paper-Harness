@@ -146,8 +146,15 @@ describe('RT-B-01 — a ModelSpec owned by no ProblemSpec still faces the symbol
   // ProblemSpec's contract walk. Every ModelSpec guard — variable role,
   // parameter role, symbol scope — was skipped entirely, and the run
   // delivered while using a PARAMETER as a solved-for variable.
+  //
+  // TASK-T1 Sprint 2 (REF-003): an unowned ModelSpec (problem_refs: []) may
+  // no longer *keep* the fixture's equation/assumption references — they
+  // are scoped to P1, and the store refuses cross-scope borrows now. The
+  // scenario these tests drive is the symbol-guard bypass, not the scope
+  // rule, so the override drops those refs to keep the store clean and
+  // leaves the role mismatch to the bridge (which is what is asserted).
   it('blocks a PARAMETER used as a variable by an unowned ModelSpec', () => {
-    const { ir, refused } = build({ ModelSpec: { problem_refs: [], variable_refs: ['SYM-rho'] } })
+    const { ir, refused } = build({ ModelSpec: { problem_refs: [], variable_refs: ['SYM-rho'], equation_refs: [], assumption_refs: [] } })
     expect(refused).toEqual([]) // the store has nothing to say; the bridge must
     const decision = evaluateIrBridge(ir, [], 'FORMAL')
     expect(decision.status).toBe('BLOCKED')
@@ -155,7 +162,7 @@ describe('RT-B-01 — a ModelSpec owned by no ProblemSpec still faces the symbol
   })
 
   it('blocks a VARIABLE used as a parameter by an unowned ModelSpec', () => {
-    const { ir } = build({ ModelSpec: { problem_refs: [], parameter_refs: [{ symbol_ref: 'SYM-x', value: 1 }] } })
+    const { ir } = build({ ModelSpec: { problem_refs: [], parameter_refs: [{ symbol_ref: 'SYM-x', value: 1 }], equation_refs: [], assumption_refs: [] } })
     const decision = evaluateIrBridge(ir, [], 'FORMAL')
     expect(decision.status).toBe('BLOCKED')
     expect(decision.contractFailures.map(f => f.kind)).toContain('parameter_role_mismatch')
@@ -165,7 +172,7 @@ describe('RT-B-01 — a ModelSpec owned by no ProblemSpec still faces the symbol
     // Not a loophole: a model that declares no problem and uses no symbol has
     // nothing for the symbol guards to check. The escape was an unowned model
     // that *did* use another problem's symbols.
-    const { ir, refused } = build({ ModelSpec: { problem_refs: [], variable_refs: [], parameter_refs: [] } })
+    const { ir, refused } = build({ ModelSpec: { problem_refs: [], variable_refs: [], parameter_refs: [], equation_refs: [], assumption_refs: [] } })
     expect(refused).toEqual([])
     expect(evaluateIrBridge(ir, [], 'FORMAL').status).toBe('PASS')
   })

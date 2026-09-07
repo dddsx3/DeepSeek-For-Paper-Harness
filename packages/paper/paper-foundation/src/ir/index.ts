@@ -99,8 +99,14 @@ export type { ScanVerdict, StrictJsonFailureReason, StrictJsonResult } from './p
 
 export { deepFreeze } from './freeze.ts'
 
-export { IR_REF_FIELDS, isAllowedTarget, validateRefFields } from './refs.ts'
+export { IR_REF_FIELDS, isAllowedTarget, validateRefFields, validateScopeOwnership, IR_SCOPE_FIELDS } from './refs.ts'
 export type { IrRefFieldSpec, IrRefProblem, IrRefResolution, IrRefTarget, IrRefResolver } from './refs.ts'
+
+// TASK-T1 Sprint 2 — derived reverse indexes (REF-001/005). Derived data
+// only: recomputed from a snapshot per call, never canonical state, never
+// hashed.
+export { modelsByEquation } from './derivation.ts'
+export type { EquationModelIndex } from './derivation.ts'
 
 export {
   PROBLEM_CONTRACT_FAILURE_KINDS,
@@ -159,11 +165,16 @@ export type { CriticalityVerdict } from './criticality.ts'
 export {
   EVIDENCE_AUDIT_CATEGORIES,
   EVIDENCE_AUDIT_SEVERITIES,
+  FINGERPRINT_NAMESPACES,
   auditEvidenceFreeze,
   buildEvidenceFreeze,
   canonicalJson,
+  canonicalSortRefs,
   declaredDependencyLockFingerprint,
   declaredEnvironmentFingerprint,
+  dependencyClosureFingerprint,
+  dependencyEdgeFingerprint,
+  objectFingerprint,
   sha256Hex,
 } from './evidence-freeze.ts'
 export type {

@@ -201,6 +201,14 @@ const symbolTokenSchema = zod
  * Closed set of symbol shapes (T1.1). A variable/parameter declares what
  * shape it holds so the T2 shape gate can catch `vector + scalar` or a
  * dimension mismatch (G002) without a free-form description.
+ *
+ * TASK-T1 Sprint 2 (SCH-SEM-001, expert plan §1.2): the key is required but
+ * `UNKNOWN` is a legal value. "The model does not know" is a *canonical
+ * state*, never a malformed JSON object — the schema layer owns structural
+ * completeness (the key exists), the semantic layer owns whether the value
+ * is decided, and the G002 gate (not the schema parser) decides when
+ * UNKNOWN must BLOCK. A weak model may honestly answer UNKNOWN instead of
+ * inventing a shape to pass validation.
  */
 export const SYMBOL_SHAPES = [
   'SCALAR',
@@ -208,10 +216,15 @@ export const SYMBOL_SHAPES = [
   'MATRIX',
   'TENSOR',
   'INDEXED',
+  'UNKNOWN',
 ] as const
 export type SymbolShape = (typeof SYMBOL_SHAPES)[number]
 
-/** Closed set of symbol value domains (T1.1, seed of the G007 numeric gate). */
+/**
+ * Closed set of symbol value domains (T1.1, seed of the G007 numeric gate).
+ * Same SCH-SEM-001 rule as shape: required key, `UNKNOWN` is a legal value,
+ * and "UNKNOWN must block here" is a gate decision, not a parse failure.
+ */
 export const SYMBOL_DOMAINS = [
   'REAL',
   'NONNEGATIVE_REAL',
@@ -220,6 +233,7 @@ export const SYMBOL_DOMAINS = [
   'BOOLEAN',
   'PROBABILITY',
   'COMPLEX',
+  'UNKNOWN',
 ] as const
 export type SymbolDomain = (typeof SYMBOL_DOMAINS)[number]
 
@@ -237,6 +251,10 @@ export const symbolSpecSchema = zod
     // TASK-T1 (T1.1): shape/domain/index_set are the semantic load-bearing
     // fields for the T2 shape/unit/domain gates (G001/G002/G007). Required
     // so a symbol without a declared shape cannot slip past those gates.
+    // TASK-T1 Sprint 2 (SCH-SEM-001): required KEY, but the value may be the
+    // explicit UNKNOWN sentinel — semantic completeness is the gates'
+    // decision, not the schema parser's. Schema completeness, semantic
+    // completeness, and gate applicability are three separate questions.
     shape: zod.enum(SYMBOL_SHAPES),
     domain: zod.enum(SYMBOL_DOMAINS),
     index_set: zod.array(refSchema),

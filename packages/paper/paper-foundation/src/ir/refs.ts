@@ -32,6 +32,18 @@
  *     ref to an id that is already registered. `target: 'ANY'` is reserved
  *     for evidence-style refs where the id's kind does not matter; structural
  *     refs use a single kind or an explicit narrow target set.
+ *
+ * TASK-T1 Sprint 2 adds the REF-001..005 canonical reference rules (expert
+ * plan §1.1): references are **unidirectional and scope-owned** — a ModelSpec
+ * declares `equation_refs`/`assumption_refs`; EquationSpec/AssumptionSpec
+ * never declare a back `model_ref` (REF-001/REF-005, the append-only store
+ * cannot admit a reference cycle); a ModelSpec may only reference
+ * equations/assumptions scoped to a ProblemSpec it itself belongs to
+ * (REF-002/REF-003, `validateScopeOwnership` + `IR_SCOPE_FIELDS`); and ref
+ * arrays enter fingerprints canonical-sorted, so input order never changes
+ * object semantics (REF-004, evidence-freeze). Reverse navigation
+ * (`models_by_equation`) is a *derived index* — never canonical state, never
+ * hashed — see `derivation.ts`.
  */
 
 import { deepFreeze } from './freeze.ts'
@@ -180,7 +192,7 @@ export const IR_REF_FIELDS: Readonly<Record<IrKind, ReadonlyArray<IrRefFieldSpec
 deepFreeze(IR_REF_FIELDS)
 
 /** Why a reference failed to resolve. */
-export type IrRefResolution = 'missing' | 'kind_mismatch'
+export type IrRefResolution = 'missing' | 'kind_mismatch' | 'scope_mismatch'
 
 /** A ref that the resolver rejected, with enough context for a stable audit. */
 export interface IrRefProblem {
@@ -270,4 +282,80 @@ function checkRef(
     return [{ path, ref, target, resolution: 'kind_mismatch', actual }]
   }
   return []
+}
+
+// ---------------------------------------------------------------------------
+// REF-001..005 — unidirectional scope ownership (TASK-T1 Sprint 2, expert
+// plan §1.1). Canonical objects never carry a back-reference that the store
+// can derive; ownership edges are declared once, by the owning side.
+// ---------------------------------------------------------------------------
+
+/**
+ * Closed table of "the referencing object's scope must equal the target's
+ * scope" fields (REF-003): a ModelSpec may only reference EquationSpecs /
+ * AssumptionSpecs scoped to the same ProblemSpec it itself belongs to.
+ *
+ * Every entry names the field on `kind` that points *within* the scope, and
+ * the field the *target* kind carries its own scope in. A cross-scope edge
+ * (the "borrow another problem's equation" attack) is a
+ * `scope_mismatch` problem at commit time.
+ */
+export const IR_SCOPE_FIELDS: Readonly<Partial<Record<IrKind, ReadonlyArray<{
+  /** Field on the referencing object holding the refs. */
+  readonly path: string
+  /** The kind each ref must resolve to (same as IR_REF_FIELDS target). */
+  readonly targetKind: IrKind
+  /** Field on the target object that carries its scope. */
+  readonly targetScopeField: string
+}>>>> = {
+  ModelSpec: [
+    { path: 'equation_refs', targetKind: 'EquationSpec', targetScopeField: 'scope_ref' },
+    { path: 'assumption_refs', targetKind: 'AssumptionSpec', targetScopeField: 'scope_ref' },
+  ],
+}
+
+/**
+ * REF-003 scope-ownership check. For every IR_SCOPE_FIELDS entry of `kind`,
+ * each referenced object's scope must equal the scope the referencing object
+ * itself declares. The referencing object's own scopes come from
+ * `ownScopes` — ModelSpec's are its `problem_refs` (a model lives in every
+ * problem it names), so the rule reads "the equation/assumption must be
+ * scoped to a problem this model belongs to".
+ *
+ * Only valid to call on an object that already passed schema + ref-field
+ * validation. Total: never throws.
+ */
+export function validateScopeOwnership(
+  kind: IrKind,
+  value: unknown,
+  ownScopes: ReadonlyArray<string>,
+  resolve: (ref: string) => { kind: IrKind; value: unknown } | undefined,
+): ReadonlyArray<IrRefProblem> {
+  const problems: IrRefProblem[] = []
+  const rules = IR_SCOPE_FIELDS[kind]
+  if (rules === undefined || rules.length === 0) return problems
+  const own = new Set(ownScopes)
+  const source = value as Record<string, unknown>
+  for (const rule of rules) {
+    const refs = source[rule.path]
+    if (!Array.isArray(refs)) continue // schema layer owns shape failures
+    for (const ref of refs) {
+      if (typeof ref !== 'string') continue
+      const resolved = resolve(ref)
+      if (resolved === undefined || resolved.kind !== rule.targetKind) continue // ref-field layer owns these
+      const targetValue = resolved.value as Record<string, unknown>
+      const targetScope = targetValue[rule.targetScopeField]
+      if (typeof targetScope !== 'string') continue
+      if (!own.has(targetScope)) {
+        problems.push({
+          path: rule.path,
+          ref,
+          target: rule.targetKind,
+          resolution: 'scope_mismatch',
+          actual: resolved.kind,
+        })
+      }
+    }
+  }
+  return problems
 }

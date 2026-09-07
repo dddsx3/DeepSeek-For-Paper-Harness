@@ -38,7 +38,7 @@
 
 import { z as zod } from 'zod'
 import { parseStrictJson, scanIrValue } from './parse.ts'
-import { validateRefFields, type IrRefProblem } from './refs.ts'
+import { validateRefFields, validateScopeOwnership, type IrRefProblem } from './refs.ts'
 import {
   ID_FIELD_BY_KIND,
   IR_KINDS,
@@ -50,36 +50,40 @@ import {
 } from './schema.ts'
 import { classifyClaimCriticality, mergeCriticality } from './criticality.ts'
 
-  /**
+/**
    * Closed set of reasons an ingest is refused.
    *
    * TASK 3 repair (3.R1 / 3.R3) added two new members; the full set is
    *   the exhaustive taxonomy an attacker cannot enlarge.
    */
-  /**
+/**
    * TASK 3 repair (3.R3 / INV-3-M): a unique symbol that the capture
    * module imports and hands to `putExecutionRecord`. The symbol is
    * intentionally unexported, unserializable, and unique per process;
    * it cannot be reconstructed outside the capture module.
    */
-  export const CAPTURE_ATTESTATION = Symbol.for('paper.capture-attestation')
+export const CAPTURE_ATTESTATION = Symbol.for('paper.capture-attestation')
 
-  export const IR_FAILURE_KINDS = [
-    'unknown_kind',
-    'parse_failed',
-    'malformed_value',
-    'schema_invalid',
-    'duplicate_id',
-    'unresolved_reference',
-    'reference_kind_mismatch',
-    'internal_error',
-    // 3.R1: a Claim's producer-declared criticality is LESS strict than
-    // the deterministic classifier's call. INV-3-J.
-    'criticality_mismatch',
-    // 3.R3: a direct `put('ExecutionRecord', ...)` bypasses the capture
-    // attestation required by INV-3-M.
-    'producer_required',
-  ] as const
+export const IR_FAILURE_KINDS = [
+  'unknown_kind',
+  'parse_failed',
+  'malformed_value',
+  'schema_invalid',
+  'duplicate_id',
+  'unresolved_reference',
+  'reference_kind_mismatch',
+  'internal_error',
+  // 3.R1: a Claim's producer-declared criticality is LESS strict than
+  // the deterministic classifier's call. INV-3-J.
+  'criticality_mismatch',
+  // 3.R3: a direct `put('ExecutionRecord', ...)` bypasses the capture
+  // attestation required by INV-3-M.
+  'producer_required',
+  // TASK-T1 Sprint 2 (REF-003): a scope-owned reference points at an
+  // object scoped to a ProblemSpec the referencing object does not
+  // belong to (e.g. a ModelSpec borrowing another problem's equation).
+  'reference_scope_mismatch',
+] as const
 
 export type IrFailureKind = (typeof IR_FAILURE_KINDS)[number]
 
@@ -272,7 +276,7 @@ export class ModelingIr {
       ])
     }
     try {
-      return this.#admit('ExecutionRecord' as 'ExecutionRecord', record as unknown)
+      return this.#admit('ExecutionRecord' as const, record as unknown)
     } catch (error) {
       return this.#refuse('ExecutionRecord', bestEffortId('ExecutionRecord', record), [
         { kind: 'internal_error', path: '$', reason: describeError(error) },
@@ -343,6 +347,24 @@ export class ModelingIr {
       failures.push(toRefFailure(problem))
     }
 
+    // TASK-T1 Sprint 2 (REF-003): scope-owned refs must stay inside the
+    // referencing object's own scopes. ModelSpec is the one kind with rules
+    // today; its scopes are its problem_refs.
+    if (kind === 'ModelSpec') {
+      const model = parsed.data as { problem_refs?: ReadonlyArray<string> }
+      for (const problem of validateScopeOwnership(
+        kind,
+        parsed.data,
+        model.problem_refs ?? [],
+        (ref) => {
+          const record = this.#objects.get(ref)
+          return record === undefined ? undefined : { kind: record.kind, value: record.value }
+        },
+      )) {
+        failures.push(toRefFailure(problem))
+      }
+    }
+
     if (failures.length > 0) {
       return this.#refuse(kind, id, failures)
     }
@@ -408,6 +430,13 @@ function toSchemaFailure(issue: zod.core.$ZodIssue): IrFailure {
 
 function toRefFailure(problem: IrRefProblem): IrFailure {
   const expected = problem.target === 'ANY' ? 'any registered object' : problem.target
+  if (problem.resolution === 'scope_mismatch') {
+    return {
+      kind: 'reference_scope_mismatch',
+      path: problem.path,
+      reason: `'${problem.ref}' is scoped outside the referencing object's scopes (REF-003: borrow another problem's ${String(problem.target)})`,
+    }
+  }
   return {
     kind: problem.resolution === 'missing' ? 'unresolved_reference' : 'reference_kind_mismatch',
     path: problem.path,
