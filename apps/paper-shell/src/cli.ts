@@ -243,11 +243,20 @@ async function main(): Promise<number> {
   const report = await readFile(join(finalDir, firstFile), 'utf8')
   const sha256 = createHash('sha256').update(report).digest('hex')
   const audit = ctx.paperAudit.list(String(run.id)).map(e => `${e.eventType}`).join(',')
+  // TASK-Q2: real token accounting from the run record (the real adapter
+  // requests include_usage; the executor accumulates every call). Fake and
+  // replay runs legitimately report zeros.
+  const runUsage = engine.getRun(RunId(run.id))?.usage
+  const usageSummary = {
+    input_tokens: runUsage?.inputTokens ?? 0,
+    output_tokens: runUsage?.outputTokens ?? 0,
+    cost_usd: runUsage?.costUsd ?? 0,
+  }
   // The zipped run-report redacts the per-run UUID so the zip is
   // byte-deterministic on re-run (G2: 重跑同 sha256); the full report with
   // the real runId is written to the out dir separately.
-  const runReport = JSON.stringify({ runId: '<redacted-run-id>', tier, mode, status: 'DELIVERED', sha256, audit }, null, 2)
-  const runReportFull = JSON.stringify({ runId: String(run.id), tier, mode, status: 'DELIVERED', sha256, audit }, null, 2)
+  const runReport = JSON.stringify({ runId: '<redacted-run-id>', tier, mode, status: 'DELIVERED', sha256, audit, usage: { input_tokens: usageSummary.input_tokens, output_tokens: usageSummary.output_tokens, cost_usd: usageSummary.cost_usd } }, null, 2)
+  const runReportFull = JSON.stringify({ runId: String(run.id), tier, mode, status: 'DELIVERED', sha256, audit, usage: { input_tokens: usageSummary.input_tokens, output_tokens: usageSummary.output_tokens, cost_usd: usageSummary.cost_usd } }, null, 2)
   await mkdir(outDir, { recursive: true })
   await writeFile(join(outDir, 'report.md'), report, 'utf8')
   await writeFile(join(outDir, 'sha256.txt'), sha256, 'utf8')
@@ -260,6 +269,7 @@ async function main(): Promise<number> {
   console.log(`[DELIVERED] sha256=${sha256.slice(0, 16)}...`)
   console.log(`  report  -> ${join(outDir, 'report.md')}`)
   console.log(`  zip     -> ${zipPath} (zip sha256=${zipSha.slice(0, 16)}...)`)
+  console.log(`  usage   -> in ${usageSummary.input_tokens} tok / out ${usageSummary.output_tokens} tok / $${usageSummary.cost_usd.toFixed(4)} (TASK-Q2 telemetry)`)
   console.log(`  audit   -> ${audit}`)
   console.log(`  tier    -> ${ctx.paperExecutor.runs.tierOf(RunId(run.id))}`)
   // TASK-E: a real run recorded with --cassette persists its exchanges
@@ -314,7 +324,8 @@ async function* adapterStream(
   })
 }
 
-/** Wrap one stream: pass chunks through, record the assembled exchange. */
+/** Wrap one stream: pass chunks through, record the assembled exchange
+ *  (text AND usage — TASK-Q2) into the cassette. */
 function recordOrPassthrough(recorder: CassetteRecorder | undefined, options: { provider: string; model: string; system?: string; messages: Array<{ content?: unknown }> }, stream: AsyncIterable<unknown>): AsyncGenerator<unknown> {
   if (recorder === undefined) {
     return (async function* pass() { yield* stream })()
@@ -322,13 +333,24 @@ function recordOrPassthrough(recorder: CassetteRecorder | undefined, options: { 
   const request = assembledRequest(options)
   return (async function* record() {
     let assembled = ''
+    let usage: { inputTokens: number; outputTokens: number; cacheReadTokens?: number } | undefined
     for await (const chunk of stream) {
       if (typeof chunk === 'object' && chunk !== null && 'text' in chunk && typeof (chunk as { text?: unknown }).text === 'string') {
         assembled += (chunk as { text: string }).text
       }
+      if (typeof chunk === 'object' && chunk !== null && (chunk as { type?: string }).type === 'usage') {
+        const u = (chunk as { usage?: { inputTokens?: number; outputTokens?: number; cacheReadTokens?: number } }).usage
+        if (u !== undefined) {
+          usage = {
+            inputTokens: u.inputTokens ?? 0,
+            outputTokens: u.outputTokens ?? 0,
+            ...(u.cacheReadTokens !== undefined ? { cacheReadTokens: u.cacheReadTokens } : {}),
+          }
+        }
+      }
       yield chunk
     }
-    recorder.record(request, assembled)
+    recorder.record(request, assembled, usage)
   })()
 }
 
@@ -341,12 +363,24 @@ function assembledRequest(options: { provider: string; model: string; system?: s
   }
 }
 
-/** Shell-level provider answering from a cassette (TASK-E replay). */
+/** Shell-level provider answering from a cassette (TASK-E replay). The
+ *  replay reproduces the recorded usage chunks too, so a replayed run's
+ *  telemetry report equals the real run's (TASK-Q2). */
 function createReplayProvider(replayer: CassetteReplayer): ProviderFace {
-  async function* streamText(text: string): AsyncGenerator<unknown> {
+  async function* streamAnswer(text: string, usage?: { inputTokens: number; outputTokens: number; cacheReadTokens?: number }): AsyncGenerator<unknown> {
     yield { type: 'block-start', index: 0, blockType: 'text' }
     yield { type: 'text-delta', index: 0, text }
     yield { type: 'block-end', index: 0, block: { type: 'text', text } }
+    if (usage !== undefined) {
+      yield {
+        type: 'usage',
+        usage: {
+          inputTokens: usage.inputTokens,
+          outputTokens: usage.outputTokens,
+          ...(usage.cacheReadTokens !== undefined ? { cacheReadTokens: usage.cacheReadTokens } : {}),
+        },
+      }
+    }
     yield { type: 'finish', reason: { kind: 'stop' } }
   }
   return {
@@ -355,8 +389,8 @@ function createReplayProvider(replayer: CassetteReplayer): ProviderFace {
       model: { provider: replayer.meta.provider, id: replayer.meta.model, name: replayer.meta.model, context: { contextWindow: 128_000 }, inputModalities: ['text'] },
     }),
     stream: (options) => {
-      const answer = replayer.answer(assembledRequest(options as { provider: string; model: string; system?: string; messages: Array<{ content?: unknown }> }))
-      return streamText(answer)
+      const answer = replayer.answerWithUsage(assembledRequest(options as { provider: string; model: string; system?: string; messages: Array<{ content?: unknown }> }))
+      return streamAnswer(answer.text, answer.usage)
     },
   }
 }

@@ -24,6 +24,8 @@
  * @module @deepseek-ai/dsh-paper-foundation/src/probe
  */
 
+import { exactLowerConfidenceBound } from './qualification.ts'
+
 /** One combination's identity: the thing a tier assignment is about. */
 export interface CombinationIdentity {
   readonly provider: string
@@ -45,6 +47,10 @@ export interface CombinationRecord extends CombinationIdentity {
   /** W4 guided-retry budget actually consumed during the pass. */
   readonly retryBudgetUsed: number
   readonly attempts: number
+  /** TASK-Q2: first-attempt successes (the LCB's numerator). */
+  readonly successes?: number
+  /** TASK-Q2: ESCAPE attempts in the pass (zero tolerance for upgrade). */
+  readonly escapeCount?: number
 }
 
 /** The single upgrade gate (禁 5). */
@@ -57,10 +63,17 @@ const FLOOR = 0.8
 
 /**
  * Decide whether a fresh probe pass entitles this combination to the
- * measured tier (or to move up from it). Both adherence metrics must be
- * ≥ 0.8 on FIRST attempts and the retry budget must be untouched: a
- * combination that needed W4 guidance to pass is not yet FORMAL (禁 5 —
- * 升级必须经新探针, 且新探针首过).
+ * measured tier (or to move up from it).
+ *
+ * TASK-Q2 (expert plan §6.3): the point-estimate floor is replaced by the
+ * statistical gate — the exact one-sided 95% lower confidence bound of the
+ * first-try success probability must clear the floor, ESCAPE must be
+ * zero, and the retry budget untouched. 8/10 and 80/100 no longer earn
+ * the same qualification: 80/100's exact LCB is ~0.723 and the verdict
+ * says so. A record without per-attempt data (successes/escapeCount
+ * absent, the pre-Q2 shape) falls back to the point-estimate reading so
+ * historical probe archives stay loadable — but only fresh probes can
+ * qualify.
  */
 export function upgradeVerdict(record: CombinationRecord): UpgradeVerdict {
   if (record.attempts < 1) return { ok: false, reason: 'no first attempts measured' }
@@ -70,6 +83,27 @@ export function upgradeVerdict(record: CombinationRecord): UpgradeVerdict {
       reason: `retry budget was spent (${record.retryBudgetUsed}) — guidance got the pass, so the tier is not FORMAL (禁 5)`,
     }
   }
+  if ((record.escapeCount ?? 0) > 0) {
+    return {
+      ok: false,
+      reason: `ESCAPE = ${record.escapeCount} — zero tolerance; the tier is refused regardless of adherence`,
+    }
+  }
+  const successes = record.successes
+  if (successes !== undefined) {
+    const lcb = exactLowerConfidenceBound(successes, record.attempts)
+    if (lcb < FLOOR) {
+      return {
+        ok: false,
+        reason: `LCB₉₅ of first-try success ${lcb.toFixed(3)} < ${FLOOR} (point estimate ${(successes / record.attempts).toFixed(2)}; the bound is the claim — expert plan §6.3)`,
+      }
+    }
+    if (record.structuralAdherence < FLOOR) {
+      return { ok: false, reason: `structural adherence ${record.structuralAdherence.toFixed(3)} < ${FLOOR}` }
+    }
+    return { ok: true, to: record.tier }
+  }
+  // Pre-Q2 record shape: point-estimate reading only (legacy archives).
   if (record.structuralAdherence < FLOOR) {
     return { ok: false, reason: `structural adherence ${record.structuralAdherence.toFixed(3)} < ${FLOOR}` }
   }

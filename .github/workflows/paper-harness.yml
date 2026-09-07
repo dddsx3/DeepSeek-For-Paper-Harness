@@ -137,8 +137,8 @@ jobs:
       # §14 Replay property, CI-side). No key, no network.
       - name: TASK-E cassette replay determinism demo
         run: |
-          pnpm exec tsx apps/paper-shell/src/cli.ts run artifacts/handoff/TASK-M1/samples/course-work.md --tier T3 --mode strict --out artifacts/handoff/TASK-E/replay-ci --replay artifacts/handoff/TASK-E/cassettes/glm-t3-coursework-v1.json
-          pnpm exec tsx apps/paper-shell/src/cli.ts run artifacts/handoff/TASK-M1/samples/course-work.md --tier T3 --mode strict --out artifacts/handoff/TASK-E/replay-ci2 --replay artifacts/handoff/TASK-E/cassettes/glm-t3-coursework-v1.json
+          pnpm exec tsx apps/paper-shell/src/cli.ts run artifacts/handoff/TASK-M1/samples/course-work.md --tier T3 --mode strict --out artifacts/handoff/TASK-E/replay-ci --replay artifacts/handoff/TASK-E/cassettes/glm-t3-coursework-v3.json
+          pnpm exec tsx apps/paper-shell/src/cli.ts run artifacts/handoff/TASK-M1/samples/course-work.md --tier T3 --mode strict --out artifacts/handoff/TASK-E/replay-ci2 --replay artifacts/handoff/TASK-E/cassettes/glm-t3-coursework-v3.json
           A=$(sha256sum artifacts/handoff/TASK-E/replay-ci/deliverable.zip | cut -d' ' -f1)
           B=$(sha256sum artifacts/handoff/TASK-E/replay-ci2/deliverable.zip | cut -d' ' -f1)
           echo "replay zip sha: $A / $B"

@@ -74,6 +74,20 @@ export {
 export type { FailureClass, Tier } from './probe/probe.ts'
 export { CombinationRegistry, upgradeVerdict } from './probe/registry.ts'
 export type { CombinationIdentity, CombinationRecord, UpgradeVerdict } from './probe/registry.ts'
+// TASK-Q2 — statistical qualification gate + usage/cost telemetry.
+export {
+  QUALIFICATION_CONFIDENCE,
+  QUALIFICATION_P_MIN_PHASE1,
+  QUALIFICATION_P_MIN_PRODUCTION,
+  STOP_RULE_P80_ZERO_FAIL_N,
+  STOP_RULE_P90_ZERO_FAIL_N,
+  evaluateQualification,
+  exactLowerConfidenceBound,
+  stopRuleTarget,
+} from './probe/qualification.ts'
+export type { AttemptOutcome, QualificationSample, QualificationVerdict } from './probe/qualification.ts'
+export { UsageTelemetry } from './probe/usage-telemetry.ts'
+export type { ModelPricing, TelemetryCall, UsageBudget, UsageTelemetryReport } from './probe/usage-telemetry.ts'
 export {
   admitGuidedStep,
   assembleGuidedContainer,

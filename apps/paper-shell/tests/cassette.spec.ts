@@ -57,18 +57,24 @@ describe('cassette request fingerprints', () => {
 })
 
 describe('cassette record → write → load → replay', () => {
-  it('a recorded exchange replays byte-identically', async () => {
+  it('a recorded exchange replays byte-identically (text and usage — TASK-Q2)', async () => {
     const dir = await mkdtemp(join(tmpdir(), 'cassette-e2e-'))
     const path = join(dir, 'cassette.json')
     try {
       const recorder = new CassetteRecorder('openai-compatible-relay', 'z-ai/glm-5.3-free', 'unit test')
-      recorder.record(REQUEST, '{"defects":[]}')
+      recorder.record(REQUEST, '{"defects":[]}', { inputTokens: 21, outputTokens: 7 })
       expect(recorder.count).toBe(1)
       await recorder.write(path)
 
       const replayer = await CassetteReplayer.load(path)
       expect(replayer.meta.entries).toBe(1)
       expect(replayer.answer(REQUEST)).toBe('{"defects":[]}')
+      expect(replayer.answerWithUsage(REQUEST)).toEqual({ text: '{"defects":[]}', usage: { inputTokens: 21, outputTokens: 7 } })
+      // An entry recorded without usage replays without usage.
+      recorder.record(OTHER_REQUEST, 'plain answer')
+      await recorder.write(path)
+      const replayer2 = await CassetteReplayer.load(path)
+      expect(replayer2.answerWithUsage(OTHER_REQUEST)).toEqual({ text: 'plain answer' })
     } finally {
       await rm(dir, { recursive: true, force: true })
     }
@@ -101,12 +107,17 @@ describe('cassette record → write → load → replay', () => {
       // The system prompt text IS recorded (it is a request fingerprint
       // input — engine semantics, not a credential). What must NEVER appear
       // is the API key as a credential FIELD. Assert the schema has no
-      // auth/key/header field at all.
+      // auth/key/header field at all; `usage` is the optional TASK-Q2
+      // token block, the only extra key ever allowed.
       for (const entry of doc.entries) {
-        expect(Object.keys(entry).sort()).toEqual(['model', 'provider', 'request_fingerprint', 'response_sha256', 'response_text'])
+        const keys = Object.keys(entry).sort()
+        expect(keys.every(k => ['model', 'provider', 'request_fingerprint', 'response_sha256', 'response_text', 'usage'].includes(k))).toBe(true)
+        expect(keys).toContain('response_text')
+        expect(keys.some(k => k.startsWith('sk-') || k.includes('key') || k.includes('auth') || k.includes('header'))).toBe(false)
       }
-    } finally {
       await rm(dir, { recursive: true, force: true })
+    } finally {
+      await rm(dir, { recursive: true, force: true }).catch(() => {})
     }
   })
 

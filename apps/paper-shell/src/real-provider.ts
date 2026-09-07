@@ -24,6 +24,13 @@ interface ChatCompletionChunk {
     delta?: { content?: string; reasoning_content?: string }
     finish_reason?: string | null
   }>
+  /** Final chunk's usage block when stream_options.include_usage is set. */
+  usage?: {
+    prompt_tokens?: number
+    completion_tokens?: number
+    prompt_tokens_details?: { cached_tokens?: number }
+    completion_tokens_details?: { reasoning_tokens?: number }
+  }
 }
 
 /** Split an SSE byte stream into `data:` lines (OpenAI wire format). */
@@ -95,6 +102,12 @@ export async function* streamCompletion(
     ],
     temperature: 0.2,
     stream: true,
+    // TASK-Q2 (usage telemetry): ask the endpoint for the final usage
+    // block so every call's token accounting is real, not estimated. An
+    // endpoint that ignores the option simply omits usage — the executor
+    // already treats missing usage as "not reported", never as zero-with-
+    // confidence.
+    stream_options: { include_usage: true },
   })
 
   // The concurrency slot spans all attempts of one call: a retry must not
@@ -133,6 +146,7 @@ export async function* streamCompletion(
     release()
   }
   let text = ''
+  let usage: ChatCompletionChunk['usage']
   try {
     yield { type: 'block-start', index: 0, blockType: 'text' }
     for await (const line of sseLines(body)) {
@@ -143,14 +157,36 @@ export async function* streamCompletion(
       } catch {
         continue
       }
+      // The usage block arrives on a choices-empty final chunk (OpenAI
+      // wire shape when include_usage is on) — AFTER the finish_reason
+      // chunk. Breaking at finish_reason would miss it, so keep scanning
+      // until the stream ends or [DONE]; deltas after finish do not exist.
+      if (parsed.usage !== undefined) usage = parsed.usage
       const delta = parsed.choices?.[0]?.delta?.content
       if (delta !== undefined && delta.length > 0) {
         text += delta
         yield { type: 'text-delta', index: 0, text: delta }
       }
-      if (parsed.choices?.[0]?.finish_reason != null) break
     }
     yield { type: 'block-end', index: 0, block: { type: 'text', text } }
+    // Real token accounting, exactly the disjoint TokenUsage shape the
+    // runtime expects: inputTokens = uncached input only; cache hits
+    // reported separately (TASK-Q2 telemetry).
+    if (usage !== undefined) {
+      const cached = usage.prompt_tokens_details?.cached_tokens ?? 0
+      const promptTotal = usage.prompt_tokens ?? 0
+      yield {
+        type: 'usage',
+        usage: {
+          inputTokens: Math.max(promptTotal - cached, 0),
+          outputTokens: usage.completion_tokens ?? 0,
+          ...(cached > 0 ? { cacheReadTokens: cached } : {}),
+          ...(usage.completion_tokens_details?.reasoning_tokens !== undefined
+            ? { reasoningTokens: usage.completion_tokens_details.reasoning_tokens }
+            : {}),
+        },
+      }
+    }
     yield { type: 'finish', reason: { kind: 'stop' } }
   } finally {
     await finish()

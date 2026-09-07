@@ -1,8 +1,13 @@
 {
-  "runId": "675293e5-728e-413f-b28a-aa4cf3448513",
+  "runId": "79f301f0-31af-4aa7-90cd-615f0bcb8256",
   "tier": "T3",
   "mode": "strict",
   "status": "DELIVERED",
   "sha256": "a0e4c4923a3c2482f67eaed48eb43d8385e02d935607d2f3150ad261f9ecf3b9",
-  "audit": "workflow_started,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,final_output_written,promotion_succeeded,workflow_completed"
+  "audit": "workflow_started,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,final_output_written,promotion_succeeded,workflow_completed",
+  "usage": {
+    "input_tokens": 0,
+    "output_tokens": 0,
+    "cost_usd": 0
+  }
 }

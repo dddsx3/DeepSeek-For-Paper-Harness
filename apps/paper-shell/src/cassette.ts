@@ -40,6 +40,9 @@ export interface CassetteEntry {
   readonly response_sha256: string
   /** The assembled response text exactly as the engine consumed it. */
   readonly response_text: string
+  /** Token usage the transport reported (TASK-Q2; absent when the endpoint
+   *  did not report any — replay then omits the usage chunk too). */
+  readonly usage?: { inputTokens: number; outputTokens: number; cacheReadTokens?: number }
 }
 
 /** Cassette document (versioned). */
@@ -89,13 +92,14 @@ export class CassetteRecorder {
     this.#source = source
   }
 
-  record(request: { provider: string; model: string; system?: string | undefined; messages: ReadonlyArray<{ content?: unknown }> }, responseText: string): void {
+  record(request: { provider: string; model: string; system?: string | undefined; messages: ReadonlyArray<{ content?: unknown }> }, responseText: string, usage?: CassetteEntry['usage']): void {
     this.#entries.push({
       request_fingerprint: requestFingerprint(request),
       provider: request.provider,
       model: request.model,
       response_sha256: createHash('sha256').update(responseText, 'utf8').digest('hex'),
       response_text: responseText,
+      ...(usage === undefined ? {} : { usage }),
     })
   }
 
@@ -156,6 +160,18 @@ export class CassetteReplayer {
 
   /** The recorded answer for this exact request, or a loud failure. */
   answer(request: { provider: string; model: string; system?: string | undefined; messages: ReadonlyArray<{ content?: unknown }> }): string {
+    const entry = this.#entryFor(request)
+    return entry.response_text
+  }
+
+  /** The recorded answer AND its usage (TASK-Q2: replay reproduces the
+   *  token accounting, so a replayed run-report equals the real one). */
+  answerWithUsage(request: { provider: string; model: string; system?: string | undefined; messages: ReadonlyArray<{ content?: unknown }> }): { text: string; usage?: CassetteEntry['usage'] } {
+    const entry = this.#entryFor(request)
+    return { text: entry.response_text, ...(entry.usage === undefined ? {} : { usage: entry.usage }) }
+  }
+
+  #entryFor(request: { provider: string; model: string; system?: string | undefined; messages: ReadonlyArray<{ content?: unknown }> }): CassetteEntry {
     const fingerprint = requestFingerprint(request)
     const entry = this.#byFingerprint.get(fingerprint)
     if (entry === undefined) {
@@ -164,6 +180,6 @@ export class CassetteReplayer {
         'the engine changed what it asks; re-record the cassette (never guess on replay)',
       )
     }
-    return entry.response_text
+    return entry
   }
 }

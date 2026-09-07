@@ -11,13 +11,13 @@
     "v1.1_status": "PARTIAL — 5.0.1 (six stubs -> UNIMPLEMENTED) shipped under the 5.0-R author-delegated ratification; 5.0.4 (attestation hardening) and 5.0.10 (numeric tolerance) remain v1.1-ratification-pending."
   },
   "baseline": {
-    "files": 96,
-    "total_tests": 1066,
-    "passed_tests": 1066,
+    "files": 98,
+    "total_tests": 1089,
+    "passed_tests": 1089,
     "failed_tests": 0,
     "failed_test_suites": 0,
     "tsc_clean": true,
-    "baseline_at": "TASK-E(CI/真实API解耦)+ P0-B golden fixture:golden/ir-fingerprints-v1.json 6 条钉死三层指纹与 freeze 字节(fingerprint version 由命名空间内嵌);REAL_API_POLICY=never 守卫(scripts/verify-real-api-policy.ts)+ e2e.yml 转纯 manual + paper-harness.yml push 挂守卫与 cassette replay 确定性 demo;cassette 录制/回放(shell --cassette/--replay + glm-t3-coursework-v1 真实语料 5 exchanges);shell 8→15;基线 1060→1066/96 文件"
+    "baseline_at": "TASK-Q2(统计资格门+成本遥测):exactLowerConfidenceBound(Clopper-Pearson 精确单侧下界;零失败闭式 alpha^(1/n) 复现专家 14/29 stop rule;80/100 精确值 0.7226 经二项尾独立验证)+ evaluateQualification(LCB>=p_min AND ESCAPE=0 AND 预算=0)+ registry upgradeVerdict 升级为统计门(legacy 记录回退点估计);UsageTelemetry(calls/tokens/cache/retry/路由/成本/硬预算 BLOCK);real-provider 请求 stream_options.include_usage 并发 usage chunk(修复 finish_reason 后 break 漏 usage);cassette 录制/回放含 usage(真实跑与 replay zip sha 完全一致 fb4d4e07 + usage 逐字复现);shell run-report 增加 usage 字段;18+5 新测试;基线 1066→1089/98 文件"
   },
   "failures_by_origin": {},
   "gates_impl": [
