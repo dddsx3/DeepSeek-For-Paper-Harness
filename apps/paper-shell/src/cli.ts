@@ -38,6 +38,7 @@ import {
 import { ModelingIr } from '@deepseek-ai/dsh-paper-foundation'
 import { resolveShellRoute, readProblemFile, blockMessage, type ShellRoute } from './invoke.ts'
 import { streamCompletion } from './real-provider.ts'
+import { CassetteRecorder, CassetteReplayer } from './cassette.ts'
 import { zipTextFiles } from './zip.ts'
 
 const here = dirname(fileURLToPath(import.meta.url))
@@ -140,15 +141,29 @@ async function main(): Promise<number> {
   }
   const outDir = parsed.out !== undefined ? String(parsed.out) : join(here, 'out')
   const fake = parsed.fake === true || parsed.fake === 'true'
+  // TASK-E: cassette record/replay. --cassette <file> records a REAL run's
+  // every seam exchange; --replay <file> answers the seam from a cassette
+  // (no network, no key). Exactly one of the three provider modes
+  // (fake / real / replay) applies; cassette recording is real-mode only.
+  const cassettePath = parsed.cassette !== undefined ? String(parsed.cassette) : undefined
+  const replayPath = parsed.replay !== undefined ? String(parsed.replay) : undefined
+  if (cassettePath !== undefined && (fake || replayPath !== undefined)) {
+    console.error('--cassette (record) requires a real run: it is a recording of real provider answers')
+    return 2
+  }
+  if (replayPath !== undefined && fake) {
+    console.error('--replay and --fake are mutually exclusive (replay IS the offline mode, but from recorded real answers)')
+    return 2
+  }
 
   const route = resolveShellRoute(process.env)
-  if (!fake && (route === undefined || route.baseURL === '')) {
+  if (!fake && replayPath === undefined && (route === undefined || route.baseURL === '')) {
     console.error('no provider route: set PAPER_PROBE_API_KEY + PAPER_PROBE_BASE_URL (or DSH_E2E_LLM_*) — never a hardcoded vendor (P3D 中立变量族)')
     return 1
   }
 
   const { ctx, baseRoot, dispose } = await buildContext(here)
-  if (!fake) {
+  if (!fake && replayPath === undefined) {
     if (route === undefined) {
       // Unreachable (guarded above), but keep the type narrow for the audit.
       console.error('no provider route')
@@ -161,10 +176,19 @@ async function main(): Promise<number> {
     await ctx.paperAudit.record({ eventType: 'production_enabled', actor: 'paper-shell', detail: { tier, mode, route: `${route.baseURL} + ${route.model}` } })
   }
 
-  // Mount the provider (REAL adapter over the shell seam, or a deterministic
-  // fake for the offline e2e — never engine semantics, 禁 M1-1).
+  // Mount the provider (REAL adapter over the shell seam, a deterministic
+  // fake for the offline e2e, or a CASSETTE REPLAYER for recorded-real
+  // offline runs — never engine semantics, 禁 M1-1).
+  const recorder = cassettePath !== undefined && route !== undefined
+    ? new CassetteRecorder(route.provider, route.model, `paper-shell real run → ${cassettePath}`)
+    : undefined
+  const replayer = replayPath !== undefined
+    ? await CassetteReplayer.load(replayPath)
+    : undefined
   if (fake) {
     ctx.provide('paperProvider', createFakeProvider(route))
+  } else if (replayer !== undefined) {
+    ctx.provide('paperProvider', createReplayProvider(replayer))
   } else {
     if (route === undefined) {
       console.error('no provider route')
@@ -172,7 +196,7 @@ async function main(): Promise<number> {
       return 1
     }
     const adapter = (r: ShellRoute, req: { system?: string; messages: Array<{ content: string }> }) => streamCompletion(r, req)
-    ctx.provide('paperProvider', createRealProvider(route, adapter))
+    ctx.provide('paperProvider', createRealProvider(route, adapter, recorder))
   }
   // Plugin executor AFTER provider is mounted.
   try {
@@ -238,6 +262,12 @@ async function main(): Promise<number> {
   console.log(`  zip     -> ${zipPath} (zip sha256=${zipSha.slice(0, 16)}...)`)
   console.log(`  audit   -> ${audit}`)
   console.log(`  tier    -> ${ctx.paperExecutor.runs.tierOf(RunId(run.id))}`)
+  // TASK-E: a real run recorded with --cassette persists its exchanges
+  // here — the cassette is the run's evidence, replayable key-less forever.
+  if (recorder !== undefined && cassettePath !== undefined) {
+    await recorder.write(cassettePath)
+    console.log(`  cassette -> ${cassettePath} (${recorder.count} exchanges)`)
+  }
   await dispose()
   return 0
 }
@@ -247,28 +277,87 @@ type ProviderFace = {
   stream: (options: { provider: string; model: string; system?: string; messages: Array<{ content?: unknown }> }) => AsyncIterable<unknown>
 }
 
-/** Shell-level provider over the real adapter (never engine semantics). */
+/** Shell-level provider over the real adapter (never engine semantics).
+ *  When a recorder is present, every answered request + assembled response
+ *  is recorded into the cassette (TASK-E). */
 function createRealProvider(
   route: ShellRoute,
   adapter: (r: ShellRoute, req: { system?: string; messages: Array<{ content: string }> }) => AsyncIterable<unknown>,
+  recorder?: CassetteRecorder,
 ): ProviderFace {
   return {
     resolveRole: async () => ({
       route: { role: 'executor', provider: route.provider, model: route.model, credentialRef: 'PAPER_PROBE_API_KEY', timeoutMs: 60_000 },
       model: { provider: route.provider, id: route.model, name: route.model, context: { contextWindow: 128_000 }, inputModalities: ['text'] },
     }),
-    stream: options => adapter(route, {
-      ...(options.system === undefined ? {} : { system: options.system }),
-      messages: (options.messages ?? []).map((m) => {
-        const c = (m as { content?: unknown }).content
-        if (typeof c === 'string') return { content: c }
-        if (Array.isArray(c)) {
-          const parts = c as Array<{ type?: string; text?: string }>
-          return { content: parts.map(p => (p?.type === 'text' ? p.text ?? '' : '')).join('') }
-        }
-        return { content: '' }
-      }),
+    stream: options => recordOrPassthrough(recorder, options, adapterStream(route, adapter, options)),
+  }
+}
+
+/** Adapter stream for one seam request (no recording — recording wraps it). */
+async function* adapterStream(
+  route: ShellRoute,
+  adapter: (r: ShellRoute, req: { system?: string; messages: Array<{ content: string }> }) => AsyncIterable<unknown>,
+  options: { provider: string; model: string; system?: string; messages: Array<{ content?: unknown }> },
+): AsyncGenerator<unknown> {
+  yield* adapter(route, {
+    ...(options.system === undefined ? {} : { system: options.system }),
+    messages: (options.messages ?? []).map((m) => {
+      const c = (m as { content?: unknown }).content
+      if (typeof c === 'string') return { content: c }
+      if (Array.isArray(c)) {
+        const parts = c as Array<{ type?: string; text?: string }>
+        return { content: parts.map(p => (p?.type === 'text' ? p.text ?? '' : '')).join('') }
+      }
+      return { content: '' }
     }),
+  })
+}
+
+/** Wrap one stream: pass chunks through, record the assembled exchange. */
+function recordOrPassthrough(recorder: CassetteRecorder | undefined, options: { provider: string; model: string; system?: string; messages: Array<{ content?: unknown }> }, stream: AsyncIterable<unknown>): AsyncGenerator<unknown> {
+  if (recorder === undefined) {
+    return (async function* pass() { yield* stream })()
+  }
+  const request = assembledRequest(options)
+  return (async function* record() {
+    let assembled = ''
+    for await (const chunk of stream) {
+      if (typeof chunk === 'object' && chunk !== null && 'text' in chunk && typeof (chunk as { text?: unknown }).text === 'string') {
+        assembled += (chunk as { text: string }).text
+      }
+      yield chunk
+    }
+    recorder.record(request, assembled)
+  })()
+}
+
+function assembledRequest(options: { provider: string; model: string; system?: string; messages: Array<{ content?: unknown }> }): { provider: string; model: string; system?: string | undefined; messages: ReadonlyArray<{ content?: unknown }> } {
+  return {
+    provider: options.provider,
+    model: options.model,
+    ...(options.system === undefined ? {} : { system: options.system }),
+    messages: options.messages ?? [],
+  }
+}
+
+/** Shell-level provider answering from a cassette (TASK-E replay). */
+function createReplayProvider(replayer: CassetteReplayer): ProviderFace {
+  async function* streamText(text: string): AsyncGenerator<unknown> {
+    yield { type: 'block-start', index: 0, blockType: 'text' }
+    yield { type: 'text-delta', index: 0, text }
+    yield { type: 'block-end', index: 0, block: { type: 'text', text } }
+    yield { type: 'finish', reason: { kind: 'stop' } }
+  }
+  return {
+    resolveRole: async () => ({
+      route: { role: 'executor', provider: replayer.meta.provider, model: replayer.meta.model, credentialRef: 'CASSETTE', timeoutMs: 1_000 },
+      model: { provider: replayer.meta.provider, id: replayer.meta.model, name: replayer.meta.model, context: { contextWindow: 128_000 }, inputModalities: ['text'] },
+    }),
+    stream: (options) => {
+      const answer = replayer.answer(assembledRequest(options as { provider: string; model: string; system?: string; messages: Array<{ content?: unknown }> }))
+      return streamText(answer)
+    },
   }
 }
 

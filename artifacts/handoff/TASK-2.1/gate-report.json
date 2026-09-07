@@ -11,13 +11,13 @@
     "v1.1_status": "PARTIAL — 5.0.1 (six stubs -> UNIMPLEMENTED) shipped under the 5.0-R author-delegated ratification; 5.0.4 (attestation hardening) and 5.0.10 (numeric tolerance) remain v1.1-ratification-pending."
   },
   "baseline": {
-    "files": 95,
-    "total_tests": 1060,
-    "passed_tests": 1060,
+    "files": 96,
+    "total_tests": 1066,
+    "passed_tests": 1066,
     "failed_tests": 0,
     "failed_test_suites": 0,
     "tsc_clean": true,
-    "baseline_at": "TASK-T1 Sprint 2 (专家计划书 P0-A/Commit 1 收尾):REF-001..005 单向 scope 引用规则 + reference_scope_mismatch 失败码 + models_by_equation 派生索引;SCH-SEM-001 shape/domain UNKNOWN 哨兵;DEP 三层指纹(edge/object/closure)+ 命名空间 + canonical-sort;ir-semantics.spec 20 条 invariant;基线 1040→1060(95 文件)"
+    "baseline_at": "TASK-E(CI/真实API解耦)+ P0-B golden fixture:golden/ir-fingerprints-v1.json 6 条钉死三层指纹与 freeze 字节(fingerprint version 由命名空间内嵌);REAL_API_POLICY=never 守卫(scripts/verify-real-api-policy.ts)+ e2e.yml 转纯 manual + paper-harness.yml push 挂守卫与 cassette replay 确定性 demo;cassette 录制/回放(shell --cassette/--replay + glm-t3-coursework-v1 真实语料 5 exchanges);shell 8→15;基线 1060→1066/96 文件"
   },
   "failures_by_origin": {},
   "gates_impl": [

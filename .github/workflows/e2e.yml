@@ -4,6 +4,18 @@ name: E2E (real provider API)
 # consumes provider credentials from repo secrets and hits whichever
 # endpoint those secrets name.
 #
+# TASK-E (expert plan §2 / ADR-004: real-model execution is observational
+# testing, NOT a prerequisite of deterministic CI) — this workflow is
+# **workflow_dispatch ONLY**. The previous push/pull_request/schedule
+# triggers made every key-less push report a red E2E check forever (the
+# repo deliberately holds no provider key in CI secrets for pushes), which
+# is the exact anti-pattern the expert plan calls out: "CI 不持有 key 就
+# FAIL" is a different error from "real adapter was invoked in CI", and
+# only the second one should ever FAIL. Deterministic CI lives in ci.yml /
+# paper-harness.yml (fake + replay only); real-model evidence is Track 2
+# (capability probe, milestone-triggered manual) / Track 3 (user study,
+# explicit opt-in) material.
+#
 # VENDOR-DECOUPLING BATCH — this workflow is vendor-neutral on purpose:
 #   - Preferred: DSH_E2E_LLM_*_EXTERNAL secrets (API key / base URL / model /
 #     provider route) — any OpenAI-compatible endpoint (relay or official)
@@ -15,41 +27,20 @@ name: E2E (real provider API)
 #     refuses to boot without an explicit endpoint, so a repo that configured
 #     neither secret family gets a loud failure, never a silent vendor route.
 #
-# pull_request IS a trigger, but GitHub withholds repo secrets from BOTH forked
-# PRs and Dependabot PRs (the latter are same-repo, fork==false, but still
-# keyless). The job-level `if:` below skips the whole job for those untrusted
-# PRs. The Dependabot test keys on the PR AUTHOR (pull_request.user.login), not
-# github.actor (the run trigger) — a maintainer reopening a Dependabot PR would
-# make github.actor human while the PR is still keyless. When the job runs, a
-# credential is expected, so the preflight hard-fails if neither family has a
-# key (a missing secret would otherwise make the self-skipping suite report a
-# false green). A job skipped by a job-level `if:` reports as a SUCCESSFUL
-# check, so this workflow is safe to use as a required status check if desired.
-#
-# SECURITY — NEVER change this trigger to `pull_request_target`. `pull_request`
-# checks out and runs the PR's HEAD code WITHOUT secrets for forks, which is what
-# keeps an untrusted fork from exfiltrating the key. `pull_request_target` runs
-# in the BASE repo's context WITH secrets while still able to check out untrusted
-# fork code — a textbook key-leak vector, especially once this repo is public.
+# SECURITY — this job runs ONLY on workflow_dispatch from a trusted actor
+# with repo rights; never on `pull_request_target`. `pull_request`
+# workflows must check out and run the PR's HEAD code WITHOUT secrets for
+# forks, which is what keeps an untrusted fork from exfiltrating the key.
 # The fork/secret model and its public-repo implications are recorded in
 # .agents/notes/implemented/testing/2026-06-19-real-api-e2e-ci.md.
-#
-# Note: scheduled triggers are auto-disabled after 60 days of repo inactivity;
-# push/pull_request/workflow_dispatch act as backstops.
 on:
   workflow_dispatch:
-  push:
-    branches: [main, master]
-  pull_request:
-  schedule:
-    # 00:17 UTC nightly = 08:17 Asia/Shanghai — off the top-of-hour cron stampede.
-    - cron: '17 0 * * *'
 
-# Cancel a superseded PR run (it is on a stale commit); never cancel a
-# push/schedule run — it is already producing the post-merge/nightly signal.
+# Manual dispatch only (TASK-E): a dispatched run is its own signal; nothing
+# superseded to cancel.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  cancel-in-progress: false
 
 # Least privilege: this job only reads the repo to run tests.
 permissions:
@@ -64,11 +55,8 @@ jobs:
   e2e:
     runs-on: ubuntu-latest
     name: e2e
-    # Run on every trusted event. Skip untrusted PRs (forks + Dependabot) where
-    # the secret is withheld — they would otherwise hard-fail the preflight.
-    if: >-
-      github.event_name != 'pull_request'
-      || !(github.event.pull_request.head.repo.fork || github.event.pull_request.user.login == 'dependabot[bot]')
+    # Manual only — a dispatcher with repo rights is trusted by definition,
+    # so the fork/Dependabot key-withholding cases cannot occur here.
     # Bounded file parallelism (DSH_E2E_MAX_WORKERS), 120s/test, retry 2. 45m
     # still bounds retry storms against a slow API while the happy path fans out.
     timeout-minutes: 45

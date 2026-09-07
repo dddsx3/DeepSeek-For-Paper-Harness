@@ -1,0 +1,10 @@
+{
+  "golden_version": 1,
+  "generated_from": "validChain()/backboneIr() fixtures",
+  "environment_hash": "46577bca76f9250cd66687f62f9d2cde74c1674b48217f7185635d068d415a00",
+  "dependency_edge_hash": "5b3ad9370bb1dafc32218be951678e5a9f5256f58dfdc5bf4f824c502a4cd0b3",
+  "dependency_closure_hash": "e2fb3b5176b76fa3486f83a40cd5732ed30d2b1cc6bc39fd546a06a898546f81",
+  "freeze_hash": "73471a6a70d20ad4f50628930abd584a1a59b915b2a22528bf3b367c4b42bb1e",
+  "manifest_hash": "936a87711180dfde1bda135bfa6abb44b73b846e052e948c5a346776b2387894",
+  "evidence_chain_hash": "34a43979e16370601d2cb02b4df07edf101ad6ca7ab90af93a126d1c68b59028"
+}

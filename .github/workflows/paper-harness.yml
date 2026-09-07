@@ -120,6 +120,30 @@ jobs:
           pnpm run demo:pw
           pnpm run test:m1:shell
 
+      # TASK-E (expert plan §2.1 / ADR-004): push CI must be REAL-API-FREE.
+      # The guard pins the workflow shapes (e2e.yml manual-only; no provider
+      # key secret outside dispatch-gated jobs) and, under the explicit
+      # REAL_API_POLICY=never declaration, refuses any configured real route.
+      # "Real adapter invoked in CI" is a FAIL; "no key configured" is not —
+      # those are different errors and only the first one matters here.
+      - name: TASK-E real-api policy guard
+        env:
+          REAL_API_POLICY: never
+        run: pnpm exec tsx scripts/verify-real-api-policy.ts
+
+      # TASK-E: cassette replay demo — the recorded real-provider answers
+      # (artifacts/handoff/TASK-E/cassettes) drive the FULL shell chain
+      # offline: same cassette → same report → same zip sha256 (expert plan
+      # §14 Replay property, CI-side). No key, no network.
+      - name: TASK-E cassette replay determinism demo
+        run: |
+          pnpm exec tsx apps/paper-shell/src/cli.ts run artifacts/handoff/TASK-M1/samples/course-work.md --tier T3 --mode strict --out artifacts/handoff/TASK-E/replay-ci --replay artifacts/handoff/TASK-E/cassettes/glm-t3-coursework-v1.json
+          pnpm exec tsx apps/paper-shell/src/cli.ts run artifacts/handoff/TASK-M1/samples/course-work.md --tier T3 --mode strict --out artifacts/handoff/TASK-E/replay-ci2 --replay artifacts/handoff/TASK-E/cassettes/glm-t3-coursework-v1.json
+          A=$(sha256sum artifacts/handoff/TASK-E/replay-ci/deliverable.zip | cut -d' ' -f1)
+          B=$(sha256sum artifacts/handoff/TASK-E/replay-ci2/deliverable.zip | cut -d' ' -f1)
+          echo "replay zip sha: $A / $B"
+          test "$A" = "$B"
+
       - name: Upload gate evidence
         if: always()
         uses: actions/upload-artifact@v7
