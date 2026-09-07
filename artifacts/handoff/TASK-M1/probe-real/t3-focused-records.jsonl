@@ -1,0 +1,9 @@
+{"i":1,"problem":"Estimate mean sea-ice thickness.","ok":true,"stage":"full","reason":""}
+{"i":2,"problem":"Estimate melt-pond fraction.","ok":true,"stage":"full","reason":""}
+{"i":3,"problem":"Estimate ridge density.","ok":true,"stage":"full","reason":""}
+{"i":4,"problem":"Estimate mean sea-ice thickness.","ok":true,"stage":"full","reason":""}
+{"i":5,"problem":"Estimate melt-pond fraction.","ok":true,"stage":"full","reason":""}
+{"i":6,"problem":"Estimate ridge density.","ok":true,"stage":"full","reason":""}
+{"i":7,"problem":"Estimate mean sea-ice thickness.","ok":true,"stage":"full","reason":""}
+{"i":8,"problem":"Estimate melt-pond fraction.","ok":true,"stage":"full","reason":""}
+SUMMARY pass=8/8

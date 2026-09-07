@@ -27,6 +27,10 @@ the 5.0.4 forge factory); the RG-06/RG-07 verifier enforces that
 baseline in CI and reports PASS. See
 `artifacts/handoff/TASK-5.0/handoff.md` and
 `artifacts/handoff/TASK-2.1/known-risks.md` items 17–19.
+**TASK-PW 与 TASK-M1 已收口**:TASK-PW(弱模型遵从分层)落地 93 文件/1025 测试全绿、demo v4 9/9;
+TASK-M1(用户外壳与人机协同实测)完成真实 key 三层探针(T3 fill 18/18 + 专测 8/8,弱模型被 T3 最小面救回)、
+落地用户外壳 CLI v0(8 单测绿 + zip 确定性)、真实用户模拟 DELIVERED;基线维持 1025/1025(RG-06 PASS)。
+M1-3 PNG 后端与 M1-5 pilot 协议未启动(后续任务)。
 
 ---
 

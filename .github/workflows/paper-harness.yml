@@ -111,6 +111,15 @@ jobs:
       - name: P3 executor-authoritative demo v3
         run: pnpm run test:p3:demo
 
+      # M1-2: the paper user shell — offline demo (deterministic fake provider;
+      # zip sha256 stable across re-runs) plus the shell spec (three problem-file
+      # attack guardrails + BLOCKED humanization classifier). Real-provider probe
+      # stays key-gated (real-provider runs are manual under the test key).
+      - name: M1 paper user shell demo + spec
+        run: |
+          pnpm run demo:pw
+          pnpm run test:m1:shell
+
       - name: Upload gate evidence
         if: always()
         uses: actions/upload-artifact@v7

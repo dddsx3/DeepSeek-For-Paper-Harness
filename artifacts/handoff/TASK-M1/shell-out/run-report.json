@@ -1,0 +1,8 @@
+{
+  "runId": "7d5595a9-5c0c-4076-a527-0db2c287bd5c",
+  "tier": "T3",
+  "mode": "strict",
+  "status": "DELIVERED",
+  "sha256": "a0e4c4923a3c2482f67eaed48eb43d8385e02d935607d2f3150ad261f9ecf3b9",
+  "audit": "workflow_started,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,final_output_written,promotion_succeeded,workflow_completed"
+}

@@ -1,0 +1,30 @@
+{"mode":"fake","tier":"T1","attempt":1,"firstTry":true,"stage":"full"}
+{"mode":"fake","tier":"T1","attempt":2,"firstTry":true,"stage":"full"}
+{"mode":"fake","tier":"T1","attempt":3,"firstTry":true,"stage":"full"}
+{"mode":"fake","tier":"T1","attempt":4,"firstTry":true,"stage":"full"}
+{"mode":"fake","tier":"T1","attempt":5,"firstTry":true,"stage":"full"}
+{"mode":"fake","tier":"T2","attempt":1,"firstTry":true,"stage":"full"}
+{"mode":"fake","tier":"T2","attempt":2,"firstTry":true,"stage":"full"}
+{"mode":"fake","tier":"T2","attempt":3,"firstTry":true,"stage":"full"}
+{"mode":"fake","tier":"T2","attempt":4,"firstTry":true,"stage":"full"}
+{"mode":"fake","tier":"T2","attempt":5,"firstTry":true,"stage":"full"}
+{"mode":"fake","tier":"T3","attempt":1,"firstTry":true,"stage":"full"}
+{"mode":"fake","tier":"T3","attempt":2,"firstTry":true,"stage":"full"}
+{"mode":"fake","tier":"T3","attempt":3,"firstTry":true,"stage":"full"}
+{"mode":"fake","tier":"T3","attempt":4,"firstTry":true,"stage":"full"}
+{"mode":"fake","tier":"T3","attempt":5,"firstTry":true,"stage":"full"}
+{"mode":"real","tier":"T1","attempt":1,"problem":"Estimate mean sea-ice thickness.","firstTry":false,"stage":"produce","reason":"entry 'ModelSpec' violates its closed IR schema — assumptions: Invalid input: expected array, received string"}
+{"mode":"real","tier":"T1","attempt":2,"problem":"Estimate melt-pond fraction.","firstTry":false,"stage":"produce","reason":"entry 'ModelSpec' violates its closed IR schema — assumptions: Invalid input: expected array, received string"}
+{"mode":"real","tier":"T1","attempt":3,"problem":"Estimate ridge density.","firstTry":false,"stage":"produce","reason":"entry 'ModelSpec' could not be admitted: reference_kind_mismatch: 'DA-RAW' resolves to DataArtifact, expected ModelSpec (append-only store; a duplicate id is a conflict, not an update)"}
+{"mode":"real","tier":"T1","attempt":4,"problem":"Estimate mean sea-ice thickness.","firstTry":false,"stage":"produce","reason":"entry 'ModelSpec' violates its closed IR schema — parameter_refs.0: Invalid input: expected object, received string"}
+{"mode":"real","tier":"T1","attempt":5,"problem":"Estimate melt-pond fraction.","firstTry":false,"stage":"produce","reason":"entry 'ModelSpec' violates its closed IR schema — assumptions: Invalid input: expected array, received string"}
+{"mode":"real","tier":"T2","attempt":1,"problem":"Estimate mean sea-ice thickness.","firstTry":false,"stage":"guided-step-2","reason":"locator 'step1_output.json' is not one of the step-1 declared outputs [result.json] — cross-step references must be on the ledger"}
+{"mode":"real","tier":"T2","attempt":2,"problem":"Estimate melt-pond fraction.","firstTry":false,"stage":"guided-step-2","reason":"locator 'RES-OUT.json' is not one of the step-1 declared outputs [result.json] — cross-step references must be on the ledger"}
+{"mode":"real","tier":"T2","attempt":3,"problem":"Estimate ridge density.","firstTry":false,"stage":"guided-step-2","reason":"locator 'ridge_density.json' is not one of the step-1 declared outputs [result.json] — cross-step references must be on the ledger"}
+{"mode":"real","tier":"T2","attempt":4,"problem":"Estimate mean sea-ice thickness.","firstTry":false,"stage":"guided-step-2","reason":"locator 'sea_ice_thickness.json' is not one of the step-1 declared outputs [result.json] — cross-step references must be on the ledger"}
+{"mode":"real","tier":"T2","attempt":5,"problem":"Estimate melt-pond fraction.","firstTry":false,"stage":"guided-step-2","reason":"locator 'RES-OUT.json' is not one of the step-1 declared outputs [result.json] — cross-step references must be on the ledger"}
+{"mode":"real","tier":"T3","attempt":1,"problem":"Estimate mean sea-ice thickness.","firstTry":false,"stage":"execution","reason":"runner produced [] but RunArtifact.output_refs declares [file:///runs/PROBE-auq50o/result.json]"}
+{"mode":"real","tier":"T3","attempt":2,"problem":"Estimate melt-pond fraction.","firstTry":false,"stage":"execution","reason":"runner produced [] but RunArtifact.output_refs declares [file:///runs/PROBE-1226ve/result.json]"}
+{"mode":"real","tier":"T3","attempt":3,"problem":"Estimate ridge density.","firstTry":false,"stage":"execution","reason":"runner produced [] but RunArtifact.output_refs declares [file:///runs/PROBE-old1c5/result.json]"}
+{"mode":"real","tier":"T3","attempt":4,"problem":"Estimate mean sea-ice thickness.","firstTry":false,"stage":"execution","reason":"runner produced [] but RunArtifact.output_refs declares [file:///runs/PROBE-q1hzkz/result.json]"}
+{"mode":"real","tier":"T3","attempt":5,"problem":"Estimate melt-pond fraction.","firstTry":false,"stage":"execution","reason":"runner produced [] but RunArtifact.output_refs declares [file:///runs/PROBE-s4wmkh/result.json]"}

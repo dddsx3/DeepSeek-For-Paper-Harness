@@ -59,6 +59,11 @@ export const AUDIT_EVENT_TYPES = [
   // the run's protocol tier was stepped down (T1 → T2 → T3).
   'escape_refused',
   'tier_degraded',
+  // TASK-M1 M1-2: the product shell deliberately enabled the form-production
+  // path (produceFromExecute). Each explicit enable is one audit entry so
+  // every FORMAL-eligible delivery carries the evidence that production was
+  // enabled (F5 closure — the shell opts in, never the library default).
+  'production_enabled',
 ] as const
 
 /** One audited operation kind. */

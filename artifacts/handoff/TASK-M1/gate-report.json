@@ -1,0 +1,29 @@
+{
+  "task": "TASK-M1 — 用户外壳与人机协同实测（用户外壳 CLI v0 + 真实用户模拟）",
+  "phase": "M1-1 真实遵从率实证 + M1-2 用户外壳 CLI + 真实 key 用户模拟 + 推送简报",
+  "batch_verdict": "M1-1: 真实 key 三层探针(38 首次尝试)T3 填准入 18/18(1.0)、端到端专测 8/8;T1/T2 0/10 → 首测组合 deepseek-v4-flash @ T3。M1-2: 外壳 CLI v0 落地(8 单测绿、tsc 0、zip 确定性 29a4ab58)、demo 命令面 demo:pw/demo:pw:real 均 DELIVERED、真实用户模拟 DELIVERED。M1-3 PNG 与 M1-5 pilot 协议未启动(后续任务)。",
+  "report_sync": {
+    "baseline_collected_at": "2026-09-07T00:00:00.000Z",
+    "rule": "INV-3-Q + RG-09 — 基线必须与 gate-report 声明的 1025/1025 一致(RG-06)",
+    "self_check": "RG-06 vitest_count == baseline.total_tests;shell spec 8/8;tsc -b apps/paper-shell exit 0",
+    "v1.1_status": "本批不涉及 v1.1 待决项(5.0.4/5.0.10 维持 deferred)"
+  },
+  "baseline": {
+    "files": 93,
+    "total_tests": 1025,
+    "passed_tests": 1025,
+    "failed_tests": 0,
+    "failed_test_suites": 0,
+    "tsc_clean": true,
+    "baseline_at": "TASK-M1 shell 批次 — verify-report-state PASS (vitest 1025/1025, 0 failures; RG-06/07/09 agree); paper-shell spec 8/8"
+  },
+  "failures_by_origin": {},
+  "gates": {
+    "G1_real_probe": "PASS — 38 首次尝试(T1 0/10, T2 0/10, T3 fill 18/18 + 专测 8/8)",
+    "G2_zip_determinism": "PASS — 三次 fresh fake 跑 zip sha256 均 29a4ab58d92a34a5…",
+    "G3_three_attacks_red": "PASS — invoke.spec 三攻击(巨量/空/非 UTF-8)全红",
+    "G4_baseline": "PASS — verify-report-state PASS 1025/1025 + shell spec 8/8",
+    "G5_png_backend": "NOT_STARTED — M1-3",
+    "G7_pilot_protocol": "NOT_STARTED — M1-5"
+  }
+}

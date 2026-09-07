@@ -35,6 +35,9 @@ apps/web/dist/
 .dsh-build/
 .playwright-mcp/
 .orig
+# paper-shell runtime/residue dirs (never commit)
+apps/paper-shell/src/out/
+apps/paper-shell/src/paper-shell-persist-*/
 .worktrees/
 worktrees/
 .agents/worktrees/

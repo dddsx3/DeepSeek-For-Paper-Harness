@@ -1,0 +1,315 @@
+{
+  "generated_at": "2026-09-06T17:46:14.224Z",
+  "identity": {
+    "provider": "fake",
+    "model": "m",
+    "endpoint": "file://fake",
+    "tier": "T1"
+  },
+  "fakeSelfCheck": {
+    "T1": {
+      "attempts": [
+        {
+          "attempt": 1,
+          "firstTry": true,
+          "stage": "full"
+        },
+        {
+          "attempt": 2,
+          "firstTry": true,
+          "stage": "full"
+        },
+        {
+          "attempt": 3,
+          "firstTry": true,
+          "stage": "full"
+        },
+        {
+          "attempt": 4,
+          "firstTry": true,
+          "stage": "full"
+        },
+        {
+          "attempt": 5,
+          "firstTry": true,
+          "stage": "full"
+        }
+      ],
+      "adherence": 1,
+      "trusted": true
+    },
+    "T2": {
+      "attempts": [
+        {
+          "attempt": 1,
+          "firstTry": true,
+          "stage": "full"
+        },
+        {
+          "attempt": 2,
+          "firstTry": true,
+          "stage": "full"
+        },
+        {
+          "attempt": 3,
+          "firstTry": true,
+          "stage": "full"
+        },
+        {
+          "attempt": 4,
+          "firstTry": true,
+          "stage": "full"
+        },
+        {
+          "attempt": 5,
+          "firstTry": true,
+          "stage": "full"
+        }
+      ],
+      "adherence": 1,
+      "trusted": true
+    },
+    "T3": {
+      "attempts": [
+        {
+          "attempt": 1,
+          "firstTry": true,
+          "stage": "full"
+        },
+        {
+          "attempt": 2,
+          "firstTry": true,
+          "stage": "full"
+        },
+        {
+          "attempt": 3,
+          "firstTry": true,
+          "stage": "full"
+        },
+        {
+          "attempt": 4,
+          "firstTry": true,
+          "stage": "full"
+        },
+        {
+          "attempt": 5,
+          "firstTry": true,
+          "stage": "full"
+        }
+      ],
+      "adherence": 1,
+      "trusted": true
+    }
+  },
+  "registry": [
+    {
+      "provider": "fake",
+      "model": "m",
+      "endpoint": "file://fake",
+      "tier": "T1",
+      "date": "2026-09-06",
+      "structuralAdherence": 1,
+      "firstTrySuccess": 1,
+      "retryBudgetUsed": 0,
+      "attempts": 5
+    },
+    {
+      "provider": "fake",
+      "model": "m",
+      "endpoint": "file://fake",
+      "tier": "T2",
+      "date": "2026-09-06",
+      "structuralAdherence": 1,
+      "firstTrySuccess": 1,
+      "retryBudgetUsed": 0,
+      "attempts": 5
+    },
+    {
+      "provider": "fake",
+      "model": "m",
+      "endpoint": "file://fake",
+      "tier": "T3",
+      "date": "2026-09-06",
+      "structuralAdherence": 1,
+      "firstTrySuccess": 1,
+      "retryBudgetUsed": 0,
+      "attempts": 5
+    }
+  ],
+  "verdicts": [
+    {
+      "identity": "fake/m/T1",
+      "verdict": {
+        "ok": true,
+        "to": "T1"
+      }
+    },
+    {
+      "identity": "fake/m/T2",
+      "verdict": {
+        "ok": true,
+        "to": "T2"
+      }
+    },
+    {
+      "identity": "fake/m/T3",
+      "verdict": {
+        "ok": true,
+        "to": "T3"
+      }
+    }
+  ],
+  "realSection": {
+    "status": "COMPLETED",
+    "reason": "",
+    "endpoint": "https://api.y-api.bestvirtualgoods.com/v1",
+    "model": "deepseek/deepseek-v4-flash",
+    "perTier": {
+      "T1": {
+        "attempts": [
+          {
+            "attempt": 1,
+            "problem": "Estimate mean sea-ice thickness.",
+            "firstTry": false,
+            "stage": "produce",
+            "reason": "entry 'ModelSpec' violates its closed IR schema — assumptions: Invalid input: expected array, received string"
+          },
+          {
+            "attempt": 2,
+            "problem": "Estimate melt-pond fraction.",
+            "firstTry": false,
+            "stage": "produce",
+            "reason": "entry 'ModelSpec' violates its closed IR schema — assumptions: Invalid input: expected array, received string"
+          },
+          {
+            "attempt": 3,
+            "problem": "Estimate ridge density.",
+            "firstTry": false,
+            "stage": "produce",
+            "reason": "entry 'ModelSpec' could not be admitted: reference_kind_mismatch: 'DA-RAW' resolves to DataArtifact, expected ModelSpec (append-only store; a duplicate id is a conflict, not an update)"
+          },
+          {
+            "attempt": 4,
+            "problem": "Estimate mean sea-ice thickness.",
+            "firstTry": false,
+            "stage": "produce",
+            "reason": "entry 'ModelSpec' violates its closed IR schema — parameter_refs.0: Invalid input: expected object, received string"
+          },
+          {
+            "attempt": 5,
+            "problem": "Estimate melt-pond fraction.",
+            "firstTry": false,
+            "stage": "produce",
+            "reason": "entry 'ModelSpec' violates its closed IR schema — assumptions: Invalid input: expected array, received string"
+          }
+        ],
+        "adherence": 0,
+        "transportRetries": 2
+      },
+      "T2": {
+        "attempts": [
+          {
+            "attempt": 1,
+            "problem": "Estimate mean sea-ice thickness.",
+            "firstTry": false,
+            "stage": "guided-step-2",
+            "reason": "locator 'step1_output.json' is not one of the step-1 declared outputs [result.json] — cross-step references must be on the ledger"
+          },
+          {
+            "attempt": 2,
+            "problem": "Estimate melt-pond fraction.",
+            "firstTry": false,
+            "stage": "guided-step-2",
+            "reason": "locator 'RES-OUT.json' is not one of the step-1 declared outputs [result.json] — cross-step references must be on the ledger"
+          },
+          {
+            "attempt": 3,
+            "problem": "Estimate ridge density.",
+            "firstTry": false,
+            "stage": "guided-step-2",
+            "reason": "locator 'ridge_density.json' is not one of the step-1 declared outputs [result.json] — cross-step references must be on the ledger"
+          },
+          {
+            "attempt": 4,
+            "problem": "Estimate mean sea-ice thickness.",
+            "firstTry": false,
+            "stage": "guided-step-2",
+            "reason": "locator 'sea_ice_thickness.json' is not one of the step-1 declared outputs [result.json] — cross-step references must be on the ledger"
+          },
+          {
+            "attempt": 5,
+            "problem": "Estimate melt-pond fraction.",
+            "firstTry": false,
+            "stage": "guided-step-2",
+            "reason": "locator 'RES-OUT.json' is not one of the step-1 declared outputs [result.json] — cross-step references must be on the ledger"
+          }
+        ],
+        "adherence": 0,
+        "transportRetries": 11
+      },
+      "T3": {
+        "attempts": [
+          {
+            "attempt": 1,
+            "problem": "Estimate mean sea-ice thickness.",
+            "firstTry": false,
+            "stage": "execution",
+            "reason": "runner produced [] but RunArtifact.output_refs declares [file:///runs/PROBE-auq50o/result.json]"
+          },
+          {
+            "attempt": 2,
+            "problem": "Estimate melt-pond fraction.",
+            "firstTry": false,
+            "stage": "execution",
+            "reason": "runner produced [] but RunArtifact.output_refs declares [file:///runs/PROBE-1226ve/result.json]"
+          },
+          {
+            "attempt": 3,
+            "problem": "Estimate ridge density.",
+            "firstTry": false,
+            "stage": "execution",
+            "reason": "runner produced [] but RunArtifact.output_refs declares [file:///runs/PROBE-old1c5/result.json]"
+          },
+          {
+            "attempt": 4,
+            "problem": "Estimate mean sea-ice thickness.",
+            "firstTry": false,
+            "stage": "execution",
+            "reason": "runner produced [] but RunArtifact.output_refs declares [file:///runs/PROBE-q1hzkz/result.json]"
+          },
+          {
+            "attempt": 5,
+            "problem": "Estimate melt-pond fraction.",
+            "firstTry": false,
+            "stage": "execution",
+            "reason": "runner produced [] but RunArtifact.output_refs declares [file:///runs/PROBE-s4wmkh/result.json]"
+          }
+        ],
+        "adherence": 0,
+        "transportRetries": 1
+      }
+    },
+    "downgrades": {
+      "T1": {
+        "downgraded": true,
+        "to": "EXPLORATORY",
+        "combinationIdentity": "https://api.y-api.bestvirtualgoods.com/v1 + deepseek/deepseek-v4-flash + T1",
+        "note": "adherence 0 < 0.8 — this tier of this combination is EXPLORATORY-downgraded (literal; recorded in the batch decision-log)"
+      },
+      "T2": {
+        "downgraded": true,
+        "to": "EXPLORATORY",
+        "combinationIdentity": "https://api.y-api.bestvirtualgoods.com/v1 + deepseek/deepseek-v4-flash + T2",
+        "note": "adherence 0 < 0.8 — this tier of this combination is EXPLORATORY-downgraded (literal; recorded in the batch decision-log)"
+      },
+      "T3": {
+        "downgraded": true,
+        "to": "EXPLORATORY",
+        "combinationIdentity": "https://api.y-api.bestvirtualgoods.com/v1 + deepseek/deepseek-v4-flash + T3",
+        "note": "adherence 0 < 0.8 — this tier of this combination is EXPLORATORY-downgraded (literal; recorded in the batch decision-log)"
+      }
+    }
+  },
+  "note": "probe v3 — per-tier adherence measured on FIRST attempts; the T2/T3 tiers exercise their admission chains and then the SAME execution pipeline as T1 (同信任链). Upgrade verdicts gate FORMAL (双指标 ≥0.8 且零重试预算). No key → explicit SKIPPED (禁7).",
+  "archive_note": "TASK-M1 M1-1: probe v3 real 段(deepseek/deepseek-v4-flash @ api.y-api.bestvirtualgoods.com/v1), 串行重跑纵向对比用 — 本副本 = 干净串行那次"
+}

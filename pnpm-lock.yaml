@@ -359,6 +359,27 @@ importers:
         specifier: ^10.0.0
         version: 10.0.0
 
+  apps/paper-shell:
+    dependencies:
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../vendor/cordis
+      '@deepseek-ai/dsh-llm':
+        specifier: workspace:^
+        version: link:../../packages/llm/llm
+      '@deepseek-ai/dsh-paper-foundation':
+        specifier: workspace:^
+        version: link:../../packages/paper/paper-foundation
+      '@deepseek-ai/dsh-storage':
+        specifier: workspace:^
+        version: link:../../packages/storage/storage
+      '@deepseek-ai/dsh-storage-domain':
+        specifier: workspace:^
+        version: link:../../packages/storage/storage-domain
+      '@deepseek-ai/dsh-storage-json':
+        specifier: workspace:^
+        version: link:../../packages/storage/storage-json
+
   apps/web:
     devDependencies:
       '@deepseek-ai/cordis-plugin-group':
