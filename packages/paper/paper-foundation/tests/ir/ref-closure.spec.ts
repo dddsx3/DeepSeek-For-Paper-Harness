@@ -45,6 +45,15 @@ function seedThrough(kind: Parameters<ModelingIr['put']>[0]): ModelingIr {
   return ir
 }
 
+/**
+ * Register the TASK-T1 contract prefix an attack's ModelSpec needs:
+ * requirements + ProblemSpec + AssumptionSpec + EquationSpec (the model
+ * fixture references ASM-1 / EQ-1 by id) + both symbols. RunArtifact seeds
+ * come from `chainThrough('RunArtifact')` / `seedThrough('Result')` when a
+ * run/result is needed (`seedThrough` already registers the full prefix up
+ * to the given kind — see the chain order in fixtures.ts).
+ */
+
 /** Whether `failures` contains a failure of `kind` anchored at `path`. */
 function hasFailure(
   failures: ReadonlyArray<IrFailure>,
@@ -116,7 +125,7 @@ describe('R-003 — ProblemSpec.requirement_refs points at a DataArtifact (kind 
 
 describe('R-004 — ModelSpec.variable_refs points at an unregistered id', () => {
   it('store refuses with unresolved_reference', () => {
-    const ir = seedThrough('ProblemSpec')
+    const ir = seedThrough('EquationSpec')
     const verdict = ir.put('ModelSpec', {
       ...modelSpec(),
       model_id: 'M2',
@@ -144,7 +153,7 @@ describe('R-005 — ModelSpec.variable_refs points at a Result (kind mismatch)',
 
 describe('R-006 — parameter_refs[].symbol_ref points at an unregistered id', () => {
   it('store refuses with unresolved_reference at a stable nested path', () => {
-    const ir = seedThrough('ProblemSpec')
+    const ir = seedThrough('EquationSpec')
     const verdict = ir.put('ModelSpec', {
       ...modelSpec(),
       model_id: 'M-PARAM-MISSING',
@@ -160,7 +169,7 @@ describe('R-006 — parameter_refs[].symbol_ref points at an unregistered id', (
 
 describe('R-007 — parameter_refs[].symbol_ref points at a DataArtifact (kind mismatch)', () => {
   it('store refuses with reference_kind_mismatch', () => {
-    const ir = seedThrough('ProblemSpec')
+    const ir = seedThrough('EquationSpec')
     const verdict = ir.put('ModelSpec', {
       ...modelSpec(),
       model_id: 'M-PARAM-WRONG',

@@ -207,11 +207,12 @@ describe('replayExecution — byte-level truth against the frozen record', () =>
 
   it('EX-04c: a drifted dependency lock fails the STRUCTURAL audit (audit-side guard)', async () => {
     // Store A captures against the original model; store B re-declares the
-    // model's assumptions. The record still freezes A's dependency-lock
-    // fingerprint, so the audit-side guard (not the replay) must fire.
+    // model's assumption DEPENDENCIES (TASK-T1: assumption_refs, not free
+    // text). The record still freezes A's dependency-lock fingerprint, so
+    // the audit-side guard (not the replay) must fire.
     const irA = buildExecutionStore()
     const record = await captureInto(irA)
-    const irB = buildExecutionStore({}, {}, { assumptions: ['drifted assumption'] })
+    const irB = buildExecutionStore({}, {}, { assumption_refs: [] })
     expect(ingestCapturedRecord(irB, record).accepted).toBe(true)
     const { buildExecutionManifest: buildManifest, auditExecutionProvenance: auditProvenance } =
       await import('../../src/execution/index.ts')

@@ -593,9 +593,16 @@ function makeResolver(store: ReadonlyMap<string, IrObjectRecord>): ProblemContra
       case 'Result': return { kind: 'Result' }
       case 'Claim': return { kind: 'Claim' }
       case 'FigureSpec': return { kind: 'FigureSpec' }
+      // TASK-T1 contract objects: the guards treat them as opaque owners
+      // (the store already closed their own refs); no assumption/equation/
+      // experiment semantic rule lives in the bridge yet (T2 owns the
+      // assumption/equation gates).
+      case 'AssumptionSpec': return { kind: 'AssumptionSpec' }
+      case 'EquationSpec': return { kind: 'EquationSpec' }
+      case 'ExperimentSpec': return { kind: 'ExperimentSpec' }
       default:
         // Unreachable: the store only contains kinds in IR_KINDS, and all
-        // eleven are covered above. Returning undefined makes the guard
+        // fourteen are covered above. Returning undefined makes the guard
         // report an unresolved reference rather than crashing the bridge.
         return undefined
     }

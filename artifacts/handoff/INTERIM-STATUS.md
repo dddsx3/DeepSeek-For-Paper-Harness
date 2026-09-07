@@ -9,6 +9,17 @@
 
 ---
 
+## 0. 本批新增(TASK-T1,任务书第一阶段)
+
+作业已按「下一阶段工程任务书」开始第一阶段(冻结 IR v1 科学事实边界):三个新 canonical
+对象(AssumptionSpec / EquationSpec / ExperimentSpec)接入 IR_KINDS/SCHEMAS/REF_FIELDS/store/bridge;
+ModelSpec 的 assumptions/equations 自由文本改为引用(assumption_refs/equation_refs,杜绝第二真值源);
+SymbolSpec 补 shape/domain/index_set(必填)。两条架构 mutation(duplicate truth source / bypass
+reference)已由 `tests/ir/ir-contract.spec.ts` 钉死。全部回归绿(paper-foundation 1040/1040、
+P1/P2/P3 demo、shell)。交接细节与三个待专家复核的决策点见 `artifacts/handoff/TASK-T1/HANDOFF.md`。
+
+---
+
 ## 1. 一句话现状
 
 弱模型(deepseek-v4-flash)在三层协议中 **T3(闭集填充)真实遵从率 1.0**,已据此

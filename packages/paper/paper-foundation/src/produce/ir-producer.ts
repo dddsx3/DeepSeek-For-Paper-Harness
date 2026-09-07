@@ -52,6 +52,8 @@ export const MODEL_CONTAINER_VERSION = 'ir-container-v1'
  */
 export const MODEL_FACE_KINDS: ReadonlyArray<IrKind> = [
   'SymbolSpec',
+  'AssumptionSpec',
+  'EquationSpec',
   'ModelSpec',
   'DataArtifact',
 ] as const
@@ -243,9 +245,13 @@ export function produceContainerInto(
       ? entry.value['data_id']
       : typeof entry.value['symbol_id'] === 'string'
         ? entry.value['symbol_id']
-        : typeof entry.value['model_id'] === 'string'
-          ? entry.value['model_id']
-          : undefined
+        : typeof entry.value['assumption_id'] === 'string'
+          ? entry.value['assumption_id']
+          : typeof entry.value['equation_id'] === 'string'
+            ? entry.value['equation_id']
+            : typeof entry.value['model_id'] === 'string'
+              ? entry.value['model_id']
+              : undefined
     if (reserved !== undefined && valueId !== undefined && reserved.has(valueId)) {
       return {
         ok: false,

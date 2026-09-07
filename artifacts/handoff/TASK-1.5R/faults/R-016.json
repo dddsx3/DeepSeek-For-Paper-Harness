@@ -67,6 +67,22 @@
       }
     },
     {
+      "kind": "AssumptionSpec",
+      "value": {
+        "assumption_id": "ASM-1",
+        "scope_ref": "P1",
+        "statement": "Ice is a homogeneous slab.",
+        "source_type": "MODELING_CHOICE",
+        "justification_refs": [
+          "DA-RAW"
+        ],
+        "risk_level": "MEDIUM",
+        "testable": true,
+        "sensitivity_refs": [],
+        "status": "ACTIVE"
+      }
+    },
+    {
       "kind": "SymbolSpec",
       "value": {
         "symbol_id": "SYM-x",
@@ -74,7 +90,10 @@
         "token": "x",
         "meaning": "distance along track",
         "unit": "m",
-        "role": "VARIABLE"
+        "role": "VARIABLE",
+        "shape": "SCALAR",
+        "domain": "REAL",
+        "index_set": []
       }
     },
     {
@@ -85,7 +104,30 @@
         "token": "rho",
         "meaning": "ice density",
         "unit": "kg/m^3",
-        "role": "PARAMETER"
+        "role": "PARAMETER",
+        "shape": "SCALAR",
+        "domain": "REAL",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "EquationSpec",
+      "value": {
+        "equation_id": "EQ-1",
+        "scope_ref": "P1",
+        "expression": "h(x) = a * x + b",
+        "representation": "SYMPY",
+        "lhs_symbols": [
+          "SYM-x"
+        ],
+        "rhs_symbols": [
+          "SYM-x",
+          "SYM-rho"
+        ],
+        "equation_type": "DERIVED",
+        "unit": "m",
+        "depends_on": [],
+        "source": "file:///problem/2026-mcm-a.txt"
       }
     },
     {
@@ -94,9 +136,6 @@
         "model_id": "M1",
         "problem_refs": [
           "P1"
-        ],
-        "assumptions": [
-          "Ice is a homogeneous slab."
         ],
         "variable_refs": [
           "SYM-rho"
@@ -107,14 +146,17 @@
             "value": 917
           }
         ],
-        "equations": [
-          "h(x) = a * x + b"
-        ],
         "constraints": [
           "x >= 0"
         ],
         "objective": null,
-        "dependencies": []
+        "dependencies": [],
+        "assumption_refs": [
+          "ASM-1"
+        ],
+        "equation_refs": [
+          "EQ-1"
+        ]
       }
     },
     {

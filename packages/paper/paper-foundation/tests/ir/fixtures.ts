@@ -96,6 +96,10 @@ export function variableSymbol(overrides: Record<string, unknown> = {}): Record<
     meaning: 'distance along track',
     unit: 'm',
     role: 'VARIABLE',
+    // TASK-T1: shape/domain/index_set are required (T2 shape/domain gates).
+    shape: 'SCALAR',
+    domain: 'REAL',
+    index_set: [],
     ...overrides,
   }
 }
@@ -108,6 +112,9 @@ export function parameterSymbol(overrides: Record<string, unknown> = {}): Record
     meaning: 'ice density',
     unit: 'kg/m^3',
     role: 'PARAMETER',
+    shape: 'SCALAR',
+    domain: 'REAL',
+    index_set: [],
     ...overrides,
   }
 }
@@ -121,14 +128,68 @@ export function problemSpec(overrides: Record<string, unknown> = {}): Record<str
   }
 }
 
+// ---------------------------------------------------------------------------
+// TASK-T1 contract-object factories (AssumptionSpec / EquationSpec /
+// ExperimentSpec).
+// ---------------------------------------------------------------------------
+
+export function assumptionSpec(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+  return {
+    assumption_id: 'ASM-1',
+    scope_ref: 'P1',
+    statement: 'Ice is a homogeneous slab.',
+    source_type: 'MODELING_CHOICE',
+    justification_refs: ['DA-RAW'],
+    risk_level: 'MEDIUM',
+    testable: true,
+    sensitivity_refs: [],
+    status: 'ACTIVE',
+    ...overrides,
+  }
+}
+
+export function equationSpec(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+  return {
+    equation_id: 'EQ-1',
+    scope_ref: 'P1',
+    expression: 'h(x) = a * x + b',
+    representation: 'SYMPY',
+    lhs_symbols: ['SYM-x'],
+    rhs_symbols: ['SYM-x', 'SYM-rho'],
+    equation_type: 'DERIVED',
+    unit: 'm',
+    depends_on: [],
+    // External locator (not an IR-internal ref) — where the equation came from.
+    source: 'file:///problem/2026-mcm-a.txt',
+    ...overrides,
+  }
+}
+
+export function experimentSpec(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+  return {
+    experiment_id: 'EX1',
+    purpose: 'Measure ice thickness sensitivity to density.',
+    input_data_refs: ['DA-IN'],
+    parameter_sweep: [{ symbol_ref: 'SYM-rho', values: [800, 917, 950] }],
+    metrics: ['RES1'],
+    replications: 3,
+    seed_policy: 'FIXED',
+    expected_invariants: ['thickness decreases with density'],
+    run_refs: ['RUN1'],
+    ...overrides,
+  }
+}
+
 export function modelSpec(overrides: Record<string, unknown> = {}): Record<string, unknown> {
   return {
     model_id: 'M1',
     problem_refs: ['P1'],
-    assumptions: ['Ice is a homogeneous slab.'],
+    // TASK-T1: assumptions/equations are referenced, never embedded. The
+    // canonical owners are AssumptionSpec ASM-1 and EquationSpec EQ-1.
+    assumption_refs: ['ASM-1'],
     variable_refs: ['SYM-x'],
     parameter_refs: [{ symbol_ref: 'SYM-rho', value: 917 }],
-    equations: ['h(x) = a * x + b'],
+    equation_refs: ['EQ-1'],
     constraints: ['x >= 0'],
     objective: 'min sum((h - h_obs)^2)',
     dependencies: [],
@@ -300,7 +361,7 @@ export function executionRecord(overrides: Record<string, unknown> = {}): Record
   }
 }
 
-/** The twelve kinds with a valid object each, keyed by kind. */
+/** The fifteen kinds with a valid object each, keyed by kind. */
 export function validObjectFor(kind: IrKind): Record<string, unknown> {
   switch (kind) {
     case 'ProblemSpec': return problemSpec()
@@ -315,6 +376,10 @@ export function validObjectFor(kind: IrKind): Record<string, unknown> {
     case 'RequirementSpec': return requirementSpec()
     case 'SymbolSpec': return variableSymbol()
     case 'ExecutionRecord': return executionRecord()
+    // TASK-T1 contract objects.
+    case 'AssumptionSpec': return assumptionSpec()
+    case 'EquationSpec': return equationSpec()
+    case 'ExperimentSpec': return experimentSpec()
   }
 }
 
@@ -330,10 +395,17 @@ export function validChain(): ReadonlyArray<{ kind: IrKind; value: Record<string
     // ref, and canonical ingest is append-only, so a symbol can only resolve
     // its scope once the scope itself is registered.
     { kind: 'ProblemSpec', value: problemSpec() },
+    // TASK-T1: AssumptionSpec/EquationSpec scope to ProblemSpec; EquationSpec
+    // references symbols (lhs/rhs), so symbols come first (append-only).
+    { kind: 'AssumptionSpec', value: assumptionSpec() },
     { kind: 'SymbolSpec', value: variableSymbol() },
     { kind: 'SymbolSpec', value: parameterSymbol() },
+    { kind: 'EquationSpec', value: equationSpec() },
     { kind: 'ModelSpec', value: modelSpec() },
     { kind: 'RunArtifact', value: runArtifact() },
+    // TASK-T1: ExperimentSpec references RunArtifact (and DataArtifact /
+    // SymbolSpec), so it must come after the run it instantiates.
+    { kind: 'ExperimentSpec', value: experimentSpec() },
     { kind: 'Result', value: result() },
     { kind: 'Claim', value: claim() },
     { kind: 'VerificationResult', value: verificationResult() },

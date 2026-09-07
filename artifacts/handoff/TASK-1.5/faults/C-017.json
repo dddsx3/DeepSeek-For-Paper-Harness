@@ -19,10 +19,8 @@
         "problem_refs": [
           "P1"
         ],
-        "assumptions": [],
         "variable_refs": [],
         "parameter_refs": [],
-        "equations": [],
         "constraints": [],
         "objective": null,
         "dependencies": []

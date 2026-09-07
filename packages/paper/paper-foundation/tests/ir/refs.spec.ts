@@ -15,6 +15,10 @@ const REGISTRY: ReadonlyMap<string, IrKind> = new Map<string, IrKind>([
   ['DA-IN', 'DataArtifact'],
   ['SYM-x', 'SymbolSpec'],
   ['SYM-rho', 'SymbolSpec'],
+  // TASK-T1: the model fixture references AssumptionSpec ASM-1 and
+  // EquationSpec EQ-1 by id.
+  ['ASM-1', 'AssumptionSpec'],
+  ['EQ-1', 'EquationSpec'],
 ])
 
 const resolve = (ref: string): IrKind | undefined => REGISTRY.get(ref)

@@ -38,6 +38,8 @@ import {
   requirementSpec,
   requiredOutput,
   variableSymbol,
+  assumptionSpec,
+  equationSpec,
 } from './fixtures.ts'
 
 const AT = '2026-08-30T00:00:00.000Z'
@@ -52,6 +54,50 @@ function seedThrough(kind: Parameters<ModelingIr['put']>[0]): ModelingIr {
     }
   }
   return ir
+}
+
+/** A RunArtifact whose model_ref resolves to the prefix-registered M1. */
+function runArtifactFor(_ir: ModelingIr): Record<string, unknown> {
+  return {
+    run_id: 'RUN-WRONG-ROLE',
+    model_ref: 'M1',
+    code_ref: 'file:///runs/RUN1/main.py',
+    input_data_refs: ['DA-IN'],
+    environment: 'python 3.13',
+    seed: 1,
+    exit_status: 0,
+    stdout_ref: 'file:///runs/RUN1/stdout.log',
+    stderr_ref: 'file:///runs/RUN1/stderr.log',
+    output_refs: ['file:///runs/RUN1/result.json'],
+    code_hash: 'sha256:' + 'a'.repeat(64),
+    input_hash: 'sha256:' + 'a'.repeat(64),
+    output_hash: 'sha256:' + 'a'.repeat(64),
+  }
+}
+
+/**
+ * Seed the T1 Problem-Contract prefix (requirements + problem + contract
+ * objects + symbols) so a following ModelSpec/RunArtifact resolves.
+ * AssumptionSpec/EquationSpec must be registered before ModelSpec
+ * (TASK-T1: ModelSpec references them by id). `problemOverride` lets an
+ * attack re-bind the raw source; `withModel: false` lets a role-attack
+ * register its own ModelSpec (the prefix default registers M1, which a
+ * duplicate M1 put would refuse under append-only semantics).
+ */
+function seedContractPrefix(
+  ir: ModelingIr,
+  problemOverride: Record<string, unknown> = {},
+  opts: { withModel?: boolean } = {},
+): void {
+  ir.put('RequirementSpec', requirementSpec())
+  ir.put('RequirementSpec', requiredOutput())
+  ir.put('ProblemSpec', { problem_id: 'P1', raw_problem_ref: 'DA-RAW', requirement_refs: ['R1', 'R-OUT'], ...problemOverride })
+  ir.put('AssumptionSpec', assumptionSpec())
+  // EquationSpec references symbols (lhs/rhs), so symbols precede it.
+  ir.put('SymbolSpec', variableSymbol())
+  ir.put('SymbolSpec', parameterSymbol())
+  ir.put('EquationSpec', equationSpec())
+  if (opts.withModel !== false) ir.put('ModelSpec', modelSpec())
 }
 
 /** All contract failures of one kind, with their paths. */
@@ -69,14 +115,16 @@ describe('PHASE 3 — the bridge emits no structural reference failures', () => 
 
   it('semantic failures are the only contract failures the bridge can emit', () => {
     // A store that is closed but semantically wrong in every load-bearing
-    // way: RAW_PROBLEM slot holding an INPUT_DATA artifact, run input holding
-    // a RAW_PROBLEM artifact, and a VARIABLE slot holding a PARAMETER symbol.
+    // way: RAW_PROBLEM slot holding an INPUT_DATA artifact.
     const ir = seedThrough('DataArtifact')
-    ir.put('RequirementSpec', requirementSpec())
-    ir.put('RequirementSpec', requiredOutput())
-    ir.put('ProblemSpec', { problem_id: 'P1', raw_problem_ref: 'DA-IN', requirement_refs: ['R1', 'R-OUT'] })
-    ir.put('SymbolSpec', parameterSymbol())
-    ir.put('ModelSpec', { ...modelSpec(), variable_refs: ['SYM-rho'], parameter_refs: [] })
+    seedContractPrefix(ir, { raw_problem_ref: 'DA-IN' })
+    // The default model fixture is registered by the prefix; a run consumes
+    // DA-RAW (RAW_PROBLEM) as input.
+    ir.put('RunArtifact', {
+      ...runArtifactFor(ir),
+      input_data_refs: ['DA-RAW'],
+      run_id: 'RUN-WRONG-ROLE',
+    })
     const decision = evaluateIrBridge(ir, [], 'FORMAL')
     // All three are semantic kinds; none is unresolved_reference /
     // reference_kind_mismatch.
@@ -111,28 +159,12 @@ describe('R-014 — raw_problem_ref binds an INPUT_DATA artifact (kind right, ro
 describe('R-015 — RunArtifact input_data_refs binds a RAW_PROBLEM artifact', () => {
   it('store accepts the kind; bridge blocks with unbound_data_artifact', () => {
     const ir = seedThrough('DataArtifact')
-    ir.put('RequirementSpec', requirementSpec())
-    ir.put('RequirementSpec', requiredOutput())
-    ir.put('ProblemSpec', { problem_id: 'P1', raw_problem_ref: 'DA-RAW', requirement_refs: ['R1', 'R-OUT'] })
-    ir.put('SymbolSpec', variableSymbol())
-    ir.put('SymbolSpec', parameterSymbol())
-    ir.put('ModelSpec', modelSpec())
+    seedContractPrefix(ir)
     // The run consumes DA-RAW (RAW_PROBLEM) as its input — kind is legal,
     // role is not INPUT_DATA.
     expect(ir.put('RunArtifact', {
-      run_id: 'RUN-WRONG-ROLE',
-      model_ref: 'M1',
-      code_ref: 'file:///runs/RUN1/main.py',
+      ...runArtifactFor(ir),
       input_data_refs: ['DA-RAW'],
-      environment: 'python 3.13',
-      seed: 1,
-      exit_status: 0,
-      stdout_ref: 'file:///runs/RUN1/stdout.log',
-      stderr_ref: 'file:///runs/RUN1/stderr.log',
-      output_refs: ['file:///runs/RUN1/result.json'],
-      code_hash: 'sha256:' + 'a'.repeat(64),
-      input_hash: 'sha256:' + 'a'.repeat(64),
-      output_hash: 'sha256:' + 'a'.repeat(64),
     }).accepted).toBe(true)
     const decision = evaluateIrBridge(ir, [], 'FORMAL')
     expect(decision.status).toBe('BLOCKED')
@@ -143,10 +175,8 @@ describe('R-015 — RunArtifact input_data_refs binds a RAW_PROBLEM artifact', (
 describe('R-016 — ModelSpec symbol slots bind the wrong role', () => {
   it('variable_refs holding a PARAMETER SymbolSpec: store accepts, bridge blocks', () => {
     const ir = seedThrough('DataArtifact')
-    ir.put('RequirementSpec', requirementSpec())
-    ir.put('RequirementSpec', requiredOutput())
-    ir.put('ProblemSpec', { problem_id: 'P1', raw_problem_ref: 'DA-RAW', requirement_refs: ['R1', 'R-OUT'] })
-    ir.put('SymbolSpec', parameterSymbol()) // role=PARAMETER only
+    seedContractPrefix(ir, {}, { withModel: false })
+    // SYM-rho (PARAMETER) is registered; the VARIABLE slot holds it.
     expect(ir.put('ModelSpec', { ...modelSpec(), variable_refs: ['SYM-rho'], parameter_refs: [] }).accepted).toBe(true)
     const decision = evaluateIrBridge(ir, [], 'FORMAL')
     expect(decision.status).toBe('BLOCKED')
@@ -155,10 +185,8 @@ describe('R-016 — ModelSpec symbol slots bind the wrong role', () => {
 
   it('parameter_refs holding a VARIABLE SymbolSpec: store accepts, bridge blocks', () => {
     const ir = seedThrough('DataArtifact')
-    ir.put('RequirementSpec', requirementSpec())
-    ir.put('RequirementSpec', requiredOutput())
-    ir.put('ProblemSpec', { problem_id: 'P1', raw_problem_ref: 'DA-RAW', requirement_refs: ['R1', 'R-OUT'] })
-    ir.put('SymbolSpec', variableSymbol()) // role=VARIABLE only
+    seedContractPrefix(ir, {}, { withModel: false })
+    // SYM-x (VARIABLE) is registered; the PARAMETER slot holds it.
     expect(ir.put('ModelSpec', { ...modelSpec(), variable_refs: [], parameter_refs: [{ symbol_ref: 'SYM-x', value: 2 }] }).accepted).toBe(true)
     const decision = evaluateIrBridge(ir, [], 'FORMAL')
     expect(decision.status).toBe('BLOCKED')
@@ -167,18 +195,17 @@ describe('R-016 — ModelSpec symbol slots bind the wrong role', () => {
 
   it('a symbol scoped to another problem is unbound, not a role mismatch', () => {
     const ir = seedThrough('DataArtifact')
-    ir.put('RequirementSpec', requirementSpec())
-    ir.put('RequirementSpec', requiredOutput())
-    ir.put('ProblemSpec', { problem_id: 'P1', raw_problem_ref: 'DA-RAW', requirement_refs: ['R1', 'R-OUT'] })
+    seedContractPrefix(ir, {}, { withModel: false })
+    // P2 shares DA-RAW/R-OUT; SYM-x lives in P1's scope (fixture default).
     ir.put('ProblemSpec', { problem_id: 'P2', raw_problem_ref: 'DA-RAW', requirement_refs: ['R1', 'R-OUT'] })
-    // SYM-x lives in P1's scope (fixture default); the model claims P2 only.
-    ir.put('SymbolSpec', variableSymbol())
     expect(ir.put('ModelSpec', {
       ...modelSpec(),
       problem_refs: ['P2'],
       model_id: 'M2',
       variable_refs: ['SYM-x'],
       parameter_refs: [],
+      assumption_refs: [],
+      equation_refs: [],
     }).accepted).toBe(true)
     const decision = evaluateIrBridge(ir, [], 'FORMAL')
     expect(decision.status).toBe('BLOCKED')

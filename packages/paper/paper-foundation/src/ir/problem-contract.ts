@@ -118,6 +118,17 @@ export type DataArtifact = zod.infer<typeof dataArtifactSchema>
 export const REQUIREMENT_TYPES = ['SUBPROBLEM', 'REQUIRED_OUTPUT', 'CONSTRAINT'] as const
 export type RequirementType = (typeof REQUIREMENT_TYPES)[number]
 
+/**
+ * Closed set of requirement ambiguity statuses. `UNAMBIGUOUS` is the
+ * fail-closed default a requirement with no stated ambiguity gets; a marked
+ * ambiguity is a datasource for the T1 semantic contract and the later
+ * requirement-coverage gate (a paper may not quietly resolve an ambiguity
+ * the problem flagged).
+ */
+export const AMBIGUITY_STATUSES = ['UNAMBIGUOUS', 'AMBIGUOUS'] as const
+export type AmbiguityStatus = (typeof AMBIGUITY_STATUSES)[number]
+export const REQUIREMENT_AMBIGUITY_STATUSES = AMBIGUITY_STATUSES
+
 export const requirementSpecSchema = zod
   .object({
     requirement_id: idSchema,
@@ -128,8 +139,21 @@ export const requirementSpecSchema = zod
     source_data_ref: refSchema,
     requirement_type: zod.enum(REQUIREMENT_TYPES),
     statement: textSchema,
+    // TASK-T1 (T1.1): which byte span of the raw source this requirement was
+    // extracted from — answers "R-17 是从原题哪一段抽取的", values are
+    // character offsets into `source_data_ref`. Optional until an extractor
+    // exists; once present it is a hard provenance field.
+    source_span: zod.tuple([zod.number().int().min(0), zod.number().int().min(0)]).optional(),
+    normalized_text: textSchema.optional(),
+    /** Whether the paper MUST answer this requirement (T1 minimum contract). */
+    mandatory: zod.boolean().optional(),
+    ambiguity_status: zod.enum(AMBIGUITY_STATUSES).optional(),
   })
   .strict()
+  .refine(
+    v => v.source_span === undefined || v.source_span[1] >= v.source_span[0],
+    { message: 'RequirementSpec.source_span must be [start, end] with end >= start' },
+  )
 
 export type RequirementSpec = zod.infer<typeof requirementSpecSchema>
 
@@ -173,6 +197,32 @@ const symbolTokenSchema = zod
   .regex(/^[^\p{Cc}\p{Cf}\p{Cs}\p{Z}]+$/u, 'token must not contain control, format, surrogate or separator characters')
   .refine(v => v === v.normalize('NFC'), 'token must be in Unicode NFC form')
 
+/**
+ * Closed set of symbol shapes (T1.1). A variable/parameter declares what
+ * shape it holds so the T2 shape gate can catch `vector + scalar` or a
+ * dimension mismatch (G002) without a free-form description.
+ */
+export const SYMBOL_SHAPES = [
+  'SCALAR',
+  'VECTOR',
+  'MATRIX',
+  'TENSOR',
+  'INDEXED',
+] as const
+export type SymbolShape = (typeof SYMBOL_SHAPES)[number]
+
+/** Closed set of symbol value domains (T1.1, seed of the G007 numeric gate). */
+export const SYMBOL_DOMAINS = [
+  'REAL',
+  'NONNEGATIVE_REAL',
+  'INTEGER',
+  'NONNEGATIVE_INTEGER',
+  'BOOLEAN',
+  'PROBABILITY',
+  'COMPLEX',
+] as const
+export type SymbolDomain = (typeof SYMBOL_DOMAINS)[number]
+
 export const symbolSpecSchema = zod
   .object({
     symbol_id: idSchema,
@@ -184,8 +234,18 @@ export const symbolSpecSchema = zod
     meaning: textSchema,
     unit: refSchema,
     role: zod.enum(SYMBOL_ROLES),
+    // TASK-T1 (T1.1): shape/domain/index_set are the semantic load-bearing
+    // fields for the T2 shape/unit/domain gates (G001/G002/G007). Required
+    // so a symbol without a declared shape cannot slip past those gates.
+    shape: zod.enum(SYMBOL_SHAPES),
+    domain: zod.enum(SYMBOL_DOMAINS),
+    index_set: zod.array(refSchema),
   })
   .strict()
+  .refine(
+    v => new Set(v.index_set).size === v.index_set.length,
+    { message: 'SymbolSpec.index_set contains duplicate references' },
+  )
 
 export type SymbolSpec = zod.infer<typeof symbolSpecSchema>
 
@@ -237,6 +297,9 @@ export type ProblemContractResolver = (ref: string) =>
   | { readonly kind: 'Result' }
   | { readonly kind: 'Claim' }
   | { readonly kind: 'FigureSpec' }
+  | { readonly kind: 'AssumptionSpec' }
+  | { readonly kind: 'EquationSpec' }
+  | { readonly kind: 'ExperimentSpec' }
   | undefined
 
 /**

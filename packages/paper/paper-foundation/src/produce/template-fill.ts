@@ -144,6 +144,8 @@ export function admitTemplateFill(text: string, candidates: TemplateCandidates =
  * Assemble the W1-model-face container from an admitted fill-in. The run's
  * code is harness-owned on T3 (the model never writes code or numbers), so
  * the harness emits the deterministic writer for the chosen json_path.
+ * TASK-T1: the container declares AssumptionSpec/EquationSpec objects and
+ * the ModelSpec references them (never free-text assumptions/equations).
  */
 export function assembleTemplateContainer(fill: Record<TemplateSlot, string>, taskText: string): string {
   const code = [
@@ -154,8 +156,10 @@ export function assembleTemplateContainer(fill: Record<TemplateSlot, string>, ta
   const container = {
     __dsh_paper: 'ir-container-v1',
     entries: [
-      { kind: 'SymbolSpec', value: { symbol_id: fill.symbol_id, scope_ref: 'P1', token: 'q', meaning: fill.json_path, unit: fill.unit, role: 'VARIABLE' } },
-      { kind: 'ModelSpec', value: { model_id: 'M1', problem_refs: ['P1'], assumptions: ['homogeneous slab'], variable_refs: [fill.symbol_id], parameter_refs: [], equations: ['q = measured'], constraints: [], objective: `estimate ${fill.json_path}`, dependencies: [] } },
+      { kind: 'SymbolSpec', value: { symbol_id: fill.symbol_id, scope_ref: 'P1', token: 'q', meaning: fill.json_path, unit: fill.unit, role: 'VARIABLE', shape: 'SCALAR', domain: 'REAL', index_set: [] } },
+      { kind: 'AssumptionSpec', value: { assumption_id: 'ASM-1', scope_ref: 'P1', statement: 'homogeneous slab', source_type: 'MODELING_CHOICE', justification_refs: [], risk_level: 'MEDIUM', testable: false, sensitivity_refs: [], status: 'ACTIVE' } },
+      { kind: 'EquationSpec', value: { equation_id: 'EQ-1', scope_ref: 'P1', expression: 'q = measured', representation: 'SYMPY', lhs_symbols: [fill.symbol_id], rhs_symbols: [], equation_type: 'DEFINITION', unit: fill.unit, depends_on: [], source: 't3-template' } },
+      { kind: 'ModelSpec', value: { model_id: 'M1', problem_refs: ['P1'], assumption_refs: ['ASM-1'], variable_refs: [fill.symbol_id], parameter_refs: [], equation_refs: ['EQ-1'], constraints: [], objective: `estimate ${fill.json_path}`, dependencies: [] } },
     ],
     code,
     run: { outputBasenames: [fill.output_file], seed: 20260903 },

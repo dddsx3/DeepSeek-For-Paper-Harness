@@ -75,7 +75,7 @@ describe('T2 guided steps — happy path', () => {
     const container = JSON.parse(assembleGuidedContainer(session, 'estimate mean ice thickness'))
     expect(container.__dsh_paper).toBe('ir-container-v1')
     const kinds = (container.entries as Array<{ kind: string }>).map(e => e.kind)
-    expect(kinds).toEqual(['SymbolSpec', 'ModelSpec'])
+    expect(kinds).toEqual(['SymbolSpec', 'AssumptionSpec', 'EquationSpec', 'ModelSpec'])
     // W1 face closure: every entry kind is in the model-face whitelist.
     for (const kind of kinds) expect(MODEL_FACE_KINDS).toContain(kind)
     expect(container.run.outputBasenames).toEqual(['result.json'])

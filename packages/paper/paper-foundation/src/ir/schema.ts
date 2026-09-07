@@ -42,6 +42,11 @@ import {
   requirementSpecSchema,
   symbolSpecSchema,
 } from './problem-contract.ts'
+import {
+  assumptionSpecSchema,
+  equationSpecSchema,
+  experimentSpecSchema,
+} from './contract-objects.ts'
 // The closed enum constants are re-exported at the bottom of this file
 // straight from `problem-contract.ts`; importing them here as well only to
 // re-export them is what made them read as unused.
@@ -70,6 +75,14 @@ export const IR_KINDS = [
   // execution of a RunArtifact's code. Producer-generated via the capture
   // seam (src/execution/capture.ts); replay re-derives every hash.
   'ExecutionRecord',
+  // TASK-T1 (T1.1) — IR Semantic Contract objects. Each P0 scientific fact
+  // has one canonical owner: assumptions live in AssumptionSpec (not
+  // ModelSpec free text), equations in EquationSpec (machine state separate
+  // from presentation), experiment designs in ExperimentSpec (distinct from
+  // the runs that instantiate them).
+  'AssumptionSpec',
+  'EquationSpec',
+  'ExperimentSpec',
 ] as const
 
 export type IrKind = (typeof IR_KINDS)[number]
@@ -146,7 +159,13 @@ export const modelSpecSchema = zod
   .object({
     model_id: idSchema,
     problem_refs: zod.array(refSchema),
-    assumptions: zod.array(textSchema),
+    // TASK-T1 (T1.2): assumptions/equations are NO LONGER free-text arrays
+    // on ModelSpec. The single canonical owner is `AssumptionSpec` /
+    // `EquationSpec`; ModelSpec carries only references. A re-embedded
+    // free-text assumption or equation is rejected by `.strict()` (the
+    // INV-1.5-C "second source of truth is not representable" rule applied
+    // to the social slot the free text used to occupy).
+    assumption_refs: zod.array(refSchema),
     variable_refs: zod.array(refSchema),
     parameter_refs: zod.array(
       zod
@@ -156,7 +175,7 @@ export const modelSpecSchema = zod
         })
         .strict(),
     ),
-    equations: zod.array(textSchema),
+    equation_refs: zod.array(refSchema),
     constraints: zod.array(textSchema),
     objective: textSchema.nullable(),
     dependencies: zod.array(refSchema),
@@ -169,6 +188,14 @@ export const modelSpecSchema = zod
   .refine(
     v => new Set(v.parameter_refs.map(p => p.symbol_ref)).size === v.parameter_refs.length,
     { message: 'ModelSpec.parameter_refs contains duplicate symbol_ref' },
+  )
+  .refine(
+    v => new Set(v.assumption_refs).size === v.assumption_refs.length,
+    { message: 'ModelSpec.assumption_refs contains duplicate references' },
+  )
+  .refine(
+    v => new Set(v.equation_refs).size === v.equation_refs.length,
+    { message: 'ModelSpec.equation_refs contains duplicate references' },
   )
 
 /**
@@ -507,6 +534,11 @@ export type VerificationResult = zod.infer<typeof verificationResultSchema>
 export type ExecutionRecord = zod.infer<typeof executionRecordSchema>
 export type FigureSpec = zod.infer<typeof figureSpecSchema>
 export type ReviewerFinding = zod.infer<typeof reviewerFindingSchema>
+// TASK-T1: the three contract-object kinds are re-exported from here so
+// callers use one schema barrel (same pattern as the TASK 1.5 kinds).
+export type AssumptionSpec = zod.infer<typeof assumptionSpecSchema>
+export type EquationSpec = zod.infer<typeof equationSpecSchema>
+export type ExperimentSpec = zod.infer<typeof experimentSpecSchema>
 
 /** Re-export the TASK 1.5 kinds so callers can `import { DataArtifact, … }
  * from './schema.ts'` (and so the schema barrel does not need a second
@@ -516,6 +548,8 @@ export {
   DATA_ARTIFACT_ROLES,
   REQUIREMENT_TYPES,
   SYMBOL_ROLES,
+  SYMBOL_SHAPES,
+  SYMBOL_DOMAINS,
 } from './problem-contract.ts'
 export type {
   DataArtifact,
@@ -524,7 +558,28 @@ export type {
   DataArtifactRole,
   RequirementType,
   SymbolRole,
+  SymbolShape,
+  SymbolDomain,
 } from './problem-contract.ts'
+// TASK-T1: the contract-object schemas and closed enums are part of the
+// schema barrel (same pattern as the TASK 1.5 kinds).
+export {
+  assumptionSpecSchema,
+  equationSpecSchema,
+  experimentSpecSchema,
+  ASSUMPTION_SOURCE_TYPES,
+  ASSUMPTION_STATUSES,
+  EQUATION_REPRESENTATIONS,
+  EQUATION_TYPES,
+  EXPERIMENT_SEED_POLICIES,
+} from './contract-objects.ts'
+export type {
+  AssumptionSourceType,
+  AssumptionStatus,
+  EquationRepresentation,
+  EquationType,
+  ExperimentSeedPolicy,
+} from './contract-objects.ts'
 
 /** Maps every IR kind to its TypeScript shape. */
 export interface IrObjectMap {
@@ -540,6 +595,9 @@ export interface IrObjectMap {
   RequirementSpec: import('./problem-contract.ts').RequirementSpec
   SymbolSpec: import('./problem-contract.ts').SymbolSpec
   ExecutionRecord: ExecutionRecord
+  AssumptionSpec: import('./contract-objects.ts').AssumptionSpec
+  EquationSpec: import('./contract-objects.ts').EquationSpec
+  ExperimentSpec: import('./contract-objects.ts').ExperimentSpec
 }
 
 /**
@@ -560,6 +618,9 @@ export const IR_SCHEMAS: { readonly [K in IrKind]: zod.ZodType<IrObjectMap[K]> }
   RequirementSpec: requirementSpecSchema,
   SymbolSpec: symbolSpecSchema,
   ExecutionRecord: executionRecordSchema,
+  AssumptionSpec: assumptionSpecSchema,
+  EquationSpec: equationSpecSchema,
+  ExperimentSpec: experimentSpecSchema,
 }
 
 
@@ -582,6 +643,9 @@ export const ID_FIELD_BY_KIND: Readonly<Record<IrKind, string>> = {
   RequirementSpec: 'requirement_id',
   SymbolSpec: 'symbol_id',
   ExecutionRecord: 'execution_id',
+  AssumptionSpec: 'assumption_id',
+  EquationSpec: 'equation_id',
+  ExperimentSpec: 'experiment_id',
 }
 
 /**

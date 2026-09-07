@@ -25,6 +25,8 @@ import {
   problemSpec,
   variableSymbol,
   parameterSymbol,
+  assumptionSpec,
+  equationSpec,
   modelSpec,
   runArtifact,
   result,
@@ -32,7 +34,10 @@ import {
 } from '../ir/fixtures.ts'
 import type { IrKind } from '../../src/ir/index.ts'
 
-function chainStore(overrides: Partial<Record<IrKind, Record<string, unknown>>> = {}, extraFirst: ReadonlyArray<{ kind: string; value: Record<string, unknown> }> = []): ModelingIr {
+function chainStore(
+  overrides: Partial<Record<IrKind, Record<string, unknown>>> = {},
+  extraFirst: ReadonlyArray<{ kind: string; value: Record<string, unknown> }> = [],
+): ModelingIr {
   const ir = new ModelingIr()
   for (const entry of extraFirst) {
     const verdict = ir.put(entry.kind as IrKind, entry.value)
@@ -66,6 +71,8 @@ describe('P1-4 requirement_coverage (A7 v0)', () => {
       { kind: 'ProblemSpec', value: problemSpec({ requirement_refs: ['R1', 'R-OUT', 'R-CON', 'R-OUT2'] }) },
       { kind: 'SymbolSpec', value: variableSymbol() },
       { kind: 'SymbolSpec', value: parameterSymbol() },
+      { kind: 'AssumptionSpec', value: assumptionSpec() },
+      { kind: 'EquationSpec', value: equationSpec() },
       { kind: 'ModelSpec', value: modelSpec() },
       { kind: 'RunArtifact', value: runArtifact() },
       { kind: 'Result', value: result() },

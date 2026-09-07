@@ -67,27 +67,41 @@
       }
     },
     {
+      "kind": "AssumptionSpec",
+      "value": {
+        "assumption_id": "ASM-1",
+        "scope_ref": "P1",
+        "statement": "Ice is a homogeneous slab.",
+        "source_type": "MODELING_CHOICE",
+        "justification_refs": [
+          "DA-RAW"
+        ],
+        "risk_level": "MEDIUM",
+        "testable": true,
+        "sensitivity_refs": [],
+        "status": "ACTIVE"
+      }
+    },
+    {
       "kind": "ModelSpec",
       "value": {
         "model_id": "M1",
         "problem_refs": [
           "P1"
         ],
-        "assumptions": [
-          "Ice is a homogeneous slab."
-        ],
         "variable_refs": [
           "SYM-DOES-NOT-EXIST"
         ],
         "parameter_refs": [],
-        "equations": [
-          "h(x) = a * x + b"
-        ],
         "constraints": [
           "x >= 0"
         ],
         "objective": null,
-        "dependencies": []
+        "dependencies": [],
+        "assumption_refs": [
+          "ASM-1"
+        ],
+        "equation_refs": []
       }
     }
   ]

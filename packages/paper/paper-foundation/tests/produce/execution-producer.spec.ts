@@ -25,6 +25,8 @@ import {
   constraintRequirement,
   variableSymbol,
   parameterSymbol,
+  assumptionSpec,
+  equationSpec,
   problemSpec,
   modelSpec,
 } from '../ir/fixtures.ts'
@@ -58,6 +60,8 @@ function seedContract(ir: ModelingIr, modelOverrides: Record<string, unknown> = 
     entries: [
       { kind: 'SymbolSpec', value: variableSymbol() },
       { kind: 'SymbolSpec', value: parameterSymbol() },
+      { kind: 'AssumptionSpec', value: assumptionSpec() },
+      { kind: 'EquationSpec', value: equationSpec() },
       { kind: 'ModelSpec', value: modelSpec(modelOverrides) },
     ],
   })

@@ -185,11 +185,13 @@ describe('ModelingIr — canonical state', () => {
     expect(ir.put('ModelSpec', modelSpec({ model_id: 'M2' })).accepted).toBe(true)
     const stored = ir.get('M2')!.value as {
       parameter_refs: Array<{ symbol_ref: string; value: number }>
-      equations: string[]
+      // TASK-T1: equations are referenced (equation_refs), so freeze the
+      // reference array — a reflective caller mutating it must TypeError.
+      equation_refs: string[]
     }
     expect(Object.isFrozen(stored.parameter_refs)).toBe(true)
     expect(Object.isFrozen(stored.parameter_refs[0])).toBe(true)
-    expect(Object.isFrozen(stored.equations)).toBe(true)
+    expect(Object.isFrozen(stored.equation_refs)).toBe(true)
     expect(() => {
       stored.parameter_refs[0]!.symbol_ref = 'mutated'
     }).toThrow(TypeError)

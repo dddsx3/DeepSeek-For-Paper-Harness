@@ -437,7 +437,9 @@ describe('RT4-01 — the reference table covers every reference-bearing field', 
       // TASK 1.5R: `raw_problem_ref` / `requirement_refs` are now IR-internal
       // references closed on the store boundary (Canonical Reference Closure).
       ProblemSpec: ['raw_problem_ref', 'requirement_refs'],
-      ModelSpec: ['problem_refs', 'dependencies', 'variable_refs', 'parameter_refs'],
+      // TASK-T1: `assumption_refs` / `equation_refs` replace the free-text
+      // arrays — they are IR-internal references to the contract objects.
+      ModelSpec: ['problem_refs', 'dependencies', 'variable_refs', 'parameter_refs', 'assumption_refs', 'equation_refs'],
       RunArtifact: ['model_ref', 'input_data_refs'],
       Result: ['run_ref'],
       Claim: ['evidence_refs', 'result_refs', 'model_refs'],
@@ -450,6 +452,11 @@ describe('RT4-01 — the reference table covers every reference-bearing field', 
       // TASK 3: `output_refs` stays an external locator list (task book D6);
       // its reality is carried by the record's byte-level output_hash.
       ExecutionRecord: ['run_ref', 'input_data_refs'],
+      // TASK-T1 contract objects: their own reference-bearing fields are
+      // closed exactly like every other kind.
+      AssumptionSpec: ['scope_ref', 'justification_refs', 'sensitivity_refs'],
+      EquationSpec: ['scope_ref', 'lhs_symbols', 'rhs_symbols', 'depends_on'],
+      ExperimentSpec: ['input_data_refs', 'parameter_sweep', 'run_refs'],
     }
     for (const kind of IR_KINDS) {
       expect(IR_REF_FIELDS[kind].map(f => f.path), `${kind} ref fields`).toEqual(expected[kind])

@@ -161,7 +161,12 @@ function dependencyLockFingerprint(
   return sha256Hex(canonicalJson({
     input_data_refs: run['input_data_refs'],
     parameter_refs: model?.['parameter_refs'] ?? [],
-    assumptions: model?.['assumptions'] ?? [],
+    // TASK-T1: the dependency lock covers the model's assumption/equation
+    // DEPENDENCIES (referenced AssumptionSpec/EquationSpec ids), not the
+    // free text that used to live on ModelSpec. A model whose assumption or
+    // equation set changes is a dependency-lock drift.
+    assumption_refs: model?.['assumption_refs'] ?? [],
+    equation_refs: model?.['equation_refs'] ?? [],
     unresolved_model: model === undefined ? run['model_ref'] : undefined,
   }))
 }
@@ -187,7 +192,7 @@ function chainDigest(store: ReadonlyMap<string, IrObjectRecord>, claim: Claim): 
   const binding = claim.claim_type === 'NUMERIC' ? claim.numeric_binding : null
   const resultRefs = [...new Set([...claim.result_refs, ...(binding ? [binding.result_ref] : [])])]
 
-  const resultEntries = resultRefs.map(ref => {
+  const resultEntries = resultRefs.map((ref) => {
     const record = store.get(ref)
     if (record === undefined || record.kind !== 'Result') return { result_id: ref, missing: true }
     return {
@@ -202,7 +207,7 @@ function chainDigest(store: ReadonlyMap<string, IrObjectRecord>, claim: Claim): 
     .filter(entry => !('missing' in entry))
     .map(entry => (entry as { run_ref: string }).run_ref))]
 
-  const runEntries = runIds.map(runId => {
+  const runEntries = runIds.map((runId) => {
     const record = store.get(runId)
     if (record === undefined || record.kind !== 'RunArtifact') return { run_id: runId, missing: true }
     const modelRecord = store.get(record.value.model_ref)
@@ -403,7 +408,7 @@ export function auditEvidenceFreeze(
     if (record.kind === 'Claim') liveIds.add((record.value as Claim).claim_id)
   }
   const allIds = [...new Set([...manifestById.keys(), ...liveIds])].sort()
-  const criticalCount = allIds.filter(id => {
+  const criticalCount = allIds.filter((id) => {
     const liveCritical = liveClaim(store, id)?.criticality === 'CRITICAL'
     const manifestCritical = manifestById.get(id)?.critical === true
     return liveCritical || manifestCritical

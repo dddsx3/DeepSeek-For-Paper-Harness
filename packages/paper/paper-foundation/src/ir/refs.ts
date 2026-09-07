@@ -103,6 +103,11 @@ export const IR_REF_FIELDS: Readonly<Record<IrKind, ReadonlyArray<IrRefFieldSpec
     // Parameters are nested objects; the spec extractor walks each entry and
     // resolves its `symbol_ref` to a SymbolSpec.
     { path: 'parameter_refs', arity: { kind: 'nested', child: 'symbol_ref' }, target: 'SymbolSpec' as const },
+    // TASK-T1: assumptions/equations are referenced, never embedded. The
+    // store closes these to AssumptionSpec / EquationSpec so a model cannot
+    // slip a second free-text truth source past the boundary.
+    { path: 'assumption_refs', arity: 'many', target: 'AssumptionSpec' as const },
+    { path: 'equation_refs', arity: 'many', target: 'EquationSpec' as const },
   ],
   RunArtifact: [
     { path: 'model_ref', arity: 'single', target: 'ModelSpec' as const },
@@ -146,6 +151,26 @@ export const IR_REF_FIELDS: Readonly<Record<IrKind, ReadonlyArray<IrRefFieldSpec
   ExecutionRecord: [
     { path: 'run_ref', arity: 'single', target: 'RunArtifact' as const },
     { path: 'input_data_refs', arity: 'many', target: 'DataArtifact' as const },
+  ],
+  // TASK-T1: the three contract-object kinds and their refs. AssumptionSpec
+  // justifies itself against any evidence (ANY, like Claim.evidence_refs)
+  // and probes itself against results/data; EquationSpec's lhs/rhs/depends_on
+  // are symbol/equation edges; ExperimentSpec records the runs it instantiates.
+  AssumptionSpec: [
+    { path: 'scope_ref', arity: 'single', target: 'ProblemSpec' as const },
+    { path: 'justification_refs', arity: 'many', target: 'ANY' },
+    { path: 'sensitivity_refs', arity: 'many', target: ['Result', 'DataArtifact'] as const },
+  ],
+  EquationSpec: [
+    { path: 'scope_ref', arity: 'single', target: 'ProblemSpec' as const },
+    { path: 'lhs_symbols', arity: 'many', target: 'SymbolSpec' as const },
+    { path: 'rhs_symbols', arity: 'many', target: 'SymbolSpec' as const },
+    { path: 'depends_on', arity: 'many', target: 'EquationSpec' as const },
+  ],
+  ExperimentSpec: [
+    { path: 'input_data_refs', arity: 'many', target: 'DataArtifact' as const },
+    { path: 'parameter_sweep', arity: { kind: 'nested', child: 'symbol_ref' }, target: 'SymbolSpec' as const },
+    { path: 'run_refs', arity: 'many', target: 'RunArtifact' as const },
   ],
 }
 
@@ -222,7 +247,7 @@ export function validateRefFields(
     // Nested: each entry is an object; the ref is at `entry[spec.arity.child]`.
     const entries = raw as ReadonlyArray<Record<string, unknown>>
     for (let i = 0; i < entries.length; i += 1) {
-      const entry = entries[i]!
+      const entry = entries[i] ?? {}
       const ref = entry[spec.arity.child] as string
       problems.push(...checkRef(`${spec.path}.${i}.${spec.arity.child}`, ref, spec.target, resolve))
     }

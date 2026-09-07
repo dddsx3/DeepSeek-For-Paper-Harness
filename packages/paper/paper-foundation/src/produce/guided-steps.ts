@@ -298,8 +298,10 @@ export function admitGuidedStep(session: GuidedSession, step: GuidedStepId, text
 }
 
 /**
- * Assemble the ir-container-v1 after step 3. The model face stays W1
- * (SymbolSpec + ModelSpec only); the run/interpretations come from the
+ * Assemble the ir-container-v1 after step 3. The model face put the symbols /
+ * assumptions / equations into the ledger; the assembled container declares
+ * them as canonical contract objects (AssumptionSpec/EquationSpec) and the
+ * ModelSpec references them (TASK-T1) — the run/interpretations come from the
  * ledger verbatim; the narrative title/conclusion mirror the first claim.
  */
 export function assembleGuidedContainer(session: GuidedSession, taskText: string): string {
@@ -313,8 +315,10 @@ export function assembleGuidedContainer(session: GuidedSession, taskText: string
   const container = {
     __dsh_paper: 'ir-container-v1',
     entries: [
-      { kind: 'SymbolSpec', value: { symbol_id: 'SYM-q', scope_ref: 'P1', token: 'q', meaning, unit, role: 'VARIABLE' } },
-      { kind: 'ModelSpec', value: { model_id: 'M1', problem_refs: ['P1'], assumptions: ['homogeneous slab'], variable_refs: ['SYM-q'], parameter_refs: [], equations: ['q = measured'], constraints: [], objective: `estimate ${meaning}`, dependencies: [] } },
+      { kind: 'SymbolSpec', value: { symbol_id: 'SYM-q', scope_ref: 'P1', token: 'q', meaning, unit, role: 'VARIABLE', shape: 'SCALAR', domain: 'REAL', index_set: [] } },
+      { kind: 'AssumptionSpec', value: { assumption_id: 'ASM-1', scope_ref: 'P1', statement: 'homogeneous slab', source_type: 'MODELING_CHOICE', justification_refs: [], risk_level: 'MEDIUM', testable: false, sensitivity_refs: [], status: 'ACTIVE' } },
+      { kind: 'EquationSpec', value: { equation_id: 'EQ-1', scope_ref: 'P1', expression: 'q = measured', representation: 'SYMPY', lhs_symbols: ['SYM-q'], rhs_symbols: [], equation_type: 'DEFINITION', unit, depends_on: [], source: 'guided-ledger' } },
+      { kind: 'ModelSpec', value: { model_id: 'M1', problem_refs: ['P1'], assumption_refs: ['ASM-1'], variable_refs: ['SYM-q'], parameter_refs: [], equation_refs: ['EQ-1'], constraints: [], objective: `estimate ${meaning}`, dependencies: [] } },
     ],
     code: run.code,
     run: {

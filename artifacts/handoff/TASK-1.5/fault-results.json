@@ -1,8 +1,8 @@
 {
   "task": "TASK 1.5 — Canonical Problem Contract",
   "phase": "PHASE 5 — Fault Corpus",
-  "pinned_main": "622b46cc46396399862d393afb98253503828aed",
-  "startedAt": "2026-08-31T03:30:59.665Z",
+  "pinned_main": "e7a5b16a835069e25c8cfc01eb30a43dd6f6c5ac",
+  "startedAt": "2026-09-07T12:51:35.598Z",
   "corpus": [
     {
       "id": "C-001",
@@ -31,7 +31,7 @@
         "claimProblems": [],
         "ingest": {
           "accepted": 4,
-          "refused": 10,
+          "refused": 12,
           "log": [
             {
               "kind": "DataArtifact",
@@ -61,6 +61,17 @@
               ]
             },
             {
+              "kind": "AssumptionSpec",
+              "accepted": false,
+              "failures": [
+                {
+                  "kind": "unresolved_reference",
+                  "path": "scope_ref",
+                  "reason": "'P1' is not registered (expected ProblemSpec)"
+                }
+              ]
+            },
+            {
               "kind": "SymbolSpec",
               "accepted": false,
               "failures": [
@@ -79,6 +90,32 @@
                   "kind": "unresolved_reference",
                   "path": "scope_ref",
                   "reason": "'P1' is not registered (expected ProblemSpec)"
+                }
+              ]
+            },
+            {
+              "kind": "EquationSpec",
+              "accepted": false,
+              "failures": [
+                {
+                  "kind": "unresolved_reference",
+                  "path": "scope_ref",
+                  "reason": "'P1' is not registered (expected ProblemSpec)"
+                },
+                {
+                  "kind": "unresolved_reference",
+                  "path": "lhs_symbols",
+                  "reason": "'SYM-x' is not registered (expected SymbolSpec)"
+                },
+                {
+                  "kind": "unresolved_reference",
+                  "path": "rhs_symbols",
+                  "reason": "'SYM-x' is not registered (expected SymbolSpec)"
+                },
+                {
+                  "kind": "unresolved_reference",
+                  "path": "rhs_symbols",
+                  "reason": "'SYM-rho' is not registered (expected SymbolSpec)"
                 }
               ]
             },
@@ -90,6 +127,26 @@
                   "kind": "unresolved_reference",
                   "path": "problem_refs",
                   "reason": "'P1' is not registered (expected ProblemSpec)"
+                },
+                {
+                  "kind": "unresolved_reference",
+                  "path": "variable_refs",
+                  "reason": "'SYM-x' is not registered (expected SymbolSpec)"
+                },
+                {
+                  "kind": "unresolved_reference",
+                  "path": "parameter_refs.0.symbol_ref",
+                  "reason": "'SYM-rho' is not registered (expected SymbolSpec)"
+                },
+                {
+                  "kind": "unresolved_reference",
+                  "path": "assumption_refs",
+                  "reason": "'ASM-1' is not registered (expected AssumptionSpec)"
+                },
+                {
+                  "kind": "unresolved_reference",
+                  "path": "equation_refs",
+                  "reason": "'EQ-1' is not registered (expected EquationSpec)"
                 }
               ]
             },
@@ -120,19 +177,9 @@
               "accepted": false,
               "failures": [
                 {
-                  "kind": "unresolved_reference",
-                  "path": "evidence_refs",
-                  "reason": "'RES1' is not registered (expected any registered object)"
-                },
-                {
-                  "kind": "unresolved_reference",
-                  "path": "result_refs",
-                  "reason": "'RES1' is not registered (expected Result)"
-                },
-                {
-                  "kind": "unresolved_reference",
-                  "path": "model_refs",
-                  "reason": "'M1' is not registered (expected ModelSpec)"
+                  "kind": "schema_invalid",
+                  "path": "numeric_binding",
+                  "reason": "invalid_type: Invalid input: expected object, received undefined"
                 }
               ]
             },
@@ -157,14 +204,9 @@
               "accepted": false,
               "failures": [
                 {
-                  "kind": "unresolved_reference",
-                  "path": "data_refs",
-                  "reason": "'RES1' is not registered (expected any registered object)"
-                },
-                {
-                  "kind": "unresolved_reference",
-                  "path": "claim_refs",
-                  "reason": "'C1' is not registered (expected Claim)"
+                  "kind": "schema_invalid",
+                  "path": "data_hash",
+                  "reason": "invalid_type: Invalid input: expected string, received undefined"
                 }
               ]
             },
@@ -208,28 +250,21 @@
       },
       "observed": {
         "status": "BLOCKED",
-        "reason": "2 Problem Contract failure(s): problem.requirement_refs.R-DOES-NOT-EXIST:unresolved_reference,problem.requirement_refs:missing_required_output_requirement; minimum Problem Contract not satisfied (RAW_PROBLEM DataArtifact + REQUIRED_OUTPUT RequirementSpec + SymbolSpec)",
-        "missingBackbone": [],
-        "missingCriticalClaim": false,
-        "contractSatisfied": false,
-        "contractFailures": [
-          {
-            "kind": "unresolved_reference",
-            "path": "requirement_refs.R-DOES-NOT-EXIST",
-            "reason": "'R-DOES-NOT-EXIST' is not a registered RequirementSpec",
-            "where": "problem"
-          },
-          {
-            "kind": "missing_required_output_requirement",
-            "path": "requirement_refs",
-            "reason": "ProblemSpec.requirement_refs must reference at least one RequirementSpec of type REQUIRED_OUTPUT",
-            "where": "problem"
-          }
+        "reason": "missing IR backbone: ProblemSpec,ModelSpec,RunArtifact,Result,Claim; no CRITICAL claim in canonical IR; minimum Problem Contract not satisfied (RAW_PROBLEM DataArtifact + REQUIRED_OUTPUT RequirementSpec + SymbolSpec)",
+        "missingBackbone": [
+          "ProblemSpec",
+          "ModelSpec",
+          "RunArtifact",
+          "Result",
+          "Claim"
         ],
+        "missingCriticalClaim": true,
+        "contractSatisfied": false,
+        "contractFailures": [],
         "claimProblems": [],
         "ingest": {
-          "accepted": 14,
-          "refused": 0,
+          "accepted": 4,
+          "refused": 12,
           "log": [
             {
               "kind": "DataArtifact",
@@ -249,43 +284,180 @@
             },
             {
               "kind": "ProblemSpec",
-              "accepted": true
+              "accepted": false,
+              "failures": [
+                {
+                  "kind": "unresolved_reference",
+                  "path": "requirement_refs",
+                  "reason": "'R-DOES-NOT-EXIST' is not registered (expected RequirementSpec)"
+                }
+              ]
+            },
+            {
+              "kind": "AssumptionSpec",
+              "accepted": false,
+              "failures": [
+                {
+                  "kind": "unresolved_reference",
+                  "path": "scope_ref",
+                  "reason": "'P1' is not registered (expected ProblemSpec)"
+                }
+              ]
             },
             {
               "kind": "SymbolSpec",
-              "accepted": true
+              "accepted": false,
+              "failures": [
+                {
+                  "kind": "unresolved_reference",
+                  "path": "scope_ref",
+                  "reason": "'P1' is not registered (expected ProblemSpec)"
+                }
+              ]
             },
             {
               "kind": "SymbolSpec",
-              "accepted": true
+              "accepted": false,
+              "failures": [
+                {
+                  "kind": "unresolved_reference",
+                  "path": "scope_ref",
+                  "reason": "'P1' is not registered (expected ProblemSpec)"
+                }
+              ]
+            },
+            {
+              "kind": "EquationSpec",
+              "accepted": false,
+              "failures": [
+                {
+                  "kind": "unresolved_reference",
+                  "path": "scope_ref",
+                  "reason": "'P1' is not registered (expected ProblemSpec)"
+                },
+                {
+                  "kind": "unresolved_reference",
+                  "path": "lhs_symbols",
+                  "reason": "'SYM-x' is not registered (expected SymbolSpec)"
+                },
+                {
+                  "kind": "unresolved_reference",
+                  "path": "rhs_symbols",
+                  "reason": "'SYM-x' is not registered (expected SymbolSpec)"
+                },
+                {
+                  "kind": "unresolved_reference",
+                  "path": "rhs_symbols",
+                  "reason": "'SYM-rho' is not registered (expected SymbolSpec)"
+                }
+              ]
             },
             {
               "kind": "ModelSpec",
-              "accepted": true
+              "accepted": false,
+              "failures": [
+                {
+                  "kind": "unresolved_reference",
+                  "path": "problem_refs",
+                  "reason": "'P1' is not registered (expected ProblemSpec)"
+                },
+                {
+                  "kind": "unresolved_reference",
+                  "path": "variable_refs",
+                  "reason": "'SYM-x' is not registered (expected SymbolSpec)"
+                },
+                {
+                  "kind": "unresolved_reference",
+                  "path": "parameter_refs.0.symbol_ref",
+                  "reason": "'SYM-rho' is not registered (expected SymbolSpec)"
+                },
+                {
+                  "kind": "unresolved_reference",
+                  "path": "assumption_refs",
+                  "reason": "'ASM-1' is not registered (expected AssumptionSpec)"
+                },
+                {
+                  "kind": "unresolved_reference",
+                  "path": "equation_refs",
+                  "reason": "'EQ-1' is not registered (expected EquationSpec)"
+                }
+              ]
             },
             {
               "kind": "RunArtifact",
-              "accepted": true
+              "accepted": false,
+              "failures": [
+                {
+                  "kind": "unresolved_reference",
+                  "path": "model_ref",
+                  "reason": "'M1' is not registered (expected ModelSpec)"
+                }
+              ]
             },
             {
               "kind": "Result",
-              "accepted": true
+              "accepted": false,
+              "failures": [
+                {
+                  "kind": "unresolved_reference",
+                  "path": "run_ref",
+                  "reason": "'RUN1' is not registered (expected RunArtifact)"
+                }
+              ]
             },
             {
               "kind": "Claim",
-              "accepted": true
+              "accepted": false,
+              "failures": [
+                {
+                  "kind": "schema_invalid",
+                  "path": "numeric_binding",
+                  "reason": "invalid_type: Invalid input: expected object, received undefined"
+                }
+              ]
             },
             {
               "kind": "VerificationResult",
-              "accepted": true
+              "accepted": false,
+              "failures": [
+                {
+                  "kind": "unresolved_reference",
+                  "path": "target_ref",
+                  "reason": "'RES1' is not registered (expected any registered object)"
+                },
+                {
+                  "kind": "unresolved_reference",
+                  "path": "evidence_refs",
+                  "reason": "'RES1' is not registered (expected any registered object)"
+                }
+              ]
             },
             {
               "kind": "FigureSpec",
-              "accepted": true
+              "accepted": false,
+              "failures": [
+                {
+                  "kind": "schema_invalid",
+                  "path": "data_hash",
+                  "reason": "invalid_type: Invalid input: expected string, received undefined"
+                }
+              ]
             },
             {
               "kind": "ReviewerFinding",
-              "accepted": true
+              "accepted": false,
+              "failures": [
+                {
+                  "kind": "unresolved_reference",
+                  "path": "target_ref",
+                  "reason": "'RES1' is not registered (expected any registered object)"
+                },
+                {
+                  "kind": "unresolved_reference",
+                  "path": "evidence_refs",
+                  "reason": "'RES1' is not registered (expected any registered object)"
+                }
+              ]
             }
           ]
         },
@@ -295,8 +467,10 @@
         ],
         "ingest_reason_matches": []
       },
-      "status": "PASS",
-      "failed_reasons": []
+      "status": "FAILED",
+      "failed_reasons": [
+        "reason keyword mismatch"
+      ]
     },
     {
       "id": "C-003",
@@ -311,28 +485,21 @@
       },
       "observed": {
         "status": "BLOCKED",
-        "reason": "2 Problem Contract failure(s): problem.requirement_refs.C1:reference_kind_mismatch,problem.requirement_refs:missing_required_output_requirement; minimum Problem Contract not satisfied (RAW_PROBLEM DataArtifact + REQUIRED_OUTPUT RequirementSpec + SymbolSpec)",
-        "missingBackbone": [],
-        "missingCriticalClaim": false,
-        "contractSatisfied": false,
-        "contractFailures": [
-          {
-            "kind": "reference_kind_mismatch",
-            "path": "requirement_refs.C1",
-            "reason": "'C1' resolves to Claim, expected RequirementSpec",
-            "where": "problem"
-          },
-          {
-            "kind": "missing_required_output_requirement",
-            "path": "requirement_refs",
-            "reason": "ProblemSpec.requirement_refs must reference at least one RequirementSpec of type REQUIRED_OUTPUT",
-            "where": "problem"
-          }
+        "reason": "missing IR backbone: ProblemSpec,ModelSpec,RunArtifact,Result,Claim; no CRITICAL claim in canonical IR; minimum Problem Contract not satisfied (RAW_PROBLEM DataArtifact + REQUIRED_OUTPUT RequirementSpec + SymbolSpec)",
+        "missingBackbone": [
+          "ProblemSpec",
+          "ModelSpec",
+          "RunArtifact",
+          "Result",
+          "Claim"
         ],
+        "missingCriticalClaim": true,
+        "contractSatisfied": false,
+        "contractFailures": [],
         "claimProblems": [],
         "ingest": {
-          "accepted": 14,
-          "refused": 0,
+          "accepted": 4,
+          "refused": 12,
           "log": [
             {
               "kind": "DataArtifact",
@@ -352,43 +519,180 @@
             },
             {
               "kind": "ProblemSpec",
-              "accepted": true
+              "accepted": false,
+              "failures": [
+                {
+                  "kind": "unresolved_reference",
+                  "path": "requirement_refs",
+                  "reason": "'C1' is not registered (expected RequirementSpec)"
+                }
+              ]
+            },
+            {
+              "kind": "AssumptionSpec",
+              "accepted": false,
+              "failures": [
+                {
+                  "kind": "unresolved_reference",
+                  "path": "scope_ref",
+                  "reason": "'P1' is not registered (expected ProblemSpec)"
+                }
+              ]
             },
             {
               "kind": "SymbolSpec",
-              "accepted": true
+              "accepted": false,
+              "failures": [
+                {
+                  "kind": "unresolved_reference",
+                  "path": "scope_ref",
+                  "reason": "'P1' is not registered (expected ProblemSpec)"
+                }
+              ]
             },
             {
               "kind": "SymbolSpec",
-              "accepted": true
+              "accepted": false,
+              "failures": [
+                {
+                  "kind": "unresolved_reference",
+                  "path": "scope_ref",
+                  "reason": "'P1' is not registered (expected ProblemSpec)"
+                }
+              ]
+            },
+            {
+              "kind": "EquationSpec",
+              "accepted": false,
+              "failures": [
+                {
+                  "kind": "unresolved_reference",
+                  "path": "scope_ref",
+                  "reason": "'P1' is not registered (expected ProblemSpec)"
+                },
+                {
+                  "kind": "unresolved_reference",
+                  "path": "lhs_symbols",
+                  "reason": "'SYM-x' is not registered (expected SymbolSpec)"
+                },
+                {
+                  "kind": "unresolved_reference",
+                  "path": "rhs_symbols",
+                  "reason": "'SYM-x' is not registered (expected SymbolSpec)"
+                },
+                {
+                  "kind": "unresolved_reference",
+                  "path": "rhs_symbols",
+                  "reason": "'SYM-rho' is not registered (expected SymbolSpec)"
+                }
+              ]
             },
             {
               "kind": "ModelSpec",
-              "accepted": true
+              "accepted": false,
+              "failures": [
+                {
+                  "kind": "unresolved_reference",
+                  "path": "problem_refs",
+                  "reason": "'P1' is not registered (expected ProblemSpec)"
+                },
+                {
+                  "kind": "unresolved_reference",
+                  "path": "variable_refs",
+                  "reason": "'SYM-x' is not registered (expected SymbolSpec)"
+                },
+                {
+                  "kind": "unresolved_reference",
+                  "path": "parameter_refs.0.symbol_ref",
+                  "reason": "'SYM-rho' is not registered (expected SymbolSpec)"
+                },
+                {
+                  "kind": "unresolved_reference",
+                  "path": "assumption_refs",
+                  "reason": "'ASM-1' is not registered (expected AssumptionSpec)"
+                },
+                {
+                  "kind": "unresolved_reference",
+                  "path": "equation_refs",
+                  "reason": "'EQ-1' is not registered (expected EquationSpec)"
+                }
+              ]
             },
             {
               "kind": "RunArtifact",
-              "accepted": true
+              "accepted": false,
+              "failures": [
+                {
+                  "kind": "unresolved_reference",
+                  "path": "model_ref",
+                  "reason": "'M1' is not registered (expected ModelSpec)"
+                }
+              ]
             },
             {
               "kind": "Result",
-              "accepted": true
+              "accepted": false,
+              "failures": [
+                {
+                  "kind": "unresolved_reference",
+                  "path": "run_ref",
+                  "reason": "'RUN1' is not registered (expected RunArtifact)"
+                }
+              ]
             },
             {
               "kind": "Claim",
-              "accepted": true
+              "accepted": false,
+              "failures": [
+                {
+                  "kind": "schema_invalid",
+                  "path": "numeric_binding",
+                  "reason": "invalid_type: Invalid input: expected object, received undefined"
+                }
+              ]
             },
             {
               "kind": "VerificationResult",
-              "accepted": true
+              "accepted": false,
+              "failures": [
+                {
+                  "kind": "unresolved_reference",
+                  "path": "target_ref",
+                  "reason": "'RES1' is not registered (expected any registered object)"
+                },
+                {
+                  "kind": "unresolved_reference",
+                  "path": "evidence_refs",
+                  "reason": "'RES1' is not registered (expected any registered object)"
+                }
+              ]
             },
             {
               "kind": "FigureSpec",
-              "accepted": true
+              "accepted": false,
+              "failures": [
+                {
+                  "kind": "schema_invalid",
+                  "path": "data_hash",
+                  "reason": "invalid_type: Invalid input: expected string, received undefined"
+                }
+              ]
             },
             {
               "kind": "ReviewerFinding",
-              "accepted": true
+              "accepted": false,
+              "failures": [
+                {
+                  "kind": "unresolved_reference",
+                  "path": "target_ref",
+                  "reason": "'RES1' is not registered (expected any registered object)"
+                },
+                {
+                  "kind": "unresolved_reference",
+                  "path": "evidence_refs",
+                  "reason": "'RES1' is not registered (expected any registered object)"
+                }
+              ]
             }
           ]
         },
@@ -398,8 +702,10 @@
         ],
         "ingest_reason_matches": []
       },
-      "status": "PASS",
-      "failed_reasons": []
+      "status": "FAILED",
+      "failed_reasons": [
+        "reason keyword mismatch"
+      ]
     },
     {
       "id": "C-004",
@@ -414,9 +720,11 @@
       },
       "observed": {
         "status": "BLOCKED",
-        "reason": "1 Problem Contract failure(s): problem.requirement_refs.R-SUB:cross_source_requirement",
-        "missingBackbone": [],
-        "missingCriticalClaim": false,
+        "reason": "missing IR backbone: Claim; no CRITICAL claim in canonical IR; 1 Problem Contract failure(s): problem.requirement_refs.R-SUB:cross_source_requirement",
+        "missingBackbone": [
+          "Claim"
+        ],
+        "missingCriticalClaim": true,
         "contractSatisfied": true,
         "contractFailures": [
           {
@@ -429,7 +737,7 @@
         "claimProblems": [],
         "ingest": {
           "accepted": 14,
-          "refused": 0,
+          "refused": 2,
           "log": [
             {
               "kind": "DataArtifact",
@@ -452,11 +760,19 @@
               "accepted": true
             },
             {
+              "kind": "AssumptionSpec",
+              "accepted": true
+            },
+            {
               "kind": "SymbolSpec",
               "accepted": true
             },
             {
               "kind": "SymbolSpec",
+              "accepted": true
+            },
+            {
+              "kind": "EquationSpec",
               "accepted": true
             },
             {
@@ -473,7 +789,14 @@
             },
             {
               "kind": "Claim",
-              "accepted": true
+              "accepted": false,
+              "failures": [
+                {
+                  "kind": "schema_invalid",
+                  "path": "numeric_binding",
+                  "reason": "invalid_type: Invalid input: expected object, received undefined"
+                }
+              ]
             },
             {
               "kind": "VerificationResult",
@@ -481,7 +804,14 @@
             },
             {
               "kind": "FigureSpec",
-              "accepted": true
+              "accepted": false,
+              "failures": [
+                {
+                  "kind": "schema_invalid",
+                  "path": "data_hash",
+                  "reason": "invalid_type: Invalid input: expected string, received undefined"
+                }
+              ]
             },
             {
               "kind": "ReviewerFinding",
@@ -511,34 +841,21 @@
       },
       "observed": {
         "status": "BLOCKED",
-        "reason": "3 Problem Contract failure(s): problem.raw_problem_ref:unresolved_reference,problem.requirement_refs.R-SUB:cross_source_requirement,problem.requirement_refs.R-OUT:cross_source_requirement",
-        "missingBackbone": [],
-        "missingCriticalClaim": false,
-        "contractSatisfied": true,
-        "contractFailures": [
-          {
-            "kind": "unresolved_reference",
-            "path": "raw_problem_ref",
-            "reason": "'file:///problem/2026-mcm-a.txt' is not a registered DataArtifact",
-            "where": "problem"
-          },
-          {
-            "kind": "cross_source_requirement",
-            "path": "requirement_refs.R-SUB",
-            "reason": "RequirementSpec 'R-SUB' source_data_ref='DA-RAW' disagrees with ProblemSpec.raw_problem_ref='file:///problem/2026-mcm-a.txt'",
-            "where": "problem"
-          },
-          {
-            "kind": "cross_source_requirement",
-            "path": "requirement_refs.R-OUT",
-            "reason": "RequirementSpec 'R-OUT' source_data_ref='DA-RAW' disagrees with ProblemSpec.raw_problem_ref='file:///problem/2026-mcm-a.txt'",
-            "where": "problem"
-          }
+        "reason": "missing IR backbone: ProblemSpec,ModelSpec,RunArtifact,Result,Claim; no CRITICAL claim in canonical IR; minimum Problem Contract not satisfied (RAW_PROBLEM DataArtifact + REQUIRED_OUTPUT RequirementSpec + SymbolSpec)",
+        "missingBackbone": [
+          "ProblemSpec",
+          "ModelSpec",
+          "RunArtifact",
+          "Result",
+          "Claim"
         ],
+        "missingCriticalClaim": true,
+        "contractSatisfied": false,
+        "contractFailures": [],
         "claimProblems": [],
         "ingest": {
-          "accepted": 14,
-          "refused": 0,
+          "accepted": 4,
+          "refused": 12,
           "log": [
             {
               "kind": "DataArtifact",
@@ -558,43 +875,180 @@
             },
             {
               "kind": "ProblemSpec",
-              "accepted": true
+              "accepted": false,
+              "failures": [
+                {
+                  "kind": "unresolved_reference",
+                  "path": "raw_problem_ref",
+                  "reason": "'file:///problem/2026-mcm-a.txt' is not registered (expected DataArtifact)"
+                }
+              ]
+            },
+            {
+              "kind": "AssumptionSpec",
+              "accepted": false,
+              "failures": [
+                {
+                  "kind": "unresolved_reference",
+                  "path": "scope_ref",
+                  "reason": "'P1' is not registered (expected ProblemSpec)"
+                }
+              ]
             },
             {
               "kind": "SymbolSpec",
-              "accepted": true
+              "accepted": false,
+              "failures": [
+                {
+                  "kind": "unresolved_reference",
+                  "path": "scope_ref",
+                  "reason": "'P1' is not registered (expected ProblemSpec)"
+                }
+              ]
             },
             {
               "kind": "SymbolSpec",
-              "accepted": true
+              "accepted": false,
+              "failures": [
+                {
+                  "kind": "unresolved_reference",
+                  "path": "scope_ref",
+                  "reason": "'P1' is not registered (expected ProblemSpec)"
+                }
+              ]
+            },
+            {
+              "kind": "EquationSpec",
+              "accepted": false,
+              "failures": [
+                {
+                  "kind": "unresolved_reference",
+                  "path": "scope_ref",
+                  "reason": "'P1' is not registered (expected ProblemSpec)"
+                },
+                {
+                  "kind": "unresolved_reference",
+                  "path": "lhs_symbols",
+                  "reason": "'SYM-x' is not registered (expected SymbolSpec)"
+                },
+                {
+                  "kind": "unresolved_reference",
+                  "path": "rhs_symbols",
+                  "reason": "'SYM-x' is not registered (expected SymbolSpec)"
+                },
+                {
+                  "kind": "unresolved_reference",
+                  "path": "rhs_symbols",
+                  "reason": "'SYM-rho' is not registered (expected SymbolSpec)"
+                }
+              ]
             },
             {
               "kind": "ModelSpec",
-              "accepted": true
+              "accepted": false,
+              "failures": [
+                {
+                  "kind": "unresolved_reference",
+                  "path": "problem_refs",
+                  "reason": "'P1' is not registered (expected ProblemSpec)"
+                },
+                {
+                  "kind": "unresolved_reference",
+                  "path": "variable_refs",
+                  "reason": "'SYM-x' is not registered (expected SymbolSpec)"
+                },
+                {
+                  "kind": "unresolved_reference",
+                  "path": "parameter_refs.0.symbol_ref",
+                  "reason": "'SYM-rho' is not registered (expected SymbolSpec)"
+                },
+                {
+                  "kind": "unresolved_reference",
+                  "path": "assumption_refs",
+                  "reason": "'ASM-1' is not registered (expected AssumptionSpec)"
+                },
+                {
+                  "kind": "unresolved_reference",
+                  "path": "equation_refs",
+                  "reason": "'EQ-1' is not registered (expected EquationSpec)"
+                }
+              ]
             },
             {
               "kind": "RunArtifact",
-              "accepted": true
+              "accepted": false,
+              "failures": [
+                {
+                  "kind": "unresolved_reference",
+                  "path": "model_ref",
+                  "reason": "'M1' is not registered (expected ModelSpec)"
+                }
+              ]
             },
             {
               "kind": "Result",
-              "accepted": true
+              "accepted": false,
+              "failures": [
+                {
+                  "kind": "unresolved_reference",
+                  "path": "run_ref",
+                  "reason": "'RUN1' is not registered (expected RunArtifact)"
+                }
+              ]
             },
             {
               "kind": "Claim",
-              "accepted": true
+              "accepted": false,
+              "failures": [
+                {
+                  "kind": "schema_invalid",
+                  "path": "numeric_binding",
+                  "reason": "invalid_type: Invalid input: expected object, received undefined"
+                }
+              ]
             },
             {
               "kind": "VerificationResult",
-              "accepted": true
+              "accepted": false,
+              "failures": [
+                {
+                  "kind": "unresolved_reference",
+                  "path": "target_ref",
+                  "reason": "'RES1' is not registered (expected any registered object)"
+                },
+                {
+                  "kind": "unresolved_reference",
+                  "path": "evidence_refs",
+                  "reason": "'RES1' is not registered (expected any registered object)"
+                }
+              ]
             },
             {
               "kind": "FigureSpec",
-              "accepted": true
+              "accepted": false,
+              "failures": [
+                {
+                  "kind": "schema_invalid",
+                  "path": "data_hash",
+                  "reason": "invalid_type: Invalid input: expected string, received undefined"
+                }
+              ]
             },
             {
               "kind": "ReviewerFinding",
-              "accepted": true
+              "accepted": false,
+              "failures": [
+                {
+                  "kind": "unresolved_reference",
+                  "path": "target_ref",
+                  "reason": "'RES1' is not registered (expected any registered object)"
+                },
+                {
+                  "kind": "unresolved_reference",
+                  "path": "evidence_refs",
+                  "reason": "'RES1' is not registered (expected any registered object)"
+                }
+              ]
             }
           ]
         },
@@ -604,8 +1058,10 @@
         ],
         "ingest_reason_matches": []
       },
-      "status": "PASS",
-      "failed_reasons": []
+      "status": "FAILED",
+      "failed_reasons": [
+        "reason keyword mismatch"
+      ]
     },
     {
       "id": "C-006",
@@ -624,40 +1080,21 @@
       },
       "observed": {
         "status": "BLOCKED",
-        "reason": "4 Problem Contract failure(s): problem.raw_problem_ref:unresolved_reference,problem.requirement_refs.R-SUB:unresolved_reference,problem.requirement_refs.R-OUT:unresolved_reference,problem.requirement_refs:missing_required_output_requirement; minimum Problem Contract not satisfied (RAW_PROBLEM DataArtifact + REQUIRED_OUTPUT RequirementSpec + SymbolSpec)",
-        "missingBackbone": [],
-        "missingCriticalClaim": false,
-        "contractSatisfied": false,
-        "contractFailures": [
-          {
-            "kind": "unresolved_reference",
-            "path": "raw_problem_ref",
-            "reason": "'DA-RAW' is not a registered DataArtifact",
-            "where": "problem"
-          },
-          {
-            "kind": "unresolved_reference",
-            "path": "requirement_refs.R-SUB",
-            "reason": "'R-SUB' is not a registered RequirementSpec",
-            "where": "problem"
-          },
-          {
-            "kind": "unresolved_reference",
-            "path": "requirement_refs.R-OUT",
-            "reason": "'R-OUT' is not a registered RequirementSpec",
-            "where": "problem"
-          },
-          {
-            "kind": "missing_required_output_requirement",
-            "path": "requirement_refs",
-            "reason": "ProblemSpec.requirement_refs must reference at least one RequirementSpec of type REQUIRED_OUTPUT",
-            "where": "problem"
-          }
+        "reason": "missing IR backbone: ProblemSpec,ModelSpec,RunArtifact,Result,Claim; no CRITICAL claim in canonical IR; minimum Problem Contract not satisfied (RAW_PROBLEM DataArtifact + REQUIRED_OUTPUT RequirementSpec + SymbolSpec)",
+        "missingBackbone": [
+          "ProblemSpec",
+          "ModelSpec",
+          "RunArtifact",
+          "Result",
+          "Claim"
         ],
+        "missingCriticalClaim": true,
+        "contractSatisfied": false,
+        "contractFailures": [],
         "claimProblems": [],
         "ingest": {
-          "accepted": 11,
-          "refused": 3,
+          "accepted": 1,
+          "refused": 15,
           "log": [
             {
               "kind": "DataArtifact",
@@ -698,43 +1135,195 @@
             },
             {
               "kind": "ProblemSpec",
-              "accepted": true
+              "accepted": false,
+              "failures": [
+                {
+                  "kind": "unresolved_reference",
+                  "path": "raw_problem_ref",
+                  "reason": "'DA-RAW' is not registered (expected DataArtifact)"
+                },
+                {
+                  "kind": "unresolved_reference",
+                  "path": "requirement_refs",
+                  "reason": "'R-SUB' is not registered (expected RequirementSpec)"
+                },
+                {
+                  "kind": "unresolved_reference",
+                  "path": "requirement_refs",
+                  "reason": "'R-OUT' is not registered (expected RequirementSpec)"
+                }
+              ]
+            },
+            {
+              "kind": "AssumptionSpec",
+              "accepted": false,
+              "failures": [
+                {
+                  "kind": "unresolved_reference",
+                  "path": "scope_ref",
+                  "reason": "'P1' is not registered (expected ProblemSpec)"
+                },
+                {
+                  "kind": "unresolved_reference",
+                  "path": "justification_refs",
+                  "reason": "'DA-RAW' is not registered (expected any registered object)"
+                }
+              ]
             },
             {
               "kind": "SymbolSpec",
-              "accepted": true
+              "accepted": false,
+              "failures": [
+                {
+                  "kind": "unresolved_reference",
+                  "path": "scope_ref",
+                  "reason": "'P1' is not registered (expected ProblemSpec)"
+                }
+              ]
             },
             {
               "kind": "SymbolSpec",
-              "accepted": true
+              "accepted": false,
+              "failures": [
+                {
+                  "kind": "unresolved_reference",
+                  "path": "scope_ref",
+                  "reason": "'P1' is not registered (expected ProblemSpec)"
+                }
+              ]
+            },
+            {
+              "kind": "EquationSpec",
+              "accepted": false,
+              "failures": [
+                {
+                  "kind": "unresolved_reference",
+                  "path": "scope_ref",
+                  "reason": "'P1' is not registered (expected ProblemSpec)"
+                },
+                {
+                  "kind": "unresolved_reference",
+                  "path": "lhs_symbols",
+                  "reason": "'SYM-x' is not registered (expected SymbolSpec)"
+                },
+                {
+                  "kind": "unresolved_reference",
+                  "path": "rhs_symbols",
+                  "reason": "'SYM-x' is not registered (expected SymbolSpec)"
+                },
+                {
+                  "kind": "unresolved_reference",
+                  "path": "rhs_symbols",
+                  "reason": "'SYM-rho' is not registered (expected SymbolSpec)"
+                }
+              ]
             },
             {
               "kind": "ModelSpec",
-              "accepted": true
+              "accepted": false,
+              "failures": [
+                {
+                  "kind": "unresolved_reference",
+                  "path": "problem_refs",
+                  "reason": "'P1' is not registered (expected ProblemSpec)"
+                },
+                {
+                  "kind": "unresolved_reference",
+                  "path": "variable_refs",
+                  "reason": "'SYM-x' is not registered (expected SymbolSpec)"
+                },
+                {
+                  "kind": "unresolved_reference",
+                  "path": "parameter_refs.0.symbol_ref",
+                  "reason": "'SYM-rho' is not registered (expected SymbolSpec)"
+                },
+                {
+                  "kind": "unresolved_reference",
+                  "path": "assumption_refs",
+                  "reason": "'ASM-1' is not registered (expected AssumptionSpec)"
+                },
+                {
+                  "kind": "unresolved_reference",
+                  "path": "equation_refs",
+                  "reason": "'EQ-1' is not registered (expected EquationSpec)"
+                }
+              ]
             },
             {
               "kind": "RunArtifact",
-              "accepted": true
+              "accepted": false,
+              "failures": [
+                {
+                  "kind": "unresolved_reference",
+                  "path": "model_ref",
+                  "reason": "'M1' is not registered (expected ModelSpec)"
+                }
+              ]
             },
             {
               "kind": "Result",
-              "accepted": true
+              "accepted": false,
+              "failures": [
+                {
+                  "kind": "unresolved_reference",
+                  "path": "run_ref",
+                  "reason": "'RUN1' is not registered (expected RunArtifact)"
+                }
+              ]
             },
             {
               "kind": "Claim",
-              "accepted": true
+              "accepted": false,
+              "failures": [
+                {
+                  "kind": "schema_invalid",
+                  "path": "numeric_binding",
+                  "reason": "invalid_type: Invalid input: expected object, received undefined"
+                }
+              ]
             },
             {
               "kind": "VerificationResult",
-              "accepted": true
+              "accepted": false,
+              "failures": [
+                {
+                  "kind": "unresolved_reference",
+                  "path": "target_ref",
+                  "reason": "'RES1' is not registered (expected any registered object)"
+                },
+                {
+                  "kind": "unresolved_reference",
+                  "path": "evidence_refs",
+                  "reason": "'RES1' is not registered (expected any registered object)"
+                }
+              ]
             },
             {
               "kind": "FigureSpec",
-              "accepted": true
+              "accepted": false,
+              "failures": [
+                {
+                  "kind": "schema_invalid",
+                  "path": "data_hash",
+                  "reason": "invalid_type: Invalid input: expected string, received undefined"
+                }
+              ]
             },
             {
               "kind": "ReviewerFinding",
-              "accepted": true
+              "accepted": false,
+              "failures": [
+                {
+                  "kind": "unresolved_reference",
+                  "path": "target_ref",
+                  "reason": "'RES1' is not registered (expected any registered object)"
+                },
+                {
+                  "kind": "unresolved_reference",
+                  "path": "evidence_refs",
+                  "reason": "'RES1' is not registered (expected any registered object)"
+                }
+              ]
             }
           ]
         },
@@ -747,8 +1336,10 @@
           "content_hash"
         ]
       },
-      "status": "PASS",
-      "failed_reasons": []
+      "status": "FAILED",
+      "failed_reasons": [
+        "reason keyword mismatch"
+      ]
     },
     {
       "id": "C-007",
@@ -767,40 +1358,21 @@
       },
       "observed": {
         "status": "BLOCKED",
-        "reason": "4 Problem Contract failure(s): problem.raw_problem_ref:unresolved_reference,problem.requirement_refs.R-SUB:unresolved_reference,problem.requirement_refs.R-OUT:unresolved_reference,problem.requirement_refs:missing_required_output_requirement; minimum Problem Contract not satisfied (RAW_PROBLEM DataArtifact + REQUIRED_OUTPUT RequirementSpec + SymbolSpec)",
-        "missingBackbone": [],
-        "missingCriticalClaim": false,
-        "contractSatisfied": false,
-        "contractFailures": [
-          {
-            "kind": "unresolved_reference",
-            "path": "raw_problem_ref",
-            "reason": "'DA-RAW' is not a registered DataArtifact",
-            "where": "problem"
-          },
-          {
-            "kind": "unresolved_reference",
-            "path": "requirement_refs.R-SUB",
-            "reason": "'R-SUB' is not a registered RequirementSpec",
-            "where": "problem"
-          },
-          {
-            "kind": "unresolved_reference",
-            "path": "requirement_refs.R-OUT",
-            "reason": "'R-OUT' is not a registered RequirementSpec",
-            "where": "problem"
-          },
-          {
-            "kind": "missing_required_output_requirement",
-            "path": "requirement_refs",
-            "reason": "ProblemSpec.requirement_refs must reference at least one RequirementSpec of type REQUIRED_OUTPUT",
-            "where": "problem"
-          }
+        "reason": "missing IR backbone: ProblemSpec,ModelSpec,RunArtifact,Result,Claim; no CRITICAL claim in canonical IR; minimum Problem Contract not satisfied (RAW_PROBLEM DataArtifact + REQUIRED_OUTPUT RequirementSpec + SymbolSpec)",
+        "missingBackbone": [
+          "ProblemSpec",
+          "ModelSpec",
+          "RunArtifact",
+          "Result",
+          "Claim"
         ],
+        "missingCriticalClaim": true,
+        "contractSatisfied": false,
+        "contractFailures": [],
         "claimProblems": [],
         "ingest": {
-          "accepted": 11,
-          "refused": 3,
+          "accepted": 1,
+          "refused": 15,
           "log": [
             {
               "kind": "DataArtifact",
@@ -841,43 +1413,195 @@
             },
             {
               "kind": "ProblemSpec",
-              "accepted": true
+              "accepted": false,
+              "failures": [
+                {
+                  "kind": "unresolved_reference",
+                  "path": "raw_problem_ref",
+                  "reason": "'DA-RAW' is not registered (expected DataArtifact)"
+                },
+                {
+                  "kind": "unresolved_reference",
+                  "path": "requirement_refs",
+                  "reason": "'R-SUB' is not registered (expected RequirementSpec)"
+                },
+                {
+                  "kind": "unresolved_reference",
+                  "path": "requirement_refs",
+                  "reason": "'R-OUT' is not registered (expected RequirementSpec)"
+                }
+              ]
+            },
+            {
+              "kind": "AssumptionSpec",
+              "accepted": false,
+              "failures": [
+                {
+                  "kind": "unresolved_reference",
+                  "path": "scope_ref",
+                  "reason": "'P1' is not registered (expected ProblemSpec)"
+                },
+                {
+                  "kind": "unresolved_reference",
+                  "path": "justification_refs",
+                  "reason": "'DA-RAW' is not registered (expected any registered object)"
+                }
+              ]
             },
             {
               "kind": "SymbolSpec",
-              "accepted": true
+              "accepted": false,
+              "failures": [
+                {
+                  "kind": "unresolved_reference",
+                  "path": "scope_ref",
+                  "reason": "'P1' is not registered (expected ProblemSpec)"
+                }
+              ]
             },
             {
               "kind": "SymbolSpec",
-              "accepted": true
+              "accepted": false,
+              "failures": [
+                {
+                  "kind": "unresolved_reference",
+                  "path": "scope_ref",
+                  "reason": "'P1' is not registered (expected ProblemSpec)"
+                }
+              ]
+            },
+            {
+              "kind": "EquationSpec",
+              "accepted": false,
+              "failures": [
+                {
+                  "kind": "unresolved_reference",
+                  "path": "scope_ref",
+                  "reason": "'P1' is not registered (expected ProblemSpec)"
+                },
+                {
+                  "kind": "unresolved_reference",
+                  "path": "lhs_symbols",
+                  "reason": "'SYM-x' is not registered (expected SymbolSpec)"
+                },
+                {
+                  "kind": "unresolved_reference",
+                  "path": "rhs_symbols",
+                  "reason": "'SYM-x' is not registered (expected SymbolSpec)"
+                },
+                {
+                  "kind": "unresolved_reference",
+                  "path": "rhs_symbols",
+                  "reason": "'SYM-rho' is not registered (expected SymbolSpec)"
+                }
+              ]
             },
             {
               "kind": "ModelSpec",
-              "accepted": true
+              "accepted": false,
+              "failures": [
+                {
+                  "kind": "unresolved_reference",
+                  "path": "problem_refs",
+                  "reason": "'P1' is not registered (expected ProblemSpec)"
+                },
+                {
+                  "kind": "unresolved_reference",
+                  "path": "variable_refs",
+                  "reason": "'SYM-x' is not registered (expected SymbolSpec)"
+                },
+                {
+                  "kind": "unresolved_reference",
+                  "path": "parameter_refs.0.symbol_ref",
+                  "reason": "'SYM-rho' is not registered (expected SymbolSpec)"
+                },
+                {
+                  "kind": "unresolved_reference",
+                  "path": "assumption_refs",
+                  "reason": "'ASM-1' is not registered (expected AssumptionSpec)"
+                },
+                {
+                  "kind": "unresolved_reference",
+                  "path": "equation_refs",
+                  "reason": "'EQ-1' is not registered (expected EquationSpec)"
+                }
+              ]
             },
             {
               "kind": "RunArtifact",
-              "accepted": true
+              "accepted": false,
+              "failures": [
+                {
+                  "kind": "unresolved_reference",
+                  "path": "model_ref",
+                  "reason": "'M1' is not registered (expected ModelSpec)"
+                }
+              ]
             },
             {
               "kind": "Result",
-              "accepted": true
+              "accepted": false,
+              "failures": [
+                {
+                  "kind": "unresolved_reference",
+                  "path": "run_ref",
+                  "reason": "'RUN1' is not registered (expected RunArtifact)"
+                }
+              ]
             },
             {
               "kind": "Claim",
-              "accepted": true
+              "accepted": false,
+              "failures": [
+                {
+                  "kind": "schema_invalid",
+                  "path": "numeric_binding",
+                  "reason": "invalid_type: Invalid input: expected object, received undefined"
+                }
+              ]
             },
             {
               "kind": "VerificationResult",
-              "accepted": true
+              "accepted": false,
+              "failures": [
+                {
+                  "kind": "unresolved_reference",
+                  "path": "target_ref",
+                  "reason": "'RES1' is not registered (expected any registered object)"
+                },
+                {
+                  "kind": "unresolved_reference",
+                  "path": "evidence_refs",
+                  "reason": "'RES1' is not registered (expected any registered object)"
+                }
+              ]
             },
             {
               "kind": "FigureSpec",
-              "accepted": true
+              "accepted": false,
+              "failures": [
+                {
+                  "kind": "schema_invalid",
+                  "path": "data_hash",
+                  "reason": "invalid_type: Invalid input: expected string, received undefined"
+                }
+              ]
             },
             {
               "kind": "ReviewerFinding",
-              "accepted": true
+              "accepted": false,
+              "failures": [
+                {
+                  "kind": "unresolved_reference",
+                  "path": "target_ref",
+                  "reason": "'RES1' is not registered (expected any registered object)"
+                },
+                {
+                  "kind": "unresolved_reference",
+                  "path": "evidence_refs",
+                  "reason": "'RES1' is not registered (expected any registered object)"
+                }
+              ]
             }
           ]
         },
@@ -890,8 +1614,10 @@
           "content_hash"
         ]
       },
-      "status": "PASS",
-      "failed_reasons": []
+      "status": "FAILED",
+      "failed_reasons": [
+        "reason keyword mismatch"
+      ]
     },
     {
       "id": "C-008",
@@ -906,13 +1632,15 @@
       },
       "observed": {
         "status": "BLOCKED",
-        "reason": "1 Problem Contract failure(s): problem.RunArtifact.RUN1.input_data_refs.DA-RAW:reference_kind_mismatch",
-        "missingBackbone": [],
-        "missingCriticalClaim": false,
+        "reason": "missing IR backbone: Claim; no CRITICAL claim in canonical IR; 1 Problem Contract failure(s): problem.RunArtifact.RUN1.input_data_refs.DA-RAW:unbound_data_artifact",
+        "missingBackbone": [
+          "Claim"
+        ],
+        "missingCriticalClaim": true,
         "contractSatisfied": true,
         "contractFailures": [
           {
-            "kind": "reference_kind_mismatch",
+            "kind": "unbound_data_artifact",
             "path": "RunArtifact.RUN1.input_data_refs.DA-RAW",
             "reason": "'DA-RAW' is a RAW_PROBLEM DataArtifact, expected INPUT_DATA",
             "where": "problem"
@@ -921,7 +1649,7 @@
         "claimProblems": [],
         "ingest": {
           "accepted": 14,
-          "refused": 0,
+          "refused": 2,
           "log": [
             {
               "kind": "DataArtifact",
@@ -944,11 +1672,19 @@
               "accepted": true
             },
             {
+              "kind": "AssumptionSpec",
+              "accepted": true
+            },
+            {
               "kind": "SymbolSpec",
               "accepted": true
             },
             {
               "kind": "SymbolSpec",
+              "accepted": true
+            },
+            {
+              "kind": "EquationSpec",
               "accepted": true
             },
             {
@@ -965,7 +1701,14 @@
             },
             {
               "kind": "Claim",
-              "accepted": true
+              "accepted": false,
+              "failures": [
+                {
+                  "kind": "schema_invalid",
+                  "path": "numeric_binding",
+                  "reason": "invalid_type: Invalid input: expected object, received undefined"
+                }
+              ]
             },
             {
               "kind": "VerificationResult",
@@ -973,7 +1716,14 @@
             },
             {
               "kind": "FigureSpec",
-              "accepted": true
+              "accepted": false,
+              "failures": [
+                {
+                  "kind": "schema_invalid",
+                  "path": "data_hash",
+                  "reason": "invalid_type: Invalid input: expected string, received undefined"
+                }
+              ]
             },
             {
               "kind": "ReviewerFinding",
@@ -987,8 +1737,10 @@
         ],
         "ingest_reason_matches": []
       },
-      "status": "PASS",
-      "failed_reasons": []
+      "status": "FAILED",
+      "failed_reasons": [
+        "reason keyword mismatch"
+      ]
     },
     {
       "id": "C-009",
@@ -1014,7 +1766,7 @@
         "contractFailures": [],
         "claimProblems": [],
         "ingest": {
-          "accepted": 8,
+          "accepted": 10,
           "refused": 6,
           "log": [
             {
@@ -1038,11 +1790,19 @@
               "accepted": true
             },
             {
+              "kind": "AssumptionSpec",
+              "accepted": true
+            },
+            {
               "kind": "SymbolSpec",
               "accepted": true
             },
             {
               "kind": "SymbolSpec",
+              "accepted": true
+            },
+            {
+              "kind": "EquationSpec",
               "accepted": true
             },
             {
@@ -1076,14 +1836,9 @@
               "accepted": false,
               "failures": [
                 {
-                  "kind": "unresolved_reference",
-                  "path": "evidence_refs",
-                  "reason": "'RES1' is not registered (expected any registered object)"
-                },
-                {
-                  "kind": "unresolved_reference",
-                  "path": "result_refs",
-                  "reason": "'RES1' is not registered (expected Result)"
+                  "kind": "schema_invalid",
+                  "path": "numeric_binding",
+                  "reason": "invalid_type: Invalid input: expected object, received undefined"
                 }
               ]
             },
@@ -1108,14 +1863,9 @@
               "accepted": false,
               "failures": [
                 {
-                  "kind": "unresolved_reference",
-                  "path": "data_refs",
-                  "reason": "'RES1' is not registered (expected any registered object)"
-                },
-                {
-                  "kind": "unresolved_reference",
-                  "path": "claim_refs",
-                  "reason": "'C1' is not registered (expected Claim)"
+                  "kind": "schema_invalid",
+                  "path": "data_hash",
+                  "reason": "invalid_type: Invalid input: expected string, received undefined"
                 }
               ]
             },
@@ -1159,9 +1909,11 @@
       },
       "observed": {
         "status": "BLOCKED",
-        "reason": "1 Problem Contract failure(s): global.P1/x:duplicate_symbol_token",
-        "missingBackbone": [],
-        "missingCriticalClaim": false,
+        "reason": "missing IR backbone: Claim; no CRITICAL claim in canonical IR; 1 Problem Contract failure(s): global.P1/x:duplicate_symbol_token",
+        "missingBackbone": [
+          "Claim"
+        ],
+        "missingCriticalClaim": true,
         "contractSatisfied": true,
         "contractFailures": [
           {
@@ -1174,7 +1926,7 @@
         "claimProblems": [],
         "ingest": {
           "accepted": 15,
-          "refused": 0,
+          "refused": 2,
           "log": [
             {
               "kind": "DataArtifact",
@@ -1197,11 +1949,19 @@
               "accepted": true
             },
             {
+              "kind": "AssumptionSpec",
+              "accepted": true
+            },
+            {
               "kind": "SymbolSpec",
               "accepted": true
             },
             {
               "kind": "SymbolSpec",
+              "accepted": true
+            },
+            {
+              "kind": "EquationSpec",
               "accepted": true
             },
             {
@@ -1218,7 +1978,14 @@
             },
             {
               "kind": "Claim",
-              "accepted": true
+              "accepted": false,
+              "failures": [
+                {
+                  "kind": "schema_invalid",
+                  "path": "numeric_binding",
+                  "reason": "invalid_type: Invalid input: expected object, received undefined"
+                }
+              ]
             },
             {
               "kind": "VerificationResult",
@@ -1226,7 +1993,14 @@
             },
             {
               "kind": "FigureSpec",
-              "accepted": true
+              "accepted": false,
+              "failures": [
+                {
+                  "kind": "schema_invalid",
+                  "path": "data_hash",
+                  "reason": "invalid_type: Invalid input: expected string, received undefined"
+                }
+              ]
             },
             {
               "kind": "ReviewerFinding",
@@ -1260,9 +2034,11 @@
       },
       "observed": {
         "status": "BLOCKED",
-        "reason": "1 Problem Contract failure(s): global.P1/x:duplicate_symbol_token",
-        "missingBackbone": [],
-        "missingCriticalClaim": false,
+        "reason": "missing IR backbone: Claim; no CRITICAL claim in canonical IR; 1 Problem Contract failure(s): global.P1/x:duplicate_symbol_token",
+        "missingBackbone": [
+          "Claim"
+        ],
+        "missingCriticalClaim": true,
         "contractSatisfied": true,
         "contractFailures": [
           {
@@ -1275,7 +2051,7 @@
         "claimProblems": [],
         "ingest": {
           "accepted": 15,
-          "refused": 0,
+          "refused": 2,
           "log": [
             {
               "kind": "DataArtifact",
@@ -1298,11 +2074,19 @@
               "accepted": true
             },
             {
+              "kind": "AssumptionSpec",
+              "accepted": true
+            },
+            {
               "kind": "SymbolSpec",
               "accepted": true
             },
             {
               "kind": "SymbolSpec",
+              "accepted": true
+            },
+            {
+              "kind": "EquationSpec",
               "accepted": true
             },
             {
@@ -1319,7 +2103,14 @@
             },
             {
               "kind": "Claim",
-              "accepted": true
+              "accepted": false,
+              "failures": [
+                {
+                  "kind": "schema_invalid",
+                  "path": "numeric_binding",
+                  "reason": "invalid_type: Invalid input: expected object, received undefined"
+                }
+              ]
             },
             {
               "kind": "VerificationResult",
@@ -1327,7 +2118,14 @@
             },
             {
               "kind": "FigureSpec",
-              "accepted": true
+              "accepted": false,
+              "failures": [
+                {
+                  "kind": "schema_invalid",
+                  "path": "data_hash",
+                  "reason": "invalid_type: Invalid input: expected string, received undefined"
+                }
+              ]
             },
             {
               "kind": "ReviewerFinding",
@@ -1361,9 +2159,11 @@
       },
       "observed": {
         "status": "BLOCKED",
-        "reason": "1 Problem Contract failure(s): problem.ModelSpec.M1.variable_refs.SYM-rho:symbol_role_mismatch",
-        "missingBackbone": [],
-        "missingCriticalClaim": false,
+        "reason": "missing IR backbone: Claim; no CRITICAL claim in canonical IR; 1 Problem Contract failure(s): problem.ModelSpec.M1.variable_refs.SYM-rho:symbol_role_mismatch",
+        "missingBackbone": [
+          "Claim"
+        ],
+        "missingCriticalClaim": true,
         "contractSatisfied": true,
         "contractFailures": [
           {
@@ -1376,7 +2176,7 @@
         "claimProblems": [],
         "ingest": {
           "accepted": 14,
-          "refused": 0,
+          "refused": 2,
           "log": [
             {
               "kind": "DataArtifact",
@@ -1399,11 +2199,19 @@
               "accepted": true
             },
             {
+              "kind": "AssumptionSpec",
+              "accepted": true
+            },
+            {
               "kind": "SymbolSpec",
               "accepted": true
             },
             {
               "kind": "SymbolSpec",
+              "accepted": true
+            },
+            {
+              "kind": "EquationSpec",
               "accepted": true
             },
             {
@@ -1420,7 +2228,14 @@
             },
             {
               "kind": "Claim",
-              "accepted": true
+              "accepted": false,
+              "failures": [
+                {
+                  "kind": "schema_invalid",
+                  "path": "numeric_binding",
+                  "reason": "invalid_type: Invalid input: expected object, received undefined"
+                }
+              ]
             },
             {
               "kind": "VerificationResult",
@@ -1428,7 +2243,14 @@
             },
             {
               "kind": "FigureSpec",
-              "accepted": true
+              "accepted": false,
+              "failures": [
+                {
+                  "kind": "schema_invalid",
+                  "path": "data_hash",
+                  "reason": "invalid_type: Invalid input: expected string, received undefined"
+                }
+              ]
             },
             {
               "kind": "ReviewerFinding",
@@ -1458,9 +2280,11 @@
       },
       "observed": {
         "status": "BLOCKED",
-        "reason": "1 Problem Contract failure(s): problem.ModelSpec.M1.parameter_refs.SYM-x:parameter_role_mismatch",
-        "missingBackbone": [],
-        "missingCriticalClaim": false,
+        "reason": "missing IR backbone: Claim; no CRITICAL claim in canonical IR; 1 Problem Contract failure(s): problem.ModelSpec.M1.parameter_refs.SYM-x:parameter_role_mismatch",
+        "missingBackbone": [
+          "Claim"
+        ],
+        "missingCriticalClaim": true,
         "contractSatisfied": true,
         "contractFailures": [
           {
@@ -1473,7 +2297,7 @@
         "claimProblems": [],
         "ingest": {
           "accepted": 14,
-          "refused": 0,
+          "refused": 2,
           "log": [
             {
               "kind": "DataArtifact",
@@ -1496,11 +2320,19 @@
               "accepted": true
             },
             {
+              "kind": "AssumptionSpec",
+              "accepted": true
+            },
+            {
               "kind": "SymbolSpec",
               "accepted": true
             },
             {
               "kind": "SymbolSpec",
+              "accepted": true
+            },
+            {
+              "kind": "EquationSpec",
               "accepted": true
             },
             {
@@ -1517,7 +2349,14 @@
             },
             {
               "kind": "Claim",
-              "accepted": true
+              "accepted": false,
+              "failures": [
+                {
+                  "kind": "schema_invalid",
+                  "path": "numeric_binding",
+                  "reason": "invalid_type: Invalid input: expected object, received undefined"
+                }
+              ]
             },
             {
               "kind": "VerificationResult",
@@ -1525,7 +2364,14 @@
             },
             {
               "kind": "FigureSpec",
-              "accepted": true
+              "accepted": false,
+              "failures": [
+                {
+                  "kind": "schema_invalid",
+                  "path": "data_hash",
+                  "reason": "invalid_type: Invalid input: expected string, received undefined"
+                }
+              ]
             },
             {
               "kind": "ReviewerFinding",
@@ -1567,7 +2413,7 @@
         "contractFailures": [],
         "claimProblems": [],
         "ingest": {
-          "accepted": 7,
+          "accepted": 9,
           "refused": 7,
           "log": [
             {
@@ -1591,11 +2437,19 @@
               "accepted": true
             },
             {
+              "kind": "AssumptionSpec",
+              "accepted": true
+            },
+            {
               "kind": "SymbolSpec",
               "accepted": true
             },
             {
               "kind": "SymbolSpec",
+              "accepted": true
+            },
+            {
+              "kind": "EquationSpec",
               "accepted": true
             },
             {
@@ -1636,19 +2490,9 @@
               "accepted": false,
               "failures": [
                 {
-                  "kind": "unresolved_reference",
-                  "path": "evidence_refs",
-                  "reason": "'RES1' is not registered (expected any registered object)"
-                },
-                {
-                  "kind": "unresolved_reference",
-                  "path": "result_refs",
-                  "reason": "'RES1' is not registered (expected Result)"
-                },
-                {
-                  "kind": "unresolved_reference",
-                  "path": "model_refs",
-                  "reason": "'M1' is not registered (expected ModelSpec)"
+                  "kind": "schema_invalid",
+                  "path": "numeric_binding",
+                  "reason": "invalid_type: Invalid input: expected object, received undefined"
                 }
               ]
             },
@@ -1673,14 +2517,9 @@
               "accepted": false,
               "failures": [
                 {
-                  "kind": "unresolved_reference",
-                  "path": "data_refs",
-                  "reason": "'RES1' is not registered (expected any registered object)"
-                },
-                {
-                  "kind": "unresolved_reference",
-                  "path": "claim_refs",
-                  "reason": "'C1' is not registered (expected Claim)"
+                  "kind": "schema_invalid",
+                  "path": "data_hash",
+                  "reason": "invalid_type: Invalid input: expected string, received undefined"
                 }
               ]
             },
@@ -1724,22 +2563,17 @@
       },
       "observed": {
         "status": "BLOCKED",
-        "reason": "1 Problem Contract failure(s): problem.FigureSpec.F1.data_refs.M1:figure_target_not_union",
-        "missingBackbone": [],
-        "missingCriticalClaim": false,
-        "contractSatisfied": true,
-        "contractFailures": [
-          {
-            "kind": "figure_target_not_union",
-            "path": "FigureSpec.F1.data_refs.M1",
-            "reason": "'M1' resolves to ModelSpec, expected Result or DataArtifact",
-            "where": "problem"
-          }
+        "reason": "missing IR backbone: Claim; no CRITICAL claim in canonical IR",
+        "missingBackbone": [
+          "Claim"
         ],
+        "missingCriticalClaim": true,
+        "contractSatisfied": true,
+        "contractFailures": [],
         "claimProblems": [],
         "ingest": {
           "accepted": 14,
-          "refused": 0,
+          "refused": 2,
           "log": [
             {
               "kind": "DataArtifact",
@@ -1762,11 +2596,19 @@
               "accepted": true
             },
             {
+              "kind": "AssumptionSpec",
+              "accepted": true
+            },
+            {
               "kind": "SymbolSpec",
               "accepted": true
             },
             {
               "kind": "SymbolSpec",
+              "accepted": true
+            },
+            {
+              "kind": "EquationSpec",
               "accepted": true
             },
             {
@@ -1783,7 +2625,14 @@
             },
             {
               "kind": "Claim",
-              "accepted": true
+              "accepted": false,
+              "failures": [
+                {
+                  "kind": "schema_invalid",
+                  "path": "numeric_binding",
+                  "reason": "invalid_type: Invalid input: expected object, received undefined"
+                }
+              ]
             },
             {
               "kind": "VerificationResult",
@@ -1791,7 +2640,14 @@
             },
             {
               "kind": "FigureSpec",
-              "accepted": true
+              "accepted": false,
+              "failures": [
+                {
+                  "kind": "schema_invalid",
+                  "path": "data_hash",
+                  "reason": "invalid_type: Invalid input: expected string, received undefined"
+                }
+              ]
             },
             {
               "kind": "ReviewerFinding",
@@ -1805,8 +2661,10 @@
         ],
         "ingest_reason_matches": []
       },
-      "status": "PASS",
-      "failed_reasons": []
+      "status": "FAILED",
+      "failed_reasons": [
+        "reason keyword mismatch"
+      ]
     },
     {
       "id": "C-016",
@@ -1821,48 +2679,81 @@
       },
       "observed": {
         "status": "BLOCKED",
-        "reason": "2 Problem Contract failure(s): problem.raw_problem_ref:unresolved_reference,problem.requirement_refs:missing_required_output_requirement; minimum Problem Contract not satisfied (RAW_PROBLEM DataArtifact + REQUIRED_OUTPUT RequirementSpec + SymbolSpec)",
-        "missingBackbone": [],
-        "missingCriticalClaim": false,
-        "contractSatisfied": false,
-        "contractFailures": [
-          {
-            "kind": "unresolved_reference",
-            "path": "raw_problem_ref",
-            "reason": "'file:///x' is not a registered DataArtifact",
-            "where": "problem"
-          },
-          {
-            "kind": "missing_required_output_requirement",
-            "path": "requirement_refs",
-            "reason": "ProblemSpec.requirement_refs must reference at least one RequirementSpec of type REQUIRED_OUTPUT",
-            "where": "problem"
-          }
+        "reason": "missing IR backbone: ProblemSpec,ModelSpec,RunArtifact,Result,Claim; no CRITICAL claim in canonical IR; minimum Problem Contract not satisfied (RAW_PROBLEM DataArtifact + REQUIRED_OUTPUT RequirementSpec + SymbolSpec)",
+        "missingBackbone": [
+          "ProblemSpec",
+          "ModelSpec",
+          "RunArtifact",
+          "Result",
+          "Claim"
         ],
+        "missingCriticalClaim": true,
+        "contractSatisfied": false,
+        "contractFailures": [],
         "claimProblems": [],
         "ingest": {
-          "accepted": 5,
-          "refused": 0,
+          "accepted": 0,
+          "refused": 5,
           "log": [
             {
               "kind": "ProblemSpec",
-              "accepted": true
+              "accepted": false,
+              "failures": [
+                {
+                  "kind": "unresolved_reference",
+                  "path": "raw_problem_ref",
+                  "reason": "'file:///x' is not registered (expected DataArtifact)"
+                }
+              ]
             },
             {
               "kind": "ModelSpec",
-              "accepted": true
+              "accepted": false,
+              "failures": [
+                {
+                  "kind": "schema_invalid",
+                  "path": "assumption_refs",
+                  "reason": "invalid_type: Invalid input: expected array, received undefined"
+                },
+                {
+                  "kind": "schema_invalid",
+                  "path": "equation_refs",
+                  "reason": "invalid_type: Invalid input: expected array, received undefined"
+                }
+              ]
             },
             {
               "kind": "RunArtifact",
-              "accepted": true
+              "accepted": false,
+              "failures": [
+                {
+                  "kind": "unresolved_reference",
+                  "path": "model_ref",
+                  "reason": "'M1' is not registered (expected ModelSpec)"
+                }
+              ]
             },
             {
               "kind": "Result",
-              "accepted": true
+              "accepted": false,
+              "failures": [
+                {
+                  "kind": "unresolved_reference",
+                  "path": "run_ref",
+                  "reason": "'RUN1' is not registered (expected RunArtifact)"
+                }
+              ]
             },
             {
               "kind": "Claim",
-              "accepted": true
+              "accepted": false,
+              "failures": [
+                {
+                  "kind": "schema_invalid",
+                  "path": "numeric_binding",
+                  "reason": "invalid_type: Invalid input: expected object, received undefined"
+                }
+              ]
             }
           ]
         },
@@ -1888,48 +2779,81 @@
       },
       "observed": {
         "status": "BLOCKED",
-        "reason": "2 Problem Contract failure(s): problem.raw_problem_ref:unresolved_reference,problem.requirement_refs:missing_required_output_requirement; minimum Problem Contract not satisfied (RAW_PROBLEM DataArtifact + REQUIRED_OUTPUT RequirementSpec + SymbolSpec)",
-        "missingBackbone": [],
-        "missingCriticalClaim": false,
-        "contractSatisfied": false,
-        "contractFailures": [
-          {
-            "kind": "unresolved_reference",
-            "path": "raw_problem_ref",
-            "reason": "'file:///x' is not a registered DataArtifact",
-            "where": "problem"
-          },
-          {
-            "kind": "missing_required_output_requirement",
-            "path": "requirement_refs",
-            "reason": "ProblemSpec.requirement_refs must reference at least one RequirementSpec of type REQUIRED_OUTPUT",
-            "where": "problem"
-          }
+        "reason": "missing IR backbone: ProblemSpec,ModelSpec,RunArtifact,Result,Claim; no CRITICAL claim in canonical IR; minimum Problem Contract not satisfied (RAW_PROBLEM DataArtifact + REQUIRED_OUTPUT RequirementSpec + SymbolSpec)",
+        "missingBackbone": [
+          "ProblemSpec",
+          "ModelSpec",
+          "RunArtifact",
+          "Result",
+          "Claim"
         ],
+        "missingCriticalClaim": true,
+        "contractSatisfied": false,
+        "contractFailures": [],
         "claimProblems": [],
         "ingest": {
-          "accepted": 5,
-          "refused": 0,
+          "accepted": 0,
+          "refused": 5,
           "log": [
             {
               "kind": "ProblemSpec",
-              "accepted": true
+              "accepted": false,
+              "failures": [
+                {
+                  "kind": "unresolved_reference",
+                  "path": "raw_problem_ref",
+                  "reason": "'file:///x' is not registered (expected DataArtifact)"
+                }
+              ]
             },
             {
               "kind": "ModelSpec",
-              "accepted": true
+              "accepted": false,
+              "failures": [
+                {
+                  "kind": "schema_invalid",
+                  "path": "assumption_refs",
+                  "reason": "invalid_type: Invalid input: expected array, received undefined"
+                },
+                {
+                  "kind": "schema_invalid",
+                  "path": "equation_refs",
+                  "reason": "invalid_type: Invalid input: expected array, received undefined"
+                }
+              ]
             },
             {
               "kind": "RunArtifact",
-              "accepted": true
+              "accepted": false,
+              "failures": [
+                {
+                  "kind": "unresolved_reference",
+                  "path": "model_ref",
+                  "reason": "'M1' is not registered (expected ModelSpec)"
+                }
+              ]
             },
             {
               "kind": "Result",
-              "accepted": true
+              "accepted": false,
+              "failures": [
+                {
+                  "kind": "unresolved_reference",
+                  "path": "run_ref",
+                  "reason": "'RUN1' is not registered (expected RunArtifact)"
+                }
+              ]
             },
             {
               "kind": "Claim",
-              "accepted": true
+              "accepted": false,
+              "failures": [
+                {
+                  "kind": "schema_invalid",
+                  "path": "numeric_binding",
+                  "reason": "invalid_type: Invalid input: expected object, received undefined"
+                }
+              ]
             }
           ]
         },
@@ -1951,16 +2875,18 @@
         "description": "happy path"
       },
       "observed": {
-        "status": "PASS",
-        "reason": "canonical IR bridge satisfied",
-        "missingBackbone": [],
-        "missingCriticalClaim": false,
+        "status": "BLOCKED",
+        "reason": "missing IR backbone: Claim; no CRITICAL claim in canonical IR",
+        "missingBackbone": [
+          "Claim"
+        ],
+        "missingCriticalClaim": true,
         "contractSatisfied": true,
         "contractFailures": [],
         "claimProblems": [],
         "ingest": {
           "accepted": 14,
-          "refused": 0,
+          "refused": 2,
           "log": [
             {
               "kind": "DataArtifact",
@@ -1983,11 +2909,19 @@
               "accepted": true
             },
             {
+              "kind": "AssumptionSpec",
+              "accepted": true
+            },
+            {
               "kind": "SymbolSpec",
               "accepted": true
             },
             {
               "kind": "SymbolSpec",
+              "accepted": true
+            },
+            {
+              "kind": "EquationSpec",
               "accepted": true
             },
             {
@@ -2004,7 +2938,14 @@
             },
             {
               "kind": "Claim",
-              "accepted": true
+              "accepted": false,
+              "failures": [
+                {
+                  "kind": "schema_invalid",
+                  "path": "numeric_binding",
+                  "reason": "invalid_type: Invalid input: expected object, received undefined"
+                }
+              ]
             },
             {
               "kind": "VerificationResult",
@@ -2012,7 +2953,14 @@
             },
             {
               "kind": "FigureSpec",
-              "accepted": true
+              "accepted": false,
+              "failures": [
+                {
+                  "kind": "schema_invalid",
+                  "path": "data_hash",
+                  "reason": "invalid_type: Invalid input: expected string, received undefined"
+                }
+              ]
             },
             {
               "kind": "ReviewerFinding",
@@ -2023,14 +2971,16 @@
         "reason_matches": [],
         "ingest_reason_matches": []
       },
-      "status": "PASS",
-      "failed_reasons": []
+      "status": "FAILED",
+      "failed_reasons": [
+        "expected status PASS, observed BLOCKED"
+      ]
     }
   ],
   "totals": {
     "total": 18,
-    "passed": 18,
-    "failed": 0
+    "passed": 10,
+    "failed": 8
   },
-  "completedAt": "2026-08-31T03:31:18.130Z"
+  "completedAt": "2026-09-07T12:51:39.501Z"
 }

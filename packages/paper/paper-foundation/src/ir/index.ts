@@ -36,19 +36,39 @@ export {
   runArtifactSchema,
   symbolSpecSchema,
   verificationResultSchema,
+  // TASK-T1 contract objects (closed enums + schemas live in
+  // `contract-objects.ts`, re-exported through the schema barrel).
+  assumptionSpecSchema,
+  equationSpecSchema,
+  experimentSpecSchema,
+  ASSUMPTION_SOURCE_TYPES,
+  ASSUMPTION_STATUSES,
+  EQUATION_REPRESENTATIONS,
+  EQUATION_TYPES,
+  EXPERIMENT_SEED_POLICIES,
   // Closed-enum constants used by callers building fixtures or guards.
   DATA_ARTIFACT_ROLES,
   REQUIREMENT_TYPES,
   SYMBOL_ROLES,
+  SYMBOL_SHAPES,
+  SYMBOL_DOMAINS,
 } from './schema.ts'
 export type {
   AttackType,
+  AssumptionSpec,
+  AssumptionSourceType,
+  AssumptionStatus,
   Claim,
   ClaimCriticality,
   ClaimType,
   DataArtifact,
   DataArtifactRole,
+  EquationRepresentation,
+  EquationSpec,
+  EquationType,
   ExecutionRecord,
+  ExperimentSeedPolicy,
+  ExperimentSpec,
   FigureSpec,
   FindingSeverity,
   IrKind,
@@ -61,7 +81,9 @@ export type {
   Result,
   ReviewerFinding,
   RunArtifact,
+  SymbolDomain,
   SymbolRole,
+  SymbolShape,
   SymbolSpec,
   VerificationResult,
 } from './schema.ts'
@@ -77,7 +99,7 @@ export type { ScanVerdict, StrictJsonFailureReason, StrictJsonResult } from './p
 
 export { deepFreeze } from './freeze.ts'
 
-export { IR_REF_FIELDS, validateRefFields } from './refs.ts'
+export { IR_REF_FIELDS, isAllowedTarget, validateRefFields } from './refs.ts'
 export type { IrRefFieldSpec, IrRefProblem, IrRefResolution, IrRefTarget, IrRefResolver } from './refs.ts'
 
 export {

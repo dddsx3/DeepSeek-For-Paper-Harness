@@ -36,7 +36,26 @@ function build(
   const refused: { kind: IrKind; failures: unknown }[] = []
   for (const entry of [...validChain(), ...extra]) {
     if (omit.includes(entry.kind)) continue
+    // TASK-T1: the ModelSpec fixture references AssumptionSpec ASM-1 and
+    // EquationSpec EQ-1. When a test omits `SymbolSpec` (or overrides
+    // AssumptionSpec/EquationSpec away entirely), the EquationSpec whose
+    // lhs/rhs point at the omitted symbols would be refused by the store —
+    // an ATTACK scenario, not the contract scenario the test intends. So a
+    // coherent "omit the symbols" store must also omit the equation that
+    // consumes them (and hence the ModelSpec equation_refs that consumes it).
+    if (omit.includes('SymbolSpec') && entry.kind === 'EquationSpec') continue
     const value = { ...entry.value, ...(overrides[entry.kind] ?? {}) }
+    if (omit.includes('SymbolSpec') && entry.kind === 'EquationSpec') continue
+    if (omit.includes('SymbolSpec') && entry.kind === 'ModelSpec') {
+      value['equation_refs'] = []
+      value['assumption_refs'] = []
+    }
+    // TASK-T1: ExperimentSpec.parameter_sweep sweeps SYM-rho; when symbols
+    // are omitted the sweep must be empty (a sweep over an unregistered
+    // symbol is a store attack, not the minimum-contract scenario).
+    if (omit.includes('SymbolSpec') && entry.kind === 'ExperimentSpec') value['parameter_sweep'] = []
+    if (omit.includes('AssumptionSpec') && entry.kind === 'ModelSpec') value['assumption_refs'] = []
+    if (omit.includes('EquationSpec') && entry.kind === 'ModelSpec') value['equation_refs'] = []
     // 5.0-R (R3-1): ExecutionRecord cannot enter via `put` (INV-3-M /
     // 3.R3 closed that door) — it must go through the producer-only
     // `putExecutionRecord(record, CAPTURE_ATTESTATION)` door, exactly as

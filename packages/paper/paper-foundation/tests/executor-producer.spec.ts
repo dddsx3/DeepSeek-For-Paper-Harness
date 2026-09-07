@@ -27,6 +27,8 @@ import { ModelingIr } from '../src/ir/store.ts'
 import {
   variableSymbol,
   parameterSymbol,
+  assumptionSpec,
+  equationSpec,
   modelSpec,
 } from './ir/fixtures.ts'
 import { MODEL_CONTAINER_VERSION } from '../src/produce/ir-producer.ts'
@@ -52,6 +54,8 @@ function legalContainer(): string {
     entries: [
       { kind: 'SymbolSpec', value: variableSymbol() },
       { kind: 'SymbolSpec', value: parameterSymbol() },
+      { kind: 'AssumptionSpec', value: assumptionSpec() },
+      { kind: 'EquationSpec', value: equationSpec() },
       { kind: 'ModelSpec', value: modelSpec() },
     ],
   })
@@ -137,9 +141,10 @@ describe('P1-1 executor wiring — produceFromExecute', () => {
     expect(kinds.has('RequirementSpec')).toBe(true)
     const audit = ctx.paperAudit.list().map(e => e.eventType)
     const written = audit.filter(t => t === 'ir_entry_written')
-    // 3 model-written + 3 harness-registered =
-    // 6 ir_entry_written events.
-    expect(written).toHaveLength(6)
+    // TASK-T1: 5 model-written (SymbolSpec x2 + AssumptionSpec +
+    // EquationSpec + ModelSpec) + 3 harness-registered =
+    // 8 ir_entry_written events.
+    expect(written).toHaveLength(8)
   })
 
   it('refuses a schema-violating container, retries, and BLOCKs the run (no IR written)', async () => {

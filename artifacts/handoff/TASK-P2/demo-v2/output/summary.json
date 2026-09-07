@@ -25,12 +25,12 @@
     {
       "id": "Polar ice thickness",
       "status": "KILLED",
-      "message": "node '945901d8-b089-4fc8-8250-4fc78116a58a' exhausted 3 attempts: EXECUTE output was not a schema-valid ir-container-v1 (BLOCKED)"
+      "message": "node 'ef6315d5-9b88-4b94-aa58-3619009c025f' exhausted 3 attempts: EXECUTE output was not a schema-valid ir-container-v1 (BLOCKED)"
     },
     {
       "id": "Polar ice with figure",
       "status": "KILLED",
-      "message": "node 'ebe06bf6-8ed3-478a-ad1e-fb958b5ce540' exhausted 3 attempts: EXECUTE output was not a schema-valid ir-container-v1 (BLOCKED)"
+      "message": "node '5d39e88a-3baa-4498-b225-fa4706a1dc95' exhausted 3 attempts: EXECUTE output was not a schema-valid ir-container-v1 (BLOCKED)"
     }
   ],
   "falseBlockRate": "0/4"

@@ -34,6 +34,8 @@ import {
 import {
   variableSymbol,
   parameterSymbol,
+  assumptionSpec,
+  equationSpec,
   modelSpec,
 } from '../ir/fixtures.ts'
 import { sha256Hex } from '../../src/ir/index.ts'
@@ -83,6 +85,8 @@ function modelFaceContainer(extra: ReadonlyArray<AnyEntry> = []): string {
     entries: [
       { kind: 'SymbolSpec', value: variableSymbol() },
       { kind: 'SymbolSpec', value: parameterSymbol() },
+      { kind: 'AssumptionSpec', value: assumptionSpec() },
+      { kind: 'EquationSpec', value: equationSpec() },
       { kind: 'ModelSpec', value: modelSpec() },
       ...extra,
     ],
@@ -96,7 +100,7 @@ describe('W1 producer — parse + model face', () => {
     expect(good.ok).toBe(true)
     if (good.ok) {
       expect(good.container.__dsh_paper).toBe(MODEL_CONTAINER_VERSION)
-      expect(good.container.entries).toHaveLength(3)
+      expect(good.container.entries).toHaveLength(5)
       expect(good.container.code).toContain('writeFileSync')
       expect(good.container.narrative).toMatchObject({ question: 'Ice thickness along a survey line.' })
     }
@@ -105,8 +109,12 @@ describe('W1 producer — parse + model face', () => {
     expect(parseModelContainer(JSON.stringify({ __dsh_paper: MODEL_CONTAINER_VERSION })).ok).toBe(false)
   })
 
-  it('the model-face kind whitelist is exactly SymbolSpec/ModelSpec/DataArtifact', () => {
-    expect(MODEL_FACE_KINDS).toEqual(['SymbolSpec', 'ModelSpec', 'DataArtifact'])
+  it('the model-face kind whitelist is exactly SymbolSpec/AssumptionSpec/EquationSpec/ModelSpec/DataArtifact', () => {
+    // TASK-T1: AssumptionSpec/EquationSpec joined the model face when the
+    // contract objects became the canonical owners of assumptions/equations.
+    expect(MODEL_FACE_KINDS).toEqual([
+      'SymbolSpec', 'AssumptionSpec', 'EquationSpec', 'ModelSpec', 'DataArtifact',
+    ])
   })
 })
 
@@ -118,7 +126,7 @@ describe('W1 producer — positive', () => {
     const verdict = produceContainerInto(ir, modelFaceContainer(), (kind, id) => audited.push({ kind, id }), { reservedIds: RESERVED })
     expect(verdict.ok).toBe(true)
     if (!verdict.ok) return
-    expect(verdict.entries).toHaveLength(3)
+    expect(verdict.entries).toHaveLength(5)
     expect(audited).toEqual(verdict.entries)
     expect(verdict.pendingOutputArtifacts).toEqual([])
     const ids = {
@@ -303,13 +311,15 @@ describe('W1 producer — unchanged walls', () => {
     const ir = new ModelingIr()
     registerHarnessAssets(ir)
     const special = 'drifting sensor bias (non-ASCII: 厚度)'
+    // TASK-T1: the assumption lives in its canonical AssumptionSpec; mutate
+    // the OWNER object's statement and verify no cleanup path alters it.
     const container = modelFaceContainer().replace(
-      JSON.stringify(modelSpec()),
-      JSON.stringify({ ...modelSpec(), assumptions: [special] }),
+      JSON.stringify(assumptionSpec()),
+      JSON.stringify({ ...assumptionSpec(), statement: special }),
     )
     const verdict = produceContainerInto(ir, container, undefined, { reservedIds: RESERVED })
     expect(verdict.ok).toBe(true)
-    const stored = ir.list().find(r => r.kind === 'ModelSpec')
-    expect((stored?.value as { assumptions: string[] }).assumptions).toEqual([special])
+    const stored = ir.list().find(r => r.kind === 'AssumptionSpec')
+    expect((stored?.value as { statement: string }).statement).toBe(special)
   })
 })

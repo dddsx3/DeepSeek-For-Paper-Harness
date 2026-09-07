@@ -12,9 +12,11 @@ import {
   modelSpecSchema,
   problemSpecSchema,
   readIrObjectId,
+  requirementSpecSchema,
   resultSchema,
   reviewerFindingSchema,
   runArtifactSchema,
+  symbolSpecSchema,
   verificationResultSchema,
 } from '../../src/ir/index.ts'
 import { validChain, validObjectFor } from './fixtures.ts'
@@ -143,6 +145,54 @@ describe('IR schemas — closed vocabulary', () => {
     const { objective, ...withoutObjective } = validObjectFor('ModelSpec') as { objective?: string | null }
     expect(objective).toBeDefined()
     expect(modelSpecSchema.safeParse(withoutObjective).success).toBe(false)
+  })
+
+  // TASK-T1 (T1.2): a ModelSpec that re-embeds a free-text assumption or
+  // equation is a second source of truth — rejected, never absorbed. The
+  // canonical owners are AssumptionSpec / EquationSpec (strengthening the
+  // same INV-1.5-C rule that rejects re-embedded variables/parameters).
+  it('ModelSpec rejects a re-embedded free-text assumption or equation', () => {
+    expect(modelSpecSchema.safeParse({
+      ...validObjectFor('ModelSpec'),
+      assumptions: ['Ice is a homogeneous slab.'],
+    }).success).toBe(false)
+
+    expect(modelSpecSchema.safeParse({
+      ...validObjectFor('ModelSpec'),
+      equations: ['h(x) = a * x + b'],
+    }).success).toBe(false)
+  })
+
+  // TASK-T1 (T1.1): SymbolSpec now requires a shape/domain (the seed fields
+  // for the T2 shape/unit/domain gates), and rejects a re-embedded free-text
+  // meaning-shape pair that would duplicate SymbolSpec.
+  it('SymbolSpec requires shape and domain, and binds them once', () => {
+    expect(symbolSpecSchema.safeParse({ ...validObjectFor('SymbolSpec'), shape: 'MATRIX' }).success).toBe(true)
+    expect(symbolSpecSchema.safeParse({ ...validObjectFor('SymbolSpec'), domain: 'PROBABILITY' }).success).toBe(true)
+    // missing shape/domain are a schema failure (fail-closed)
+    const { shape, ...withoutShape } = validObjectFor('SymbolSpec') as { shape?: string }
+    expect(shape).toBeDefined()
+    expect(symbolSpecSchema.safeParse(withoutShape).success).toBe(false)
+    // unknown shape/domain are rejected
+    expect(symbolSpecSchema.safeParse({ ...validObjectFor('SymbolSpec'), shape: 'FRACTAL' }).success).toBe(false)
+    expect(symbolSpecSchema.safeParse({ ...validObjectFor('SymbolSpec'), domain: 'VIBES' }).success).toBe(false)
+  })
+
+  // TASK-T1 (T1.1): RequirementSpec.source_span, when present, must be a
+  // non-decreasing [start, end] offset pair anchored at source_data_ref.
+  it('RequirementSpec source_span must be [start, end] with end >= start', () => {
+    expect(requirementSpecSchema.safeParse({
+      ...validObjectFor('RequirementSpec'),
+      source_span: [0, 12],
+    }).success).toBe(true)
+    expect(requirementSpecSchema.safeParse({
+      ...validObjectFor('RequirementSpec'),
+      source_span: [12, 12],
+    }).success).toBe(true)
+    expect(requirementSpecSchema.safeParse({
+      ...validObjectFor('RequirementSpec'),
+      source_span: [13, 4],
+    }).success).toBe(false)
   })
 
   it('RunArtifact accepts a null seed and an integer or string seed, but not a fractional one', () => {
