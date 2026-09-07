@@ -31,10 +31,22 @@ SymbolSpec 补 shape/domain/index_set,基线 1025→1040),随后按专家计划�
    并发信号量(默认上限 1 严格串行)+ 429/5xx 指数退避;key 入 gitignored
    `.env.local`,只服务 Track 2/3(探针/实测),CI 保持 fake/replay。
 
-交接细节见 `artifacts/handoff/TASK-T1-S2/HANDOFF.md`。下一批按专家序是
-P0-B 剩余(fingerprint version + golden fixture)→ Commit 2(CI 解耦 +
-cassette)→ Commit 3(telemetry + LCB 统计门)→ P1-C(第二模型族 T3
-qualification)→ P1-D(T3.5)。
+交接细节见 `artifacts/handoff/TASK-T1-S2/HANDOFF.md`。
+
+## 0.5 后续三批(专家三个 commit 全部落地,2026-09-08)
+
+- **TASK-E(CI/真实API 解耦,Commit 2,`85f419fe7d`)**:e2e.yml 转纯 manual;REAL_API_POLICY=never
+  守卫挂 push 门("真实 adapter 进 CI"才 FAIL);cassette 录制/回放(按请求指纹,miss 即拒);
+  首盘真实语料 glm-t3-coursework-v3——**z-ai/glm-5.3-free(第二模型族)真实 T3 strict DELIVERED**,
+  回放与真实跑 zip sha `fb4d4e07` 完全一致(专家 §14 property CI 化);golden fixture 钉死六哈希。
+- **TASK-Q2(统计资格门+成本遥测,Commit 3,`09f6b878ff`)**:Clopper-Pearson 精确 LCB
+  (零失败闭式精确复现专家 stop rule 14/29;80/100=0.7226 独立验证);资格 =
+  LCB≥p_min AND ESCAPE=0 AND 预算=0(8/10≠80/100);UsageTelemetry 四维硬预算;
+  real provider usage chunk 全链(修复两个真 bug:零失败 LCB 退化值、finish 后漏 usage 块);
+  **真实跑与回放 run-report 逐字节相等**;基线 1089/1089(98 文件)。
+
+下一批按专家序是 **P1-C:第二模型族 T3 资格探针真实批次**(≥14 次首试,统计门出裁决)
+→ P1-D(T3.5 expand-then-select)→ P2-A/B/C。
 
 ---
 
