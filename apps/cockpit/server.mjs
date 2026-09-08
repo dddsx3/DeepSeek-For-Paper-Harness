@@ -295,7 +295,16 @@ async function handleUpload(req, res) {
   const problemFiles = [] // {name, buffer}
   const dataFilesIn = []
   const contentType = req.headers['content-type'] ?? ''
-  const raw = await readBody(req)
+  let raw
+  try {
+    raw = await readBody(req)
+  } catch (error) {
+    const tooBig = /too large/i.test(String(error.message ?? error))
+    return json(res, tooBig ? 413 : 400, {
+      ok: false,
+      reason: tooBig ? '文件太大(单次上传上限 8MB),请压缩或拆分后重试' : '请求读取失败,请重试',
+    })
+  }
 
   if (contentType.includes('multipart/form-data')) {
     const parts = parseMultipart(raw, contentType)
@@ -436,6 +445,7 @@ const server = createServer(async (req, res) => {
         return json(res, 200, {
           ok: true,
           activeId: doc.activeId,
+          envFallback: resolveShellRoute(process.env) !== undefined,
           profiles: doc.profiles.map(p => ({
             id: p.id, name: p.name, endpoint: p.endpoint, model: p.model,
             provider: p.provider ?? 'openai-compatible-relay',
@@ -468,17 +478,27 @@ const server = createServer(async (req, res) => {
           })
         }
         const activeId = next.some(p => p.id === body.activeId) ? body.activeId : (next[0]?.id ?? null)
-        const doc = { profiles: next, activeId }
-        saveSettings(doc)
+        const nextDoc = { profiles: next, activeId }
+        saveSettings(nextDoc)
         return json(res, 200, { ok: true, activeId, count: next.length })
       }
     }
-    // Live connectivity probe for one profile (cheap: GET /models, no tokens)
+    // Live connectivity probe for one profile (cheap: GET /models, no tokens).
+    // An UNSAVED panel row can be probed too: {endpoint, model, apiKey} inline —
+    // the key still never lands in the settings file until「保存设置」.
     if (req.method === 'POST' && url.pathname === '/api/settings/test') {
       const body = JSON.parse((await readBody(req)).toString('utf8'))
       const doc = loadSettings()
-      const profile = doc.profiles.find(p => p.id === body.profileId) ?? activeProfile(doc)
-      if (profile === null) return json(res, 400, { ok: false, reason: '没有可测试的配置' })
+      const stored = doc.profiles.find(p => p.id === body.profileId) ?? activeProfile(doc)
+      const profile = stored
+        ? {
+            endpoint: typeof body.endpoint === 'string' && body.endpoint ? body.endpoint : stored.endpoint,
+            apiKey: (typeof body.apiKey === 'string' && body.apiKey.trim() !== '') ? body.apiKey.trim() : stored.apiKey,
+          }
+        : (typeof body.endpoint === 'string' && typeof body.apiKey === 'string' && body.apiKey.trim() !== ''
+          ? { endpoint: body.endpoint, apiKey: body.apiKey.trim() }
+          : null)
+      if (profile === null || !profile.endpoint || !profile.apiKey) return json(res, 400, { ok: false, reason: '没有可测试的配置(先填写 endpoint 与 API key 并保存)' })
       try {
         const response = await fetch(`${profile.endpoint.replace(/\/$/, '')}/models`, {
           headers: { authorization: `Bearer ${profile.apiKey}` },
@@ -496,6 +516,16 @@ const server = createServer(async (req, res) => {
     }
     if (req.method === 'GET' && url.pathname === '/api/runs/active') {
       return json(res, 200, { ok: true, runs: Object.fromEntries(activeRuns) })
+    }
+    // Report preview (projection only): the latest run's report.md, read
+    // straight out of the out dir. Nothing engine-side is computed here.
+    if (req.method === 'GET' && url.pathname === '/api/report') {
+      const reportPath = join(outRoot, 'report.md')
+      if (!existsSync(reportPath)) {
+        return json(res, 200, { ok: false, reason: '报告尚未生成——运行完成后这里会有全文。' })
+      }
+      const text = readFileSync(reportPath, 'utf8').slice(0, 200_000)
+      return json(res, 200, { ok: true, path: reportPath, text })
     }
     if (req.method === 'GET' && url.pathname === '/api/runs') {
       return json(res, 200, { ok: true, runIds: listRunIds() })

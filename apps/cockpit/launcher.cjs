@@ -77,6 +77,21 @@ function waitForPort(port, timeoutMs) {
   })
 }
 
+// 一次性探测:1 秒内 /api/manifest 有响应即认为驾驶舱已在运行(双击防重)
+function cockpitAlreadyUp(port) {
+  return new Promise((done) => {
+    const req = http.get({ host: '127.0.0.1', port, path: '/api/manifest', timeout: 1_000 }, (res) => {
+      res.resume()
+      done(true)
+    })
+    req.on('error', () => done(false))
+    req.on('timeout', () => {
+      req.destroy()
+      done(false)
+    })
+  })
+}
+
 function openBrowser(url) {
   const platform = process.platform
   if (platform === 'win32') exec(`start "" "${url}"`)
@@ -86,10 +101,23 @@ function openBrowser(url) {
 
 async function main() {
   console.log(BANNER)
+  const port = process.env.COCKPIT_PORT ?? '3081'
+  const url = `http://127.0.0.1:${port}/`
+
+  // 双击防重(用户反馈 #2):若 3081 已有驾驶舱在跑,直接复用——打开页面后退出,
+  // 绝不 spawn 第二个 server(否则 EADDRINUSE 崩溃堆栈吓到学生)。
+  if (await cockpitAlreadyUp(Number(port))) {
+    console.log('   ✓ 驾驶舱已经在运行,正在打开页面…')
+    console.log(`     ${url}`)
+    console.log('')
+    console.log('   本窗口可以直接关闭;驾驶舱仍由先前的窗口负责运行。')
+    openBrowser(url)
+    return
+  }
+
   const root = repoRoot()
   process.chdir(root)
   const node = findNode()
-  const port = process.env.COCKPIT_PORT ?? '3081'
 
   const server = spawn(node, ['--import', 'tsx/esm', 'apps/cockpit/server.mjs'], {
     cwd: root,
@@ -102,7 +130,6 @@ async function main() {
     console.error('  请把本窗口截图发给操作者。')
   })
 
-  const url = `http://127.0.0.1:${port}/`
   try {
     await waitForPort(Number(port), 60_000)
     console.log(`   ✓ 驾驶舱已就绪:${url}`)

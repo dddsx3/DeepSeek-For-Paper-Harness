@@ -36,6 +36,11 @@ let online = null;                 // null=未探测 true/false
 let manifest = null;               // /api/manifest 投影
 let manifestDetailOpen = false;
 let selectedNodeId = null;
+// TASK-C1.5:API 配置(profiles)。draftProfiles 是面板内的编辑副本,点「保存设置」才 POST。
+let settings = null;               // GET /api/settings 投影 {activeId, envFallback, profiles:[…]}
+let draftProfiles = [];            // 编辑副本:[{id?, name, endpoint, model, provider, test:{state,detail,models,chosen}}]
+let draftActiveId = null;
+let settingsOpen = false;
 
 // ---------------------------------------------------------------------------
 // 小工具
@@ -62,12 +67,12 @@ function trunc(s, n) {
 }
 
 let toastTimer = null;
-function toast(msg) {
+function toast(msg, ms) {
   const t = $('toast');
   t.textContent = msg;
   t.classList.add('on');
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => t.classList.remove('on'), 3200);
+  toastTimer = setTimeout(() => t.classList.remove('on'), ms || 3200);
 }
 
 function downloadText(name, text, mime) {
@@ -595,6 +600,8 @@ function renderDelivery(e) {
   if (!e) {
     show(emptyBox, true); show(body, false);
     $('deliveryAux').textContent = '';
+    const row = document.querySelector('#deliveryBody .dl-row');
+    if (row) row.classList.remove('on');
     return;
   }
   show(emptyBox, false); show(body, true);
@@ -643,6 +650,9 @@ function renderDelivery(e) {
   }
 
   show($('btnDownload'), true);
+  show($('btnPreviewReport'), true);
+  // 按钮行容器靠 .on class 显示(inline style 压不过 CSS display:none——同 manifestDetail 的坑)
+  document.querySelector('#deliveryBody .dl-row').classList.add('on');
   const blocked = e.shell.status === 'BLOCKED' || (e.engine.events || []).some(ev => ev.type === 'gate_result' && ev.data && ev.data.passed === false);
   show($('btnAppealTop'), blocked);
 }
@@ -814,8 +824,8 @@ function renderManifest() {
     badge.classList.add('ok');
     badge.textContent = '✓ 已冻结 @ ' + (m.study_id ?? '—') + ' @ ' + String(m.git_commit ?? '').slice(0, 7);
   } else if (m.frozen && !m.ok) {
-    badge.classList.add('bad');
-    badge.textContent = '⚠ 冻结漂移';
+    badge.classList.add('warn');
+    badge.textContent = '⚠ 冻结漂移(点「详情」看说明)';
   } else {
     badge.classList.add('idle');
     badge.textContent = '未冻结(待用户名单)' + (m.reason ? ' — ' + m.reason : '');
@@ -826,7 +836,8 @@ function renderManifest() {
 
 function renderManifestDetail() {
   const box = $('manifestDetail');
-  show(box, manifestDetailOpen && !!manifest);
+  // 用 .on class 切换(CSS 定义 display:none/.on{display:block});inline style 会被 CSS 压住
+  box.classList.toggle('on', manifestDetailOpen && !!manifest);
   if (!manifestDetailOpen || !manifest) return;
   clear(box);
   const m = manifest;
@@ -834,6 +845,7 @@ function renderManifestDetail() {
     box.appendChild(el('div', 'bar-error on', '读取失败:' + m.error));
     return;
   }
+  box.appendChild(el('div', 'hint', '说明:这是课程研究档案的冻结比对。漂移 = 当前代码或门禁基线与冻结记录不一致(日常迭代就会造成),不影响本页使用;正式实测以冻结清单为准。'));
   const kv = el('dl', 'kv');
   const add = (k, v) => { kv.appendChild(el('dt', null, k)); const dd = el('dd'); dd.textContent = v == null || v === '' ? '—' : String(v); kv.appendChild(dd); };
   add('study_id', m.study_id);
@@ -939,10 +951,14 @@ function renderImport() {
   });
 
   $('btnStart').disabled = !stagedProblem || submitBusy;
+  // 无可用模型路由时,在点「开始生成」之前就常驻提醒(用户反馈:提交后才闪现红条几乎不可见)
+  const noRoute = !(settings && (settings.activeId || settings.envFallback));
   $('startHint').textContent = submitBusy
     ? '正在提交…'
     : (stagedProblem
-      ? (uploadResult ? '题目已注册,正在创建运行…' : '选择题面文件后即可开始;数据文件只被求解代码读取,不进入模型。')
+      ? (noRoute
+        ? '⚠ 尚未配置 API:点右上角「API 设置」,填好 endpoint / 模型 ID / key 并勾选激活,就能真实生成;只想先看流程可点右上角「一键演示」。'
+        : (uploadResult ? '题目已注册,正在创建运行…' : '题面已就绪,点「开始生成」即可。数据文件只被求解代码读取,不进入模型。'))
       : '选择题面文件后即可开始;数据文件只被求解代码读取,不进入模型。');
 
   const sha = $('shaLine');
@@ -968,6 +984,14 @@ let submitBusy = false;
 
 async function startRun() {
   if (!stagedProblem || submitBusy) return;
+  // 真实运行必须有可用模型路由:激活配置优先;都没有则提前拒绝(演示不受影响)。
+  const activeProfile = settings && Array.isArray(settings.profiles) ? settings.profiles.find(x => x.id === settings.activeId) : null;
+  if (!activeProfile && !(settings && settings.envFallback)) {
+    showReason('importError', '无法开始:还没有可用的 API 配置。',
+      new Error('点右上角「API 设置」添加一套配置(endpoint / 模型 ID / API key)并勾选激活;只想先看流程可点右上角「一键演示」。'));
+    toast('尚未配置 API —— 请点右上角「API 设置」', 8000);
+    return;
+  }
   submitBusy = true;
   hideReason('importError');
   renderImport();
@@ -990,6 +1014,7 @@ async function startRun() {
         tier: $('selTier').value,
         mode: $('selMode').value,
         fake: false,
+        profileId: activeProfile ? activeProfile.id : undefined,
       }),
     });
     trackNewRun(run.runKey, { tier: $('selTier').value, mode: $('selMode').value, fake: false });
@@ -1128,6 +1153,221 @@ async function submitAppeal() {
 }
 
 // ---------------------------------------------------------------------------
+// TASK-C1.5:API 设置(profiles)。key 只存本机,页面只见掩码;编辑不填 key = 保留旧 key。
+// ---------------------------------------------------------------------------
+
+/** 激活配置的顶栏徽章原文投影;无激活配置时按 envFallback 区分两种文案。 */
+function renderActiveProfileBadge() {
+  const btn = $('btnActiveProfile');
+  const p = settings && settings.profiles ? settings.profiles.find(x => x.id === settings.activeId) : null;
+  if (p) {
+    btn.classList.remove('none');
+    btn.textContent = '● ' + p.model + ' @ ' + p.name;
+    btn.title = '当前激活配置:' + p.name + '(' + p.endpoint + '),点击查看/修改';
+    return;
+  }
+  btn.classList.add('none');
+  btn.textContent = settings && settings.envFallback ? '● 使用启动环境变量' : '未配置 API';
+  btn.title = settings && settings.envFallback
+    ? '没有激活的 API 配置;真实运行将使用启动本程序时注入的环境变量。点击配置面板可改为页面内管理。'
+    : '还没有可用的 API 配置——真实运行会被拒绝。点击「API 设置」添加一套,或用「一键演示」先看流程。';
+}
+
+async function refreshSettings() {
+  try {
+    settings = await apiFetch('/api/settings');
+  } catch (err) {
+    if (err.network) return;      // 断网由灰条负责
+    settings = { activeId: null, envFallback: false, profiles: [], error: err.message };
+  }
+  renderActiveProfileBadge();
+  renderImport();     // 配置状态变化影响「开始生成」提示与守卫
+  if (settingsOpen) renderSettingsPanel();
+}
+
+/** 打开面板:把服务端投影复制成编辑副本 */
+function openSettings() {
+  const list = settings && Array.isArray(settings.profiles) ? settings.profiles : [];
+  draftProfiles = list.map(p => ({
+    id: p.id, name: p.name, endpoint: p.endpoint, model: p.model, provider: p.provider,
+    apiKeyMasked: p.apiKeyMasked, test: null,
+  }));
+  draftActiveId = settings ? settings.activeId : null;
+  hideReason('settingsError');
+  $('settingsOverlay').classList.add('on');
+  settingsOpen = true;
+  renderSettingsPanel();
+}
+
+function closeSettings() {
+  $('settingsOverlay').classList.remove('on');
+  settingsOpen = false;
+}
+
+function renderSettingsPanel() {
+  const list = $('profileList');
+  clear(list);
+  if (!draftProfiles.length) {
+    list.appendChild(el('div', 'empty', '还没有配置。在下方新增一套(名称 / endpoint / 模型 ID / API key),保存后即可用于真实运行。'));
+    return;
+  }
+  draftProfiles.forEach((p, i) => {
+    const row = el('div', 'prow');
+    const grid = el('div', 'p-grid');
+    const mk = (key, ph) => {
+      const input = document.createElement('input');
+      input.type = 'text'; input.placeholder = ph; input.value = p[key] ?? '';
+      input.addEventListener('input', () => { p[key] = input.value; });
+      return input;
+    };
+    grid.appendChild(mk('name', '名称'));
+    grid.appendChild(mk('endpoint', 'endpoint(https://…)'));
+    grid.appendChild(mk('model', '模型 ID'));
+    row.appendChild(grid);
+
+    const ctl = el('div', 'p-ctl');
+    const radio = document.createElement('input');
+    radio.type = 'radio'; radio.name = 'activeProfile'; radio.id = 'prof-radio-' + i;
+    radio.checked = p.id === draftActiveId;
+    radio.addEventListener('change', () => { draftActiveId = p.id; renderSettingsPanel(); });
+    const label = el('label', null, '激活');
+    label.setAttribute('for', radio.id);
+    label.style.cursor = 'pointer';
+    ctl.appendChild(radio); ctl.appendChild(label);
+
+    const masked = el('span', 'hint', 'key:' + (p.apiKeyMasked || '(未保存)'));
+    ctl.appendChild(masked);
+
+    const newKey = document.createElement('input');
+    newKey.type = 'password';
+    newKey.placeholder = '替换 key(留空=保留)';
+    newKey.className = 'p-newkey';
+    newKey.addEventListener('input', () => { p.newApiKey = newKey.value; });
+    ctl.appendChild(newKey);
+
+    const btnTest = el('button', 'btn small', '测试');
+    btnTest.type = 'button';
+    btnTest.addEventListener('click', () => testProfile(p, btnTest, row));
+    ctl.appendChild(btnTest);
+
+    const btnDel = el('button', 'btn small', '删除');
+    btnDel.type = 'button';
+    btnDel.addEventListener('click', () => {
+      draftProfiles.splice(i, 1);
+      if (draftActiveId === p.id) draftActiveId = draftProfiles[0]?.id ?? null;
+      renderSettingsPanel();
+    });
+    ctl.appendChild(btnDel);
+
+    row.appendChild(ctl);
+
+    if (p.test) {
+      const d = el('div', 'p-test-detail ' + (p.test.state === 'ok' ? 'ok' : 'bad'), p.test.detail);
+      row.appendChild(d);
+      if (p.test.state === 'ok' && Array.isArray(p.test.models) && p.test.models.length) {
+        const box = el('div', 'models-list');
+        box.appendChild(el('span', 'hint', '端点可用模型(点选回填):'));
+        for (const id of p.test.models.slice(0, 24)) {
+          const chip = el('button', 'chip model-chip' + (id === p.model ? ' accent' : ''), id);
+          chip.type = 'button';
+          chip.addEventListener('click', () => { p.model = id; renderSettingsPanel(); });
+          box.appendChild(chip);
+        }
+        row.appendChild(box);
+      }
+    }
+    list.appendChild(row);
+  });
+}
+
+/** 保存前本地校验,返回 null 或错误文案(与服务端规则一致,提前给出可读提示) */
+function draftValidationError() {
+  for (const p of draftProfiles) {
+    if (!p.name || !p.name.trim()) return '有配置缺少名称';
+    if (!p.endpoint || !/^https?:\/\//.test(p.endpoint.trim())) return `配置「${p.name}」的 endpoint 必须是 http(s) 地址`;
+    if (!p.model || !p.model.trim()) return `配置「${p.name}」缺少模型 ID`;
+    const hasKey = (p.newApiKey && p.newApiKey.trim()) || p.apiKeyMasked && p.apiKeyMasked !== '(未保存)';
+    if (!hasKey) return `配置「${p.name}」还没有 API key`;
+  }
+  return null;
+}
+
+async function saveSettings() {
+  const invalid = draftValidationError();
+  if (invalid) { showReason('settingsError', '还没填好:', new Error(invalid)); return; }
+  const btn = $('btnSettingsSave');
+  btn.disabled = true;
+  const old = btn.textContent;
+  btn.textContent = '保存中…';
+  try {
+    // 新增行没有 id:保存成功后用返回的 activeId 对照名称重排;服务端 replace-all 会给无 id 行生成新 id,
+    // 这里把「无 id 行」直接交给服务端,并以保存后的 GET 投影刷新整个面板。
+    await apiFetch('/api/settings', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        profiles: draftProfiles.map(p => ({
+          id: p.id, name: p.name, endpoint: p.endpoint, model: p.model, provider: p.provider,
+          apiKey: (p.newApiKey && p.newApiKey.trim()) || undefined,
+        })),
+        activeId: draftActiveId,
+      }),
+    });
+    hideReason('settingsError');
+    toast('API 设置已保存');
+    settingsOpen = false;
+    $('settingsOverlay').classList.remove('on');
+    await refreshSettings();
+    renderImport();   // 配置状态变了:导入区常驻提示与「开始生成」可用性随之刷新
+  } catch (err) {
+    showReason('settingsError', '保存失败:', err);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = old;
+  }
+}
+
+/** POST /api/settings/test — 15s 内返回端点连通性与模型列表(点选回填 model) */
+async function testProfile(p, btn, row) {
+  if (!p.endpoint || !/^https?:\/\//.test(p.endpoint.trim())) {
+    p.test = { state: 'bad', detail: '先填写 http(s) 开头的 endpoint 再测试。' };
+    renderSettingsPanel();
+    return;
+  }
+  if (!p.id && !(p.newApiKey && p.newApiKey.trim())) {
+    p.test = { state: 'bad', detail: '新配置要先填 API key 并保存后才能测试(测试走服务端,密钥不经页面)。' };
+    renderSettingsPanel();
+    return;
+  }
+  btn.disabled = true;
+  btn.textContent = '测试中…';
+  try {
+    const body = await apiFetch('/api/settings/test', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ profileId: p.id ?? null, endpoint: p.endpoint, model: p.model, apiKey: (p.newApiKey && p.newApiKey.trim()) || undefined }),
+    });
+    p.test = { state: body.ok ? 'ok' : 'bad', detail: body.detail || (body.ok ? '端点可达' : '端点不可达'), models: body.models ?? null };
+  } catch (err) {
+    p.test = { state: 'bad', detail: '测试失败:' + err.message };
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '测试';
+    renderSettingsPanel();
+  }
+}
+
+function addDraftProfile() {
+  // 临时 id 前缀 draft-:服务端会原样保留非空 id,所以激活 radio 在保存前就可用;
+  // id null 的行服务端才生成新 id,radio 会在保存后失配,故新行一律带临时 id。
+  const row = { id: 'draft-' + Date.now().toString(36) + '-' + draftProfiles.length, name: $('npName').value, endpoint: $('npEndpoint').value, model: $('npModel').value, provider: undefined, apiKeyMasked: null, newApiKey: $('npKey').value, test: null };
+  draftProfiles.push(row);
+  if (draftActiveId === null) draftActiveId = row.id; // 第一个配置默认激活
+  $('npName').value = ''; $('npEndpoint').value = ''; $('npModel').value = ''; $('npKey').value = '';
+  renderSettingsPanel();
+}
+
+// ---------------------------------------------------------------------------
 // 导出溯源 JSON
 // ---------------------------------------------------------------------------
 
@@ -1181,6 +1421,28 @@ function initDeliveryZone() {
     downloadText('report-projection-' + (e.runId ? e.runId.slice(0, 8) : e.key) + '.txt', projectionText(e));
     toast('已下载当前投影文本');
   });
+  // 页面内预览最近一次运行的 report.md 全文(投影只读;用户反馈:只给路径无法直接看初稿)
+  $('btnPreviewReport').addEventListener('click', async () => {
+    const btn = $('btnPreviewReport');
+    const view = $('reportView');
+    const on = view.style.display !== 'none';
+    if (on) { view.style.display = 'none'; btn.textContent = '在页面里看初稿'; return; }
+    btn.disabled = true;
+    btn.textContent = '读取中…';
+    try {
+      const body = await apiFetch('/api/report');
+      if (!body.ok) { view.textContent = body.reason || '报告尚未生成。'; }
+      else { view.textContent = body.text; }
+      view.style.display = 'block';
+      btn.textContent = '收起初稿';
+    } catch (err) {
+      view.textContent = '读取失败:' + err.message;
+      view.style.display = 'block';
+      btn.textContent = '收起初稿';
+    } finally {
+      btn.disabled = false;
+    }
+  });
 }
 
 function initAuxZone() {
@@ -1206,13 +1468,23 @@ function renderAux(e) {
   $('btnAppeal').disabled = !anyBlocked;
 }
 
+function initSettingsZone() {
+  $('btnSettings').addEventListener('click', openSettings);
+  $('btnActiveProfile').addEventListener('click', openSettings);
+  $('btnSettingsClose').addEventListener('click', closeSettings);
+  $('btnSettingsSave').addEventListener('click', saveSettings);
+  $('btnAddProfile').addEventListener('click', addDraftProfile);
+  $('settingsOverlay').addEventListener('click', (ev) => { if (ev.target === $('settingsOverlay')) closeSettings(); });
+}
+
 function initPollers() {
   pollActive();
   setInterval(pollActive, 3000);
   refreshManifest();
   setInterval(refreshManifest, 60000);
+  refreshSettings();
   document.addEventListener('visibilitychange', () => {
-    if (!document.hidden) { pollActive(); refreshManifest(); }
+    if (!document.hidden) { pollActive(); refreshManifest(); refreshSettings(); }
   });
   window.addEventListener('online', () => pollActive());
   window.addEventListener('offline', () => setOnline(false));
@@ -1223,6 +1495,7 @@ function boot() {
   initDeliveryZone();
   initAuxZone();
   initDetailZone();
+  initSettingsZone();
   initConsent();
   restoreRuns().then(() => {
     renderAll();

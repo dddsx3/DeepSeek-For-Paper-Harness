@@ -85,3 +85,30 @@ EventSource 原生、API 字段与 server 对齐、JS 语法通过。
 2. G10 与 G9 的"实际打 release"需要真人与冻结版,本批交付到"可装可验"为止;
 3. 前端在 file:// 直开时已由 CORS 预检兜底,但推荐 `npx tsx apps/cockpit/server.mjs`
    同源使用。
+
+---
+
+## 7. 用户实测反馈修复轮(2026-09-09,C1.5)
+
+用户 5 个实测问题(见根目录 HANDOFF-NEXT-AGENT.md §1)的最终处置:
+
+| # | 问题 | 处置 |
+|---|---|---|
+| 1 | read body failed | 与驾驶舱无关(该报错是 LLM 通道 400);四洞修复保持,§5 矩阵复测无复现 |
+| 2 | EADDRINUSE 崩溃 | 双修:server.on('error') 中文提示(前批)+ **launcher 双击防重**——`cockpitAlreadyUp()` 1s 探测 /api/manifest,已在运行则直接开浏览器 exit 0,不 spawn。实测:第二实例优雅退出,原实例继续服务 |
+| 3 | 上传无法识别 | §5 矩阵复测全过:JSON/multipart 双形态、中文+空格文件名、0 字节守卫拒、缺字段 400;新增 **>8MB 干净 413**(原为 500)。.exe 服务端放行属设计现状(扩展名过滤在客户端) |
+| 4 | T1/T2/T3 意义不明 + demo 无效 | tier 文案(前批)+ demo 绑定(前批)已验证生效 |
+| 5 | API 不可配置(最致命) | **C1.5 全链落地**:服务端 GET/POST /api/settings(掩码/编辑不填 key=保留旧 key/replace-all)+ POST /api/settings/test(GET /models 探测,支持未保存行内联测试)+ submitRun 第 5 参 profileId 按 profile 注入 PAPER_PROBE_*(不同 key=分账);前端设置面板(overlay,新增/激活 radio/测试/模型列表点选回填/删除/保存)+ 顶栏激活徽章("● model @ name")+ startRun 守卫(无路由拒绝并指引)。浏览器 UI 全链路实测:新增→激活→保存→掩码回读→真 key 测试(200+5 模型)→点选回填→保存。**联调修出 2 个真 bug:①POST /api/settings 的 `doc` TDZ(服务端 500)②manifestDetail inline display 被 CSS 压住(详情按钮"点了没反应")** |
+
+零指示新用户测试(用户点名的验收方式):general-purpose 子代理(不给任何文档,
+只有"大学生拿到双击程序"的角色卡)实测两轮(各 15-20 分钟)。第一轮 Top 5
+困惑 → 逐条修复(启动反馈/无 key 反馈/详情按钮/术语白话化/编号重排+报告预览);
+第二轮复测判定:前 4 项**已解决**;新抓 1 个真 bug——**交付区按钮行 .dl-row
+容器 display:none 从未被 .on 切换(下载/预览按钮整行不可见,C1 初版即有)** →
+已修并 GUI 验证:预览按钮点击后页内展开 report.md 全文、按钮变"收起初稿"。
+复测另提 2 个低危项不改:①知情同意弹窗按 localStorage 设计(子代理清了站点
+存储才重弹,机制正确)②自动化点击 filechooser 偶发不触发(真实鼠标未复现,挂观察)。
+
+回归:1112/1112(paper-foundation)+ 27/27(shell)✅。exe 重建(异 cwd
+C:\Windows\Temp 启动 3081=200,settings API 正常)。cockpit-settings.json
+已 gitignore;真 key 永不入库(仅存本机 .env.local / cockpit-settings.json)。

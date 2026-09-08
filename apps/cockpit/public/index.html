@@ -35,7 +35,7 @@ body{
 }
 button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
 button:disabled{opacity:.45;cursor:not-allowed}
-select,textarea,input[type=text]{
+select,textarea,input[type=text],input[type=password]{
   font:inherit;color:var(--ink);background:var(--card);
   border:1px solid var(--hairline-strong);border-radius:4px;padding:6px 10px;
 }
@@ -250,6 +250,7 @@ code,.mono{font-family:var(--mono);font-size:.85em;word-break:break-all}
 }
 .badge.ok{border-color:var(--ok);background:var(--ok-wash);color:var(--ok)}
 .badge.bad{border-color:var(--bad);background:var(--bad-wash);color:var(--bad)}
+.badge.warn{border-color:var(--warn);background:var(--warn-wash);color:var(--warn)}
 .badge.idle{border-color:var(--hairline-strong);background:var(--paper);color:var(--ink-2)}
 #manifestDetail{display:none;margin-top:12px;border-top:1px dashed var(--hairline);padding-top:12px}
 #manifestDetail.on{display:block}
@@ -278,6 +279,26 @@ code,.mono{font-family:var(--mono);font-size:.85em;word-break:break-all}
 .modal .field{margin-top:12px}
 .modal .field label{display:block;font-size:12.5px;color:var(--ink-2);margin-bottom:4px}
 .modal .field input{width:100%;font-family:var(--mono);font-size:12.5px}
+.modal.wide{max-width:760px}
+
+/* ---------- API 设置面板 ---------- */
+#btnActiveProfile{
+  border:1px solid var(--accent);border-radius:14px;padding:2px 11px;font-size:12px;
+  background:var(--accent-wash);color:var(--accent-ink);white-space:nowrap;
+}
+#btnActiveProfile.none{border-color:var(--warn);background:var(--warn-wash);color:var(--warn)}
+.prow{border:1px solid var(--hairline);border-radius:6px;padding:10px 12px;margin-top:10px;background:var(--paper)}
+.prow .p-grid{display:grid;grid-template-columns:130px minmax(0,1fr) minmax(0,1fr);gap:8px}
+.prow .p-grid input{width:100%;font-family:var(--mono);font-size:12.5px}
+.prow .p-ctl{display:flex;align-items:center;gap:10px;margin-top:9px;flex-wrap:wrap}
+.prow .p-newkey{width:180px;font-family:var(--mono);font-size:12px;padding:3px 8px}
+.models-list{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;align-items:center}
+.model-chip{cursor:pointer;max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.model-chip:hover{border-color:var(--accent);color:var(--accent-ink)}
+.model-chip.accent{border-color:var(--accent);color:var(--accent-ink);background:var(--accent-wash)}
+.p-test-detail{font-size:12px;margin-top:8px;word-break:break-all}
+.p-test-detail.ok{color:var(--ok)}
+.p-test-detail.bad{color:var(--bad)}
 
 /* ---------- toast ---------- */
 #toast{
@@ -301,6 +322,8 @@ code,.mono{font-family:var(--mono);font-size:.85em;word-break:break-all}
     </div>
     <div class="topbar-spacer"></div>
     <div class="conn"><span class="dot" id="connDot"></span><span id="connText">连接中…</span></div>
+    <button class="btn small" id="btnActiveProfile" title="当前激活的 API 配置,点击修改">未配置 API</button>
+    <button class="btn small" id="btnSettings" title="配置模型 API(中转或官方均可),可保存多套随时切换">API 设置</button>
     <button class="btn small" id="btnDemo" title="用内置示例题跑一次完整流程,无需 API key">一键演示</button>
   </div>
 </header>
@@ -352,10 +375,10 @@ code,.mono{font-family:var(--mono);font-size:.85em;word-break:break-all}
         </div>
       </section>
 
-      <!-- ③ 实时进度时间线 -->
+      <!-- ③ 实时进度(编号按动线:左列 1→2,右列 3→4→5,与窄屏重排一致) -->
       <section class="card" id="zone-timeline">
         <div class="card-head">
-          <span class="num">3</span><h2>实时进度</h2>
+          <span class="num">2</span><h2>实时进度</h2>
           <span class="aux" id="tlConn"></span>
         </div>
         <div class="run-chips" id="runChips"></div>
@@ -368,10 +391,10 @@ code,.mono{font-family:var(--mono);font-size:.85em;word-break:break-all}
     <!-- ================= 右列 ================= -->
     <div class="colB">
 
-      <!-- ② 交付区 -->
+      <!-- ③ 交付区 -->
       <section class="card" id="zone-delivery">
         <div class="card-head">
-          <span class="num">2</span><h2>交付区</h2>
+          <span class="num">3</span><h2>交付区</h2>
           <span class="aux" id="deliveryAux"></span>
         </div>
         <div class="card-body">
@@ -380,8 +403,10 @@ code,.mono{font-family:var(--mono);font-size:.85em;word-break:break-all}
             <div class="verdict" id="verdict"></div>
             <div class="report-path" id="reportPath"></div>
             <pre class="output-head" id="outputHead"></pre>
+            <pre class="output-head" id="reportView" style="display:none;max-height:480px"></pre>
             <div class="dl-row">
               <button class="btn small" id="btnDownload">下载报告</button>
+              <button class="btn small" id="btnPreviewReport">在页面里看初稿</button>
               <button class="btn small" id="btnAppealTop" style="display:none">我认为这是误杀</button>
             </div>
           </div>
@@ -403,8 +428,7 @@ code,.mono{font-family:var(--mono);font-size:.85em;word-break:break-all}
       <!-- ④b 节点详情(含溯源卡) -->
       <section class="card" id="zone-detail" style="display:none">
         <div class="card-head">
-          <span class="num">4b</span><h2>节点详情与溯源</h2>
-          <span class="aux"><button class="btn small" id="btnCloseDetail">收起</button></span>
+          <span class="num">4b</span><h2>节点详情与溯源</h2>          <span class="aux"><button class="btn small" id="btnCloseDetail">收起</button></span>
         </div>
         <div class="card-body" id="nodeDetail"></div>
       </section>
@@ -417,13 +441,13 @@ code,.mono{font-family:var(--mono);font-size:.85em;word-break:break-all}
         </div>
         <div class="card-body">
           <div class="manifest-line">
-            <span class="badge idle" id="manifestBadge">未冻结(待用户名单)</span>
+            <span class="badge idle" id="manifestBadge" title="研究档案状态:课程研究把当前代码与门禁基线冻结成指纹,「漂移」= 与冻结记录不一致,不影响日常使用,点「详情」看说明">未冻结(待用户名单)</span>
             <button class="btn small" id="btnManifestDetail" disabled>详情</button>
           </div>
           <div id="manifestDetail"></div>
           <div class="appeal-row">
             <button class="btn" id="btnAppeal" disabled>我认为这是误杀</button>
-            <span class="hint">运行被门禁拦截且你认为不该拦?提交一句话申诉,归档后由开发者与审计轨复核(复核结论不由本页面判定)。</span>
+            <span class="hint">运行被系统的安全规则(「门禁」)拦下,且你认为拦错了?点左边按钮写一句话,记录会存档交给开发者与审计复核;本页面不会、也无法改判。</span>
           </div>
         </div>
       </section>
@@ -472,6 +496,36 @@ code,.mono{font-family:var(--mono);font-size:.85em;word-break:break-all}
     <div class="m-actions">
       <button class="btn" id="btnAppealCancel">取消</button>
       <button class="btn primary" id="btnAppealSubmit">提交申诉</button>
+    </div>
+  </div>
+</div>
+
+<!-- API 设置(profiles;key 只存本机文件,页面只见掩码) -->
+<div class="overlay" id="settingsOverlay" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
+  <div class="modal wide">
+    <h3 id="settingsTitle">API 设置</h3>
+    <div class="m-body">
+      <p class="hint">填入模型 API(课程指定的中转站或官方 API 均可)。可保存多套配置,点选一套激活用于真实运行;
+      不同 key = 不同账户 = 费用分开统计。API key 只保存在本机文件里,不会出现在页面上(只显示掩码),也不会进入任何仓库。</p>
+      <div id="profileList"></div>
+      <div class="subhead" style="margin-top:16px">新增配置</div>
+      <div class="prow">
+        <div class="p-grid">
+          <input type="text" id="npName" placeholder="名称(如:y-api)">
+          <input type="text" id="npEndpoint" placeholder="endpoint(https://api.xxx.com/v1)" style="grid-column:span 2">
+          <input type="text" id="npModel" placeholder="模型 ID(如:z-ai/glm-5.3-flash)">
+          <input type="password" id="npKey" placeholder="API key(必填)">
+        </div>
+        <div class="p-ctl">
+          <button class="btn small" id="btnAddProfile" type="button">+ 添加为新配置</button>
+          <span class="hint">添加后记得点「保存设置」;修改名称/地址/模型与删除,也都在点「保存设置」后才生效。</span>
+        </div>
+      </div>
+      <div class="bar-error" id="settingsError" role="alert"></div>
+    </div>
+    <div class="m-actions">
+      <button class="btn" id="btnSettingsClose">关闭</button>
+      <button class="btn primary" id="btnSettingsSave">保存设置</button>
     </div>
   </div>
 </div>
