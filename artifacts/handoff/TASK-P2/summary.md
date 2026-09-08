@@ -1,3 +1,5 @@
+> ⚠ FROZEN-SNAPSHOT(任务书 B0-3):本文件是该批次收口时的**历史冻结快照**,不反映仓库当前状态;现行台账见 TASK-INDEX.md 与 INTERIM-STATUS.md。
+
 # TASK-P2 — handoff summary（executor 整链与图表数据闭环，2026-09-04）
 
 > 前置：P1 复签闭口 + E4 三裁决选 A 已入库；准入 G0-G4 满足（G4：探针 key 预算

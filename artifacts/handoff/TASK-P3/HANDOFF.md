@@ -1,3 +1,5 @@
+> ⚠ FROZEN-SNAPSHOT(任务书 B0-3):本文件是该批次收口时的**历史冻结快照**,不反映仓库当前状态;现行台账见 TASK-INDEX.md 与 INTERIM-STATUS.md。
+
 # TASK-P3 — 下一位 Agent 接手手册（HANDOFF）
 
 > 本文件是 **agent → agent** 的交接说明，独立于任务书 §6 的交付清单。

@@ -1,3 +1,5 @@
+> ⚠ FROZEN-SNAPSHOT(任务书 B0-3):本文件是该批次收口时的**历史冻结快照**,不反映仓库当前状态;现行台账见 TASK-INDEX.md 与 INTERIM-STATUS.md。
+
 # TASK-E + TASK-Q2 — CI/真实API 解耦 + 统计资格门 + 成本遥测(专家计划 Commit 2 & 3)交接文档
 
 > 头:`4cdc9f8cb1`(TASK-T1-S2)之后两个批次,实现专家计划书 §2(P0-C)+ §6(P1-B

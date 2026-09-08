@@ -1,3 +1,5 @@
+> ⚠ FROZEN-SNAPSHOT(任务书 B0-3):本文件是该批次收口时的**历史冻结快照**,不反映仓库当前状态;现行台账见 TASK-INDEX.md 与 INTERIM-STATUS.md。
+
 # TASK-P3 — summary（交付出口矩阵）
 
 > 批次：语义收口与遵从实证（P3-1..P3-6）。上游：TASK-P2（`9336d639ed`）。

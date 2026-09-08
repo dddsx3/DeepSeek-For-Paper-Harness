@@ -1,3 +1,5 @@
+> ⚠ FROZEN-SNAPSHOT(任务书 B0-3):本文件是该批次收口时的**历史冻结快照**,不反映仓库当前状态;现行台账见 TASK-INDEX.md 与 INTERIM-STATUS.md。
+
 # TASK 1.5R — Summary（交接总结）
 
 > 接手本文件的 agent 请先读 `CONTINUATION.md`（环境约束/workaround）与

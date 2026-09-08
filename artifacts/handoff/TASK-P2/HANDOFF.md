@@ -1,3 +1,5 @@
+> ⚠ FROZEN-SNAPSHOT(任务书 B0-3):本文件是该批次收口时的**历史冻结快照**,不反映仓库当前状态;现行台账见 TASK-INDEX.md 与 INTERIM-STATUS.md。
+
 # TASK-P2 交接 — 对照实验(P2-A)、冻结机制(P2-B)、实测协议(P2-C)
 
 > 头:`62738c4db5`(P1C2)之后。任务书:DeepSeek-For-Paper-Harness-下一步任务书

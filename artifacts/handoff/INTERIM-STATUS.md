@@ -172,3 +172,8 @@ npm run check:ci:static                # 已知 docs/catalog/knip 类欠账(3.4)
 审计材料位置:`artifacts/handoff/TASK-M1/`(SUMMARY / gate-report / probe-real /
 samples / shell-out / shell-out-real),`artifacts/handoff/TASK-INDEX.md`,
 `artifacts/handoff/EXTERNAL-REVIEW.md`。
+
+## 0.9 TASK-C1(实测驾驶舱,2026-09-08)
+
+驾驶舱落地:独立壳 + 共用订阅层(C-A 降级映射),server 只读投影 + 一个研究档案写路径(FalseBlock);五区前端零框架零 CDN;上传/徽章/文案全部同源复用 shell 资产;demo-run e2e 实测 DELIVERED、SSE/投影/徽章/申诉全链通。
+**read body failed 事故已根治**(四洞:OPTIONS/multipart/spawn node.exe/clientError,见 HANDOFF §3)。B0 三件套顺手完成。G10(30 分钟真人实测)与 G9(release 打包)是剩余两格,待 STUDY-A-PILOT 冻结与真人到场。

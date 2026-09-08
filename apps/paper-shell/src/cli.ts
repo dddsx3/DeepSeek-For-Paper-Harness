@@ -263,9 +263,22 @@ async function main(): Promise<number> {
     const human = blockMessage(String(err.eventType ?? 'gate-failed'), err.code, err.message ?? '')
     console.error(`[BLOCKED] ${human.oneLine}`)
     console.error(`  → ${human.advice}`)
-    // Write a run report even on failure.
+    console.error(`  run-id  -> ${String(run.id)}`)
+    // B0-1 (TASK-R1): the BLOCKED technical memo — what the student (or the
+    // cockpit) can pick up from here. Pure projection of durable state:
+    // passed gates, minted IR entries, and the failing node, no new semantics.
+    const nodes = engine.listNodes(RunId(run.id))
+    const blockedNode = nodes.find(n => n.state === 'failed' || n.lastErrorCode === err.code)
+    const ir = ModelingIr.snapshot(ctx.get('paperModelingIr')) ?? new Map()
+    const memo = {
+      passed_gates: nodes.filter(n => n.state === 'succeeded').map(n => n.title),
+      minted_ir_kinds: [...new Set([...ir.values()].map(r => r.kind))],
+      minted_ir_count: ir.size,
+      failing_node: blockedNode === undefined ? null : { title: blockedNode.title, attempts: blockedNode.attempts, code: blockedNode.lastErrorCode },
+      suggested_intervention: human.advice,
+    }
     await mkdir(outDir, { recursive: true })
-    await writeFile(join(outDir, 'run-report.json'), JSON.stringify({ runId: String(run.id), tier, mode, status: 'BLOCKED', classifier: human.classifier, code: err.code }, null, 2), 'utf8')
+    await writeFile(join(outDir, 'run-report.json'), JSON.stringify({ runId: String(run.id), tier, mode, status: 'BLOCKED', classifier: human.classifier, code: err.code, humanized: human.oneLine, memo }, null, 2), 'utf8')
     await dispose()
     return 1
   }
@@ -306,6 +319,9 @@ async function main(): Promise<number> {
   await writeFile(zipPath, zipBytes)
   const zipSha = createHash('sha256').update(zipBytes).digest('hex')
   console.log(`[DELIVERED] sha256=${sha256.slice(0, 16)}...`)
+  // C1: the cockpit maps its runKey → the durable run id via this line (the
+  // persistence tables are keyed by it; SSE/GET projection reads them).
+  console.log(`  run-id  -> ${String(run.id)}`)
   console.log(`  report  -> ${join(outDir, 'report.md')}`)
   console.log(`  zip     -> ${zipPath} (zip sha256=${zipSha.slice(0, 16)}...)`)
   console.log(`  usage   -> in ${usageSummary.input_tokens} tok / out ${usageSummary.output_tokens} tok / $${usageSummary.cost_usd.toFixed(4)} (TASK-Q2 telemetry)`)

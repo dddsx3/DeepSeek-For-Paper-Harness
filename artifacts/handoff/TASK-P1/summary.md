@@ -1,3 +1,5 @@
+> ⚠ FROZEN-SNAPSHOT(任务书 B0-3):本文件是该批次收口时的**历史冻结快照**,不反映仓库当前状态;现行台账见 TASK-INDEX.md 与 INTERIM-STATUS.md。
+
 # TASK-P1 — handoff summary（生产者轨收口，2026-09-04）
 
 > 状态：**代码与门全部落地、FORMAL demo + pass corpus 跑通、CI job 就位**；

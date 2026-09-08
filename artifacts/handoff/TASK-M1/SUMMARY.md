@@ -1,3 +1,5 @@
+> ⚠ FROZEN-SNAPSHOT(任务书 B0-3):本文件是该批次收口时的**历史冻结快照**,不反映仓库当前状态;现行台账见 TASK-INDEX.md 与 INTERIM-STATUS.md。
+
 # TASK-M1 — 用户外壳与人机协同实测 (Paper-Shell 用户外壳 + 真实用户模拟)
 
 > 任务书 TASK-M1：在 M1-1 真实遵从率实证之后，把可执行的用户外层（CLI 外壳）落地，

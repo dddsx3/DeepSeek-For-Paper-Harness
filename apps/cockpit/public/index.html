@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>论文实测驾驶舱 · Paper Cockpit</title>
+<style>
+/* ============ 基调:纸感中性底 + 单一深青强调色,无渐变/无阴影堆叠 ============ */
+:root{
+  --paper:#f7f5f0;          /* 纸感底 */
+  --card:#ffffff;
+  --hairline:#e4e0d6;       /* 细线分隔 */
+  --hairline-strong:#d2cdc0;
+  --ink:#26302b;            /* 主文字(墨绿灰) */
+  --ink-2:#5f6b64;          /* 次级文字 */
+  --ink-3:#8b958e;          /* 说明文字 */
+  --accent:#0e6e5c;         /* 唯一强调色:深青 */
+  --accent-ink:#0a5044;
+  --accent-wash:#eef4f1;
+  --ok:#1b7f4b;
+  --ok-wash:#eaf4ec;
+  --warn:#b07914;
+  --warn-wash:#f7efdd;
+  --bad:#b3402e;
+  --bad-wash:#f7e9e6;
+  --neutral-dot:#9aa39c;
+  --mono:ui-monospace,SFMono-Regular,Consolas,"Liberation Mono",Menlo,monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{height:100%}
+body{
+  font-family:system-ui,-apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei","Noto Sans CJK SC",sans-serif;
+  font-size:15px;line-height:1.6;color:var(--ink);background:var(--paper);
+  -webkit-font-smoothing:antialiased;
+}
+button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
+button:disabled{opacity:.45;cursor:not-allowed}
+select,textarea,input[type=text]{
+  font:inherit;color:var(--ink);background:var(--card);
+  border:1px solid var(--hairline-strong);border-radius:4px;padding:6px 10px;
+}
+select:focus,textarea:focus,input:focus{outline:2px solid var(--accent);outline-offset:1px}
+code,.mono{font-family:var(--mono);font-size:.85em;word-break:break-all}
+
+/* ---------- 顶栏 ---------- */
+.topbar{
+  position:sticky;top:0;z-index:30;background:var(--card);
+  border-bottom:1px solid var(--hairline);
+}
+.topbar-inner{max-width:1280px;margin:0 auto;padding:10px 20px;display:flex;align-items:center;gap:14px}
+.brand{display:flex;flex-direction:column;min-width:0}
+.brand b{font-size:17px;letter-spacing:.01em;white-space:nowrap}
+.brand span{font-size:12px;color:var(--ink-3);white-space:nowrap}
+.topbar-spacer{flex:1}
+.conn{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--ink-2);white-space:nowrap}
+.btn{
+  display:inline-flex;align-items:center;gap:6px;border:1px solid var(--hairline-strong);
+  border-radius:4px;padding:6px 14px;font-size:13px;background:var(--card);
+}
+.btn:hover:not(:disabled){border-color:var(--accent);color:var(--accent-ink)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.primary:hover:not(:disabled){background:var(--accent-ink);color:#fff}
+.btn.small{padding:3px 10px;font-size:12px}
+.btn.block{width:100%;justify-content:center;padding:9px 14px;font-size:14px}
+.spin{
+  width:12px;height:12px;border-radius:50%;flex:none;
+  border:2px solid rgba(127,127,127,.35);border-top-color:currentColor;
+  animation:spin .8s linear infinite;
+}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ---------- 服务断连灰条 ---------- */
+#connStrip{
+  display:none;background:#eceae2;border-bottom:1px solid var(--hairline-strong);
+  color:var(--ink-2);font-size:13px;padding:7px 20px;text-align:center;
+}
+#connStrip.on{display:block}
+
+/* ---------- 版面 ---------- */
+.wrap{max-width:1280px;margin:0 auto;padding:18px 20px 60px}
+.grid{display:grid;grid-template-columns:minmax(0,7fr) minmax(0,5fr);gap:18px;align-items:start}
+.colA{display:flex;flex-direction:column;gap:18px;min-width:0}
+.colB{display:flex;flex-direction:column;gap:18px;min-width:0}
+@media (max-width:1000px){
+  .grid{grid-template-columns:1fr}
+  /* 窄屏单栏:按动线重排(导入 → 时间线 → 交付 → 节点 → 辅助) */
+  .colA,.colB{display:contents}
+  #zone-delivery{order:3}#zone-timeline{order:2}#zone-nodes{order:4}#zone-detail{order:5}#zone-aux{order:6}
+}
+.card{
+  background:var(--card);border:1px solid var(--hairline);border-radius:6px;
+}
+.card-head{
+  display:flex;align-items:baseline;gap:10px;padding:12px 16px;border-bottom:1px solid var(--hairline);
+}
+.card-head h2{font-size:13px;font-weight:600;letter-spacing:.08em;color:var(--ink-2)}
+.card-head .num{
+  font-family:var(--mono);font-size:11px;color:var(--accent);
+  border:1px solid var(--accent);border-radius:3px;padding:0 5px;line-height:16px;
+}
+.card-head .aux{margin-left:auto;font-size:12px;color:var(--ink-3)}
+.card-body{padding:16px}
+
+/* ---------- 通用小组件 ---------- */
+.dot{width:8px;height:8px;border-radius:50%;flex:none;display:inline-block;background:var(--neutral-dot)}
+.dot.ok{background:var(--ok)}.dot.warn{background:var(--warn)}.dot.bad{background:var(--bad)}
+.dot.live{background:var(--accent);animation:pulse 1.2s ease-in-out infinite}
+@keyframes pulse{50%{opacity:.35}}
+.status-tag{display:inline-flex;align-items:center;gap:7px;font-size:13px}
+.chip{
+  display:inline-block;font-size:11px;border:1px solid var(--hairline-strong);border-radius:3px;
+  padding:0 6px;line-height:18px;color:var(--ink-2);background:var(--paper);
+}
+.chip.accent{border-color:var(--accent);color:var(--accent-ink);background:var(--accent-wash)}
+.hint{font-size:12px;color:var(--ink-3)}
+.bar-error{
+  display:none;border:1px solid var(--bad);border-left:4px solid var(--bad);
+  background:var(--bad-wash);color:var(--bad);border-radius:4px;
+  padding:9px 12px;font-size:13px;margin-top:12px;word-break:break-all;
+}
+.bar-error.on{display:block}
+.empty{
+  padding:26px 16px;text-align:center;color:var(--ink-3);font-size:13px;
+  border:1px dashed var(--hairline-strong);border-radius:4px;
+}
+
+/* ---------- ① 题目导入 ---------- */
+.drop{
+  border:1px dashed var(--hairline-strong);border-radius:6px;background:var(--paper);
+  padding:22px 16px;text-align:center;transition:border-color .15s,background .15s;cursor:pointer;
+}
+.drop:hover{border-color:var(--accent)}
+.drop.drag{border-color:var(--accent);background:var(--accent-wash)}
+.drop b{display:block;font-size:14px;font-weight:600}
+.drop .hint{margin-top:4px}
+.file-list{margin-top:12px;display:flex;flex-direction:column;gap:6px}
+.frow{
+  display:flex;align-items:center;gap:10px;padding:7px 10px;
+  border:1px solid var(--hairline);border-radius:4px;background:var(--card);font-size:13px;
+}
+.frow .name{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.frow .meta{color:var(--ink-3);font-size:12px;white-space:nowrap}
+.frow .role{margin-left:auto;font-size:11px;color:var(--ink-3);border:1px solid var(--hairline);border-radius:3px;padding:0 6px;white-space:nowrap}
+.frow .rm{color:var(--ink-3);font-size:15px;line-height:1;padding:2px 6px}
+.frow .rm:hover{color:var(--bad)}
+.opt-row{display:flex;gap:14px;margin-top:14px;flex-wrap:wrap}
+.opt{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--ink-2)}
+.sha-line{margin-top:12px;font-size:12px;color:var(--ink-2);display:none}
+.sha-line.on{display:flex;flex-direction:column;gap:4px}
+.sha-line .mono{color:var(--ink-2)}
+
+/* ---------- 运行选择条 ---------- */
+.run-chips{display:flex;gap:8px;flex-wrap:wrap;padding:10px 16px 0}
+.run-chip{
+  display:inline-flex;align-items:center;gap:6px;font-size:12px;
+  border:1px solid var(--hairline-strong);border-radius:14px;padding:2px 11px;background:var(--card);color:var(--ink-2);
+}
+.run-chip.sel{border-color:var(--accent);color:var(--accent-ink);background:var(--accent-wash)}
+
+/* ---------- ③ 时间线 ---------- */
+.tl{position:relative;padding:4px 0 0;margin-left:4px}
+.tl-sec{position:relative;padding-left:22px;border-left:1px solid var(--hairline-strong)}
+.tl-sec:last-child{border-left-color:transparent}
+.tl-node-dot{position:absolute;left:-5px;top:2px;width:9px;height:9px;border-radius:50%;background:var(--card);border:2px solid var(--neutral-dot)}
+.tl-sec .dot{position:absolute;left:-4.5px;top:2px;border:1px solid var(--card);box-sizing:content-box}
+.tl-title{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:600;padding-bottom:2px}
+.tl-title .t{font-weight:600}
+.tl-title .mono-id{font-size:11px;color:var(--ink-3);font-weight:400}
+.tl-body{padding-bottom:14px}
+.ev{
+  display:flex;gap:9px;font-size:12.5px;padding:3px 0;color:var(--ink-2);align-items:baseline;
+}
+.ev .ev-type{
+  flex:none;font-family:var(--mono);font-size:11px;color:var(--accent-ink);
+  background:var(--accent-wash);border-radius:3px;padding:0 5px;line-height:17px;
+}
+.ev .ev-time{flex:none;font-family:var(--mono);font-size:11px;color:var(--ink-3)}
+.ev .ev-data{font-family:var(--mono);font-size:11px;color:var(--ink-3);word-break:break-all}
+.ev.gate-pass .ev-type{background:var(--ok-wash);color:var(--ok)}
+.ev.gate-fail .ev-type{background:var(--bad-wash);color:var(--bad)}
+.ev.delivery .ev-type{background:var(--warn-wash);color:var(--warn)}
+.gate-line{font-size:13px;display:flex;gap:8px;align-items:center;padding:3px 0;flex-wrap:wrap}
+.usage-strip{
+  display:flex;gap:18px;flex-wrap:wrap;font-size:12px;color:var(--ink-2);
+  border-top:1px dashed var(--hairline);margin-top:10px;padding-top:9px;
+}
+.usage-strip b{font-family:var(--mono);font-weight:600;color:var(--ink)}
+
+/* ---------- ② 交付区 ---------- */
+.verdict{
+  display:none;align-items:flex-start;gap:10px;border:1px solid;border-radius:6px;
+  padding:12px 14px;font-size:14px;margin-bottom:12px;
+}
+.verdict.on{display:flex}
+.verdict.ok{border-color:var(--ok);background:var(--ok-wash);color:var(--ok)}
+.verdict.bad{border-color:var(--bad);background:var(--bad-wash);color:var(--bad)}
+.verdict.warn{border-color:var(--warn);background:var(--warn-wash);color:var(--warn)}
+.verdict .v-body{flex:1;min-width:0}
+.verdict .v-title{font-weight:700;font-size:14px;display:flex;align-items:center;gap:8px}
+.verdict .v-sub{font-size:12.5px;margin-top:2px;color:inherit;opacity:.85;word-break:break-all}
+.report-path{
+  display:none;font-size:12px;color:var(--ink-2);margin-bottom:10px;word-break:break-all;
+}
+.report-path.on{display:block}
+.output-head{
+  display:none;max-height:300px;overflow:auto;background:#fbfaf7;
+  border:1px solid var(--hairline);border-radius:4px;padding:10px 12px;
+  font-family:var(--mono);font-size:11.5px;line-height:1.55;white-space:pre-wrap;word-break:break-all;color:var(--ink);
+}
+.output-head.on{display:block}
+.dl-row{margin-top:12px;display:none;gap:10px;flex-wrap:wrap}
+.dl-row.on{display:flex}
+
+/* ---------- ④ 节点视图 ---------- */
+.node-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px}
+.node-card{
+  border:1px solid var(--hairline-strong);border-radius:6px;background:var(--card);
+  padding:10px 12px;text-align:left;font-size:13px;transition:border-color .15s;
+}
+.node-card:hover{border-color:var(--accent)}
+.node-card.sel{border-color:var(--accent);background:var(--accent-wash)}
+.node-card.blocked{border-color:var(--bad);background:var(--bad-wash)}
+.node-card .n-title{font-weight:600;display:flex;align-items:center;gap:7px;word-break:break-all}
+.node-card .n-meta{display:flex;gap:8px;margin-top:5px;font-size:11.5px;color:var(--ink-3);flex-wrap:wrap}
+.node-card .n-err{margin-top:6px;font-family:var(--mono);font-size:11px;color:var(--bad);word-break:break-all}
+
+/* ---------- ④b 节点详情 + 溯源 ---------- */
+#nodeDetail{display:none}
+#nodeDetail.on{display:block}
+.detail-title{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.kv{display:grid;grid-template-columns:96px 1fr;gap:3px 12px;font-size:12.5px;margin:10px 0}
+.kv dt{color:var(--ink-3)}
+.kv dd{font-family:var(--mono);word-break:break-all}
+.subhead{font-size:12px;font-weight:600;letter-spacing:.06em;color:var(--ink-2);margin:14px 0 6px}
+.prov-chain{display:flex;flex-direction:column;gap:8px}
+.prov-item{
+  border:1px solid var(--hairline);border-radius:4px;padding:8px 10px;background:#fbfaf7;font-size:12px;
+}
+.prov-item .p-dir{font-size:11px;color:var(--ink-3);letter-spacing:.06em;margin-bottom:4px}
+.prov-item dl{display:grid;grid-template-columns:70px 1fr;gap:2px 10px}
+.prov-item dt{color:var(--ink-3)}
+.prov-item dd{font-family:var(--mono);word-break:break-all}
+.field-hits{display:flex;flex-direction:column;gap:3px;font-size:12px}
+.field-hits .fh{font-family:var(--mono);font-size:11.5px;word-break:break-all;color:var(--ink-2)}
+
+/* ---------- ⑤ 实测辅助 ---------- */
+.manifest-line{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.badge{
+  display:inline-flex;align-items:center;gap:7px;font-size:13px;border:1px solid;border-radius:4px;padding:4px 12px;
+}
+.badge.ok{border-color:var(--ok);background:var(--ok-wash);color:var(--ok)}
+.badge.bad{border-color:var(--bad);background:var(--bad-wash);color:var(--bad)}
+.badge.idle{border-color:var(--hairline-strong);background:var(--paper);color:var(--ink-2)}
+#manifestDetail{display:none;margin-top:12px;border-top:1px dashed var(--hairline);padding-top:12px}
+#manifestDetail.on{display:block}
+.drifts{width:100%;border-collapse:collapse;font-size:12px;margin-top:6px}
+.drifts th,.drifts td{border:1px solid var(--hairline);padding:4px 8px;text-align:left;font-family:var(--mono)}
+.drifts th{background:var(--paper);font-weight:600;color:var(--ink-2)}
+.appeal-row{display:flex;align-items:center;gap:12px;margin-top:14px;border-top:1px dashed var(--hairline);padding-top:14px;flex-wrap:wrap}
+.appeal-row .hint{flex:1;min-width:180px}
+
+/* ---------- 模态 ---------- */
+.overlay{
+  position:fixed;inset:0;z-index:60;background:rgba(38,48,43,.42);
+  display:none;align-items:center;justify-content:center;padding:20px;
+}
+.overlay.on{display:flex}
+.modal{
+  background:var(--card);border:1px solid var(--hairline-strong);border-radius:8px;
+  max-width:520px;width:100%;max-height:86vh;overflow:auto;padding:22px 24px;
+}
+.modal h3{font-size:16px;margin-bottom:10px}
+.modal .m-body{font-size:14px;color:var(--ink-2)}
+.modal ul{margin:8px 0 8px 18px}
+.modal li{margin:3px 0}
+.modal .m-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:18px}
+.modal textarea{width:100%;min-height:72px;resize:vertical;margin-top:6px}
+.modal .field{margin-top:12px}
+.modal .field label{display:block;font-size:12.5px;color:var(--ink-2);margin-bottom:4px}
+.modal .field input{width:100%;font-family:var(--mono);font-size:12.5px}
+
+/* ---------- toast ---------- */
+#toast{
+  position:fixed;bottom:26px;left:50%;transform:translateX(-50%) translateY(8px);
+  background:var(--ink);color:#fff;font-size:13px;border-radius:6px;padding:9px 18px;
+  opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;z-index:80;max-width:80vw;
+}
+#toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+</style>
+</head>
+<body>
+
+<!-- 服务断连灰条(全局 fetch 失败时显示,后端 reason 照显由各区红条负责) -->
+<div id="connStrip">无法连接驾驶舱服务(127.0.0.1:3081)——请确认服务器已启动;页面会自动重试,期间不会丢失已填内容。</div>
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <div class="brand">
+      <b>论文实测驾驶舱</b>
+      <span>Paper Cockpit · 把一道课程题真正跑通并留下可审计的记录</span>
+    </div>
+    <div class="topbar-spacer"></div>
+    <div class="conn"><span class="dot" id="connDot"></span><span id="connText">连接中…</span></div>
+    <button class="btn small" id="btnDemo" title="用内置示例题跑一次完整流程,无需 API key">一键演示</button>
+  </div>
+</header>
+
+<main class="wrap">
+  <div class="grid">
+    <!-- ================= 左列 ================= -->
+    <div class="colA">
+
+      <!-- ① 题目导入 -->
+      <section class="card" id="zone-import">
+        <div class="card-head">
+          <span class="num">1</span><h2>题目导入</h2>
+          <span class="aux">题面 + 数据 → 注册 → 开始生成</span>
+        </div>
+        <div class="card-body">
+          <div class="drop" id="dropMain" role="button" tabindex="0" aria-label="拖入或点击选择题目文件">
+            <b>拖入题面文件,或点击选择</b>
+            <div class="hint">题面:.md / .tex / .pdf / .docx(仅 1 个);数据:.csv / .xlsx(可多个)</div>
+            <input type="file" id="fileProblem" hidden accept=".md,.tex,.pdf,.docx">
+            <input type="file" id="fileData" hidden accept=".csv,.xlsx" multiple>
+          </div>
+          <div class="file-list" id="fileList"></div>
+          <div style="margin-top:8px">
+            <button class="btn small" id="btnAddData" type="button">+ 添加数据文件(.csv / .xlsx)</button>
+          </div>
+          <div class="opt-row">
+            <span class="opt">研究层级
+              <select id="selTier" title="T3 是最小填充面,适合第一次跑通">
+                <option value="T3" selected>T3(推荐)</option>
+                <option value="T2">T2</option>
+                <option value="T1">T1</option>
+              </select>
+            </span>
+            <span class="opt">运行模式
+              <select id="selMode" title="strict = 全部门禁;fast = 更快;exploratory = 探索(不交付正式报告)">
+                <option value="strict" selected>strict(严格)</option>
+                <option value="fast">fast(快速)</option>
+                <option value="exploratory">exploratory(探索)</option>
+              </select>
+            </span>
+          </div>
+          <div style="margin-top:16px">
+            <button class="btn primary block" id="btnStart" disabled>开始生成</button>
+            <p class="hint" style="margin-top:8px" id="startHint">选择题面文件后即可开始;数据文件只被求解代码读取,不进入模型。</p>
+          </div>
+          <div class="sha-line" id="shaLine"></div>
+          <div class="bar-error" id="importError" role="alert"></div>
+        </div>
+      </section>
+
+      <!-- ③ 实时进度时间线 -->
+      <section class="card" id="zone-timeline">
+        <div class="card-head">
+          <span class="num">3</span><h2>实时进度</h2>
+          <span class="aux" id="tlConn"></span>
+        </div>
+        <div class="run-chips" id="runChips"></div>
+        <div class="card-body">
+          <div id="timeline"></div>
+        </div>
+      </section>
+    </div>
+
+    <!-- ================= 右列 ================= -->
+    <div class="colB">
+
+      <!-- ② 交付区 -->
+      <section class="card" id="zone-delivery">
+        <div class="card-head">
+          <span class="num">2</span><h2>交付区</h2>
+          <span class="aux" id="deliveryAux"></span>
+        </div>
+        <div class="card-body">
+          <div class="empty" id="deliveryEmpty">还没有运行——拖入题目,或点右上角"一键演示"。</div>
+          <div id="deliveryBody" style="display:none">
+            <div class="verdict" id="verdict"></div>
+            <div class="report-path" id="reportPath"></div>
+            <pre class="output-head" id="outputHead"></pre>
+            <div class="dl-row">
+              <button class="btn small" id="btnDownload">下载报告</button>
+              <button class="btn small" id="btnAppealTop" style="display:none">我认为这是误杀</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ④ 节点视图 -->
+      <section class="card" id="zone-nodes">
+        <div class="card-head">
+          <span class="num">4</span><h2>节点视图</h2>
+          <span class="aux"><button class="btn small" id="btnExport" disabled>导出溯源 JSON</button></span>
+        </div>
+        <div class="card-body">
+          <div class="node-grid" id="nodeGrid"></div>
+          <div class="empty" id="nodesEmpty" style="margin-top:0">该运行暂未投影出节点记录。</div>
+        </div>
+      </section>
+
+      <!-- ④b 节点详情(含溯源卡) -->
+      <section class="card" id="zone-detail" style="display:none">
+        <div class="card-head">
+          <span class="num">4b</span><h2>节点详情与溯源</h2>
+          <span class="aux"><button class="btn small" id="btnCloseDetail">收起</button></span>
+        </div>
+        <div class="card-body" id="nodeDetail"></div>
+      </section>
+
+      <!-- ⑤ 实测辅助 -->
+      <section class="card" id="zone-aux">
+        <div class="card-head">
+          <span class="num">5</span><h2>实测辅助</h2>
+          <span class="aux">研究归档与申诉</span>
+        </div>
+        <div class="card-body">
+          <div class="manifest-line">
+            <span class="badge idle" id="manifestBadge">未冻结(待用户名单)</span>
+            <button class="btn small" id="btnManifestDetail" disabled>详情</button>
+          </div>
+          <div id="manifestDetail"></div>
+          <div class="appeal-row">
+            <button class="btn" id="btnAppeal" disabled>我认为这是误杀</button>
+            <span class="hint">运行被门禁拦截且你认为不该拦?提交一句话申诉,归档后由开发者与审计轨复核(复核结论不由本页面判定)。</span>
+          </div>
+        </div>
+      </section>
+    </div>
+  </div>
+</main>
+
+<!-- 知情同意(首次) -->
+<div class="overlay" id="consentOverlay" role="dialog" aria-modal="true" aria-labelledby="consentTitle">
+  <div class="modal">
+    <h3 id="consentTitle">使用前请确认</h3>
+    <div class="m-body">
+      <ul>
+        <li>产出由 AI 生成系统辅助完成,初稿≠可提交论文;</li>
+        <li>运行数据将用于研究归档;</li>
+        <li>AI 生成内容将按学术规范披露;</li>
+        <li>可随时退出。</li>
+      </ul>
+    </div>
+    <div class="m-actions">
+      <button class="btn" id="btnConsentNo">暂不使用</button>
+      <button class="btn primary" id="btnConsentYes">我已了解,继续</button>
+    </div>
+  </div>
+</div>
+
+<!-- 误杀申诉 -->
+<div class="overlay" id="appealOverlay" role="dialog" aria-modal="true" aria-labelledby="appealTitle">
+  <div class="modal">
+    <h3 id="appealTitle">误杀申诉</h3>
+    <div class="m-body">
+      <p>一句话说明为什么这次拦截是误判。申诉会被原样归档,由开发者与审计轨复核;本页面不会、也无法改判。</p>
+      <div class="field">
+        <label for="apGate">门禁(自动预填)</label>
+        <input type="text" id="apGate" placeholder="(自动取自当前拦截)">
+      </div>
+      <div class="field">
+        <label for="apCode">失败代码(自动预填)</label>
+        <input type="text" id="apCode" placeholder="(自动取自当前拦截)">
+      </div>
+      <div class="field">
+        <label for="apReason">一句话理由(必填)</label>
+        <textarea id="apReason" placeholder="例:数据文件里本就允许出现该数值,拦截理由不适用于本题。"></textarea>
+      </div>
+    </div>
+    <div class="m-actions">
+      <button class="btn" id="btnAppealCancel">取消</button>
+      <button class="btn primary" id="btnAppealSubmit">提交申诉</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast" role="status"></div>
+
+<script src="app.js"></script>
+</body>
+</html>

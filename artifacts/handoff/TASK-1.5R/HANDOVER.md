@@ -1,3 +1,5 @@
+> ⚠ FROZEN-SNAPSHOT(任务书 B0-3):本文件是该批次收口时的**历史冻结快照**,不反映仓库当前状态;现行台账见 TASK-INDEX.md 与 INTERIM-STATUS.md。
+
 # TASK 1.5R — 交接文档（源自 TASK 1.5 External Attack Gate HOLD）
 
 > 本文档是给 **TASK 1.5R 实施 agent** 的完整交接。内容分为两部分：

@@ -1,3 +1,5 @@
+> ⚠ FROZEN-SNAPSHOT(任务书 B0-3):本文件是该批次收口时的**历史冻结快照**,不反映仓库当前状态;现行台账见 TASK-INDEX.md 与 INTERIM-STATUS.md。
+
 # TASK-T1-S2 — IR 语义契约收尾(专家计划书 P0-A / Commit 1 后半)交接文档
 
 > 头:`23776c5206`(TASK-T1 Sprint 1)之后,本批实现《LLM Harness 下一步最可行
