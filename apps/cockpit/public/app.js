@@ -1170,6 +1170,8 @@ function initImportZone() {
   $('fileData').addEventListener('change', (ev) => { if (ev.target.files) addFiles(ev.target.files); ev.target.value = ''; });
   $('btnAddData').addEventListener('click', () => $('fileData').click());
   $('btnStart').addEventListener('click', startRun);
+  // 一键演示(TASK-C1 用户反馈:demoRun 曾从未被绑定,按钮按下无反应)
+  $('btnDemo').addEventListener('click', demoRun);
 }
 
 function initDeliveryZone() {

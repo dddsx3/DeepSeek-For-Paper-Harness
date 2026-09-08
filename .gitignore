@@ -56,3 +56,4 @@ artifacts/handoff/TASK-3/.vitest-corpus.json
 apps/paper-shell/cockpit-problems/
 sea-prep.blob
 paper-cockpit.exe
+apps/cockpit/cockpit-settings.json

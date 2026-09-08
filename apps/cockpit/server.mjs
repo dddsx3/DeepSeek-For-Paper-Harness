@@ -28,7 +28,7 @@
 import { createServer } from 'node:http'
 import { createHash } from 'node:crypto'
 import { readFile, writeFile, mkdir, appendFile } from 'node:fs/promises'
-import { existsSync, readFileSync, readdirSync } from 'node:fs'
+import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
 import { join, dirname, extname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -37,6 +37,30 @@ const shellSrc = resolve(here, '../paper-shell/src')
 const staticDir = resolve(here, 'public')
 const studyDir = resolve(here, '../../artifacts/handoff/TASK-P2/study')
 const falseBlockPath = join(studyDir, 'falseblock.jsonl')
+// TASK-C1.5 (user feedback): free API configuration. Profiles live in a
+// gitignored local file; the KEY never goes back to the UI (masked tail only)
+// and never into the repository. Runs inject the ACTIVE profile's route into
+// the child env — different keys = different accounts = costs stay separated.
+const settingsPath = resolve(here, 'cockpit-settings.json')
+function loadSettings() {
+  try {
+    const doc = JSON.parse(readFileSync(settingsPath, 'utf8'))
+    if (!Array.isArray(doc.profiles)) return { profiles: [], activeId: null }
+    return doc
+  } catch {
+    return { profiles: [], activeId: null }
+  }
+}
+function saveSettings(doc) {
+  writeFileSync(settingsPath, JSON.stringify(doc, null, 2) + '\n', 'utf8')
+}
+function maskKey(key) {
+  if (typeof key !== 'string' || key.length < 8) return '****'
+  return key.slice(0, 5) + '…' + key.slice(-4)
+}
+function activeProfile(doc) {
+  return doc.profiles.find(p => p.id === doc.activeId) ?? null
+}
 
 // ---------------------------------------------------------------------------
 // Reused shell surfaces (零复制 — C-A/禁 C1-0)
@@ -197,9 +221,27 @@ function listRunIds() {
 
 const activeRuns = new Map() // runKey → { status, startedAt, runId? }
 
-async function submitRun(problemPath, tier, mode, useFake) {
+async function submitRun(problemPath, tier, mode, useFake, profileId) {
   const runKey = `run-${Date.now().toString(36)}`
-  const entry = { status: 'starting', startedAt: new Date().toISOString(), tier, mode, fake: useFake, runId: null, reportPath: null, error: null }
+  // Route resolution: the ACTIVE cockpit profile wins; a request-level
+  // profileId picks a non-active one; no profile = fall back to the process
+  // env (previous behaviour). Different profiles = different accounts =
+  // costs never pile onto one account (user feedback 2026-09-08).
+  let routeEnv = process.env
+  if (!useFake) {
+    const doc = loadSettings()
+    const profile = doc.profiles.find(p => p.id === profileId) ?? activeProfile(doc)
+    if (profile !== null) {
+      routeEnv = {
+        ...process.env,
+        PAPER_PROBE_API_KEY: profile.apiKey,
+        PAPER_PROBE_BASE_URL: profile.endpoint,
+        PAPER_PROBE_MODEL: profile.model,
+        PAPER_PROBE_PROVIDER: profile.provider ?? 'openai-compatible-relay',
+      }
+    }
+  }
+  const entry = { status: 'starting', startedAt: new Date().toISOString(), tier, mode, fake: useFake, runId: null, reportPath: null, error: null, profile: useFake ? null : (routeEnv.PAPER_PROBE_MODEL ?? null) }
   activeRuns.set(runKey, entry)
   void (async () => {
     try {
@@ -211,7 +253,7 @@ async function submitRun(problemPath, tier, mode, useFake) {
       const repoRoot = resolve(here, '../..')
       const args = ['--import', 'tsx/esm', 'apps/paper-shell/src/cli.ts', 'run', problemPath, '--tier', tier, '--mode', mode, '--out', outRoot]
       if (useFake) args.push('--fake')
-      const child = spawn(process.execPath, args, { cwd: repoRoot, env: process.env, stdio: ['ignore', 'pipe', 'pipe'] })
+      const child = spawn(process.execPath, args, { cwd: repoRoot, env: routeEnv, stdio: ['ignore', 'pipe', 'pipe'] })
       // A child launch failure (ENOENT etc.) must NEVER kill the cockpit —
       // it aborts THIS run and the UI shows the failure (run2 incident: the
       // unhandled 'error' event was what kept producing "read body failed").
@@ -384,8 +426,73 @@ const server = createServer(async (req, res) => {
     if (req.method === 'POST' && url.pathname === '/api/problems') return await handleUpload(req, res)
     if (req.method === 'POST' && url.pathname === '/api/runs') {
       const body = JSON.parse((await readBody(req)).toString('utf8'))
-      const runKey = await submitRun(body.problemPath, body.tier ?? 'T3', body.mode ?? 'strict', body.fake === true)
+      const runKey = await submitRun(body.problemPath, body.tier ?? 'T3', body.mode ?? 'strict', body.fake === true, body.profileId)
       return json(res, 200, { ok: true, runKey })
+    }
+    // TASK-C1.5: free API configuration (profiles; key masked, never returned)
+    if (url.pathname === '/api/settings') {
+      const doc = loadSettings()
+      if (req.method === 'GET') {
+        return json(res, 200, {
+          ok: true,
+          activeId: doc.activeId,
+          profiles: doc.profiles.map(p => ({
+            id: p.id, name: p.name, endpoint: p.endpoint, model: p.model,
+            provider: p.provider ?? 'openai-compatible-relay',
+            apiKeyMasked: maskKey(p.apiKey),
+          })),
+        })
+      }
+      if (req.method === 'POST') {
+        const body = JSON.parse((await readBody(req)).toString('utf8'))
+        // Replace-all semantics from the UI: {profiles:[{name,endpoint,model,provider?,apiKey?}], activeId}
+        // apiKey omitted on an existing id = keep the stored key (edit without retyping).
+        if (!Array.isArray(body?.profiles)) return json(res, 400, { ok: false, reason: '缺少 profiles 数组' })
+        const next = []
+        for (const p of body.profiles) {
+          if (typeof p.name !== 'string' || p.name.trim() === '') return json(res, 400, { ok: false, reason: '配置缺少名称' })
+          if (typeof p.endpoint !== 'string' || !/^https?:\/\//.test(p.endpoint)) return json(res, 400, { ok: false, reason: `配置「${p.name}」的 endpoint 必须是 http(s) 地址` })
+          if (typeof p.model !== 'string' || p.model.trim() === '') return json(res, 400, { ok: false, reason: `配置「${p.name}」缺少模型 ID` })
+          const prior = doc.profiles.find(old => old.id === p.id)
+          const apiKey = typeof p.apiKey === 'string' && p.apiKey.trim() !== ''
+            ? p.apiKey.trim()
+            : prior?.apiKey ?? ''
+          if (apiKey === '') return json(res, 400, { ok: false, reason: `配置「${p.name}」缺少 API key` })
+          next.push({
+            id: p.id ?? `profile-${Date.now().toString(36)}-${next.length}`,
+            name: p.name.trim(),
+            endpoint: p.endpoint.replace(/\/$/, ''),
+            model: p.model.trim(),
+            provider: p.provider ?? 'openai-compatible-relay',
+            apiKey,
+          })
+        }
+        const activeId = next.some(p => p.id === body.activeId) ? body.activeId : (next[0]?.id ?? null)
+        const doc = { profiles: next, activeId }
+        saveSettings(doc)
+        return json(res, 200, { ok: true, activeId, count: next.length })
+      }
+    }
+    // Live connectivity probe for one profile (cheap: GET /models, no tokens)
+    if (req.method === 'POST' && url.pathname === '/api/settings/test') {
+      const body = JSON.parse((await readBody(req)).toString('utf8'))
+      const doc = loadSettings()
+      const profile = doc.profiles.find(p => p.id === body.profileId) ?? activeProfile(doc)
+      if (profile === null) return json(res, 400, { ok: false, reason: '没有可测试的配置' })
+      try {
+        const response = await fetch(`${profile.endpoint.replace(/\/$/, '')}/models`, {
+          headers: { authorization: `Bearer ${profile.apiKey}` },
+          signal: AbortSignal.timeout(15_000),
+        })
+        if (response.ok) {
+          const list = await response.json().catch(() => null)
+          const ids = Array.isArray(list?.data) ? list.data.map(m => m.id).slice(0, 40) : null
+          return json(res, 200, { ok: true, detail: `端点可达(${response.status})`, models: ids })
+        }
+        return json(res, 200, { ok: false, detail: `端点返回 ${response.status}${response.status === 401 ? '(key 无效)' : ''}` })
+      } catch (error) {
+        return json(res, 200, { ok: false, detail: `无法连接:${String(error.cause?.message ?? error.message ?? error).slice(0, 120)}` })
+      }
     }
     if (req.method === 'GET' && url.pathname === '/api/runs/active') {
       return json(res, 200, { ok: true, runs: Object.fromEntries(activeRuns) })
@@ -452,6 +559,18 @@ server.on('clientError', (err, socket) => {
 })
 
 const PORT = Number(process.env.COCKPIT_PORT ?? '3081')
+server.on('error', (error) => {
+  if (error.code === 'EADDRINUSE') {
+    console.error('')
+    console.error('  ✗ 端口 3081 已被占用 —— 驾驶舱很可能已经在运行了。')
+    console.error('    直接在浏览器打开 http://127.0.0.1:3081/ 即可;')
+    console.error('    或在任务管理器结束旧的 paper-cockpit / node 进程后重试。')
+  } else {
+    console.error('  ✗ 服务启动失败:', String(error.message ?? error))
+  }
+  process.exit(1)
+})
+
 server.listen(PORT, '127.0.0.1', () => {
   console.log(`paper-cockpit listening on http://127.0.0.1:${PORT}`)
   console.log('projection layer only — engine semantics live in paper-shell (禁 C1-0)')
