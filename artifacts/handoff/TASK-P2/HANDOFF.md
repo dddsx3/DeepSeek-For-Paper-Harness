@@ -79,7 +79,7 @@ FalseBlock 逐条裁决表 / n=5 纪律(禁显著性表述)/ 知情同意文本 
 |---|---|
 | G1 records 非空且行数==attempts | ✅ validateTrail spec + 已归档 14 行实测 |
 | G2 定价表配后 cost≠0 且可手算 | ✅ 机制在(P2-A 报告 cost 按占位价 ≠0);**价格本身为占位**,真实结算待账单校准 |
-| G3 CI run URL | 本批 push 后补录(见 TASK-INDEX) |
+| G3 CI run URL | ✅ **https://github.com/dddsx3/DeepSeek-For-Paper-Harness/actions/runs/34198320264**(Paper harness gates success 1m54s,2026-09-08;含 cassette 双盘 replay demo 与 real-api 守卫) |
 | G4 题库 ≥24 对 + 配对记录 + McNemar 落档 | ✅ 24 对 + 48 arm 记录 + p=0.0156 |
 | G5 T3.5 资格行 | ❌ **未满足(诚实负结果)**:LCB 0.610 + ESCAPE 1 → 不落行 |
 | G6 冻结 commit 先于用户 run | ⏳ 机制就绪,真实冻结待用户名单 |
