@@ -16,7 +16,6 @@
 import { describe, expect, it } from 'vitest'
 import {
   ExpandSelectSession,
-  MAX_EXPANSIONS_PER_RUN,
   MAX_EXPANSIONS_PER_SLOT,
   admitTemplateFill,
   defaultTemplateCandidates,
@@ -49,7 +48,7 @@ describe('P1-D acceptance — the case T3 cannot solve', () => {
     const generation = session.admitExpansion('json_path', NOVEL_JSON_PATH)
     expect(generation.ok).toBe(true)
     if (!generation.ok) return
-    expect(generation.kind).toBe('expansion-granted')
+    if (generation.kind !== 'expansion-granted') throw new Error('expected expansion-granted')
     expect(generation.candidate.origin).toBe('expansion')
     // The pool now holds it — but nothing is committed yet.
     expect(session.committed).toBe(false)
@@ -58,7 +57,7 @@ describe('P1-D acceptance — the case T3 cannot solve', () => {
     const select = session.admitMove(JSON.stringify({ action: 'SELECT', candidate_id: generation.candidate.id }))
     expect(select.ok).toBe(true)
     if (!select.ok) return
-    expect(select.kind).toBe('select')
+    if (select.kind !== 'select') throw new Error('expected select')
     expect(select.candidate.value).toBe(NOVEL_JSON_PATH)
     expect(session.committed).toBe(true)
 
@@ -203,7 +202,9 @@ describe('T3.5 — generation ≠ commit (the core safety property)', () => {
     expect(granted.ok).toBe(true)
     // Digit-free ordinals: the id the model echoes in SELECT carries no
     // digit, so the unconditional number scan needs no exception clause.
-    if (granted.ok) expect(granted.candidate.id).toMatch(/^cand-x-(one|two|three|four)$/)
+    if (granted.ok && granted.kind === 'expansion-granted') {
+      expect(granted.candidate.id).toMatch(/^cand-x-(one|two|three|four)$/)
+    }
   })
 
   it('slot shapes are enforced deterministically (json_path/unit/assumption families)', () => {
