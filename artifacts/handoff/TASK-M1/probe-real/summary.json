@@ -311,5 +311,11 @@
     }
   },
   "note": "probe v3 — per-tier adherence measured on FIRST attempts; the T2/T3 tiers exercise their admission chains and then the SAME execution pipeline as T1 (同信任链). Upgrade verdicts gate FORMAL (双指标 ≥0.8 且零重试预算). No key → explicit SKIPPED (禁7).",
-  "archive_note": "TASK-M1 M1-1: probe v3 real 段(deepseek/deepseek-v4-flash @ api.y-api.bestvirtualgoods.com/v1), 串行重跑纵向对比用 — 本副本 = 干净串行那次"
+  "archive_note": "TASK-M1 M1-1: probe v3 real 段(deepseek/deepseek-v4-flash @ api.y-api.bestvirtualgoods.com/v1), 串行重跑纵向对比用 — 本副本 = 干净串行那次",
+  "legacy_protocol_annotation": {
+    "marked_by": "TASK-P2-0 #3",
+    "note": "deepseek/deepseek-v4-flash 的 T3 18/18 fill-in 与 8/8 端到端专测是点估计口径记录(fill-in admission 18/18;E2E 8/8 专测),未经 TASK-Q2 的 LCB 统计资格门评估,且模型旧协议阶段(IR v1,TASK-T1 契约冻结之前)实测。Capability Ladder 声称不得引用本记录作为当前资格证据,除非按统计门重测。",
+    "superseded_by": "TASK-P1C2 统计门资格:z-ai/glm-5.3-flash 14/14 (LCB95 0.807) 与 deepseek/deepseek-v4-pro 14/14 (LCB95 0.807),artifacts/handoff/TASK-E/output-p1c/",
+    "record_class": "legacy-protocol"
+  }
 }

@@ -112,6 +112,7 @@ export {
   ExpandSelectSession,
   MAX_EXPANSIONS_PER_RUN,
   MAX_EXPANSIONS_PER_SLOT,
+  expandSelectTeaching,
   seedCandidates,
 } from './produce/expand-select.ts'
 export type { Candidate, ExpandSelectMoveVerdict, ExpandSelectRefusalCode, ExpandSlot, ExpansionReason } from './produce/expand-select.ts'

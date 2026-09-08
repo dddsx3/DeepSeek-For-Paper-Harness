@@ -1,0 +1,71 @@
+{
+  "generated_at": "2026-09-08T05:51:45.528Z",
+  "model": "z-ai/glm-5.3-flash",
+  "endpoint": "https://api.y-api.bestvirtualgoods.com/v1",
+  "preregistration": "case-bank/README.md (frozen before execution; 禁 P2-A #2)",
+  "pairs": 24,
+  "concordant": {
+    "both_pass": 0,
+    "both_fail": 12
+  },
+  "discordant": {
+    "t3_only_pass": 0,
+    "t35_only_pass": 12
+  },
+  "mcnemar": {
+    "test": "exact binomial, two-sided",
+    "b": 0,
+    "c": 12,
+    "p_value": 0.0004882812500000003
+  },
+  "arm_summary": {
+    "T3": {
+      "pass": 0,
+      "fail": 24,
+      "output_tokens": 0,
+      "input_tokens": 0,
+      "output_tokens_per_success": null,
+      "cost_cny": 0
+    },
+    "T3.5": {
+      "pass": 12,
+      "fail": 12,
+      "output_tokens": 0,
+      "input_tokens": 0,
+      "output_tokens_per_success": 0,
+      "cost_cny": 0,
+      "escapes": 7
+    }
+  },
+  "by_kind": {
+    "closed": {
+      "cases": 12,
+      "t3_pass": 0,
+      "t35_pass": 12
+    },
+    "expansion": {
+      "cases": 12,
+      "t3_pass": 0,
+      "t35_pass": 0
+    }
+  },
+  "expressivity_price": {
+    "extra_cases_covered_by_t35": 12,
+    "extra_output_tokens": 0,
+    "output_tokens_per_extra_case": 0
+  },
+  "t35_qualification": {
+    "n": 24,
+    "successes": 12,
+    "lcb95": 0.31925699756402537,
+    "p_min": 0.8,
+    "qualified": false,
+    "escapes": 7,
+    "registry_row_warranted": false,
+    "reasons": [
+      "LCB₉₅ 0.319 < p_min 0.80 (point estimate 0.50 is not the claim — the bound is)",
+      "ESCAPE = 7 (zero tolerance — qualification refused regardless of adherence)"
+    ]
+  },
+  "note": "n=24 是筛选性对照(任务书 P2-A #3):报告 discordant 对与精确 p 值;不做 mixed model,不做总体外推。统计只在完整 24×2 状态上计算。"
+}

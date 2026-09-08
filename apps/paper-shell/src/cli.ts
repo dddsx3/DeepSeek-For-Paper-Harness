@@ -39,6 +39,8 @@ import { ModelingIr } from '@deepseek-ai/dsh-paper-foundation'
 import { resolveShellRoute, readProblemFile, blockMessage, type ShellRoute } from './invoke.ts'
 import { streamCompletion } from './real-provider.ts'
 import { CassetteRecorder, CassetteReplayer } from './cassette.ts'
+import { verifyStudyManifest, type StudyManifest } from './study-manifest.ts'
+import { FINGERPRINT_NAMESPACES } from '@deepseek-ai/dsh-paper-foundation'
 import { zipTextFiles } from './zip.ts'
 
 const here = dirname(fileURLToPath(import.meta.url))
@@ -117,6 +119,43 @@ async function main(): Promise<number> {
     const code = positionals[1] ?? ''
     console.log(blockMessage('gate-failed', code, '').oneLine)
     return 0
+  }
+  // TASK-P2-B: paper-shell study manifest verify <manifest.json> — re-derive
+  // every content field against the current tree; ANY drift exits 1 with
+  // the full drift list (freeze integrity = the study's identity).
+  if (sub === 'study') {
+    if (positionals[1] !== 'manifest' || positionals[2] !== 'verify') {
+      console.error('usage: paper-shell study manifest verify <manifest.json>')
+      return 2
+    }
+    const manifestPath = positionals[3]
+    if (manifestPath === undefined) {
+      console.error('study manifest verify needs a manifest file')
+      return 2
+    }
+    const manifest = JSON.parse(await readFile(manifestPath, 'utf8')) as StudyManifest
+    const { execSync } = await import('node:child_process')
+    let gitCommit = '(git unavailable)'
+    try {
+      gitCommit = execSync('git rev-parse HEAD', { cwd: here, encoding: 'utf8' }).trim()
+    } catch { /* verify will report the drift */ }
+    const result = verifyStudyManifest(manifest, {
+      git_commit: gitCommit,
+      fingerprint_namespaces: Object.values(FINGERPRINT_NAMESPACES),
+      gate_baseline: { files: 99, total_tests: 1105 },
+      model: resolveShellRoute(process.env)?.model ?? manifest.route.model,
+      problem_files_root: dirname(manifestPath),
+    })
+    if (result.ok) {
+      console.log(`study manifest OK — ${manifest.study_id} frozen at ${manifest.git_commit.slice(0, 12)}, manifest_hash ${manifest.manifest_hash.slice(0, 16)}…`)
+      return 0
+    }
+    console.error(`study manifest VERIFY FAILED (${result.drifts.length} drifts):`)
+    for (const drift of result.drifts) {
+      console.error(`  - ${drift.field}: frozen ${drift.frozen.slice(0, 20)} vs current ${drift.current.slice(0, 20)}`)
+    }
+    console.error('This tree is NOT the frozen system image. Study Batch B or restore.')
+    return 1
   }
   if (sub !== 'run') {
     console.error(`unknown subcommand '${sub}'`)

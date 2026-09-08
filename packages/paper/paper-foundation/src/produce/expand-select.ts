@@ -64,6 +64,27 @@ export function seedCandidates(): ReadonlyArray<Candidate> {
 // The three moves (closed schemas — an invented move is an ESCAPE)
 // ---------------------------------------------------------------------------
 
+/**
+ * TASK-P2-B: the CANONICAL T3.5 teaching face. The study manifest hashes
+ * this builder's output (with the seed pool), so "the frozen teaching" is
+ * a content address, not a promise — any wording drift flips the manifest
+ * hash and verify refuses (Batch B). Probe scripts may render richer
+ * variants; the frozen contract is this string.
+ */
+export function expandSelectTeaching(pool: ReadonlyArray<Candidate>, slots: ReadonlyArray<ExpandSlot>): string {
+  return [
+    'You are answering a modelling question through a CLOSED choice machine. Reply with exactly ONE JSON object and nothing else — no prose, no markdown fences.',
+    'The ONLY legal moves (any other reply is a violation):',
+    '  {"action":"SELECT","candidate_id":"<one of the listed ids>"} — choose one candidate from the pool.',
+    '  {"action":"REQUEST_EXPANSION","slot":"json_path|unit|assumption","reason":"NO_VALID_CANDIDATE|SEMANTIC_MISMATCH|DOMAIN_NOT_COVERED"} — the pool cannot answer the question.',
+    '  {"action":"ABSTAIN","reason":"NOT_ADDRESSABLE|INSUFFICIENT_INFORMATION"} — decline honestly.',
+    'HARD RULES: never write a digit anywhere in your reply; never invent a candidate id or a fourth action; ids are copied verbatim from the pool.',
+    'DECISION RULE: SELECT only when a listed candidate ACTUALLY answers the question. If the question asks for something the pool does not contain, you MUST REQUEST_EXPANSION for that slot (reason NO_VALID_CANDIDATE) — choosing a near-miss candidate is a wrong answer.',
+    `You are resolving these slots for the problem: ${slots.join(' and ')}.`,
+    `The candidate pool: ${pool.map(c => `${c.id} (${c.slot} = ${c.value})`).join('; ')}.`,
+  ].join('\n')
+}
+
 /** Closed reason codes the model may cite (invented codes are refused). */
 export const EXPANSION_REASONS = [
   'NO_VALID_CANDIDATE',

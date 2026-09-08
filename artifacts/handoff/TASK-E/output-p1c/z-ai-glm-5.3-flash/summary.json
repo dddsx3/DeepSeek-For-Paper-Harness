@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-09-08T04:33:10.098Z",
+  "generated_at": "2026-09-08T05:17:44.876Z",
   "probe": "TASK-P1C — second model family, T3 statistical qualification (expert plan P1-B/C)",
   "endpoint": "https://api.y-api.bestvirtualgoods.com/v1",
   "model": "z-ai/glm-5.3-flash",
@@ -15,107 +15,193 @@
       {
         "attempt": 1,
         "problem": "Estimate mean sea-ice thickness.",
+        "problem_hash": "3bed2668d0dee78c",
         "outcome": "SUCCESS",
         "stage": "full",
-        "reason": ""
+        "failure_class": "SUCCESS",
+        "reason": "",
+        "usage": {
+          "input_tokens": 113,
+          "output_tokens": 187
+        }
       },
       {
         "attempt": 2,
         "problem": "Estimate melt-pond fraction.",
+        "problem_hash": "3d29205a32ab039e",
         "outcome": "SUCCESS",
         "stage": "full",
-        "reason": ""
+        "failure_class": "SUCCESS",
+        "reason": "",
+        "usage": {
+          "input_tokens": 112,
+          "output_tokens": 212
+        }
       },
       {
         "attempt": 3,
         "problem": "Estimate ridge density.",
+        "problem_hash": "ee279019befce1ac",
         "outcome": "SUCCESS",
         "stage": "full",
-        "reason": ""
+        "failure_class": "SUCCESS",
+        "reason": "",
+        "usage": {
+          "input_tokens": 110,
+          "output_tokens": 191
+        }
       },
       {
         "attempt": 4,
         "problem": "Estimate snow accumulation rate.",
+        "problem_hash": "120ae96f312921ee",
         "outcome": "SUCCESS",
         "stage": "full",
-        "reason": ""
+        "failure_class": "SUCCESS",
+        "reason": "",
+        "usage": {
+          "input_tokens": 111,
+          "output_tokens": 221
+        }
       },
       {
         "attempt": 5,
         "problem": "Estimate albedo seasonal amplitude.",
+        "problem_hash": "50cd6fc663f70a23",
         "outcome": "SUCCESS",
         "stage": "full",
-        "reason": ""
+        "failure_class": "SUCCESS",
+        "reason": "",
+        "usage": {
+          "input_tokens": 112,
+          "output_tokens": 200
+        }
       },
       {
         "attempt": 6,
         "problem": "Estimate surface meltwater run-off.",
+        "problem_hash": "4c3671e4c9469bef",
         "outcome": "SUCCESS",
         "stage": "full",
-        "reason": ""
+        "failure_class": "SUCCESS",
+        "reason": "",
+        "usage": {
+          "input_tokens": 113,
+          "output_tokens": 189
+        }
       },
       {
         "attempt": 7,
         "problem": "Estimate ocean heat flux under ice.",
+        "problem_hash": "8b82941f96de9813",
         "outcome": "SUCCESS",
         "stage": "full",
-        "reason": ""
+        "failure_class": "SUCCESS",
+        "reason": "",
+        "usage": {
+          "input_tokens": 113,
+          "output_tokens": 139
+        }
       },
       {
         "attempt": 8,
         "problem": "Estimate mean sea-ice thickness.",
+        "problem_hash": "3bed2668d0dee78c",
         "outcome": "SUCCESS",
         "stage": "full",
-        "reason": ""
+        "failure_class": "SUCCESS",
+        "reason": "",
+        "usage": {
+          "input_tokens": 113,
+          "output_tokens": 107
+        }
       },
       {
         "attempt": 9,
         "problem": "Estimate melt-pond fraction.",
+        "problem_hash": "3d29205a32ab039e",
         "outcome": "SUCCESS",
         "stage": "full",
-        "reason": ""
+        "failure_class": "SUCCESS",
+        "reason": "",
+        "usage": {
+          "input_tokens": 112,
+          "output_tokens": 218
+        }
       },
       {
         "attempt": 10,
         "problem": "Estimate ridge density.",
+        "problem_hash": "ee279019befce1ac",
         "outcome": "SUCCESS",
         "stage": "full",
-        "reason": ""
+        "failure_class": "SUCCESS",
+        "reason": "",
+        "usage": {
+          "input_tokens": 110,
+          "output_tokens": 148
+        }
       },
       {
         "attempt": 11,
         "problem": "Estimate snow accumulation rate.",
+        "problem_hash": "120ae96f312921ee",
         "outcome": "SUCCESS",
         "stage": "full",
-        "reason": ""
+        "failure_class": "SUCCESS",
+        "reason": "",
+        "usage": {
+          "input_tokens": 111,
+          "output_tokens": 160
+        }
       },
       {
         "attempt": 12,
         "problem": "Estimate albedo seasonal amplitude.",
+        "problem_hash": "50cd6fc663f70a23",
         "outcome": "SUCCESS",
         "stage": "full",
-        "reason": ""
+        "failure_class": "SUCCESS",
+        "reason": "",
+        "usage": {
+          "input_tokens": 112,
+          "output_tokens": 242
+        }
       },
       {
         "attempt": 13,
         "problem": "Estimate surface meltwater run-off.",
+        "problem_hash": "4c3671e4c9469bef",
         "outcome": "SUCCESS",
         "stage": "full",
-        "reason": ""
+        "failure_class": "SUCCESS",
+        "reason": "",
+        "usage": {
+          "input_tokens": 113,
+          "output_tokens": 199
+        }
       },
       {
         "attempt": 14,
         "problem": "Estimate ocean heat flux under ice.",
+        "problem_hash": "8b82941f96de9813",
         "outcome": "SUCCESS",
         "stage": "full",
-        "reason": ""
+        "failure_class": "SUCCESS",
+        "reason": "",
+        "usage": {
+          "input_tokens": 113,
+          "output_tokens": 162
+        }
       }
     ],
     "transport_retries": 0,
     "usage": {
       "input_tokens": 1568,
-      "output_tokens": 2727
-    }
+      "output_tokens": 2575
+    },
+    "cost_cny": 0.011868,
+    "pricing_currency": "CNY"
   },
   "qualification": {
     "qualified": true,

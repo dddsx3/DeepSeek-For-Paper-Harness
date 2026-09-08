@@ -1,0 +1,1105 @@
+{
+  "model": "z-ai/glm-5.3-flash",
+  "arms": {
+    "c-thickness-survey:T3": {
+      "case": "c-thickness-survey",
+      "kind": "closed",
+      "arm": "T3",
+      "success": false,
+      "outcome": "t3_schema_violation",
+      "failure_class": "DRIFT",
+      "stage": "template-fill",
+      "reason": "fill-in is not JSON: SyntaxError: \"[object Object]\" is not valid JSON",
+      "usage": {
+        "completion_tokens": 143,
+        "prompt_tokens": 132,
+        "prompt_tokens_details": {
+          "cached_tokens": 64
+        },
+        "reasoning_tokens": 112,
+        "total_tokens": 275
+      },
+      "required": {
+        "json_path": "mean_thickness",
+        "unit": "m"
+      }
+    },
+    "c-thickness-survey:T3.5": {
+      "case": "c-thickness-survey",
+      "kind": "closed",
+      "arm": "T3.5",
+      "success": true,
+      "outcome": "SUCCESS",
+      "failure_class": "SUCCESS",
+      "stage": "full",
+      "reason": "",
+      "selected": {
+        "json_path": "mean_thickness",
+        "unit": "m"
+      },
+      "escapes": 0,
+      "required": {
+        "json_path": "mean_thickness",
+        "unit": "m"
+      }
+    },
+    "c-thickness-winter:T3": {
+      "case": "c-thickness-winter",
+      "kind": "closed",
+      "arm": "T3",
+      "success": false,
+      "outcome": "t3_schema_violation",
+      "failure_class": "DRIFT",
+      "stage": "template-fill",
+      "reason": "fill-in is not JSON: SyntaxError: \"[object Object]\" is not valid JSON",
+      "usage": {
+        "prompt_tokens": 132,
+        "completion_tokens": 83,
+        "total_tokens": 215,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 51
+        }
+      },
+      "required": {
+        "json_path": "mean_thickness",
+        "unit": "m"
+      }
+    },
+    "c-thickness-winter:T3.5": {
+      "case": "c-thickness-winter",
+      "kind": "closed",
+      "arm": "T3.5",
+      "success": true,
+      "outcome": "SUCCESS",
+      "failure_class": "SUCCESS",
+      "stage": "full",
+      "reason": "",
+      "selected": {
+        "json_path": "mean_thickness",
+        "unit": "m"
+      },
+      "escapes": 0,
+      "required": {
+        "json_path": "mean_thickness",
+        "unit": "m"
+      }
+    },
+    "c-thickness-north:T3": {
+      "case": "c-thickness-north",
+      "kind": "closed",
+      "arm": "T3",
+      "success": false,
+      "outcome": "t3_schema_violation",
+      "failure_class": "DRIFT",
+      "stage": "template-fill",
+      "reason": "fill-in is not JSON: SyntaxError: \"[object Object]\" is not valid JSON",
+      "usage": {
+        "completion_tokens": 107,
+        "prompt_tokens": 132,
+        "prompt_tokens_details": {
+          "cached_tokens": 64
+        },
+        "reasoning_tokens": 76,
+        "total_tokens": 239
+      },
+      "required": {
+        "json_path": "mean_thickness",
+        "unit": "m"
+      }
+    },
+    "c-thickness-north:T3.5": {
+      "case": "c-thickness-north",
+      "kind": "closed",
+      "arm": "T3.5",
+      "success": true,
+      "outcome": "SUCCESS",
+      "failure_class": "SUCCESS",
+      "stage": "full",
+      "reason": "",
+      "selected": {
+        "json_path": "mean_thickness",
+        "unit": "m"
+      },
+      "escapes": 0,
+      "required": {
+        "json_path": "mean_thickness",
+        "unit": "m"
+      }
+    },
+    "c-thickness-sonar:T3": {
+      "case": "c-thickness-sonar",
+      "kind": "closed",
+      "arm": "T3",
+      "success": false,
+      "outcome": "t3_schema_violation",
+      "failure_class": "DRIFT",
+      "stage": "template-fill",
+      "reason": "fill-in is not JSON: SyntaxError: \"[object Object]\" is not valid JSON",
+      "usage": {
+        "completion_tokens": 102,
+        "prompt_tokens": 133,
+        "prompt_tokens_details": {
+          "cached_tokens": 64
+        },
+        "reasoning_tokens": 71,
+        "total_tokens": 235
+      },
+      "required": {
+        "json_path": "mean_thickness",
+        "unit": "m"
+      }
+    },
+    "c-thickness-sonar:T3.5": {
+      "case": "c-thickness-sonar",
+      "kind": "closed",
+      "arm": "T3.5",
+      "success": true,
+      "outcome": "SUCCESS",
+      "failure_class": "SUCCESS",
+      "stage": "full",
+      "reason": "",
+      "selected": {
+        "json_path": "mean_thickness",
+        "unit": "m"
+      },
+      "escapes": 0,
+      "required": {
+        "json_path": "mean_thickness",
+        "unit": "m"
+      }
+    },
+    "c-thickness-february:T3": {
+      "case": "c-thickness-february",
+      "kind": "closed",
+      "arm": "T3",
+      "success": false,
+      "outcome": "t3_schema_violation",
+      "failure_class": "DRIFT",
+      "stage": "template-fill",
+      "reason": "fill-in is not JSON: SyntaxError: \"[object Object]\" is not valid JSON",
+      "usage": {
+        "completion_tokens": 87,
+        "completion_tokens_details": {
+          "reasoning_tokens": 55
+        },
+        "prompt_tokens": 130,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "total_tokens": 217
+      },
+      "required": {
+        "json_path": "mean_thickness",
+        "unit": "m"
+      }
+    },
+    "c-thickness-february:T3.5": {
+      "case": "c-thickness-february",
+      "kind": "closed",
+      "arm": "T3.5",
+      "success": true,
+      "outcome": "SUCCESS",
+      "failure_class": "SUCCESS",
+      "stage": "full",
+      "reason": "",
+      "selected": {
+        "json_path": "mean_thickness",
+        "unit": "m"
+      },
+      "escapes": 0,
+      "required": {
+        "json_path": "mean_thickness",
+        "unit": "m"
+      }
+    },
+    "c-thickness-basin:T3": {
+      "case": "c-thickness-basin",
+      "kind": "closed",
+      "arm": "T3",
+      "success": false,
+      "outcome": "t3_schema_violation",
+      "failure_class": "DRIFT",
+      "stage": "template-fill",
+      "reason": "fill-in is not JSON: SyntaxError: \"[object Object]\" is not valid JSON",
+      "usage": {
+        "completion_tokens": 160,
+        "completion_tokens_details": {
+          "reasoning_tokens": 128
+        },
+        "prompt_tokens": 131,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "total_tokens": 291
+      },
+      "required": {
+        "json_path": "mean_thickness",
+        "unit": "m"
+      }
+    },
+    "c-thickness-basin:T3.5": {
+      "case": "c-thickness-basin",
+      "kind": "closed",
+      "arm": "T3.5",
+      "success": true,
+      "outcome": "SUCCESS",
+      "failure_class": "SUCCESS",
+      "stage": "full",
+      "reason": "",
+      "selected": {
+        "json_path": "mean_thickness",
+        "unit": "m"
+      },
+      "escapes": 0,
+      "required": {
+        "json_path": "mean_thickness",
+        "unit": "m"
+      }
+    },
+    "c-thickness-shelf:T3": {
+      "case": "c-thickness-shelf",
+      "kind": "closed",
+      "arm": "T3",
+      "success": false,
+      "outcome": "t3_schema_violation",
+      "failure_class": "DRIFT",
+      "stage": "template-fill",
+      "reason": "fill-in is not JSON: SyntaxError: \"[object Object]\" is not valid JSON",
+      "usage": {
+        "completion_tokens": 137,
+        "completion_tokens_details": {
+          "reasoning_tokens": 105
+        },
+        "prompt_tokens": 132,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "total_tokens": 269
+      },
+      "required": {
+        "json_path": "mean_thickness",
+        "unit": "m"
+      }
+    },
+    "c-thickness-shelf:T3.5": {
+      "case": "c-thickness-shelf",
+      "kind": "closed",
+      "arm": "T3.5",
+      "success": true,
+      "outcome": "SUCCESS",
+      "failure_class": "SUCCESS",
+      "stage": "full",
+      "reason": "",
+      "selected": {
+        "json_path": "mean_thickness",
+        "unit": "m"
+      },
+      "escapes": 0,
+      "required": {
+        "json_path": "mean_thickness",
+        "unit": "m"
+      }
+    },
+    "c-thickness-annual:T3": {
+      "case": "c-thickness-annual",
+      "kind": "closed",
+      "arm": "T3",
+      "success": false,
+      "outcome": "t3_schema_violation",
+      "failure_class": "DRIFT",
+      "stage": "template-fill",
+      "reason": "fill-in is not JSON: SyntaxError: \"[object Object]\" is not valid JSON",
+      "usage": {
+        "completion_tokens": 120,
+        "completion_tokens_details": {
+          "reasoning_tokens": 88
+        },
+        "prompt_tokens": 132,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "total_tokens": 252
+      },
+      "required": {
+        "json_path": "mean_thickness",
+        "unit": "m"
+      }
+    },
+    "c-thickness-annual:T3.5": {
+      "case": "c-thickness-annual",
+      "kind": "closed",
+      "arm": "T3.5",
+      "success": true,
+      "outcome": "SUCCESS",
+      "failure_class": "SUCCESS",
+      "stage": "full",
+      "reason": "",
+      "selected": {
+        "json_path": "mean_thickness",
+        "unit": "m"
+      },
+      "escapes": 0,
+      "required": {
+        "json_path": "mean_thickness",
+        "unit": "m"
+      }
+    },
+    "c-thickness-drift:T3": {
+      "case": "c-thickness-drift",
+      "kind": "closed",
+      "arm": "T3",
+      "success": false,
+      "outcome": "t3_schema_violation",
+      "failure_class": "DRIFT",
+      "stage": "template-fill",
+      "reason": "fill-in is not JSON: SyntaxError: \"[object Object]\" is not valid JSON",
+      "usage": {
+        "completion_tokens": 169,
+        "prompt_tokens": 133,
+        "prompt_tokens_details": {
+          "cached_tokens": 64
+        },
+        "reasoning_tokens": 138,
+        "total_tokens": 302
+      },
+      "required": {
+        "json_path": "mean_thickness",
+        "unit": "m"
+      }
+    },
+    "c-thickness-drift:T3.5": {
+      "case": "c-thickness-drift",
+      "kind": "closed",
+      "arm": "T3.5",
+      "success": true,
+      "outcome": "SUCCESS",
+      "failure_class": "SUCCESS",
+      "stage": "full",
+      "reason": "",
+      "selected": {
+        "json_path": "mean_thickness",
+        "unit": "m"
+      },
+      "escapes": 0,
+      "required": {
+        "json_path": "mean_thickness",
+        "unit": "m"
+      }
+    },
+    "c-thickness-fastice:T3": {
+      "case": "c-thickness-fastice",
+      "kind": "closed",
+      "arm": "T3",
+      "success": false,
+      "outcome": "t3_schema_violation",
+      "failure_class": "DRIFT",
+      "stage": "template-fill",
+      "reason": "fill-in is not JSON: SyntaxError: \"[object Object]\" is not valid JSON",
+      "usage": {
+        "completion_tokens": 83,
+        "prompt_tokens": 134,
+        "prompt_tokens_details": {
+          "cached_tokens": 64
+        },
+        "reasoning_tokens": 52,
+        "total_tokens": 217
+      },
+      "required": {
+        "json_path": "mean_thickness",
+        "unit": "m"
+      }
+    },
+    "c-thickness-fastice:T3.5": {
+      "case": "c-thickness-fastice",
+      "kind": "closed",
+      "arm": "T3.5",
+      "success": true,
+      "outcome": "SUCCESS",
+      "failure_class": "SUCCESS",
+      "stage": "full",
+      "reason": "",
+      "selected": {
+        "json_path": "mean_thickness",
+        "unit": "m"
+      },
+      "escapes": 0,
+      "required": {
+        "json_path": "mean_thickness",
+        "unit": "m"
+      }
+    },
+    "c-thickness-marginal:T3": {
+      "case": "c-thickness-marginal",
+      "kind": "closed",
+      "arm": "T3",
+      "success": false,
+      "outcome": "t3_schema_violation",
+      "failure_class": "DRIFT",
+      "stage": "template-fill",
+      "reason": "fill-in is not JSON: SyntaxError: \"[object Object]\" is not valid JSON",
+      "usage": {
+        "completion_tokens": 105,
+        "prompt_tokens": 132,
+        "prompt_tokens_details": {
+          "cached_tokens": 64
+        },
+        "reasoning_tokens": 74,
+        "total_tokens": 237
+      },
+      "required": {
+        "json_path": "mean_thickness",
+        "unit": "m"
+      }
+    },
+    "c-thickness-marginal:T3.5": {
+      "case": "c-thickness-marginal",
+      "kind": "closed",
+      "arm": "T3.5",
+      "success": true,
+      "outcome": "SUCCESS",
+      "failure_class": "SUCCESS",
+      "stage": "full",
+      "reason": "",
+      "selected": {
+        "json_path": "mean_thickness",
+        "unit": "m"
+      },
+      "escapes": 0,
+      "required": {
+        "json_path": "mean_thickness",
+        "unit": "m"
+      }
+    },
+    "c-thickness-deformed:T3": {
+      "case": "c-thickness-deformed",
+      "kind": "closed",
+      "arm": "T3",
+      "success": false,
+      "outcome": "t3_schema_violation",
+      "failure_class": "DRIFT",
+      "stage": "template-fill",
+      "reason": "fill-in is not JSON: SyntaxError: \"[object Object]\" is not valid JSON",
+      "usage": {
+        "completion_tokens": 140,
+        "prompt_tokens": 132,
+        "prompt_tokens_details": {
+          "cached_tokens": 64
+        },
+        "reasoning_tokens": 109,
+        "total_tokens": 272
+      },
+      "required": {
+        "json_path": "mean_thickness",
+        "unit": "m"
+      }
+    },
+    "c-thickness-deformed:T3.5": {
+      "case": "c-thickness-deformed",
+      "kind": "closed",
+      "arm": "T3.5",
+      "success": true,
+      "outcome": "SUCCESS",
+      "failure_class": "SUCCESS",
+      "stage": "full",
+      "reason": "",
+      "selected": {
+        "json_path": "mean_thickness",
+        "unit": "m"
+      },
+      "escapes": 0,
+      "required": {
+        "json_path": "mean_thickness",
+        "unit": "m"
+      }
+    },
+    "x-snow-depth:T3": {
+      "case": "x-snow-depth",
+      "kind": "expansion",
+      "arm": "T3",
+      "success": false,
+      "outcome": "t3_schema_violation",
+      "failure_class": "DRIFT",
+      "stage": "template-fill",
+      "reason": "fill-in is not JSON: SyntaxError: \"[object Object]\" is not valid JSON",
+      "usage": {
+        "completion_tokens": 176,
+        "completion_tokens_details": {
+          "reasoning_tokens": 144
+        },
+        "prompt_tokens": 129,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "total_tokens": 305
+      },
+      "required": {
+        "json_path": "snow_depth",
+        "unit": "watts"
+      }
+    },
+    "x-snow-depth:T3.5": {
+      "case": "x-snow-depth",
+      "kind": "expansion",
+      "arm": "T3.5",
+      "success": false,
+      "outcome": "t35_move_forbidden",
+      "failure_class": "ESCAPE",
+      "stage": "move",
+      "reason": "not one of the three moves (SELECT / REQUEST_EXPANSION / ABSTAIN): Invalid input",
+      "escapes": 1,
+      "usage": {
+        "completion_tokens": 1688,
+        "prompt_tokens": 360,
+        "prompt_tokens_details": {
+          "cached_tokens": 320
+        },
+        "reasoning_tokens": 1663,
+        "total_tokens": 2048
+      },
+      "required": {
+        "json_path": "snow_depth",
+        "unit": "watts"
+      }
+    },
+    "x-albedo-peak:T3": {
+      "case": "x-albedo-peak",
+      "kind": "expansion",
+      "arm": "T3",
+      "success": false,
+      "outcome": "t3_schema_violation",
+      "failure_class": "DRIFT",
+      "stage": "template-fill",
+      "reason": "fill-in is not JSON: SyntaxError: \"[object Object]\" is not valid JSON",
+      "usage": {
+        "completion_tokens": 361,
+        "prompt_tokens": 131,
+        "prompt_tokens_details": {
+          "cached_tokens": 64
+        },
+        "reasoning_tokens": 330,
+        "total_tokens": 492
+      },
+      "required": {
+        "json_path": "albedo_peak",
+        "unit": "fraction"
+      }
+    },
+    "x-albedo-peak:T3.5": {
+      "case": "x-albedo-peak",
+      "kind": "expansion",
+      "arm": "T3.5",
+      "success": false,
+      "outcome": "t35_move_forbidden",
+      "failure_class": "ESCAPE",
+      "stage": "move",
+      "reason": "not one of the three moves (SELECT / REQUEST_EXPANSION / ABSTAIN): Invalid input",
+      "escapes": 1,
+      "usage": {
+        "prompt_tokens": 352,
+        "completion_tokens": 281,
+        "total_tokens": 633,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 255
+        }
+      },
+      "required": {
+        "json_path": "albedo_peak",
+        "unit": "fraction"
+      }
+    },
+    "x-ridge-frequency:T3": {
+      "case": "x-ridge-frequency",
+      "kind": "expansion",
+      "arm": "T3",
+      "success": false,
+      "outcome": "t3_schema_violation",
+      "failure_class": "DRIFT",
+      "stage": "template-fill",
+      "reason": "fill-in is not JSON: SyntaxError: \"[object Object]\" is not valid JSON",
+      "usage": {
+        "completion_tokens": 171,
+        "prompt_tokens": 130,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "reasoning_tokens": 140,
+        "total_tokens": 301
+      },
+      "required": {
+        "json_path": "ridge_frequency",
+        "unit": "celsius"
+      }
+    },
+    "x-ridge-frequency:T3.5": {
+      "case": "x-ridge-frequency",
+      "kind": "expansion",
+      "arm": "T3.5",
+      "success": false,
+      "outcome": "t35_move_forbidden",
+      "failure_class": "DRIFT",
+      "stage": "expansion",
+      "reason": "the proposed 'json_path' value 'response_payload' already exists in the pool — expansion must widen, not duplicate",
+      "escapes": 0,
+      "usage": {
+        "prompt_tokens": 84,
+        "completion_tokens": 252,
+        "total_tokens": 336,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 244
+        }
+      },
+      "required": {
+        "json_path": "ridge_frequency",
+        "unit": "celsius"
+      }
+    },
+    "x-brine-volume:T3": {
+      "case": "x-brine-volume",
+      "kind": "expansion",
+      "arm": "T3",
+      "success": false,
+      "outcome": "t3_schema_violation",
+      "failure_class": "DRIFT",
+      "stage": "template-fill",
+      "reason": "fill-in is not JSON: SyntaxError: \"[object Object]\" is not valid JSON",
+      "usage": {
+        "prompt_tokens": 132,
+        "completion_tokens": 139,
+        "total_tokens": 271,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 107
+        }
+      },
+      "required": {
+        "json_path": "brine_volume",
+        "unit": "pascal"
+      }
+    },
+    "x-brine-volume:T3.5": {
+      "case": "x-brine-volume",
+      "kind": "expansion",
+      "arm": "T3.5",
+      "success": false,
+      "outcome": "t35_move_forbidden",
+      "failure_class": "ESCAPE",
+      "stage": "move",
+      "reason": "not one of the three moves (SELECT / REQUEST_EXPANSION / ABSTAIN): Invalid input",
+      "escapes": 1,
+      "usage": {
+        "prompt_tokens": 342,
+        "completion_tokens": 528,
+        "total_tokens": 870,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 502
+        }
+      },
+      "required": {
+        "json_path": "brine_volume",
+        "unit": "pascal"
+      }
+    },
+    "x-ice-velocity:T3": {
+      "case": "x-ice-velocity",
+      "kind": "expansion",
+      "arm": "T3",
+      "success": false,
+      "outcome": "t3_schema_violation",
+      "failure_class": "DRIFT",
+      "stage": "template-fill",
+      "reason": "fill-in is not JSON: SyntaxError: \"[object Object]\" is not valid JSON",
+      "usage": {
+        "completion_tokens": 193,
+        "prompt_tokens": 129,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "reasoning_tokens": 162,
+        "total_tokens": 322
+      },
+      "required": {
+        "json_path": "ice_velocity",
+        "unit": "knots"
+      }
+    },
+    "x-ice-velocity:T3.5": {
+      "case": "x-ice-velocity",
+      "kind": "expansion",
+      "arm": "T3.5",
+      "success": false,
+      "outcome": "t35_move_forbidden",
+      "failure_class": "ESCAPE",
+      "stage": "move",
+      "reason": "not one of the three moves (SELECT / REQUEST_EXPANSION / ABSTAIN): Invalid input",
+      "escapes": 1,
+      "usage": {
+        "completion_tokens": 414,
+        "completion_tokens_details": {
+          "reasoning_tokens": 388
+        },
+        "prompt_tokens": 349,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "total_tokens": 763
+      },
+      "required": {
+        "json_path": "ice_velocity",
+        "unit": "knots"
+      }
+    },
+    "x-basal-melt:T3": {
+      "case": "x-basal-melt",
+      "kind": "expansion",
+      "arm": "T3",
+      "success": false,
+      "outcome": "t3_schema_violation",
+      "failure_class": "DRIFT",
+      "stage": "template-fill",
+      "reason": "fill-in is not JSON: SyntaxError: \"[object Object]\" is not valid JSON",
+      "usage": {
+        "prompt_tokens": 130,
+        "completion_tokens": 202,
+        "total_tokens": 332,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 170
+        }
+      },
+      "required": {
+        "json_path": "basal_melt",
+        "unit": "grams"
+      }
+    },
+    "x-basal-melt:T3.5": {
+      "case": "x-basal-melt",
+      "kind": "expansion",
+      "arm": "T3.5",
+      "success": false,
+      "outcome": "t35_budget_exhausted",
+      "failure_class": "DRIFT",
+      "stage": "move",
+      "reason": "slot 'json_path' expansion budget (2) is spent — CANDIDATE_SPACE_EXHAUSTED for this slot",
+      "escapes": 0,
+      "usage": {
+        "prompt_tokens": 360,
+        "completion_tokens": 511,
+        "total_tokens": 871,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 487
+        }
+      },
+      "required": {
+        "json_path": "basal_melt",
+        "unit": "grams"
+      }
+    },
+    "x-salinity-gradient:T3": {
+      "case": "x-salinity-gradient",
+      "kind": "expansion",
+      "arm": "T3",
+      "success": false,
+      "outcome": "t3_schema_violation",
+      "failure_class": "DRIFT",
+      "stage": "template-fill",
+      "reason": "fill-in is not JSON: SyntaxError: \"[object Object]\" is not valid JSON",
+      "usage": {
+        "completion_tokens": 342,
+        "prompt_tokens": 131,
+        "prompt_tokens_details": {
+          "cached_tokens": 64
+        },
+        "reasoning_tokens": 311,
+        "total_tokens": 473
+      },
+      "required": {
+        "json_path": "salinity_gradient",
+        "unit": "fraction"
+      }
+    },
+    "x-salinity-gradient:T3.5": {
+      "case": "x-salinity-gradient",
+      "kind": "expansion",
+      "arm": "T3.5",
+      "success": false,
+      "outcome": "t35_budget_exhausted",
+      "failure_class": "DRIFT",
+      "stage": "move",
+      "reason": "slot 'json_path' expansion budget (2) is spent — CANDIDATE_SPACE_EXHAUSTED for this slot",
+      "escapes": 0,
+      "usage": {
+        "prompt_tokens": 362,
+        "completion_tokens": 462,
+        "total_tokens": 824,
+        "prompt_tokens_details": {
+          "cached_tokens": 320
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 438
+        }
+      },
+      "required": {
+        "json_path": "salinity_gradient",
+        "unit": "fraction"
+      }
+    },
+    "x-wind-stress:T3": {
+      "case": "x-wind-stress",
+      "kind": "expansion",
+      "arm": "T3",
+      "success": false,
+      "outcome": "t3_schema_violation",
+      "failure_class": "DRIFT",
+      "stage": "template-fill",
+      "reason": "fill-in is not JSON: SyntaxError: \"[object Object]\" is not valid JSON",
+      "usage": {
+        "completion_tokens": 304,
+        "completion_tokens_details": {
+          "reasoning_tokens": 272
+        },
+        "prompt_tokens": 131,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "total_tokens": 435
+      },
+      "required": {
+        "json_path": "wind_stress",
+        "unit": "pascal"
+      }
+    },
+    "x-wind-stress:T3.5": {
+      "case": "x-wind-stress",
+      "kind": "expansion",
+      "arm": "T3.5",
+      "success": false,
+      "outcome": "t35_move_forbidden",
+      "failure_class": "ESCAPE",
+      "stage": "move",
+      "reason": "not one of the three moves (SELECT / REQUEST_EXPANSION / ABSTAIN): Invalid input",
+      "escapes": 1,
+      "usage": {
+        "completion_tokens": 669,
+        "prompt_tokens": 351,
+        "prompt_tokens_details": {
+          "cached_tokens": 256
+        },
+        "reasoning_tokens": 644,
+        "total_tokens": 1020
+      },
+      "required": {
+        "json_path": "wind_stress",
+        "unit": "pascal"
+      }
+    },
+    "x-heat-flux:T3": {
+      "case": "x-heat-flux",
+      "kind": "expansion",
+      "arm": "T3",
+      "success": false,
+      "outcome": "t3_schema_violation",
+      "failure_class": "DRIFT",
+      "stage": "template-fill",
+      "reason": "fill-in is not JSON: SyntaxError: \"[object Object]\" is not valid JSON",
+      "usage": {
+        "prompt_tokens": 129,
+        "completion_tokens": 181,
+        "total_tokens": 310,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 149
+        }
+      },
+      "required": {
+        "json_path": "heat_flux",
+        "unit": "watts"
+      }
+    },
+    "x-heat-flux:T3.5": {
+      "case": "x-heat-flux",
+      "kind": "expansion",
+      "arm": "T3.5",
+      "success": false,
+      "outcome": "t35_move_forbidden",
+      "failure_class": "ESCAPE",
+      "stage": "move",
+      "reason": "not one of the three moves (SELECT / REQUEST_EXPANSION / ABSTAIN): Invalid input",
+      "escapes": 1,
+      "usage": {
+        "completion_tokens": 302,
+        "prompt_tokens": 339,
+        "prompt_tokens_details": {
+          "cached_tokens": 256
+        },
+        "reasoning_tokens": 277,
+        "total_tokens": 641
+      },
+      "required": {
+        "json_path": "heat_flux",
+        "unit": "watts"
+      }
+    },
+    "x-superimposed-ice:T3": {
+      "case": "x-superimposed-ice",
+      "kind": "expansion",
+      "arm": "T3",
+      "success": false,
+      "outcome": "t3_schema_violation",
+      "failure_class": "DRIFT",
+      "stage": "template-fill",
+      "reason": "fill-in is not JSON: SyntaxError: \"[object Object]\" is not valid JSON",
+      "usage": {
+        "completion_tokens": 155,
+        "prompt_tokens": 135,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "reasoning_tokens": 124,
+        "total_tokens": 290
+      },
+      "required": {
+        "json_path": "superimposed_ice",
+        "unit": "celsius"
+      }
+    },
+    "x-superimposed-ice:T3.5": {
+      "case": "x-superimposed-ice",
+      "kind": "expansion",
+      "arm": "T3.5",
+      "success": false,
+      "outcome": "t35_move_forbidden",
+      "failure_class": "ESCAPE",
+      "stage": "move",
+      "reason": "not one of the three moves (SELECT / REQUEST_EXPANSION / ABSTAIN): Invalid input",
+      "escapes": 1,
+      "usage": {
+        "completion_tokens": 546,
+        "prompt_tokens": 355,
+        "prompt_tokens_details": {
+          "cached_tokens": 256
+        },
+        "reasoning_tokens": 521,
+        "total_tokens": 901
+      },
+      "required": {
+        "json_path": "superimposed_ice",
+        "unit": "celsius"
+      }
+    },
+    "x-freeboard-height:T3": {
+      "case": "x-freeboard-height",
+      "kind": "expansion",
+      "arm": "T3",
+      "success": false,
+      "outcome": "t3_schema_violation",
+      "failure_class": "DRIFT",
+      "stage": "template-fill",
+      "reason": "fill-in is not JSON: SyntaxError: \"[object Object]\" is not valid JSON",
+      "usage": {
+        "completion_tokens": 148,
+        "prompt_tokens": 131,
+        "prompt_tokens_details": {
+          "cached_tokens": 64
+        },
+        "reasoning_tokens": 117,
+        "total_tokens": 279
+      },
+      "required": {
+        "json_path": "freeboard_height",
+        "unit": "grams"
+      }
+    },
+    "x-freeboard-height:T3.5": {
+      "case": "x-freeboard-height",
+      "kind": "expansion",
+      "arm": "T3.5",
+      "success": false,
+      "outcome": "t35_budget_exhausted",
+      "failure_class": "DRIFT",
+      "stage": "move",
+      "reason": "slot 'json_path' expansion budget (2) is spent — CANDIDATE_SPACE_EXHAUSTED for this slot",
+      "escapes": 0,
+      "usage": {
+        "completion_tokens": 733,
+        "prompt_tokens": 362,
+        "prompt_tokens_details": {
+          "cached_tokens": 320
+        },
+        "reasoning_tokens": 710,
+        "total_tokens": 1095
+      },
+      "required": {
+        "json_path": "freeboard_height",
+        "unit": "grams"
+      }
+    },
+    "x-drift-speed:T3": {
+      "case": "x-drift-speed",
+      "kind": "expansion",
+      "arm": "T3",
+      "success": false,
+      "outcome": "t3_schema_violation",
+      "failure_class": "DRIFT",
+      "stage": "template-fill",
+      "reason": "fill-in is not JSON: SyntaxError: \"[object Object]\" is not valid JSON",
+      "usage": {
+        "completion_tokens": 296,
+        "prompt_tokens": 129,
+        "prompt_tokens_details": {
+          "cached_tokens": 64
+        },
+        "reasoning_tokens": 265,
+        "total_tokens": 425
+      },
+      "required": {
+        "json_path": "drift_speed",
+        "unit": "knots"
+      }
+    },
+    "x-drift-speed:T3.5": {
+      "case": "x-drift-speed",
+      "kind": "expansion",
+      "arm": "T3.5",
+      "success": false,
+      "outcome": "t35_budget_exhausted",
+      "failure_class": "DRIFT",
+      "stage": "move",
+      "reason": "slot 'json_path' expansion budget (2) is spent — CANDIDATE_SPACE_EXHAUSTED for this slot",
+      "escapes": 0,
+      "usage": {
+        "completion_tokens": 389,
+        "prompt_tokens": 360,
+        "prompt_tokens_details": {
+          "cached_tokens": 320
+        },
+        "reasoning_tokens": 366,
+        "total_tokens": 749
+      },
+      "required": {
+        "json_path": "drift_speed",
+        "unit": "knots"
+      }
+    }
+  }
+}

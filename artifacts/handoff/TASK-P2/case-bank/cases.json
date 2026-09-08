@@ -1,0 +1,222 @@
+{
+  "bank_version": 1,
+  "preregistered_readme": "README.md",
+  "cases": [
+    {
+      "id": "c-thickness-survey",
+      "kind": "closed",
+      "problem": "Estimate the mean sea-ice thickness along the survey line. The estimate must be recorded as json_path mean_thickness with unit m.",
+      "required": {
+        "json_path": "mean_thickness",
+        "unit": "m"
+      }
+    },
+    {
+      "id": "c-thickness-winter",
+      "kind": "closed",
+      "problem": "Estimate the mean sea-ice thickness over the winter season. The estimate must be recorded as json_path mean_thickness with unit m.",
+      "required": {
+        "json_path": "mean_thickness",
+        "unit": "m"
+      }
+    },
+    {
+      "id": "c-thickness-north",
+      "kind": "closed",
+      "problem": "Estimate the mean sea-ice thickness north of the station. The estimate must be recorded as json_path mean_thickness with unit m.",
+      "required": {
+        "json_path": "mean_thickness",
+        "unit": "m"
+      }
+    },
+    {
+      "id": "c-thickness-sonar",
+      "kind": "closed",
+      "problem": "Estimate the mean sea-ice thickness from the sonar survey. The estimate must be recorded as json_path mean_thickness with unit m.",
+      "required": {
+        "json_path": "mean_thickness",
+        "unit": "m"
+      }
+    },
+    {
+      "id": "c-thickness-february",
+      "kind": "closed",
+      "problem": "Estimate the mean sea-ice thickness in February. The estimate must be recorded as json_path mean_thickness with unit m.",
+      "required": {
+        "json_path": "mean_thickness",
+        "unit": "m"
+      }
+    },
+    {
+      "id": "c-thickness-basin",
+      "kind": "closed",
+      "problem": "Estimate the mean sea-ice thickness across the basin. The estimate must be recorded as json_path mean_thickness with unit m.",
+      "required": {
+        "json_path": "mean_thickness",
+        "unit": "m"
+      }
+    },
+    {
+      "id": "c-thickness-shelf",
+      "kind": "closed",
+      "problem": "Estimate the mean sea-ice thickness of the ice shelf. The estimate must be recorded as json_path mean_thickness with unit m.",
+      "required": {
+        "json_path": "mean_thickness",
+        "unit": "m"
+      }
+    },
+    {
+      "id": "c-thickness-annual",
+      "kind": "closed",
+      "problem": "Estimate the annual mean sea-ice thickness at the site. The estimate must be recorded as json_path mean_thickness with unit m.",
+      "required": {
+        "json_path": "mean_thickness",
+        "unit": "m"
+      }
+    },
+    {
+      "id": "c-thickness-drift",
+      "kind": "closed",
+      "problem": "Estimate the mean sea-ice thickness of the drifting floe. The estimate must be recorded as json_path mean_thickness with unit m.",
+      "required": {
+        "json_path": "mean_thickness",
+        "unit": "m"
+      }
+    },
+    {
+      "id": "c-thickness-fastice",
+      "kind": "closed",
+      "problem": "Estimate the mean sea-ice thickness of the fast-ice zone. The estimate must be recorded as json_path mean_thickness with unit m.",
+      "required": {
+        "json_path": "mean_thickness",
+        "unit": "m"
+      }
+    },
+    {
+      "id": "c-thickness-marginal",
+      "kind": "closed",
+      "problem": "Estimate the mean sea-ice thickness at the marginal zone. The estimate must be recorded as json_path mean_thickness with unit m.",
+      "required": {
+        "json_path": "mean_thickness",
+        "unit": "m"
+      }
+    },
+    {
+      "id": "c-thickness-deformed",
+      "kind": "closed",
+      "problem": "Estimate the mean sea-ice thickness including deformed ice. The estimate must be recorded as json_path mean_thickness with unit m.",
+      "required": {
+        "json_path": "mean_thickness",
+        "unit": "m"
+      }
+    },
+    {
+      "id": "x-snow-depth",
+      "kind": "expansion",
+      "problem": "Estimate the snow depth for the study site. The estimate must be recorded as json_path snow_depth with unit watts.",
+      "required": {
+        "json_path": "snow_depth",
+        "unit": "watts"
+      }
+    },
+    {
+      "id": "x-albedo-peak",
+      "kind": "expansion",
+      "problem": "Estimate the albedo peak for the study site. The estimate must be recorded as json_path albedo_peak with unit fraction.",
+      "required": {
+        "json_path": "albedo_peak",
+        "unit": "fraction"
+      }
+    },
+    {
+      "id": "x-ridge-frequency",
+      "kind": "expansion",
+      "problem": "Estimate the ridge frequency for the study site. The estimate must be recorded as json_path ridge_frequency with unit celsius.",
+      "required": {
+        "json_path": "ridge_frequency",
+        "unit": "celsius"
+      }
+    },
+    {
+      "id": "x-brine-volume",
+      "kind": "expansion",
+      "problem": "Estimate the brine volume for the study site. The estimate must be recorded as json_path brine_volume with unit pascal.",
+      "required": {
+        "json_path": "brine_volume",
+        "unit": "pascal"
+      }
+    },
+    {
+      "id": "x-ice-velocity",
+      "kind": "expansion",
+      "problem": "Estimate the ice velocity for the study site. The estimate must be recorded as json_path ice_velocity with unit knots.",
+      "required": {
+        "json_path": "ice_velocity",
+        "unit": "knots"
+      }
+    },
+    {
+      "id": "x-basal-melt",
+      "kind": "expansion",
+      "problem": "Estimate the basal melt for the study site. The estimate must be recorded as json_path basal_melt with unit grams.",
+      "required": {
+        "json_path": "basal_melt",
+        "unit": "grams"
+      }
+    },
+    {
+      "id": "x-salinity-gradient",
+      "kind": "expansion",
+      "problem": "Estimate the salinity gradient for the study site. The estimate must be recorded as json_path salinity_gradient with unit fraction.",
+      "required": {
+        "json_path": "salinity_gradient",
+        "unit": "fraction"
+      }
+    },
+    {
+      "id": "x-wind-stress",
+      "kind": "expansion",
+      "problem": "Estimate the wind stress for the study site. The estimate must be recorded as json_path wind_stress with unit pascal.",
+      "required": {
+        "json_path": "wind_stress",
+        "unit": "pascal"
+      }
+    },
+    {
+      "id": "x-heat-flux",
+      "kind": "expansion",
+      "problem": "Estimate the heat flux for the study site. The estimate must be recorded as json_path heat_flux with unit watts.",
+      "required": {
+        "json_path": "heat_flux",
+        "unit": "watts"
+      }
+    },
+    {
+      "id": "x-superimposed-ice",
+      "kind": "expansion",
+      "problem": "Estimate the superimposed ice for the study site. The estimate must be recorded as json_path superimposed_ice with unit celsius.",
+      "required": {
+        "json_path": "superimposed_ice",
+        "unit": "celsius"
+      }
+    },
+    {
+      "id": "x-freeboard-height",
+      "kind": "expansion",
+      "problem": "Estimate the freeboard height for the study site. The estimate must be recorded as json_path freeboard_height with unit grams.",
+      "required": {
+        "json_path": "freeboard_height",
+        "unit": "grams"
+      }
+    },
+    {
+      "id": "x-drift-speed",
+      "kind": "expansion",
+      "problem": "Estimate the drift speed for the study site. The estimate must be recorded as json_path drift_speed with unit knots.",
+      "required": {
+        "json_path": "drift_speed",
+        "unit": "knots"
+      }
+    }
+  ]
+}

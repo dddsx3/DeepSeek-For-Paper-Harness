@@ -1,0 +1,957 @@
+{
+  "model": "z-ai/glm-5.3-flash",
+  "arms": {
+    "c-thickness-survey:T3": {
+      "case": "c-thickness-survey",
+      "kind": "closed",
+      "arm": "T3",
+      "success": true,
+      "outcome": "SUCCESS",
+      "failure_class": "SUCCESS",
+      "stage": "full",
+      "usage": {
+        "input_tokens": 132,
+        "output_tokens": 83
+      },
+      "required": {
+        "json_path": "mean_thickness",
+        "unit": "m"
+      }
+    },
+    "c-thickness-winter:T3": {
+      "case": "c-thickness-winter",
+      "kind": "closed",
+      "arm": "T3",
+      "success": true,
+      "outcome": "SUCCESS",
+      "failure_class": "SUCCESS",
+      "stage": "full",
+      "usage": {
+        "input_tokens": 132,
+        "output_tokens": 119
+      },
+      "required": {
+        "json_path": "mean_thickness",
+        "unit": "m"
+      }
+    },
+    "c-thickness-north:T3": {
+      "case": "c-thickness-north",
+      "kind": "closed",
+      "arm": "T3",
+      "success": true,
+      "outcome": "SUCCESS",
+      "failure_class": "SUCCESS",
+      "stage": "full",
+      "usage": {
+        "input_tokens": 132,
+        "output_tokens": 127
+      },
+      "required": {
+        "json_path": "mean_thickness",
+        "unit": "m"
+      }
+    },
+    "c-thickness-sonar:T3": {
+      "case": "c-thickness-sonar",
+      "kind": "closed",
+      "arm": "T3",
+      "success": true,
+      "outcome": "SUCCESS",
+      "failure_class": "SUCCESS",
+      "stage": "full",
+      "usage": {
+        "input_tokens": 133,
+        "output_tokens": 147
+      },
+      "required": {
+        "json_path": "mean_thickness",
+        "unit": "m"
+      }
+    },
+    "c-thickness-february:T3": {
+      "case": "c-thickness-february",
+      "kind": "closed",
+      "arm": "T3",
+      "success": true,
+      "outcome": "SUCCESS",
+      "failure_class": "SUCCESS",
+      "stage": "full",
+      "usage": {
+        "input_tokens": 130,
+        "output_tokens": 123
+      },
+      "required": {
+        "json_path": "mean_thickness",
+        "unit": "m"
+      }
+    },
+    "c-thickness-basin:T3": {
+      "case": "c-thickness-basin",
+      "kind": "closed",
+      "arm": "T3",
+      "success": true,
+      "outcome": "SUCCESS",
+      "failure_class": "SUCCESS",
+      "stage": "full",
+      "usage": {
+        "input_tokens": 131,
+        "output_tokens": 79
+      },
+      "required": {
+        "json_path": "mean_thickness",
+        "unit": "m"
+      }
+    },
+    "c-thickness-shelf:T3": {
+      "case": "c-thickness-shelf",
+      "kind": "closed",
+      "arm": "T3",
+      "success": true,
+      "outcome": "SUCCESS",
+      "failure_class": "SUCCESS",
+      "stage": "full",
+      "usage": {
+        "input_tokens": 132,
+        "output_tokens": 125
+      },
+      "required": {
+        "json_path": "mean_thickness",
+        "unit": "m"
+      }
+    },
+    "c-thickness-annual:T3": {
+      "case": "c-thickness-annual",
+      "kind": "closed",
+      "arm": "T3",
+      "success": true,
+      "outcome": "SUCCESS",
+      "failure_class": "SUCCESS",
+      "stage": "full",
+      "usage": {
+        "input_tokens": 132,
+        "output_tokens": 107
+      },
+      "required": {
+        "json_path": "mean_thickness",
+        "unit": "m"
+      }
+    },
+    "c-thickness-drift:T3": {
+      "case": "c-thickness-drift",
+      "kind": "closed",
+      "arm": "T3",
+      "success": true,
+      "outcome": "SUCCESS",
+      "failure_class": "SUCCESS",
+      "stage": "full",
+      "usage": {
+        "input_tokens": 133,
+        "output_tokens": 107
+      },
+      "required": {
+        "json_path": "mean_thickness",
+        "unit": "m"
+      }
+    },
+    "c-thickness-fastice:T3": {
+      "case": "c-thickness-fastice",
+      "kind": "closed",
+      "arm": "T3",
+      "success": true,
+      "outcome": "SUCCESS",
+      "failure_class": "SUCCESS",
+      "stage": "full",
+      "usage": {
+        "input_tokens": 134,
+        "output_tokens": 97
+      },
+      "required": {
+        "json_path": "mean_thickness",
+        "unit": "m"
+      }
+    },
+    "c-thickness-marginal:T3": {
+      "case": "c-thickness-marginal",
+      "kind": "closed",
+      "arm": "T3",
+      "success": true,
+      "outcome": "SUCCESS",
+      "failure_class": "SUCCESS",
+      "stage": "full",
+      "usage": {
+        "input_tokens": 132,
+        "output_tokens": 122
+      },
+      "required": {
+        "json_path": "mean_thickness",
+        "unit": "m"
+      }
+    },
+    "c-thickness-deformed:T3": {
+      "case": "c-thickness-deformed",
+      "kind": "closed",
+      "arm": "T3",
+      "success": true,
+      "outcome": "SUCCESS",
+      "failure_class": "SUCCESS",
+      "stage": "full",
+      "usage": {
+        "input_tokens": 132,
+        "output_tokens": 115
+      },
+      "required": {
+        "json_path": "mean_thickness",
+        "unit": "m"
+      }
+    },
+    "x-snow-depth:T3": {
+      "case": "x-snow-depth",
+      "kind": "expansion",
+      "arm": "T3",
+      "success": false,
+      "outcome": "semantic_mismatch",
+      "failure_class": "DRIFT",
+      "stage": "adjudication",
+      "reason": "fill (mean_thickness/m) does not match the required (snow_depth/watts)",
+      "usage": {
+        "input_tokens": 129,
+        "output_tokens": 188
+      },
+      "required": {
+        "json_path": "snow_depth",
+        "unit": "watts"
+      }
+    },
+    "x-albedo-peak:T3": {
+      "case": "x-albedo-peak",
+      "kind": "expansion",
+      "arm": "T3",
+      "success": false,
+      "outcome": "semantic_mismatch",
+      "failure_class": "DRIFT",
+      "stage": "adjudication",
+      "reason": "fill (mean_thickness/m) does not match the required (albedo_peak/fraction)",
+      "usage": {
+        "input_tokens": 131,
+        "output_tokens": 201
+      },
+      "required": {
+        "json_path": "albedo_peak",
+        "unit": "fraction"
+      }
+    },
+    "x-ridge-frequency:T3": {
+      "case": "x-ridge-frequency",
+      "kind": "expansion",
+      "arm": "T3",
+      "success": false,
+      "outcome": "semantic_mismatch",
+      "failure_class": "DRIFT",
+      "stage": "adjudication",
+      "reason": "fill (mean_thickness/m) does not match the required (ridge_frequency/celsius)",
+      "usage": {
+        "input_tokens": 130,
+        "output_tokens": 144
+      },
+      "required": {
+        "json_path": "ridge_frequency",
+        "unit": "celsius"
+      }
+    },
+    "x-brine-volume:T3": {
+      "case": "x-brine-volume",
+      "kind": "expansion",
+      "arm": "T3",
+      "success": false,
+      "outcome": "semantic_mismatch",
+      "failure_class": "DRIFT",
+      "stage": "adjudication",
+      "reason": "fill (mean_thickness/m) does not match the required (brine_volume/pascal)",
+      "usage": {
+        "input_tokens": 132,
+        "output_tokens": 279
+      },
+      "required": {
+        "json_path": "brine_volume",
+        "unit": "pascal"
+      }
+    },
+    "x-ice-velocity:T3": {
+      "case": "x-ice-velocity",
+      "kind": "expansion",
+      "arm": "T3",
+      "success": false,
+      "outcome": "semantic_mismatch",
+      "failure_class": "DRIFT",
+      "stage": "adjudication",
+      "reason": "fill (mean_thickness/m) does not match the required (ice_velocity/knots)",
+      "usage": {
+        "input_tokens": 129,
+        "output_tokens": 180
+      },
+      "required": {
+        "json_path": "ice_velocity",
+        "unit": "knots"
+      }
+    },
+    "x-basal-melt:T3": {
+      "case": "x-basal-melt",
+      "kind": "expansion",
+      "arm": "T3",
+      "success": false,
+      "outcome": "semantic_mismatch",
+      "failure_class": "DRIFT",
+      "stage": "adjudication",
+      "reason": "fill (mean_thickness/m) does not match the required (basal_melt/grams)",
+      "usage": {
+        "input_tokens": 130,
+        "output_tokens": 247
+      },
+      "required": {
+        "json_path": "basal_melt",
+        "unit": "grams"
+      }
+    },
+    "x-salinity-gradient:T3": {
+      "case": "x-salinity-gradient",
+      "kind": "expansion",
+      "arm": "T3",
+      "success": false,
+      "outcome": "semantic_mismatch",
+      "failure_class": "DRIFT",
+      "stage": "adjudication",
+      "reason": "fill (mean_thickness/m) does not match the required (salinity_gradient/fraction)",
+      "usage": {
+        "input_tokens": 131,
+        "output_tokens": 187
+      },
+      "required": {
+        "json_path": "salinity_gradient",
+        "unit": "fraction"
+      }
+    },
+    "x-wind-stress:T3": {
+      "case": "x-wind-stress",
+      "kind": "expansion",
+      "arm": "T3",
+      "success": false,
+      "outcome": "semantic_mismatch",
+      "failure_class": "DRIFT",
+      "stage": "adjudication",
+      "reason": "fill (mean_thickness/m) does not match the required (wind_stress/pascal)",
+      "usage": {
+        "input_tokens": 131,
+        "output_tokens": 220
+      },
+      "required": {
+        "json_path": "wind_stress",
+        "unit": "pascal"
+      }
+    },
+    "x-heat-flux:T3": {
+      "case": "x-heat-flux",
+      "kind": "expansion",
+      "arm": "T3",
+      "success": false,
+      "outcome": "semantic_mismatch",
+      "failure_class": "DRIFT",
+      "stage": "adjudication",
+      "reason": "fill (mean_thickness/m) does not match the required (heat_flux/watts)",
+      "usage": {
+        "input_tokens": 129,
+        "output_tokens": 171
+      },
+      "required": {
+        "json_path": "heat_flux",
+        "unit": "watts"
+      }
+    },
+    "x-superimposed-ice:T3": {
+      "case": "x-superimposed-ice",
+      "kind": "expansion",
+      "arm": "T3",
+      "success": false,
+      "outcome": "semantic_mismatch",
+      "failure_class": "DRIFT",
+      "stage": "adjudication",
+      "reason": "fill (mean_thickness/m) does not match the required (superimposed_ice/celsius)",
+      "usage": {
+        "input_tokens": 135,
+        "output_tokens": 283
+      },
+      "required": {
+        "json_path": "superimposed_ice",
+        "unit": "celsius"
+      }
+    },
+    "x-freeboard-height:T3": {
+      "case": "x-freeboard-height",
+      "kind": "expansion",
+      "arm": "T3",
+      "success": false,
+      "outcome": "semantic_mismatch",
+      "failure_class": "DRIFT",
+      "stage": "adjudication",
+      "reason": "fill (mean_thickness/m) does not match the required (freeboard_height/grams)",
+      "usage": {
+        "input_tokens": 131,
+        "output_tokens": 350
+      },
+      "required": {
+        "json_path": "freeboard_height",
+        "unit": "grams"
+      }
+    },
+    "x-drift-speed:T3": {
+      "case": "x-drift-speed",
+      "kind": "expansion",
+      "arm": "T3",
+      "success": false,
+      "outcome": "semantic_mismatch",
+      "failure_class": "DRIFT",
+      "stage": "adjudication",
+      "reason": "fill (mean_thickness/m) does not match the required (drift_speed/knots)",
+      "usage": {
+        "input_tokens": 129,
+        "output_tokens": 265
+      },
+      "required": {
+        "json_path": "drift_speed",
+        "unit": "knots"
+      }
+    },
+    "c-thickness-survey:T3.5": {
+      "case": "c-thickness-survey",
+      "kind": "closed",
+      "arm": "T3.5",
+      "success": true,
+      "outcome": "SUCCESS",
+      "failure_class": "SUCCESS",
+      "stage": "full",
+      "reason": "",
+      "selected": {
+        "json_path": "mean_thickness",
+        "unit": "m"
+      },
+      "escapes": 0,
+      "usage": {
+        "input_tokens": 679,
+        "output_tokens": 412
+      },
+      "required": {
+        "json_path": "mean_thickness",
+        "unit": "m"
+      }
+    },
+    "c-thickness-winter:T3.5": {
+      "case": "c-thickness-winter",
+      "kind": "closed",
+      "arm": "T3.5",
+      "success": true,
+      "outcome": "SUCCESS",
+      "failure_class": "SUCCESS",
+      "stage": "full",
+      "reason": "",
+      "selected": {
+        "json_path": "mean_thickness",
+        "unit": "m"
+      },
+      "escapes": 0,
+      "usage": {
+        "input_tokens": 679,
+        "output_tokens": 494
+      },
+      "required": {
+        "json_path": "mean_thickness",
+        "unit": "m"
+      }
+    },
+    "c-thickness-north:T3.5": {
+      "case": "c-thickness-north",
+      "kind": "closed",
+      "arm": "T3.5",
+      "success": true,
+      "outcome": "SUCCESS",
+      "failure_class": "SUCCESS",
+      "stage": "full",
+      "reason": "",
+      "selected": {
+        "json_path": "mean_thickness",
+        "unit": "m"
+      },
+      "escapes": 0,
+      "usage": {
+        "input_tokens": 679,
+        "output_tokens": 339
+      },
+      "required": {
+        "json_path": "mean_thickness",
+        "unit": "m"
+      }
+    },
+    "c-thickness-sonar:T3.5": {
+      "case": "c-thickness-sonar",
+      "kind": "closed",
+      "arm": "T3.5",
+      "success": true,
+      "outcome": "SUCCESS",
+      "failure_class": "SUCCESS",
+      "stage": "full",
+      "reason": "",
+      "selected": {
+        "json_path": "mean_thickness",
+        "unit": "m"
+      },
+      "escapes": 0,
+      "usage": {
+        "input_tokens": 681,
+        "output_tokens": 566
+      },
+      "required": {
+        "json_path": "mean_thickness",
+        "unit": "m"
+      }
+    },
+    "c-thickness-february:T3.5": {
+      "case": "c-thickness-february",
+      "kind": "closed",
+      "arm": "T3.5",
+      "success": true,
+      "outcome": "SUCCESS",
+      "failure_class": "SUCCESS",
+      "stage": "full",
+      "reason": "",
+      "selected": {
+        "json_path": "mean_thickness",
+        "unit": "m"
+      },
+      "escapes": 0,
+      "usage": {
+        "input_tokens": 675,
+        "output_tokens": 333
+      },
+      "required": {
+        "json_path": "mean_thickness",
+        "unit": "m"
+      }
+    },
+    "c-thickness-basin:T3.5": {
+      "case": "c-thickness-basin",
+      "kind": "closed",
+      "arm": "T3.5",
+      "success": true,
+      "outcome": "SUCCESS",
+      "failure_class": "SUCCESS",
+      "stage": "full",
+      "reason": "",
+      "selected": {
+        "json_path": "mean_thickness",
+        "unit": "m"
+      },
+      "escapes": 0,
+      "usage": {
+        "input_tokens": 677,
+        "output_tokens": 291
+      },
+      "required": {
+        "json_path": "mean_thickness",
+        "unit": "m"
+      }
+    },
+    "c-thickness-shelf:T3.5": {
+      "case": "c-thickness-shelf",
+      "kind": "closed",
+      "arm": "T3.5",
+      "success": true,
+      "outcome": "SUCCESS",
+      "failure_class": "SUCCESS",
+      "stage": "full",
+      "reason": "",
+      "selected": {
+        "json_path": "mean_thickness",
+        "unit": "m"
+      },
+      "escapes": 0,
+      "usage": {
+        "input_tokens": 679,
+        "output_tokens": 751
+      },
+      "required": {
+        "json_path": "mean_thickness",
+        "unit": "m"
+      }
+    },
+    "c-thickness-annual:T3.5": {
+      "case": "c-thickness-annual",
+      "kind": "closed",
+      "arm": "T3.5",
+      "success": true,
+      "outcome": "SUCCESS",
+      "failure_class": "SUCCESS",
+      "stage": "full",
+      "reason": "",
+      "selected": {
+        "json_path": "mean_thickness",
+        "unit": "m"
+      },
+      "escapes": 0,
+      "usage": {
+        "input_tokens": 679,
+        "output_tokens": 731
+      },
+      "required": {
+        "json_path": "mean_thickness",
+        "unit": "m"
+      }
+    },
+    "c-thickness-drift:T3.5": {
+      "case": "c-thickness-drift",
+      "kind": "closed",
+      "arm": "T3.5",
+      "success": true,
+      "outcome": "SUCCESS",
+      "failure_class": "SUCCESS",
+      "stage": "full",
+      "reason": "",
+      "selected": {
+        "json_path": "mean_thickness",
+        "unit": "m"
+      },
+      "escapes": 0,
+      "usage": {
+        "input_tokens": 681,
+        "output_tokens": 765
+      },
+      "required": {
+        "json_path": "mean_thickness",
+        "unit": "m"
+      }
+    },
+    "c-thickness-fastice:T3.5": {
+      "case": "c-thickness-fastice",
+      "kind": "closed",
+      "arm": "T3.5",
+      "success": true,
+      "outcome": "SUCCESS",
+      "failure_class": "SUCCESS",
+      "stage": "full",
+      "reason": "",
+      "selected": {
+        "json_path": "mean_thickness",
+        "unit": "m"
+      },
+      "escapes": 0,
+      "usage": {
+        "input_tokens": 683,
+        "output_tokens": 683
+      },
+      "required": {
+        "json_path": "mean_thickness",
+        "unit": "m"
+      }
+    },
+    "c-thickness-marginal:T3.5": {
+      "case": "c-thickness-marginal",
+      "kind": "closed",
+      "arm": "T3.5",
+      "success": true,
+      "outcome": "SUCCESS",
+      "failure_class": "SUCCESS",
+      "stage": "full",
+      "reason": "",
+      "selected": {
+        "json_path": "mean_thickness",
+        "unit": "m"
+      },
+      "escapes": 0,
+      "usage": {
+        "input_tokens": 679,
+        "output_tokens": 332
+      },
+      "required": {
+        "json_path": "mean_thickness",
+        "unit": "m"
+      }
+    },
+    "c-thickness-deformed:T3.5": {
+      "case": "c-thickness-deformed",
+      "kind": "closed",
+      "arm": "T3.5",
+      "success": true,
+      "outcome": "SUCCESS",
+      "failure_class": "SUCCESS",
+      "stage": "full",
+      "reason": "",
+      "selected": {
+        "json_path": "mean_thickness",
+        "unit": "m"
+      },
+      "escapes": 0,
+      "usage": {
+        "input_tokens": 679,
+        "output_tokens": 958
+      },
+      "required": {
+        "json_path": "mean_thickness",
+        "unit": "m"
+      }
+    },
+    "x-snow-depth:T3.5": {
+      "case": "x-snow-depth",
+      "kind": "expansion",
+      "arm": "T3.5",
+      "success": true,
+      "outcome": "SUCCESS",
+      "failure_class": "SUCCESS",
+      "stage": "full",
+      "reason": "",
+      "selected": {
+        "json_path": "snow_depth",
+        "unit": "watts"
+      },
+      "escapes": 0,
+      "usage": {
+        "input_tokens": 1588,
+        "output_tokens": 8862
+      },
+      "required": {
+        "json_path": "snow_depth",
+        "unit": "watts"
+      }
+    },
+    "x-albedo-peak:T3.5": {
+      "case": "x-albedo-peak",
+      "kind": "expansion",
+      "arm": "T3.5",
+      "success": false,
+      "outcome": "t35_move_forbidden",
+      "failure_class": "ESCAPE",
+      "stage": "move:unit",
+      "reason": "not one of the three moves (SELECT / REQUEST_EXPANSION / ABSTAIN): Invalid input",
+      "escapes": 1,
+      "usage": {
+        "input_tokens": 1143,
+        "output_tokens": 1412
+      },
+      "required": {
+        "json_path": "albedo_peak",
+        "unit": "fraction"
+      }
+    },
+    "x-ridge-frequency:T3.5": {
+      "case": "x-ridge-frequency",
+      "kind": "expansion",
+      "arm": "T3.5",
+      "success": false,
+      "outcome": "expansion_off_target",
+      "failure_class": "DRIFT",
+      "stage": "move:json_path",
+      "reason": "REQUEST_EXPANSION for slot 'unit' while resolving 'json_path'",
+      "escapes": 0,
+      "usage": {
+        "input_tokens": 800,
+        "output_tokens": 695
+      },
+      "required": {
+        "json_path": "ridge_frequency",
+        "unit": "celsius"
+      }
+    },
+    "x-brine-volume:T3.5": {
+      "case": "x-brine-volume",
+      "kind": "expansion",
+      "arm": "T3.5",
+      "success": true,
+      "outcome": "SUCCESS",
+      "failure_class": "SUCCESS",
+      "stage": "full",
+      "reason": "",
+      "selected": {
+        "json_path": "brine_volume",
+        "unit": "pascal"
+      },
+      "escapes": 0,
+      "usage": {
+        "input_tokens": 1609,
+        "output_tokens": 3620
+      },
+      "required": {
+        "json_path": "brine_volume",
+        "unit": "pascal"
+      }
+    },
+    "x-ice-velocity:T3.5": {
+      "case": "x-ice-velocity",
+      "kind": "expansion",
+      "arm": "T3.5",
+      "success": false,
+      "outcome": "expansion_off_target",
+      "failure_class": "DRIFT",
+      "stage": "move:unit",
+      "reason": "REQUEST_EXPANSION for slot 'json_path' while resolving 'unit'",
+      "escapes": 0,
+      "usage": {
+        "input_tokens": 1589,
+        "output_tokens": 1770
+      },
+      "required": {
+        "json_path": "ice_velocity",
+        "unit": "knots"
+      }
+    },
+    "x-basal-melt:T3.5": {
+      "case": "x-basal-melt",
+      "kind": "expansion",
+      "arm": "T3.5",
+      "success": true,
+      "outcome": "SUCCESS",
+      "failure_class": "SUCCESS",
+      "stage": "full",
+      "reason": "",
+      "selected": {
+        "json_path": "basal_melt",
+        "unit": "grams"
+      },
+      "escapes": 0,
+      "usage": {
+        "input_tokens": 1596,
+        "output_tokens": 1914
+      },
+      "required": {
+        "json_path": "basal_melt",
+        "unit": "grams"
+      }
+    },
+    "x-salinity-gradient:T3.5": {
+      "case": "x-salinity-gradient",
+      "kind": "expansion",
+      "arm": "T3.5",
+      "success": false,
+      "outcome": "expansion_off_target",
+      "failure_class": "DRIFT",
+      "stage": "move:unit",
+      "reason": "REQUEST_EXPANSION for slot 'json_path' while resolving 'unit'",
+      "escapes": 0,
+      "usage": {
+        "input_tokens": 1601,
+        "output_tokens": 1279
+      },
+      "required": {
+        "json_path": "salinity_gradient",
+        "unit": "fraction"
+      }
+    },
+    "x-wind-stress:T3.5": {
+      "case": "x-wind-stress",
+      "kind": "expansion",
+      "arm": "T3.5",
+      "success": true,
+      "outcome": "SUCCESS",
+      "failure_class": "SUCCESS",
+      "stage": "full",
+      "reason": "",
+      "selected": {
+        "json_path": "wind_stress",
+        "unit": "pascal"
+      },
+      "escapes": 0,
+      "usage": {
+        "input_tokens": 1603,
+        "output_tokens": 3012
+      },
+      "required": {
+        "json_path": "wind_stress",
+        "unit": "pascal"
+      }
+    },
+    "x-heat-flux:T3.5": {
+      "case": "x-heat-flux",
+      "kind": "expansion",
+      "arm": "T3.5",
+      "success": true,
+      "outcome": "SUCCESS",
+      "failure_class": "SUCCESS",
+      "stage": "full",
+      "reason": "",
+      "selected": {
+        "json_path": "heat_flux",
+        "unit": "watts"
+      },
+      "escapes": 0,
+      "usage": {
+        "input_tokens": 1588,
+        "output_tokens": 3836
+      },
+      "required": {
+        "json_path": "heat_flux",
+        "unit": "watts"
+      }
+    },
+    "x-superimposed-ice:T3.5": {
+      "case": "x-superimposed-ice",
+      "kind": "expansion",
+      "arm": "T3.5",
+      "success": true,
+      "outcome": "SUCCESS",
+      "failure_class": "SUCCESS",
+      "stage": "full",
+      "reason": "",
+      "selected": {
+        "json_path": "superimposed_ice",
+        "unit": "celsius"
+      },
+      "escapes": 0,
+      "usage": {
+        "input_tokens": 1631,
+        "output_tokens": 3468
+      },
+      "required": {
+        "json_path": "superimposed_ice",
+        "unit": "celsius"
+      }
+    },
+    "x-freeboard-height:T3.5": {
+      "case": "x-freeboard-height",
+      "kind": "expansion",
+      "arm": "T3.5",
+      "success": false,
+      "outcome": "expansion_off_target",
+      "failure_class": "DRIFT",
+      "stage": "move:unit",
+      "reason": "REQUEST_EXPANSION for slot 'json_path' while resolving 'unit'",
+      "escapes": 0,
+      "usage": {
+        "input_tokens": 1143,
+        "output_tokens": 3335
+      },
+      "required": {
+        "json_path": "freeboard_height",
+        "unit": "grams"
+      }
+    },
+    "x-drift-speed:T3.5": {
+      "case": "x-drift-speed",
+      "kind": "expansion",
+      "arm": "T3.5",
+      "success": true,
+      "outcome": "SUCCESS",
+      "failure_class": "SUCCESS",
+      "stage": "full",
+      "reason": "",
+      "selected": {
+        "json_path": "drift_speed",
+        "unit": "knots"
+      },
+      "escapes": 0,
+      "usage": {
+        "input_tokens": 1590,
+        "output_tokens": 3502
+      },
+      "required": {
+        "json_path": "drift_speed",
+        "unit": "knots"
+      }
+    }
+  }
+}

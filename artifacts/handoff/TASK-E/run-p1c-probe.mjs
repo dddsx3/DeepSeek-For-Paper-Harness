@@ -29,6 +29,30 @@ import { writeFile, mkdir } from 'node:fs/promises'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { mkdirSync } from 'node:fs'
+import { createHash } from 'node:crypto'
+import { readFileSync } from 'node:fs'
+
+/** P2-0: optional pricing table (per-model per-1M tokens, CNY). Absent file
+ *  or unlisted model => cost 0, never a guess. Path override: PAPER_PRICING_FILE. */
+function loadPricing() {
+  const path = process.env.PAPER_PRICING_FILE ?? join(here, '../TASK-P2/pricing.json')
+  try {
+    const doc = JSON.parse(readFileSync(path, 'utf8'))
+    const table = {}
+    for (const [model, price] of Object.entries(doc.models ?? {})) {
+      table[model] = { inputPer1M: price.inputPer1M, outputPer1M: price.outputPer1M }
+    }
+    return { table, currency: doc.currency ?? 'CNY' }
+  } catch {
+    return { table: {}, currency: 'CNY' }
+  }
+}
+/** Per-attempt cost from the pricing table (0 when unpriced). */
+function costOf(pricing, model, inputTokens, outputTokens) {
+  const price = pricing.table[model]
+  if (price === undefined) return 0
+  return (inputTokens / 1_000_000) * price.inputPer1M + (outputTokens / 1_000_000) * price.outputPer1M
+}
 import { ModelingIr } from '../../../packages/paper/paper-foundation/src/ir/store.ts'
 import { parseModelContainer, produceContainerInto } from '../../../packages/paper/paper-foundation/src/produce/ir-producer.ts'
 import { produceRunExecution } from '../../../packages/paper/paper-foundation/src/produce/execution-producer.ts'
@@ -162,6 +186,7 @@ async function main() {
     qualification: null,
   }
 
+  const pricing = loadPricing()
   if (apiKey.length === 0 || baseUrl.length === 0) {
     summary.real = { status: 'SKIPPED', reason: 'no provider key/base URL (PAPER_PROBE_API_KEY + PAPER_PROBE_BASE_URL) — no silent PASS (禁7)' }
     console.log('real section: SKIPPED (no key)')
@@ -217,10 +242,25 @@ async function main() {
       attempts.push({
         attempt: i + 1,
         problem,
+        // F8 (TASK-P2-0): the problem hash makes the per-attempt trail
+        // auditable without inlining problem text; usage is per-call.
+        problem_hash: createHash('sha256').update(problem, 'utf8').digest('hex').slice(0, 16),
         outcome: result?.failure ?? 'DRIFT',
         stage: result?.stage ?? 'transport',
+        failure_class: result?.failure ?? 'DRIFT',
         reason: (result?.reason ?? '').slice(0, 200),
+        usage: usage === undefined ? null : {
+          input_tokens: usage.prompt_tokens ?? 0,
+          output_tokens: usage.completion_tokens ?? 0,
+        },
       })
+      // F8: the raw per-attempt trail is written INCREMENTALLY — one line
+      // per attempt, flushed as it happens, so a crashed batch still leaves
+      // the lines it completed and records-lines == attempts stays checkable.
+      const last = attempts[attempts.length - 1]
+      const cost = last.usage === null ? 0 : costOf(pricing, model, last.usage.input_tokens, last.usage.output_tokens)
+      records.push({ model, endpoint: baseUrl, ...last, cost_cny: Number(cost.toFixed(6)) })
+      await writeFile(join(OUT, 'records.jsonl'), records.map(r => JSON.stringify(r)).join('\n') + '\n', 'utf8')
       console.log(`  ${String(i + 1).padStart(2)}/${TARGET} ${result?.failure === 'SUCCESS' ? 'PASS' : result?.failure ?? '?'} ${result?.stage ?? ''} ${(result?.reason ?? '').slice(0, 60)}`)
       if (i < TARGET - 1) await sleep(1_500)
     }
@@ -237,6 +277,8 @@ async function main() {
       attempts,
       transport_retries: transportRetries,
       usage: { input_tokens: tokensIn, output_tokens: tokensOut },
+      cost_cny: Number(costOf(pricing, model, tokensIn, tokensOut).toFixed(6)),
+      pricing_currency: pricing.currency,
     }
     summary.qualification = {
       qualified: verdict.qualified,
@@ -256,7 +298,12 @@ async function main() {
 
   mkdirSync(OUT, { recursive: true })
   await writeFile(join(OUT, 'summary.json'), JSON.stringify(summary, null, 2), 'utf8')
-  await writeFile(join(OUT, 'records.jsonl'), records.map(r => JSON.stringify(r)).join('\n'), 'utf8')
+  // F8: the trail was written incrementally (with trailing newline) after
+  // every attempt; this final write only covers fresh SKIPPED runs where no
+  // attempt ever wrote — never clobber a written trail with a no-newline join.
+  if (records.length > 0) {
+    await writeFile(join(OUT, 'records.jsonl'), records.map(r => JSON.stringify(r)).join('\n') + '\n', 'utf8')
+  }
   console.log('probe output ->', OUT)
   process.exitCode = fakeTrusted ? 0 : 1
 }

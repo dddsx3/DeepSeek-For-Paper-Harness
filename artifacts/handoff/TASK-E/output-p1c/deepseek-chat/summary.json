@@ -1,0 +1,15 @@
+{
+  "generated_at": "2026-09-08T05:08:18.903Z",
+  "probe": "TASK-P1C — second model family, T3 statistical qualification (expert plan P1-B/C)",
+  "endpoint": "(default deepseek)",
+  "model": "deepseek-chat",
+  "fake_self_check": {
+    "t3": 1,
+    "trusted": true
+  },
+  "real": {
+    "status": "SKIPPED",
+    "reason": "no provider key/base URL (PAPER_PROBE_API_KEY + PAPER_PROBE_BASE_URL) — no silent PASS (禁7)"
+  },
+  "qualification": null
+}

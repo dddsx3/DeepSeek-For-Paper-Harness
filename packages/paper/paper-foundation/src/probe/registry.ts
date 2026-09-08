@@ -33,7 +33,7 @@ export interface CombinationIdentity {
   /** Provider endpoint (base URL) — two endpoints are two combinations. */
   readonly endpoint: string
   /** The protocol tier this observation measures. */
-  readonly tier: 'T1' | 'T2' | 'T3'
+  readonly tier: 'T1' | 'T2' | 'T3' | 'T3.5'
 }
 
 /** One dated probe observation of a combination. */
@@ -51,6 +51,14 @@ export interface CombinationRecord extends CombinationIdentity {
   readonly successes?: number
   /** TASK-Q2: ESCAPE attempts in the pass (zero tolerance for upgrade). */
   readonly escapeCount?: number
+  /**
+   * TASK-P2-0: records measured under a superseded protocol contract
+   * (pre-IR-v1-freeze archives, point-estimate-only passes). A legacy
+   * record is loadable history, NEVER a qualification claim — `upgradeVerdict`
+   * refuses it outright; a Capability Ladder citation must re-run the
+   * current statistical gate instead.
+   */
+  readonly legacy?: 'legacy-protocol'
 }
 
 /** The single upgrade gate (禁 5). */
@@ -77,6 +85,15 @@ const FLOOR = 0.8
  */
 export function upgradeVerdict(record: CombinationRecord): UpgradeVerdict {
   if (record.attempts < 1) return { ok: false, reason: 'no first attempts measured' }
+  // TASK-P2-0: a legacy-protocol record is history, never a qualification —
+  // whatever its numbers say, the current statistical gate was not the one
+  // it ran under. Cite it only after a fresh probe.
+  if (record.legacy === 'legacy-protocol') {
+    return {
+      ok: false,
+      reason: 'legacy-protocol record (point-estimate pass under a superseded contract) — not a qualification claim; re-run the current statistical gate to cite this combination',
+    }
+  }
   if (record.retryBudgetUsed > 0) {
     return {
       ok: false,

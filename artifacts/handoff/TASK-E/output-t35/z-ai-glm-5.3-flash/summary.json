@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-09-08T04:36:34.276Z",
+  "generated_at": "2026-09-08T05:20:36.771Z",
   "probe": "TASK-P1D real probe — can a real weak model drive the T3.5 machine",
   "endpoint": "https://api.y-api.bestvirtualgoods.com/v1",
   "model": "z-ai/glm-5.3-flash",
@@ -169,7 +169,7 @@
     ],
     "usage": {
       "input_tokens": 1620,
-      "output_tokens": 967
+      "output_tokens": 1225
     },
     "verdict": "ZERO ESCAPE — the model operated the move protocol without a single violation"
   }

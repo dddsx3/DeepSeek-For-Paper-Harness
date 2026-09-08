@@ -1,0 +1,9 @@
+{
+  "$comment": "TASK-P2-0 pricing table — per-model per-1M-token prices in CNY. Cost is computed ONLY for models present here; an unpriced model costs 0 (never a guess, NOT-NOW #10). Prices are operator-supplied from the relay's published rates; update freely — this file is config, not code.",
+  "currency": "CNY",
+  "models": {
+    "z-ai/glm-5.3-flash": { "inputPer1M": 1.0, "outputPer1M": 4.0 },
+    "deepseek/deepseek-v4-pro": { "inputPer1M": 4.0, "outputPer1M": 16.0 },
+    "z-ai/glm-5.3-free": { "inputPer1M": 0.0, "outputPer1M": 0.0 }
+  }
+}

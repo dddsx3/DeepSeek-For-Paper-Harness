@@ -1,0 +1,46 @@
+{
+  "manifest_version": 1,
+  "study_id": "STUDY-A-PILOT",
+  "frozen_at": "2026-09-08T05:48:21.512Z",
+  "git_commit": "62738c4db52a956fbeb810a47e5e3236c2a86057",
+  "engine": {
+    "fingerprint_namespaces": [
+      "DEP-EDGE-v1",
+      "ASSUMPTION-v1",
+      "EQUATION-v1",
+      "MODEL-v1"
+    ],
+    "gate_baseline": {
+      "files": 99,
+      "total_tests": 1105
+    }
+  },
+  "route": {
+    "provider_class": "openai-compatible-relay",
+    "model": "z-ai/glm-5.3-flash"
+  },
+  "sampling": {
+    "temperature": 0.2,
+    "stream": false
+  },
+  "users": [
+    {
+      "user_id": "user-1",
+      "tier": "T3",
+      "problem_file": "problems\\user-1.md",
+      "problem_sha256": "ba6923816580b1dd94b28cf5b755c7c238b3d63644b4dacb6263a1a7339ddcfd"
+    }
+  ],
+  "budgets": {
+    "max_model_calls": 60,
+    "max_input_tokens": 1000000,
+    "max_output_tokens": 400000,
+    "max_cost_cny": 25
+  },
+  "shell_version": "paper-shell v0 (TASK-M1)",
+  "teaching": {
+    "t3_template_sha256": "7550b3b8b4986d4f03f7428c3f6a43a103bc992a4dbc42de34f36300600bc723",
+    "t35_teaching_sha256": "15f6fbc2aa73de3c3f014df97c4aa152a1e5d59eef00cf5636483375a8f46231"
+  },
+  "manifest_hash": "db997879ed0034189e3036efa6488217f091fa380ee40612ac5e299dd6aaf085"
+}

@@ -24,6 +24,7 @@
  */
 
 import { writeFile, mkdir } from 'node:fs/promises'
+import { createHash } from 'node:crypto'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { mkdirSync } from 'node:fs'
@@ -101,6 +102,8 @@ async function main() {
     console.log('real section: SKIPPED (no key)')
   } else {
     const rounds = []
+    const trail = []
+    const writeTrail = async () => writeFile(join(OUT, 'records.jsonl'), trail.map(r => JSON.stringify(r)).join('\n') + '\n', 'utf8')
     let escapeTotal = 0
     let tokensIn = 0
     let tokensOut = 0
@@ -143,6 +146,18 @@ async function main() {
         tokensOut += usage.completion_tokens ?? 0
       }
       rounds.push({ round, outcome, committed: session.committed, steps })
+      trail.push({
+        model,
+        endpoint: baseUrl,
+        attempt: round,
+        problem_hash: createHash('sha256').update(NOVEL, 'utf8').digest('hex').slice(0, 16),
+        outcome,
+        stage: 'moves',
+        failure_class: outcome === 'SELECTED' ? 'SUCCESS' : outcome,
+        moves: steps.length,
+        usage: usage === undefined ? null : { input_tokens: usage.prompt_tokens ?? 0, output_tokens: usage.completion_tokens ?? 0 },
+      })
+      await writeTrail()
       console.log(`  round ${round}: ${outcome}${session.committed ? ' (committed)' : ''}`)
       if (round < ROUNDS) await sleep(1_500)
     }
