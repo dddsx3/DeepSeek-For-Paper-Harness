@@ -106,16 +106,45 @@ Clopper-Pearson 精确单侧下界,零依赖纯函数:
 | 新 key 实跑 | z-ai/glm-5.3-free T3 strict DELIVERED(含一次 429 退避,并发闸工作) |
 | tsc -b(host + shell + foundation) | 0 |
 
-## 5. 未完成 / 下一批
+## 5. P1-C — 第二模型族 T3 统计资格(2026-09-08 实跑,run-p1c-probe.mjs)
 
-- **P1-C(进行中)**:z-ai/glm-5.3-free 的 T3 资格探针真实批次(≥14 次首试,
-  统计门出裁决)——cassette 与 usage 遥测已备好采集面。
+**裁决:QUALIFIED。z-ai/glm-5.3-free(中转第二模型族)T3 闭集填充 14/14 首试全过,
+LCB₉₅ = 0.807 ≥ 0.80,ESCAPE = 0,零引导预算。** 严格串行 14 次调用,零传输重试;
+真实 usage:in 1,568 / out 4,407 tokens(费用未配价,=0 不猜)。归档
+`output-p1c/summary.json` + `records.jsonl`。
+
+探针的两处实现 bug(修前 0/14 → 修后 14/14,**全部是探针自身问题,非模型判决**):
+1. **教学段丢失**:`promptFor('', problem)` 把 T3 模板教学段传成空串——模型根本
+   没看到闭集候选就被判 `t3_number_forbidden`(模型在无指令下输出的自然语言带
+   数字)。修复:传 `templateFillPrompt(defaultTemplateCandidates())`(executor
+   同款教学面)。
+2. **网络级错误不退避**:`fetch failed`(status 0)不走重试,被记成 TRANSPORT
+   失败。修复:status 0 与 429/5xx 同退避族(1.5s 起指数,最多 4 次),预算内
+   重试不计失败;耗尽才记 TRANSPORT(且明确 TRANSPORT 不算模型的失败类别)。
+
+另:fill 拒绝分类从正则猜测改为**消费 admitTemplateFill 的闭合失败码**
+(`t3_container_forbidden`/`t3_number_forbidden` = ESCAPE;`t3_schema_violation`/
+`t3_free_choice` = NONE 族)——失败分类永远是闭合枚举,不是字符串匹配。
+
+**里程碑对照(专家 §22)**:IR 契约冻结 ✓ + 无 key 普通 CI 全绿 ✓ +
+**第二模型族过 T3 统计资格门 ✓**(第一个模型族 deepseek-v4-flash 的 T3 统计门
+复测待跑——它手上只有 18/18 的旧点估计记录)。距"两个模型族"判据还差
+deepseek 侧的一次新协议重测;之后 T3.5 零 ESCAPE 收编 case,即达成学生实测
+前置里程碑。
+
+## 6. 未完成 / 下一批
+
+- **deepseek-v4-flash 的 T3 统计门复测**:它手上的 18/18 是点估计记录;统计门
+  落地后需用新协议重跑一次 14+(与 P1-C 同 runner,换路由即可)——达成专家
+  §22"两个模型族过统计门"判据的最后一块。
 - P1-D:T3.5 expand-then-select 原型(专家 §4/§5)。
-- P2-A/B/C:T3 vs T3.5 对照、study freeze、case-series(里程碑判据:≥2 模型族
-  过统计门 + ≥1 个 T3.5 零 ESCAPE 收编 case,之后才进学生实测)。
+- P2-A/B/C:T3 vs T3.5 对照、study freeze、case-series(判据:≥2 模型族过统计
+  门 + ≥1 个 T3.5 零 ESCAPE 收编 case,之后才进学生实测)。
 - CI 实跑验证:e2e.yml/守卫/replay demo 的远端绿灯需要一次 push(本批未 push)。
+- pricing 表未配:成本字段恒 0(不猜价);配价后 P1-C 一次 14 跑的真实成本即可
+  精确入账。
 
-## 6. 决策记录
+## 7. 决策记录
 
 1. **replay 也走 usage 复现**:cassette 不只录文本还录 token 账目,使回放成为
    真实跑的完整复现(run-report 逐字节相等),而不是"语义近似"——专家 §14 要求

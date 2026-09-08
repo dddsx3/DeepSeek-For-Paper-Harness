@@ -48,6 +48,12 @@ SymbolSpec 补 shape/domain/index_set,基线 1025→1040),随后按专家计划�
 下一批按专家序是 **P1-C:第二模型族 T3 资格探针真实批次**(≥14 次首试,统计门出裁决)
 → P1-D(T3.5 expand-then-select)→ P2-A/B/C。
 
+**P1-C 已实跑(2026-09-08)**:z-ai/glm-5.3-free **T3 14/14 首试全过,LCB₉₅=0.807 ≥
+0.80,QUALIFIED**(ESCAPE=0、零预算、零传输重试;usage in 1568/out 4407)。探针
+自身两个 bug 修复后实跑(修复前 0/14 全是探针问题:教学段空串 + 网络错误不退避)。
+距专家 §22 里程碑只剩:deepseek-v4-flash 统计门复测(旧 18/18 是点估计)→ T3.5
+零 ESCAPE 收编 case。
+
 ---
 
 ## 1. 一句话现状
