@@ -54,3 +54,5 @@ packages/typert/generator/tests/.rendered-model-*/
 artifacts/handoff/TASK-3/.vitest-corpus.json
 artifacts/handoff/TASK-3/.vitest-corpus.json
 apps/paper-shell/cockpit-problems/
+sea-prep.blob
+paper-cockpit.exe
