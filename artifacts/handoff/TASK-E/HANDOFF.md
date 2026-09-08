@@ -154,3 +154,44 @@ deepseek 侧的一次新协议重测;之后 T3.5 零 ESCAPE 收编 case,即达�
 3. **零失败 LCB 用闭式 alpha^(1/n) 而非 beta 分位退化**:两者数学等价推导的
    分支上,闭式无数值误差且直接对上 stop rule 数字,选闭式并保留 beta 路径给
    带失败情形。
+
+## 8. TASK-P1D — T3.5 expand-then-select(专家 §4/§5,2026-09-08)
+
+### 8.1 实现(`src/produce/expand-select.ts` + 16 条 invariant)
+
+受限状态机:模型每步只能输出三个闭合动作之一(`SELECT{candidate_id}` /
+`REQUEST_EXPANSION{slot, reason}` / `ABSTAIN{reason}`,zod strict union,发明第
+四动作即 `t35_move_forbidden` 拒)。关键机制:
+
+- **候选 id 无数字**:harness 铸造的 id 用序数词(`cand-jp-a`、`cand-x-one`),
+  于是无条件数字扫描**零例外条款**——本层任何表面(模型写的、harness 铸的)
+  都不携带数字,数字零通道保持严格;
+- **生成 ≠ 提交**:`admitExpansion` 只把候选放进池(且做闭合内容校验:slot
+  形状规则、去重、无数字),canonical 状态只由后续 SELECT 关闭;
+- **双硬预算**:MAX_EXPANSIONS_PER_SLOT=2 / PER_RUN=4,耗尽 = 
+  `CANDIDATE_SPACE_EXHAUSTED` loud BLOCK(专家 §5.1);
+- 失败码闭集:`t35_move_forbidden` / `t35_number_forbidden` /
+  `t35_unknown_candidate` / `t35_budget_exhausted`。
+
+### 8.2 专家 P1-D 验收(§13)已满足
+
+`expand-select.spec.ts` 第一组就是专家写的验收条件:**T3 静态池装不下的
+`snow_depth` case——T3 `t3_free_choice` 拒;T3.5 走 expansion → validate →
+select → PASS,全程 ESCAPE=0**。另 15 条:发明动作拒、container 走私死在数字
+扫描、未知候选拒、ABSTAIN 诚实终态、双预算耗尽 loud、生成不提交、去重、
+形状规则、id 铸造。
+
+### 8.3 真实模型实测(z-ai/glm-5.3-free,5 轮严串行,run-t35-probe.mjs)
+
+- 第一跑(无决策规则教学):5/5 直接 SELECT seed 候选(mean_thickness 贴切度
+  不足但零违规)——模型能操作协议但不会主动判断"池内无答案";
+- 加一行**决策规则**("仅当候选真正回答问题才 SELECT;否则必须
+  REQUEST_EXPANSION")后重跑:**5/5 轮全走完整循环**——
+  `expansion-request`(合法理由码 NO_VALID_CANDIDATE)→ harness 原子生成
+  `cand-x-one`(snow_depth)→ `SELECT(cand-x-one)` 提交。**零 ESCAPE**。
+  usage:in 1,620 / out 5,263 tokens。
+
+**实证结论**:弱模型在正确的教学面下可以操作 T3.5 状态机完成 T3 无法覆盖
+的 case 且零违规——专家 §22 里程碑的"T3.5 零 ESCAPE 收编一个 case"达成。
+(注:该 case 的收编由状态机 + 模型协作完成;P2-A 的 T3 vs T3.5 成对对照
+实验是下一批。)

@@ -1,0 +1,176 @@
+{
+  "generated_at": "2026-09-08T02:55:47.972Z",
+  "probe": "TASK-P1D real probe — can a real weak model drive the T3.5 machine",
+  "endpoint": "https://api.tokenrouter.com/v1",
+  "model": "z-ai/glm-5.3-free",
+  "rounds": {
+    "status": "COMPLETED",
+    "target": 5,
+    "novel_problem": "Estimate the seasonal snow depth on the ice.",
+    "selected": 5,
+    "abstained": 0,
+    "escape_total": 0,
+    "rounds": [
+      {
+        "round": 1,
+        "outcome": "SELECTED",
+        "committed": true,
+        "steps": [
+          {
+            "move": 1,
+            "raw_head": "{\"action\":\"REQUEST_EXPANSION\",\"slot\":\"json_path\",\"reason\":\"NO_VALID_CANDIDATE\"}",
+            "verdict": {
+              "ok": true,
+              "kind": "expansion-request"
+            }
+          },
+          {
+            "harness_expansion": {
+              "ok": true,
+              "candidate": "cand-x-one",
+              "slot": "json_path"
+            }
+          },
+          {
+            "move": 2,
+            "raw_head": "{\"action\":\"SELECT\",\"candidate_id\":\"cand-x-one\"}",
+            "verdict": {
+              "ok": true,
+              "kind": "select",
+              "candidate": "cand-x-one"
+            }
+          }
+        ]
+      },
+      {
+        "round": 2,
+        "outcome": "SELECTED",
+        "committed": true,
+        "steps": [
+          {
+            "move": 1,
+            "raw_head": "{\"action\":\"REQUEST_EXPANSION\",\"slot\":\"json_path\",\"reason\":\"NO_VALID_CANDIDATE\"}",
+            "verdict": {
+              "ok": true,
+              "kind": "expansion-request"
+            }
+          },
+          {
+            "harness_expansion": {
+              "ok": true,
+              "candidate": "cand-x-one",
+              "slot": "json_path"
+            }
+          },
+          {
+            "move": 2,
+            "raw_head": "{\"action\":\"SELECT\",\"candidate_id\":\"cand-x-one\"}",
+            "verdict": {
+              "ok": true,
+              "kind": "select",
+              "candidate": "cand-x-one"
+            }
+          }
+        ]
+      },
+      {
+        "round": 3,
+        "outcome": "SELECTED",
+        "committed": true,
+        "steps": [
+          {
+            "move": 1,
+            "raw_head": "{\"action\":\"REQUEST_EXPANSION\",\"slot\":\"json_path\",\"reason\":\"NO_VALID_CANDIDATE\"}",
+            "verdict": {
+              "ok": true,
+              "kind": "expansion-request"
+            }
+          },
+          {
+            "harness_expansion": {
+              "ok": true,
+              "candidate": "cand-x-one",
+              "slot": "json_path"
+            }
+          },
+          {
+            "move": 2,
+            "raw_head": "{\"action\":\"SELECT\",\"candidate_id\":\"cand-x-one\"}",
+            "verdict": {
+              "ok": true,
+              "kind": "select",
+              "candidate": "cand-x-one"
+            }
+          }
+        ]
+      },
+      {
+        "round": 4,
+        "outcome": "SELECTED",
+        "committed": true,
+        "steps": [
+          {
+            "move": 1,
+            "raw_head": "{\"action\":\"REQUEST_EXPANSION\",\"slot\":\"json_path\",\"reason\":\"NO_VALID_CANDIDATE\"}",
+            "verdict": {
+              "ok": true,
+              "kind": "expansion-request"
+            }
+          },
+          {
+            "harness_expansion": {
+              "ok": true,
+              "candidate": "cand-x-one",
+              "slot": "json_path"
+            }
+          },
+          {
+            "move": 2,
+            "raw_head": "{\"action\":\"SELECT\",\"candidate_id\":\"cand-x-one\"}",
+            "verdict": {
+              "ok": true,
+              "kind": "select",
+              "candidate": "cand-x-one"
+            }
+          }
+        ]
+      },
+      {
+        "round": 5,
+        "outcome": "SELECTED",
+        "committed": true,
+        "steps": [
+          {
+            "move": 1,
+            "raw_head": "{\"action\":\"REQUEST_EXPANSION\",\"slot\":\"json_path\",\"reason\":\"NO_VALID_CANDIDATE\"}",
+            "verdict": {
+              "ok": true,
+              "kind": "expansion-request"
+            }
+          },
+          {
+            "harness_expansion": {
+              "ok": true,
+              "candidate": "cand-x-one",
+              "slot": "json_path"
+            }
+          },
+          {
+            "move": 2,
+            "raw_head": "{\"action\":\"SELECT\",\"candidate_id\":\"cand-x-one\"}",
+            "verdict": {
+              "ok": true,
+              "kind": "select",
+              "candidate": "cand-x-one"
+            }
+          }
+        ]
+      }
+    ],
+    "usage": {
+      "input_tokens": 1620,
+      "output_tokens": 5263
+    },
+    "verdict": "ZERO ESCAPE — the model operated the move protocol without a single violation"
+  }
+}

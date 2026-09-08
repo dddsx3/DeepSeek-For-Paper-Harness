@@ -165,7 +165,8 @@
     "mock:llm": "node --import tsx packages/test-support/llm-mock-server/src/bin.ts",
     "dev:web": "tsx scripts/dev-web.ts --poll",
     "postinstall": "node scripts/install-lefthook.mjs",
-    "test:p1c:probe": "tsx artifacts/handoff/TASK-E/run-p1c-probe.mjs"
+    "test:p1c:probe": "tsx artifacts/handoff/TASK-E/run-p1c-probe.mjs",
+    "test:t35:probe": "tsx artifacts/handoff/TASK-E/run-t35-probe.mjs"
   },
   "devDependencies": {
     "@agentclientprotocol/sdk": "0.25.1",

@@ -103,6 +103,18 @@ export {
   templateFillPrompt,
 } from './produce/template-fill.ts'
 export type { TemplateCandidates, TemplateFill, TemplateRefusalCode, TemplateSlot } from './produce/template-fill.ts'
+// TASK-P1D — T3.5 expand-then-select (expert plan §4/§5): a bounded state
+// machine over three moves (SELECT / REQUEST_EXPANSION / ABSTAIN) with
+// harness-minted candidates, atomic micro-generation (generation ≠ commit),
+// and hard expansion budgets (CANDIDATE_SPACE_EXHAUSTED).
+export {
+  EXPANSION_REASONS,
+  ExpandSelectSession,
+  MAX_EXPANSIONS_PER_RUN,
+  MAX_EXPANSIONS_PER_SLOT,
+  seedCandidates,
+} from './produce/expand-select.ts'
+export type { Candidate, ExpandSelectMoveVerdict, ExpandSelectRefusalCode, ExpandSlot, ExpansionReason } from './produce/expand-select.ts'
 export {
   REDACTED, redactSensitiveDetail, redactSensitiveText, redactSensitiveValue,
 } from './redact.ts'
