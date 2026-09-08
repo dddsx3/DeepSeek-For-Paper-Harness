@@ -195,3 +195,51 @@ select → PASS,全程 ESCAPE=0**。另 15 条:发明动作拒、container 走�
 的 case 且零违规——专家 §22 里程碑的"T3.5 零 ESCAPE 收编一个 case"达成。
 (注:该 case 的收编由状态机 + 模型协作完成;P2-A 的 T3 vs T3.5 成对对照
 实验是下一批。)
+
+## 9. TASK-P1C2 — 双模型族统计资格 + 新中转(y-api,2026-09-08)
+
+### 9.1 测试模型切换(作者指令)
+
+真实测试模型族换轨:**z-ai/glm-5.3-flash**(原 glm-5.3-free 调用量低、适配
+价值低);deepseek 侧以 **deepseek/deepseek-v4-pro** 补"第二模型族"资格。两
+模型走新中转 `https://api.y-api.bestvirtualgoods.com/v1`(与 tokenrouter 不同
+站,key 亦不同,入 gitignored `.env.local`;探针输出已改为**按模型归档**,
+`output-p1c/<model-slug>/`、`output-t35/<model-slug>/`,多模型跑不互覆)。
+
+### 9.2 两族资格结果(各 14 次首试,严串行,统计门裁决)
+
+| 模型族 | 模型 | 首试 | LCB₉₅ | 裁决 | usage(in/out) |
+|---|---|---|---|---|---|
+| z-ai (GLM) | z-ai/glm-5.3-flash | **14/14** | 0.807 | **QUALIFIED (T3)** | 1568 / 2727 |
+| DeepSeek | deepseek/deepseek-v4-pro | **14/14** | 0.807 | **QUALIFIED (T3)** | 1540 / 462 |
+
+**专家 §22 里程碑的"≥2 个不同模型族通过 T3 统计资格门"正式达成**(两族零
+ESCAPE、零引导预算、零传输重试)。顺带的成本观察:同一 T3 协议下 deepseek-pro
+输出 token 仅为 glm-flash 的约 1/6(462 vs 2727)——"用 harness 换模型成本"
+叙事的第一手对照数据(M3 成本指标的雏形)。
+
+### 9.3 T3.5 探针(glm-5.3-flash)
+
+5/5 轮全走完整循环(`expansion-request`(合法理由码)→ harness 铸造
+`cand-x-one` → `SELECT` 提交),**零 ESCAPE**,usage in 1620 / out 967。与
+glm-5.3-free 的结果一致:一行决策规则教学后,弱模型能稳定操作 expand-then-
+select 状态机。
+
+### 9.4 cassette 语料库扩容
+
+新增第二盘:`glm53flash-t3-coursework-v1.json`(glm-5.3-flash @ y-api 真实
+T3 strict 全链,5 exchanges,含 usage)。回放×2 与真实跑三向一致:zip sha
+`ef66fe0b`、usage(in 1946 / out 3037)逐字复现。CI replay demo 改为**遍历
+cassettes/ 全部盘**,每盘一对回放断言 sha 相等(本地模拟已验:free 盘
+`fb4d4e07`×2、flash 盘 `ef66fe0b`×2)。语料库按"模型+中转"逐盘攒——专家
+§2.1 选项 E 的形态。
+
+### 9.5 当前里程碑状态(专家 §22)
+
+- [x] IR 契约冻结(TASK-T1/T1-S2:REF 规则 + UNKNOWN 哨兵 + 三层指纹 + golden)
+- [x] 无 key 普通 CI 全绿(paper-harness.yml 连续绿灯,e2e 转纯 manual)
+- [x] **≥2 模型族过 T3 统计资格门(glm-5.3-flash + deepseek-v4-pro,各 14/14)**
+- [x] **T3.5 零 ESCAPE 收编静态 T3 无法覆盖的 case**(snow_depth,机器 +
+  真实模型协作,glm free/flash 双验证)
+- [ ] 剩:P2-A(T3 vs T3.5 成对对照实验)→ P2-B(STUDY_MANIFEST 冻结)→
+  P2-C(3–5 人 case-series)——按专家序,学生实测的前置里程碑已全部达成。

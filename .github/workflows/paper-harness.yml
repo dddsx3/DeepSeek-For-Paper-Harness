@@ -132,17 +132,22 @@ jobs:
         run: pnpm exec tsx scripts/verify-real-api-policy.ts
 
       # TASK-E: cassette replay demo — the recorded real-provider answers
-      # (artifacts/handoff/TASK-E/cassettes) drive the FULL shell chain
-      # offline: same cassette → same report → same zip sha256 (expert plan
-      # §14 Replay property, CI-side). No key, no network.
+      # drive the FULL shell chain offline: same cassette → same report →
+      # same zip sha256 (expert plan §14 Replay property, CI-side). The
+      # corpus grows one cassette per model+relay combination (glm-5.3-free
+      # @ tokenrouter; glm-5.3-flash @ y-api); each replays twice, byte-
+      # identical. No key, no network.
       - name: TASK-E cassette replay determinism demo
         run: |
-          pnpm exec tsx apps/paper-shell/src/cli.ts run artifacts/handoff/TASK-M1/samples/course-work.md --tier T3 --mode strict --out artifacts/handoff/TASK-E/replay-ci --replay artifacts/handoff/TASK-E/cassettes/glm-t3-coursework-v3.json
-          pnpm exec tsx apps/paper-shell/src/cli.ts run artifacts/handoff/TASK-M1/samples/course-work.md --tier T3 --mode strict --out artifacts/handoff/TASK-E/replay-ci2 --replay artifacts/handoff/TASK-E/cassettes/glm-t3-coursework-v3.json
-          A=$(sha256sum artifacts/handoff/TASK-E/replay-ci/deliverable.zip | cut -d' ' -f1)
-          B=$(sha256sum artifacts/handoff/TASK-E/replay-ci2/deliverable.zip | cut -d' ' -f1)
-          echo "replay zip sha: $A / $B"
-          test "$A" = "$B"
+          for cassette in artifacts/handoff/TASK-E/cassettes/*.json; do
+            echo "cassette: $cassette"
+            pnpm exec tsx apps/paper-shell/src/cli.ts run artifacts/handoff/TASK-M1/samples/course-work.md --tier T3 --mode strict --out artifacts/handoff/TASK-E/replay-ci-a --replay "$cassette"
+            pnpm exec tsx apps/paper-shell/src/cli.ts run artifacts/handoff/TASK-M1/samples/course-work.md --tier T3 --mode strict --out artifacts/handoff/TASK-E/replay-ci-b --replay "$cassette"
+            A=$(sha256sum artifacts/handoff/TASK-E/replay-ci-a/deliverable.zip | cut -d' ' -f1)
+            B=$(sha256sum artifacts/handoff/TASK-E/replay-ci-b/deliverable.zip | cut -d' ' -f1)
+            echo "replay zip sha: $A / $B"
+            test "$A" = "$B"
+          done
 
       - name: Upload gate evidence
         if: always()

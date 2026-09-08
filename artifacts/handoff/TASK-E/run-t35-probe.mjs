@@ -30,7 +30,9 @@ import { mkdirSync } from 'node:fs'
 import { ExpandSelectSession, seedCandidates } from '../../../packages/paper/paper-foundation/src/produce/expand-select.ts'
 
 const here = dirname(fileURLToPath(import.meta.url))
-const OUT = join(here, 'output-t35')
+// Archive per model (see run-p1c-probe).
+const PROBE_MODEL = process.env.PAPER_PROBE_MODEL ?? 'z-ai/glm-5.3-flash'
+const OUT = join(here, 'output-t35', PROBE_MODEL.replace(/[^A-Za-z0-9._-]+/g, '-'))
 const sleep = ms => new Promise(done => setTimeout(done, ms))
 
 /** The T3.5 move-protocol lecture (the teaching face of this tier). */
@@ -82,7 +84,7 @@ async function callProvider(baseUrl, apiKey, model, prompt, attempt = 1) {
 async function main() {
   const apiKey = process.env.PAPER_PROBE_API_KEY ?? process.env.DEEPSEEK_API_KEY ?? ''
   const baseUrl = (process.env.PAPER_PROBE_BASE_URL ?? process.env.DEEPSEEK_BASE_URL ?? '').replace(/\/$/, '')
-  const model = process.env.PAPER_PROBE_MODEL ?? 'z-ai/glm-5.3-free'
+  const model = PROBE_MODEL
   const NOVEL = 'Estimate the seasonal snow depth on the ice.'
   const ROUNDS = 5
 

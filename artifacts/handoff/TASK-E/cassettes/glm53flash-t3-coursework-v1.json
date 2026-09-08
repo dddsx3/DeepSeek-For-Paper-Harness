@@ -1,0 +1,63 @@
+{
+  "cassette_version": 1,
+  "recorded_from": "paper-shell real run → artifacts/handoff/TASK-E/cassettes/glm53flash-t3-coursework-v1.json",
+  "provider": "openai-compatible-relay",
+  "model": "z-ai/glm-5.3-flash",
+  "entries": [
+    {
+      "request_fingerprint": "93eed3026256d8d6d70067eaa26376deee441ba9032260b922b8f9852af0598d",
+      "provider": "deepseek-official",
+      "model": "placeholder",
+      "response_sha256": "02ed4931cfd7619edc532bc6248be92b4246ffe00bc133c92d8ca96888732796",
+      "response_text": "# 执行计划（Execution Plan）\n\n1. **选定物理模型**：海冰生长由冰内热传导控制 → Stefan 问题（Stefan's law）。\n2. **收集常数**：冰的热导率 k ≈ 2.2 W·m⁻¹·K⁻¹；密度 ρ ≈ 917 kg·m⁻³；熔化潜热 L ≈ 3.34×10⁵ J·kg⁻¹。\n3. **设定典型条件**：冰点与气温差 ΔT ≈ 20 K；一个生长季 t ≈ 60 天 ≈ 5.2×10⁶ s。\n4. **应用 Stefan 公式**：\n   h = √(2kΔT·t / ρL)\n5. **代入计算**：\n   h = √(2 × 2.2 × 20 × 5.2×10⁶ / (917 × 3.34×10⁵)) ≈ √1.49 ≈ **1.2 m**\n6. **合理性检验**：与观测（潜艇声呐 / ICESat / CryoSat-2：北极一年冰 1–2 m，多年冰均值 2–3 m）一致；雪盖与海洋热通量会使实际值略低。\n\n# 结果\n\n**估计值**：mean sea-ice thickness ≈ **1–2 m**（量级 10⁰ m；北极多年冰均值约 2–3 m）\n\n**一行结论**：基于 Stefan 热传导生长模型，海冰平均厚度估计为 **≈ 1–2 米**，与卫星/潜艇观测的北极海冰厚度（1–3 m）量级一致。",
+      "usage": {
+        "inputTokens": 89,
+        "outputTokens": 1394
+      }
+    },
+    {
+      "request_fingerprint": "c29cf3b9e068001caaa3804f330d3a496d3f946bc855845aadd2ea68134e35a5",
+      "provider": "deepseek-official",
+      "model": "placeholder",
+      "response_sha256": "66b8c3d6f406fed39d1f956b7b694729e995d4ea1fa56bdc969700dcdf06392b",
+      "response_text": "{\"symbol_id\": \"SYM-q\", \"unit\": \"m\", \"output_file\": \"result.json\", \"json_path\": \"mean_thickness\"}",
+      "usage": {
+        "inputTokens": 125,
+        "outputTokens": 104
+      }
+    },
+    {
+      "request_fingerprint": "9d3559c90d175efeef2d5f496dc2c1aaa31b71204a706a7504910f56f15a49a0",
+      "provider": "deepseek-official",
+      "model": "placeholder",
+      "response_sha256": "d2392648952550ee0039189dd57347714389cb9f85ea8a3fb8b33d77dd52eec1",
+      "response_text": "{\"defects\":[{\"id\":\"D1\",\"severity\":\"minor\",\"description\":\"Heading contains a duplicated markdown marker ('# # 示例论文题目…'), producing a malformed title line.\"},{\"id\":\"D2\",\"severity\":\"minor\",\"description\":\"The restated task line is truncated mid-sentence ('请给出：mean ic'), leaving an incomplete prompt echo in the header; the required estimate and conclusion are still delivered correctly.\"}]}",
+      "usage": {
+        "inputTokens": 634,
+        "outputTokens": 655
+      }
+    },
+    {
+      "request_fingerprint": "16be8c836c9e8aecca2c657cccd678c3f2941da2ed1f59089162ceab67c997a2",
+      "provider": "deepseek-official",
+      "model": "placeholder",
+      "response_sha256": "b99f892396c1fc1ee063be2d709e5e4d2b0b2a21ea215c514d28d10d31709776",
+      "response_text": "# 示例论文题目（course-work 题型，T3 最小面适合）\n\nEstimate mean sea-ice thickness.\n\n请给出：mean ice thickness 的估计值（含单位）与一行结论。\n\n## 结果表（由规范 IR 注入；结论区关键数字必须与此表一致）\n\n| 量名 | 数值 | 单位 | 不确定度 | 来源 |\n|---|---|---|---|---|\n| mean_thickness | 0.731 | m |  | `RES-OUT` |\n\n## 结论\n\nmean_thickness is 0.731 m\n\n---\n*template report v2 — machine numbers rendered from canonical IR Result records; conclusion numbers arrive via slots or guarded prose; figures are rendered by the fixed harness renderer.*",
+      "usage": {
+        "inputTokens": 317,
+        "outputTokens": 280
+      }
+    },
+    {
+      "request_fingerprint": "2e5d636634d5129bec1d256d938bacb518fd1caec11344edc9671e02cdbdb687",
+      "provider": "deepseek-official",
+      "model": "placeholder",
+      "response_sha256": "cc5f17acae7440436edd881eff9c6cf41c4b412136887f85ecbd37d8fb270529",
+      "response_text": "{\"defects\":[],\"resolved\":[\"D1\",\"D2\"]}",
+      "usage": {
+        "inputTokens": 781,
+        "outputTokens": 604
+      }
+    }
+  ]
+}

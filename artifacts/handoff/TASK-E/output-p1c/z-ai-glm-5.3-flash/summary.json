@@ -1,0 +1,137 @@
+{
+  "generated_at": "2026-09-08T04:33:10.098Z",
+  "probe": "TASK-P1C — second model family, T3 statistical qualification (expert plan P1-B/C)",
+  "endpoint": "https://api.y-api.bestvirtualgoods.com/v1",
+  "model": "z-ai/glm-5.3-flash",
+  "fake_self_check": {
+    "t3": 1,
+    "trusted": true
+  },
+  "real": {
+    "status": "COMPLETED",
+    "target": 14,
+    "successes": 14,
+    "attempts": [
+      {
+        "attempt": 1,
+        "problem": "Estimate mean sea-ice thickness.",
+        "outcome": "SUCCESS",
+        "stage": "full",
+        "reason": ""
+      },
+      {
+        "attempt": 2,
+        "problem": "Estimate melt-pond fraction.",
+        "outcome": "SUCCESS",
+        "stage": "full",
+        "reason": ""
+      },
+      {
+        "attempt": 3,
+        "problem": "Estimate ridge density.",
+        "outcome": "SUCCESS",
+        "stage": "full",
+        "reason": ""
+      },
+      {
+        "attempt": 4,
+        "problem": "Estimate snow accumulation rate.",
+        "outcome": "SUCCESS",
+        "stage": "full",
+        "reason": ""
+      },
+      {
+        "attempt": 5,
+        "problem": "Estimate albedo seasonal amplitude.",
+        "outcome": "SUCCESS",
+        "stage": "full",
+        "reason": ""
+      },
+      {
+        "attempt": 6,
+        "problem": "Estimate surface meltwater run-off.",
+        "outcome": "SUCCESS",
+        "stage": "full",
+        "reason": ""
+      },
+      {
+        "attempt": 7,
+        "problem": "Estimate ocean heat flux under ice.",
+        "outcome": "SUCCESS",
+        "stage": "full",
+        "reason": ""
+      },
+      {
+        "attempt": 8,
+        "problem": "Estimate mean sea-ice thickness.",
+        "outcome": "SUCCESS",
+        "stage": "full",
+        "reason": ""
+      },
+      {
+        "attempt": 9,
+        "problem": "Estimate melt-pond fraction.",
+        "outcome": "SUCCESS",
+        "stage": "full",
+        "reason": ""
+      },
+      {
+        "attempt": 10,
+        "problem": "Estimate ridge density.",
+        "outcome": "SUCCESS",
+        "stage": "full",
+        "reason": ""
+      },
+      {
+        "attempt": 11,
+        "problem": "Estimate snow accumulation rate.",
+        "outcome": "SUCCESS",
+        "stage": "full",
+        "reason": ""
+      },
+      {
+        "attempt": 12,
+        "problem": "Estimate albedo seasonal amplitude.",
+        "outcome": "SUCCESS",
+        "stage": "full",
+        "reason": ""
+      },
+      {
+        "attempt": 13,
+        "problem": "Estimate surface meltwater run-off.",
+        "outcome": "SUCCESS",
+        "stage": "full",
+        "reason": ""
+      },
+      {
+        "attempt": 14,
+        "problem": "Estimate ocean heat flux under ice.",
+        "outcome": "SUCCESS",
+        "stage": "full",
+        "reason": ""
+      }
+    ],
+    "transport_retries": 0,
+    "usage": {
+      "input_tokens": 1568,
+      "output_tokens": 2727
+    }
+  },
+  "qualification": {
+    "qualified": true,
+    "n": 14,
+    "successes": 14,
+    "lcb95": 0.8073638243498648,
+    "p_min": 0.8,
+    "reasons": [],
+    "failures_by_class": {
+      "NONE": 0,
+      "DRIFT": 0,
+      "ESCAPE": 0,
+      "RUN": 0,
+      "TRANSPORT": 0
+    },
+    "point_estimate_note": "14/14 point 1.000; the CLAIM is the bound, not the point (expert plan §6)",
+    "stop_rule": "zero-failure floor n=14 (LCB(14,14)=0.807); with failures the exact beta path adjudicates"
+  }
+}

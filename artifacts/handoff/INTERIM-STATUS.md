@@ -51,8 +51,10 @@ SymbolSpec 补 shape/domain/index_set,基线 1025→1040),随后按专家计划�
 **P1-C 已实跑(2026-09-08)**:z-ai/glm-5.3-free **T3 14/14 首试全过,LCB₉₅=0.807 ≥
 0.80,QUALIFIED**(ESCAPE=0、零预算、零传输重试;usage in 1568/out 4407)。探针
 自身两个 bug 修复后实跑(修复前 0/14 全是探针问题:教学段空串 + 网络错误不退避)。
-距专家 §22 里程碑只剩:deepseek-v4-flash 统计门复测(旧 18/18 是点估计)→ T3.5
-零 ESCAPE 收编 case。
+**§22 里程碑前置全部达成(2026-09-08,TASK-P1C/P1C2)**:①两模型族过 T3 统计门——
+z-ai/glm-5.3-flash 14/14 与 deepseek/deepseek-v4-pro 14/14(各 LCB₉₅=0.807,零 ESCAPE,
+经 y-api 中转严串行);②T3.5 零 ESCAPE 收编 snow_depth case(free/flash 双验证 5/5 全循环)。
+测试模型族已换轨 glm-5.3-flash(旧 free 退役);下一步 P2-A 成对对照 → study freeze → 学生实测。
 
 ---
 

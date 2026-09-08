@@ -37,7 +37,10 @@ import { admitTemplateFill, assembleTemplateContainer, defaultTemplateCandidates
 import { evaluateQualification, exactLowerConfidenceBound } from '../../../packages/paper/paper-foundation/src/probe/qualification.ts'
 
 const here = dirname(fileURLToPath(import.meta.url))
-const OUT = join(here, 'output-p1c')
+// Archive per model: every qualification run lands in its own directory
+// so repeated runs across model families never overwrite each other.
+const PROBE_MODEL = process.env.PAPER_PROBE_MODEL ?? 'deepseek-chat'
+const OUT = join(here, 'output-p1c', PROBE_MODEL.replace(/[^A-Za-z0-9._-]+/g, '-'))
 
 const sleep = ms => new Promise(done => setTimeout(done, ms))
 
@@ -132,7 +135,7 @@ async function callProvider(baseUrl, apiKey, model, prompt, attempt = 1) {
 async function main() {
   const apiKey = process.env.PAPER_PROBE_API_KEY ?? process.env.DEEPSEEK_API_KEY ?? ''
   const baseUrl = (process.env.PAPER_PROBE_BASE_URL ?? process.env.DEEPSEEK_BASE_URL ?? '').replace(/\/$/, '')
-  const model = process.env.PAPER_PROBE_MODEL ?? 'z-ai/glm-5.3-free'
+  const model = PROBE_MODEL
 
   // ---- Fake self-check first: the T3 chain must be 1.0 on deterministic
   //      payloads, or the probe itself is not trusted (probe-v3 discipline). ----
