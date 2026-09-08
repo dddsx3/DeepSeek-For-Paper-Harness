@@ -28,6 +28,8 @@
 - SSE:`GET /api/runs/:id/stream?afterSeq=N`(1.5s 轮询持久化增量,事件按 seq
   重放;EventSource 原生断线重连,恢复不重复渲染)。
 
+- **双击即用交付**:paper-cockpit.exe(Node SEA 单文件启动器:找 runtime→拉起服务→自动开浏览器,中文状态台)+ 启动驾驶舱.cmd 兜底(杀软拦截场景)+ 便携包清单(packaging/cockpit/README.md);异 cwd(桌面快捷方式场景)启动实测 200。
+
 ## 2. 前端(apps/cockpit/public/,子代理实现,主控验收)
 
 `index.html`(483 行)+ `app.js`(1232 行),**纯原生零框架零 CDN**。五区齐备:
