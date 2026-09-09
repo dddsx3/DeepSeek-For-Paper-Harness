@@ -1,0 +1,918 @@
+{
+  "unit": {
+    "name": "paper_workflow",
+    "version": 1
+  },
+  "global": null,
+  "tables": {
+    "runs": {
+      "2a687c09-fadc-4c06-bebb-8c3ed91efbc4": {
+        "id": "2a687c09-fadc-4c06-bebb-8c3ed91efbc4",
+        "createdAt": "2026-09-09T00:21:40.198Z",
+        "updatedAt": "2026-09-09T01:09:35.840Z",
+        "status": "failed",
+        "mode": "strict",
+        "harnessVersion": "paper-shell-v0",
+        "configHash": "sha256:dmshell",
+        "usage": {
+          "inputTokens": 23908,
+          "outputTokens": 264428,
+          "costUsd": 0
+        },
+        "version": 12
+      }
+    },
+    "nodes": {
+      "a1eba1fa-f60c-486f-814e-b9e2a9a05765": {
+        "id": "a1eba1fa-f60c-486f-814e-b9e2a9a05765",
+        "runId": "2a687c09-fadc-4c06-bebb-8c3ed91efbc4",
+        "parentId": null,
+        "type": "plan",
+        "title": "plan",
+        "role": "executor",
+        "state": "succeeded",
+        "attempts": 1,
+        "maxAttempts": 3,
+        "idempotent": true,
+        "inputArtifactId": null,
+        "outputArtifactId": null,
+        "lastErrorCode": null,
+        "version": 4
+      },
+      "7be4686b-8948-4c18-9ea6-0c9bdb5e2834": {
+        "id": "7be4686b-8948-4c18-9ea6-0c9bdb5e2834",
+        "runId": "2a687c09-fadc-4c06-bebb-8c3ed91efbc4",
+        "parentId": null,
+        "type": "execute",
+        "title": "execute",
+        "role": "executor",
+        "state": "succeeded",
+        "attempts": 1,
+        "maxAttempts": 3,
+        "idempotent": true,
+        "inputArtifactId": null,
+        "outputArtifactId": null,
+        "lastErrorCode": null,
+        "version": 4
+      },
+      "0fd68e9a-7f11-4e1c-83d0-e153aa7748c1": {
+        "id": "0fd68e9a-7f11-4e1c-83d0-e153aa7748c1",
+        "runId": "2a687c09-fadc-4c06-bebb-8c3ed91efbc4",
+        "parentId": null,
+        "type": "review",
+        "title": "review",
+        "role": "reviewer",
+        "state": "succeeded",
+        "attempts": 1,
+        "maxAttempts": 3,
+        "idempotent": true,
+        "inputArtifactId": null,
+        "outputArtifactId": null,
+        "lastErrorCode": null,
+        "version": 4
+      },
+      "4615bcf4-1a13-4a7c-bc88-c84155baaffb": {
+        "id": "4615bcf4-1a13-4a7c-bc88-c84155baaffb",
+        "runId": "2a687c09-fadc-4c06-bebb-8c3ed91efbc4",
+        "parentId": null,
+        "type": "revise",
+        "title": "revise #1",
+        "role": "editor_ai",
+        "state": "succeeded",
+        "attempts": 1,
+        "maxAttempts": 3,
+        "idempotent": true,
+        "inputArtifactId": null,
+        "outputArtifactId": null,
+        "lastErrorCode": null,
+        "version": 4
+      },
+      "3d204338-34c5-4264-954b-dd22b7000df8": {
+        "id": "3d204338-34c5-4264-954b-dd22b7000df8",
+        "runId": "2a687c09-fadc-4c06-bebb-8c3ed91efbc4",
+        "parentId": null,
+        "type": "review",
+        "title": "review #2",
+        "role": "reviewer",
+        "state": "succeeded",
+        "attempts": 1,
+        "maxAttempts": 3,
+        "idempotent": true,
+        "inputArtifactId": null,
+        "outputArtifactId": null,
+        "lastErrorCode": null,
+        "version": 4
+      },
+      "a6d1110a-83be-4a64-8bbe-4a1e4c6716e4": {
+        "id": "a6d1110a-83be-4a64-8bbe-4a1e4c6716e4",
+        "runId": "2a687c09-fadc-4c06-bebb-8c3ed91efbc4",
+        "parentId": null,
+        "type": "revise",
+        "title": "revise #2",
+        "role": "editor_ai",
+        "state": "succeeded",
+        "attempts": 1,
+        "maxAttempts": 3,
+        "idempotent": true,
+        "inputArtifactId": null,
+        "outputArtifactId": null,
+        "lastErrorCode": null,
+        "version": 4
+      },
+      "97f9a3d1-0312-4ef4-821f-71f7431feaa0": {
+        "id": "97f9a3d1-0312-4ef4-821f-71f7431feaa0",
+        "runId": "2a687c09-fadc-4c06-bebb-8c3ed91efbc4",
+        "parentId": null,
+        "type": "review",
+        "title": "review #3",
+        "role": "reviewer",
+        "state": "succeeded",
+        "attempts": 1,
+        "maxAttempts": 3,
+        "idempotent": true,
+        "inputArtifactId": null,
+        "outputArtifactId": null,
+        "lastErrorCode": null,
+        "version": 4
+      },
+      "4e0d2b18-e4ab-4abb-a666-78bd4a157624": {
+        "id": "4e0d2b18-e4ab-4abb-a666-78bd4a157624",
+        "runId": "2a687c09-fadc-4c06-bebb-8c3ed91efbc4",
+        "parentId": null,
+        "type": "revise",
+        "title": "revise #3",
+        "role": "editor_ai",
+        "state": "succeeded",
+        "attempts": 1,
+        "maxAttempts": 3,
+        "idempotent": true,
+        "inputArtifactId": null,
+        "outputArtifactId": null,
+        "lastErrorCode": null,
+        "version": 4
+      },
+      "3828145d-e10c-4752-b953-8714085dfbf3": {
+        "id": "3828145d-e10c-4752-b953-8714085dfbf3",
+        "runId": "2a687c09-fadc-4c06-bebb-8c3ed91efbc4",
+        "parentId": null,
+        "type": "review",
+        "title": "review #4",
+        "role": "reviewer",
+        "state": "succeeded",
+        "attempts": 1,
+        "maxAttempts": 3,
+        "idempotent": true,
+        "inputArtifactId": null,
+        "outputArtifactId": null,
+        "lastErrorCode": null,
+        "version": 4
+      }
+    },
+    "events": {
+      "2a687c09-fadc-4c06-bebb-8c3ed91efbc4:0000000000000001": {
+        "runId": "2a687c09-fadc-4c06-bebb-8c3ed91efbc4",
+        "nodeId": null,
+        "seq": 1,
+        "type": "plan_ready",
+        "data": {
+          "status": "planning"
+        },
+        "timestamp": "2026-09-09T00:21:40.202Z"
+      },
+      "2a687c09-fadc-4c06-bebb-8c3ed91efbc4:0000000000000002": {
+        "runId": "2a687c09-fadc-4c06-bebb-8c3ed91efbc4",
+        "nodeId": null,
+        "seq": 2,
+        "type": "run_state",
+        "data": {
+          "from": "planning",
+          "to": "running"
+        },
+        "timestamp": "2026-09-09T00:21:40.210Z"
+      },
+      "2a687c09-fadc-4c06-bebb-8c3ed91efbc4:0000000000000003": {
+        "runId": "2a687c09-fadc-4c06-bebb-8c3ed91efbc4",
+        "nodeId": "a1eba1fa-f60c-486f-814e-b9e2a9a05765",
+        "seq": 3,
+        "type": "node_created",
+        "data": {
+          "state": "pending",
+          "type": "plan"
+        },
+        "timestamp": "2026-09-09T00:21:40.221Z"
+      },
+      "2a687c09-fadc-4c06-bebb-8c3ed91efbc4:0000000000000004": {
+        "runId": "2a687c09-fadc-4c06-bebb-8c3ed91efbc4",
+        "nodeId": "a1eba1fa-f60c-486f-814e-b9e2a9a05765",
+        "seq": 4,
+        "type": "node_state",
+        "data": {
+          "from": "pending",
+          "to": "ready"
+        },
+        "timestamp": "2026-09-09T00:21:40.227Z"
+      },
+      "2a687c09-fadc-4c06-bebb-8c3ed91efbc4:0000000000000005": {
+        "runId": "2a687c09-fadc-4c06-bebb-8c3ed91efbc4",
+        "nodeId": "a1eba1fa-f60c-486f-814e-b9e2a9a05765",
+        "seq": 5,
+        "type": "node_state",
+        "data": {
+          "from": "ready",
+          "to": "running"
+        },
+        "timestamp": "2026-09-09T00:21:40.235Z"
+      },
+      "2a687c09-fadc-4c06-bebb-8c3ed91efbc4:0000000000000006": {
+        "runId": "2a687c09-fadc-4c06-bebb-8c3ed91efbc4",
+        "nodeId": "a1eba1fa-f60c-486f-814e-b9e2a9a05765",
+        "seq": 6,
+        "type": "request_started",
+        "data": {
+          "provider": "deepseek-official",
+          "model": "placeholder",
+          "attempt": 1
+        },
+        "timestamp": "2026-09-09T00:21:40.238Z"
+      },
+      "2a687c09-fadc-4c06-bebb-8c3ed91efbc4:0000000000000007": {
+        "runId": "2a687c09-fadc-4c06-bebb-8c3ed91efbc4",
+        "nodeId": null,
+        "seq": 7,
+        "type": "usage",
+        "data": {
+          "inputTokens": 1525,
+          "outputTokens": 584,
+          "costUsd": 0
+        },
+        "timestamp": "2026-09-09T00:22:14.218Z"
+      },
+      "2a687c09-fadc-4c06-bebb-8c3ed91efbc4:0000000000000008": {
+        "runId": "2a687c09-fadc-4c06-bebb-8c3ed91efbc4",
+        "nodeId": "a1eba1fa-f60c-486f-814e-b9e2a9a05765",
+        "seq": 8,
+        "type": "node_state",
+        "data": {
+          "from": "running",
+          "to": "succeeded"
+        },
+        "timestamp": "2026-09-09T00:22:14.225Z"
+      },
+      "2a687c09-fadc-4c06-bebb-8c3ed91efbc4:0000000000000009": {
+        "runId": "2a687c09-fadc-4c06-bebb-8c3ed91efbc4",
+        "nodeId": "7be4686b-8948-4c18-9ea6-0c9bdb5e2834",
+        "seq": 9,
+        "type": "node_created",
+        "data": {
+          "state": "pending",
+          "type": "execute"
+        },
+        "timestamp": "2026-09-09T00:22:14.232Z"
+      },
+      "2a687c09-fadc-4c06-bebb-8c3ed91efbc4:0000000000000010": {
+        "runId": "2a687c09-fadc-4c06-bebb-8c3ed91efbc4",
+        "nodeId": "7be4686b-8948-4c18-9ea6-0c9bdb5e2834",
+        "seq": 10,
+        "type": "node_state",
+        "data": {
+          "from": "pending",
+          "to": "ready"
+        },
+        "timestamp": "2026-09-09T00:22:14.239Z"
+      },
+      "2a687c09-fadc-4c06-bebb-8c3ed91efbc4:0000000000000011": {
+        "runId": "2a687c09-fadc-4c06-bebb-8c3ed91efbc4",
+        "nodeId": "7be4686b-8948-4c18-9ea6-0c9bdb5e2834",
+        "seq": 11,
+        "type": "node_state",
+        "data": {
+          "from": "ready",
+          "to": "running"
+        },
+        "timestamp": "2026-09-09T00:22:14.246Z"
+      },
+      "2a687c09-fadc-4c06-bebb-8c3ed91efbc4:0000000000000012": {
+        "runId": "2a687c09-fadc-4c06-bebb-8c3ed91efbc4",
+        "nodeId": "7be4686b-8948-4c18-9ea6-0c9bdb5e2834",
+        "seq": 12,
+        "type": "request_started",
+        "data": {
+          "provider": "deepseek-official",
+          "model": "placeholder",
+          "attempt": 1
+        },
+        "timestamp": "2026-09-09T00:22:14.249Z"
+      },
+      "2a687c09-fadc-4c06-bebb-8c3ed91efbc4:0000000000000013": {
+        "runId": "2a687c09-fadc-4c06-bebb-8c3ed91efbc4",
+        "nodeId": null,
+        "seq": 13,
+        "type": "usage",
+        "data": {
+          "inputTokens": 125,
+          "outputTokens": 83,
+          "costUsd": 0
+        },
+        "timestamp": "2026-09-09T00:22:18.336Z"
+      },
+      "2a687c09-fadc-4c06-bebb-8c3ed91efbc4:0000000000000014": {
+        "runId": "2a687c09-fadc-4c06-bebb-8c3ed91efbc4",
+        "nodeId": "7be4686b-8948-4c18-9ea6-0c9bdb5e2834",
+        "seq": 14,
+        "type": "node_state",
+        "data": {
+          "from": "running",
+          "to": "succeeded"
+        },
+        "timestamp": "2026-09-09T00:22:18.441Z"
+      },
+      "2a687c09-fadc-4c06-bebb-8c3ed91efbc4:0000000000000015": {
+        "runId": "2a687c09-fadc-4c06-bebb-8c3ed91efbc4",
+        "nodeId": "0fd68e9a-7f11-4e1c-83d0-e153aa7748c1",
+        "seq": 15,
+        "type": "node_created",
+        "data": {
+          "state": "pending",
+          "type": "review"
+        },
+        "timestamp": "2026-09-09T00:22:18.448Z"
+      },
+      "2a687c09-fadc-4c06-bebb-8c3ed91efbc4:0000000000000016": {
+        "runId": "2a687c09-fadc-4c06-bebb-8c3ed91efbc4",
+        "nodeId": "0fd68e9a-7f11-4e1c-83d0-e153aa7748c1",
+        "seq": 16,
+        "type": "node_state",
+        "data": {
+          "from": "pending",
+          "to": "ready"
+        },
+        "timestamp": "2026-09-09T00:22:18.455Z"
+      },
+      "2a687c09-fadc-4c06-bebb-8c3ed91efbc4:0000000000000017": {
+        "runId": "2a687c09-fadc-4c06-bebb-8c3ed91efbc4",
+        "nodeId": "0fd68e9a-7f11-4e1c-83d0-e153aa7748c1",
+        "seq": 17,
+        "type": "node_state",
+        "data": {
+          "from": "ready",
+          "to": "running"
+        },
+        "timestamp": "2026-09-09T00:22:18.521Z"
+      },
+      "2a687c09-fadc-4c06-bebb-8c3ed91efbc4:0000000000000018": {
+        "runId": "2a687c09-fadc-4c06-bebb-8c3ed91efbc4",
+        "nodeId": "0fd68e9a-7f11-4e1c-83d0-e153aa7748c1",
+        "seq": 18,
+        "type": "request_started",
+        "data": {
+          "provider": "deepseek-official",
+          "model": "placeholder",
+          "attempt": 1
+        },
+        "timestamp": "2026-09-09T00:22:18.524Z"
+      },
+      "2a687c09-fadc-4c06-bebb-8c3ed91efbc4:0000000000000019": {
+        "runId": "2a687c09-fadc-4c06-bebb-8c3ed91efbc4",
+        "nodeId": null,
+        "seq": 19,
+        "type": "usage",
+        "data": {
+          "inputTokens": 3460,
+          "outputTokens": 2872,
+          "costUsd": 0
+        },
+        "timestamp": "2026-09-09T00:22:57.047Z"
+      },
+      "2a687c09-fadc-4c06-bebb-8c3ed91efbc4:0000000000000020": {
+        "runId": "2a687c09-fadc-4c06-bebb-8c3ed91efbc4",
+        "nodeId": "0fd68e9a-7f11-4e1c-83d0-e153aa7748c1",
+        "seq": 20,
+        "type": "node_state",
+        "data": {
+          "from": "running",
+          "to": "succeeded"
+        },
+        "timestamp": "2026-09-09T00:22:57.053Z"
+      },
+      "2a687c09-fadc-4c06-bebb-8c3ed91efbc4:0000000000000021": {
+        "runId": "2a687c09-fadc-4c06-bebb-8c3ed91efbc4",
+        "nodeId": "0fd68e9a-7f11-4e1c-83d0-e153aa7748c1",
+        "seq": 21,
+        "type": "defect",
+        "data": {
+          "severity": "critical",
+          "description": "The conclusion asserts 'mean_thickness is 0.731 m', a quantity that appears nowhere in the required outputs. The task (R-OUT) demands bench-dragon results: per-second positions/velocities of handles, the spiraling-in termination time, the minimum pitch, S-curve turn analysis, and maximum speed. Presenting 'mean_thickness' as the conclusion constitutes a scope overclaim beyond the REQUIRED_OUTPUTs.",
+          "defectId": "D1"
+        },
+        "timestamp": "2026-09-09T00:22:57.057Z"
+      },
+      "2a687c09-fadc-4c06-bebb-8c3ed91efbc4:0000000000000022": {
+        "runId": "2a687c09-fadc-4c06-bebb-8c3ed91efbc4",
+        "nodeId": "0fd68e9a-7f11-4e1c-83d0-e153aa7748c1",
+        "seq": 22,
+        "type": "defect",
+        "data": {
+          "severity": "major",
+          "description": "The delivered text contains no solution to any of the five problems: there are no position/velocity tables for 0–300 s or −100–100 s, no termination time for Problem 2, no minimum pitch for Problem 3, no shortened-arc analysis for Problem 4, and no maximum speed for Problem 5, nor any result1/result2/result4 content. The document is a truncated restatement of the problem statement plus an unrelated template report, structurally deviating from the required deliverable.",
+          "defectId": "D2"
+        },
+        "timestamp": "2026-09-09T00:22:57.060Z"
+      },
+      "2a687c09-fadc-4c06-bebb-8c3ed91efbc4:0000000000000023": {
+        "runId": "2a687c09-fadc-4c06-bebb-8c3ed91efbc4",
+        "nodeId": "0fd68e9a-7f11-4e1c-83d0-e153aa7748c1",
+        "seq": 23,
+        "type": "defect",
+        "data": {
+          "severity": "minor",
+          "description": "The restated problem statement is cut off after the 图 3 description, and the body ends with a template placeholder note ('template report v2'), leaving the submission visibly incomplete and unpresentable as a competition paper.",
+          "defectId": "D3"
+        },
+        "timestamp": "2026-09-09T00:22:57.063Z"
+      },
+      "2a687c09-fadc-4c06-bebb-8c3ed91efbc4:0000000000000024": {
+        "runId": "2a687c09-fadc-4c06-bebb-8c3ed91efbc4",
+        "nodeId": "4615bcf4-1a13-4a7c-bc88-c84155baaffb",
+        "seq": 24,
+        "type": "node_created",
+        "data": {
+          "state": "pending",
+          "type": "revise"
+        },
+        "timestamp": "2026-09-09T00:22:57.069Z"
+      },
+      "2a687c09-fadc-4c06-bebb-8c3ed91efbc4:0000000000000025": {
+        "runId": "2a687c09-fadc-4c06-bebb-8c3ed91efbc4",
+        "nodeId": "4615bcf4-1a13-4a7c-bc88-c84155baaffb",
+        "seq": 25,
+        "type": "node_state",
+        "data": {
+          "from": "pending",
+          "to": "ready"
+        },
+        "timestamp": "2026-09-09T00:22:57.075Z"
+      },
+      "2a687c09-fadc-4c06-bebb-8c3ed91efbc4:0000000000000026": {
+        "runId": "2a687c09-fadc-4c06-bebb-8c3ed91efbc4",
+        "nodeId": "4615bcf4-1a13-4a7c-bc88-c84155baaffb",
+        "seq": 26,
+        "type": "node_state",
+        "data": {
+          "from": "ready",
+          "to": "running"
+        },
+        "timestamp": "2026-09-09T00:22:57.081Z"
+      },
+      "2a687c09-fadc-4c06-bebb-8c3ed91efbc4:0000000000000027": {
+        "runId": "2a687c09-fadc-4c06-bebb-8c3ed91efbc4",
+        "nodeId": "4615bcf4-1a13-4a7c-bc88-c84155baaffb",
+        "seq": 27,
+        "type": "request_started",
+        "data": {
+          "provider": "deepseek-official",
+          "model": "placeholder",
+          "attempt": 1
+        },
+        "timestamp": "2026-09-09T00:22:57.084Z"
+      },
+      "2a687c09-fadc-4c06-bebb-8c3ed91efbc4:0000000000000028": {
+        "runId": "2a687c09-fadc-4c06-bebb-8c3ed91efbc4",
+        "nodeId": null,
+        "seq": 28,
+        "type": "usage",
+        "data": {
+          "inputTokens": 1957,
+          "outputTokens": 2596,
+          "costUsd": 0
+        },
+        "timestamp": "2026-09-09T00:23:19.052Z"
+      },
+      "2a687c09-fadc-4c06-bebb-8c3ed91efbc4:0000000000000029": {
+        "runId": "2a687c09-fadc-4c06-bebb-8c3ed91efbc4",
+        "nodeId": "4615bcf4-1a13-4a7c-bc88-c84155baaffb",
+        "seq": 29,
+        "type": "node_state",
+        "data": {
+          "from": "running",
+          "to": "succeeded"
+        },
+        "timestamp": "2026-09-09T00:23:19.167Z"
+      },
+      "2a687c09-fadc-4c06-bebb-8c3ed91efbc4:0000000000000030": {
+        "runId": "2a687c09-fadc-4c06-bebb-8c3ed91efbc4",
+        "nodeId": "3d204338-34c5-4264-954b-dd22b7000df8",
+        "seq": 30,
+        "type": "node_created",
+        "data": {
+          "state": "pending",
+          "type": "review"
+        },
+        "timestamp": "2026-09-09T00:23:19.174Z"
+      },
+      "2a687c09-fadc-4c06-bebb-8c3ed91efbc4:0000000000000031": {
+        "runId": "2a687c09-fadc-4c06-bebb-8c3ed91efbc4",
+        "nodeId": "3d204338-34c5-4264-954b-dd22b7000df8",
+        "seq": 31,
+        "type": "node_state",
+        "data": {
+          "from": "pending",
+          "to": "ready"
+        },
+        "timestamp": "2026-09-09T00:23:19.182Z"
+      },
+      "2a687c09-fadc-4c06-bebb-8c3ed91efbc4:0000000000000032": {
+        "runId": "2a687c09-fadc-4c06-bebb-8c3ed91efbc4",
+        "nodeId": "3d204338-34c5-4264-954b-dd22b7000df8",
+        "seq": 32,
+        "type": "node_state",
+        "data": {
+          "from": "ready",
+          "to": "running"
+        },
+        "timestamp": "2026-09-09T00:23:19.190Z"
+      },
+      "2a687c09-fadc-4c06-bebb-8c3ed91efbc4:0000000000000033": {
+        "runId": "2a687c09-fadc-4c06-bebb-8c3ed91efbc4",
+        "nodeId": "3d204338-34c5-4264-954b-dd22b7000df8",
+        "seq": 33,
+        "type": "request_started",
+        "data": {
+          "provider": "deepseek-official",
+          "model": "placeholder",
+          "attempt": 1
+        },
+        "timestamp": "2026-09-09T00:23:19.194Z"
+      },
+      "2a687c09-fadc-4c06-bebb-8c3ed91efbc4:0000000000000034": {
+        "runId": "2a687c09-fadc-4c06-bebb-8c3ed91efbc4",
+        "nodeId": null,
+        "seq": 34,
+        "type": "usage",
+        "data": {
+          "inputTokens": 5095,
+          "outputTokens": 1182,
+          "costUsd": 0
+        },
+        "timestamp": "2026-09-09T00:23:33.686Z"
+      },
+      "2a687c09-fadc-4c06-bebb-8c3ed91efbc4:0000000000000035": {
+        "runId": "2a687c09-fadc-4c06-bebb-8c3ed91efbc4",
+        "nodeId": "3d204338-34c5-4264-954b-dd22b7000df8",
+        "seq": 35,
+        "type": "node_state",
+        "data": {
+          "from": "running",
+          "to": "succeeded"
+        },
+        "timestamp": "2026-09-09T00:23:33.693Z"
+      },
+      "2a687c09-fadc-4c06-bebb-8c3ed91efbc4:0000000000000036": {
+        "runId": "2a687c09-fadc-4c06-bebb-8c3ed91efbc4",
+        "nodeId": "3d204338-34c5-4264-954b-dd22b7000df8",
+        "seq": 36,
+        "type": "defect",
+        "data": {
+          "severity": "major",
+          "description": "The delivered text is a verbatim restatement of the problem statement only. It contains no mathematical model and no solutions to any of the five problems: no per-second position/velocity tables for 0–300 s or −100–100 s (no Table 1/Table 2 content), no termination time for Problem 2, no minimum pitch for Problem 3, no shortened-arc analysis for Problem 4, no maximum speed for Problem 5, and no result1/result2/result4 content. The deliverable structurally deviates from the required outputs.",
+          "defectId": "D2"
+        },
+        "timestamp": "2026-09-09T00:23:33.696Z"
+      },
+      "2a687c09-fadc-4c06-bebb-8c3ed91efbc4:0000000000000037": {
+        "runId": "2a687c09-fadc-4c06-bebb-8c3ed91efbc4",
+        "nodeId": "a6d1110a-83be-4a64-8bbe-4a1e4c6716e4",
+        "seq": 37,
+        "type": "node_created",
+        "data": {
+          "state": "pending",
+          "type": "revise"
+        },
+        "timestamp": "2026-09-09T00:23:33.703Z"
+      },
+      "2a687c09-fadc-4c06-bebb-8c3ed91efbc4:0000000000000038": {
+        "runId": "2a687c09-fadc-4c06-bebb-8c3ed91efbc4",
+        "nodeId": "a6d1110a-83be-4a64-8bbe-4a1e4c6716e4",
+        "seq": 38,
+        "type": "node_state",
+        "data": {
+          "from": "pending",
+          "to": "ready"
+        },
+        "timestamp": "2026-09-09T00:23:33.710Z"
+      },
+      "2a687c09-fadc-4c06-bebb-8c3ed91efbc4:0000000000000039": {
+        "runId": "2a687c09-fadc-4c06-bebb-8c3ed91efbc4",
+        "nodeId": "a6d1110a-83be-4a64-8bbe-4a1e4c6716e4",
+        "seq": 39,
+        "type": "node_state",
+        "data": {
+          "from": "ready",
+          "to": "running"
+        },
+        "timestamp": "2026-09-09T00:23:33.716Z"
+      },
+      "2a687c09-fadc-4c06-bebb-8c3ed91efbc4:0000000000000040": {
+        "runId": "2a687c09-fadc-4c06-bebb-8c3ed91efbc4",
+        "nodeId": "a6d1110a-83be-4a64-8bbe-4a1e4c6716e4",
+        "seq": 40,
+        "type": "request_started",
+        "data": {
+          "provider": "deepseek-official",
+          "model": "placeholder",
+          "attempt": 1
+        },
+        "timestamp": "2026-09-09T00:23:33.719Z"
+      },
+      "2a687c09-fadc-4c06-bebb-8c3ed91efbc4:0000000000000041": {
+        "runId": "2a687c09-fadc-4c06-bebb-8c3ed91efbc4",
+        "nodeId": null,
+        "seq": 41,
+        "type": "usage",
+        "data": {
+          "inputTokens": 3134,
+          "outputTokens": 128000,
+          "costUsd": 0
+        },
+        "timestamp": "2026-09-09T00:44:29.563Z"
+      },
+      "2a687c09-fadc-4c06-bebb-8c3ed91efbc4:0000000000000042": {
+        "runId": "2a687c09-fadc-4c06-bebb-8c3ed91efbc4",
+        "nodeId": "a6d1110a-83be-4a64-8bbe-4a1e4c6716e4",
+        "seq": 42,
+        "type": "node_state",
+        "data": {
+          "from": "running",
+          "to": "succeeded"
+        },
+        "timestamp": "2026-09-09T00:44:29.571Z"
+      },
+      "2a687c09-fadc-4c06-bebb-8c3ed91efbc4:0000000000000043": {
+        "runId": "2a687c09-fadc-4c06-bebb-8c3ed91efbc4",
+        "nodeId": "97f9a3d1-0312-4ef4-821f-71f7431feaa0",
+        "seq": 43,
+        "type": "node_created",
+        "data": {
+          "state": "pending",
+          "type": "review"
+        },
+        "timestamp": "2026-09-09T00:44:29.577Z"
+      },
+      "2a687c09-fadc-4c06-bebb-8c3ed91efbc4:0000000000000044": {
+        "runId": "2a687c09-fadc-4c06-bebb-8c3ed91efbc4",
+        "nodeId": "97f9a3d1-0312-4ef4-821f-71f7431feaa0",
+        "seq": 44,
+        "type": "node_state",
+        "data": {
+          "from": "pending",
+          "to": "ready"
+        },
+        "timestamp": "2026-09-09T00:44:29.584Z"
+      },
+      "2a687c09-fadc-4c06-bebb-8c3ed91efbc4:0000000000000045": {
+        "runId": "2a687c09-fadc-4c06-bebb-8c3ed91efbc4",
+        "nodeId": "97f9a3d1-0312-4ef4-821f-71f7431feaa0",
+        "seq": 45,
+        "type": "node_state",
+        "data": {
+          "from": "ready",
+          "to": "running"
+        },
+        "timestamp": "2026-09-09T00:44:29.590Z"
+      },
+      "2a687c09-fadc-4c06-bebb-8c3ed91efbc4:0000000000000046": {
+        "runId": "2a687c09-fadc-4c06-bebb-8c3ed91efbc4",
+        "nodeId": "97f9a3d1-0312-4ef4-821f-71f7431feaa0",
+        "seq": 46,
+        "type": "request_started",
+        "data": {
+          "provider": "deepseek-official",
+          "model": "placeholder",
+          "attempt": 1
+        },
+        "timestamp": "2026-09-09T00:44:29.593Z"
+      },
+      "2a687c09-fadc-4c06-bebb-8c3ed91efbc4:0000000000000047": {
+        "runId": "2a687c09-fadc-4c06-bebb-8c3ed91efbc4",
+        "nodeId": null,
+        "seq": 47,
+        "type": "usage",
+        "data": {
+          "inputTokens": 3480,
+          "outputTokens": 99,
+          "costUsd": 0
+        },
+        "timestamp": "2026-09-09T00:44:35.431Z"
+      },
+      "2a687c09-fadc-4c06-bebb-8c3ed91efbc4:0000000000000048": {
+        "runId": "2a687c09-fadc-4c06-bebb-8c3ed91efbc4",
+        "nodeId": "97f9a3d1-0312-4ef4-821f-71f7431feaa0",
+        "seq": 48,
+        "type": "node_state",
+        "data": {
+          "from": "running",
+          "to": "succeeded"
+        },
+        "timestamp": "2026-09-09T00:44:35.437Z"
+      },
+      "2a687c09-fadc-4c06-bebb-8c3ed91efbc4:0000000000000049": {
+        "runId": "2a687c09-fadc-4c06-bebb-8c3ed91efbc4",
+        "nodeId": "97f9a3d1-0312-4ef4-821f-71f7431feaa0",
+        "seq": 49,
+        "type": "defect",
+        "data": {
+          "severity": "major",
+          "description": "The delivered text is a verbatim restatement of the problem statement only. It contains no mathematical model and no solutions to any of the five problems: no per-second position/velocity tables for 0–300 s or −100–100 s (no Table 1/Table 2 content), no termination time for Problem 2, no minimum pitch for Problem 3, no shortened-arc analysis for Problem 4, no maximum speed for Problem 5, and no result1/result2/result4 content. The deliverable structurally deviates from the required outputs.",
+          "defectId": "D2"
+        },
+        "timestamp": "2026-09-09T00:44:35.441Z"
+      },
+      "2a687c09-fadc-4c06-bebb-8c3ed91efbc4:0000000000000050": {
+        "runId": "2a687c09-fadc-4c06-bebb-8c3ed91efbc4",
+        "nodeId": "4e0d2b18-e4ab-4abb-a666-78bd4a157624",
+        "seq": 50,
+        "type": "node_created",
+        "data": {
+          "state": "pending",
+          "type": "revise"
+        },
+        "timestamp": "2026-09-09T00:44:35.446Z"
+      },
+      "2a687c09-fadc-4c06-bebb-8c3ed91efbc4:0000000000000051": {
+        "runId": "2a687c09-fadc-4c06-bebb-8c3ed91efbc4",
+        "nodeId": "4e0d2b18-e4ab-4abb-a666-78bd4a157624",
+        "seq": 51,
+        "type": "node_state",
+        "data": {
+          "from": "pending",
+          "to": "ready"
+        },
+        "timestamp": "2026-09-09T00:44:35.452Z"
+      },
+      "2a687c09-fadc-4c06-bebb-8c3ed91efbc4:0000000000000052": {
+        "runId": "2a687c09-fadc-4c06-bebb-8c3ed91efbc4",
+        "nodeId": "4e0d2b18-e4ab-4abb-a666-78bd4a157624",
+        "seq": 52,
+        "type": "node_state",
+        "data": {
+          "from": "ready",
+          "to": "running"
+        },
+        "timestamp": "2026-09-09T00:44:35.460Z"
+      },
+      "2a687c09-fadc-4c06-bebb-8c3ed91efbc4:0000000000000053": {
+        "runId": "2a687c09-fadc-4c06-bebb-8c3ed91efbc4",
+        "nodeId": "4e0d2b18-e4ab-4abb-a666-78bd4a157624",
+        "seq": 53,
+        "type": "request_started",
+        "data": {
+          "provider": "deepseek-official",
+          "model": "placeholder",
+          "attempt": 1
+        },
+        "timestamp": "2026-09-09T00:44:35.463Z"
+      },
+      "2a687c09-fadc-4c06-bebb-8c3ed91efbc4:0000000000000054": {
+        "runId": "2a687c09-fadc-4c06-bebb-8c3ed91efbc4",
+        "nodeId": null,
+        "seq": 54,
+        "type": "usage",
+        "data": {
+          "inputTokens": 1652,
+          "outputTokens": 128000,
+          "costUsd": 0
+        },
+        "timestamp": "2026-09-09T01:09:21.417Z"
+      },
+      "2a687c09-fadc-4c06-bebb-8c3ed91efbc4:0000000000000055": {
+        "runId": "2a687c09-fadc-4c06-bebb-8c3ed91efbc4",
+        "nodeId": "4e0d2b18-e4ab-4abb-a666-78bd4a157624",
+        "seq": 55,
+        "type": "node_state",
+        "data": {
+          "from": "running",
+          "to": "succeeded"
+        },
+        "timestamp": "2026-09-09T01:09:21.423Z"
+      },
+      "2a687c09-fadc-4c06-bebb-8c3ed91efbc4:0000000000000056": {
+        "runId": "2a687c09-fadc-4c06-bebb-8c3ed91efbc4",
+        "nodeId": "3828145d-e10c-4752-b953-8714085dfbf3",
+        "seq": 56,
+        "type": "node_created",
+        "data": {
+          "state": "pending",
+          "type": "review"
+        },
+        "timestamp": "2026-09-09T01:09:21.429Z"
+      },
+      "2a687c09-fadc-4c06-bebb-8c3ed91efbc4:0000000000000057": {
+        "runId": "2a687c09-fadc-4c06-bebb-8c3ed91efbc4",
+        "nodeId": "3828145d-e10c-4752-b953-8714085dfbf3",
+        "seq": 57,
+        "type": "node_state",
+        "data": {
+          "from": "pending",
+          "to": "ready"
+        },
+        "timestamp": "2026-09-09T01:09:21.435Z"
+      },
+      "2a687c09-fadc-4c06-bebb-8c3ed91efbc4:0000000000000058": {
+        "runId": "2a687c09-fadc-4c06-bebb-8c3ed91efbc4",
+        "nodeId": "3828145d-e10c-4752-b953-8714085dfbf3",
+        "seq": 58,
+        "type": "node_state",
+        "data": {
+          "from": "ready",
+          "to": "running"
+        },
+        "timestamp": "2026-09-09T01:09:21.441Z"
+      },
+      "2a687c09-fadc-4c06-bebb-8c3ed91efbc4:0000000000000059": {
+        "runId": "2a687c09-fadc-4c06-bebb-8c3ed91efbc4",
+        "nodeId": "3828145d-e10c-4752-b953-8714085dfbf3",
+        "seq": 59,
+        "type": "request_started",
+        "data": {
+          "provider": "deepseek-official",
+          "model": "placeholder",
+          "attempt": 1
+        },
+        "timestamp": "2026-09-09T01:09:21.445Z"
+      },
+      "2a687c09-fadc-4c06-bebb-8c3ed91efbc4:0000000000000060": {
+        "runId": "2a687c09-fadc-4c06-bebb-8c3ed91efbc4",
+        "nodeId": null,
+        "seq": 60,
+        "type": "usage",
+        "data": {
+          "inputTokens": 3480,
+          "outputTokens": 1012,
+          "costUsd": 0
+        },
+        "timestamp": "2026-09-09T01:09:35.816Z"
+      },
+      "2a687c09-fadc-4c06-bebb-8c3ed91efbc4:0000000000000061": {
+        "runId": "2a687c09-fadc-4c06-bebb-8c3ed91efbc4",
+        "nodeId": "3828145d-e10c-4752-b953-8714085dfbf3",
+        "seq": 61,
+        "type": "node_state",
+        "data": {
+          "from": "running",
+          "to": "succeeded"
+        },
+        "timestamp": "2026-09-09T01:09:35.823Z"
+      },
+      "2a687c09-fadc-4c06-bebb-8c3ed91efbc4:0000000000000062": {
+        "runId": "2a687c09-fadc-4c06-bebb-8c3ed91efbc4",
+        "nodeId": "3828145d-e10c-4752-b953-8714085dfbf3",
+        "seq": 62,
+        "type": "defect",
+        "data": {
+          "severity": "major",
+          "description": "The deliverable contains no mathematical model and no solutions to any of the five problems: no per-second position/velocity results for 0–300 s (Problem 1) or −100–100 s (Problem 4), no Table 1/Table 2 content, no termination time for Problem 2, no minimum pitch for Problem 3, no shortened-arc analysis for Problem 4, no maximum speed for Problem 5, and no result1/result2/result4 content. The structural deviation from the required outputs persists (the text is in fact empty rather than a restatement).",
+          "defectId": "D2"
+        },
+        "timestamp": "2026-09-09T01:09:35.827Z"
+      },
+      "2a687c09-fadc-4c06-bebb-8c3ed91efbc4:0000000000000063": {
+        "runId": "2a687c09-fadc-4c06-bebb-8c3ed91efbc4",
+        "nodeId": "3828145d-e10c-4752-b953-8714085dfbf3",
+        "seq": 63,
+        "type": "defect",
+        "data": {
+          "severity": "critical",
+          "description": "The delivered text is completely empty. No content of any kind was delivered, which is a delivery-blocking failure: there is no model, no results, and no response to the task at all.",
+          "defectId": "D1"
+        },
+        "timestamp": "2026-09-09T01:09:35.830Z"
+      },
+      "2a687c09-fadc-4c06-bebb-8c3ed91efbc4:0000000000000064": {
+        "runId": "2a687c09-fadc-4c06-bebb-8c3ed91efbc4",
+        "nodeId": null,
+        "seq": 64,
+        "type": "gate_result",
+        "data": {
+          "gate": "review",
+          "passed": false,
+          "defects_total": 2,
+          "defects_critical": 1,
+          "advisory": 0
+        },
+        "timestamp": "2026-09-09T01:09:35.833Z"
+      },
+      "2a687c09-fadc-4c06-bebb-8c3ed91efbc4:0000000000000065": {
+        "runId": "2a687c09-fadc-4c06-bebb-8c3ed91efbc4",
+        "nodeId": null,
+        "seq": 65,
+        "type": "run_state",
+        "data": {
+          "from": "running",
+          "to": "failed"
+        },
+        "timestamp": "2026-09-09T01:09:35.844Z"
+      }
+    },
+    "artifacts": {},
+    "manifests": {}
+  }
+}

@@ -1,0 +1,195 @@
+{
+  "unit": {
+    "name": "paper_audit",
+    "version": 0
+  },
+  "global": null,
+  "tables": {
+    "entries": {
+      "0000000000000001": {
+        "id": "e2571554-3fb9-49a7-aac7-9b1f1526d6ac",
+        "seq": 1,
+        "ts": "2026-09-09T00:21:40.189Z",
+        "runId": null,
+        "actor": "paper-shell",
+        "eventType": "production_enabled",
+        "detail": {
+          "tier": "T3",
+          "mode": "strict",
+          "route": "https://api.y-api.bestvirtualgoods.com/v1 + z-ai/glm-5.3-flash"
+        }
+      },
+      "0000000000000002": {
+        "id": "8bb1fa81-0a23-4e45-bc24-420aa3b0fef4",
+        "seq": 2,
+        "ts": "2026-09-09T00:21:40.215Z",
+        "runId": "2a687c09-fadc-4c06-bebb-8c3ed91efbc4",
+        "actor": "paper-executor",
+        "eventType": "workflow_started",
+        "detail": {
+          "mode": "strict"
+        }
+      },
+      "0000000000000003": {
+        "id": "80f038ee-0a6e-4075-86a9-a96bce1ad1bc",
+        "seq": 3,
+        "ts": "2026-09-09T00:22:18.342Z",
+        "runId": "2a687c09-fadc-4c06-bebb-8c3ed91efbc4",
+        "actor": "paper-executor",
+        "eventType": "ir_entry_written",
+        "detail": {
+          "kind": "DataArtifact",
+          "id": "DA-RAW",
+          "stage": "input-registration"
+        }
+      },
+      "0000000000000004": {
+        "id": "baceeecc-842a-4c15-9647-8c0fb6e17d46",
+        "seq": 4,
+        "ts": "2026-09-09T00:22:18.346Z",
+        "runId": "2a687c09-fadc-4c06-bebb-8c3ed91efbc4",
+        "actor": "paper-executor",
+        "eventType": "ir_entry_written",
+        "detail": {
+          "kind": "RequirementSpec",
+          "id": "R-OUT",
+          "stage": "input-registration"
+        }
+      },
+      "0000000000000005": {
+        "id": "738a98f9-3d10-480e-9fe8-cb4353c7f572",
+        "seq": 5,
+        "ts": "2026-09-09T00:22:18.349Z",
+        "runId": "2a687c09-fadc-4c06-bebb-8c3ed91efbc4",
+        "actor": "paper-executor",
+        "eventType": "ir_entry_written",
+        "detail": {
+          "kind": "ProblemSpec",
+          "id": "P1",
+          "stage": "input-registration"
+        }
+      },
+      "0000000000000006": {
+        "id": "78ade619-8002-4d9a-bde5-72d30b8ebb49",
+        "seq": 6,
+        "ts": "2026-09-09T00:22:18.355Z",
+        "runId": "2a687c09-fadc-4c06-bebb-8c3ed91efbc4",
+        "actor": "paper-executor",
+        "eventType": "ir_entry_written",
+        "detail": {
+          "kind": "SymbolSpec",
+          "id": "SYM-q",
+          "nodeId": "7be4686b-8948-4c18-9ea6-0c9bdb5e2834"
+        }
+      },
+      "0000000000000007": {
+        "id": "8f749488-5684-46e1-9d23-460951643816",
+        "seq": 7,
+        "ts": "2026-09-09T00:22:18.359Z",
+        "runId": "2a687c09-fadc-4c06-bebb-8c3ed91efbc4",
+        "actor": "paper-executor",
+        "eventType": "ir_entry_written",
+        "detail": {
+          "kind": "AssumptionSpec",
+          "id": "ASM-1",
+          "nodeId": "7be4686b-8948-4c18-9ea6-0c9bdb5e2834"
+        }
+      },
+      "0000000000000008": {
+        "id": "201f0157-a17a-49a3-bc2a-d6efe8879c9f",
+        "seq": 8,
+        "ts": "2026-09-09T00:22:18.363Z",
+        "runId": "2a687c09-fadc-4c06-bebb-8c3ed91efbc4",
+        "actor": "paper-executor",
+        "eventType": "ir_entry_written",
+        "detail": {
+          "kind": "EquationSpec",
+          "id": "EQ-1",
+          "nodeId": "7be4686b-8948-4c18-9ea6-0c9bdb5e2834"
+        }
+      },
+      "0000000000000009": {
+        "id": "6556fa16-6c69-4ffa-82e8-391321b400ad",
+        "seq": 9,
+        "ts": "2026-09-09T00:22:18.366Z",
+        "runId": "2a687c09-fadc-4c06-bebb-8c3ed91efbc4",
+        "actor": "paper-executor",
+        "eventType": "ir_entry_written",
+        "detail": {
+          "kind": "ModelSpec",
+          "id": "M1",
+          "nodeId": "7be4686b-8948-4c18-9ea6-0c9bdb5e2834"
+        }
+      },
+      "0000000000000010": {
+        "id": "3e8df1f5-3b0a-4d90-9a31-b99e14fac7dd",
+        "seq": 10,
+        "ts": "2026-09-09T00:22:18.419Z",
+        "runId": "2a687c09-fadc-4c06-bebb-8c3ed91efbc4",
+        "actor": "paper-executor",
+        "eventType": "ir_entry_written",
+        "detail": {
+          "kind": "RunArtifact",
+          "id": "2a687c09-fadc-4c06-bebb-8c3ed91efbc4",
+          "nodeId": "execute",
+          "stage": "code-run"
+        }
+      },
+      "0000000000000011": {
+        "id": "b19123d9-30b6-45bd-af32-fb4ba5ebe7aa",
+        "seq": 11,
+        "ts": "2026-09-09T00:22:18.423Z",
+        "runId": "2a687c09-fadc-4c06-bebb-8c3ed91efbc4",
+        "actor": "paper-executor",
+        "eventType": "ir_entry_written",
+        "detail": {
+          "kind": "ExecutionRecord",
+          "id": "EXEC-2a687c09-fadc-4c06-bebb-8c3ed91efbc4",
+          "nodeId": "execute",
+          "stage": "code-run"
+        }
+      },
+      "0000000000000012": {
+        "id": "df17ebb8-ff6b-41fc-a19f-daa0154ce01c",
+        "seq": 12,
+        "ts": "2026-09-09T00:22:18.429Z",
+        "runId": "2a687c09-fadc-4c06-bebb-8c3ed91efbc4",
+        "actor": "paper-executor",
+        "eventType": "ir_entry_written",
+        "detail": {
+          "kind": "Result",
+          "id": "RES-OUT",
+          "nodeId": "execute",
+          "stage": "interpretation"
+        }
+      },
+      "0000000000000013": {
+        "id": "c7d3c45f-09a7-4383-9c6c-222388c82a57",
+        "seq": 13,
+        "ts": "2026-09-09T00:22:18.433Z",
+        "runId": "2a687c09-fadc-4c06-bebb-8c3ed91efbc4",
+        "actor": "paper-executor",
+        "eventType": "ir_entry_written",
+        "detail": {
+          "kind": "Claim",
+          "id": "C-OUT",
+          "nodeId": "execute",
+          "stage": "interpretation"
+        }
+      },
+      "0000000000000014": {
+        "id": "3913a804-08a6-44c8-8161-be9abbe52007",
+        "seq": 14,
+        "ts": "2026-09-09T01:09:35.846Z",
+        "runId": "2a687c09-fadc-4c06-bebb-8c3ed91efbc4",
+        "actor": "paper-executor",
+        "eventType": "gate_failed",
+        "detail": {
+          "gate": "review",
+          "defects": 2,
+          "reviews": 4
+        }
+      }
+    }
+  }
+}
