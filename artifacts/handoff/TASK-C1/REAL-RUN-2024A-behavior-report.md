@@ -177,3 +177,58 @@ node --input-type=module -e "await import('./apps/cockpit/server.mjs')" &
 行为全部可解释;交付失败源于 T3 模板与 CUMCM 开放题的适配边界,属引擎侧已知域
 外场景**——真实人员测试可按"P3 的适配提示 + 课程作业型题目"推进,开放题场景
 待 T2/模型族决策后再验。
+
+---
+
+## 附录 B(2026-09-09 续):继续任务——T2 路径全组合验证,赛题仍未完成
+
+首份报告后按"继续任务"指示继续尝试让 2024 A 题真正产稿。共 4 个组合,全部
+BLOCKED,无一产出初稿:
+
+| # | tier × 模型 | 耗时 | 用量(in/out tok) | 终态 | 失败点 |
+|---|---|---|---|---|---|
+| R1 | T3 strict × glm-5.3-flash | 48min | 23,908 / 264,428 | BLOCKED | review 4 次未过(串题→复述→复述→空交付,见正文) |
+| R2 | T2 strict × glm-5.3-flash | ~2min | 1,787 / 2,945 | BLOCKED | execute 首步 **ESCAPE refused: unledgered_reference**(零重试,W4) |
+| R3 | T2 strict × deepseek-v4-pro | ~1min | 0 / 0(无 usage) | BLOCKED | plan 3 attempts 全挂,`provider-unavailable`——**中转端已下架该模型**(直连验证:`No available channel for model deepseek/deepseek-v4-pro under group y-api`);另:v4-flash 请求在中转侧被路由到 `hy3` 模型(中转映射行为,已记录) |
+| R4 | T2 strict × deepseek-v4-flash | ~5min | 1,731 / 11,999 | BLOCKED | 与 R2 同点:plan 成功(3.2 分钟/9.5k out),execute **ESCAPE unledgered_reference** |
+
+### B.1 T2 失败机制(从 guided-steps.ts + audit 复原)
+
+T2 走三步声明协议(admitGuidedStep):模型在 harness 给定的封闭候选集内分步登记——
+**step 1** 声明 run{code, outputBasenames, seed}(文件名必须来自 harness 候选清单,
+"模型零发明空间")→ **step 2** Result 声明(locator 必须在 step 1 已声明的
+outputBasenames 之内)→ **step 3** claims(result_refs 必须是 step 2 已入账 id)。
+两个模型族都在 step 2/3 引用了 step 1 未登记的 locator,按专家决策 **W4** 这类
+跨步引用不一致属 ESCAPE(零重试预算:重试=给第二次机会违反同一禁令,防攻击),
+直接 run failed → BLOCKED。plan 产物正常(execute 前一切正常,节点 attempt 均 1/3,
+错误类别是安全设计而非传输故障)。
+
+### B.2 结论修正(替代正文 §7 的开放题部分)
+
+**以当前引擎形态(零改动),2024 A 题无法经驾驶舱产出论文初稿**:
+- T3:模板语义不适配(结构问题,换模型族无效);
+- T2:两个模型族均在三步协议跨步引用上 ESCAPE(零重试是 W4 安全设计,不可放宽);
+- deepseek-v4-pro:中转已下架;v4-flash 可用但同样死于 ESCAPE。
+
+要打通"开放建模题 → 初稿",需要**引擎侧**引导工程改进(这超出驾驶舱与操作层
+权限,列入待用户/维护者决策),候选方向:
+1. T2 ESCAPE 拒绝时把具体 reason 作为下一步 guidance 回灌(W4 现行禁止,需专家
+   重新裁决"引用一致性的 ESCAPE 是否可降级为 DRIFT");
+2. 三步协议前的"输出文件清单教育"——把题目要求的 result1/2/4.xlsx 与 harness
+   候选清单的对应关系显式化,降低 step 1 漏声明的概率;
+3. 或为五问结构题设计 T2.5 协议(每问一个 step 组)。
+
+### B.3 真人测试的可行边界(更新)
+
+- **可以交付**:课程作业型题目(与 demo 同型,T3 已 14/14 验证)+ 驾驶舱全部
+  管理功能(API 配置/演示/上传/投影/申诉);
+- **不要交付**:期望真人在驾驶舱上对 CUMCM 真题出稿——当前必然 BLOCKED,且会
+  真实消耗中转费用(T3 一跑 264k tokens)。
+
+### B.4 证据追加
+
+R2/R3/R4 的 persist 目录:`paper-shell-persist-enQMyt`(R2 glm)、
+`paper-shell-persist-ok9RQM`(R3 v4-pro)、`paper-shell-persist-GaHHzl`(R4 v4-flash,
+含 escape_refused audit 条目);未入库(gitignored),关键事实已内联本附录。
+cockpit-settings.json 现有 y-api(glm-5.3-flash)与 y-api-deepseek(v4-flash,
+已激活)两个 profile。
