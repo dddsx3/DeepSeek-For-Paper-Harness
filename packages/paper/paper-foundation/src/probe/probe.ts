@@ -167,3 +167,24 @@ export function driftCorrection(reason: string): string {
     'Harness-registered ids you must REFERENCE, never declare: DA-RAW, R-OUT, P1.',
   ].join('\n')
 }
+
+/**
+ * TASK-2026-09-09 D1: the DRIFT correction for a cross-step reference
+ * inconsistency (`unledgered_reference`). The admission reason already names
+ * the offending locator AND the allowed set (`… is not one of the step-1
+ * declared outputs […]` / `… never admitted in step 2`), so echoing the full
+ * reason line hands the model both the mistake and the fix in one read.
+ * This moves only the retry budget (ESCAPE → DRIFT); the closed-id rule
+ * itself is unchanged. True attack forms (free_id / free_structure /
+ * bypass_container) stay zero-retry ESCAPE.
+ */
+export function ledgerCorrection(reason: string): string {
+  const offending = reason.split('\n')[0]?.slice(0, 400) ?? reason.slice(0, 400)
+  return [
+    'RETRY GUIDANCE — cross-step reference inconsistency (same declaration protocol, corrected).',
+    `What was refused: ${offending}`,
+    'Fix by referencing ONLY the ids/locators listed above — they come from your own earlier declarations.',
+    'Do not invent new file names or result ids; change nothing else.',
+    'Harness-registered ids you must REFERENCE, never declare: DA-RAW, R-OUT, P1.',
+  ].join('\n')
+}

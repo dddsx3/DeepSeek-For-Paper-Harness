@@ -38,6 +38,7 @@ import {
   driftCorrection,
   failureClassOf,
   initialTier,
+  ledgerCorrection,
   noneGuide,
   type FailureClass,
   type Tier,
@@ -403,10 +404,20 @@ export class WorkflowExecutor {
         const err = new Error(`T2 guided step ${step} refused: ${admission.reason}`)
         ;(err as { code?: string }).code = admission.code
         // Schema/foreign-key refusals are a DRIFT (correctable with the
-        // guidance prompt already in the message); free ids / unledgered
-        // references / bypass containers are ESCAPE (zero budget, W4).
+        // guidance prompt already in the message); free ids / bypass
+        // containers are ESCAPE (zero budget, W4).
+        // TASK-2026-09-09 D1 adjudication (维护者 task book, narrowing W4):
+        // a CROSS-STEP reference inconsistency (`unledgered_reference` — the
+        // declared locator/result_refs missed the ledger) is a correctable
+        // drift, not an attack: it now rides the DRIFT budget with the
+        // reason fed back into the next step prompt. True attack forms
+        // (free_id = forged harness id, free_structure = off-ledger unit/
+        // criticality, bypass_container) stay ESCAPE zero-retry and are
+        // pinned by tests (executor-guided.spec attacks 1/3 + free-structure).
         ;(err as { w4Class?: FailureClass }).w4Class =
-          admission.code === 'step_foreign_key' || admission.code === 'schema_violation'
+          admission.code === 'step_foreign_key' ||
+          admission.code === 'schema_violation' ||
+          admission.code === 'unledgered_reference'
             ? 'DRIFT'
             : 'ESCAPE'
         throw err
@@ -1241,8 +1252,14 @@ export class WorkflowExecutor {
             spentMap.set(runKey, spent + 1)
             // Guide the next attempt: NONE shows the layer's options + the
             // minimal example; DRIFT corrects only the offending field and
-            // hands back the registered id table (W4).
-            const guide = w4Class === 'NONE' ? noneGuide() : driftCorrection(failure.message)
+            // hands back the registered id table (W4). D1: a cross-step
+            // reference inconsistency gets the ledger-specific correction —
+            // the refusal reason names the allowed set, echo it whole.
+            const guide = w4Class === 'NONE'
+              ? noneGuide()
+              : failure.code === 'unledgered_reference'
+                ? ledgerCorrection(failure.message)
+                : driftCorrection(failure.message)
             // TASK-PW W2: on the T2 wizard path the correction must reach the
             // NEXT STEP prompt, not the (skipped) one-shot EXECUTE prompt —
             // stash it for runGuidedExecute to append.

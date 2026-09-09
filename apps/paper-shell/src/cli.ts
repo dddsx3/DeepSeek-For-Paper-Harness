@@ -68,8 +68,11 @@ export function parseArgs(argv: string[]): Record<string, unknown> & { positiona
   return { ...flags, positionals }
 }
 
-/** Build the full composition: storage + foundation + engine with real route. */
-async function buildContext(shellRoot: string): Promise<{
+/** Build the full composition: storage + foundation + engine with real route.
+ *  TASK-2026-09-09 E5: `display` carries the REAL resolved provider/model —
+ *  the settings snapshot labels usage accounting and request events, so the
+ *  old `deepseek-official/placeholder` placeholder mislabeled every real run. */
+async function buildContext(shellRoot: string, display?: { provider: string; model: string }): Promise<{
   ctx: Context
   baseRoot: string
   dispose: () => Promise<void>
@@ -85,10 +88,14 @@ async function buildContext(shellRoot: string): Promise<{
   await ctx.plugin(PaperFoundationService)
   await ctx.plugin(WorkflowEngineService)
   await ctx.plugin(PaperProviderService)
+  const displayRole = display === undefined
+    ? { provider: 'deepseek-official', model: 'placeholder' }
+    : { provider: display.provider, model: display.model }
+  const roleRoute = { ...displayRole, credentialRef: 'PAPER_PROBE_API_KEY', timeoutMs: 60_000 }
   await ctx.plugin(PaperSettingsService, {
-    executor: { provider: 'deepseek-official', model: 'placeholder', credentialRef: 'PAPER_PROBE_API_KEY', timeoutMs: 60_000 },
-    reviewer: { provider: 'deepseek-official', model: 'placeholder', credentialRef: 'PAPER_PROBE_API_KEY', timeoutMs: 60_000 },
-    editorAi: { provider: 'deepseek-official', model: 'placeholder', credentialRef: 'PAPER_PROBE_API_KEY', timeoutMs: 60_000 },
+    executor: { ...roleRoute },
+    reviewer: { ...roleRoute },
+    editorAi: { ...roleRoute },
     defaultMode: 'strict',
   })
   const guard = new PaperRuntimeGuard(ctx, { profile: createExploratoryProfile() })
@@ -167,13 +174,17 @@ async function main(): Promise<number> {
     return 2
   }
   const rawTier = String(parsed.tier ?? 'T3')
-  const tier: 'T1' | 'T2' | 'T3' | undefined = (['T1', 'T2', 'T3'] as const).includes(rawTier as 'T1' | 'T2' | 'T3') ? rawTier as 'T1' | 'T2' | 'T3' : undefined
+  const tier: 'T1' | 'T2' | 'T3' | undefined = (['T1', 'T2', 'T3'] as const).includes(rawTier as 'T1' | 'T2' | 'T3')
+    ? rawTier as 'T1' | 'T2' | 'T3'
+    : undefined
   if (tier === undefined) {
     console.error(`invalid --tier '${rawTier}' (expected T1|T2|T3)`)
     return 2
   }
   const rawMode = String(parsed.mode ?? 'strict')
-  const mode: 'fast' | 'strict' | 'exploratory' | undefined = (['fast', 'strict', 'exploratory'] as const).includes(rawMode as 'fast' | 'strict' | 'exploratory') ? rawMode as 'fast' | 'strict' | 'exploratory' : undefined
+  const mode: 'fast' | 'strict' | 'exploratory' | undefined = (['fast', 'strict', 'exploratory'] as const).includes(rawMode as 'fast' | 'strict' | 'exploratory')
+    ? rawMode as 'fast' | 'strict' | 'exploratory'
+    : undefined
   if (mode === undefined) {
     console.error(`invalid --mode '${rawMode}' (expected fast|strict|exploratory)`)
     return 2
@@ -201,7 +212,8 @@ async function main(): Promise<number> {
     return 1
   }
 
-  const { ctx, baseRoot, dispose } = await buildContext(here)
+  const display = route === undefined ? undefined : { provider: route.provider, model: route.model }
+  const { ctx, baseRoot, dispose } = await buildContext(here, display)
   if (!fake && replayPath === undefined) {
     if (route === undefined) {
       // Unreachable (guarded above), but keep the type narrow for the audit.
@@ -238,6 +250,15 @@ async function main(): Promise<number> {
     ctx.provide('paperProvider', createRealProvider(route, adapter, recorder))
   }
   // Plugin executor AFTER provider is mounted.
+  // TASK-2026-09-09 E2/O3 (cockpit wiring): pricing arrives via
+  // PAPER_PRICING_JSON (a full PricingTable: provider → model → per-1k USD);
+  // the budget arrives via PAPER_DAILY_BUDGET_USD. The shell never prices by
+  // guess: an unpriced model simply costs 0, and the cockpit surfaces that
+  // as "未配置价格" rather than pretending $0 is a real number.
+  const pricingFromEnv = process.env.PAPER_PRICING_JSON !== undefined
+    ? (JSON.parse(process.env.PAPER_PRICING_JSON) as never)
+    : undefined
+  const budgetFromEnv = Number(process.env.PAPER_DAILY_BUDGET_USD ?? '')
   try {
     await ctx.plugin(PaperExecutorService, {
       produceFromExecute: true,
@@ -246,6 +267,8 @@ async function main(): Promise<number> {
       backoffBaseMs: 1_000,
       backoffCapMs: 10_000,
       initialTier: tier,
+      ...(pricingFromEnv !== undefined ? { pricing: pricingFromEnv } : {}),
+      ...(Number.isFinite(budgetFromEnv) && budgetFromEnv > 0 ? { dailyBudgetUsd: budgetFromEnv } : {}),
     })
   } catch (error) {
     console.error('executor mount failed:', (error as Error).message)
@@ -274,7 +297,9 @@ async function main(): Promise<number> {
       passed_gates: nodes.filter(n => n.state === 'succeeded').map(n => n.title),
       minted_ir_kinds: [...new Set([...ir.values()].map(r => r.kind))],
       minted_ir_count: ir.size,
-      failing_node: blockedNode === undefined ? null : { title: blockedNode.title, attempts: blockedNode.attempts, code: blockedNode.lastErrorCode },
+      failing_node: blockedNode === undefined
+        ? null
+        : { title: blockedNode.title, attempts: blockedNode.attempts, code: blockedNode.lastErrorCode },
       suggested_intervention: human.advice,
     }
     await mkdir(outDir, { recursive: true })
@@ -381,7 +406,13 @@ async function* adapterStream(
 
 /** Wrap one stream: pass chunks through, record the assembled exchange
  *  (text AND usage — TASK-Q2) into the cassette. */
-function recordOrPassthrough(recorder: CassetteRecorder | undefined, options: { provider: string; model: string; system?: string; messages: Array<{ content?: unknown }> }, stream: AsyncIterable<unknown>): AsyncGenerator<unknown> {
+type StreamRequest = { provider: string; model: string; system?: string; messages: Array<{ content?: unknown }> }
+
+function recordOrPassthrough(
+  recorder: CassetteRecorder | undefined,
+  options: StreamRequest,
+  stream: AsyncIterable<unknown>,
+): AsyncGenerator<unknown> {
   if (recorder === undefined) {
     return (async function* pass() { yield* stream })()
   }
@@ -409,7 +440,12 @@ function recordOrPassthrough(recorder: CassetteRecorder | undefined, options: { 
   })()
 }
 
-function assembledRequest(options: { provider: string; model: string; system?: string; messages: Array<{ content?: unknown }> }): { provider: string; model: string; system?: string | undefined; messages: ReadonlyArray<{ content?: unknown }> } {
+function assembledRequest(options: StreamRequest): {
+  provider: string
+  model: string
+  system?: string | undefined
+  messages: ReadonlyArray<{ content?: unknown }>
+} {
   return {
     provider: options.provider,
     model: options.model,
@@ -422,7 +458,10 @@ function assembledRequest(options: { provider: string; model: string; system?: s
  *  replay reproduces the recorded usage chunks too, so a replayed run's
  *  telemetry report equals the real run's (TASK-Q2). */
 function createReplayProvider(replayer: CassetteReplayer): ProviderFace {
-  async function* streamAnswer(text: string, usage?: { inputTokens: number; outputTokens: number; cacheReadTokens?: number }): AsyncGenerator<unknown> {
+  async function* streamAnswer(
+    text: string,
+    usage?: { inputTokens: number; outputTokens: number; cacheReadTokens?: number },
+  ): AsyncGenerator<unknown> {
     yield { type: 'block-start', index: 0, blockType: 'text' }
     yield { type: 'text-delta', index: 0, text }
     yield { type: 'block-end', index: 0, block: { type: 'text', text } }
@@ -444,7 +483,7 @@ function createReplayProvider(replayer: CassetteReplayer): ProviderFace {
       model: { provider: replayer.meta.provider, id: replayer.meta.model, name: replayer.meta.model, context: { contextWindow: 128_000 }, inputModalities: ['text'] },
     }),
     stream: (options) => {
-      const answer = replayer.answerWithUsage(assembledRequest(options as { provider: string; model: string; system?: string; messages: Array<{ content?: unknown }> }))
+      const answer = replayer.answerWithUsage(assembledRequest(options as StreamRequest))
       return streamAnswer(answer.text, answer.usage)
     },
   }

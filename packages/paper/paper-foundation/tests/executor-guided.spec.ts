@@ -17,8 +17,14 @@
  *   2. A step payload carrying a foreign key (foreign_key) → DRIFT: the
  *      guided retry is allowed and the correction prompt names the
  *      offending field.
- *   3. A claim referencing an unledgered result → ESCAPE refusal (zero
- *      budget, W4 attack 1 semantics).
+ *   3. A forged harness id (free_id: claim/result id not in the candidate
+ *      set) → ESCAPE refusal (zero budget — attack form, D1 keeps this).
+ *
+ * TASK-2026-09-09 D1 (维护者 task book): cross-step reference
+ * inconsistencies (`unledgered_reference` — locator/result_refs missing the
+ * ledger) moved from ESCAPE to DRIFT: guided retry with the refusal reason
+ * (which names the allowed set) fed back. Tests below pin BOTH sides —
+ * the correction path AND the still-zero-retry attack forms.
  *
  * Step-order enforcement lives at the protocol layer (guided-steps.spec.ts
  * — 步 1 未准入不进入步 2); the executor never asks a step out of order.
@@ -243,11 +249,50 @@ describe('T2 guided steps — executor end to end', () => {
     expect(guidance).toContain('DA-RAW')
   })
 
-  it('attack 3: a claim referencing an unledgered result is ESCAPE — zero budget', async () => {
+  it('D1: a claim referencing an unledgered result is DRIFT — guided retry with the ledger correction, then resolves', async () => {
     const badStep3 = JSON.stringify({
       claims: [{ claim_id: 'C-OUT', text: 'x is 0.731', result_refs: ['RES-NOPE'], criticality: 'CRITICAL' }],
     })
-    const { ctx, runId, outcome } = await tierHarness('T2', [STEP1_OK, STEP2_OK, badStep3, STEP3_OK])
+    const { ctx, runId, outcome, provider } = await tierHarness('T2', [STEP1_OK, STEP2_OK, badStep3, STEP3_OK])
+    expect(outcome.status, (outcome as { message?: string }).message).toBe('resolved')
+    const audit = ctx.paperAudit.list(runId).map((e: { eventType: string }) => e.eventType)
+    expect(audit).toContain('provider_retry')
+    expect(audit).not.toContain('escape_refused')
+    const guidance = provider.seen.find(p => p.includes('cross-step reference inconsistency'))
+    expect(guidance).toBeDefined()
+    expect(guidance).toContain('RES-NOPE')
+  })
+
+  it('D1: a step-2 locator missing the step-1 ledger is DRIFT — guided retry names the allowed outputs, then resolves', async () => {
+    const strayStep2 = JSON.stringify({
+      results: [{ data_id: 'RES-OUT', locator: 'result2.json', jsonPath: 'mean_thickness', unit: 'm' }],
+    })
+    const { outcome, provider } = await tierHarness('T2', [STEP1_OK, strayStep2, STEP2_OK, STEP3_OK])
+    expect(outcome.status, (outcome as { message?: string }).message).toBe('resolved')
+    const guidance = provider.seen.find(p => p.includes('cross-step reference inconsistency'))
+    expect(guidance).toBeDefined()
+    expect(guidance).toContain('result2.json')
+    expect(guidance).toContain('result.json')
+  })
+
+  it('attack 3 (D1 counter-test): a claim referencing an unledgered result TWICE exhausts the DRIFT budget → failed, still no escape-free pass', async () => {
+    const badStep3 = JSON.stringify({
+      claims: [{ claim_id: 'C-OUT', text: 'x is 0.731', result_refs: ['RES-NOPE'], criticality: 'CRITICAL' }],
+    })
+    // Every step-3 call returns the same bad payload — the guided budget
+    // (W-B, shared per run for DRIFT) must exhaust and fail the run rather
+    // than loop forever.
+    const { outcome, provider } = await tierHarness('T2', [STEP1_OK, STEP2_OK, badStep3])
+    expect(outcome.status).toBe('rejected')
+    const guidanceCount = provider.seen.filter(p => p.includes('cross-step reference inconsistency')).length
+    expect(guidanceCount).toBeGreaterThanOrEqual(1)
+  })
+
+  it('attack 3b (D1 counter-test): a FORGED harness id (free_id) is still ESCAPE — zero budget', async () => {
+    const forgedStep2 = JSON.stringify({
+      results: [{ data_id: 'RES-FORGED', locator: 'result.json', jsonPath: 'mean_thickness', unit: 'm' }],
+    })
+    const { ctx, runId, outcome } = await tierHarness('T2', [STEP1_OK, forgedStep2, STEP2_OK, STEP3_OK])
     expect(outcome.status).toBe('rejected')
     const audit = ctx.paperAudit.list(runId).map((e: { eventType: string }) => e.eventType)
     expect(audit).toContain('escape_refused')

@@ -67,6 +67,7 @@ export {
   degradeTier,
   driftCorrection,
   failureClassOf,
+  ledgerCorrection,
   initialTier,
   noneBudgetPolicy,
   noneGuide,

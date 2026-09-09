@@ -42,6 +42,9 @@ const falseBlockPath = join(studyDir, 'falseblock.jsonl')
 // and never into the repository. Runs inject the ACTIVE profile's route into
 // the child env — different keys = different accounts = costs stay separated.
 const settingsPath = resolve(here, 'cockpit-settings.json')
+// TASK 行动任务书 E2: engine-format pricing table (USD/1k) handed to every
+// spawned run via PAPER_PRICING_JSON; see pricing.usd.json for rates/sources.
+const pricingFile = resolve(here, 'pricing.usd.json')
 function loadSettings() {
   try {
     const doc = JSON.parse(readFileSync(settingsPath, 'utf8'))
@@ -107,7 +110,7 @@ function json(res, code, body) {
     // a permissive preflight keeps that path alive; same-origin requests
     // never see these headers' downsides. This server binds 127.0.0.1 only.
     'access-control-allow-origin': '*',
-    'access-control-allow-methods': 'GET, POST, OPTIONS',
+    'access-control-allow-methods': 'GET, POST, DELETE, OPTIONS',
     'access-control-allow-headers': 'content-type',
   })
   res.end(payload)
@@ -241,7 +244,23 @@ async function submitRun(problemPath, tier, mode, useFake, profileId) {
       }
     }
   }
-  const entry = { status: 'starting', startedAt: new Date().toISOString(), tier, mode, fake: useFake, runId: null, reportPath: null, error: null, profile: useFake ? null : (routeEnv.PAPER_PROBE_MODEL ?? null) }
+  // TASK 行动任务书 E2/O3: real money needs real accounting and a cap.
+  // Pricing file (USD/1k table) + a PER-RUN budget — each run spawns a fresh
+  // persist dir, so the engine's "daily" budget is exactly this run's budget.
+  // Unpriced model → budget never engages, cockpit shows 未配置价格.
+  if (!useFake) {
+    routeEnv = {
+      ...routeEnv,
+      // PAPER_PRICING_JSON carries the TABLE CONTENTS (not a path): cli.ts
+      // does JSON.parse on it. A parse error must not kill the run —
+      // unpriced simply costs 0.
+      ...(existsSync(pricingFile)
+        ? (() => { try { return { PAPER_PRICING_JSON: readFileSync(pricingFile, 'utf8') } } catch { return {} } })()
+        : {}),
+      PAPER_DAILY_BUDGET_USD: String(process.env.COCKPIT_RUN_BUDGET_USD ?? '0.5'),
+    }
+  }
+  const entry = { status: 'starting', startedAt: new Date().toISOString(), tier, mode, fake: useFake, runId: null, reportPath: null, error: null, profile: useFake ? null : (routeEnv.PAPER_PROBE_MODEL ?? null), cancelled: false, child: null }
   activeRuns.set(runKey, entry)
   void (async () => {
     try {
@@ -254,6 +273,7 @@ async function submitRun(problemPath, tier, mode, useFake, profileId) {
       const args = ['--import', 'tsx/esm', 'apps/paper-shell/src/cli.ts', 'run', problemPath, '--tier', tier, '--mode', mode, '--out', outRoot]
       if (useFake) args.push('--fake')
       const child = spawn(process.execPath, args, { cwd: repoRoot, env: routeEnv, stdio: ['ignore', 'pipe', 'pipe'] })
+      entry.child = child
       // A child launch failure (ENOENT etc.) must NEVER kill the cockpit —
       // it aborts THIS run and the UI shows the failure (run2 incident: the
       // unhandled 'error' event was what kept producing "read body failed").
@@ -270,7 +290,12 @@ async function submitRun(problemPath, tier, mode, useFake, profileId) {
       const runIdMatch = stdout.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/)
       entry.runId = runIdMatch?.[0] ?? null
       entry.exitCode = code
-      entry.status = delivered ? 'DELIVERED' : blocked ? 'BLOCKED' : 'FAILED'
+      // TASK 行动任务书 E1: a user cancellation is its own terminal state —
+      // never re-labelled DELIVERED/BLOCKED by whatever the killed child
+      // printed before dying.
+      entry.status = entry.cancelled === true
+        ? 'CANCELLED'
+        : delivered ? 'DELIVERED' : blocked ? 'BLOCKED' : 'FAILED'
       entry.reportPath = join(outRoot, 'report.md')
       entry.outputHead = stdout.slice(-1_200)
     } catch (error) {
@@ -334,6 +359,13 @@ async function handleUpload(req, res) {
     return json(res, 400, { ok: false, reason: '缺少题目文件（problem 字段或名为 problem 的文件部分）' })
   }
   const problem = problemFiles[0]
+  // TASK 行动任务书 E4 (honest interim): PDF extraction is not wired yet —
+  // silently feeding binary bytes to a UTF-8 text guard produced garbage
+  // (the bad.exe acceptance in the upload matrix). A clear 422 beats
+  // a confident wrong draft. Auto-extract lands with the extractor decision.
+  if (extname(problem.name).toLowerCase() === '.pdf' || problem.buffer.subarray(0, 5).toString('latin1') === '%PDF-') {
+    return json(res, 422, { ok: false, reason: 'PDF 暂不支持自动提取(开发中):请把题面文字另存为 .md 或 .txt 后重新上传(数据文件 .csv/.xlsx 不受影响)。"A题.pdf → 全选复制 → 粘贴到记事本 → 保存为 .txt" 即可。' })
+  }
   const problemPath = join(problemsDir, `problem-${Date.now().toString(36)}-${problem.name.replace(/[^\w.\-一-龥]+/g, '_')}`)
   await writeFile(problemPath, problem.buffer)
   try {
@@ -425,7 +457,7 @@ const server = createServer(async (req, res) => {
   if (req.method === 'OPTIONS') {
     res.writeHead(204, {
       'access-control-allow-origin': '*',
-      'access-control-allow-methods': 'GET, POST, OPTIONS',
+      'access-control-allow-methods': 'GET, POST, DELETE, OPTIONS',
       'access-control-allow-headers': 'content-type',
       'access-control-max-age': '86400',
     })
@@ -446,6 +478,10 @@ const server = createServer(async (req, res) => {
           ok: true,
           activeId: doc.activeId,
           envFallback: resolveShellRoute(process.env) !== undefined,
+          // E2: pricing.usd.json present = real $ accounting is wired; the UI
+          // shows 未配置价格 instead of a fake $0 when absent.
+          pricingConfigured: existsSync(pricingFile),
+          runBudgetUsd: Number(process.env.COCKPIT_RUN_BUDGET_USD ?? '0.5'),
           profiles: doc.profiles.map(p => ({
             id: p.id, name: p.name, endpoint: p.endpoint, model: p.model,
             provider: p.provider ?? 'openai-compatible-relay',
@@ -514,8 +550,80 @@ const server = createServer(async (req, res) => {
         return json(res, 200, { ok: false, detail: `无法连接:${String(error.cause?.message ?? error.message ?? error).slice(0, 120)}` })
       }
     }
+    // TASK 行动任务书 T3: profile-level smoke — is the configured MODEL
+    // itself reachable (X1: the relay had delisted v4-pro; this turns
+    // "3 failed attempts mid-run" into a 5-second answer at config time).
+    // A 1-token chat completion, never a settings write.
+    if (req.method === 'POST' && url.pathname === '/api/settings/smoke') {
+      const body = JSON.parse((await readBody(req)).toString('utf8'))
+      const doc = loadSettings()
+      const stored = doc.profiles.find(p => p.id === body.profileId) ?? activeProfile(doc)
+      const endpoint = typeof body.endpoint === 'string' && body.endpoint ? body.endpoint : stored?.endpoint
+      const model = typeof body.model === 'string' && body.model ? body.model : stored?.model
+      const apiKey = (typeof body.apiKey === 'string' && body.apiKey.trim() !== '') ? body.apiKey.trim() : stored?.apiKey
+      if (!endpoint || !model || !apiKey) return json(res, 400, { ok: false, detail: '先保存配置(endpoint / 模型 / key)后再冒烟' })
+      try {
+        const response = await fetch(`${endpoint.replace(/\/$/, '')}/chat/completions`, {
+          method: 'POST',
+          headers: { authorization: `Bearer ${apiKey}`, 'content-type': 'application/json' },
+          body: JSON.stringify({ model, messages: [{ role: 'user', content: 'OK' }], max_tokens: 4 }),
+          signal: AbortSignal.timeout(30_000),
+        })
+        const payload = await response.json().catch(() => null)
+        if (response.ok) {
+          // X2 lesson: relays may silently SERVE A DIFFERENT model than the
+          // one requested — surface what actually answered.
+          const served = payload?.model
+          return json(res, 200, {
+            ok: true,
+            detail: served !== undefined && served !== model
+              ? `模型可用,但中转实际用 ${served} 应答(请求的是 ${model})——映射行为,口径实验请注意`
+              : `模型 ${model} 可用(1-token 探测通过)`,
+            servedModel: served ?? null,
+          })
+        }
+        const msg = String(payload?.error?.message ?? response.status)
+        const channelGone = /channel|model_not_found/i.test(msg) || (response.status === 503 && /No available/i.test(msg))
+        return json(res, 200, { ok: false, detail: channelGone
+          ? `中转没有 ${model} 的可用通道(可能已下架)——换模型或联系中转方`
+          : `探测失败(${response.status}):${msg.slice(0, 140)}` })
+      } catch (error) {
+        return json(res, 200, { ok: false, detail: `无法连接:${String(error.cause?.message ?? error.message ?? error).slice(0, 120)}` })
+      }
+    }
     if (req.method === 'GET' && url.pathname === '/api/runs/active') {
-      return json(res, 200, { ok: true, runs: Object.fromEntries(activeRuns) })
+      // Strip the live child handle: ChildProcess is circular and would
+      // break JSON.stringify (and the UI has no business seeing it).
+      const runs = {}
+      for (const [k, v] of activeRuns) {
+        const { child, ...rest } = v
+        runs[k] = rest
+      }
+      return json(res, 200, { ok: true, runs })
+    }
+    // TASK 行动任务书 E1: cancel a running submission — kill the whole child
+    // process tree (Windows: taskkill /T /F) and let the exit handler record
+    // the CANCELLED terminal state (never re-labelled by child output).
+    if (req.method === 'DELETE' && url.pathname.startsWith('/api/runs/')) {
+      const runKey = url.pathname.split('/')[3]
+      const entry = activeRuns.get(runKey)
+      if (entry === undefined) return json(res, 404, { ok: false, reason: '运行不存在或已结束(仅运行中的任务可取消)' })
+      if (entry.status !== 'starting' && entry.status !== 'running') {
+        return json(res, 409, { ok: false, reason: `运行已结束(${entry.status}),无需取消` })
+      }
+      entry.cancelled = true
+      entry.error = '已被用户取消'
+      try {
+        if (process.platform === 'win32' && entry.child?.pid !== undefined) {
+          const { execSync } = await import('node:child_process')
+          execSync(`taskkill /PID ${entry.child.pid} /T /F`, { stdio: 'ignore' })
+        } else {
+          entry.child?.kill('SIGTERM')
+        }
+      } catch {
+        entry.child?.kill('SIGKILL')
+      }
+      return json(res, 200, { ok: true, runKey, status: 'cancelling' })
     }
     // Report preview (projection only): the latest run's report.md, read
     // straight out of the out dir. Nothing engine-side is computed here.

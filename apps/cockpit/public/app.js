@@ -19,7 +19,7 @@ const LS_RUNS    = 'pc.runs.v1';
 
 const $ = (id) => document.getElementById(id);
 
-const PROBLEM_EXT = ['md', 'tex', 'pdf', 'docx'];   // 题面
+const PROBLEM_EXT = ['md', 'tex', 'txt', 'pdf', 'docx'];   // 题面(pdf 服务端会引导转文本,见 E4)
 const DATA_EXT = ['csv', 'xlsx'];                    // 数据(只被求解代码读取)
 
 // ---------------------------------------------------------------------------
@@ -37,7 +37,7 @@ let manifest = null;               // /api/manifest 投影
 let manifestDetailOpen = false;
 let selectedNodeId = null;
 // TASK-C1.5:API 配置(profiles)。draftProfiles 是面板内的编辑副本,点「保存设置」才 POST。
-let settings = null;               // GET /api/settings 投影 {activeId, envFallback, profiles:[…]}
+let settings = null;               // GET /api/settings 投影 {activeId, envFallback, pricingConfigured, profiles:[…]}
 let draftProfiles = [];            // 编辑副本:[{id?, name, endpoint, model, provider, test:{state,detail,models,chosen}}]
 let draftActiveId = null;
 let settingsOpen = false;
@@ -140,6 +140,7 @@ const SHELL_STATUS = {
   DELIVERED: { label: '已交付', dot: 'ok' },
   BLOCKED:   { label: '被拦截', dot: 'bad' },
   FAILED:    { label: '失败',   dot: 'bad' },
+  CANCELLED: { label: '已取消', dot: '' },
 };
 const RUN_STATUS = {           // RunRecord.status(引擎原值)
   planning:  { label: '规划中' },
@@ -403,6 +404,94 @@ function evLine(ev) {
   return row;
 }
 
+/** 当前激活配置(E5 标签替换与守卫用);envFallback 时返回 null。 */
+function activeSettingsProfile() {
+  if (!settings || !Array.isArray(settings.profiles)) return null;
+  return settings.profiles.find(x => x.id === settings.activeId) ?? null;
+}
+
+// ---------------------------------------------------------------------------
+// TASK 行动任务书 E1: 活体反馈(耗时/token/费用常驻)+ 取消
+// ---------------------------------------------------------------------------
+
+let liveTimer = null;
+
+function fmtElapsed(sinceIso) {
+  if (!sinceIso) return '—';
+  const s = Math.max(0, Math.floor((Date.now() - new Date(sinceIso).getTime()) / 1000));
+  const m = Math.floor(s / 60);
+  return m > 0 ? `${m} 分 ${s % 60} 秒` : `${s} 秒`;
+}
+
+function startLiveTicker() {
+  if (liveTimer !== null) return;
+  liveTimer = setInterval(() => { if (!document.hidden) renderDelivery(selectedEntry()); }, 1000);
+}
+
+function stopLiveTicker() {
+  if (liveTimer !== null) { clearInterval(liveTimer); liveTimer = null; }
+}
+
+function activeRunEntry() {
+  for (const e of runs.values()) {
+    if (e.shell.status === 'starting' || e.shell.status === 'running') return e;
+  }
+  return null;
+}
+
+async function cancelActiveRun() {
+  const e = activeRunEntry();
+  if (!e || !e.runKey) { toast('没有正在运行的任务'); return; }
+  if (!window.confirm('确定取消当前运行?已产生的费用不退,但不会继续增加。')) return;
+  try {
+    await apiFetch('/api/runs/' + encodeURIComponent(e.runKey), { method: 'DELETE' });
+    toast('正在取消…(进程树将被终止)');
+  } catch (err) {
+    toast('取消失败:' + err.message);
+  }
+}
+
+/** 交付区活体条:运行中显示 耗时 / tokens / 费用 / 取消按钮。 */
+function renderLiveStrip(e) {
+  const old = document.getElementById('liveStrip');
+  if (old !== null) old.remove();
+  if (!e || (e.shell.status !== 'starting' && e.shell.status !== 'running')) {
+    if (activeRunEntry() === undefined) stopLiveTicker();
+    return;
+  }
+  startLiveTicker();
+  const usage = usageOf(e);
+  const strip = el('div', 'usage-strip');
+  strip.id = 'liveStrip';
+  strip.appendChild(el('span')).append('已耗时 ', (() => { const b = el('b'); b.textContent = fmtElapsed(e.shell.startedAt); return b; })());
+  strip.appendChild(el('span')).append('tokens ', (() => { const b = el('b'); b.textContent = `${usage ? (usage.inputTokens || 0) + '/' + (usage.outputTokens || 0) : '…'}`; return b; })());
+  strip.appendChild(el('span')).append('费用 ', (() => {
+    const b = el('b');
+    if (usage && (usage.inputTokens || usage.outputTokens)) b.textContent = costText(usage);
+    else b.textContent = '…';
+    return b;
+  })());
+  if (usage && (usage.inputTokens || usage.outputTokens) && !pricingAvailable()) {
+    strip.appendChild(el('span', 'hint', '(价格未配置,$0 不代表免费)'));
+  }
+  const btn = el('button', 'btn small', '取消运行');
+  btn.addEventListener('click', cancelActiveRun);
+  strip.appendChild(btn);
+  const hint = el('span', 'hint', '若长时间无新事件,可能只是模型响应很慢——可用「取消」止损。');
+  strip.appendChild(hint);
+  const body = document.querySelector('#deliveryBody');
+  if (body !== null) body.insertBefore(strip, body.firstChild);
+}
+
+/** 费用文案:有价格给金额;没配价显式说"未配置价格",不假报 $0(E2)。 */
+function costText(usage) {
+  if (!pricingAvailable()) return '未配置价格';
+  return '$' + (Number(usage.costUsd) || 0).toFixed(4);
+}
+
+function pricingAvailable() {
+  return settings === null || settings.pricingConfigured === true;
+}
 /** 事件 data → 一行人话摘要;未知形状退回 JSON 原文(投影,不翻译发明) */
 function evSummary(ev) {
   const d = ev.data || {};
@@ -410,7 +499,15 @@ function evSummary(ev) {
     case 'run_state':    return `运行状态 ${d.from ?? '—'} → ${d.to ?? '—'}`;
     case 'node_created': return `节点创建(state=${d.state ?? '—'}, type=${d.type ?? '—'})`;
     case 'node_state':   return `节点状态 ${d.from ?? '—'} → ${d.to ?? '—'}`;
-    case 'request_started': return `第 ${d.attempt ?? '?'} 次模型请求 · ${d.provider ?? '—'}/${d.model ?? '—'}`;
+    case 'request_started': {
+      // E5 投影修正:引擎占位标签(deepseek-official/placeholder)替换为
+      // 当前激活配置的真实路由(标签层面,引擎事件原文不动)。
+      const real = activeSettingsProfile();
+      if (real && String(d.model ?? '') === 'placeholder') {
+        return `第 ${d.attempt ?? '?'} 次模型请求 · ${real.model}(经 ${real.name})`;
+      }
+      return `第 ${d.attempt ?? '?'} 次模型请求 · ${d.provider ?? '—'}/${d.model ?? '—'}`;
+    }
     case 'usage':
       if (typeof d.inputTokens === 'number') return `输入 +${d.inputTokens} · 输出 +${d.outputTokens} · 成本 $${d.costUsd}`;
       if (d.budgetState) return `预算:${d.budgetState} · 上限 $${d.limitUsd} · 已用 $${d.spentUsd}`;
@@ -496,10 +593,24 @@ function renderTimeline(e) {
       line.appendChild(el('span', null, passed ? 'PASS' : 'BLOCKED'));
       line.appendChild(el('span', 'ev-data', evSummary(ev)));
       body.appendChild(line);
-      // 拦截时把该 run 的 defect 描述(引擎原文)跟在门下
+      // 拦截时把该 run 的 defect 描述(引擎原文)跟在门下——E6: 默认折叠,
+      // 点「缺陷详情」展开(评审原文是英文评审视角,不该默认刷屏)。
       if (!passed) {
         const defects = events.filter(d => d.type === 'defect').slice(-5);
-        for (const d of defects) body.appendChild(evLine(d));
+        if (defects.length > 0) {
+          const toggle = el('button', 'btn small', `缺陷详情(${defects.length} 条,英文评审原文)`);
+          toggle.type = 'button';
+          const box = el('div');
+          box.style.display = 'none';
+          toggle.addEventListener('click', () => {
+            const show = box.style.display === 'none';
+            box.style.display = show ? '' : 'none';
+            toggle.textContent = show ? '收起缺陷详情' : `缺陷详情(${defects.length} 条,英文评审原文)`;
+          });
+          for (const d of defects) box.appendChild(evLine(d));
+          body.appendChild(toggle);
+          body.appendChild(box);
+        }
       }
     }
     sec.appendChild(body);
@@ -568,11 +679,36 @@ function usageOf(e) {
 // ② 交付区
 // ---------------------------------------------------------------------------
 
+/** TASK 行动任务书 E3: BLOCKED/FAILED 的 30 秒人话建议(按引擎失败原文分类,
+ *  一行"为什么 + 下一步做什么";英文缺陷原文折叠进详情区,不在顶部刷屏)。 */
+function failureAdvice(e) {
+  const s = e.shell.status;
+  const t = (e.shell.outputHead || '') + '\n' + (e.engineReason || '');
+  if (/unledgered_reference/i.test(t)) {
+    return '引导协议未过(引用未入账)。引擎已升级为「自动带修正重试」;若仍出现,建议换一个模型(右上角「API 设置」可先做连通性与可用性测试)。';
+  }
+  if (/failed its review gate/i.test(t)) {
+    return '评审未通过:生成内容与题目要求脱节。五问开放建模题(如 2024 A 题)超出当前 T3 模板的设计域,建议改用 T2 层级重试,或等待引擎的「分问协议」支持;课程作业型题目不受影响。';
+  }
+  if (/provider-unavailable|exhausted 3 attempts/i.test(t)) {
+    return '模型通道不可用:该模型可能已被中转方下架。到右上角「API 设置」对配置点「测试」,换一个显示可用的模型后重试。';
+  }
+  if (/budget|预算/i.test(t)) {
+    return '本次运行超出预算上限被停止(费用见「实时进度」)。如需放宽,调整启动配置里的 COCKPIT_RUN_BUDGET_USD 后重试。';
+  }
+  if (s === 'CANCELLED') return '运行已被手动取消,已产生的费用不退。';
+  if (s === 'FAILED') return '运行失败:引擎输出的原文见下方;多数为传输或环境问题,可直接重试一次。';
+  if (s === 'BLOCKED') return '被门禁拦截:引擎输出的原文见下方;如认为拦截不当,可提交「误杀申诉」。';
+  return null;
+}
+
 function deliveryVerdict(e) {
   const s = e.shell.status;
-  if (s === 'DELIVERED') return { cls: 'ok',   title: '已交付',        sub: '报告与校验信息见下方输出。' };
-  if (s === 'BLOCKED')   return { cls: 'bad',  title: '被门禁拦截',    sub: '引擎输出的原文见下方;如认为拦截不当,可提交"误杀申诉"。' };
-  if (s === 'FAILED')    return { cls: 'warn', title: '运行失败',      sub: '引擎输出的原文见下方。' };
+  const advice = failureAdvice(e);
+  if (s === 'DELIVERED') return { cls: 'ok',   title: '已交付(完整稿)', sub: '报告与校验信息见下方输出。' };
+  if (s === 'BLOCKED')   return { cls: 'bad',  title: '被门禁拦截(明确失败)', sub: advice ?? '引擎输出的原文见下方;如认为拦截不当,可提交"误杀申诉"。' };
+  if (s === 'CANCELLED') return { cls: 'warn', title: '已取消', sub: advice ?? '运行已被手动取消。' };
+  if (s === 'FAILED')    return { cls: 'warn', title: '运行失败',      sub: advice ?? '引擎输出的原文见下方。' };
   return null;
 }
 
@@ -655,6 +791,8 @@ function renderDelivery(e) {
   document.querySelector('#deliveryBody .dl-row').classList.add('on');
   const blocked = e.shell.status === 'BLOCKED' || (e.engine.events || []).some(ev => ev.type === 'gate_result' && ev.data && ev.data.passed === false);
   show($('btnAppealTop'), blocked);
+  // TASK 行动任务书 E1: 运行中的活体条(耗时/tokens/费用/取消)。
+  renderLiveStrip(e);
 }
 
 // ---------------------------------------------------------------------------
@@ -1250,6 +1388,14 @@ function renderSettingsPanel() {
     btnTest.addEventListener('click', () => testProfile(p, btnTest, row));
     ctl.appendChild(btnTest);
 
+    // TASK 行动任务书 T3: 冒烟 = 1-token 真实调用,确认「这个模型」在该中转
+    // 真的可用(X1: v4-pro 下架是运行 3 次失败才发现的)。
+    const btnSmoke = el('button', 'btn small', '冒烟');
+    btnSmoke.type = 'button';
+    btnSmoke.title = '用 1 个 token 真实调用该模型,确认它在这个中转真的可用(模型下架/映射问题在配置时就能发现)';
+    btnSmoke.addEventListener('click', () => smokeProfile(p, btnSmoke));
+    ctl.appendChild(btnSmoke);
+
     const btnDel = el('button', 'btn small', '删除');
     btnDel.type = 'button';
     btnDel.addEventListener('click', () => {
@@ -1353,6 +1499,32 @@ async function testProfile(p, btn, row) {
   } finally {
     btn.disabled = false;
     btn.textContent = '测试';
+    renderSettingsPanel();
+  }
+}
+
+/** TASK 行动任务书 T3: 1-token 真实调用确认「配置的这个模型」在该中转可用。
+ *  与「测试」的区别:测试只打 /models 列表;冒烟真的完成一次对话补全。 */
+async function smokeProfile(p, btn) {
+  if (!p.id && !(p.newApiKey && p.newApiKey.trim())) {
+    p.test = { state: 'bad', detail: '新配置要先填 API key 并保存后才能冒烟。' };
+    renderSettingsPanel();
+    return;
+  }
+  btn.disabled = true;
+  btn.textContent = '冒烟中…';
+  try {
+    const body = await apiFetch('/api/settings/smoke', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ profileId: p.id ?? null, endpoint: p.endpoint, model: p.model, apiKey: (p.newApiKey && p.newApiKey.trim()) || undefined }),
+    });
+    p.test = { state: body.ok ? 'ok' : 'bad', detail: (body.ok ? '✓ ' : '✗ ') + (body.detail || '冒烟完成'), models: null };
+  } catch (err) {
+    p.test = { state: 'bad', detail: '冒烟失败:' + err.message };
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '冒烟';
     renderSettingsPanel();
   }
 }

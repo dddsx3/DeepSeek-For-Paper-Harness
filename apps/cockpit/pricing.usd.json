@@ -1,0 +1,10 @@
+{
+  "openai-compatible-relay": {
+    "z-ai/glm-5.3-flash": { "inputPer1k": 0.000139, "outputPer1k": 0.000556 },
+    "deepseek/deepseek-v4-pro": { "inputPer1k": 0.000556, "outputPer1k": 0.002222 }
+  },
+  "deepseek-official": {
+    "z-ai/glm-5.3-flash": { "inputPer1k": 0.000139, "outputPer1k": 0.000556 },
+    "deepseek/deepseek-v4-pro": { "inputPer1k": 0.000556, "outputPer1k": 0.002222 }
+  }
+}
