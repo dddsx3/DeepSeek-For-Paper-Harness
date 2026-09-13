@@ -104,9 +104,11 @@ function firstDefined(...values: Array<string | undefined>): string | undefined 
   return values.find(value => value !== undefined && value !== '')
 }
 
-/** Default shell policy: strict mode + smallest face; production opt-in (F5/M-B). */
+/** Default shell policy: strict mode + full-declaration tier. P0-2 (PRD
+ *  v2): the historical 'T3' default never read the problem statement —
+ *  T3 is regression-only now (REAL-RUN-2024A evidence). */
 export function defaultShellPolicy(): Record<string, unknown> {
-  return { mode: 'strict', tier: 'T3', produceFromExecute: true, produceExtensions: ['md'] }
+  return { mode: 'strict', tier: 'T1', produceFromExecute: true, produceExtensions: ['md'] }
 }
 
 /** Read a problem file (plain text) with shell-level guardrails (M1-2 攻击). */

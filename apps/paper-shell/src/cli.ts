@@ -173,7 +173,10 @@ async function main(): Promise<number> {
     console.error('paper-shell run needs a problem file')
     return 2
   }
-  const rawTier = String(parsed.tier ?? 'T3')
+  // P0-2 (PRD v2): T3 is no longer the default. T3's closed fill-in face
+  // never reads the problem statement (REAL-RUN-2024A: it delivered the
+  // demo's 0.731), so it stays opt-in for regression use only.
+  const rawTier = String(parsed.tier ?? 'T1')
   const tier: 'T1' | 'T2' | 'T3' | undefined = (['T1', 'T2', 'T3'] as const).includes(rawTier as 'T1' | 'T2' | 'T3')
     ? rawTier as 'T1' | 'T2' | 'T3'
     : undefined
