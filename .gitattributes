@@ -11,3 +11,9 @@
 # Pairing records are generated from the three confirmed owner-blob pairs.
 # The worktree-local installer registers the fail-closed driver command.
 *.i18n.yaml merge=dsh-translation-pairing
+
+# M-Bench fixtures: problem PDFs/attachments are frozen corpus, not source.
+# The 490MB 2024-E csv is hashed in MANIFEST.json but not stored in git.
+bench/problems/**/*.pdf filter=lfs diff=lfs merge=lfs -text
+bench/problems/**/*.xlsx filter=lfs diff=lfs merge=lfs -text
+bench/problems/**/*.csv filter=lfs diff=lfs merge=lfs -text

@@ -1,0 +1,83 @@
+{
+  "manifest_version": 1,
+  "frozen_at": "2026-09-14T00:00:00+08:00",
+  "frozen_by": "DPH-PRD-v2 §4.4 M-Bench（P0-1）",
+  "premise": "12 真实赛题 = CUMCM 2024 A–E 五题 + 方法族映射占位题 7 道。2024 A–E 原始 PDF/附件已入库并 sha256 冻结（注意 2024-E 附件2.csv 为 490MB 大数据文件，入库占用明显）；占位题在真实 PDF 获取后替换并重新冻结（占位条目显式标 placeholder: true，不冒充真题）。开发期可见 3 道（dev_visible），其余 9 道 W12 首次运行前不得查看内容。",
+  "notes": [
+    "2024-A 的 problem-faithful.md 是 REAL-RUN-2024A 用过的保真文本版（sha256 与行为报告一致），仅作 A 题的文本形态补充；判定一律以 problem.pdf 的 sha256 为准。",
+    "方法族列（family）是预注册分层（§4.2 ①）：F1 优化/机理、F2 微分方程/动力系统、F3 统计/数据驱动、F4 评价决策、F5 统计推断/检验。占位题的族由题号源（真实年份真题）决定，替换 PDF 后不得改族——改族 = 换题 = 重新预注册。",
+    "红队#6 已裁决（Clopper–Pearson 单侧 95% 下界，与 qualification.ts exactLowerConfidenceBound 逐值一致）：n=12 全成只授权 p≥0.779，够不到 p>0.8（需 n≥14 零失败）。M1 在 v1–v2 只作定性进展指标，不得作统计结论；若要统计结论需扩至 14–29 题（见 bench/PREREGISTRATION.md §D）。"
+  ],
+  "problems": [
+    {
+      "id": "CUMCM-2024-A",
+      "title": "板凳龙（机理/几何 + 优化）",
+      "family": "F1",
+      "source": "2024 全国大学生数学建模竞赛 A 题",
+      "dev_visible": true,
+      "placeholder": false,
+      "files": [
+        { "path": "problems/2024-A/problem.pdf", "sha256": "7ece8c6d2b876781e5219091c38980e1321ffd1d56604cbe36cd867edb7a1933", "bytes": 758066 },
+        { "path": "problems/2024-A/problem-faithful.md", "sha256": "53f8491f52eebf1a8ec3406054e7b8841d62847ab18e45db78898af6233fbe93", "bytes": 5004 }
+      ]
+    },
+    {
+      "id": "CUMCM-2024-B",
+      "title": "生产过程中的决策问题（抽样检验 + 生产决策）",
+      "family": "F3",
+      "source": "2024 全国大学生数学建模竞赛 B 题",
+      "dev_visible": true,
+      "placeholder": false,
+      "files": [
+        { "path": "problems/2024-B/problem.pdf", "sha256": "f54529dd15d729b046e248ea41033b4f66ef68333be2bee912b0c54eafd227ab", "bytes": 636910 }
+      ]
+    },
+    {
+      "id": "CUMCM-2024-C",
+      "title": "农作物的种植策略（数据驱动规划）",
+      "family": "F3",
+      "source": "2024 全国大学生数学建模竞赛 C 题",
+      "dev_visible": true,
+      "placeholder": false,
+      "files": [
+        { "path": "problems/2024-C/problem.pdf", "sha256": "c7b5e58bff4189b8afba5505f7bff7d4f08280fc291c51ef3f46134ebbf74f9a", "bytes": 558863 },
+        { "path": "problems/2024-C/attachment-1.xlsx", "sha256": "b799a137294a5c5497fed9667c5dfed6c967f1fb180316c5adc8509cfa6f0932", "bytes": 17147 },
+        { "path": "problems/2024-C/attachment-2.xlsx", "sha256": "869081a3ab47d3bf8d0955106b622aaf0fd2c068fada7948da69b20ebf1d00ce", "bytes": 21976 }
+      ]
+    },
+    {
+      "id": "CUMCM-2024-D",
+      "title": "推进器设计（物理建模 + 优化）",
+      "family": "F1",
+      "source": "2024 全国大学生数学建模竞赛 D 题",
+      "dev_visible": false,
+      "placeholder": false,
+      "files": [
+        { "path": "problems/2024-D/problem.pdf", "sha256": "8f30bdb312715167cd4ceaf87604dfd12e688d802e32e310322057aeb9d66cb0", "bytes": 890096 }
+      ]
+    },
+    {
+      "id": "CUMCM-2024-E",
+      "title": "机场协同放行（数据处理 + 优化调度）",
+      "family": "F3",
+      "source": "2024 全国大学生数学建模竞赛 E 题",
+      "dev_visible": false,
+      "placeholder": false,
+      "files": [
+        { "path": "problems/2024-E/problem.pdf", "sha256": "d5c9442c261a7eacc7da3b5b23047b5d8fd9b7c86bd082d782288ee1bb64c4bb", "bytes": 400794 },
+        { "path": "problems/2024-E/attachment-1.xlsx", "sha256": "2a33f6290d5f6209b259a68c5b9db7eb5c163b33e6d1082b622aeb5f215309d0", "bytes": 10647 },
+        { "path": "problems/2024-E/attachment-2.csv", "sha256": "ef16c9b810d6b010b83ee0938a6e7b9ec09ed2ae9178bde48f748bdd00e1438c", "bytes": 490590626 },
+        { "path": "problems/2024-E/attachment-3.pdf", "sha256": "ccd7b7400afa9ac9b974de124198d57cc2fc5273931d72da8ad49f1d9fe02cf7", "bytes": 409599 }
+      ]
+    }
+  ],
+  "pending_placeholders": [
+    { "id": "CUMCM-2023-B", "family": "F3", "dev_visible": false, "target_files": ["problem.pdf"], "status": "waiting-for-pdf", "note": "2023 B 众筹/物流（数据驱动）" },
+    { "id": "CUMCM-2023-D", "family": "F1", "dev_visible": false, "target_files": ["problem.pdf"], "status": "waiting-for-pdf", "note": "2023 D 优化" },
+    { "id": "CUMCM-2022-B", "family": "F3", "dev_visible": false, "target_files": ["problem.pdf", "attachment-1.xlsx"], "status": "waiting-for-pdf", "note": "2022 B 无人机遂行配合（数据）" },
+    { "id": "CUMCM-2022-C", "family": "F4", "dev_visible": false, "target_files": ["problem.pdf"], "status": "waiting-for-pdf", "note": "2022 C 古代玻璃制品成分分析与鉴别（统计/评价）" },
+    { "id": "CUMCM-2021-C", "family": "F4", "dev_visible": false, "target_files": ["problem.pdf", "attachments"], "status": "waiting-for-pdf", "note": "2021 C 生产企业原材料订购与运输（评价/优化）" },
+    { "id": "CUMCM-2021-B", "family": "F1", "dev_visible": false, "target_files": ["problem.pdf"], "status": "waiting-for-pdf", "note": "2021 B 乙醇偶合制备 C4 烯烃（实验设计/机理）" },
+    { "id": "MCM-2021-B", "family": "F3", "dev_visible": false, "target_files": ["problem.pdf"], "status": "waiting-for-pdf", "note": "美赛 2021 B（觅食/对抗 wildfire 数据题）——PRD 允许的美赛数据题之一" }
+  ]
+}

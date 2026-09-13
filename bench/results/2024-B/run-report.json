@@ -1,0 +1,13 @@
+{
+  "runId": "4991806a-261e-4c24-bf6b-c2d651db5d8e",
+  "tier": "T3",
+  "mode": "strict",
+  "status": "DELIVERED",
+  "sha256": "5b098062168a9d0311321474ed3ecf8ee092a6957539b696096190c4ec40a440",
+  "audit": "workflow_started,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,final_output_written,promotion_succeeded,workflow_completed",
+  "usage": {
+    "input_tokens": 0,
+    "output_tokens": 0,
+    "cost_usd": 0
+  }
+}

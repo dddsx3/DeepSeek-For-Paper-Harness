@@ -1,0 +1,164 @@
+{
+  "integrity": {
+    "ok": true,
+    "failures": []
+  },
+  "records": [
+    {
+      "problem_id": "2024-A",
+      "family": "F1",
+      "grade": "CLEAN",
+      "m1_readable_draft": false,
+      "m1_grade_split": {
+        "clean": true,
+        "marked": false
+      },
+      "m2_silent_errors": 2,
+      "m2_silent_error_samples": [
+        {
+          "number": "0.731"
+        },
+        {
+          "number": "0.731"
+        }
+      ],
+      "m2_recital_overlap": 0.016,
+      "m3a_zero_manual": true,
+      "m3b_wall_clock_seconds": null,
+      "m3c_cost_usd": null,
+      "m3c_pricing_configured": false,
+      "m4_skeleton_ratio": 0,
+      "m4_missing_sections": [
+        "摘要",
+        "问题重述",
+        "问题分析",
+        "模型假设",
+        "符号说明",
+        "模型建立与求解",
+        "模型检验",
+        "模型评价",
+        "参考文献",
+        "代码附录"
+      ],
+      "m5_figure_usable": false,
+      "m5_detail": {
+        "usable": false,
+        "hasFigureSection": false,
+        "hasRealData": false
+      }
+    },
+    {
+      "problem_id": "2024-B",
+      "family": "F3",
+      "grade": "CLEAN",
+      "m1_readable_draft": false,
+      "m1_grade_split": {
+        "clean": true,
+        "marked": false
+      },
+      "m2_silent_errors": 3,
+      "m2_silent_error_samples": [
+        {
+          "number": "2024"
+        },
+        {
+          "number": "0.731"
+        },
+        {
+          "number": "0.731"
+        }
+      ],
+      "m2_recital_overlap": 0,
+      "m3a_zero_manual": true,
+      "m3b_wall_clock_seconds": null,
+      "m3c_cost_usd": null,
+      "m3c_pricing_configured": false,
+      "m4_skeleton_ratio": 0,
+      "m4_missing_sections": [
+        "摘要",
+        "问题重述",
+        "问题分析",
+        "模型假设",
+        "符号说明",
+        "模型建立与求解",
+        "模型检验",
+        "模型评价",
+        "参考文献",
+        "代码附录"
+      ],
+      "m5_figure_usable": false,
+      "m5_detail": {
+        "usable": false,
+        "hasFigureSection": false,
+        "hasRealData": false
+      }
+    },
+    {
+      "problem_id": "2024-C",
+      "family": "F3",
+      "grade": "CLEAN",
+      "m1_readable_draft": false,
+      "m1_grade_split": {
+        "clean": true,
+        "marked": false
+      },
+      "m2_silent_errors": 3,
+      "m2_silent_error_samples": [
+        {
+          "number": "2024"
+        },
+        {
+          "number": "0.731"
+        },
+        {
+          "number": "0.731"
+        }
+      ],
+      "m2_recital_overlap": 0,
+      "m3a_zero_manual": true,
+      "m3b_wall_clock_seconds": null,
+      "m3c_cost_usd": null,
+      "m3c_pricing_configured": false,
+      "m4_skeleton_ratio": 0,
+      "m4_missing_sections": [
+        "摘要",
+        "问题重述",
+        "问题分析",
+        "模型假设",
+        "符号说明",
+        "模型建立与求解",
+        "模型检验",
+        "模型评价",
+        "参考文献",
+        "代码附录"
+      ],
+      "m5_figure_usable": false,
+      "m5_detail": {
+        "usable": false,
+        "hasFigureSection": false,
+        "hasRealData": false
+      }
+    }
+  ],
+  "per_family": {
+    "F1": {
+      "problems": 1,
+      "clean_readable": 0,
+      "marked_readable": 0,
+      "blocked": 0,
+      "silent_errors_total": 2,
+      "m4_avg": 0,
+      "m5_usable": 0
+    },
+    "F3": {
+      "problems": 2,
+      "clean_readable": 0,
+      "marked_readable": 0,
+      "blocked": 0,
+      "silent_errors_total": 6,
+      "m4_avg": 0,
+      "m5_usable": 0
+    }
+  },
+  "generated_from": "D:\\deepseek modex\\deepseek-harness\\bench\\results"
+}

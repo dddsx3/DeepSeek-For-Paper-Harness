@@ -467,7 +467,9 @@ const server = createServer(async (req, res) => {
     if (req.method === 'POST' && url.pathname === '/api/problems') return await handleUpload(req, res)
     if (req.method === 'POST' && url.pathname === '/api/runs') {
       const body = JSON.parse((await readBody(req)).toString('utf8'))
-      const runKey = await submitRun(body.problemPath, body.tier ?? 'T3', body.mode ?? 'strict', body.fake === true, body.profileId)
+      // P0-2 (PRD v2): T3 no longer the cockpit default — its closed
+      // fill-in face never reads the problem statement (REAL-RUN-2024A).
+      const runKey = await submitRun(body.problemPath, body.tier ?? 'T1', body.mode ?? 'strict', body.fake === true, body.profileId)
       return json(res, 200, { ok: true, runKey })
     }
     // TASK-C1.5: free API configuration (profiles; key masked, never returned)
@@ -670,8 +672,11 @@ const server = createServer(async (req, res) => {
     if (url.pathname === '/api/falseblock') return await handleFalseBlock(req, res)
     if (req.method === 'POST' && url.pathname === '/api/demo-run') {
       // 一键演示:the fake sample problem through the shell, no key needed.
+      // P0-2 (PRD v2): T3 explicitly labeled regression-only; the demo
+      // keeps T3 because the fake provider serves the closed fill-in face
+      // (its offline contract), but the label must not call it 推荐.
       const runKey = await submitRun(FAKE_T3_DEMO, 'T3', 'strict', true)
-      return json(res, 200, { ok: true, runKey })
+      return json(res, 200, { ok: true, runKey, tier: 'T3', note: 'demo: T3 固定填充面(回归用),非真题默认' })
     }
     // Static cockpit page.
     const path = url.pathname === '/' ? '/index.html' : url.pathname
