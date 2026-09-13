@@ -66,8 +66,14 @@ export async function verifyManifestIntegrity() {
   return { ok: failures.length === 0, failures }
 }
 
-/** Delivery grade implied by a run report (PRD §3.3 fail-soft tiers). */
+/** Delivery grade implied by a run report (PRD §3.3 fail-soft tiers).
+ *  W2+: the shell's run-report carries an explicit `grade` field written
+ *  from the executor's delivery_graded audit entry — that is the index;
+ *  the appendix inside report.md remains the source of truth. Legacy
+ *  reports (pre-P0-3) fall back to the status-based mapping. */
 export function deliveryGrade(report) {
+  if (report.grade === 'MARKED') return 'MARKED'
+  if (report.grade === 'CLEAN') return 'CLEAN'
   if (report.status === 'DELIVERED' || report.status === 'CLEAN') return 'CLEAN'
   if (report.status === 'MARKED') return 'MARKED'
   return 'BLOCKED'

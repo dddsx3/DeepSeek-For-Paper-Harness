@@ -22,6 +22,8 @@ import { evaluateDelivery } from './delivery/delivery-policy.ts'
 import type { DeliveryDecision, DeliveryPolicy } from './delivery/delivery-policy.ts'
 import { makeCandidateArtifact } from './delivery/artifact-states.ts'
 import { promoteCandidateToDeliverable } from './delivery/promoter.ts'
+import { contentExists, gradeDelivery, renderDeliveryAppendix } from './delivery/delivery-grade.ts'
+import type { DeliveryGrade } from './delivery/delivery-grade.ts'
 import { ModelingIr } from './ir/store.ts'
 import { sha256Hex } from './ir/index.ts'
 import { resolveRunPolicy } from './policy.ts'
@@ -238,6 +240,18 @@ export interface ExecutorOptions {
    * W4 NONE-degradation ledger stays authoritative.
    */
   readonly initialTier?: Tier
+  /**
+   * P0-3 (PRD v2 §3.3): delivery grade threshold. 'strict-tolerance'
+   * (default) keeps the historical fail-closed behavior — any unpassed
+   * gate refuses delivery. 'fail-soft' turns unpassed gates into MARKED
+   * annotations: content delivers with an honest appendix, and only the
+   * three closed fatal conditions (empty content / execution failure /
+   * reference catastrophe) still BLOCK. The option exists so the mass
+   * tier can adopt fail-soft without mutating strict-tier compositions;
+   * the grade itself is always computed by `gradeDelivery` (one verdict
+   * path, no parallel judgement).
+   */
+  readonly deliveryGradeMode?: 'strict-tolerance' | 'fail-soft'
 }
 
 /**
@@ -583,29 +597,66 @@ export class WorkflowExecutor {
       //
       // TASK 5.0.5: the verdict is returned so the promoter below can be
       // handed the *same* decision instead of re-evaluating the policy.
+      //
+      // P0-3 (PRD v2 §3.3): under fail-soft the SAME verdict feeds the
+      // grade function — `gradeDelivery` is the single judge of whether
+      // a failure blocks or annotates; the executor never invents a
+      // second verdict path for it.
       const verdict = await this.enforceDelivery(runId, initial.mode)
 
-      // TASK 4.2: the reviewer gate is now part of the same fail-closed
-      // policy. The previous fast-mode bypass ("if (!gatePassed && mode !==
-      // 'fast')") silenced review failures on the fast path; the registry
-      // already exempts EXPLORATORY from the backbone check, and reviewer
-      // failures now route through the same audit / fail / throw path
-      // as every other gate.
-      if (!gatePassed) {
+      // P0-3: collect the unpassed review defects as grade-input failures
+      // too — a surviving critical defect is an annotation (or, with empty
+      // content, a fatal probe) but never a separate decision branch.
+      const reviewFailures: ReadonlyArray<{ kind: string; reason: string }> = gatePassed
+        ? []
+        : outstandingList.map(d => ({
+          kind: `review_defect_${d.severity}`,
+          reason: d.description,
+        }))
+      const gradeInput = [...verdict.decision.failures, ...reviewFailures]
+      const fatal = {
+        emptyContent: !contentExists(current),
+        executionFailed: false,
+        referenceCatastrophe: false,
+      }
+      const graded = gradeDelivery(gradeInput, fatal, {
+        ...Object.fromEntries(gradeInput.map(f => [f.kind, f.kind.startsWith('review_defect') ? 'review ledger' : 'delivery'])),
+      })
+      // Strict-tolerance keeps the historical fail-closed verdict byte-for-
+      // byte: any failure blocks, none is annotation, and the fatal probe is
+      // not consulted (P0-3 changes fail-soft compositions only).
+      const grade: DeliveryGrade = this.options.deliveryGradeMode === 'fail-soft'
+        ? graded.grade
+        : (gradeInput.length === 0 ? 'CLEAN' : 'BLOCKED')
+      await this.audit({
+        eventType: 'delivery_graded',
+        actor: 'paper-executor',
+        runId,
+        detail: {
+          grade,
+          mode: this.options.deliveryGradeMode ?? 'strict-tolerance',
+          annotations: graded.annotations.length,
+          fatal,
+        },
+      })
+      if (grade === 'BLOCKED') {
+        // TASK 4.2 history: the reviewer gate is part of the same fail-closed
+        // policy. Under strict-tolerance any unpassed gate refuses; under
+        // fail-soft only the three fatal conditions land here.
         await this.engine.transitionRun(runId, 'failed')
         await this.audit({
           eventType: 'gate_failed',
           actor: 'paper-executor',
           runId,
           detail: {
-            gate: 'review',
+            gate: gradeInput.length === 0 ? 'fatal-content-probe' : 'review',
             defects: outstandingList.length,
             reviews: policy.maxReviseRounds + 1,
           },
         })
         throw new WorkflowExecutionError(
           'gate-failed',
-          `run '${runId}' failed its review gate after ${policy.maxReviseRounds + 1} reviews`,
+          `run '${runId}' blocked at delivery grade ${grade}${gradeInput.length === 0 ? ' (fatal content probe)' : ` after ${policy.maxReviseRounds + 1} reviews`}`,
         )
       }
 
@@ -616,6 +667,13 @@ export class WorkflowExecutor {
         gates: ['review', IR_CANONICALIZATION_GATE_ID, PROVENANCE_GATE_ID],
       })
 
+      // P0-3 (PRD v2 §3.3): a MARKED delivery ships the appendix with the
+      // paper — annotations live in the appendix, never inline (design
+      // point 1), and the product does not lie by omission.
+      const deliverableText = grade === 'MARKED'
+        ? `${current}${renderDeliveryAppendix(grade, graded.annotations)}`
+        : current
+
       // TASK 5.0.5 / INV-014: the ONLY path to a DeliverableArtifact
       // is `promoteCandidateToDeliverable`. The executor no longer
       // writes the final output directly. The promoter (a) re-checks
@@ -624,7 +682,16 @@ export class WorkflowExecutor {
       // on success, and (c) emits the `promotion_succeeded` / `_failed`
       // audit events. `F17-a` (static check) verifies there is no other
       // write path to the final output.
-      const { artifact, createdAt } = await this.deliver(runId, current)
+      //
+      // P0-3: under fail-soft the promoter is handed the graded decision —
+      // MARKED promotes like an allowed verdict (the appendix already
+      // carries the failures), while BLOCKED never reaches this point.
+      // The strict-tolerance composition keeps the raw verdict, so its
+      // fail-closed behavior is byte-identical to history.
+      const promotionDecision: DeliveryDecision = grade === 'MARKED'
+        ? { allowed: true, failures: [] }
+        : verdict.decision
+      const { artifact, createdAt } = await this.deliver(runId, deliverableText)
       const promotion = await promoteCandidateToDeliverable(
         makeCandidateArtifact({
           id: artifact.id,
@@ -632,7 +699,7 @@ export class WorkflowExecutor {
           contentHash: artifact.sha256,
         }),
         verdict.policy,
-        verdict.decision,
+        promotionDecision,
         {
           audit: event => this.audit({
             eventType: promotionAuditType(event.type),
@@ -644,7 +711,7 @@ export class WorkflowExecutor {
           writeFinalOutput: async (path, content) => { await this.persistFinal(runId, path, content) },
         },
         FINAL_OUTPUT_PATH,
-        current,
+        deliverableText,
       )
       if (!promotion.ok) {
         await this.engine.transitionRun(runId, 'failed')

@@ -3,7 +3,7 @@
  *
  * Command surface:
  *   paper-shell run <file> [--tier T1|T2|T3] [--mode fast|strict|exploratory]
- *                          [--out <dir>] [--zip] [--no-write]
+ *                          [--fail-soft] [--out <dir>] [--zip] [--no-write]
  *   paper-shell explain <code>        — print the human sentence for a code
  *   paper-shell --version / --help
  *
@@ -114,7 +114,7 @@ async function main(): Promise<number> {
   const parsed = parseArgs(process.argv.slice(2))
   const positionals = parsed.positionals
   if (positionals.length === 0 && parsed.version === undefined && parsed.help === undefined) {
-    console.error('usage: paper-shell run <problem-file> [--tier T1|T2|T3] [--mode fast|strict|exploratory] [--out <dir>] [--zip]')
+    console.error('usage: paper-shell run <problem-file> [--tier T1|T2|T3] [--mode fast|strict|exploratory] [--fail-soft] [--out <dir>] [--zip]')
     return 2
   }
   if (parsed.version !== undefined) {
@@ -194,6 +194,8 @@ async function main(): Promise<number> {
   }
   const outDir = parsed.out !== undefined ? String(parsed.out) : join(here, 'out')
   const fake = parsed.fake === true || parsed.fake === 'true'
+  // P0-3: --fail-soft = MARKED fail-soft delivery threshold (mass tier).
+  const failSoft = parsed['fail-soft'] === true || parsed['fail-soft'] === 'true'
   // TASK-E: cassette record/replay. --cassette <file> records a REAL run's
   // every seam exchange; --replay <file> answers the seam from a cassette
   // (no network, no key). Exactly one of the three provider modes
@@ -270,6 +272,10 @@ async function main(): Promise<number> {
       backoffBaseMs: 1_000,
       backoffCapMs: 10_000,
       initialTier: tier,
+      // P0-3 (PRD v2 §3.3): --fail-soft switches the delivery threshold to
+      // MARKED fail-soft (mass tier default). Without it the run keeps the
+      // historical strict-tolerance (CLEAN or BLOCKED, never MARKED).
+      deliveryGradeMode: failSoft ? 'fail-soft' : 'strict-tolerance',
       ...(pricingFromEnv !== undefined ? { pricing: pricingFromEnv } : {}),
       ...(Number.isFinite(budgetFromEnv) && budgetFromEnv > 0 ? { dailyBudgetUsd: budgetFromEnv } : {}),
     })
@@ -323,6 +329,15 @@ async function main(): Promise<number> {
   const report = await readFile(join(finalDir, firstFile), 'utf8')
   const sha256 = createHash('sha256').update(report).digest('hex')
   const audit = ctx.paperAudit.list(String(run.id)).map(e => `${e.eventType}`).join(',')
+  // P0-3: the run-report carries the delivery grade. The MARKED appendix
+  // lives in report.md itself; this field makes the grade machine-readable
+  // for the bench metrics (M1's CLEAN/MARKED split) without re-parsing
+  // prose. 'MARKED' is derived from the delivery_graded audit entry;
+  // absence keeps the historical 'CLEAN' label for strict compositions
+  // that never graded (defense in depth: the appendix is the source of
+  // truth, this is the index).
+  const gradedEntries = ctx.paperAudit.list(String(run.id)).filter(e => e.eventType === 'delivery_graded')
+  const grade: 'CLEAN' | 'MARKED' = gradedEntries.some(e => String((e as { detail?: { grade?: unknown } }).detail?.grade) === 'MARKED') ? 'MARKED' : 'CLEAN'
   // TASK-Q2: real token accounting from the run record (the real adapter
   // requests include_usage; the executor accumulates every call). Fake and
   // replay runs legitimately report zeros.
@@ -335,8 +350,8 @@ async function main(): Promise<number> {
   // The zipped run-report redacts the per-run UUID so the zip is
   // byte-deterministic on re-run (G2: 重跑同 sha256); the full report with
   // the real runId is written to the out dir separately.
-  const runReport = JSON.stringify({ runId: '<redacted-run-id>', tier, mode, status: 'DELIVERED', sha256, audit, usage: { input_tokens: usageSummary.input_tokens, output_tokens: usageSummary.output_tokens, cost_usd: usageSummary.cost_usd } }, null, 2)
-  const runReportFull = JSON.stringify({ runId: String(run.id), tier, mode, status: 'DELIVERED', sha256, audit, usage: { input_tokens: usageSummary.input_tokens, output_tokens: usageSummary.output_tokens, cost_usd: usageSummary.cost_usd } }, null, 2)
+  const runReport = JSON.stringify({ runId: '<redacted-run-id>', tier, mode, status: 'DELIVERED', grade, sha256, audit, usage: { input_tokens: usageSummary.input_tokens, output_tokens: usageSummary.output_tokens, cost_usd: usageSummary.cost_usd } }, null, 2)
+  const runReportFull = JSON.stringify({ runId: String(run.id), tier, mode, status: 'DELIVERED', grade, sha256, audit, usage: { input_tokens: usageSummary.input_tokens, output_tokens: usageSummary.output_tokens, cost_usd: usageSummary.cost_usd } }, null, 2)
   await mkdir(outDir, { recursive: true })
   await writeFile(join(outDir, 'report.md'), report, 'utf8')
   await writeFile(join(outDir, 'sha256.txt'), sha256, 'utf8')

@@ -33,7 +33,7 @@ import { resolveRunPolicy } from '../src/policy.ts'
  * assert on the audit sequence filter these out so they keep
  * asserting what they were written to assert (INV-014).
  */
-const PROMOTION_EVENTS = ['final_output_written', 'promotion_succeeded']
+const PROMOTION_EVENTS = ['final_output_written', 'promotion_succeeded', 'delivery_graded']
 
 const settings: PaperSettings = {
   executor: { provider: 'fake', model: 'fake-model', credentialRef: 'cred://executor', timeoutMs: 1000 },

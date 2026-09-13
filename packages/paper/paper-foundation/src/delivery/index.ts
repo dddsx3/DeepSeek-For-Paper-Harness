@@ -57,3 +57,18 @@ export type {
   PromoterDeps,
   PromoteOptions,
 } from './promoter.ts'
+
+// P0-3 (PRD v2 §3.3, W2): fail-soft delivery grades.
+export {
+  DELIVERY_GRADES,
+  EMPTY_CONTENT_CHARS,
+  contentExists,
+  gradeDelivery,
+  renderDeliveryAppendix,
+} from './delivery-grade.ts'
+export type {
+  DeliveryGrade,
+  FatalConditions,
+  GradeAnnotation,
+  GradeDecision,
+} from './delivery-grade.ts'

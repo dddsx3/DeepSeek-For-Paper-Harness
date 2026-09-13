@@ -117,7 +117,7 @@ describe('WorkflowExecutor', () => {
     const run = await engine.startRun({ mode: 'exploratory', harnessVersion: 'test', configHash: 'sha256:test' })
 
     await expect(ctx.paperExecutor.runs.execute(RunId(run.id), 'write one sentence'))
-      .rejects.toThrow('failed its review gate')
+      .rejects.toThrow('blocked at delivery grade BLOCKED')
 
     expect(engine.getRun(RunId(run.id))?.status).toBe('failed')
     const nodeTitles = engine.listNodes(RunId(run.id)).map(node => node.title)
@@ -139,7 +139,7 @@ describe('WorkflowExecutor', () => {
     const engine = ctx.paperWorkflow.runs
     const run = await engine.startRun({ mode: 'exploratory', harnessVersion: 'test', configHash: 'sha256:test' })
     await expect(ctx.paperExecutor.runs.execute(RunId(run.id), 'write one sentence'))
-      .rejects.toThrow('failed its review gate')
+      .rejects.toThrow('blocked at delivery grade BLOCKED')
 
     const finalRun = engine.getRun(RunId(run.id))
     expect(finalRun?.status).toBe('failed')

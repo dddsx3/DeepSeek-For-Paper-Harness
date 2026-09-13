@@ -25,7 +25,7 @@ import { backboneIr } from './ir/fixtures.ts'
  * Filtered out of the legacy audit-sequence expectations so those
  * assertions keep testing what they were written to test.
  */
-const PROMOTION_EVENTS = ['final_output_written', 'promotion_succeeded']
+const PROMOTION_EVENTS = ['final_output_written', 'promotion_succeeded', 'delivery_graded']
 
 const settings: PaperSettings = {
   executor: { provider: 'fake', model: 'fake-model', credentialRef: 'cred://executor', timeoutMs: 1000 },
