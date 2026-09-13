@@ -62,6 +62,11 @@ export interface ExecutorConfig {
    *  T1 = full declaration (default), T2 = guided steps, T3 = template
    *  fill. The executor degrades T1 → T2 → T3 on NONE exhaustion (W4). */
   readonly initialTier?: 'T1' | 'T2' | 'T3'
+  /** P0-3 (PRD v2 §3.3): 'fail-soft' turns unpassed gates into MARKED
+   *  annotations (content delivers with an honest appendix; only the
+   *  three fatal conditions block). Default 'strict-tolerance' keeps the
+   *  historical fail-closed behavior byte-for-byte. */
+  readonly deliveryGradeMode?: 'strict-tolerance' | 'fail-soft'
 }
 
 const modelPrice: s<ModelPrice> = s.object({
@@ -105,6 +110,9 @@ export function resolveExecutorOptions(
     // TASK-PW W2: the tier a producing run starts at; `undefined` resolves
     // to T1 (initialTier()) inside the executor.
     ...(config.initialTier === undefined ? {} : { initialTier: config.initialTier }),
+    // P0-3: the delivery grade threshold; omitted = strict-tolerance
+    // (historical fail-closed behavior).
+    ...(config.deliveryGradeMode === undefined ? {} : { deliveryGradeMode: config.deliveryGradeMode }),
     // exactOptionalPropertyTypes: an explicit undefined would be a type
     // error on the optional fields, so omit rather than pass through.
     ...ir === undefined ? {} : { ir },
@@ -143,6 +151,8 @@ export class PaperExecutorService extends Service {
     // TASK-PW W2: T2 guided-step sessions opt in at the composition; the
     // executor's enforced tier still resolves from the W4 ledger.
     initialTier: s.union(['T1', 'T2', 'T3'] as const),
+    // P0-3 (PRD v2 §3.3): fail-soft vs strict-tolerance delivery grading.
+    deliveryGradeMode: s.union(['strict-tolerance', 'fail-soft'] as const).default('strict-tolerance'),
   })
 
   private executor: WorkflowExecutor | undefined

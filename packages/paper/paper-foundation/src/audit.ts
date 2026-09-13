@@ -64,6 +64,11 @@ export const AUDIT_EVENT_TYPES = [
   // every FORMAL-eligible delivery carries the evidence that production was
   // enabled (F5 closure — the shell opts in, never the library default).
   'production_enabled',
+  // P0-3 (PRD v2 §3.3): every run's delivery grade (CLEAN / MARKED /
+  // BLOCKED) lands on the audit trail — a MARKED delivery must never be
+  // indistinguishable from a CLEAN one in the evidence (no silent
+  // downgrade, §7 诚实标注).
+  'delivery_graded',
 ] as const
 
 /** One audited operation kind. */
