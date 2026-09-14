@@ -38,6 +38,7 @@ import {
 import { ModelingIr } from '@deepseek-ai/dsh-paper-foundation'
 import { resolveShellRoute, blockMessage, type ShellRoute } from './invoke.ts'
 import { assembleBundle } from './bundle.ts'
+import { classifyProblem, routeBanner } from './route.ts'
 import { streamCompletion } from './real-provider.ts'
 import { CassetteRecorder, CassetteReplayer } from './cassette.ts'
 import { verifyStudyManifest, type StudyManifest } from './study-manifest.ts'
@@ -296,9 +297,22 @@ async function main(): Promise<number> {
     .map(String)
     .filter(Boolean)
   const bundle = await assembleBundle(problemFile, dataFiles)
+  // P0-5 (PRD v2 §5.1.3, W4): family routing BEFORE any provider call.
+  // A problem outside the supported families (F3/F4 today) is refused
+  // here — zero tokens, zero model calls (拒绝优先, §3.4). The route
+  // banner for a supported problem is appended so the W5 contract layer
+  // can pick the family template; it costs nothing (pure text).
+  const familyVerdict = classifyProblem(bundle.taskText)
+  if (!familyVerdict.ok) {
+    await dispose()
+    console.error(`[REFUSED] ${familyVerdict.reason}`)
+    console.error('  → 未发起任何模型调用(零 token)。')
+    return 3
+  }
+  const taskText = `${bundle.taskText}${routeBanner(familyVerdict)}`
   const run = await engine.startRun({ mode, harnessVersion: 'paper-shell-v0', configHash: 'sha256:dmshell' })
   try {
-    await ctx.paperExecutor.runs.execute(RunId(run.id), bundle.taskText)
+    await ctx.paperExecutor.runs.execute(RunId(run.id), taskText)
   } catch (error) {
     const err = error as { code?: string; eventType?: string; message?: string }
     const human = blockMessage(String(err.eventType ?? 'gate-failed'), err.code, err.message ?? '')

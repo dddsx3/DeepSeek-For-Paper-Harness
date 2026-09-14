@@ -224,7 +224,7 @@ function listRunIds() {
 
 const activeRuns = new Map() // runKey → { status, startedAt, runId? }
 
-async function submitRun(problemPath, tier, mode, useFake, profileId) {
+async function submitRun(problemPath, tier, mode, useFake, profileId, dataPaths = [], failSoft = true) {
   const runKey = `run-${Date.now().toString(36)}`
   // Route resolution: the ACTIVE cockpit profile wins; a request-level
   // profileId picks a non-active one; no profile = fall back to the process
@@ -272,6 +272,13 @@ async function submitRun(problemPath, tier, mode, useFake, profileId) {
       const repoRoot = resolve(here, '../..')
       const args = ['--import', 'tsx/esm', 'apps/paper-shell/src/cli.ts', 'run', problemPath, '--tier', tier, '--mode', mode, '--out', outRoot]
       if (useFake) args.push('--fake')
+      // W4/P0-10: the uploaded data attachments become --data flags, and
+      // the mass-tier default is fail-soft so a paper with content and
+      // unpassed gates DELIVERS (MARKED) instead of vanishing.
+      for (const dp of dataPaths) {
+        args.push('--data', dp)
+      }
+      if (failSoft) args.push('--fail-soft')
       const child = spawn(process.execPath, args, { cwd: repoRoot, env: routeEnv, stdio: ['ignore', 'pipe', 'pipe'] })
       entry.child = child
       // A child launch failure (ENOENT etc.) must NEVER kill the cockpit —
@@ -359,19 +366,21 @@ async function handleUpload(req, res) {
     return json(res, 400, { ok: false, reason: '缺少题目文件（problem 字段或名为 problem 的文件部分）' })
   }
   const problem = problemFiles[0]
-  // TASK 行动任务书 E4 (honest interim): PDF extraction is not wired yet —
-  // silently feeding binary bytes to a UTF-8 text guard produced garbage
-  // (the bad.exe acceptance in the upload matrix). A clear 422 beats
-  // a confident wrong draft. Auto-extract lands with the extractor decision.
-  if (extname(problem.name).toLowerCase() === '.pdf' || problem.buffer.subarray(0, 5).toString('latin1') === '%PDF-') {
-    return json(res, 422, { ok: false, reason: 'PDF 暂不支持自动提取(开发中):请把题面文字另存为 .md 或 .txt 后重新上传(数据文件 .csv/.xlsx 不受影响)。"A题.pdf → 全选复制 → 粘贴到记事本 → 保存为 .txt" 即可。' })
-  }
+  // W4/P0-4: PDF is accepted and read directly by the shell's bundle
+  // (pypdf) on the run — no format refusal here. Non-PDF text still goes
+  // through the CLI guard below (三拒). The old E4 "PDF 暂不支持自动提取"
+  // 422 is gone; a downloaded PDF gets extracted, not rejected.
   const problemPath = join(problemsDir, `problem-${Date.now().toString(36)}-${problem.name.replace(/[^\w.\-一-龥]+/g, '_')}`)
   await writeFile(problemPath, problem.buffer)
-  try {
-    await readProblemFile(problemPath) // SAME guard as the CLI (三拒: 300KB/空/编码)
-  } catch (error) {
-    return json(res, 422, { ok: false, reason: String(error.message ?? error) })
+  // W3/P0-4: PDF is now read directly (pypdf via assembleBundle); the
+  // guard below still catches non-UTF8 text problems. The old 422 "PDF
+  // 暂不支持自动提取" refusal is gone — the shell reads the format.
+  if (extname(problem.name).toLowerCase() !== '.pdf') {
+    try {
+      await readProblemFile(problemPath) // SAME guard as the CLI (三拒: 300KB/空/编码)
+    } catch (error) {
+      return json(res, 422, { ok: false, reason: String(error.message ?? error) })
+    }
   }
   // Data files register into the sandbox environment only — they are saved
   // next to the problem for the run's code to read and NEVER enter any
@@ -469,7 +478,20 @@ const server = createServer(async (req, res) => {
       const body = JSON.parse((await readBody(req)).toString('utf8'))
       // P0-2 (PRD v2): T3 no longer the cockpit default — its closed
       // fill-in face never reads the problem statement (REAL-RUN-2024A).
-      const runKey = await submitRun(body.problemPath, body.tier ?? 'T1', body.mode ?? 'strict', body.fake === true, body.profileId)
+      const runKey = await submitRun(
+        body.problemPath,
+        body.tier ?? 'T1',
+        body.mode ?? 'strict',
+        body.fake === true,
+        body.profileId,
+        // W4/P0-10: the data attachments uploaded with the problem feed
+        // the run via the CLI --data flags (the bundle profiles them into
+        // the task text; the engine never touches file formats).
+        body.dataPaths ?? [],
+        // W4: mass-tier default = fail-soft (MARKED delivers with an
+        // appendix instead of blocking); strict users can opt back in.
+        body.failSoft !== false,
+      )
       return json(res, 200, { ok: true, runKey })
     }
     // TASK-C1.5: free API configuration (profiles; key masked, never returned)
@@ -636,6 +658,22 @@ const server = createServer(async (req, res) => {
       }
       const text = readFileSync(reportPath, 'utf8').slice(0, 200_000)
       return json(res, 200, { ok: true, path: reportPath, text })
+    }
+    // W4/P0-10: mass-tier deliverable download — serve the latest run's
+    // deliverable.zip (report.md + run-report + sha256, byte-deterministic).
+    // Placed BEFORE the generic /api/runs/:id prefix catcher.
+    if (req.method === 'GET' && url.pathname.startsWith('/api/runs/') && url.pathname.endsWith('/download')) {
+      const zipPath = join(outRoot, 'deliverable.zip')
+      if (!existsSync(zipPath)) {
+        return json(res, 404, { ok: false, reason: '交付物尚未生成(运行失败或仍在进行)' })
+      }
+      const bytes = readFileSync(zipPath)
+      res.writeHead(200, {
+        'content-type': 'application/zip',
+        'content-disposition': 'attachment; filename="deliverable.zip"',
+        'content-length': bytes.length,
+      })
+      return res.end(bytes)
     }
     if (req.method === 'GET' && url.pathname === '/api/runs') {
       return json(res, 200, { ok: true, runIds: listRunIds() })
