@@ -60,8 +60,8 @@ interface HarnessOutcome {
   readonly ctx: Context
   readonly runId: string
   readonly status: 'resolved' | 'rejected'
-  readonly code?: string
-  readonly message?: string
+  readonly code: string | undefined
+  readonly message: string | undefined
 }
 
 /**
@@ -113,7 +113,7 @@ async function failSoftHarness(
   const engine = ctx.paperWorkflow.runs
   const run = await engine.startRun({ mode: 'exploratory', harnessVersion: 'test', configHash: 'sha256:p03' })
   const outcome = await ctx.paperExecutor.runs.execute(RunId(run.id), 'produce a decision paper')
-    .then(() => ({ status: 'resolved' as const }))
+    .then(() => ({ status: 'resolved' as const, code: undefined, message: undefined }))
     .catch((error: unknown) => ({
       status: 'rejected' as const,
       code: (error as { code?: string }).code,
