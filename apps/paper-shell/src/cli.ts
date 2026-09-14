@@ -39,6 +39,7 @@ import { ModelingIr } from '@deepseek-ai/dsh-paper-foundation'
 import { resolveShellRoute, blockMessage, type ShellRoute } from './invoke.ts'
 import { assembleBundle } from './bundle.ts'
 import { classifyProblem, routeBanner } from './route.ts'
+import { contractBanner } from './contracts/index.ts'
 import { streamCompletion } from './real-provider.ts'
 import { CassetteRecorder, CassetteReplayer } from './cassette.ts'
 import { verifyStudyManifest, type StudyManifest } from './study-manifest.ts'
@@ -309,7 +310,10 @@ async function main(): Promise<number> {
     console.error('  → 未发起任何模型调用(零 token)。')
     return 3
   }
-  const taskText = `${bundle.taskText}${routeBanner(familyVerdict)}`
+  // W5 (P0-8): the family contract banner joins the taskText — the model
+  // sees the closed candidate set + required assumptions + dedicated
+  // validation BEFORE it models (zero invention space, 核验表 Part B).
+  const taskText = `${bundle.taskText}${routeBanner(familyVerdict)}${contractBanner(familyVerdict.family)}`
   const run = await engine.startRun({ mode, harnessVersion: 'paper-shell-v0', configHash: 'sha256:dmshell' })
   try {
     await ctx.paperExecutor.runs.execute(RunId(run.id), taskText)
