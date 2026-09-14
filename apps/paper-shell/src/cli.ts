@@ -36,7 +36,8 @@ import {
   createExploratoryProfile,
 } from '@deepseek-ai/dsh-paper-foundation'
 import { ModelingIr } from '@deepseek-ai/dsh-paper-foundation'
-import { resolveShellRoute, readProblemFile, blockMessage, type ShellRoute } from './invoke.ts'
+import { resolveShellRoute, blockMessage, type ShellRoute } from './invoke.ts'
+import { assembleBundle } from './bundle.ts'
 import { streamCompletion } from './real-provider.ts'
 import { CassetteRecorder, CassetteReplayer } from './cassette.ts'
 import { verifyStudyManifest, type StudyManifest } from './study-manifest.ts'
@@ -286,10 +287,18 @@ async function main(): Promise<number> {
   }
 
   const engine = ctx.paperWorkflow.runs
-  const task = await readProblemFile(problemFile)
+  // P0-4 (PRD v2 §5.1.1/§5.1.2, W3): the entry layer accepts a PDF/plain
+  // problem plus optional data attachments; `assembleBundle` extracts the
+  // PDF, profiles every attachment, and appends the profile to the task
+  // text so the model sees the data's shape (行列/类型/缺失/量纲疑点)
+  // before it models. The engine still only consumes text.
+  const dataFiles = (Array.isArray(parsed.data) ? parsed.data : parsed.data === undefined ? [] : [parsed.data])
+    .map(String)
+    .filter(Boolean)
+  const bundle = await assembleBundle(problemFile, dataFiles)
   const run = await engine.startRun({ mode, harnessVersion: 'paper-shell-v0', configHash: 'sha256:dmshell' })
   try {
-    await ctx.paperExecutor.runs.execute(RunId(run.id), task)
+    await ctx.paperExecutor.runs.execute(RunId(run.id), bundle.taskText)
   } catch (error) {
     const err = error as { code?: string; eventType?: string; message?: string }
     const human = blockMessage(String(err.eventType ?? 'gate-failed'), err.code, err.message ?? '')
@@ -347,11 +356,19 @@ async function main(): Promise<number> {
     output_tokens: runUsage?.outputTokens ?? 0,
     cost_usd: runUsage?.costUsd ?? 0,
   }
+  // P0-4 (W3): the attachment ledger — every data file that fed the run,
+  // with its sampled sha256 + bytes, so the bench records what the model
+  // saw. 490MB-class files stay cheap because the hash is sampled.
+  const attachmentLedger = bundle.attachments.map(a => ({
+    file: a.basename,
+    sha256: a.sha256,
+    bytes: a.bytes,
+  }))
   // The zipped run-report redacts the per-run UUID so the zip is
   // byte-deterministic on re-run (G2: 重跑同 sha256); the full report with
   // the real runId is written to the out dir separately.
-  const runReport = JSON.stringify({ runId: '<redacted-run-id>', tier, mode, status: 'DELIVERED', grade, sha256, audit, usage: { input_tokens: usageSummary.input_tokens, output_tokens: usageSummary.output_tokens, cost_usd: usageSummary.cost_usd } }, null, 2)
-  const runReportFull = JSON.stringify({ runId: String(run.id), tier, mode, status: 'DELIVERED', grade, sha256, audit, usage: { input_tokens: usageSummary.input_tokens, output_tokens: usageSummary.output_tokens, cost_usd: usageSummary.cost_usd } }, null, 2)
+  const runReport = JSON.stringify({ runId: '<redacted-run-id>', tier, mode, status: 'DELIVERED', grade, sha256, audit, usage: { input_tokens: usageSummary.input_tokens, output_tokens: usageSummary.output_tokens, cost_usd: usageSummary.cost_usd }, attachments: attachmentLedger }, null, 2)
+  const runReportFull = JSON.stringify({ runId: String(run.id), tier, mode, status: 'DELIVERED', grade, sha256, audit, usage: { input_tokens: usageSummary.input_tokens, output_tokens: usageSummary.output_tokens, cost_usd: usageSummary.cost_usd }, attachments: attachmentLedger }, null, 2)
   await mkdir(outDir, { recursive: true })
   await writeFile(join(outDir, 'report.md'), report, 'utf8')
   await writeFile(join(outDir, 'sha256.txt'), sha256, 'utf8')
