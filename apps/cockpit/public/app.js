@@ -1153,6 +1153,10 @@ async function startRun() {
         mode: $('selMode').value,
         fake: false,
         profileId: activeProfile ? activeProfile.id : undefined,
+        // W4/P0-10: the uploaded data files feed the run's prompt as
+        // data profiles; the mass tier defaults to fail-soft.
+        dataPaths: (up.dataFiles || []).map(d => d.path),
+        failSoft: true,
       }),
     });
     trackNewRun(run.runKey, { tier: $('selTier').value, mode: $('selMode').value, fake: false });
@@ -1590,8 +1594,14 @@ function initDeliveryZone() {
   $('btnDownload').addEventListener('click', () => {
     const e = selectedEntry();
     if (!e) return;
-    downloadText('report-projection-' + (e.runId ? e.runId.slice(0, 8) : e.key) + '.txt', projectionText(e));
-    toast('已下载当前投影文本');
+    // W4/P0-10: prefer the real deliverable zip (markdown report + run
+    // report + sha256); fall back to the projection text when the zip is
+    // not on disk yet (run failed / still running).
+    const a = document.createElement('a');
+    a.href = API_BASE + '/api/runs/' + encodeURIComponent(e.runId || e.key) + '/download';
+    a.download = 'deliverable.zip';
+    a.click();
+    toast('已请求下载交付物 zip(若无文件则浏览器会报 404)');
   });
   // 页面内预览最近一次运行的 report.md 全文(投影只读;用户反馈:只给路径无法直接看初稿)
   $('btnPreviewReport').addEventListener('click', async () => {
