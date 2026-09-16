@@ -1196,6 +1196,13 @@ export class WorkflowExecutor {
     // each have their own counter; ESCAPE has none at all).
     const runKey = String(runId)
     const spentOf = (map: Map<string, number>): number => map.get(runKey) ?? 0
+    // W8.6-A4: same-cause circuit breaker state for THIS node. If two
+    // consecutive attempts fail with the same class+code, a third retry
+    // is known-ineffective (W8.5: two identical truncations, 32k tokens
+    // each) — refuse it and account honestly. Cleared on any different
+    // outcome so ordinary transient retries keep their budget.
+    let lastFailureKey: string | null = null
+    let sameCauseStreak = 0
 
     for (let attempt = 1; attempt <= policy.maxNodeAttempts; attempt += 1) {
       await this.engine.transitionNode(node.id, 'running')
@@ -1233,8 +1240,25 @@ export class WorkflowExecutor {
           }
           text = assembleTemplateContainer(admitted.fill, taskText ?? '')
         } else {
-          const { text: callText, usage } = await this.call(role, prompt)
+          const { text: callText, usage, truncated } = await this.call(role, prompt)
           await this.recordUsage(runId, route.provider, route.model, usage)
+          // W8.6-A1: a truncated EXECUTE output is its OWN failure class.
+          // Pre-W8.6 it fell into parse_failed (NONE) — the 假红: a relay
+          // length ceiling recorded as a model contract violation. The
+          // text is incomplete BY CONSTRUCTION; classifying it correctly
+          // stops the retry-loop from burning budget on a guaranteed loss.
+          if (type === 'execute' && this.options.produceFromExecute === true && truncated) {
+            // W8.6-A1: truncation is a TRANSPORT-side fact (the provider's
+            // length ceiling), not a model contract violation. It gets its
+            // own code and its own audit event — never ESCAPE (which would
+            // blame the model) and never NONE/DRIFT (which would retry into
+            // a ceiling that will not move; W8.5 burned 32k tokens on
+            // exactly that). w4Class stays undefined: the catch below sees
+            // code EXECUTE_OUTPUT_TRUNCATED and takes the dedicated path.
+            const err = new Error('EXECUTE output hit the provider output-length ceiling mid-generation (finish_reason=length): output budget/protocol length mismatch, not a model contract violation')
+            ;(err as { code?: string }).code = 'EXECUTE_OUTPUT_TRUNCATED'
+            throw err
+          }
           text = callText
         }
         // P1-1: on the produce-from-EXECUTE path the node output must be an
@@ -1260,8 +1284,37 @@ export class WorkflowExecutor {
 
           const verdict = produceContainerInto(ir, text, undefined, { reservedIds: reserved })
           if (!verdict.ok) {
+            // W8.6-D1: a bounded excerpt of the refused container lands on
+            // the audit trail BEFORE the throw. Repo principle: 模型可见 ⟺
+            // 已记录. Pre-W8.6, exec#2's schema_violation left NO artifact
+            // — its offending field path was permanently unknowable (W8.5
+            // deviation two). Head/tail excerpts + hash + the producer's
+            // reason restore diagnosability without storing unbounded text.
+            const excerptHead = text.slice(0, 400)
+            const excerptTail = text.length > 800 ? text.slice(-400) : ''
+            await this.audit({
+              eventType: 'container_refused',
+              actor: 'paper-executor',
+              runId,
+              detail: {
+                nodeId: node.id,
+                attempt,
+                code: verdict.code,
+                reason: verdict.reason.slice(0, 400),
+                output_sha256: sha256Hex(text),
+                excerpt_head: excerptHead,
+                excerpt_tail: excerptTail,
+              },
+            })
             const err = new Error(`EXECUTE output refused by the IR producer: ${verdict.reason}`)
             ;(err as { code?: string }).code = verdict.code
+            // W8.6-A4: attach an OUTPUT fingerprint so the same-cause circuit
+            // breaker can tell "deterministic repeat" (same output refused
+            // the same way) from "different cause" (two different prose
+            // attempts — the guided-retry design must keep those). The
+            // failure message alone is NOT sufficient: parse_failed's
+            // message is input-independent (W8.6 review caught this as Q6).
+            ;(err as { outputFingerprint?: string }).outputFingerprint = sha256Hex(text)
             // TASK-PW W4: carry the failure class so the catch below can
             // apply class-specific budgets (ESCAPE zero / NONE+DRIFT guided).
             // On the T2/T3 paths `text` is the HARNESS-assembled container — a
@@ -1308,6 +1361,25 @@ export class WorkflowExecutor {
         const failure = failureOf(error)
         const w4Class = (error as { w4Class?: FailureClass }).w4Class
         await this.engine.transitionNode(node.id, 'failed')
+
+        // W8.6-A1: TRUNCATED is its own failure class with zero retry and
+        // no tier degradation (the ceiling does not move between attempts;
+        // W8.6-A4's circuit breaker generalizes this for same-cause
+        // repeats). Audit names the class so the trail says "truncated",
+        // never "refused".
+        if (failure.code === 'EXECUTE_OUTPUT_TRUNCATED') {
+          await this.engine.transitionRun(runId, 'failed')
+          await this.audit({
+            eventType: 'truncated',
+            actor: 'paper-executor',
+            runId,
+            detail: { code: failure.code, role, attempt, class: 'truncated' },
+          })
+          throw new WorkflowExecutionError(
+            'gate-failed',
+            `node '${node.id}' TRUNCATED: ${failure.message} (zero retry — the provider ceiling will not move)`,
+          )
+        }
 
         // TASK-PW W4: on the producing EXECUTE path refusals are
         // classified, and each class has its own retry budget (W-B).
@@ -1358,6 +1430,36 @@ export class WorkflowExecutor {
               )
             }
             spentMap.set(runKey, spent + 1)
+            // W8.6-A4 (same-cause circuit breaker): only a DETERMINISTIC
+            // repeat trips it — same class, same code, AND the same OUTPUT
+            // (fingerprint). Two different prose outputs (NONE) are
+            // different causes: the guided-retry design exists precisely
+            // to nudge alignment, and "NONE ≠ 错" keeps its budget. The
+            // same output refused the same way twice means a third retry
+            // cannot differ — W8.5: two retries, two identical truncations,
+            // 64k tokens. (W8.6 review Q6: class+code alone over-triggers
+            // because parse_failed's message is input-independent.)
+            const outputFingerprint = (error as { outputFingerprint?: string }).outputFingerprint ?? ''
+            const failureKey = `${w4Class}:${failure.code}:${outputFingerprint}`
+            if (lastFailureKey === failureKey) {
+              sameCauseStreak += 1
+            } else {
+              lastFailureKey = failureKey
+              sameCauseStreak = 1
+            }
+            if (sameCauseStreak >= 2) {
+              await this.engine.transitionRun(runId, 'failed')
+              await this.audit({
+                eventType: 'gate_failed',
+                actor: 'paper-executor',
+                runId,
+                detail: { gate: 'ir_producer', reason: `same-cause circuit breaker: ${failureKey} repeated (attempt ${attempt})` },
+              })
+              throw new WorkflowExecutionError(
+                'gate-failed',
+                `node '${node.id}' circuit-broken: ${failureKey} failed identically on consecutive attempts — a third retry is known-ineffective (W8.6-A4)`,
+              )
+            }
             // Guide the next attempt: NONE shows the layer's options + the
             // minimal example; DRIFT corrects only the offending field and
             // hands back the registered id table (W4). D1: a cross-step
@@ -1527,8 +1629,13 @@ export class WorkflowExecutor {
       .reduce((total, run) => total + run.usage.costUsd, 0)
   }
 
-  /** One provider-neutral model call assembling the streamed text. */
-  private async call(role: PaperRole, prompt: string): Promise<{ text: string; usage: TokenUsage | undefined }> {
+  /** One provider-neutral model call assembling the streamed text.
+   *  W8.6-A1: a `max-tokens` finish means the provider cut the output at
+   *  its length ceiling — the text is INCOMPLETE by construction. The
+   *  caller must classify this as `truncated`, never as a model contract
+   *  violation (parse_failed/schema_violation were the pre-W8.6
+   *  misattribution, the "假红"). */
+  private async call(role: PaperRole, prompt: string): Promise<{ text: string; usage: TokenUsage | undefined; truncated: boolean }> {
     const route = this.settings.snapshot()[role]
     const assembler = new BlockAssembler()
     for await (const chunk of this.provider.stream({
@@ -1550,6 +1657,7 @@ export class WorkflowExecutor {
         .map(block => block.text)
         .join('\n'),
       usage: assembler.usage,
+      truncated: finish.kind === 'max-tokens',
     }
   }
 

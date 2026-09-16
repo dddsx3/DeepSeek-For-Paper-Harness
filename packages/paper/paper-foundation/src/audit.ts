@@ -59,6 +59,16 @@ export const AUDIT_EVENT_TYPES = [
   // the run's protocol tier was stepped down (T1 → T2 → T3).
   'escape_refused',
   'tier_degraded',
+  // W8.6-A1: the provider's output-length ceiling cut an EXECUTE output
+  // mid-generation (finish_reason=length). Its own event so the trail
+  // distinguishes "transport truncated" from "model refused" — the
+  // 假红 fix: a length ceiling must never be recorded as a violation.
+  'truncated',
+  // W8.6-D1: the IR producer refused a model container. Carries a bounded
+  // head/tail excerpt + hash + reason so the refusal is diagnosable
+  // (W8.5 exec#2's offending field path was unknowable forever because
+  // nothing was kept). Repo principle: 模型可见 ⟺ 已记录.
+  'container_refused',
   // TASK-M1 M1-2: the product shell deliberately enabled the form-production
   // path (produceFromExecute). Each explicit enable is one audit entry so
   // every FORMAL-eligible delivery carries the evidence that production was

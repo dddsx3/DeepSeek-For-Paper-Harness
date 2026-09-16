@@ -163,18 +163,41 @@ export function computeProblemMetrics(problemId, family, report, draftText, prob
     && skeleton.missing.length === 0
     && silentErrors.length === 0
   const m1Split = grade === 'CLEAN' ? { clean: true, marked: false } : grade === 'MARKED' ? { clean: false, marked: true } : { clean: false, marked: false }
+  // W8.6-B3: in/out ratio — the W8.5 run burned 75,669 output tokens for
+  // 8,785 input (8.6:1) and NOTHING flagged it. Ratio > IN_OUT_ALERT
+  // marks the record (baseline W8.5 = 8.6).
+  const inTokens = usage.input_tokens ?? 0
+  const outTokens = usage.output_tokens ?? 0
+  const inOutRatio = inTokens > 0 ? Math.round((outTokens / inTokens) * 100) / 100 : null
+  const inOutAlert = inOutRatio !== null && inOutRatio > 5
+  // W8.6-E3: M2 is conditioned on delivery. No deliverable → no "silent
+  // errors" to count: null, NOT 0 (a 0 would read as "zero errors found").
+  const delivered = grade === 'CLEAN' || grade === 'MARKED'
+  // W8.6-E1: provider mode is a REQUIRED field — fake and real results
+  // must be mechanically distinguishable in one snapshot (red line N2).
+  // Legacy reports without the field default by directory convention:
+  // "<id>-real" = real, everything else fake (the W1 baseline).
+  const providerMode = report.provider_mode ?? (/-real$/.test(problemId) ? 'real' : 'fake')
 
   return {
     problem_id: problemId,
     family,
+    // W8.6-E2: the human truth label vs what the router decided. Either
+    // alone cannot answer "is routing accurate" over time.
+    routed_family: report.routed_family ?? meta.routed_family ?? null,
+    route_truth: report.route_truth ?? null,
+    route_mismatch: report.route_mismatch ?? null,
+    provider_mode: providerMode,
     grade,
     m1_readable_draft: m1Readable,
     m1_grade_split: m1Split,
-    m2_silent_errors: silentErrors.length,
-    m2_silent_error_samples: silentErrors.slice(0, 5),
-    m2_recital_overlap: Math.round(recital * 1000) / 1000,
+    m2_silent_errors: delivered ? silentErrors.length : null,
+    m2_silent_error_samples: delivered ? silentErrors.slice(0, 5) : [],
+    m2_recital_overlap: delivered ? Math.round(recital * 1000) / 1000 : null,
     m3a_zero_manual: manualInterventions === 0,
     m3b_wall_clock_seconds: wallClockSeconds,
+    m3b_in_out_ratio: inOutRatio,
+    m3b_in_out_alert: inOutAlert,
     m3c_cost_usd: costKnown ? usage.cost_usd : null,
     m3c_pricing_configured: costKnown,
     m4_skeleton_ratio: skeleton.ratio,
@@ -190,13 +213,17 @@ export function computeProblemMetrics(problemId, family, report, draftText, prob
  * throws if asked to do it, so the mistake cannot ship silently.
  */
 export function aggregatePerFamily(records) {
-  const byFamily = new Map()
+  // W8.6-E1: aggregation key is family PROVIDER-MODE-SCOPED. Fake and real
+  // runs must never blend into one number (red line N2 — the snapshot now
+  // enforces what prose used to depend on the reader remembering).
+  const byKey = new Map()
   for (const r of records) {
-    if (!byFamily.has(r.family)) byFamily.set(r.family, [])
-    byFamily.get(r.family).push(r)
+    const key = `${r.family}${r.provider_mode === 'real' ? ' (real)' : ''}`
+    if (!byKey.has(key)) byKey.set(key, [])
+    byKey.get(key).push(r)
   }
   const out = {}
-  for (const [family, list] of byFamily) {
+  for (const [family, list] of byKey) {
     const clean = list.filter(r => r.m1_grade_split.clean && r.m1_readable_draft).length
     const marked = list.filter(r => r.m1_grade_split.marked && r.m1_readable_draft).length
     out[family] = {
@@ -204,7 +231,10 @@ export function aggregatePerFamily(records) {
       clean_readable: clean,
       marked_readable: marked,
       blocked: list.filter(r => r.grade === 'BLOCKED').length,
-      silent_errors_total: list.reduce((a, r) => a + r.m2_silent_errors, 0),
+      // W8.6-E3: M2 is delivery-conditioned (null without a deliverable) —
+      // sum only over delivered records, and say how many contributed.
+      silent_errors_total: list.filter(r => typeof r.m2_silent_errors === 'number').reduce((a, r) => a + r.m2_silent_errors, 0),
+      silent_errors_measured_on: list.filter(r => typeof r.m2_silent_errors === 'number').length,
       m4_avg: list.length === 0 ? 0 : Math.round((list.reduce((a, r) => a + r.m4_skeleton_ratio, 0) / list.length) * 1000) / 1000,
       m5_usable: list.filter(r => r.m5_figure_usable).length,
     }
@@ -248,6 +278,17 @@ export async function computeFromResults() {
     if (!entry.isDirectory()) continue
     const reportPath = join(resultsDir, entry.name, 'run-report.json')
     const report = JSON.parse(await readFile(reportPath, 'utf8').catch(() => null) ?? 'null')
+    // W8.6-E2: archived reports are immutable; a route-annotation.json
+    // sidecar supplies facts learned after archiving (routed_family from
+    // W8.5-E3). Never mutates the archive itself.
+    if (report !== null) {
+      const sidecar = JSON.parse(await readFile(join(resultsDir, entry.name, 'route-annotation.json'), 'utf8').catch(() => 'null') ?? 'null')
+      if (sidecar !== null && report.routed_family === undefined) {
+        report.routed_family = sidecar.routed_family ?? null
+        report.route_truth = sidecar.route_truth ?? null
+        report.route_mismatch = sidecar.route_mismatch ?? null
+      }
+    }
     // W8.5: a "<id>-real" directory is the SAME problem run with a real
     // provider (bench/results/2024-C-real) — resolve to the same family.
     const baseName = entry.name.replace(/-real$/, '')

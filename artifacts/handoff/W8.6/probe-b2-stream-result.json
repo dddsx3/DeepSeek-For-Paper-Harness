@@ -1,0 +1,1 @@
+{"max_tokens_sent":40000,"finish_reason":"length","usage":{"prompt_tokens":120,"completion_tokens":40000,"total_tokens":40120},"output_chars":0,"wall_seconds":345.1}

@@ -88,12 +88,26 @@ function retryableStatus(status: number): boolean {
 const MAX_ATTEMPTS = 4
 const BASE_BACKOFF_MS = 1_500
 
+/** W8.6-B1: explicit output budget, configurable — NOT hardcoded. The
+ *  32k ceiling that truncated the W8.5 run was a RELAY DEFAULT; asking
+ *  for an explicit max_tokens is the only way to find out whether the
+ *  limit is negotiable (W8.6-B2 probes it; Q1/Q2 cover "relay ignores
+ *  it" / "32k is the model's max"). null = leave the field out entirely
+ *  (pre-W8.6 wire shape, kept for probes comparing behavior). */
+function outputBudget(): number | null {
+  const raw = process.env.PAPER_PROBE_MAX_OUTPUT_TOKENS
+  if (raw === undefined || raw === '') return null
+  const n = Number.parseInt(raw, 10)
+  return Number.isFinite(n) && n > 0 ? n : null
+}
+
 /** One real streaming call → StreamChunks (non-streaming fallback). */
 export async function* streamCompletion(
   route: { baseURL: string; apiKey: string; model: string },
   request: { system?: string; messages: Array<{ content: string }> },
 ): AsyncGenerator<StreamChunk> {
   const url = `${route.baseURL.replace(/\/$/, '')}/chat/completions`
+  const budget = outputBudget()
   const payload = JSON.stringify({
     model: route.model,
     messages: [
@@ -102,6 +116,8 @@ export async function* streamCompletion(
     ],
     temperature: 0.2,
     stream: true,
+    // W8.6-B1: explicit budget when configured (PAPER_PROBE_MAX_OUTPUT_TOKENS).
+    ...(budget === null ? {} : { max_tokens: budget }),
     // TASK-Q2 (usage telemetry): ask the endpoint for the final usage
     // block so every call's token accounting is real, not estimated. An
     // endpoint that ignores the option simply omits usage — the executor
@@ -147,6 +163,12 @@ export async function* streamCompletion(
   }
   let text = ''
   let usage: ChatCompletionChunk['usage']
+  // W8.6-A2: the wire `finish_reason` is the ONLY trustworthy signal that
+  // an output hit the provider's length ceiling. Discarding it (pre-W8.6)
+  // made truncation indistinguishable from a model contract violation —
+  // the "假红" misattribution. null means "the field never arrived" —
+  // recorded as unknown, never assumed normal.
+  let finishReason: string | null = null
   try {
     yield { type: 'block-start', index: 0, blockType: 'text' }
     for await (const line of sseLines(body)) {
@@ -162,6 +184,8 @@ export async function* streamCompletion(
       // chunk. Breaking at finish_reason would miss it, so keep scanning
       // until the stream ends or [DONE]; deltas after finish do not exist.
       if (parsed.usage !== undefined) usage = parsed.usage
+      const reason = parsed.choices?.[0]?.finish_reason
+      if (typeof reason === 'string') finishReason = reason
       const delta = parsed.choices?.[0]?.delta?.content
       if (delta !== undefined && delta.length > 0) {
         text += delta
@@ -187,7 +211,17 @@ export async function* streamCompletion(
         },
       }
     }
-    yield { type: 'finish', reason: { kind: 'stop' } }
+    // W8.6-A2: translate the wire reason into the harness vocabulary.
+    // 'length' -> max-tokens is the truncation class (mapFinishReason's
+    // existing mapping); a null field is surfaced as an explicit unknown
+    // kind, not as 'stop'.
+    if (finishReason === 'length') {
+      yield { type: 'finish', reason: { kind: 'max-tokens' } }
+    } else if (finishReason === null) {
+      yield { type: 'finish', reason: { kind: 'error', failure: { message: 'finish_reason missing from provider stream (unknown stop cause)', code: 'FINISH_REASON_UNKNOWN' } } }
+    } else {
+      yield { type: 'finish', reason: { kind: 'stop' } }
+    }
   } finally {
     await finish()
   }

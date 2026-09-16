@@ -1,0 +1,4 @@
+HTTP 200 after 59.9 s
+finish_reason: length
+usage: {"prompt_tokens":120,"completion_tokens":40000,"total_tokens":40120}
+output chars: 0 | chunks: 0 | wall: 345.1 s

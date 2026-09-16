@@ -1,0 +1,7 @@
+{
+  "annotation": "W8.6-E2 sidecar: the archived run-report.json (W8.5) predates the routed_family field. Fact from W8.5-E3/证据归档: the router judged 2024-C as F4. Original report left untouched per 'archive as-is' discipline.",
+  "routed_family": "F4",
+  "route_truth": "F3+F2",
+  "route_mismatch": true,
+  "annotated_at": "2026-09-16"
+}

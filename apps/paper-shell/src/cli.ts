@@ -48,6 +48,25 @@ import { zipTextFiles } from './zip.ts'
 
 const here = dirname(fileURLToPath(import.meta.url))
 
+/**
+ * W8.6-C2/F1: the human truth label for a bench problem (bench/
+ * TRUTH-FAMILIES.json). Matched by the problem file's directory name
+ * ("2024-C" in the path). Returns null outside the bench — callers mark
+ * mismatch, they never auto-correct.
+ */
+async function truthFamilyOf(problemFile: string): Promise<string | null> {
+  const m = /2024-([A-E])\b/.exec(problemFile)
+  if (m === null) return null
+  const id = `2024-${m[1]}`
+  const path = join(here, '..', '..', '..', 'bench', 'TRUTH-FAMILIES.json')
+  try {
+    const doc = JSON.parse(await readFile(path, 'utf8')) as { problems?: Array<{ id: string; family: string }> }
+    return doc.problems?.find(p => p.id === id)?.family ?? null
+  } catch {
+    return null
+  }
+}
+
 /** Parse `--k v` / `--flag` / positional args. */
 export function parseArgs(argv: string[]): Record<string, unknown> & { positionals: string[] } {
   const positionals: string[] = []
@@ -310,6 +329,15 @@ async function main(): Promise<number> {
     console.error('  → 未发起任何模型调用(零 token)。')
     return 3
   }
+  // W8.6-C2: for a bench problem, flag when the router's decision differs
+  // from the preregistered truth label — marked, never auto-corrected.
+  // E3's discovery (2024-C routed F4 vs preregistered F3, later revised
+  // to F3+F2) must be machine-visible on every run, not prose-only.
+  const truth = await truthFamilyOf(problemFile)
+  const routeMismatch = truth !== null && truth !== familyVerdict.family
+  if (routeMismatch) {
+    console.error(`[ROUTE-MISMATCH] 路由判定 ${familyVerdict.family} ≠ 预注册真值 ${truth}（仅标记，不自动纠正）`)
+  }
   // W5 (P0-8): the family contract banner joins the taskText — the model
   // sees the closed candidate set + required assumptions + dedicated
   // validation BEFORE it models (zero invention space, 核验表 Part B).
@@ -344,7 +372,30 @@ async function main(): Promise<number> {
       suggested_intervention: human.advice,
     }
     await mkdir(outDir, { recursive: true })
-    await writeFile(join(outDir, 'run-report.json'), JSON.stringify({ runId: String(run.id), tier, mode, status: 'BLOCKED', classifier: human.classifier, code: err.code, humanized: human.oneLine, wall_clock_seconds: Math.round((Date.now() - wallClockStart) / 100) / 10, memo }, null, 2), 'utf8')
+    // W8.6-D2: the BLOCKED report MUST carry usage — the W8.5 run's
+    // 8,785/75,669 had to be re-derived by hand (subtraction) because this
+    // path omitted it. The durable run record has the numbers; project
+    // them here exactly like the DELIVERED path does.
+    const blockedUsage = engine.getRun(RunId(run.id))?.usage
+    await writeFile(join(outDir, 'run-report.json'), JSON.stringify({
+      runId: String(run.id),
+      tier,
+      mode,
+      status: 'BLOCKED',
+      routed_family: familyVerdict.family,
+      route_truth: truth,
+      route_mismatch: routeMismatch,
+      classifier: human.classifier,
+      code: err.code,
+      humanized: human.oneLine,
+      wall_clock_seconds: Math.round((Date.now() - wallClockStart) / 100) / 10,
+      usage: {
+        input_tokens: blockedUsage?.inputTokens ?? 0,
+        output_tokens: blockedUsage?.outputTokens ?? 0,
+        cost_usd: blockedUsage?.costUsd ?? 0,
+      },
+      memo,
+    }, null, 2), 'utf8')
     await dispose()
     return 1
   }
@@ -391,8 +442,8 @@ async function main(): Promise<number> {
   // byte-deterministic on re-run (G2: 重跑同 sha256); the full report with
   // the real runId is written to the out dir separately.
   const wallClockSeconds = Math.round((Date.now() - wallClockStart) / 100) / 10
-  const runReport = JSON.stringify({ runId: '<redacted-run-id>', tier, mode, status: 'DELIVERED', grade, wall_clock_seconds: wallClockSeconds, sha256, audit, usage: { input_tokens: usageSummary.input_tokens, output_tokens: usageSummary.output_tokens, cost_usd: usageSummary.cost_usd }, attachments: attachmentLedger }, null, 2)
-  const runReportFull = JSON.stringify({ runId: String(run.id), tier, mode, status: 'DELIVERED', grade, wall_clock_seconds: wallClockSeconds, sha256, audit, usage: { input_tokens: usageSummary.input_tokens, output_tokens: usageSummary.output_tokens, cost_usd: usageSummary.cost_usd }, attachments: attachmentLedger }, null, 2)
+  const runReport = JSON.stringify({ runId: '<redacted-run-id>', tier, mode, status: 'DELIVERED', grade, routed_family: familyVerdict.family, route_truth: truth, route_mismatch: routeMismatch, wall_clock_seconds: wallClockSeconds, sha256, audit, usage: { input_tokens: usageSummary.input_tokens, output_tokens: usageSummary.output_tokens, cost_usd: usageSummary.cost_usd }, attachments: attachmentLedger }, null, 2)
+  const runReportFull = JSON.stringify({ runId: String(run.id), tier, mode, status: 'DELIVERED', grade, routed_family: familyVerdict.family, route_truth: truth, route_mismatch: routeMismatch, wall_clock_seconds: wallClockSeconds, sha256, audit, usage: { input_tokens: usageSummary.input_tokens, output_tokens: usageSummary.output_tokens, cost_usd: usageSummary.cost_usd }, attachments: attachmentLedger }, null, 2)
   await mkdir(outDir, { recursive: true })
   await writeFile(join(outDir, 'report.md'), report, 'utf8')
   await writeFile(join(outDir, 'sha256.txt'), sha256, 'utf8')
