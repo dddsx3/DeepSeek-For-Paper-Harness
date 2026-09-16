@@ -24,6 +24,7 @@ import { makeCandidateArtifact } from './delivery/artifact-states.ts'
 import { promoteCandidateToDeliverable } from './delivery/promoter.ts'
 import { contentExists, gradeDelivery, renderDeliveryAppendix } from './delivery/delivery-grade.ts'
 import type { DeliveryGrade } from './delivery/delivery-grade.ts'
+import { runVerificationV1V4 } from './verification/v-structure.ts'
 import { ModelingIr } from './ir/store.ts'
 import { sha256Hex } from './ir/index.ts'
 import { resolveRunPolicy } from './policy.ts'
@@ -613,14 +614,28 @@ export class WorkflowExecutor {
           kind: `review_defect_${d.severity}`,
           reason: d.description,
         }))
-      const gradeInput = [...verdict.decision.failures, ...reviewFailures]
+      // W8 (PRD §6.4): the V1–V4 structural verifiers join the fail-soft grade
+      // input — a V failure is an annotation in the MARKED appendix, never a
+      // parallel verdict path. IR-mounted compositions only; a missing store
+      // contributes no findings. STRICT-TOLERANCE keeps the historical
+      // fail-closed input byte-for-byte (V findings do NOT participate
+      // there — P0-3 changes fail-soft compositions only).
+      const vFindings: ReadonlyArray<{ kind: string; reason: string }> = this.options.deliveryGradeMode !== 'fail-soft' || this.options.ir === undefined
+        ? []
+        : runVerificationV1V4(this.options.ir)
+          .filter(f => !f.ok)
+          .map(f => ({ kind: f.rule, reason: f.detail }))
+      const gateFailures = verdict.decision.failures
+      const gradeInput = this.options.deliveryGradeMode === 'fail-soft'
+        ? [...gateFailures, ...reviewFailures, ...vFindings]
+        : [...gateFailures, ...reviewFailures]
       const fatal = {
         emptyContent: !contentExists(current),
         executionFailed: false,
         referenceCatastrophe: false,
       }
       const graded = gradeDelivery(gradeInput, fatal, {
-        ...Object.fromEntries(gradeInput.map(f => [f.kind, f.kind.startsWith('review_defect') ? 'review ledger' : 'delivery'])),
+        ...Object.fromEntries(gradeInput.map(f => [f.kind, f.kind.startsWith('review_defect') ? 'review ledger' : (f.kind.startsWith('V') ? 'verification' : 'delivery')])),
       })
       // Strict-tolerance keeps the historical fail-closed verdict byte-for-
       // byte: any failure blocks, none is annotation, and the fatal probe is

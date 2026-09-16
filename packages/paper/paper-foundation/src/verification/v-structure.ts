@@ -37,11 +37,14 @@ export interface VerificationFinding {
 }
 
 type Store = ReadonlyMap<string, IrObjectRecord>
+/** What callers may pass: a Map (gate-registry shape) or a ModelingIr
+ *  (which exposes `list()`; normalized by `toMap` at runtime). */
+export type StoreInput = Store | { list(): ReadonlyArray<IrObjectRecord> }
 
 /** Normalize the caller's store into a Map. Accepts a real Map (the
  *  gate-registry shape) OR a ModelingIr (has `list()`); both are common
  *  in this codebase. The verifier never mutates the store. */
-function toMap(store: Store | { list(): ReadonlyArray<IrObjectRecord> }): ReadonlyMap<string, IrObjectRecord> {
+function toMap(store: StoreInput): ReadonlyMap<string, IrObjectRecord> {
   if (store instanceof Map) return store
   const m = new Map<string, IrObjectRecord>()
   for (const r of (store as { list(): ReadonlyArray<IrObjectRecord> }).list()) {
@@ -51,7 +54,7 @@ function toMap(store: Store | { list(): ReadonlyArray<IrObjectRecord> }): Readon
 }
 
 /** V1: unreferenced assumptions. */
-export function v1AssumptionUsage(store: Store): ReadonlyArray<VerificationFinding> {
+export function v1AssumptionUsage(store: StoreInput): ReadonlyArray<VerificationFinding> {
   const findings: VerificationFinding[] = []
   const referenced = new Set<string>()
   for (const record of toMap(store).values()) {
@@ -75,7 +78,7 @@ export function v1AssumptionUsage(store: Store): ReadonlyArray<VerificationFindi
 }
 
 /** V2: assumption source-type -> required ref shape. */
-export function v2AssumptionSource(store: Store): ReadonlyArray<VerificationFinding> {
+export function v2AssumptionSource(store: StoreInput): ReadonlyArray<VerificationFinding> {
   const findings: VerificationFinding[] = []
   for (const record of toMap(store).values()) {
     if (record.kind !== 'AssumptionSpec') continue
@@ -114,7 +117,7 @@ export function v2AssumptionSource(store: Store): ReadonlyArray<VerificationFind
 }
 
 /** V3: HIGH-risk assumptions must have sensitivity experiments. */
-export function v3AssumptionSensitivity(store: Store): ReadonlyArray<VerificationFinding> {
+export function v3AssumptionSensitivity(store: StoreInput): ReadonlyArray<VerificationFinding> {
   const findings: VerificationFinding[] = []
   for (const record of toMap(store).values()) {
     if (record.kind !== 'AssumptionSpec') continue
@@ -133,7 +136,7 @@ export function v3AssumptionSensitivity(store: Store): ReadonlyArray<Verificatio
 }
 
 /** V4: symbol provenance + REQUIRED_OUTPUT coverage. */
-export function v4ModelCoverage(store: Store): ReadonlyArray<VerificationFinding> {
+export function v4ModelCoverage(store: StoreInput): ReadonlyArray<VerificationFinding> {
   const findings: VerificationFinding[] = []
   const symbolKinds = new Set<string>()
   for (const record of toMap(store).values()) {
@@ -190,7 +193,7 @@ export function v4ModelCoverage(store: Store): ReadonlyArray<VerificationFinding
     if (record.kind !== 'RequirementSpec') continue
     const req = record.value as { requirement_id: string; requirement_type: string; source_data_ref?: string }
     if (req.requirement_type !== 'REQUIRED_OUTPUT') continue
-    const problemId = linkRequirementToProblem(store, record)
+    const problemId = linkRequirementToProblem(toMap(store), record)
     const reached = problemId === null ? 0 : (reachingByProblem.get(problemId)?.size ?? 0)
     findings.push({
       rule: 'V4 REQUIRED_OUTPUT 覆盖',
@@ -205,7 +208,7 @@ export function v4ModelCoverage(store: Store): ReadonlyArray<VerificationFinding
 
 /** ProblemSpec a RequirementSpec belongs to (via source_data_ref → DA-RAW →
  *  ProblemSpec.raw_problem_ref): a light walk used by V4(b). */
-function linkRequirementToProblem(store: Store, reqRecord: IrObjectRecord): string | null {
+function linkRequirementToProblem(store: ReadonlyMap<string, IrObjectRecord>, reqRecord: IrObjectRecord): string | null {
   const dataRef = String((reqRecord.value as { source_data_ref?: string }).source_data_ref ?? '')
   for (const record of toMap(store).values()) {
     if (record.kind !== 'ProblemSpec') continue
@@ -216,7 +219,7 @@ function linkRequirementToProblem(store: Store, reqRecord: IrObjectRecord): stri
 }
 
 /** Run all four structural checks in one pass. */
-export function runVerificationV1V4(store: Store): ReadonlyArray<VerificationFinding> {
+export function runVerificationV1V4(store: StoreInput): ReadonlyArray<VerificationFinding> {
   return [
     ...v1AssumptionUsage(store),
     ...v2AssumptionSource(store),

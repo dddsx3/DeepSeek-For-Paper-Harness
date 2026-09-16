@@ -73,6 +73,7 @@ interface HarnessOutcome {
 async function failSoftHarness(
   reviewerOutputs: ReadonlyArray<string>,
   executorDraft: string,
+  ir?: ModelingIr,
 ): Promise<HarnessOutcome & { readonly finalOutput: () => string | undefined }> {
   const ctx = new Context()
   await ctx.plugin(Storage)
@@ -102,7 +103,7 @@ async function failSoftHarness(
   // The full backbone keeps the nine gates PASS; only the review ledger
   // carries the scripted defect, so the MARKED grade is attributable to
   // the review defect alone.
-  ctx.provide('paperModelingIr', backboneIr())
+  ctx.provide('paperModelingIr', ir ?? backboneIr())
   await ctx.plugin(PaperAuditService, {})
   await ctx.plugin(PaperExecutorService, {
     backoffBaseMs: 1,
@@ -132,6 +133,15 @@ async function failSoftHarness(
   return { ctx, runId: run.id, ...outcome, finalOutput: () => capturedFinal }
 }
 
+/** Same harness with a pre-built IR (for overlay tests). */
+async function failSoftHarnessWithIr(
+  ir: ModelingIr,
+  reviewerOutputs: ReadonlyArray<string>,
+  executorDraft: string,
+) {
+  return failSoftHarness(reviewerOutputs, executorDraft, ir)
+}
+
 describe('P0-3 fail-soft delivery — the W2 acceptance case', () => {
   it('a paper with content and a surviving critical defect delivers as MARKED with an honest appendix', async () => {
     const outcome = await failSoftHarness([
@@ -157,7 +167,41 @@ describe('P0-3 fail-soft delivery — the W2 acceptance case', () => {
     expect(delivered).toContain('附录：交付标注（自动生成）')
     expect(delivered).toContain('MARKED')
     expect(delivered).toContain('结论缺少数值依据')
+    // W8: the backbone IR is structurally VALID, so V1–V4 contribute zero
+    // findings here — the appendix attributes this MARKED grade to the
+    // review ledger alone (verifier zero-false-positive property).
     expect(delivered).toContain('review ledger')
+  })
+
+  it('W8: a V1 structural failure joins the fail-soft grade input and lands in the appendix', async () => {
+    // Overlay one unreferenced ACTIVE assumption onto the backbone — V1
+    // flags it; the run still DELIVERS (fail-soft) with the V finding in
+    // the appendix. This is the verification layer becoming a real gate.
+    const ir = backboneIr()
+    const ghost = ir.put('AssumptionSpec' as never, {
+      assumption_id: 'A-ORPHAN',
+      scope_ref: 'P1',
+      statement: '幽灵假设：从未被任何模型引用',
+      source_type: 'MODELING_CHOICE',
+      justification_refs: ['DA-RAW'],
+      risk_level: 'MEDIUM',
+      testable: false,
+      sensitivity_refs: [],
+      status: 'ACTIVE',
+    })
+    if (!ghost.accepted) throw new Error(`overlay refused: ${JSON.stringify(ghost.failures)}`)
+    // rebuild the harness with the modified IR by re-running the same flow
+    const outcome = await failSoftHarnessWithIr(ir, [
+      '{"defects":[{"id":"D1","severity":"critical","description":"结论缺少数值依据：决策方案未给出期望费用数字"}]}',
+      '{"defects":[{"id":"D1","severity":"critical","description":"结论缺少数值依据：决策方案未给出期望费用数字"}]}',
+      '{"defects":[{"id":"D1","severity":"critical","description":"结论缺少数值依据：决策方案未给出期望费用数字"}]}',
+      '{"defects":[{"id":"D1","severity":"critical","description":"结论缺少数值依据：决策方案未给出期望费用数字"}]}',
+    ], REAL_DRAFT)
+    expect(outcome.status).toBe('resolved')
+    const delivered = outcome.finalOutput()
+    expect(delivered).toContain('MARKED')
+    expect(delivered).toContain('A-ORPHAN')
+    expect(delivered).toContain('假设')
   })
 
   it('a clean review delivers CLEAN (fail-soft does not invent annotations)', async () => {
