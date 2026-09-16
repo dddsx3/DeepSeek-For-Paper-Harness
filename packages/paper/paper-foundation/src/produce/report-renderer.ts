@@ -23,6 +23,7 @@
 
 import { createHash } from 'node:crypto'
 import { Buffer } from 'node:buffer'
+import { renderPaperSkeleton } from './paper-skeleton.ts'
 
 /** One canonical Result row, injected from the IR (never from prose). */
 export interface ResultRow {
@@ -132,12 +133,26 @@ function parseRepresentation(raw: unknown): { ok: true; value: SlotRepresentatio
   return { ok: false, reason: `representation kind '${String(kind)}' is outside the closed set (verbatim | rounded | with_uncertainty)` }
 }
 
+/**
+ * W8.5 (B1): optional skeleton rows extracted from the IR by the caller
+ * (executor). When present, the 符号说明/模型假设/问题重述 sections fill
+ * their tables from canonical data; absent, the skeleton notes they are
+ * IR-generated. This is the single delivery-rendering path: renderReport
+ * IS the skeleton renderer now.
+ */
+export interface SkeletonRows {
+  readonly symbols?: ReadonlyArray<{ id: string; columns: ReadonlyArray<string> }>
+  readonly assumptions?: ReadonlyArray<{ id: string; columns: ReadonlyArray<string> }>
+  readonly requirements?: ReadonlyArray<{ id: string; columns: ReadonlyArray<string> }>
+}
+
 /** @internal shared assembly; `conclusionKind` routes the guards. */
 function renderReport(input: {
   readonly title: string
   readonly results: ReadonlyArray<ResultRow>
   readonly narrative: Record<string, unknown>
   readonly figures: ReadonlyArray<FigureAssetRow>
+  readonly skeletonRows?: SkeletonRows
 }): RenderVerdict {
   const resultById = new Map(input.results.map(r => [r.result_id, r]))
   const allAllowed = new Set<string>()
@@ -254,58 +269,70 @@ function renderReport(input: {
     }
   }
 
-  const lines: string[] = []
-  lines.push(`# ${input.title}`)
-  lines.push('')
-  lines.push('## 结果表（由规范 IR 注入；结论区关键数字必须与此表一致）')
-  lines.push('')
-  lines.push('| 量名 | 数值 | 单位 | 不确定度 | 来源 |')
-  lines.push('|---|---|---|---|---|')
+  // ---- W8.5 (B1): the delivery text is the SKELETON (10 sections). The
+  // report's machine content (result table / conclusion / methods /
+  // figures + provenance) becomes the 模型建立与求解 slot; the skeleton
+  // fills 符号说明/模型假设/问题重述 from IR rows. One renderer, one
+  // path — the old 5-title template no longer exists as a separate
+  // delivery surface.
+  const modelLines: string[] = []
+  modelLines.push('### 结果表（由规范 IR 注入；结论区关键数字必须与此表一致）')
+  modelLines.push('')
+  modelLines.push('| 量名 | 数值 | 单位 | 不确定度 | 来源 |')
+  modelLines.push('|---|---|---|---|---|')
   for (const result of input.results) {
     const uncertainty = result.uncertainty === null ? '' : `±${result.uncertainty}`
-    lines.push(`| ${result.name} | ${result.value} | ${result.unit} | ${uncertainty} | \`${result.result_id}\` |`)
+    modelLines.push(`| ${result.name} | ${result.value} | ${result.unit} | ${uncertainty} | \`${result.result_id}\` |`)
   }
-  lines.push('')
-  lines.push('## 结论')
-  lines.push('')
+  modelLines.push('')
+  modelLines.push('### 结论')
+  modelLines.push('')
   if (conclusionRaw !== undefined && typeof conclusionRaw === 'object' && !Array.isArray(conclusionRaw)) {
     const slots = (conclusionRaw as { claims: Array<{ text: string; comparison?: string }> }).claims
     for (const slot of slots) {
-      lines.push(`- ${slot.text}${slot.comparison === undefined ? '' : `（${slot.comparison}）`}`)
+      modelLines.push(`- ${slot.text}${slot.comparison === undefined ? '' : `（${slot.comparison}）`}`)
     }
   } else {
-    lines.push(String(conclusionRaw ?? ''))
+    modelLines.push(String(conclusionRaw ?? ''))
   }
   const methods = input.narrative['methods']
   if (methods !== undefined) {
-    lines.push('')
-    lines.push('## 方法')
-    lines.push('')
-    lines.push(String(methods))
+    modelLines.push('')
+    modelLines.push('### 方法')
+    modelLines.push('')
+    modelLines.push(String(methods))
   }
-
   // ---- Figure slot (P2-3): real rendered bytes, embedded; provenance. ----
+  const validationLines: string[] = []
   if (input.figures.length > 0) {
-    lines.push('')
-    lines.push('## 图')
-    lines.push('')
+    modelLines.push('')
+    modelLines.push('### 图')
+    modelLines.push('')
     for (const figure of input.figures) {
       const dataUri = `data:image/svg+xml;base64,${Buffer.from(figure.svg, 'utf8').toString('base64')}`
-      lines.push(`![${figure.caption ?? figure.figureId}](${dataUri})`)
-      lines.push('')
+      modelLines.push(`![${figure.caption ?? figure.figureId}](${dataUri})`)
+      modelLines.push('')
     }
-    lines.push('## 图数据溯源')
-    lines.push('')
-    lines.push('| 图 | data_hash | 源 Result | 渲染器 | 文件 sha256 |')
-    lines.push('|---|---|---|---|---|')
+    validationLines.push('### 图数据溯源')
+    validationLines.push('')
+    validationLines.push('| 图 | data_hash | 源 Result | 渲染器 | 文件 sha256 |')
+    validationLines.push('|---|---|---|---|---|')
     for (const figure of input.figures) {
       const sha = createHash('sha256').update(figure.svg, 'utf8').digest('hex')
-      lines.push(`| \`${figure.figureId}\` | \`${figure.data_hash}\` | ${figure.resultRefs.map(r => `\`${r}\``).join(', ')} | ${figure.rendererVersion} | \`${sha}\` |`)
+      validationLines.push(`| \`${figure.figureId}\` | \`${figure.data_hash}\` | ${figure.resultRefs.map(r => `\`${r}\``).join(', ')} | ${figure.rendererVersion} | \`${sha}\` |`)
     }
   }
-  lines.push('')
-  lines.push('---')
-  lines.push('*template report v2 — machine numbers rendered from canonical IR Result records; conclusion numbers arrive via slots or guarded prose; figures are rendered by the fixed harness renderer.*')
+  const text = renderPaperSkeleton({
+    title: input.title,
+    ...(input.skeletonRows?.symbols === undefined ? {} : { symbols: input.skeletonRows.symbols }),
+    ...(input.skeletonRows?.assumptions === undefined ? {} : { assumptions: input.skeletonRows.assumptions }),
+    ...(input.skeletonRows?.requirements === undefined ? {} : { requirements: input.skeletonRows.requirements }),
+    slots: {
+      model: modelLines.join('\n'),
+      ...(validationLines.length > 0 ? { validation: validationLines.join('\n') } : {}),
+    },
+  })
+  const lines: string[] = [text, '', '---', '*机器数字由规范 IR Result 记录渲染；结论数字经槽位或守卫散文注入；图表由固定 harness 渲染器渲染（骨架 v2）。*']
   return { ok: true, text: lines.join('\n') }
 }
 
@@ -319,8 +346,14 @@ export function renderReportV2(input: {
   readonly results: ReadonlyArray<ResultRow>
   readonly narrative: Record<string, unknown>
   readonly figures?: ReadonlyArray<FigureAssetRow>
+  /** W8.5: IR rows for the skeleton's machine tables (optional). */
+  readonly skeletonRows?: SkeletonRows
 }): RenderVerdict {
-  return renderReport({ ...input, figures: input.figures ?? [] })
+  return renderReport({
+    ...input,
+    figures: input.figures ?? [],
+    ...(input.skeletonRows === undefined ? {} : { skeletonRows: input.skeletonRows }),
+  })
 }
 
 /** v1 entry (legacy prose conclusion; no figures) — behaviour unchanged. */

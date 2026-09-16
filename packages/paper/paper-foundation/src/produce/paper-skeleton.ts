@@ -48,6 +48,13 @@ export interface PaperSkeletonInput {
   readonly assumptions?: ReadonlyArray<AutoRow>
   /** Auto rows for a REQUIRED_OUTPUTs table in 问题重述. */
   readonly requirements?: ReadonlyArray<AutoRow>
+  /**
+   * W8.5 (B1): real content per section id. A prose section with a slot
+   * uses it verbatim; without one it renders the placeholder. This is how
+   * the delivery chain fills 结论/方法/图表 into the skeleton — one
+   * renderer, one path.
+   */
+  readonly slots?: Readonly<Record<string, string>>
 }
 
 /**
@@ -62,6 +69,7 @@ export function renderPaperSkeleton(input: PaperSkeletonInput): string {
   for (const section of PAPER_SECTIONS) {
     lines.push(`## ${section.title}`)
     lines.push('')
+    const slot = input.slots?.[section.id]
     if (section.kind === 'symbols') {
       lines.push(renderTable(['符号', '含义', '单位'], input.symbols ?? [], '(符号表由规范 IR 自动生成)'))
     } else if (section.kind === 'assumptions') {
@@ -70,6 +78,12 @@ export function renderPaperSkeleton(input: PaperSkeletonInput): string {
       // PRD §5.1.4: 问题重述 — the REQUIRED_OUTPUTs (from IR) render as
       // the "what must be produced" table under this section.
       lines.push(renderTable(['要求', '说明'], input.requirements ?? [], '(问题要求由规范 IR 自动生成)'))
+      if (slot !== undefined && slot.trim() !== '') {
+        lines.push('')
+        lines.push(slot)
+      }
+    } else if (slot !== undefined && slot.trim() !== '') {
+      lines.push(slot)
     } else {
       lines.push('_(模型待写入)_')
     }

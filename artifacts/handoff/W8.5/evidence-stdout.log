@@ -1,0 +1,3 @@
+[BLOCKED] 调用/传输失败（gate-failed）：node 'c84c7807-8967-4229-ba1f-3e9d18cd8609' exhausted 3 attempts: EXECUTE output was not a schema-valid ir-container-v1 (BLOCKED)
+  → 重试一次；若持续失败报告给维护者。
+  run-id  -> 1a2b4f86-c315-4f5a-a985-b0f4d764e0ea
