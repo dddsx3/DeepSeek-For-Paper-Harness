@@ -21,10 +21,11 @@
 
 | 题型 | 状态 | 证据 |
 |---|---|---|
-| 课程作业型(demo course-work,T3) | ✅ **可直出**(14/14 QUALIFIED 历史 + cockpit demo 两次 DELIVERED) | TASK-P1C/TASK-C1 |
+| 课程作业型(demo course-work,T3) | ⚠ **仅作回归基线**:14/14 QUALIFIED + cockpit demo DELIVERED 均为**固定填充面**(T3 不读题面;`template-fill.ts:153` 硬编码 0.731)。**W8.5 重标:不得再表述为"可直出"** | TASK-P1C/TASK-C1 + `W8.5-REPORT.md` §0.8 |
 | **CUMCM 开放建模题(2024 A 板凳龙,T3/T2 × 3 模型族)** | ❌ **4/4 BLOCKED,零产出** | `REAL-RUN-2024A-behavior-report.md`(正文+附录 B) |
+| **CUMCM 2024-C(真实 T1 + 真实模型,v4-flash)** | ❌ **1/1 BLOCKED**(execute 3 拒;usage 8785/75669 非零;协议输出被 32k 截断) | `bench/results/2024-C-real/` + `artifacts/handoff/W8.5/` |
 
-即:**TOP 目标在"作业型题"上已达成,在"竞赛真题"上未达成**,差距全部在引擎/协议层,
+即:**TOP 目标在"作业型题"上只是回归基线(非直出能力),在"竞赛真题"上未达成**,差距全部在引擎/协议层,
 驾驶舱投影层已就绪。
 
 ## 3. 达成判据(验收口径,可执行)

@@ -154,7 +154,9 @@ export function computeProblemMetrics(problemId, family, report, draftText, prob
   const usage = report.usage ?? {}
   const costKnown = usage.cost_usd !== undefined && usage.cost_usd > 0
   const manualInterventions = meta.manual_interventions ?? 0
-  const wallClockSeconds = meta.wall_clock_seconds ?? null
+  // W8.5 (B2): the shell stamps wall_clock_seconds into run-report.json —
+  // prefer it (top-level), fall back to a meta override for fixtures.
+  const wallClockSeconds = report.wall_clock_seconds ?? meta.wall_clock_seconds ?? null
 
   const m1Readable = grade !== 'BLOCKED'
     && recital < 0.30
@@ -246,13 +248,17 @@ export async function computeFromResults() {
     if (!entry.isDirectory()) continue
     const reportPath = join(resultsDir, entry.name, 'run-report.json')
     const report = JSON.parse(await readFile(reportPath, 'utf8').catch(() => null) ?? 'null')
-    const family = families.get(entry.name) ?? families.get(`CUMCM-${entry.name}`) ?? '?'
+    // W8.5: a "<id>-real" directory is the SAME problem run with a real
+    // provider (bench/results/2024-C-real) — resolve to the same family.
+    const baseName = entry.name.replace(/-real$/, '')
+    const family = families.get(entry.name) ?? families.get(`CUMCM-${entry.name}`)
+      ?? families.get(baseName) ?? families.get(`CUMCM-${baseName}`) ?? '?'
     if (report === null) {
       records.push({ problem_id: entry.name, family, grade: 'NO-REPORT', missing: true })
       continue
     }
     const draftText = await readFile(join(resultsDir, entry.name, 'report.md'), 'utf8').catch(() => '')
-    const problemTextPath = problemTexts.get(entry.name) ?? problemTexts.get(`CUMCM-${entry.name}`)
+    const problemTextPath = problemTexts.get(entry.name) ?? problemTexts.get(`CUMCM-${entry.name}`) ?? problemTexts.get(baseName)
     const problemText = problemTextPath === undefined ? '' : await readFile(problemTextPath, 'utf8').catch(() => '')
     records.push(computeProblemMetrics(
       entry.name,

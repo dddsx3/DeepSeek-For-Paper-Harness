@@ -314,6 +314,11 @@ async function main(): Promise<number> {
   // sees the closed candidate set + required assumptions + dedicated
   // validation BEFORE it models (zero invention space, 核验表 Part B).
   const taskText = `${bundle.taskText}${routeBanner(familyVerdict)}${contractBanner(familyVerdict.family)}`
+  // W8.5 (B2): M3b — the shell stamps the wall-clock window it owns
+  // (submit → terminal). Recorded in run-report.json as
+  // wall_clock_seconds so the bench metrics can read it (they cannot
+  // derive it from the durable run record otherwise).
+  const wallClockStart = Date.now()
   const run = await engine.startRun({ mode, harnessVersion: 'paper-shell-v0', configHash: 'sha256:dmshell' })
   try {
     await ctx.paperExecutor.runs.execute(RunId(run.id), taskText)
@@ -339,7 +344,7 @@ async function main(): Promise<number> {
       suggested_intervention: human.advice,
     }
     await mkdir(outDir, { recursive: true })
-    await writeFile(join(outDir, 'run-report.json'), JSON.stringify({ runId: String(run.id), tier, mode, status: 'BLOCKED', classifier: human.classifier, code: err.code, humanized: human.oneLine, memo }, null, 2), 'utf8')
+    await writeFile(join(outDir, 'run-report.json'), JSON.stringify({ runId: String(run.id), tier, mode, status: 'BLOCKED', classifier: human.classifier, code: err.code, humanized: human.oneLine, wall_clock_seconds: Math.round((Date.now() - wallClockStart) / 100) / 10, memo }, null, 2), 'utf8')
     await dispose()
     return 1
   }
@@ -385,8 +390,9 @@ async function main(): Promise<number> {
   // The zipped run-report redacts the per-run UUID so the zip is
   // byte-deterministic on re-run (G2: 重跑同 sha256); the full report with
   // the real runId is written to the out dir separately.
-  const runReport = JSON.stringify({ runId: '<redacted-run-id>', tier, mode, status: 'DELIVERED', grade, sha256, audit, usage: { input_tokens: usageSummary.input_tokens, output_tokens: usageSummary.output_tokens, cost_usd: usageSummary.cost_usd }, attachments: attachmentLedger }, null, 2)
-  const runReportFull = JSON.stringify({ runId: String(run.id), tier, mode, status: 'DELIVERED', grade, sha256, audit, usage: { input_tokens: usageSummary.input_tokens, output_tokens: usageSummary.output_tokens, cost_usd: usageSummary.cost_usd }, attachments: attachmentLedger }, null, 2)
+  const wallClockSeconds = Math.round((Date.now() - wallClockStart) / 100) / 10
+  const runReport = JSON.stringify({ runId: '<redacted-run-id>', tier, mode, status: 'DELIVERED', grade, wall_clock_seconds: wallClockSeconds, sha256, audit, usage: { input_tokens: usageSummary.input_tokens, output_tokens: usageSummary.output_tokens, cost_usd: usageSummary.cost_usd }, attachments: attachmentLedger }, null, 2)
+  const runReportFull = JSON.stringify({ runId: String(run.id), tier, mode, status: 'DELIVERED', grade, wall_clock_seconds: wallClockSeconds, sha256, audit, usage: { input_tokens: usageSummary.input_tokens, output_tokens: usageSummary.output_tokens, cost_usd: usageSummary.cost_usd }, attachments: attachmentLedger }, null, 2)
   await mkdir(outDir, { recursive: true })
   await writeFile(join(outDir, 'report.md'), report, 'utf8')
   await writeFile(join(outDir, 'sha256.txt'), sha256, 'utf8')

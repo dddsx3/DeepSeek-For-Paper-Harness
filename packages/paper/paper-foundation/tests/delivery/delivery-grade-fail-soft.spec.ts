@@ -29,6 +29,7 @@ import {
   RunId,
   WorkflowEngineService,
 } from '../../src/index.ts'
+import { ModelingIr } from '../../src/ir/store.ts'
 import { backboneIr } from '../ir/fixtures.ts'
 
 const routes = {

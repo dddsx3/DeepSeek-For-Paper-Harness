@@ -989,6 +989,31 @@ export class WorkflowExecutor {
         .filter(r => r.kind === 'Result')
         .map(r => r.value)
     const figureDecls = (container.interpretations?.['figures'] as Array<{ figure_id: string; caption?: string; data_refs?: ReadonlyArray<string> }> | undefined) ?? []
+    // W8.5 (B1): skeleton rows for the machine tables (符号说明/模型假设/
+    // 问题重述) come straight from the canonical IR — the delivery text is
+    // the 10-section skeleton (single renderer, no second template).
+    const skeletonRows = snapshot === null
+      ? undefined
+      : {
+        symbols: [...snapshot.values()]
+          .filter(r => r.kind === 'SymbolSpec')
+          .map((r) => {
+            const s = r.value as { symbol_id: string; meaning: string; unit: string }
+            return { id: s.symbol_id, columns: [s.symbol_id, s.meaning, s.unit] }
+          }),
+        assumptions: [...snapshot.values()]
+          .filter(r => r.kind === 'AssumptionSpec')
+          .map((r) => {
+            const a = r.value as { assumption_id: string; statement: string; source_type: string; risk_level: string; testable: boolean }
+            return { id: a.assumption_id, columns: [a.statement, a.source_type, a.risk_level, a.testable ? '是' : '否'] }
+          }),
+        requirements: [...snapshot.values()]
+          .filter(r => r.kind === 'RequirementSpec')
+          .map((r) => {
+            const req = r.value as { requirement_id: string; statement: string; requirement_type: string }
+            return { id: req.requirement_id, columns: [req.statement, req.requirement_type] }
+          }),
+      }
     const rendered = renderReportV2({
       title: String((container.narrative?.['title'] as string | undefined) ?? 'Paper deliverable (executor production chain)'),
       results: results.map(r => ({
@@ -999,6 +1024,7 @@ export class WorkflowExecutor {
         uncertainty: r.uncertainty,
       })),
       narrative: container.narrative ?? {},
+      ...(skeletonRows === undefined ? {} : { skeletonRows }),
       figures: figureAssets.map((asset) => {
         const decl = figureDecls.find(d => d.figure_id === asset.figureId)
         return {

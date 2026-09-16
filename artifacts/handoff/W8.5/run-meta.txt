@@ -1,0 +1,11 @@
+START_UTC=2026-09-16T13:24:55Z
+END_UTC=2026-09-16T13:43:08Z
+RUN_ID=1a2b4f86-c315-4f5a-a985-b0f4d764e0ea
+COMMAND=npx tsx apps/paper-shell/src/cli.ts run bench/problems/2024-C/problem.pdf --data bench/problems/2024-C/attachment-1.xlsx --data bench/problems/2024-C/attachment-2.xlsx --mode strict --fail-soft --out bench/results/2024-C-real
+TIER=T1 (default; no --tier flag)
+MODE=strict
+ROUTE=https://api.y-api.bestvirtualgoods.com/v1 + deepseek/deepseek-v4-flash
+WALL_CLOCK=1088.7s (18min 9s)
+TERMINAL=BLOCKED (execute exhausted 3 attempts: ir-container-v1 not schema-valid)
+USAGE_TOTAL: input 8785 / output 75669 / costUsd 0 (pricing unconfigured)
+PER_ATTEMPT: plan 1346/913; execute#1 2995/32000 (parse_failed NONE); execute#2 3406/10756 (schema_violation DRIFT); execute#3 (third usage 8785-1346-2995-3406=1038in / 75669-913-32000-10756=32000out)
