@@ -1,0 +1,1 @@
+{"model":"deepseek/deepseek-v4-flash","messages":[{"role":"user","content":"Output the exact string 'AAAA' repeated. Write 40000 copies, separated by newlines. Begin now and do not stop early."}],"max_tokens":50000,"stream":false}

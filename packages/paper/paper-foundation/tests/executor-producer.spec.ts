@@ -157,9 +157,21 @@ describe('P1-1 executor wiring — produceFromExecute', () => {
     expect(result.status, result.message).toBe('threw')
     const err = { code: 'gate-failed', message: result.message }
     expect(err?.code).toBe('gate-failed')
-    expect(String(err?.message)).toMatch(/not a schema-valid|EXECUTE output refused/)
+    // W8.6-A4: a deterministic container now trips the same-cause circuit
+    // breaker on its SECOND identical failure — the third attempt is
+    // known-ineffective and refused up front (was: 3 attempts then BLOCK).
+    expect(String(err?.message)).toMatch(/circuit-broken|not a schema-valid|EXECUTE output refused/)
     // W1: the harness-registered input assets (3) are legitimately present;
     // the model's poisoned container wrote nothing on top of them.
     expect(ir.size).toBe(3)
+    // W8.6-D1: the refused container left a bounded excerpt on the audit
+    // trail — the offending field path is now diagnosable (W8.5 exec#2
+    // was unknowable forever because nothing was kept).
+    const refused = ctx.paperAudit.list().filter(e => e.eventType === 'container_refused')
+    expect(refused.length).toBeGreaterThan(0)
+    const detail = refused[0]?.detail as { excerpt_head?: string; output_sha256?: string; reason?: string } | undefined
+    expect(detail?.excerpt_head).toContain('ModelSpec')
+    expect(String(detail?.output_sha256)).toMatch(/^[0-9a-f]{64}$/)
+    expect(String(detail?.reason)).toContain('schema')
   })
 })

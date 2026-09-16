@@ -43,6 +43,19 @@ export function blockMessage(
   const producerCodes = new Set(['hash_field_forbidden', 'input_asset_domain', 'registered_id_redeclared', 'schema_violation', 'kind_not_producible', 'parse_failed', 'conflicting_conclusion_number'])
   const guidedCodes = new Set(['step_foreign_key', 'unledgered_reference', 'free_id', 'free_structure', 'bypass_container', 't3_number_forbidden', 't3_container_forbidden', 't3_free_choice', 't3_schema_violation'])
 
+  // W8.6-A3: truncation gets its OWN sentence. Pre-W8.6 it fell to
+  // whatever catch-all matched and advised "重试一次" — an action the
+  // W8.5 run PROVED cannot succeed (two retries, two identical
+  // truncations at the same ceiling). The advice must name the real
+  // cause: output budget / protocol length.
+  if (eventType === 'truncated' || code === 'EXECUTE_OUTPUT_TRUNCATED') {
+    return {
+      classifier: 'truncated',
+      oneLine: '本次运行的输出在中途撞到提供方的输出长度上限被截断（不是题目或模型违规）。',
+      advice: '重试不会解决——上限不会变。这是「输出预算/协议长度不匹配」：请报告给维护者（协议分片或提高预算后才能通过）。',
+    }
+  }
+
   if (eventType === 'escape_refused' || producerCodes.has(code ?? '')) {
     return {
       classifier: 'protocol',

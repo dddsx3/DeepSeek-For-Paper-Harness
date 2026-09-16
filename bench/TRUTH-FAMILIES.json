@@ -1,0 +1,17 @@
+{
+  "truth_version": 1,
+  "annotated_by": "用户（人工标注）；W8.6-F1 要求：真值由人工定，禁止用路由器输出当真值",
+  "annotated_at": "2026-09-16",
+  "notes": [
+    "本文件的 family 字段是人工真值（允许混合，如 'F3+F2'）。路由器的判定写入 run 侧（routed_family），两者在 metrics 里并排保留。",
+    "2024-C 的修订依据：W8.6-F2 —— 核心是带约束的多年种植方案优化（F2 为主），预测（F3）是支撑。原预注册 F3 标签已由 2026-09-16 修订说明覆盖（PREREGISTRATION.md 追加区）。",
+    "2024-B 的族边界：W5 实测路由到 F4（决策词占优），人工真值记为 F3+F4（抽样检验为体、生产决策为用）。"
+  ],
+  "problems": [
+    { "id": "2024-A", "family": "F1", "mixed": false, "note": "机理/几何 + 优化" },
+    { "id": "2024-B", "family": "F3+F4", "mixed": true, "note": "抽样检验（F3 统计）为主体，生产决策（F4）为用" },
+    { "id": "2024-C", "family": "F3+F2", "mixed": true, "note": "修订：带约束的种植方案优化为主（F2），销量/价格/产量预测为支撑（F3）" },
+    { "id": "2024-D", "family": "F1", "mixed": false, "note": "物理机理 + 优化" },
+    { "id": "2024-E", "family": "F3+F2", "mixed": true, "note": "数据处理（F3）+ 调度优化（F2）" }
+  ]
+}

@@ -23,11 +23,17 @@
  *     like "请写一篇论文" declines, it does not guess F1.
  */
 
+import { getContract } from './contracts/index.ts'
+
 /** Closed family ids (keep in sync with bench/PREREGISTRATION.md §A). */
 export const FAMILIES = ['F1', 'F2', 'F3', 'F4'] as const
 export type MethodFamily = (typeof FAMILIES)[number]
-/** Families the contract layer (W5) will serve first. */
-export const SUPPORTED_FAMILIES: ReadonlyArray<MethodFamily> = ['F3', 'F4']
+/** Families that HAVE an implemented contract. W8.6-C1: derived from the
+ *  contract registry itself (not a hand-kept list) — "supported" can
+ *  never drift from "contracted" because there is one source. */
+export const SUPPORTED_FAMILIES: ReadonlyArray<MethodFamily> = FAMILIES.filter(
+  family => getContract(family) !== undefined,
+)
 
 export type RouteVerdict =
   | { readonly ok: true; readonly family: MethodFamily; readonly note: string }
@@ -82,9 +88,15 @@ export function classifyProblem(statement: string): RouteVerdict {
   const family = best[0]
   const note = `命中方法族 ${family}（关键词 ${best[1]} 处：${[...scores.entries()].map(([f, n]) => `${f}×${n}`).join('，')}）`
   if (!SUPPORTED_FAMILIES.includes(family)) {
+    // W8.6-C1: routing to a family WITHOUT a contract must refuse here —
+    // zero model calls. W8.5's 75,669-token burn was exactly this gate
+    // missing: the router said F4 (a contract existed) while the real
+    // need was F2 (no contract) — the mismatch cost a full 18-minute run.
+    // The reason text names which families ARE contracted, so the user
+    // learns the support boundary without spending anything.
     return {
       ok: false,
-      reason: `题面路由到 ${family}（${note}），但当前方法族契约暂未覆盖该族（支持：F3 统计/数据驱动、F4 评价决策）。明确拒绝：不消耗额度。`,
+      reason: `题面路由到 ${family}（${note}），但该族没有已实现的契约（已有契约：${SUPPORTED_FAMILIES.join('、')}）。明确拒绝：不消耗额度。`,
     }
   }
   return { ok: true, family, note }
