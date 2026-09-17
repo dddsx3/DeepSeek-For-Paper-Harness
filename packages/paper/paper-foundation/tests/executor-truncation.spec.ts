@@ -74,7 +74,15 @@ async function harness(outputs: ReadonlyArray<string | { text: string; finish: '
   guard.markReady()
   ctx.provide('paperModelingIr', new ModelingIr())
   await ctx.plugin(PaperAuditService, {})
-  await ctx.plugin(PaperExecutorService, { produceFromExecute: true, backoffBaseMs: 1, backoffCapMs: 1 })
+  // W8.9-A4: this suite pins the SINGLE-SHOT path (truncation / circuit-breaker
+  // semantics live there). Sharding is the default now, so name the path.
+  await ctx.plugin(PaperExecutorService, {
+    produceFromExecute: true,
+    disableShardDeclare: true,
+    disableE1E2: true,
+    backoffBaseMs: 1,
+    backoffCapMs: 1,
+  })
   const engine = ctx.paperWorkflow.runs
   const started = await engine.startRun({ mode: 'exploratory', harnessVersion: 'test', configHash: 'sha256:w86' })
   const outcome = await ctx.paperExecutor.runs.execute(RunId(started.id), 'estimate ice thickness')

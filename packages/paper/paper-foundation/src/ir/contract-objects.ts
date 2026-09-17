@@ -77,6 +77,18 @@ export const assumptionSpecSchema = zod
     /** Result/DataArtifact records that probe this assumption (sensitivity). */
     sensitivity_refs: zod.array(refSchema),
     status: zod.enum(ASSUMPTION_STATUSES),
+    /**
+     * W8.9-B3 — the verbatim sentence of the E1 analysis this assumption came
+     * from. Optional because the single-shot paths have no E1 text to anchor
+     * to; REQUIRED on the receive layer (E1/E2), where the executor refuses a
+     * declaration whose span is missing, too short, or not a verbatim
+     * substring of E1 (the fidelity gate, `produce/e1-e2.ts`).
+     *
+     * This is the field that makes "形式化忠实于推理" checkable: the harness
+     * cannot judge whether the reasoning is good, but it can demand that the
+     * formalization quotes the reasoning.
+     */
+    e1_span: textSchema.optional(),
   })
   .strict()
 
@@ -113,6 +125,9 @@ export const equationSpecSchema = zod
     depends_on: zod.array(refSchema),
     /** Source: data artifact or text span the equation came from. */
     source: refSchema,
+    /** W8.9-B3 — the verbatim E1 sentence this equation came from (see
+     *  AssumptionSpec.e1_span for the full contract). */
+    e1_span: textSchema.optional(),
   })
   .strict()
   .refine(v => new Set(v.lhs_symbols).size === v.lhs_symbols.length, {

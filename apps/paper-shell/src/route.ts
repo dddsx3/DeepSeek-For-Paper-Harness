@@ -125,3 +125,49 @@ export function classifyProblem(statement: string): RouteVerdict {
 export function routeBanner(verdict: Extract<RouteVerdict, { ok: true }>): string {
   return `\n## 题型路由（自动）\n\n方法族：${verdict.family}\n\n${verdict.note}\n`
 }
+
+/**
+ * W8.9-A2 — route_mismatch as a COMPONENT-SET comparison, not string equality.
+ *
+ * 问题（W8.5 实证）：真值标签允许混合族（`TRUTH-FAMILIES.json` 的
+ * `"F3+F4"`），而路由器的 `family` 是**单个主族**（`"F4"`）。朴素的
+ * `truth !== routed` 会把每一个**合法的混合族题**都标成 mismatch——
+ * 2024-B 的 `route_mismatch` 因此与 `RUNNABLE-PROBLEMS.md` 的"一致"结论
+ * 直接矛盾（真值 `F3+F4` vs 路由 `F4`，字符串不等但组件集合相容）。
+ * 后果：路由准确率度量失效（假红）。
+ *
+ * 判定：真值的**每个组件**都必须在路由器的组件集合里出现（子集关系），
+ * 主族不参与判定——主族只是"命中分最高者"（供契约 banner），它不是
+ * "题目只需要这一族"的主张。零 token（纯字符串）。
+ *
+ * @param truthLabel - the human truth label (`"F4"`, `"F3+F4"`, …) or null.
+ * @param verdict - the router's verdict.
+ * @returns whether the routed component set covers the truth components.
+ */
+export function routeCoversTruth(
+  truthLabel: string | null,
+  verdict: Extract<RouteVerdict, { ok: true }>,
+): boolean {
+  if (truthLabel === null) return true
+  const truthComponents = truthLabel
+    .split('+')
+    .map(part => part.trim())
+    .filter((part): part is MethodFamily => (FAMILIES as ReadonlyArray<string>).includes(part))
+  // A label with no recognizable component cannot be checked — do not
+  // manufacture a mismatch out of an unparseable truth file.
+  if (truthComponents.length === 0) return true
+  const routed = new Set(verdict.components.map(c => c.family))
+  return truthComponents.every(family => routed.has(family))
+}
+
+/**
+ * W8.9-A2 — is the routed verdict a MISMATCH against the truth label?
+ * The complement of {@link routeCoversTruth}, kept as its own name so the
+ * call site reads as the report field it populates.
+ */
+export function routeMismatch(
+  truthLabel: string | null,
+  verdict: Extract<RouteVerdict, { ok: true }>,
+): boolean {
+  return !routeCoversTruth(truthLabel, verdict)
+}

@@ -1,0 +1,38 @@
+W8.9-D1 运行记录（真实 E2 调用）
+=====================================
+
+fixture: packages/paper/paper-foundation/tests/fixtures/e1-run4-analysis.txt
+chars:   779
+sha256:  564214da2a958f193ff3efe337d1a8c47b9c4cf7a990d211b17732d40eec292d
+来源:    artifacts/handoff/W8.8/raw-sse-run4-execute.txt（真实产物，未修改）
+
+调用参数（经三轮诊断确定，非猜测）:
+  stream: true                （非流式 → Cloudflare 524，源站超时 126 s）
+  max_tokens: 32000           （24000 曾返回 finish=length 截断）
+  reasoning_effort: "none"    （不限 → 16000 tokens 全耗在 reasoning，content=""）
+  temperature: 0
+
+结果:
+  HTTP 200 in 57057 ms; finish=stop; usage in/out = 1645/5035
+  E2 output chars: 6252
+  [H7] E2 produced a schema-valid container: 16 entries
+       (6×SymbolSpec, 6×AssumptionSpec, 3×EquationSpec, 1×ModelSpec)
+
+保真检查（对该 fixture 为参考信息）:
+  PASS  B3 正向（声明须逐字锚定 E1）  | 9 条 Assumption/Equation 声明全部逐字锚定 E1
+  PASS  B3 反向（E1 假设须被声明）    | E1 的 0 条假设锚点均有对应 AssumptionSpec（真空满足）
+  FAIL  B3 锚点同一性                 | IR 声明了但 E1 从未标记的假设：A1..A6
+  FAIL  B4 逐问推理覆盖               | E1 缺少 1 个要求的推理段：R-OUT
+
+对后两条 FAIL 的解释（重要，勿误读为回归）:
+  run#4 的文本产生于 W8.9-B3 的锚点约定**之前**，它从未被要求写
+  [[ASSUMPTION: ...]] / [[REQUIREMENT: ...]] 标记（本脚本实测：标记出现 0 次）。
+  故"锚点同一性"与"B4 覆盖"必然失败——这是**fixture 的历史属性**，不是
+  E2 的规范化失败，也不是保真检查的误报。两者在**带锚点**的文本上由
+  tests/executor-e1e2.spec.ts 的构造性反例覆盖（21/21 通过）。
+
+  B3 正向的 PASS 反而是更强的证据：E2 为 9 条声明给出的 e1_span 全部是
+  run#4 原文的逐字子串——说明"要求形式化引用原文"是可执行的，且模型能
+  做到。
+
+H7 判据: **MET**（E2 把真实分析产出为 schema-valid 容器）。

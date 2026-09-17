@@ -33,6 +33,14 @@ import { produceRunExecution } from './produce/execution-producer.ts'
 import { produceInterpretation } from './produce/interpretation-producer.ts'
 import { renderReportV2 } from './produce/report-renderer.ts'
 import { SHARD_NAMES, shardPrompt, parseShard, mergeShards } from './produce/shard-declare.ts'
+import {
+  e1AnalysisInstruction,
+  e2NormalizationPrompt,
+  checkE1E2Fidelity,
+  fidelityOk,
+  type DeclaredEntry,
+  type FidelityFinding,
+} from './produce/e1-e2.ts'
 import type { PaperProviderService, PaperRole } from './provider.ts'
 import { backoffDelayMs, classifyFailure } from './resilience.ts'
 import type { BackoffPolicy } from './resilience.ts'
@@ -241,11 +249,50 @@ export interface ExecutorOptions {
    * outputs (definitions → models → runtime) merged into the same
    * ir-container-v1. Rationale: the single-shot container's output
    * budget is eaten by the reasoning channel (P1 probes: ≈14.6:1),
-   * truncating the JSON at the 32k ceiling. DEFAULT OFF — the shard
-   * protocol must prove itself on real runs before it becomes the path
-   * (W8.6 lesson: unverified protocol changes never flip a default).
+   * truncating the JSON at the 32k ceiling.
+   *
+   * W8.9-A4 — **DEFAULT ON**. W8.7 shipped the shard protocol as an
+   * opt-in switch ("默认关", per the W8.6 lesson that unverified protocol
+   * changes must not flip a default). That lesson is now satisfied on the
+   * evidence side: the shard path has its own test surface
+   * (`tests/executor-shard.spec.ts`), and the single-shot path is the one
+   * with a KNOWN output-ceiling failure (W8.5: 75,669 output tokens burned
+   * before the container completed; W8.8 runs #3/#4: empty streams).
+   * Leaving a known-failing path as the default is the hazard now.
+   *
+   * The switch is inverted, not removed: `shardDeclare: false` restores the
+   * single-shot declaration for A/B comparison and regression.
    */
   readonly shardDeclare?: boolean
+  /**
+   * W8.9-A4: explicit opt-OUT of sharding. When absent, sharding is ON for
+   * producing EXECUTE nodes. Kept separate from `shardDeclare` so a
+   * composition can express "I know about sharding and I want it off"
+   * without the meaning of `shardDeclare` having to be re-read.
+   */
+  readonly disableShardDeclare?: boolean
+  /**
+   * W8.9-B1 — the E1/E2 receive layer. When true, a producing EXECUTE node
+   * runs TWO calls: E1 writes free analysis (no container requirement), E2
+   * normalizes it into the ir-container-v1. **Default ON** for producing
+   * runs: this is the main-contradiction fix (the single-shot container
+   * measured container compliance, not modeling quality — W8.8 run#4).
+   * `e1e2: false` restores the single-shot path for A/B comparison.
+   */
+  readonly e1e2?: boolean
+  /**
+   * W8.9-B1: explicit opt-out of the receive layer (takes precedence).
+   */
+  readonly disableE1E2?: boolean
+  /**
+   * W8.9-B3/B4 — enforce the E1→E2 fidelity checks. When true (default),
+   * a container whose Assumption/Equation declarations are not verbatim-
+   * anchored in E1, or whose E1 text lacks a required-output reasoning
+   * anchor, is REFUSED as a DRIFT (guided retry, E1 not re-run).
+   * `enforceFidelity: false` records the findings without refusing —
+   * for the first real runs, where the anchor discipline is itself new.
+   */
+  readonly enforceFidelity?: boolean
   /**
    * TASK-PW W2: the protocol tier a producing run starts in (T1 / T2 / T3).
    * Defaults to T1 when absent; `tierOf()` is the single reader, so the
@@ -398,6 +445,18 @@ export class WorkflowExecutor {
   readonly #tierByRun: Map<string, Tier> = new Map()
 
   /**
+   * W8.9-B5 — the E1 analysis text, per run.
+   *
+   * Why it is cached: an E2 retry (DRIFT guidance) must NOT re-run E1. E1 is
+   * the creative step — re-running it would (a) spend a second full analysis
+   * on every E2 hiccup and (b) produce DIFFERENT content, so the second E2
+   * would be normalizing a different source than the one the first attempt
+   * was graded against (可复现性破坏, W8.9-B5 禁止项). Caching makes
+   * "E1 ran once" a fact of the code rather than a promise.
+   */
+  readonly #e1ByRun: Map<string, string> = new Map()
+
+  /**
    * TASK-PW W4: guided-retry budget spent per run and per class (NONE and
    * DRIFT have independent budgets; ESCAPE has no budget at all — W-B).
    */
@@ -475,6 +534,46 @@ export class WorkflowExecutor {
    */
   tierOf(runId: RunId): Tier {
     return this.#tierByRun.get(String(runId)) ?? this.options.initialTier ?? initialTier()
+  }
+
+  /**
+   * W8.9-A4: is the sharded EXECUTE declaration the path for this run?
+   *
+   * Single reader for the switch, so the default can never drift between
+   * call sites. Precedence:
+   *   1. `disableShardDeclare: true` → OFF (explicit opt-out, W8.9-A4).
+   *   2. `shardDeclare` explicitly set → that value (A/B + regression).
+   *   3. otherwise → ON (W8.9-A4: sharding is the default path).
+   */
+  shardDeclareEnabled(): boolean {
+    if (this.options.disableShardDeclare === true) return false
+    if (this.options.shardDeclare !== undefined) return this.options.shardDeclare
+    return true
+  }
+
+  /**
+   * W8.9-B1: is the E1/E2 receive layer the path for this run?
+   *
+   * Precedence mirrors `shardDeclareEnabled`: explicit opt-out, then the
+   * explicit value, then the default (ON). E1/E2 wins over sharding when
+   * both are on — sharding splits the CONTAINER declaration, E1/E2 replaces
+   * the container obligation altogether; running both would ask the model
+   * for a container it no longer needs to produce in one shot.
+   */
+  e1e2Enabled(): boolean {
+    if (this.options.disableE1E2 === true) return false
+    if (this.options.e1e2 !== undefined) return this.options.e1e2
+    return true
+  }
+
+  /** W8.9-B3/B4: are the fidelity findings refusals, or just recorded? */
+  fidelityEnforced(): boolean {
+    return this.options.enforceFidelity !== false
+  }
+
+  /** W8.9-B3: the E1 analysis of a run, if the receive layer produced one. */
+  e1AnalysisOf(runId: RunId): string | undefined {
+    return this.#e1ByRun.get(String(runId))
   }
 
   /**
@@ -1262,7 +1361,77 @@ export class WorkflowExecutor {
             throw err
           }
           text = assembleTemplateContainer(admitted.fill, taskText ?? '')
-        } else if (type === 'execute' && this.options.produceFromExecute === true && this.options.shardDeclare === true) {
+        } else if (type === 'execute' && this.options.produceFromExecute === true && this.e1e2Enabled()) {
+          // W8.9-B1 — the receive layer. E1 writes free analysis (the shape
+          // run#4 proved the model is good at); E2 normalizes it in a SECOND
+          // independent call (a far narrower task: input given, nothing to
+          // author). The single-shot container path above is what produced
+          // the main contradiction (harness judged container compliance, not
+          // modeling quality); this path replaces it for producing EXECUTE.
+          //
+          // W8.9-B5: E1 runs AT MOST ONCE per run. A retry of this node (E2
+          // drifted / refused) reuses the cached analysis — see #e1ByRun.
+          const runKey = String(runId)
+          let e1Text = this.#e1ByRun.get(runKey)
+          if (e1Text === undefined) {
+            // W8.9-B1 (repair, found by the first real run): E1 must SEE the
+            // problem. The first implementation called the model with the
+            // bare instruction, so the analysis had no problem statement and
+            // no requirement ids — the model echoed the literal placeholder
+            // `[[ASSUMPTION: <short-id>]]` and could not possibly cover the
+            // requirements. The prompt the node assembled (`task` + `plan` +
+            // this instruction) is what carries them, so E1 gets THAT.
+            const requiredIds = (this.semanticContextOf()?.requiredOutputs ?? []).map(o => o.requirement_id)
+            const e1Prompt = `${prompt}\n\n${e1AnalysisInstruction(requiredIds)}`
+            const e1 = await this.call(role, e1Prompt)
+            await this.recordUsage(runId, route.provider, route.model, e1.usage)
+            await this.audit({
+              eventType: 'ir_entry_written',
+              actor: 'paper-executor',
+              runId,
+              detail: { kind: 'E1Analysis', id: 'e1', nodeId: node.id, stage: 'receive', chars: e1.text.length },
+            })
+            if (e1.truncated) {
+              // An E1 cut mid-sentence is a TRANSPORT fact (output ceiling),
+              // not a model contract violation (纪律 2).
+              const err = new Error('E1 analysis hit the provider output-length ceiling mid-generation: output budget mismatch, not a model contract violation')
+              ;(err as { code?: string }).code = 'EXECUTE_OUTPUT_TRUNCATED'
+              throw err
+            }
+            e1Text = e1.text
+            this.#e1ByRun.set(runKey, e1Text)
+          } else {
+            // Visible in the audit trail: this attempt did NOT re-run E1.
+            await this.audit({
+              eventType: 'ir_entry_written',
+              actor: 'paper-executor',
+              runId,
+              detail: { kind: 'E1Reused', id: 'e1', nodeId: node.id, stage: 'receive', chars: e1Text.length },
+            })
+          }
+          const e2Prompt = e2NormalizationPrompt(e1Text, EXECUTE_PROTOCOL_TEACHING)
+          const e2 = await this.call(role, e2Prompt)
+          await this.recordUsage(runId, route.provider, route.model, e2.usage)
+          await this.audit({
+            eventType: 'ir_entry_written',
+            actor: 'paper-executor',
+            runId,
+            detail: {
+              kind: 'E2Normalization',
+              id: 'e2',
+              nodeId: node.id,
+              stage: 'receive',
+              chars: e2.text.length,
+              e1_chars: e1Text.length,
+            },
+          })
+          if (e2.truncated) {
+            const err = new Error('E2 normalization hit the provider output-length ceiling mid-generation: output budget mismatch, not a model contract violation')
+            ;(err as { code?: string }).code = 'EXECUTE_OUTPUT_TRUNCATED'
+            throw err
+          }
+          text = e2.text
+        } else if (type === 'execute' && this.options.produceFromExecute === true && this.shardDeclareEnabled()) {
           // W9-P2 (O-L1-03): three small declarations instead of one big
           // container — each shard is a separate provider call with its
           // own budget (P1: reasoning eats ≈14.6x the content; a ~600-char
@@ -1396,6 +1565,46 @@ export class WorkflowExecutor {
               ? 'ESCAPE'
               : failureClassOf(verdict.code, text)
             throw err
+          }
+          // W8.9-B3/B4 — the E1→E2 fidelity gate. Only meaningful on the
+          // receive layer (there is no E1 on the other paths, so the checks
+          // have nothing to anchor against and are skipped).
+          //
+          // 设计意图（W8.9-B3 逐字）："这是'识别优秀建模'的机械落点——
+          // harness 判断不了推理好不好，但可要求形式化忠实于推理。" A
+          // container that declares assumptions the analysis never made, or
+          // that normalizes a sub-question the analysis never reasoned about,
+          // is the failure mode this catches.
+          const e1Text = this.#e1ByRun.get(String(runId))
+          if (e1Text !== undefined) {
+            const fidelity = this.checkFidelityOf(e1Text, text)
+            for (const finding of fidelity) {
+              await this.audit({
+                eventType: 'ir_entry_written',
+                actor: 'paper-executor',
+                runId,
+                detail: {
+                  kind: 'FidelityFinding',
+                  id: finding.rule,
+                  nodeId: node.id,
+                  ok: finding.ok,
+                  detail: finding.detail.slice(0, 400),
+                },
+              })
+            }
+            if (!fidelityOk(fidelity) && this.fidelityEnforced()) {
+              // A fidelity violation is a DRIFT: the model did produce
+              // container-shaped output (so it is not NONE), and the fix is
+              // to re-map the SAME analysis (so guidance helps and E1 must
+              // NOT be re-run — B5). The output fingerprint is the E2 text,
+              // so an identical re-emission trips the W8.6-A4 breaker.
+              const failed = fidelity.filter(f => !f.ok).map(f => `${f.rule}: ${f.detail}`).join('；')
+              const err = new Error(`EXECUTE output refused by the E1→E2 fidelity check: ${failed}`)
+              ;(err as { code?: string }).code = 'E1_E2_FIDELITY_VIOLATION'
+              ;(err as { w4Class?: FailureClass }).w4Class = 'DRIFT'
+              ;(err as { outputFingerprint?: string }).outputFingerprint = sha256Hex(text)
+              throw err
+            }
           }
           for (const entry of verdict.entries) {
             await this.audit({
@@ -1818,8 +2027,30 @@ export class WorkflowExecutor {
    * nothing else. `undefined` when no store is mounted: semantic findings
    * then cannot be verified and are discarded rather than trusted.
    */
-  private semanticContextOf(): SemanticContext | undefined {
-    const ir = this.options.ir
+  /**
+   * W8.9-B3/B4: run the two-way fidelity check for one E2 container.
+   *
+   * The container text is re-parsed here (the producer already validated it)
+   * rather than threading the producer's entries through — the fidelity
+   * check must judge what the MODEL wrote, not what the producer normalized
+   * it into. A parse failure yields no findings (the producer's own refusal
+   * already handled that case upstream).
+   *
+   * @param e1Text - E1's full analysis.
+   * @param containerText - E2's container JSON.
+   */
+  private checkFidelityOf(e1Text: string, containerText: string): ReadonlyArray<FidelityFinding> {
+    const container = parseModelContainer(containerText)
+    if (!container.ok) return []
+    const entries: DeclaredEntry[] = container.container.entries.map(e => ({
+      kind: e.kind,
+      value: e.value as Readonly<Record<string, unknown>>,
+    }))
+    const requiredOutputIds = (this.semanticContextOf()?.requiredOutputs ?? []).map(o => o.requirement_id)
+    return checkE1E2Fidelity({ e1Text, entries, requiredOutputIds })
+  }
+
+  private semanticContextOf(): SemanticContext | undefined {    const ir = this.options.ir
     if (ir === undefined) return undefined
     const snapshot = ModelingIr.snapshot(ir)
     if (snapshot === null) return undefined
