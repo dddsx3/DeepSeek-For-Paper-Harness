@@ -1,0 +1,458 @@
+{
+  "problem": "2026-CUMCM-A-herb-drying",
+  "kind": "coupled_heat_mass_transfer_pde_with_moving_boundary",
+  "not_an_optimization_problem": true,
+  "bounds": [
+    {
+      "id": "B1",
+      "quantity": "C(r,t)",
+      "lo": 0.0,
+      "hi": 2.55,
+      "unit": "kg/kg",
+      "direction_derivation": {
+        "mechanism": "干燥过程中烘房空气水分浓度 C_inf 约 0.05 恒低于药材含水率，表面通量始终向外",
+        "math": "式(3.6) 中 h_m*(C_s-C_inf)>0 使表面为出流；抛物型方程满足最大值原理",
+        "conclusion": "C 单调不增，全场被初值 2.55 上界与 0 下界夹住",
+        "probe": "把 C_inf 改为 3.0 (>C_0)，则 C 必须单调上升；若仍下降则边界符号错"
+      }
+    },
+    {
+      "id": "B2",
+      "quantity": "T(r,t)",
+      "lo": 28.0,
+      "hi": 50.246,
+      "unit": "degC",
+      "direction_derivation": {
+        "mechanism": "药材初温 28 低于烘房温度，热流始终由外向内",
+        "math": "式(3.5) 的 Robin 边界 + 无源线性抛物方程满足最大值原理，解被初值与边界值的极值夹住",
+        "conclusion": "28 <= T <= max_t T_inf(t)，无过冲",
+        "probe": "令 T_inf=28 恒定，则全场必须恒为 28（结构性算例 S1）"
+      }
+    },
+    {
+      "id": "B3",
+      "quantity": "t_star_problem3",
+      "lo": 172800.0,
+      "hi": 259200.0,
+      "unit": "s",
+      "soft": true,
+      "direction_derivation": {
+        "mechanism": "题面给出烘干过程一般持续 2-3 天，构成外部量级校核",
+        "math": "48h=172800s 至 72h=259200s；预检 58.57h=210852s 落在区间内",
+        "conclusion": "t_star 应落入 [172800,259200]，落在区间外须给出解释",
+        "probe": "把阈值从 0.15 放宽到 0.20，t_star 必须显著下降（预检 31.75h）"
+      },
+      "out_of_window_protocol": "soft=true 意为『不判 fail，但必须解释』。t_star 落在 48-72h 之外时，论文须给出偏离解释，至少覆盖三项：(1) 物性组选择的合理性（问题3 用附录3、问题4 用附录4，禁止混用；附录4 的 D 在 C0 处比附录3 小 5.39 倍，混用即成倍偏差）；(2) 附件2 的外生 R(t) 与附录4 的 rho(C) 不自洽（干物质残差 2.2163%-15.4972%，见 L3/V8），该不自洽本身会移动 t_star；(3) 环境外推假设 H8 的影响（问题3/4 约 93% 时间轴为外推，见 V13）。",
+      "forbid": "为把 t_star 凑进 48-72h 而反向调整 h_m、判据阈值 0.15、界面 D 取法或网格参数。这些量各有独立依据（附录2 给定、题面『各处低于0.15』、H9、CM3/CM4），凑区间即为用结论倒推参数；区间是必要不充分的量级校核（§6.1），不是拟合目标。"
+    },
+    {
+      "id": "B4",
+      "quantity": "t_star_problem4_vs_problem3",
+      "relation": "less_than",
+      "direction_derivation": {
+        "mechanism": "半径收缩使扩散路径变短，且式(5.6) 中扩散项含 1/R^2 因子随 R 减小而放大",
+        "math": "R 从 2.000 收缩到 1.198 cm（-40.1%），1/R^2 放大 2.79 倍；同时瞬时 Bi_m=h_m*R/D 下降",
+        "conclusion": "在同一物性组下，收缩域的 t_star 必须小于固定域的 t_star",
+        "probe": "强制 R(t)=R0（结构性算例 S5），t_star 必须回升到固定域数值（预检 130.87h）"
+      }
+    },
+    {
+      "id": "B5",
+      "quantity": "D_appendix3_at_C0_T50C",
+      "lo": 1e-08,
+      "hi": 2e-08,
+      "unit": "m^2/s",
+      "direction_derivation": {
+        "mechanism": "附录3 的 D 公式含 exp(-0.45/C)*exp(-3850/T)，T 必须取开尔文",
+        "math": "2.4e-3*exp(-0.45/2.55)*exp(-3850/323.15)=1.3471e-08",
+        "conclusion": "D 在 1e-8 量级；若得 1e-34 量级则温度用了摄氏度",
+        "probe": "把 273.15 去掉，D 必须掉到 1e-34 量级并使药材完全不干燥"
+      }
+    },
+    {
+      "id": "B6",
+      "quantity": "Bi_h_and_Bi_m",
+      "lo": 1.0,
+      "hi": 4.0,
+      "unit": "1",
+      "direction_derivation": {
+        "mechanism": "表面对流阻力与内部传导/扩散阻力同量级，决定必须用分布参数模型",
+        "math": "Bi_h=h*R/k=25*0.02/0.36=1.3889；Bi_m=h_m*R/D(C0)=8e-7*0.02/4.9377e-9=3.2404",
+        "conclusion": "两者均为 O(1) 且远大于 0.1，集中参数(薄层)模型不成立",
+        "probe": "令 h,h_m 各乘 1e-3，则 Bi<<1，此时分布参数解应退化为集中参数指数解"
+      }
+    },
+    {
+      "id": "B7",
+      "quantity": "Fo_h_over_Fo_m_at_1800s",
+      "lo": 30.0,
+      "hi": 40.0,
+      "unit": "1",
+      "direction_derivation": {
+        "mechanism": "热扩散率远大于水分扩散系数，造成预热阶段只升温不脱水",
+        "math": "alpha=1.6885e-7, D(C0)=4.9377e-9, 比值 34.2；Fo_h=0.7598 vs Fo_m=0.0222",
+        "conclusion": "时间尺度分离约 34 倍，t=1800s 时温度近准稳态而中心含水率几乎未动",
+        "probe": "输出 t=1800s 的中心含水率，相对 2.55 的下降量必须是 O(1e-3) 量级"
+      }
+    },
+    {
+      "id": "B8",
+      "quantity": "dry_matter_residual_problem4",
+      "lo": 2.2163,
+      "hi": 15.4972,
+      "unit": "percent",
+      "is_diagnostic_not_pass_criterion": true,
+      "direction_derivation": {
+        "mechanism": "附件2 的 R(t) 外生给定，与附录4 的 rho(C)=760+90C 在干物质守恒下不完全自洽",
+        "math": "rho_d(2.55)=278.7324, rho_d(0)=760.0, rho_d(0.15)=672.6087；由 M_d 守恒反推终态半径为 1.2112cm(全干) 与 1.2872cm(C=0.15)，实测 1.198cm",
+        "conclusion": "残差落在 2.2163%(全干下界) 至 15.4972%(按终止判据) 之间，必须如实报出",
+        "probe": "改用 rho_d 内生求 R(t)，残差应降到数值误差量级，但会与题面『根据附件2』冲突"
+      }
+    }
+  ],
+  "no_double_count": [
+    {
+      "id": "ND1",
+      "risk": "把离散守恒残差 0.0000% 与物理干物质自洽残差当成同一个证据重复计数",
+      "rule": "离散残差属格式自证（rho_d 已在推导中约去），干物质残差属物理自洽；两者必须分层报告，不得相加或互相替代"
+    },
+    {
+      "id": "ND2",
+      "risk": "问题4 的 t_star 变化同时来自换物性与加收缩，笼统归因为单一原因",
+      "rule": "必须按 A/B/C 三段受控归因：A(附录3+固定域)=58.57h，B(附录4+固定域)=130.87h，C(附录4+收缩域)=51.32h；增量 +72.31 与 -79.55 分别归属物性效应与收缩效应，不得合并陈述"
+    },
+    {
+      "id": "ND3",
+      "risk": "解析交叉验证(L1)与网格独立性(L4)被当作同一层证据",
+      "rule": "L1 验证格式实现正确性（在退化算例上），L4 验证离散误差量级；L1 通过不意味着变系数情形收敛，L4 通过不意味着格式无实现错误"
+    },
+    {
+      "id": "ND4",
+      "risk": "问题2 与问题3 的物性相同，可能被当作两次独立验证",
+      "rule": "问题2/3 共用附录3（题面『统一采用』），二者的物性单元自检是同一份证据，只计一次"
+    },
+    {
+      "id": "ND5",
+      "risk": "外部量级区间 2-3 天被当作定量验证",
+      "rule": "2-3 天是必要不充分的合理性检查，不能与 L1-L4 四链并列为独立定量证据"
+    }
+  ],
+  "must_features": [
+    {
+      "id": "MF1",
+      "feature": "rho,c_p,k,D 四项在问题2/3/4 中逐时逐点更新",
+      "why": "附录3/4 明确给出其对 C（及 T）的依赖；静态冻结违反防错手册 9.2 第4条"
+    },
+    {
+      "id": "MF2",
+      "feature": "D 的 Arrhenius 项温度取开尔文 (T_C+273.15)",
+      "why": "附录3/4 符号说明明确 T 单位为 K；用摄氏度使 D 偏约 1e28 倍"
+    },
+    {
+      "id": "MF3",
+      "feature": "rho 中的自变量是 C 本身，c_p 与 k 中的自变量是 C/(C+1)",
+      "why": "附录原文如此；混用使 c_p(2.55) 从 3415.3 错成 8426.8"
+    },
+    {
+      "id": "MF4",
+      "feature": "两场均用第三类 Robin 边界，h=25 与 h_m=8e-7 同时生效",
+      "why": "附录2 给出这两个系数即意味着表面有有限传递阻力；Bi_h=1.3889 有限"
+    },
+    {
+      "id": "MF5",
+      "feature": "环境侧取附件1 的时变数据（241点，0-14400s，dt=60s）",
+      "why": "题面『烘房的温度和水分浓度的变化情况见附件1』；升温段是预热阶段的物理来源"
+    },
+    {
+      "id": "MF6",
+      "feature": "干燥完成判据对空间取 max 后与 0.15 比较",
+      "why": "题面『药材各处水分浓度应低于0.15』，『各处』为全域量词；体均判据差约 60%"
+    },
+    {
+      "id": "MF7",
+      "feature": "问题4 的计算域随 R(t) 收缩，R(t) 由附件2 插值",
+      "why": "题面『药材会因水分流失发生尺寸变化』『根据附件2』"
+    },
+    {
+      "id": "MF8",
+      "feature": "问题4 输出的距离列末列为随时间移动的药材表面，域外置空",
+      "why": "表6 列标签末列为『药材表面』（规则 R8），非固定 2cm"
+    },
+    {
+      "id": "MF9",
+      "feature": "温度场用隐式格式推进",
+      "why": "alpha 使显式稳定限 dt<0.118s（N=100），问题3/4 需推进 2e5 s 量级；实测 N=40,dt=0.5s 显式发散"
+    },
+    {
+      "id": "MF10",
+      "feature": "界面扩散系数先平均界面 C 再求 D",
+      "why": "调和平均在干燥前沿造人为不透水硬壳，导致内部永不干燥（定性失效）"
+    },
+    {
+      "id": "MF11",
+      "feature": "所有交付数值 round(x,4)",
+      "why": "题面『所有结果保留四位小数（下同）』（规则 R5）"
+    },
+    {
+      "id": "MF12",
+      "feature": "问题2/3 使用附录3、问题4 使用附录4，禁止混用",
+      "why": "规则 R3 与 R4；附录4 的 D 在 C0 处比附录3 小 5.39 倍(D4/D3=0.1856)，混用会使 t_star 偏差成倍"
+    }
+  ],
+  "train_range": {
+    "note": "本题无机器学习训练环节；此处登记的是经验公式与数据的有效自变量范围，外推须声明",
+    "items": [
+      {
+        "var": "C",
+        "range": [
+          0.0,
+          2.55
+        ],
+        "unit": "kg/kg",
+        "note": "附录经验公式在 C->0 时 D->0，属渐近退化区，需下限保护 1e-6"
+      },
+      {
+        "var": "T",
+        "range": [
+          301.15,
+          323.15
+        ],
+        "unit": "K",
+        "note": "对应 28 至 50.246 degC；Arrhenius 项 exp(-3850/T) 在此区间内变化 2.3878 倍（28->40 degC 为 1.6322 倍，不可用它代表全区间）；单步敏感度 dlnD/dT=0.036868 /K，见 §3.3 顺序耦合论证"
+      },
+      {
+        "var": "attachment1_time",
+        "range": [
+          0.0,
+          14400.0
+        ],
+        "unit": "s",
+        "note": "问题3/4 需推进到 2e5 s 量级，约 93% 时间轴为外推（H8 取平台段均值）"
+      },
+      {
+        "var": "attachment2_time",
+        "range": [
+          0.0,
+          259200.0
+        ],
+        "unit": "s",
+        "note": "覆盖 3 天；t>259200s 保持 R=1.198cm"
+      },
+      {
+        "var": "R",
+        "range": [
+          0.01198,
+          0.02
+        ],
+        "unit": "m",
+        "note": "附件2 仅 53 个不同取值，阶梯状；插值须保单调"
+      }
+    ]
+  },
+  "monotonic": [
+    {
+      "id": "M1",
+      "of": "C(r,t)",
+      "wrt": "t",
+      "dir": "non_increasing",
+      "why": "C_inf<C 恒成立，表面通量始终向外"
+    },
+    {
+      "id": "M2",
+      "of": "C(r,t)",
+      "wrt": "r",
+      "dir": "non_increasing",
+      "why": "表面失水，干燥前沿由外向内推进，故中心含水率最高"
+    },
+    {
+      "id": "M3",
+      "of": "T(r,t)",
+      "wrt": "t",
+      "dir": "non_decreasing_in_smoothed_trend",
+      "why": "T_inf>T_0 使总趋势升温；但附件1 温度实测有 95 处下降（单次最大 -0.4500 degC，平台段 sigma=0.1648 degC），T(r,t) 会跟随环境波动，故严格非降只在 T_inf(t) 严格单调的构造下成立",
+      "machine_form": "对每个时间层：T[i](t+dt)-T[i](t) >= min(0, T_inf(t+dt)-T_inf(t)) - 0.165，即内部单步降幅不得超过同期环境降幅加容差 0.165 degC（容差取附件1 平台段实测 sigma，非人为设定）",
+      "rationale": "抛物算子最大值原理：环境回落时内部跟随回落是正确物理，不是格式振荡；反之若内部降幅超过环境降幅+容差，才是真实的格式问题",
+      "forbid": "把噪声跟随判为发散而给温度场加平滑/阻尼（防错手册：漂移先核物理定义，不自动加阻尼）"
+    },
+    {
+      "id": "M4",
+      "of": "R(t)",
+      "wrt": "t",
+      "dir": "non_increasing",
+      "why": "水分流失只导致收缩，附件2 数据从 2.000 降到 1.198cm；须施加 dR/dt<=0 保护"
+    },
+    {
+      "id": "M5",
+      "of": "abs(d_Cbar_dt)",
+      "wrt": "t",
+      "dir": "non_increasing",
+      "why": "D 正比于 exp(-a/C)，随 C 下降而下降，干燥自减速；Cbar(t) 呈长尾"
+    },
+    {
+      "id": "M6",
+      "of": "t_star",
+      "wrt": "threshold",
+      "dir": "non_increasing",
+      "why": "阈值越宽松越早达到；预检 0.20/0.15/0.10 给 31.75/58.57/220.70 h，强非线性"
+    },
+    {
+      "id": "M7",
+      "of": "k(C) and c_p(C)",
+      "wrt": "t",
+      "dir": "non_increasing",
+      "why": "两者都是 C/(C+1) 的增函数，而 C 随时间下降"
+    }
+  ],
+  "constraints_with_margin": [
+    {
+      "id": "CM1",
+      "constraint": "热量收支相对偏差",
+      "limit": 0.001,
+      "margin_report": "报出实际偏差，不只报是否小于限值"
+    },
+    {
+      "id": "CM2",
+      "constraint": "水分收支相对偏差",
+      "limit": 0.001,
+      "margin_report": "同上"
+    },
+    {
+      "id": "CM3",
+      "constraint": "网格独立性 t_star 相对差",
+      "limit": 0.005,
+      "margin_report": "报出 N=100/200/400 三个 t_star 及两两相对差"
+    },
+    {
+      "id": "CM4",
+      "constraint": "步长独立性 t_star 相对差",
+      "limit": 0.002,
+      "margin_report": "报出两个 t_star 及相对差"
+    },
+    {
+      "id": "CM5",
+      "constraint": "输出抽样插值误差",
+      "limit": 1e-05,
+      "margin_report": "报出最大插值误差，须小于四位小数分辨率 5e-5"
+    },
+    {
+      "id": "CM6",
+      "constraint": "解析交叉验证最大偏差",
+      "limit": 0.001,
+      "margin_report": "预检 1.0e-4 degC，报出实际最大偏差"
+    },
+    {
+      "id": "CM7",
+      "constraint": "轴心对称边界梯度",
+      "limit": 1e-08,
+      "margin_report": "报出首两节点差商的最大绝对值"
+    }
+  ],
+  "calibration_anchors": [
+    {
+      "id": "CA1",
+      "anchor": "rho_appendix3(2.55)=976.4 kg/m^3",
+      "source": "附录3 rho=650+128C 代入 C0"
+    },
+    {
+      "id": "CA2",
+      "anchor": "c_p_appendix3(2.55)=3415.3 J/(kg K)",
+      "source": "附录3 c_p=1450+2736*C/(C+1)，C/(C+1)=0.7183"
+    },
+    {
+      "id": "CA3",
+      "anchor": "k_appendix3(2.55)=0.483 W/(m K)",
+      "source": "附录3 k=0.21+0.38*C/(C+1)"
+    },
+    {
+      "id": "CA4",
+      "anchor": "D_appendix2(2.55)=4.9377e-9 m^2/s",
+      "source": "附录2 D=7e-9*exp(-0.89/C)"
+    },
+    {
+      "id": "CA5",
+      "anchor": "D_appendix3(2.55,323.15K)=1.3471e-8 m^2/s",
+      "source": "附录3，T 取开尔文"
+    },
+    {
+      "id": "CA6",
+      "anchor": "D_appendix4(2.55,323.15K)=2.5003e-9 m^2/s",
+      "source": "附录4，T 取开尔文；注意比附录3 小 5.39 倍(D4/D3=0.1856)"
+    },
+    {
+      "id": "CA7",
+      "anchor": "alpha_appendix2=1.6885e-7 m^2/s",
+      "source": "0.36/(820*2600)"
+    },
+    {
+      "id": "CA8",
+      "anchor": "attachment1_plateau: T=49.9685 degC, C_inf=0.04987 kg/kg (t>=7200s)",
+      "source": "附件1 平台段均值，sigma/mu<0.4%"
+    },
+    {
+      "id": "CA9",
+      "anchor": "attachment2_endpoints: R(0)=2.000cm, R(259200s)=1.198cm",
+      "source": "附件2 首末行"
+    },
+    {
+      "id": "CA10",
+      "anchor": "rho_d_appendix4: 278.7324 (C=2.55), 672.6087 (C=0.15), 760.0000 (C=0)",
+      "source": "rho_d=(760+90C)/(1+C)"
+    },
+    {
+      "id": "CA11",
+      "anchor": "dry_matter_predicted_final_radius=1.2112cm vs measured 1.198cm, dev 1.1021%",
+      "source": "径向收缩假设 H6 下的干物质守恒反推"
+    }
+  ],
+  "equivalence_claims": [
+    {
+      "id": "EQ1",
+      "claim": "归一化坐标 eta=r/R(t) 下对流项为零（水分方程 (5.3) 与温度方程 (5.5) 同时成立）",
+      "conditional_on": "仿射收缩 v_s=eta*dR/dt，等价于 rho_d 空间均匀（假设 H10）",
+      "is_identity": false,
+      "note": "本题 R(t) 外生且与 rho(C) 不自洽，故这是假设而非恒等式；必须声明并报出干物质残差 2.2163%-15.4972%。两场的对流项分子同为净相对速度 v_s-eta*dR/dt，故同生同灭：不存在『水分对流项为零而温度对流项仍在』的情形（结构算例 S9 以 k=0 纯收缩证伪该说法）"
+    },
+    {
+      "id": "EQ2",
+      "claim": "s=r^2/R^2 是物质坐标",
+      "conditional_on": "同 EQ1",
+      "is_identity": false,
+      "note": "用户复核意见第2条指出的推导漏洞；本报告改在 eta 坐标下保留对流项并用隐式格式，把仿射性作为可切换假设"
+    },
+    {
+      "id": "EQ3",
+      "claim": "逐点判据 max_r C<0.15 等价于 C(0,t)<0.15",
+      "conditional_on": "最慢点位于轴心（由对称边界与外向通量给出）",
+      "is_identity": false,
+      "note": "程序须真实计算 max 并断言 argmax 为最内节点；断言失败时回到全域判据"
+    },
+    {
+      "id": "EQ4",
+      "claim": "问题1 的能量方程与水分方程单向解耦",
+      "conditional_on": "附录2 的 rho,c_p,k 为常数且 D 不含 T",
+      "is_identity": true,
+      "note": "这是附录2 参数形式的直接结果，故问题1 可用 Bessel 解析解交叉验证；问题2/3/4 不成立"
+    },
+    {
+      "id": "EQ5",
+      "claim": "离散守恒残差 0.0000% 等价于守恒性得到验证",
+      "conditional_on": "无",
+      "is_identity": false,
+      "note": "该残差是格式自恒等（rho_d 已约去），对物理自洽不提供信息；必须与干物质残差分层报告"
+    },
+    {
+      "id": "EQ6",
+      "claim": "朴素 ALE 偏 +3.1% 说明 ALE 方法不适用",
+      "conditional_on": "无",
+      "is_identity": false,
+      "note": "用户复核意见第3条：该偏差源于网格速度与界面通量未满足几何守恒律，属实现缺陷，不构成方法层面的否定"
+    }
+  ],
+  "forbidden_claims": [
+    "与实测吻合 / 实验验证 / 与实验数据误差 x% 内",
+    "干燥过程无相变吸热",
+    "守恒验证全部通过（仅凭离散残差）",
+    "已证明全局最优 / Pareto 前沿（本题不是优化问题）",
+    "附件1 数据覆盖全烘干过程"
+  ]
+}
