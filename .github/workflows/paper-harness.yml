@@ -59,6 +59,21 @@ jobs:
         with:
           node-version: '24'
 
+      # W8.9: the paper entry layer shells out to Python for PDF text
+      # (pypdf, inline in apps/paper-shell/src/bundle.ts) and for the xlsx
+      # profiler (openpyxl, scripts/summarize-data.py). This job never
+      # installed them, so `bundle.spec.ts` failed with
+      # `ModuleNotFoundError: No module named 'pypdf'` the first time the
+      # step actually ran (the M1 step had been masked by the RG-06 drift
+      # above it for its whole lifetime). Ubuntu runners ship python3; the
+      # two packages are the whole dependency set.
+      - uses: actions/setup-python@v6.3.0
+        with:
+          python-version: '3.12'
+
+      - name: Install Python deps (paper entry layer)
+        run: python -m pip install --disable-pip-version-check pypdf openpyxl
+
       - name: Install (immutable)
         run: pnpm install --frozen-lockfile
 
