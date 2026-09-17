@@ -1,0 +1,250 @@
+# 23 条能力全字段提取（Q1-A1）
+
+> 源：`CAPABILITY_CHECKLIST.json` [F-02] :: $.capabilities [P-02]，sha256前16=`4b4ade14aa2b1429`
+> 顶层键：['problem_id', 'title', 'n_subproblems', '_note', 'capabilities']
+> 字段并集（实测）：['criterion', 'falsifiable_check', 'id', 'judge', 'machine_check', 'name', 'required_output', 'source_sentence', 'subproblem']
+
+### [0] `P1-C1` — 一维柱坐标分布参数耦合传热-传质 PDE 建模
+
+| 字段 | 值 |
+|---|---|
+| `subproblem` | 1 |
+| `judge` | semantic |
+| `criterion` | 求解的是 T(r,t) 与 C(r,t) 的偏微分方程组(空间分布), 而非集中参数集总温度/单点含水率 ODE, 也不是对附件数据的经验曲线拟合 |
+| `falsifiable_check` | 求解器状态向量长度 >= 101 个径向节点且输出的 C(r,t) 在同一时刻沿 r 非常量(1800 s 时 max_r C - min_r C > 0.5 kg/kg); 若状态向量长度为 1、或同一时刻各 r 值全相等(集中参数)、或 T/C 由对附件1/附件2 的回归公式直接给出, 判不成立并 raise |
+| `source_sentence` | S10, S3 |
+
+### [1] `P1-C2` — 第三类(Robin)边界 + 附件1 时变环境驱动
+
+| 字段 | 值 |
+|---|---|
+| `subproblem` | 1 |
+| `judge` | machine |
+| `criterion` | r=R 处用 -k dT/dr = h(Ts - Tair(t)) 与 -D dC/dr = hm(Cs - Cair(t)); r=0 处零梯度; 环境侧取自附件1 插值而非常数 |
+| `falsifiable_check` | 代码中 h=25 与 hm=8e-7 逐字出现且用于表面通量; Tair/Cair 为 t 的函数(对附件1 插值), 在 t=0/600/3600 s 处分别等于 28.000/33.202/47.485 degC 与 0.01963/0.02428/0.04272 kg/kg(容差 1e-3); 若表面被直接钉为 Tair(第一类边界, 即 T[N]==Tair 恒成立)或 Tair 为标量常数, 判不成立并 raise |
+| `machine_check` | constraint |
+| `source_sentence` | S3, S9 |
+
+### [2] `P1-C3` — 附录2 物性组专用且 D 的指数作用在 1/C 上
+
+| 字段 | 值 |
+|---|---|
+| `subproblem` | 1 |
+| `judge` | machine |
+| `criterion` | 问题1 只用 rho=820, cp=2600, k=0.36, D=7e-9*exp(-0.89/C); 不得混入附录3/附录4 系数 |
+| `falsifiable_check` | 断言 D(2.55)=4.9377e-9 且 D(0.15)=1.8462e-11(相对误差<1e-3), 即 D 随 C 增大而增大; 若 D(0.15)>D(2.55)(说明写成了 exp(-0.89*C), 非线性方向反号), 或 rho/cp/k 不等于 820/2600/0.36, 判不成立并 raise |
+| `machine_check` | facts |
+| `source_sentence` | S11 |
+
+### [3] `P1-C4` — 预热阶段传热/传质时间尺度分离的机制再现
+
+| 字段 | 值 |
+|---|---|
+| `subproblem` | 1 |
+| `judge` | semantic |
+| `criterion` | 模型须再现'预热平衡'的物理内涵: 1800 s 内温度场已基本贯穿(Fo_h=0.76)而水分只在表层数毫米内变化(Fo_m=0.022), 中心含水率四位小数下仍为初值 |
+| `falsifiable_check` | 1800 s 时断言 round(C(r=0),4)==2.5500 且 round(C(r=R),4)<1.60(表面已显著脱水); 同时断言 T(r=0) 与 T(r=R) 之差 <5 degC 而两者均已升出初值 28 degC 3 degC 以上; 若中心 C 已明显下降(<2.54, 说明水分扩散被高估或误用了大 D)或全场温度仍为 28 degC(传热未启动), 判不成立并 raise |
+| `source_sentence` | S2 |
+
+### [4] `P1-C5` — 解析解(Bessel 级数 + Duhamel)独立校核
+
+| 字段 | 值 |
+|---|---|
+| `subproblem` | 1 |
+| `judge` | machine |
+| `criterion` | 对线性化温度场用特征值 lambda*J1(lambda)=Bi_h*J0(lambda) 的 Bessel 级数配 Duhamel 叠加, 与有限体积解独立对比 |
+| `falsifiable_check` | 两套解在 1800 s 全径向的最大偏差 < 1e-3 degC(预检实测 1.0e-4); Duhamel 叠加必须同时含初值不匹配的齐次项, 断言解析解在 t->0 时收敛回 28 degC; 若偏差 >1e-3 degC, 或解析解只是把有限体积结果复制一遍(两数组按位完全相同, 差值恒为 0), 判不成立并 raise |
+| `machine_check` | custom |
+| `source_sentence` | S10 |
+
+### [5] `P1-C6` — 问题1 结果交付(表1/表2 + result1.xlsx)
+
+| 字段 | 值 |
+|---|---|
+| `subproblem` | 1 |
+| `judge` | machine |
+| `criterion` | 输出 100/300/600/900/1200/1500/1800 s 与 r=0/0.5/1/1.5/2 cm 的温度与水分浓度表; result1.xlsx 含'温度'与'水分浓度'两工作表, 1800 行(t 自 1 s 起, 步长 1 s)x 21 列(0~2 cm 步长 0.1 cm), 全部四位小数 |
+| `machine_check` | delivery |
+| `source_sentence` | S12, S13, S14 |
+| `required_output` | result1.xlsx |
+
+### [6] `P2-C1` — 附录3 变系数物性闭合(作用对象各异)
+
+| 字段 | 值 |
+|---|---|
+| `subproblem` | 2 |
+| `judge` | machine |
+| `criterion` | rho=650+128C 作用在 C 本身; cp=1450+2736*C/(C+1) 与 k=0.21+0.38*C/(C+1) 作用在 C/(C+1); D=2.4e-3*exp(-0.45/C)*exp(-3850/T) |
+| `falsifiable_check` | 断言 rho(2.55)=976.4, cp(2.55)=3415.3, k(2.55)=0.4830, rho(0.15)=669.2, cp(0.15)=1806.9, k(0.15)=0.2596(相对误差<1e-3); 若 rho 被写成 650+128*C/(C+1)(得 741.6)或 cp/k 被写成作用在 C 本身, 或出现附录2 的 820/2600/0.36 作为物性, 判不成立并 raise |
+| `machine_check` | facts |
+| `source_sentence` | S16, S17 |
+
+### [7] `P2-C2` — D 中温度以开尔文代入, 传热-传质双向耦合
+
+| 字段 | 值 |
+|---|---|
+| `subproblem` | 2 |
+| `judge` | machine |
+| `criterion` | D 的 Arrhenius 项为 exp(-3850/(T_celsius+273.15)); C 经 rho/cp/k 影响 T, T 经 D 影响 C, 两方程联立推进 |
+| `falsifiable_check` | 断言 D(C=2.55, T=50degC)=1.3471e-8 且 D(C=0.15, T=50degC)=8.0012e-10(相对误差<1e-3); 若用摄氏度直接代入(得 ~1e-37 量级, 小 28 个数量级), 或 D 中不含 T(退化为解耦), 判不成立并 raise |
+| `machine_check` | constraint |
+| `source_sentence` | S30, S18 |
+
+### [8] `P2-C3` — 全过程(预热段 + 恒温段)单一方程贯通
+
+| 字段 | 值 |
+|---|---|
+| `subproblem` | 2 |
+| `judge` | semantic |
+| `criterion` | 同一套方程与单一物性组覆盖两阶段, 阶段差异只由附件1 的环境边界时间行为体现(t<7200 s 上升段, t>=7200 s 平台段), 不做物性分段切换 |
+| `falsifiable_check` | 代码中物性函数不含以 t 或阶段标志为参数的分支(无 if t<7200 切换 rho/cp/k/D 系数); 且 3 h 时药材温度已进入 49.5~50.2 degC 区间(与环境平衡)而 C(r=0) 仍在 1.5~2.0 之间(远未干燥); 若物性按阶段切换、或 3 h 时温度仍低于 45 degC(环境驱动未接上)、或 C(r=0) 已<0.5(脱水被严重高估), 判不成立并 raise |
+| `source_sentence` | S16, S18, S2 |
+
+### [9] `P2-C4` — 问题2 结果交付(表3/表4 + result2.xlsx)
+
+| 字段 | 值 |
+|---|---|
+| `subproblem` | 2 |
+| `judge` | machine |
+| `criterion` | 输出 0.5~3.0 h 每 0.5 h 与 r=0/0.5/1/1.5/2 cm 的温度与水分浓度表; result2.xlsx 含'温度'与'水分浓度'两工作表, 10800 行(t 自 1 s 起, 步长 1 s)x 21 列, 四位小数 |
+| `machine_check` | delivery |
+| `source_sentence` | S19, S20, S14 |
+| `required_output` | result2.xlsx |
+
+### [10] `P3-C1` — 逐点干燥判据 max_r C(r,t) < 0.15
+
+| 字段 | 值 |
+|---|---|
+| `subproblem` | 3 |
+| `judge` | machine |
+| `criterion` | '各处'解释为对 r 取最大值(最慢点为中心 r=0), 阈值 0.15 逐字采用, 非体积平均、非表面值 |
+| `falsifiable_check` | 断言判据函数返回 max over all radial nodes(等价于 C[0]), 且在 t* 时刻 max_r C < 0.15 <= max_r C(t*-dt); 同时断言体积平均 Cbar(t*) 明显小于 0.15(预检约 0.02 量级), 即 t* 不等于 Cbar 穿越阈值的时刻(后者约 36.5 h, 相差 20 h 以上); 若 t* 落在 30~40 h 区间(说明误用均值判据)或判据用了 mean/表面值, 判不成立并 raise |
+| `machine_check` | constraint |
+| `source_sentence` | S21 |
+
+### [11] `P3-C2` — 烘干时长 t* 的求解与插值定位
+
+| 字段 | 值 |
+|---|---|
+| `subproblem` | 3 |
+| `judge` | semantic |
+| `criterion` | 以小时为单位报出首次满足判据的时刻, 由长时间积分 + 跨阈值线性插值获得, 而非查表/经验估计/外部假定 |
+| `falsifiable_check` | t* 由求解轨迹计算得出: 断言存在 C(r=0,t) 的时间序列且其在 t* 前后跨越 0.15, t* 由相邻两步线性插值得到(非 60 s 输出步长的整数倍量化值); 数值上 t* 落在 48~72 h 区间(与题面'2-3 天'一致, 预检 57.9 h); 若 t* 为硬编码常数、或未做长时间积分直接由稳态公式给出、或落在 2-3 天区间之外而无解释, 判不成立并 raise |
+| `source_sentence` | S22 |
+
+### [12] `P3-C3` — 附件1 右截断的环境边界外推(并显式标注为假设)
+
+| 字段 | 值 |
+|---|---|
+| `subproblem` | 3 |
+| `judge` | machine |
+| `criterion` | t>14400 s(占 t* 的 93%)的 Tair/Cair 取平台段均值 49.9685 degC / 0.04987 kg/kg, 论文中标注为外推假设 |
+| `falsifiable_check` | 断言 Tair(20000 s) 与 Tair(200000 s) 均等于 49.9685 +- 0.05 且 Cair 同理等于 0.04987 +- 5e-4; 断言 Cair < 0.15(否则干燥热力学不可达, 问题3 无解); 若 t>14400 s 时插值函数返回 NaN/越界报错/线性延伸到非物理值(如 Tair>60 degC), 判不成立并 raise |
+| `machine_check` | constraint |
+| `source_sentence` | S21, S2 |
+
+### [13] `P3-C4` — 网格/时间步无关性闸门与四位小数精度保障
+
+| 字段 | 值 |
+|---|---|
+| `subproblem` | 3 |
+| `judge` | machine |
+| `criterion` | 求解网格 N>=100(dr<=0.02 cm), 输出按 0.1 cm 抽样; t* 必须通过网格与时间步双向无关性验证才能作为答案, 并报告界面 D 取法的敏感性; 本分析的预检 t* 仅作量级参考 |
+| `falsifiable_check` | 断言求解节点数 >=101 且输出列数为 21(每 5 个节点抽 1); 断言三项无关性: (i) 空间加密一级 N->2N 的 t* 相对变化 < 1%; (ii) 时间步减半的 t* 相对变化 < 1%; (iii) 界面 D 取法(先平均 C / 算术平均 D)的 t* 偏差已报告(预检 3.5%)。断言论文含至少两级网格与两种时间步的无关性验证表及相对变化百分比; 断言凡引用本分析预检值(58.57/57.9/51.32/51.318/51.2/130.87 h)处均标注'预检/量级参考'。若直接以 N=20 求解(dr=0.1 cm, 预检显示问题1 表面 C 在第 3 位小数即偏离), 或把未过闸门的预检值当最终答案, 判不成立并 raise |
+| `machine_check` | custom |
+| `source_sentence` | S22 |
+
+### [14] `P3-C5` — 问题3 结果交付(表5 + result3.xlsx)
+
+| 字段 | 值 |
+|---|---|
+| `subproblem` | 3 |
+| `judge` | machine |
+| `criterion` | 表5 每 6 h、每 0.5 cm 的水分浓度且末行标签为'烘干结束时间'; result3.xlsx 单工作表, t 自 60 s 起步长 60 s 至 t*, 21 列, 四位小数 |
+| `machine_check` | delivery |
+| `source_sentence` | S23, S24, S14 |
+| `required_output` | result3.xlsx |
+
+### [15] `P4-C1` — 移动边界 R(t) 建模(附件2 作为外生给定边界)
+
+| 字段 | 值 |
+|---|---|
+| `subproblem` | 4 |
+| `judge` | semantic |
+| `criterion` | 计算域随时间收缩, R(t) 由附件2 插值提供(2.000->1.198 cm, 半径缩 40.1%, 截面积缩 64.1%); 不得由 rho(C) 反算 R 与 PDE 联立 |
+| `falsifiable_check` | 断言 R 为 t 的函数且 R(0)=0.02 m、R(21600 s)=0.01374 m、R(259200 s)=0.01198 m(容差 1e-5); 断言域随时间真实收缩(表面物理位置 r=R(t) 单调不增且末值 <0.0120 m); 若 R 恒为 0.02 m(忽略收缩, 预检显示会得 130.87 h 即 5.45 天, 超出题面'2-3 天')、或 R 由含水率反解(预检显示反算 C 在约 24 h 后为负), 判不成立并 raise |
+| `source_sentence` | S25, S26 |
+
+### [16] `P4-C2` — 物质坐标变换: 仿射收缩假设的显式声明与双层守恒检验
+
+| 字段 | 值 |
+|---|---|
+| `subproblem` | 4 |
+| `judge` | machine |
+| `criterion` | 用 s=r^2/R^2(t) 或 eta=r/R(t) 固定域格式; 严格换元含网格-物质相对对流项 -(vs-eta*Rdot)/R * dC/deta, 仅在仿射收缩(vs=eta*Rdot, 等价 rho_d 空间均匀)下为零。主模型采用该近似, 但必须显式声明假设、报告附件2 与附录4 rho(C) 的干物质不自洽 2.22%, 并给出含/不含对流项两算例的 t* 对比; 轴向长度恒为 25 cm |
+| `falsifiable_check` | 分两层断言: (1) 离散守恒——物质坐标格式下干物质标号总量相对漂移 < 1e-6(预检 0.0000%), 且须在文中注明这是格式自证恒等式而非物理验证; (2) 物理自洽——用空间分辨的 rho_d(C(r,t)) 积分 Md=int_0^R rho_d*2*pi*r*L dr 计算真实残差, 断言其等于预检量化的 2.22%(R^2 比 0.3588 要求 rho_d 末态 776.84 vs 上限 760) 并如实报告, 不得用 (1) 冒充 (2)。同时断言正文出现'仿射收缩'(或等价的 rho_d 空间均匀)假设声明句 + 含/不含对流项的 t* 敏感性对比。若声称'物质坐标下无对流项严格成立'、或只报 0.0000% 而隐去 2.22%、或据 +3.1% 偏差否定 ALE 方法本身(该偏差源于实现未满足几何守恒律, 属实现缺陷), 判不成立并 raise |
+| `machine_check` | custom |
+| `source_sentence` | S25 |
+
+### [17] `P4-C3` — 附录4 物性组整组替换
+
+| 字段 | 值 |
+|---|---|
+| `subproblem` | 4 |
+| `judge` | machine |
+| `criterion` | rho=760+90C, cp=1850+2150*C/(C+1), k=0.12+0.20*C/(C+1), D=4.2e-4*exp(-0.30/C)*exp(-3850/T); 与附录3 严格互斥 |
+| `falsifiable_check` | 断言 D(2.55, 50degC)=2.5003e-9 且 D(0.15, 50degC)=3.8062e-10(相对误差<1e-3), 即前因子比附录3 小一个量级; 断言 rho(2.55)=989.5、cp/k 用 C/(C+1); 若出现附录3 的 650/128/2736/0.38/2.4e-3/0.45 任一系数, 判不成立并 raise |
+| `machine_check` | facts |
+| `source_sentence` | S27 |
+
+### [18] `P4-C4` — t* 变化的归因分解(换物性 vs 加收缩)
+
+| 字段 | 值 |
+|---|---|
+| `subproblem` | 4 |
+| `judge` | semantic |
+| `criterion` | 通过受控算例分离两个改动的独立贡献: 附录3+固定R -> 附录4+固定R -> 附录4+R(t), 并据此论证移动边界的必要性 |
+| `falsifiable_check` | 断言存在至少 3 个受控算例的 t*, 且'附录4+固定R'的 t* > 120 h(即 >5 天, 超出题面 2-3 天)而'附录4+R(t)'的 t* 落在 48~72 h; 两个改动的贡献符号相反(换物性使 t* 增大, 加收缩使 t* 减小); 若只报最终 t* 而无分解、或分解后两贡献同号, 判不成立并 raise |
+| `source_sentence` | S25, S26 |
+
+### [19] `P4-C5` — 问题4 结果交付(表6 + result4.xlsx, 含'药材表面'末列与越界留空)
+
+| 字段 | 值 |
+|---|---|
+| `subproblem` | 4 |
+| `judge` | machine |
+| `criterion` | 表6/result4.xlsx 距离列末列标签为'药材表面'(指随时间移动的 r=R(t), 非固定 2 cm); 固定 0.1 cm 列中 r>R(t) 的格点留空(NaN); t 自 60 s 起步长 60 s 至 t*; 末行标签'烘干结束时间'; 四位小数 |
+| `machine_check` | delivery |
+| `source_sentence` | S28, S23, S14 |
+| `required_output` | result4.xlsx |
+
+### [20] `PX-C1` — 无内部实测数据的诚实表述(禁用'与实测吻合')
+
+| 字段 | 值 |
+|---|---|
+| `subproblem` | 4 |
+| `judge` | semantic |
+| `criterion` | 附件1 是烘房空气温湿度、附件2 只有半径, 药材内部 T(r,t)/C(r,t) 无任何测点; 正确性只能用解析解校核/守恒残差/网格与步长无关性/题面量级一致性四条自证, 不得声称与实测吻合或报 R^2/误差百分比。其中守恒残差须区分'离散守恒(格式自证)'与'物理自洽(附件2 vs rho(C), 2.22%)', 前者不得冒充验证 |
+| `falsifiable_check` | 全文正则检索针对药材内部场的'与实测吻合'/'验证.*实测'/'R\^2'/'拟合精度' 命中数为 0; 且校核章节必须同时含解析解偏差、两层守恒残差(0.0000% 离散 + 2.22% 物理自洽)、网格与时间步无关性数据三项具体数字; 若出现把附件2 的 R(t) 当作模型输出去'验证'(R 本是输入)的表述, 或把 0.0000% 的离散恒等式当作物理正确性证据, 判不成立并 raise |
+| `source_sentence` | S3, S9, S26 |
+
+### [21] `PX-C2` — 蒸发潜热: 排除的同时须承认其物理存在
+
+| 字段 | 值 |
+|---|---|
+| `subproblem` | 1 |
+| `judge` | semantic |
+| `criterion` | 主模型能量方程不含蒸发潜热汇(附录2/3/4 均未给 Lv 与相变焓, 不引入题面外参数); 但模型假设节必须承认蒸发在物理上是吸热过程、严格建模会显著压低温度场, 属题面给定参数下的简化, 并在灵敏度分析中定性讨论其方向性影响 |
+| `falsifiable_check` | 断言主模型代码中不出现 2.4e6/2.44e6 等潜热常数; 断言模型假设节含'蒸发(吸热\|潜热)'与'题面未给'的承认句, 且灵敏度分析节含潜热条目(可引用预检: 加入 Lv=2.44e6 后药材最低降到 9.10 degC, 与'预热平衡'语义矛盾)。若正文对潜热完全不提(被读成漏项)、或把 Lv 放进主模型, 判不成立并 raise |
+| `source_sentence` | S13, S14, 附录2/3/4 |
+
+### [22] `PX-C3` — 附录 D 公式与物性系数的原始 PDF 溯源
+
+| 字段 | 值 |
+|---|---|
+| `subproblem` | 1 |
+| `judge` | machine |
+| `criterion` | 附录2/3/4 的 D 公式与物性系数须与原始 PDF 矢量数学层逐字一致(已 400 DPI 栅格化核验): 7e-9/0.89; 2.4e-3/0.45/3850; 4.2e-4/0.30/3850; 附录3 rho=650+128C, cp=1450+2736C/(C+1), k=0.21+0.38C/(C+1); 附录4 rho=760+90C, cp=1850+2150C/(C+1), k=0.12+0.20C/(C+1)。四处指数均为负号 |
+| `falsifiable_check` | 断言源码常数与上列逐一匹配, 且 D 写作 exp(-a/C)*exp(-3850/T_K) 形式(指数为负、T 为开尔文); 断言全文不出现 exp(+a/C) 形式。旁证: 若取 +a/C 则 C->0 时 D->inf, 干燥永不终止, 与题面'2-3 天'矛盾。若尾数或任一符号与上列不符, 判不成立并 raise(该错误使全部数值作废) |
+| `machine_check` | custom |
+| `source_sentence` | S29, S27, 附录2/3/4 |

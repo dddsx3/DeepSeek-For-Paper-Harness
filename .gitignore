@@ -59,3 +59,7 @@ paper-cockpit.exe
 apps/cockpit/cockpit-settings.json
 apps/paper-shell/cockpit-out/
 apps/paper-shell/cockpit-out/
+
+# Python bytecode (W8.9: q1-c2-checks.py is the first tracked .py helper)
+__pycache__/
+*.pyc

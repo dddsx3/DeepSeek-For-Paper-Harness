@@ -1,0 +1,166 @@
+{
+  "A_valid": {
+    "ok": true,
+    "expected": true,
+    "findings": [
+      {
+        "check": "B-06 决策组合枚举完整性",
+        "ok": true,
+        "detail": "16 种组合, 全部 4 元布尔"
+      },
+      {
+        "check": "B-07 指标可复算(rel<1e-6)",
+        "ok": true,
+        "detail": "16 条全部复算一致(rel < 1e-06)"
+      },
+      {
+        "check": "B-08 回流结构 + 交付值须含回流",
+        "ok": true,
+        "detail": "回流最敏感组合 (False, False, True, True): 含回流 21.962161 vs 无回流 23.645000 (差 1.682839); 交付值 = 含回流解"
+      },
+      {
+        "check": "B-14 敏感性(>=3 算例 + 翻转报告)",
+        "ok": true,
+        "detail": "5 个算例; 翻转=False"
+      },
+      {
+        "check": "B-16 单位一致性(元/件)",
+        "ok": true,
+        "detail": "全部 9 项成本 + 16 个指标为 '元/件'"
+      }
+    ]
+  },
+  "B1_incomplete_enumeration": {
+    "ok": false,
+    "expected": false,
+    "findings": [
+      {
+        "check": "B-06 决策组合枚举完整性",
+        "ok": false,
+        "detail": "B-06: 决策组合数 2 != 16 —— 方案集不封闭(F4-6)"
+      },
+      {
+        "check": "B-07 指标可复算(rel<1e-6)",
+        "ok": true,
+        "detail": "2 条全部复算一致(rel < 1e-06)"
+      },
+      {
+        "check": "B-08 回流结构 + 交付值须含回流",
+        "ok": false,
+        "detail": "B-08: 全部组合的含/不含回流差值均为 0 —— 模型无回流结构(F4-8)"
+      },
+      {
+        "check": "B-14 敏感性(>=3 算例 + 翻转报告)",
+        "ok": true,
+        "detail": "5 个算例; 翻转=False"
+      },
+      {
+        "check": "B-16 单位一致性(元/件)",
+        "ok": true,
+        "detail": "全部 9 项成本 + 2 个指标为 '元/件'"
+      }
+    ]
+  },
+  "B2_fabricated_metric": {
+    "ok": false,
+    "expected": false,
+    "findings": [
+      {
+        "check": "B-06 决策组合枚举完整性",
+        "ok": true,
+        "detail": "16 种组合, 全部 4 元布尔"
+      },
+      {
+        "check": "B-07 指标可复算(rel<1e-6)",
+        "ok": false,
+        "detail": "B-07: 16/16 条复算不一致(F4-7), 最大相对误差 1.000e-04"
+      },
+      {
+        "check": "B-08 回流结构 + 交付值须含回流",
+        "ok": false,
+        "detail": "B-08: 交付值在回流敏感组合 (False, False, True, True) 上偏离含回流解 (交付 21.964357 vs 含回流 21.962161 vs 无回流 23.645000) —— 疑似漏掉回流项(F4-8)"
+      },
+      {
+        "check": "B-14 敏感性(>=3 算例 + 翻转报告)",
+        "ok": true,
+        "detail": "5 个算例; 翻转=False"
+      },
+      {
+        "check": "B-16 单位一致性(元/件)",
+        "ok": true,
+        "detail": "全部 9 项成本 + 16 个指标为 '元/件'"
+      }
+    ]
+  },
+  "B3_missing_reflux": {
+    "ok": false,
+    "expected": false,
+    "findings": [
+      {
+        "check": "B-06 决策组合枚举完整性",
+        "ok": true,
+        "detail": "16 种组合, 全部 4 元布尔"
+      },
+      {
+        "check": "B-07 指标可复算(rel<1e-6)",
+        "ok": false,
+        "detail": "B-07: 6/16 条复算不一致(F4-7), 最大相对误差 1.953e-01"
+      },
+      {
+        "check": "B-08 回流结构 + 交付值须含回流",
+        "ok": false,
+        "detail": "B-08: 交付值在回流敏感组合 (False, False, True, True) 上偏离含回流解 (交付 23.645000 vs 含回流 21.962161 vs 无回流 23.645000) —— 疑似漏掉回流项(F4-8)"
+      },
+      {
+        "check": "B-14 敏感性(>=3 算例 + 翻转报告)",
+        "ok": true,
+        "detail": "5 个算例; 翻转=False"
+      },
+      {
+        "check": "B-16 单位一致性(元/件)",
+        "ok": true,
+        "detail": "全部 9 项成本 + 16 个指标为 '元/件'"
+      }
+    ]
+  },
+  "B4_unit_mixed": {
+    "ok": false,
+    "expected": false,
+    "findings": [
+      {
+        "check": "B-06 决策组合枚举完整性",
+        "ok": true,
+        "detail": "16 种组合, 全部 4 元布尔"
+      },
+      {
+        "check": "B-07 指标可复算(rel<1e-6)",
+        "ok": true,
+        "detail": "16 条全部复算一致(rel < 1e-06)"
+      },
+      {
+        "check": "B-08 回流结构 + 交付值须含回流",
+        "ok": true,
+        "detail": "回流最敏感组合 (False, False, True, True): 含回流 21.962161 vs 无回流 23.645000 (差 1.682839); 交付值 = 含回流解"
+      },
+      {
+        "check": "B-14 敏感性(>=3 算例 + 翻转报告)",
+        "ok": true,
+        "detail": "5 个算例; 翻转=False"
+      },
+      {
+        "check": "B-16 单位一致性(元/件)",
+        "ok": false,
+        "detail": "B-16: 成本项单位非 '元/件': ['market_price'] (F3-5 口径不声明)"
+      }
+    ]
+  },
+  "H6_met": true,
+  "model": "M-1 (简化模型, 见 Q1-C1 §4 L-4)",
+  "checks_implemented": [
+    "B-06 决策组合枚举完整性",
+    "B-07 指标可复算(rel<1e-6)",
+    "B-08 回流结构 + 交付值须含回流",
+    "B-14 敏感性(>=3 算例 + 翻转报告)",
+    "B-16 单位一致性(元/件)"
+  ]
+}

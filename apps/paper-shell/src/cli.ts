@@ -38,10 +38,11 @@ import {
 import { ModelingIr } from '@deepseek-ai/dsh-paper-foundation'
 import { resolveShellRoute, blockMessage, type ShellRoute } from './invoke.ts'
 import { assembleBundle } from './bundle.ts'
-import { classifyProblem, routeBanner } from './route.ts'
+import { classifyProblem, routeBanner, routeMismatch } from './route.ts'
 import { contractBanner } from './contracts/index.ts'
 import { streamCompletion } from './real-provider.ts'
 import { CassetteRecorder, CassetteReplayer } from './cassette.ts'
+import { checkCodeProvenance, SHELL_PROVENANCE_TARGETS } from './code-provenance.ts'
 import { verifyStudyManifest, type StudyManifest } from './study-manifest.ts'
 import { FINGERPRINT_NAMESPACES } from '@deepseek-ai/dsh-paper-foundation'
 import { zipTextFiles } from './zip.ts'
@@ -220,9 +221,16 @@ async function main(): Promise<number> {
   const failSoft = parsed['fail-soft'] === true || parsed['fail-soft'] === 'true'
   // W8.6-P4: PAPER_MAX_OUTPUT_TOKENS_PER_RUN (0/absent = unbounded).
   const maxOutputTokensPerRun = Number(process.env.PAPER_MAX_OUTPUT_TOKENS_PER_RUN ?? '0') || 0
-  // W9-P2: --shard-declare = three small EXECUTE declarations instead of
-  // one big container (opt-in; default path unchanged).
-  const shardDeclare = parsed['shard-declare'] === true || parsed['shard-declare'] === 'true'
+  // W8.9-A4: sharded EXECUTE declaration is the DEFAULT path. The flag is
+  // inverted from W9-P2's opt-in: `--no-shard-declare` restores the
+  // single-shot declaration (A/B comparison, regression). `--shard-declare`
+  // stays accepted as an explicit confirmation so old scripts keep working.
+  const shardDeclareOff = parsed['no-shard-declare'] === true || parsed['no-shard-declare'] === 'true'
+  const shardDeclareOn = parsed['shard-declare'] === true || parsed['shard-declare'] === 'true'
+  if (shardDeclareOff && shardDeclareOn) {
+    console.error('--shard-declare and --no-shard-declare are mutually exclusive')
+    return 2
+  }
   // TASK-E: cassette record/replay. --cassette <file> records a REAL run's
   // every seam exchange; --replay <file> answers the seam from a cassette
   // (no network, no key). Exactly one of the three provider modes
@@ -307,7 +315,12 @@ async function main(): Promise<number> {
       // real key even when pricing is unconfigured. Env-set, recorded in
       // the run report; 0/absent = unbounded.
       maxOutputTokensPerRun: maxOutputTokensPerRun,
-      ...(shardDeclare ? { shardDeclare: true } : {}),
+      // W8.9-A4: sharding is the default, so the option is only passed when
+      // the caller explicitly turned it OFF (or explicitly confirmed ON,
+      // which is a no-op — kept so an old `--shard-declare` script records
+      // the same intent it always did).
+      ...(shardDeclareOff ? { disableShardDeclare: true } : {}),
+      ...(shardDeclareOn ? { shardDeclare: true } : {}),
       ...(pricingFromEnv !== undefined ? { pricing: pricingFromEnv } : {}),
       ...(Number.isFinite(budgetFromEnv) && budgetFromEnv > 0 ? { dailyBudgetUsd: budgetFromEnv } : {}),
     })
@@ -318,6 +331,38 @@ async function main(): Promise<number> {
   }
 
   const engine = ctx.paperWorkflow.runs
+  // W8.9-A1: the code-provenance guard. Tests read `src` (tsconfig paths),
+  // a real run reads `lib` (package exports) — so "tests green" says nothing
+  // about the code a real run executes. W8.8 runs #1–3 executed a stale
+  // executor while 1198 tests passed. The guard runs BEFORE the first model
+  // call (fail-closed, zero tokens spent when it fires) and its verdict is
+  // recorded in the run report so the next reader never has to infer it.
+  // `--fake`/`--replay` are offline: they cannot burn a key, so they warn
+  // instead of refusing (a stale-lib fake run is still a valid regression).
+  const repoRoot = join(here, '..', '..', '..')
+  const provenanceTargets = SHELL_PROVENANCE_TARGETS.map(t => ({ ...t, dir: join(repoRoot, t.dir) }))
+  const provenance = checkCodeProvenance(provenanceTargets)
+  const provenanceRecord = {
+    checked_at: new Date().toISOString(),
+    ok: provenance.ok,
+    targets: provenance.checks.map(c => ({ name: c.name, ok: c.ok, detail: c.detail })),
+  }
+  if (!provenance.ok) {
+    const lines = provenance.checks.filter(c => !c.ok).map(c => `  ${c.name}: ${c.detail}`)
+    if (fake || replayPath !== undefined) {
+      console.error(`[CODE-STALE] 构建产物落后于源码（离线运行，仅警告）：\n${lines.join('\n')}`)
+      console.error(`  → ${provenance.remediation}`)
+    } else {
+      await dispose()
+      console.error('[CODE-STALE] 拒绝启动真实运行：构建产物落后于源码。')
+      console.error(lines.join('\n'))
+      console.error(`  → 先重建：${provenance.remediation}`)
+      console.error('  → 理由：测试读 src、真实运行读 lib；不重建则本次运行跑的代码与测试所验的代码不是同一份（W8.8 run#1–3 的代价）。')
+      return 4
+    }
+  } else {
+    console.error(`[CODE-FRESH] 代码来源已断言：${provenance.checks.map(c => c.detail).join('; ')}`)
+  }
   // P0-4 (PRD v2 §5.1.1/§5.1.2, W3): the entry layer accepts a PDF/plain
   // problem plus optional data attachments; `assembleBundle` extracts the
   // PDF, profiles every attachment, and appends the profile to the task
@@ -344,9 +389,15 @@ async function main(): Promise<number> {
   // E3's discovery (2024-C routed F4 vs preregistered F3, later revised
   // to F3+F2) must be machine-visible on every run, not prose-only.
   const truth = await truthFamilyOf(problemFile)
-  const routeMismatch = truth !== null && truth !== familyVerdict.family
-  if (routeMismatch) {
-    console.error(`[ROUTE-MISMATCH] 路由判定 ${familyVerdict.family} ≠ 预注册真值 ${truth}（仅标记，不自动纠正）`)
+  // W8.9-A2: component-SET comparison, not string equality. The truth label
+  // may be a mixed family ("F3+F4") while `familyVerdict.family` is a single
+  // primary family ("F4") — string equality marked every legal mixed problem
+  // as a mismatch (2024-B contradicted RUNNABLE-PROBLEMS.md). A mismatch now
+  // means "the routed component set does not COVER the truth components".
+  const mismatched = routeMismatch(truth, familyVerdict)
+  if (mismatched) {
+    const routedText = familyVerdict.components.map(c => `${c.family}×${c.hits}`).join('，')
+    console.error(`[ROUTE-MISMATCH] 路由组件 ${routedText} 未覆盖预注册真值 ${String(truth)}（仅标记，不自动纠正）`)
   }
   // W5 (P0-8): the family contract banner joins the taskText — the model
   // sees the closed candidate set + required assumptions + dedicated
@@ -394,7 +445,8 @@ async function main(): Promise<number> {
       status: 'BLOCKED',
       routed_family: familyVerdict.family,
       route_truth: truth,
-      route_mismatch: routeMismatch,
+      route_mismatch: mismatched,
+      code_provenance: provenanceRecord,
       classifier: human.classifier,
       code: err.code,
       humanized: human.oneLine,
@@ -452,8 +504,8 @@ async function main(): Promise<number> {
   // byte-deterministic on re-run (G2: 重跑同 sha256); the full report with
   // the real runId is written to the out dir separately.
   const wallClockSeconds = Math.round((Date.now() - wallClockStart) / 100) / 10
-  const runReport = JSON.stringify({ runId: '<redacted-run-id>', tier, mode, status: 'DELIVERED', grade, routed_family: familyVerdict.family, route_truth: truth, route_mismatch: routeMismatch, wall_clock_seconds: wallClockSeconds, sha256, audit, usage: { input_tokens: usageSummary.input_tokens, output_tokens: usageSummary.output_tokens, cost_usd: usageSummary.cost_usd }, attachments: attachmentLedger }, null, 2)
-  const runReportFull = JSON.stringify({ runId: String(run.id), tier, mode, status: 'DELIVERED', grade, routed_family: familyVerdict.family, route_truth: truth, route_mismatch: routeMismatch, wall_clock_seconds: wallClockSeconds, sha256, audit, usage: { input_tokens: usageSummary.input_tokens, output_tokens: usageSummary.output_tokens, cost_usd: usageSummary.cost_usd }, attachments: attachmentLedger }, null, 2)
+  const runReport = JSON.stringify({ runId: '<redacted-run-id>', tier, mode, status: 'DELIVERED', grade, routed_family: familyVerdict.family, route_truth: truth, route_mismatch: mismatched, code_provenance: provenanceRecord, wall_clock_seconds: wallClockSeconds, sha256, audit, usage: { input_tokens: usageSummary.input_tokens, output_tokens: usageSummary.output_tokens, cost_usd: usageSummary.cost_usd }, attachments: attachmentLedger }, null, 2)
+  const runReportFull = JSON.stringify({ runId: String(run.id), tier, mode, status: 'DELIVERED', grade, routed_family: familyVerdict.family, route_truth: truth, route_mismatch: mismatched, code_provenance: provenanceRecord, wall_clock_seconds: wallClockSeconds, sha256, audit, usage: { input_tokens: usageSummary.input_tokens, output_tokens: usageSummary.output_tokens, cost_usd: usageSummary.cost_usd }, attachments: attachmentLedger }, null, 2)
   await mkdir(outDir, { recursive: true })
   await writeFile(join(outDir, 'report.md'), report, 'utf8')
   await writeFile(join(outDir, 'sha256.txt'), sha256, 'utf8')
