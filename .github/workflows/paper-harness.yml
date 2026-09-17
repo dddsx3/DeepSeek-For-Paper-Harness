@@ -48,6 +48,13 @@ jobs:
       - uses: actions/checkout@v6
         with:
           persist-credentials: false
+          # W8.9: bench/problems/**/*.pdf|xlsx|csv are Git LFS objects
+          # (.gitattributes: filter=lfs). Without this the step checks out the
+          # POINTER FILES, and pypdf fails with `invalid pdf header: b'versi'`
+          # (the pointer's `version https://git-lfs...` first line). The M1
+          # step never ran before, so nothing had ever exercised the bench
+          # attachments in CI.
+          lfs: true
 
       # pnpm/action-setup@v6 and actions/upload-artifact@v7 (below), not
       # the v4 majors: GitHub deprecated the Node 20 action runtime on
