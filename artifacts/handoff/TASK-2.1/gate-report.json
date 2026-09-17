@@ -11,13 +11,13 @@
     "v1.1_status": "PARTIAL — 5.0.1 (six stubs -> UNIMPLEMENTED) shipped under the 5.0-R author-delegated ratification; 5.0.4 (attestation hardening) and 5.0.10 (numeric tolerance) remain v1.1-ratification-pending."
   },
   "baseline": {
-    "files": 100,
-    "total_tests": 1112,
-    "passed_tests": 1112,
+    "files": 110,
+    "total_tests": 1213,
+    "passed_tests": 1213,
     "failed_tests": 0,
     "failed_test_suites": 0,
     "tsc_clean": true,
-    "baseline_at": "TASK-P2(P2-0/P2-A/P2-B/P2-C):F8 trail 逐条落盘+validateTrail 不变量 spec(含双族已归档 14 行实测)+定价表机制(占位价注明,未配恒 0)+legacy-protocol 隔离(v4-flash 18/18 不可作资格,upgradeVerdict 无条件拒)+study-manifest 模块/CLI verify/12 条篡改必红 spec+expandSelectTeaching canonical builder;+19 测试;基线 1105→1112/100 文件;P2-A 24 对预注册对照结果与三次执行器偏差见 artifacts/handoff/TASK-P2/HANDOFF.md"
+    "baseline_at": "W8.9 (接收层 E1/E2): A1 代码来源与新鲜度守卫(code-provenance.ts, 9 测试, 含变异击杀证明); A2 route_mismatch 改组件集合比较(route.ts routeCoversTruth, 13 测试); A3 空流独立成类 EMPTY_STREAM + 修 sseLines 尾部丢行(13 测试); A4 分片声明成为默认路径(disableShardDeclare/disableE1E2 透传缺口一并修复); B1/B2 E1/E2 两次独立调用 + 零数字通道(e1-e2.ts, executor 接线); B3/B4 保真双向锚定(正向逐字 e1_span / 反向 / 锚点同一性)+逐问覆盖, AssumptionSpec/EquationSpec 新增 e1_span; B5 E1 只跑一次(#e1ByRun 缓存 + E1Reused 审计); C2 局限写进交付物尾注; D1 run#4 真实文本经 E2 产出 schema-valid 容器(H7 达成, 16 entries); 三次真实运行 minted_ir_count=17/0/16(H8 达成), 全部 BLOCKED 但失败形态窄化至 E2 字段层; 基线 1112→1213/448 文件"
   },
   "failures_by_origin": {},
   "gates_impl": [

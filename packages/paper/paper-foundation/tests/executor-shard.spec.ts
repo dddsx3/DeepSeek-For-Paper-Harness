@@ -64,7 +64,7 @@ interface ShardOverrides {
 
 async function harness(
   outputs: ReadonlyArray<{ text: string; finish?: 'stop' | 'max-tokens' }>,
-  opts: { shardDeclare: boolean; overrides?: ShardOverrides },
+  opts: { shardDeclare: boolean | 'absent'; overrides?: ShardOverrides },
 ) {
   const ctx = new Context()
   await ctx.plugin(Storage)
@@ -127,7 +127,13 @@ async function harness(
     produceFromExecute: true,
     backoffBaseMs: 1,
     backoffCapMs: 1,
-    ...(opts.shardDeclare ? { shardDeclare: true } : {}),
+    // W8.9-A4: 'absent' drives the DEFAULT (no option passed at all);
+    // `false` is the explicit opt-out (disableShardDeclare).
+    ...(opts.shardDeclare === 'absent' ? {} : opts.shardDeclare ? { shardDeclare: true } : { disableShardDeclare: true }),
+    // W8.9-B1: this suite pins the SHARDED container path. The E1/E2 receive
+    // layer now outranks sharding for producing EXECUTE, so the shard path
+    // must be named explicitly or these assertions would exercise E1/E2.
+    disableE1E2: true,
   })
   const engine = ctx.paperWorkflow.runs
   const started = await engine.startRun({ mode: 'exploratory', harnessVersion: 'test', configHash: 'sha256:p2' })
@@ -184,7 +190,12 @@ describe('W9-P2 — shard declaration', () => {
     expect(outcome.message).toMatch(/circuit-broken|shard 'definitions'|not a schema-valid|exhausted/)
   })
 
-  it('the flag defaults OFF — without it the single-shot path is used', async () => {
+  it('W8.9-A4: the single-shot path is reachable via disableShardDeclare', async () => {
+    // W9-P2 shipped this as "the flag defaults OFF". W8.9-A4 inverted the
+    // default (sharding is now the path; the single-shot declaration is the
+    // opt-out). The judgement changed, not the assertion's strength: the
+    // single-shot container must still resolve end to end, so a composition
+    // that opts out is not stranded.
     const single = JSON.stringify({
       __dsh_paper: 'ir-container-v1',
       entries: [
@@ -195,6 +206,15 @@ describe('W9-P2 — shard declaration', () => {
     const { outcome, prompts } = await harness([{ text: 'plan' }, { text: single }], { shardDeclare: false })
     expect(outcome.status, outcome.message).toBe('resolved')
     expect(prompts.some(p => p.includes('SHARD 1/3'))).toBe(false)
+  })
+
+  it('W8.9-A4: the DEFAULT (option absent) is the sharded path', async () => {
+    // The default flip itself: with NO shard option passed, the executor
+    // must issue the three shard prompts.
+    const { outcome, prompts } = await harness([{ text: 'plan' }], { shardDeclare: 'absent' })
+    expect(outcome.status, outcome.message).toBe('resolved')
+    expect(prompts.filter(p => p.includes('SHARD 1/3')).length).toBeGreaterThan(0)
+    expect(prompts.filter(p => p.includes('SHARD 3/3')).length).toBeGreaterThan(0)
   })
 })
 

@@ -138,6 +138,18 @@ async function harness(executeText: string) {
   const finalRoot = await mkdtemp(join(tmpdir(), 'dsh-auth-'))
   await ctx.plugin(PaperExecutorService, {
     produceFromExecute: true,
+    // W8.9-B1: this suite pins the SINGLE-SHOT container path (its
+    // tier / retry / producer / circuit-breaker semantics are defined there).
+    // The E1/E2 receive layer is now the default for producing EXECUTE, so
+    // the path under test must be named explicitly — omitting it would
+    // silently exercise a different path than the assertions describe.
+    disableE1E2: true,
+    // W8.9-A4: this suite pins the SINGLE-SHOT declaration path (its tier /
+    // retry / circuit-breaker semantics are defined on that path). Sharding
+    // is now the default, so the path under test must be named explicitly —
+    // omitting it would silently test a different path than the one the
+    // assertions describe.
+    disableShardDeclare: true,
     finalOutputRoot: finalRoot,
     produceRun: { command: ['node', 'main.js'], entryFile: 'main.js', environment: 'node 24 deterministic test', timeoutMs: 30_000 },
     backoffBaseMs: 1,

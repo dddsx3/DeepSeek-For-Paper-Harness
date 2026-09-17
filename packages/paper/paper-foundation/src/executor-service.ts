@@ -70,9 +70,25 @@ export interface ExecutorConfig {
   /** W8.6-P4: per-run OUTPUT-token ceiling (pricing-independent guard).
    *  Zero/absent = unbounded (historical). */
   readonly maxOutputTokensPerRun?: number
-  /** W9-P2: shard the EXECUTE declaration (three small outputs merged
-   *  into the same container). Default false — opt-in until proven. */
+  /** W9-P2 / W8.9-A4: shard the EXECUTE declaration (three small outputs
+   *  merged into the same container). **W8.9-A4: this is now the default**;
+   *  pass `false` to restore the single-shot declaration, or set
+   *  `disableShardDeclare: true` to opt out explicitly. */
   readonly shardDeclare?: boolean
+  /** W8.9-A4: explicit opt-OUT of the sharded path (takes precedence over
+   *  `shardDeclare`). Present so a composition can say "I know about
+   *  sharding and I want it off" without relying on `false`'s meaning. */
+  readonly disableShardDeclare?: boolean
+  /** W8.9-B1: the E1/E2 receive layer (free analysis → independent
+   *  normalization). **Default ON**; `false` restores the single-shot
+   *  container path for A/B comparison. */
+  readonly e1e2?: boolean
+  /** W8.9-B1: explicit opt-out of the receive layer (takes precedence). */
+  readonly disableE1E2?: boolean
+  /** W8.9-B3/B4: refuse a container whose declarations are not verbatim
+   *  anchored in the E1 analysis. Default true; `false` records the
+   *  findings without refusing (first-real-run tolerance). */
+  readonly enforceFidelity?: boolean
 }
 
 const modelPrice: s<ModelPrice> = s.object({
@@ -120,7 +136,18 @@ export function resolveExecutorOptions(
     // (historical fail-closed behavior).
     ...(config.deliveryGradeMode === undefined ? {} : { deliveryGradeMode: config.deliveryGradeMode }),
     ...(config.maxOutputTokensPerRun === undefined ? {} : { maxOutputTokensPerRun: config.maxOutputTokensPerRun }),
-    ...(config.shardDeclare === true ? { shardDeclare: true } : {}),
+    // W8.9-A4: forward BOTH halves of the switch — dropping the opt-out
+    // here would silently ignore a composition's explicit request (the
+    // defect this batch's own test caught: disableShardDeclare never
+    // reached the executor, so "off" behaved as "default on").
+    ...(config.shardDeclare === undefined ? {} : { shardDeclare: config.shardDeclare }),
+    ...(config.disableShardDeclare === true ? { disableShardDeclare: true } : {}),
+    // W8.9-B1: forward both halves of the receive-layer switch, same reason
+    // as the shard switch above — a dropped opt-out silently runs the
+    // default path while the caller believes it opted out.
+    ...(config.e1e2 === undefined ? {} : { e1e2: config.e1e2 }),
+    ...(config.disableE1E2 === true ? { disableE1E2: true } : {}),
+    ...(config.enforceFidelity === undefined ? {} : { enforceFidelity: config.enforceFidelity }),
     // exactOptionalPropertyTypes: an explicit undefined would be a type
     // error on the optional fields, so omit rather than pass through.
     ...ir === undefined ? {} : { ir },
@@ -163,8 +190,19 @@ export class PaperExecutorService extends Service {
     deliveryGradeMode: s.union(['strict-tolerance', 'fail-soft'] as const).default('strict-tolerance'),
     // W8.6-P4: per-run output-token ceiling; 0 = unbounded.
     maxOutputTokensPerRun: s.number().step(1).min(0).default(0),
-    // W9-P2: opt-in shard declaration.
-    shardDeclare: s.boolean().default(false),
+    // W9-P2 / W8.9-A4: shard declaration. No schema default is declared
+    // here on purpose — `undefined` must reach the executor so its
+    // `shardDeclareEnabled()` (the single reader) decides, rather than a
+    // second default living in the schema layer.
+    shardDeclare: s.boolean(),
+    // W8.9-A4: explicit opt-out.
+    disableShardDeclare: s.boolean().default(false),
+    // W8.9-B1: receive layer. No schema default (undefined must reach the
+    // executor, whose `e1e2Enabled()` is the single reader).
+    e1e2: s.boolean(),
+    disableE1E2: s.boolean().default(false),
+    // W8.9-B3/B4: fidelity enforcement; absent = enforced (executor default).
+    enforceFidelity: s.boolean(),
   })
 
   private executor: WorkflowExecutor | undefined

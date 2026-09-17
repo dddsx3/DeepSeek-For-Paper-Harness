@@ -110,7 +110,15 @@ async function harness(executeOutput: () => string): Promise<Harness> {
   guard.markReady()
   ctx.provide('paperModelingIr', ir)
   await ctx.plugin(PaperAuditService, {})
-  await ctx.plugin(PaperExecutorService, { produceFromExecute: true, backoffBaseMs: 1, backoffCapMs: 2 })
+  // W8.9-A4: this suite pins the SINGLE-SHOT declaration path (P1-1 writer
+  // semantics). Sharding is the default now, so the path must be named.
+  await ctx.plugin(PaperExecutorService, {
+    produceFromExecute: true,
+    disableShardDeclare: true,
+    disableE1E2: true,
+    backoffBaseMs: 1,
+    backoffCapMs: 2,
+  })
   return { ctx, ir }
 }
 

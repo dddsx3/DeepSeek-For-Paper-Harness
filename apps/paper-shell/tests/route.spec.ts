@@ -15,6 +15,8 @@ import { describe, expect, it } from 'vitest'
 import {
   classifyProblem,
   routeBanner,
+  routeCoversTruth,
+  routeMismatch,
   SUPPORTED_FAMILIES,
   FAMILIES,
   MIN_SIGNAL,
@@ -88,5 +90,61 @@ describe('route — banner', () => {
       expect(banner).toContain('方法族：F3')
       expect(banner).toContain('题型路由（自动）')
     }
+  })
+})
+
+describe('route — W8.9-A2 component-set mismatch', () => {
+  // 2024-B: truth label "F3+F4", router primary family "F4", components F4×4 + F3×3.
+  const B_STATEMENT = '某企业生产电子产品，需要购买两种零配件装配成品，零配件和成品存在次品率。请用抽样检测方法在 95% 信度下判断是否接收，并针对表 1 的六种情况给出各阶段的生产决策方案，包括是否检测零配件与成品、不合格成品是否拆解，并给出决策依据及成本、利润等指标结果，比较各方案的优劣。'
+
+  it('2024-B: a mixed truth label is NOT a mismatch when components cover it', () => {
+    const v = classifyProblem(B_STATEMENT)
+    expect(v.ok).toBe(true)
+    if (v.ok) {
+      // the truth file says F3+F4; the router's primary family is F4.
+      expect(v.family).toBe('F4')
+      expect(v.components.map(c => c.family)).toContain('F3')
+      expect(routeCoversTruth('F3+F4', v)).toBe(true)
+      expect(routeMismatch('F3+F4', v)).toBe(false)
+    }
+  })
+
+  it('a truth component the router never saw IS a mismatch', () => {
+    const v = classifyProblem(B_STATEMENT)
+    expect(v.ok).toBe(true)
+    if (v.ok) {
+      // The routed set is {F4, F3}; a truth label naming F2 is NOT covered.
+      // (F2's words are absent from this statement, so the router never saw it.)
+      expect(v.components.map(c => c.family)).not.toContain('F2')
+      expect(routeCoversTruth('F3+F2', v)).toBe(false)
+      expect(routeMismatch('F3+F2', v)).toBe(true)
+    }
+  })
+
+  it('null truth and unparseable truth never manufacture a mismatch', () => {
+    const v = classifyProblem(B_STATEMENT)
+    expect(v.ok).toBe(true)
+    if (v.ok) {
+      expect(routeCoversTruth(null, v)).toBe(true)
+      expect(routeMismatch(null, v)).toBe(false)
+      expect(routeCoversTruth('not-a-family', v)).toBe(true)
+      expect(routeMismatch('not-a-family', v)).toBe(false)
+    }
+  })
+
+  it('a genuinely missing component is a mismatch (constructed counter-example)', () => {
+    // Hand-built verdict whose component set is {F4} only; truth needs F3 too.
+    const verdict = { ok: true as const, family: 'F4' as const, note: 'stub', components: [{ family: 'F4' as const, hits: 4 }] }
+    expect(routeCoversTruth('F3+F4', verdict)).toBe(false)
+    expect(routeMismatch('F3+F4', verdict)).toBe(true)
+    expect(routeCoversTruth('F4', verdict)).toBe(true)
+  })
+
+  it('string equality would have been wrong here (the old behaviour)', () => {
+    const verdict = { ok: true as const, family: 'F4' as const, note: 'stub', components: [{ family: 'F4' as const, hits: 4 }, { family: 'F3' as const, hits: 3 }] }
+    // old: truth !== routed  ->  'F3+F4' !== 'F4'  ->  true (false alarm)
+    expect('F3+F4' !== verdict.family).toBe(true)
+    // new: component-set coverage -> false (correct)
+    expect(routeMismatch('F3+F4', verdict)).toBe(false)
   })
 })
