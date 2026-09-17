@@ -3,27 +3,27 @@
     {
       "id": "Polar ice thickness",
       "status": "PASS",
-      "sha256": "6271f0c25e6d692a7b19f2baf1e556b26fd17687d097ef5cd708dc5c1f7b42a9"
+      "sha256": "cc1636d3d84188bee2c368c40e41deb4c9e73a98f877953a827f7163a507cdf9"
     },
     {
       "id": "Melt pond fraction",
       "status": "PASS",
-      "sha256": "96f4ebb416b7444519714c0a37d35cb1c8ae1de19029afc6d58d87f300f3d38c"
+      "sha256": "1c4b97a959f16448b0521e7e1cca6948b1b3f3e1182699d235af4ff8e5cf89fb"
     },
     {
       "id": "Ridge density",
       "status": "PASS",
-      "sha256": "8fd36af92a8ac001b535ba8dd341b882de461643dbbfdbac39ae4ff54dc749b9"
+      "sha256": "8d846a31c77ebb54a7233c4c75e98929ae161444b47b5ca590f8d028764d8d8d"
     },
     {
       "id": "Polar ice with figure",
       "status": "PASS",
-      "sha256": "3c398379427123a3e40df058d916616e60ca64cb74082cc91240e85d309a52b1"
+      "sha256": "a5b9a9722e80c3aef0c11182d0f2f8f675709d5150b416ae6ddc8aef6a5c0488"
     },
     {
       "id": "Rounded ice report",
       "status": "PASS",
-      "sha256": "bcc358300dba0eacacb69dd2cb60d817ac55d5cbcaa68e4462e91869c82a3c65"
+      "sha256": "9d6b26912966d739ad1832dfe8d60cc8e0bb1326c6393402e2c08ccbed2bd70a"
     }
   ],
   "wrong": [

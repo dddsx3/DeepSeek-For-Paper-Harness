@@ -1,0 +1,63 @@
+{
+  "cassette_version": 1,
+  "recorded_from": "paper-shell real run → artifacts/handoff/TASK-E/cassettes/glm53flash-t3-coursework-v2.json",
+  "provider": "openai-compatible-relay",
+  "model": "z-ai/glm-5.3-flash",
+  "entries": [
+    {
+      "request_fingerprint": "99040b43028513af58fe98ad3db6c9bda2bd977ffa3d81765e66d8e87f48846c",
+      "provider": "openai-compatible-relay",
+      "model": "z-ai/glm-5.3-flash",
+      "response_sha256": "6ab12c929982d94cc675a6169dabb3357713f8e5ff95c1c2b07a43db34b707b4",
+      "response_text": "**执行计划**\n\n1. 明确数据来源：需要海冰干舷（freeboard）或仰角测量数据（如 ICESat/CryoSat-2 或现场钻孔）。\n2. 假设流体静力学平衡：h_i ≈ ρ_w/(ρ_w − ρ_i) × h_f（典型值 ρ_w≈1024, ρ_i≈917 kg/m³，系数≈8.7）。\n3. 代入实测干舷计算厚度，并估计不确定度（雪深、密度误差主导）。\n4. 报告区域平均厚度与单位（米）。\n\n**结果**\n\n- 估计值：**无法给出具体数值** —— 任务未提供任何测量数据（干舷、雷达仰角或钻孔数据），仅凭题目无法估计 mean ice thickness。\n- 结论：mean ice thickness 必须基于干舷/仰角观测经流体静力学平衡换算得到（单位：m）；缺少输入数据时，任何数值估计都无依据。",
+      "usage": {
+        "inputTokens": 90,
+        "outputTokens": 246
+      }
+    },
+    {
+      "request_fingerprint": "3b04c706f5a6dead73b480b245d252c43ae17b4d3f33066e3a289f3b9dbb94f5",
+      "provider": "openai-compatible-relay",
+      "model": "z-ai/glm-5.3-flash",
+      "response_sha256": "66b8c3d6f406fed39d1f956b7b694729e995d4ea1fa56bdc969700dcdf06392b",
+      "response_text": "{\"symbol_id\": \"SYM-q\", \"unit\": \"m\", \"output_file\": \"result.json\", \"json_path\": \"mean_thickness\"}",
+      "usage": {
+        "inputTokens": 126,
+        "outputTokens": 32
+      }
+    },
+    {
+      "request_fingerprint": "032bcc0fae030a67900b975171d7abaf1bc4c9dd2f2f36602e4570fea198101b",
+      "provider": "openai-compatible-relay",
+      "model": "z-ai/glm-5.3-flash",
+      "response_sha256": "2e4988b411d19cc2c09f37bdf21555799570a839022733ebddaf63a350db8584",
+      "response_text": "{\"defects\":[{\"id\":\"D1\",\"severity\":\"minor\",\"description\":\"标题/任务文本被截断（'请给出：mean ic'），且摘要、问题分析等区块为占位符未填写。\"},{\"id\":\"D2\",\"severity\":\"minor\",\"description\":\"结论仅复述数值，未给出'一行结论'式的完整表述；但数值与 RES-OUT 一致，无语义缺陷。\"}]}",
+      "usage": {
+        "inputTokens": 873,
+        "outputTokens": 109
+      }
+    },
+    {
+      "request_fingerprint": "c53c095f450f60bf5e2a446997d4a8a0b6a038dfefff97d65bb403bb6606fd1c",
+      "provider": "openai-compatible-relay",
+      "model": "z-ai/glm-5.3-flash",
+      "response_sha256": "a0aeeb997c702ed3ece755b0dadbdb824ba12ce69baade79ca9613030e989bc3",
+      "response_text": "# 示例论文题目（course-work 题型，T3 最小面适合）\n\nEstimate mean sea-ice thickness.\n\n请给出：mean ice thickness 的估计值（含单位）与一行结论。\n\n## 摘要\n\n本文针对估计平均海冰厚度的问题，采用均质平板（homogeneous slab）模型进行建模。基于规范 IR 注入的结果，得到平均海冰厚度为 0.731 m。该结果满足题目要求的估计值（含单位）与一行结论。\n\n## 问题重述\n\n| 要求 | 说明 |\n|---|---|\n| 估计平均海冰厚度（mean ice thickness），给出估计值（含单位）与一行结论。 | REQUIRED_OUTPUT | [R-OUT]\n\n## 问题分析\n\n题目要求给出平均海冰厚度的估计值及其单位，并附一行结论。由于采用最小面（T3）处理，建模目标为单一量 mean_thickness，求解后需保证结论中的数值与结果表一致。\n\n## 模型假设\n\n| 假设 | 来源 | 风险 | 可检验 |\n|---|---|---|---|\n| homogeneous slab | MODELING_CHOICE | MEDIUM | 否 | [ASM-1]\n\n## 符号说明\n\n| 符号 | 含义 | 单位 |\n|---|---|---|\n| SYM-q | mean_thickness | m | [SYM-q]\n\n## 模型建立与求解\n\n### 结果表（由规范 IR 注入；结论区关键数字必须与此表一致）\n\n| 量名 | 数值 | 单位 | 不确定度 | 来源 |\n|---|---|---|---|---|\n| mean_thickness | 0.731 | m |  | `RES-OUT` |\n\n### 结论\n\n在均质平板假设下，估计的平均海冰厚度 mean_thickness 为 0.731 m。\n\n## 模型检验\n\n结论中的数值（0.731 m）与结果表 `RES-OUT` 注入值一致，通过一致性检验。\n\n## 模型评价\n\n均质平板模型结构简单、便于求解，但忽略了冰厚空间变异与雪层影响（MEDIUM 风险），结果应视为近似估计。\n\n## 参考文献\n\n_(模型待写入)_\n\n## 代码附录\n\n_(模型待写入)_\n\n---\n*机器数字由规范 IR Result 记录渲染；结论数字经槽位或守卫散文注入；图表由固定 harness 渲染器渲染（骨架 v2）。*",
+      "usage": {
+        "inputTokens": 559,
+        "outputTokens": 542
+      }
+    },
+    {
+      "request_fingerprint": "638d61de6a63a29cea17524cb3533dffbe6a89627831ef831e29a77934a9928d",
+      "provider": "openai-compatible-relay",
+      "model": "z-ai/glm-5.3-flash",
+      "response_sha256": "cc5f17acae7440436edd881eff9c6cf41c4b412136887f85ecbd37d8fb270529",
+      "response_text": "{\"defects\":[],\"resolved\":[\"D1\",\"D2\"]}",
+      "usage": {
+        "inputTokens": 1153,
+        "outputTokens": 43
+      }
+    }
+  ]
+}
