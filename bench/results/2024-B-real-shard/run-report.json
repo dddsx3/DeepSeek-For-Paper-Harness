@@ -1,0 +1,37 @@
+{
+  "runId": "2fd94c38-d637-4f1b-ab84-1c0569805532",
+  "tier": "T1",
+  "mode": "strict",
+  "status": "BLOCKED",
+  "routed_family": "F4",
+  "route_truth": "F3+F4",
+  "route_mismatch": true,
+  "classifier": "none",
+  "code": "gate-failed",
+  "humanized": "模型没有给出可用结构（引擎引导了几次仍未对齐），这次运行被判为失败。",
+  "wall_clock_seconds": 397.8,
+  "usage": {
+    "input_tokens": 4564,
+    "output_tokens": 3760,
+    "cost_usd": 0
+  },
+  "memo": {
+    "passed_gates": [
+      "plan"
+    ],
+    "minted_ir_kinds": [
+      "DataArtifact",
+      "RequirementSpec",
+      "ProblemSpec",
+      "SymbolSpec",
+      "AssumptionSpec"
+    ],
+    "minted_ir_count": 11,
+    "failing_node": {
+      "title": "execute",
+      "attempts": 3,
+      "code": null
+    },
+    "suggested_intervention": "换个说法重新提交题目；或用 --tier T3（最小填充面）重试。"
+  }
+}

@@ -163,12 +163,20 @@ export async function* streamCompletion(
   }
   let text = ''
   let usage: ChatCompletionChunk['usage']
+  // W8.8 temporary diagnostic (PAPER_PROBE_RAW_DEBUG=1): dump the raw SSE
+  // bytes of every call so a stream that ends without a finish chunk can
+  // be examined directly.
+  const rawDebug = process.env.PAPER_PROBE_RAW_DEBUG === '1'
+  let rawAccum = ''
   // W8.6-A2: the wire `finish_reason` is the ONLY trustworthy signal that
   // an output hit the provider's length ceiling. Discarding it (pre-W8.6)
   // made truncation indistinguishable from a model contract violation —
   // the "假红" misattribution. null means "the field never arrived" —
-  // recorded as unknown, never assumed normal.
+  // W8.8: an in-band `{"error":...}` line (OpenRouter sends one and then
+  // closes on upstream rate limits) is captured so the failure names the
+  // real cause instead of a generic unknown.
   let finishReason: string | null = null
+  let inBandError: { message: string; code?: number } | null = null
   try {
     yield { type: 'block-start', index: 0, blockType: 'text' }
     for await (const line of sseLines(body)) {
@@ -177,6 +185,16 @@ export async function* streamCompletion(
       try {
         parsed = JSON.parse(line) as ChatCompletionChunk
       } catch {
+        continue
+      }
+      // W8.8: in-band error object — record it; the stream may then close
+      // without any finish chunk (V1: three EXECUTE attempts surfaced as a
+      // generic FINISH_REASON_UNKNOWN while the real cause "temporarily
+      // rate-limited upstream" was silently dropped).
+      if (rawDebug) rawAccum += `${line.slice(0, 4000)}\n---\n`
+      const errObj = (parsed as { error?: { message?: string; code?: number } }).error
+      if (errObj !== undefined) {
+        inBandError = { message: String(errObj.message ?? 'provider error'), ...(typeof errObj.code === 'number' ? { code: errObj.code } : {}) }
         continue
       }
       // The usage block arrives on a choices-empty final chunk (OpenAI
@@ -211,14 +229,23 @@ export async function* streamCompletion(
         },
       }
     }
-    // W8.6-A2: translate the wire reason into the harness vocabulary.
-    // 'length' -> max-tokens is the truncation class (mapFinishReason's
-    // existing mapping); a null field is surfaced as an explicit unknown
-    // kind, not as 'stop'.
-    if (finishReason === 'length') {
+    if (rawDebug) {
+      try {
+        const { appendFileSync } = await import('node:fs')
+        appendFileSync('/tmp/paper-raw-sse-debug.txt', `
+=== call ===
+finishReason=${String(finishReason)} inBandError=${JSON.stringify(inBandError)}
+${rawAccum}`)
+      } catch { /* diagnostics must never break the call */ }
+    }
+    // W8.6-A2 / W8.8: translate the wire outcome into the harness
+    // vocabulary. Priority: in-band error > length > stop > unknown.
+    if (inBandError !== null) {
+      yield { type: 'finish', reason: { kind: 'error', failure: { message: `provider stream error: ${inBandError.message}`, code: inBandError.code === undefined ? 'PROVIDER_STREAM_ERROR' : `PROVIDER_${inBandError.code}` } } }
+    } else if (finishReason === 'length') {
       yield { type: 'finish', reason: { kind: 'max-tokens' } }
     } else if (finishReason === null) {
-      yield { type: 'finish', reason: { kind: 'error', failure: { message: 'finish_reason missing from provider stream (unknown stop cause)', code: 'FINISH_REASON_UNKNOWN' } } }
+      yield { type: 'finish', reason: { kind: 'error', failure: { message: 'finish_reason missing from provider stream (stream ended without a terminal chunk)', code: 'FINISH_REASON_UNKNOWN' } } }
     } else {
       yield { type: 'finish', reason: { kind: 'stop' } }
     }

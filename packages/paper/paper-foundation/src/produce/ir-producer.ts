@@ -28,7 +28,7 @@
 import { z as zod } from 'zod'
 import { ModelingIr } from '../ir/store.ts'
 import { IR_SCHEMAS } from '../ir/schema.ts'
-import { readIrObjectId, type IrKind } from '../ir/index.ts'
+import { readIrObjectId, canonicalJson, type IrKind } from '../ir/index.ts'
 
 /** Protocol marker + version of the model EXECUTE output container. */
 export const MODEL_CONTAINER = '__dsh_paper'
@@ -217,6 +217,7 @@ export function produceContainerInto(
 
   // Pass 1 — kind whitelist + model-face validation (no writes yet).
   const validated: ModelEntry[] = []
+  const seenIds = new Set<string>()
   const pendingOutputArtifacts: Array<{ data_id: string; locator: string }> = []
   for (const entry of container.entries) {
     if (entry.kind === 'ExecutionRecord') {
@@ -297,14 +298,50 @@ export function produceContainerInto(
         reason: `entry '${kind}' violates its closed IR schema — ${at}${first?.message ?? 'invalid'}`,
       }
     }
+    // W9-P2: a duplicate id WITHIN this container is a model error, not a
+    // retry — reject it here (Pass 2's idempotency applies only to entries
+    // already stored by a PRIOR attempt; letting an in-container duplicate
+    // slip through idempotency would silently drop a model mistake).
+    const entryId = readIrObjectId(kind, entry.value)
+    if (seenIds.has(entryId)) {
+      return {
+        ok: false,
+        code: 'conflicting_id',
+        reason: `entry '${kind}' id '${entryId}' appears more than once in this container (append-only store; a duplicate id is a conflict, not an update)`,
+      }
+    }
+    seenIds.add(entryId)
     validated.push(entry)
   }
 
   // Pass 2 — write every validated entry (store admission re-checks schema
   // and the 1.5R reference closure; a refusal aborts the container).
+  //
+  // W9-P2 / O-L1-10 (idempotent re-entry): the EXECUTE node may be retried
+  // after a PARTIAL write (attempt N wrote SymbolSpec entries, then a later
+  // entry refused). Pre-W9, the retry re-put the same entries and hit
+  // duplicate_id — a deterministic false failure (W8.8 run#5 hit exactly
+  // this twice). Re-entry is now idempotent: an entry whose id already
+  // exists with BYTE-IDENTICAL content is treated as "already written by
+  // this container" and skipped; an id whose content DIFFERS stays a
+  // conflict (the append-only guarantee is unchanged).
   const written: { kind: IrKind; id: string }[] = []
   for (const entry of validated) {
     const kind = entry.kind as IrKind
+    const id = readIrObjectId(kind, entry.value)
+    const existing = ir.get(id)
+    if (existing !== undefined && existing.kind === kind) {
+      if (canonicalJson(existing.value) === canonicalJson(entry.value)) {
+        written.push({ kind, id }) // already written in a prior attempt — idempotent
+        onEntry?.(kind, id)
+        continue
+      }
+      return {
+        ok: false,
+        code: 'conflicting_id',
+        reason: `entry '${kind}' id '${id}' is already registered with DIFFERENT content (append-only store; a duplicate id is a conflict, not an update)`,
+      }
+    }
     const verdict = ir.put(kind, entry.value)
     if (!verdict.accepted) {
       const failure = verdict.failures[0]
@@ -316,7 +353,6 @@ export function produceContainerInto(
         reason: `entry '${kind}' could not be admitted: ${detail} (append-only store; a duplicate id is a conflict, not an update)`,
       }
     }
-    const id = readIrObjectId(kind, entry.value)
     written.push({ kind, id })
     onEntry?.(kind, id)
   }

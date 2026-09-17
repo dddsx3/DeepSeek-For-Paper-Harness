@@ -304,8 +304,11 @@ export class WorkflowExecutionError extends Error {
 class ModelCallFailure extends Error {
   /**
    * @param failure - the adapter's provider-neutral failure facts.
+   * @param usage - W8.8: tokens the failed call still consumed. A stream
+   *   that errors mid-way has already been billed; dropping its usage
+   *   makes the expensive failures invisible to the P4 token budget.
    */
-  constructor(readonly failure: LlmFailure) {
+  constructor(readonly failure: LlmFailure, readonly usage?: TokenUsage) {
     super(failure.message)
     this.name = 'ModelCallFailure'
   }
@@ -1429,6 +1432,14 @@ export class WorkflowExecutor {
         const failure = failureOf(error)
         const w4Class = (error as { w4Class?: FailureClass }).w4Class
 
+        // W8.8: a failed call's tokens are still real spend — record them
+        // before classification so the P4 token gate sees every attempt
+        // (V1: 3 EXECUTE calls billed but only 1 usage entry reached the
+        // run record, hiding the cost of the most expensive failures).
+        if (error instanceof ModelCallFailure && error.usage !== undefined) {
+          await this.recordUsage(runId, route.provider, route.model, error.usage)
+        }
+
         // W8.6-P4: a budget refusal is TERMINAL, not retryable — the run
         // is already `paused` for a human to inspect. Retrying would spend
         // more tokens against the very ceiling that just tripped. Bubble
@@ -1745,7 +1756,9 @@ export class WorkflowExecutor {
       assembler.push(chunk)
     }
     const finish = assembler.finish
-    if (finish.kind === 'error' || finish.kind === 'aborted') throw new ModelCallFailure(finish.failure)
+    if (finish.kind === 'error' || finish.kind === 'aborted') {
+      throw new ModelCallFailure(finish.failure, assembler.usage)
+    }
     return {
       text: assembler.blocks()
         .filter(block => block.type === 'text')

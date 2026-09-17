@@ -1,0 +1,4 @@
+[ROUTE-MISMATCH] 路由判定 F4 ≠ 预注册真值 F3+F4（仅标记，不自动纠正）
+[BLOCKED] 调用/传输失败（gate-failed）：node 'f1caa229-4ec4-46a7-bf9f-59a275be3e31' exhausted 3 attempts: EXECUTE output was not a schema-valid ir-container-v1 (BLOCKED)
+  → 重试一次；若持续失败报告给维护者。
+  run-id  -> 13650aab-4a39-4577-934c-51d3e02a2525

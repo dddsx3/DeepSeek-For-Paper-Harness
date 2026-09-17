@@ -177,7 +177,7 @@ export function computeProblemMetrics(problemId, family, report, draftText, prob
   // must be mechanically distinguishable in one snapshot (red line N2).
   // Legacy reports without the field default by directory convention:
   // "<id>-real" = real, everything else fake (the W1 baseline).
-  const providerMode = report.provider_mode ?? (/-real$/.test(problemId) ? 'real' : 'fake')
+  const providerMode = report.provider_mode ?? (/-real(-shard)?$/.test(problemId) ? 'real' : 'fake')
 
   return {
     problem_id: problemId,
@@ -291,7 +291,7 @@ export async function computeFromResults() {
     }
     // W8.5: a "<id>-real" directory is the SAME problem run with a real
     // provider (bench/results/2024-C-real) — resolve to the same family.
-    const baseName = entry.name.replace(/-real$/, '')
+    const baseName = entry.name.replace(/-real(-shard)?$/, '')
     const family = families.get(entry.name) ?? families.get(`CUMCM-${entry.name}`)
       ?? families.get(baseName) ?? families.get(`CUMCM-${baseName}`) ?? '?'
     if (report === null) {
