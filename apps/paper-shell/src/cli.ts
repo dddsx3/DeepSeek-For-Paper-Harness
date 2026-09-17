@@ -252,7 +252,21 @@ async function main(): Promise<number> {
     return 1
   }
 
-  const display = route === undefined ? undefined : { provider: route.provider, model: route.model }
+  // W8.9 repair (found by the first-ever replay run of the TASK-E corpus):
+  // the seam request's provider/model come from SETTINGS, and settings are
+  // built from `display` — but `display` was derived only from the real route,
+  // which is absent under --replay (no key needed). Every replayed request
+  // therefore carried the placeholder identity `deepseek-official/placeholder`
+  // while the cassette recorded the real one, so EVERY fingerprint missed and
+  // every replay failed. The cassette knows its own identity; load it first
+  // and let it supply `display`. (The step never ran in CI: it was masked by
+  // the RG-06 drift that stopped the job earlier for its whole lifetime.)
+  const replayMeta = replayPath !== undefined
+    ? (await CassetteReplayer.load(replayPath)).meta
+    : undefined
+  const display = replayMeta !== undefined
+    ? { provider: replayMeta.provider, model: replayMeta.model }
+    : route === undefined ? undefined : { provider: route.provider, model: route.model }
   const { ctx, baseRoot, dispose } = await buildContext(here, display)
   if (!fake && replayPath === undefined) {
     if (route === undefined) {
@@ -276,6 +290,7 @@ async function main(): Promise<number> {
   const replayer = replayPath !== undefined
     ? await CassetteReplayer.load(replayPath)
     : undefined
+  void replayMeta
   if (fake) {
     ctx.provide('paperProvider', createFakeProvider(route))
   } else if (replayer !== undefined) {
@@ -377,7 +392,21 @@ async function main(): Promise<number> {
   // here — zero tokens, zero model calls (拒绝优先, §3.4). The route
   // banner for a supported problem is appended so the W5 contract layer
   // can pick the family template; it costs nothing (pure text).
-  const familyVerdict = classifyProblem(bundle.taskText)
+  //
+  // W8.9 repair: T3 is EXEMPT. PRD v2 F2 states T3's defining property is
+  // that it does NOT read the problem statement ("默认路径（T3）不读题面,
+  // 0.731 由 harness 写死"); P0-2 repositions it as "固定填充面（回归用）".
+  // Gating a path that never consumes the statement on "the statement is
+  // routable" is a category error — it made the T3 regression demo refuse
+  // on an English minimal fixture (found when CI finally reached this step;
+  // it had been masked by an earlier RG-06 drift for the whole M1 lifetime).
+  // T3 keeps its own guard (the closed fill-in template), so no check is lost.
+  const familyVerdict = tier === 'T3'
+    ? { ok: true as const, family: 'F3' as const, note: 'T3 固定填充面（回归用）：不读题面，故不参与方法族路由（PRD v2 F2/P0-2）', components: [] as ReadonlyArray<{ family: 'F1' | 'F2' | 'F3' | 'F4'; hits: number }> }
+    : classifyProblem(bundle.taskText)
+  if (tier === 'T3') {
+    console.error('[T3] 固定填充面（回归用）：跳过方法族路由——该路径按设计不读题面。')
+  }
   if (!familyVerdict.ok) {
     await dispose()
     console.error(`[REFUSED] ${familyVerdict.reason}`)
@@ -402,7 +431,17 @@ async function main(): Promise<number> {
   // W5 (P0-8): the family contract banner joins the taskText — the model
   // sees the closed candidate set + required assumptions + dedicated
   // validation BEFORE it models (zero invention space, 核验表 Part B).
-  const taskText = `${bundle.taskText}${routeBanner(familyVerdict)}${contractBanner(familyVerdict.family)}`
+  //
+  // W8.9: T3 gets NO banner. T3 does not read the statement (PRD v2 F2), so
+  // a family banner would be noise it never consumes — and, concretely, it
+  // would change the request fingerprint and break every recorded cassette
+  // (TASK-E's replay corpus was recorded from T3 runs whose taskText was the
+  // bare statement). Keeping the T3 taskText byte-identical to what was
+  // recorded is what makes "same cassette → same report → same zip sha256"
+  // (expert plan §14) still true.
+  const taskText = tier === 'T3'
+    ? bundle.taskText
+    : `${bundle.taskText}${routeBanner(familyVerdict)}${contractBanner(familyVerdict.family)}`
   // W8.5 (B2): M3b — the shell stamps the wall-clock window it owns
   // (submit → terminal). Recorded in run-report.json as
   // wall_clock_seconds so the bench metrics can read it (they cannot
@@ -471,7 +510,24 @@ async function main(): Promise<number> {
     await dispose()
     return 1
   }
-  const report = await readFile(join(finalDir, firstFile), 'utf8')
+  // W8.9-C2 — the scope limitation joins the DELIVERED artifact here, after
+  // the reviewer is done and before the digest is taken.
+  //
+  // 落点为何在这里（第一次放错了，由 cassette 回放实测抓出）：把声明放进
+  // report-renderer 会让它进入 EXECUTE 节点的输出，而该输出**同时是
+  // reviewer 的输入**——于是 reviewer 请求的指纹变了，TASK-E 的每个
+  // cassette 都 miss（"same cassette → same zip sha256" 这条性质当场失效）。
+  // 局限声明是给**读者**的，不是给 reviewer 的判定材料，故它属于交付层，
+  // 不属于引擎层。放在这里还顺带满足 PRD v2 §3.3 的"标注放附录，不放正文
+  // 内联"，并且让 sha256 覆盖含声明的最终文本。
+  const scopeNote = [
+    '',
+    '---',
+    '',
+    '> **本交付物的验证范围（W8.9-C2）**：已机械核验的是**结构完整**（章节/符号/假设齐备）、**数字可溯源**（每个数字可追到 Result 或题面给定值）与**形式化忠实**（IR 声明逐字锚定建模分析文本）。**未**核验的是**实质正确性**——建模思路的优劣、假设的物理真伪、方法选择的恰当性，均**不在本 harness 的可判定范围内**。请读者据此评估结论。',
+    '',
+  ].join('\n')
+  const report = (await readFile(join(finalDir, firstFile), 'utf8')) + scopeNote
   const sha256 = createHash('sha256').update(report).digest('hex')
   const audit = ctx.paperAudit.list(String(run.id)).map(e => `${e.eventType}`).join(',')
   // P0-3: the run-report carries the delivery grade. The MARKED appendix
@@ -504,7 +560,15 @@ async function main(): Promise<number> {
   // byte-deterministic on re-run (G2: 重跑同 sha256); the full report with
   // the real runId is written to the out dir separately.
   const wallClockSeconds = Math.round((Date.now() - wallClockStart) / 100) / 10
-  const runReport = JSON.stringify({ runId: '<redacted-run-id>', tier, mode, status: 'DELIVERED', grade, routed_family: familyVerdict.family, route_truth: truth, route_mismatch: mismatched, code_provenance: provenanceRecord, wall_clock_seconds: wallClockSeconds, sha256, audit, usage: { input_tokens: usageSummary.input_tokens, output_tokens: usageSummary.output_tokens, cost_usd: usageSummary.cost_usd }, attachments: attachmentLedger }, null, 2)
+  // W8.9 repair: the zip's copy must be byte-deterministic on re-run (the
+  // TASK-E assertion "same cassette → same report → same zip sha256" depends
+  // on it), so the two per-run facts are excluded here and kept only in the
+  // on-disk run-report.json: `wall_clock_seconds` (a duration) and the
+  // provenance `checked_at` (a wall-clock stamp). Everything a reader needs
+  // to judge the delivery — tier, mode, grade, family, sha256, audit, usage,
+  // provenance verdicts — stays.
+  const zipProvenance = { ...provenanceRecord, checked_at: '<per-run>' }
+  const runReport = JSON.stringify({ runId: '<redacted-run-id>', tier, mode, status: 'DELIVERED', grade, routed_family: familyVerdict.family, route_truth: truth, route_mismatch: mismatched, code_provenance: zipProvenance, wall_clock_seconds: '<per-run>', sha256, audit, usage: { input_tokens: usageSummary.input_tokens, output_tokens: usageSummary.output_tokens, cost_usd: usageSummary.cost_usd }, attachments: attachmentLedger }, null, 2)
   const runReportFull = JSON.stringify({ runId: String(run.id), tier, mode, status: 'DELIVERED', grade, routed_family: familyVerdict.family, route_truth: truth, route_mismatch: mismatched, code_provenance: provenanceRecord, wall_clock_seconds: wallClockSeconds, sha256, audit, usage: { input_tokens: usageSummary.input_tokens, output_tokens: usageSummary.output_tokens, cost_usd: usageSummary.cost_usd }, attachments: attachmentLedger }, null, 2)
   await mkdir(outDir, { recursive: true })
   await writeFile(join(outDir, 'report.md'), report, 'utf8')

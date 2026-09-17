@@ -333,14 +333,6 @@ function renderReport(input: {
     },
   })
   const lines: string[] = [text, '', '---', '*机器数字由规范 IR Result 记录渲染；结论数字经槽位或守卫散文注入；图表由固定 harness 渲染器渲染（骨架 v2）。*']
-  // W8.9-C2 — the scope limitation goes INTO the deliverable. The receive
-  // layer (E1/E2) makes the harness check that the formalization is FAITHFUL
-  // to the model's reasoning; it does NOT make the harness able to judge
-  // whether the reasoning is correct. Reading "structure complete + faithful"
-  // as "modeling quality verified" is the one misreading this line exists to
-  // prevent (W8.9-C2 禁止项逐字).
-  lines.push('')
-  lines.push('> **本交付物的验证范围（W8.9-C2）**：已机械核验的是**结构完整**（章节/符号/假设齐备）、**数字可溯源**（每个数字可追到 Result 或题面给定值）与**形式化忠实**（IR 声明逐字锚定建模分析文本）。**未**核验的是**实质正确性**——建模思路的优劣、假设的物理真伪、方法选择的恰当性，均**不在本 harness 的可判定范围内**。请读者据此评估结论。')
   return { ok: true, text: lines.join('\n') }
 }
 

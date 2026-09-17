@@ -106,6 +106,13 @@ async function runLeaf(containerJson, taskText) {
   const finalRoot = await mkdtemp(join(tmpdir(), 'dsh-p3demo-'))
   await ctx.plugin(PaperExecutorService, {
     produceFromExecute: true,
+    // W8.9-B1: this demo pins the SINGLE-SHOT container path — its fake
+    // provider scripts one container per leaf, and the P3 assertions are
+    // about the delivery-gate / semantic-kill corpus, not about how the
+    // container was produced. The E1/E2 receive layer is now the default
+    // for producing EXECUTE, so the path must be named explicitly.
+    disableE1E2: true,
+    disableShardDeclare: true,
     finalOutputRoot: finalRoot,
     produceRun: { command: ['node', 'main.js'], entryFile: 'main.js', environment: 'node 24 deterministic demo', timeoutMs: 30_000 },
     backoffBaseMs: 1,

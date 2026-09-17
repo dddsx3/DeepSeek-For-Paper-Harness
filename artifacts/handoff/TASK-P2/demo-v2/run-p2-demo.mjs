@@ -100,6 +100,14 @@ async function runLeaf(containerJson, taskText) {
   const finalRoot = await mkdtemp(join(tmpdir(), 'dsh-p2demo-'))
   await ctx.plugin(PaperExecutorService, {
     produceFromExecute: true,
+    // W8.9-B1: this demo pins the SINGLE-SHOT container path — its fake
+    // provider scripts one container per leaf, and the P2 assertions are
+    // about the executor-authoritative chain (code-run / capture / claim
+    // minting), not about how the container was produced. The E1/E2 receive
+    // layer is now the default for producing EXECUTE, so the path must be
+    // named explicitly; leaving it implicit made every legal leaf refuse.
+    disableE1E2: true,
+    disableShardDeclare: true,
     finalOutputRoot: finalRoot,
     produceRun: { command: ['node', 'main.js'], entryFile: 'main.js', environment: 'node 24 deterministic demo', timeoutMs: 30_000 },
     backoffBaseMs: 1,
