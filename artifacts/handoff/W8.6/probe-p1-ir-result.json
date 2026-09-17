@@ -1,0 +1,19 @@
+{
+  "http_status": 200,
+  "finish_reason": "stop",
+  "usage": {
+    "prompt_tokens": 280,
+    "total_tokens": 2035,
+    "completion_tokens": 1755,
+    "prompt_tokens_details": {
+      "cached_tokens": 64,
+      "created_cache_tokens": 192
+    }
+  },
+  "content_chars": 469,
+  "reasoning_chars": 6863,
+  "unknown_delta_keys": [],
+  "wall_seconds": 31.7,
+  "content": "{\"__dsh_paper\":\"ir-container-v1\",\"entries\":[{\"kind\":\"SymbolSpec\",\"value\":{\"symbol_id\":\"SYM-q\",\"scope_ref\":\"P1\",\"token\":\"q\",\"meaning\":\"mean ice thickness\",\"unit\":\"m\",\"role\":\"VARIABLE\",\"shape\":\"SCALAR\",",
+  "reasoning_head": "The user wants me to act as a modeling assistant and output exactly one JSON object without markdown fences. The task is to estimate the average thickness of polar ice and output the specified contain"
+}

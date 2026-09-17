@@ -42,13 +42,16 @@ describe('route — family classification', () => {
     if (v.ok) expect(v.family).toBe('F4')
   })
 
-  it('routes an optimization problem to F1 (unsupported) and DECLINES explicitly', () => {
+  it('routes an optimization problem to F2 (unsupported) and DECLINES explicitly', () => {
+    // W8.6-P3 realign: 优化 = 组合/离散（核验表 Part B 的 F2），不是 F1（机理/连续）。
+    // 旧词表把优化串到 F1 是 W8.5 路由浪费的上游成因之一。
     const v = classifyProblem(OPTIMIZATION_PROBLEM)
     expect(v.ok).toBe(false)
     if (!v.ok) {
       expect(v.reason).toContain('明确拒绝')
       expect(v.reason).toContain('不消耗额度')
-      expect(v.reason).toContain('F1')
+      expect(v.reason).toContain('F2')
+      expect(v.reason).toContain('混合题必须先补齐缺失组件的契约')
     }
   })
 

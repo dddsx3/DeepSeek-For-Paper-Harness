@@ -19,15 +19,17 @@ describe('W8.6-C1/H3 — no contract = refusal, zero tokens', () => {
     }
   })
 
-  it('routing an F1 (no contract) problem refuses with a reason naming the contracted set', () => {
+  it('routing an F2 (no contract) problem refuses with a reason naming the contracted set', () => {
+    // W8.6-P3 realign: 优化/调度 → F2（组合/离散），非 F1。
     const v = classifyProblem(
       '某物流企业需要规划一条从仓库到多个配送点的运输路线，在车辆容量、时间窗和道路约束下，使总运输成本最小化，并给出每天的调度排程方案与最优解。',
     )
     expect(v.ok).toBe(false)
     if (!v.ok) {
-      expect(v.reason).toContain('没有已实现的契约')
+      expect(v.reason).toContain('尚无已实现的契约')
       expect(v.reason).toContain('不消耗额度')
       expect(v.reason).toContain('F3')
+      expect(v.reason).toContain('F2')
     }
   })
 

@@ -32,6 +32,7 @@ import { parseModelContainer, produceContainerInto } from './produce/ir-producer
 import { produceRunExecution } from './produce/execution-producer.ts'
 import { produceInterpretation } from './produce/interpretation-producer.ts'
 import { renderReportV2 } from './produce/report-renderer.ts'
+import { SHARD_NAMES, shardPrompt, parseShard, mergeShards } from './produce/shard-declare.ts'
 import type { PaperProviderService, PaperRole } from './provider.ts'
 import { backoffDelayMs, classifyFailure } from './resilience.ts'
 import type { BackoffPolicy } from './resilience.ts'
@@ -236,6 +237,16 @@ export interface ExecutorOptions {
    */
   readonly produceFromExecute?: boolean
   /**
+   * W9-P2 (O-L1-03): shard the EXECUTE declaration into three small
+   * outputs (definitions → models → runtime) merged into the same
+   * ir-container-v1. Rationale: the single-shot container's output
+   * budget is eaten by the reasoning channel (P1 probes: ≈14.6:1),
+   * truncating the JSON at the 32k ceiling. DEFAULT OFF — the shard
+   * protocol must prove itself on real runs before it becomes the path
+   * (W8.6 lesson: unverified protocol changes never flip a default).
+   */
+  readonly shardDeclare?: boolean
+  /**
    * TASK-PW W2: the protocol tier a producing run starts in (T1 / T2 / T3).
    * Defaults to T1 when absent; `tierOf()` is the single reader, so the
    * W4 NONE-degradation ledger stays authoritative.
@@ -253,6 +264,15 @@ export interface ExecutorOptions {
    * path, no parallel judgement).
    */
   readonly deliveryGradeMode?: 'strict-tolerance' | 'fail-soft'
+  /**
+   * W8.6-P4 (O-L5-03): per-RUN output-token ceiling, independent of the
+   * USD daily budget. The USD gate cannot fire when pricing is
+   * unconfigured (costUsd stays 0) — W8.5 burned 75,669 output tokens
+   * with no cap at all. This gate counts tokens, not dollars: it works
+   * on an unpriced relay. Zero or absent = unbounded (historical
+   * behavior); a positive value pauses the run when the ceiling trips.
+   */
+  readonly maxOutputTokensPerRun?: number
 }
 
 /**
@@ -1239,6 +1259,54 @@ export class WorkflowExecutor {
             throw err
           }
           text = assembleTemplateContainer(admitted.fill, taskText ?? '')
+        } else if (type === 'execute' && this.options.produceFromExecute === true && this.options.shardDeclare === true) {
+          // W9-P2 (O-L1-03): three small declarations instead of one big
+          // container — each shard is a separate provider call with its
+          // own budget (P1: reasoning eats ≈14.6x the content; a ~600-char
+          // shard needs ≈9k output tokens, far under the 32k default).
+          // The merged result flows into the SAME producer / code-run /
+          // audit path below — the merge is the only new code.
+          const shardTexts: string[] = []
+          for (const shard of SHARD_NAMES) {
+            const { text: shardText, usage: shardUsage, truncated: shardTruncated } = await this.call(role, shardPrompt(shard))
+            await this.recordUsage(runId, route.provider, route.model, shardUsage)
+            await this.audit({
+              eventType: 'ir_entry_written',
+              actor: 'paper-executor',
+              runId,
+              detail: { kind: 'ShardOutput', id: shard, nodeId: node.id, stage: 'shard-declare', chars: shardText.length },
+            })
+            if (shardTruncated) {
+              const err = new Error(`shard '${shard}' hit the provider output-length ceiling mid-generation: output budget/protocol length mismatch, not a model contract violation`)
+              ;(err as { code?: string }).code = 'EXECUTE_OUTPUT_TRUNCATED'
+              throw err
+            }
+            shardTexts.push(shardText)
+          }
+          const parsedShards = SHARD_NAMES.map((shard, i) => ({ shard, verdict: parseShard(shard, shardTexts[i] ?? '') }))
+          const firstBad = parsedShards.find(p => !p.verdict.ok)
+          if (firstBad !== undefined && !firstBad.verdict.ok) {
+            // A refused shard is a model-side declaration failure: keep the
+            // W4 classification (NONE/DRIFT) so guidance/retry semantics
+            // are identical to the single-shot path.
+            const err = new Error(`shard '${firstBad.shard}' refused: ${firstBad.verdict.reason}`)
+            ;(err as { code?: string }).code = firstBad.verdict.code
+            ;(err as { w4Class?: FailureClass }).w4Class = failureClassOf(firstBad.verdict.code, shardTexts[SHARD_NAMES.indexOf(firstBad.shard)] ?? '')
+            ;(err as { outputFingerprint?: string }).outputFingerprint = sha256Hex(shardTexts.join('\u0000'))
+            throw err
+          }
+          const merged = mergeShards(
+            (parsedShards[0]?.verdict as { ok: true; value: Record<string, unknown> }).value,
+            (parsedShards[1]?.verdict as { ok: true; value: Record<string, unknown> }).value,
+            (parsedShards[2]?.verdict as { ok: true; value: Record<string, unknown> }).value,
+          )
+          await this.audit({
+            eventType: 'ir_entry_written',
+            actor: 'paper-executor',
+            runId,
+            detail: { kind: 'ShardMerge', id: 'merged-container', nodeId: node.id, stage: 'shard-declare', entries: (merged['entries'] as ReadonlyArray<unknown>).length },
+          })
+          text = JSON.stringify(merged)
         } else {
           const { text: callText, usage, truncated } = await this.call(role, prompt)
           await this.recordUsage(runId, route.provider, route.model, usage)
@@ -1360,6 +1428,14 @@ export class WorkflowExecutor {
       } catch (error: unknown) {
         const failure = failureOf(error)
         const w4Class = (error as { w4Class?: FailureClass }).w4Class
+
+        // W8.6-P4: a budget refusal is TERMINAL, not retryable — the run
+        // is already `paused` for a human to inspect. Retrying would spend
+        // more tokens against the very ceiling that just tripped. Bubble
+        // it unchanged (no node transition to failed; paused is the state).
+        if (failure.code === 'budget-exhausted') {
+          throw error
+        }
         await this.engine.transitionNode(node.id, 'failed')
 
         // W8.6-A1: TRUNCATED is its own failure class with zero retry and
@@ -1605,7 +1681,9 @@ export class WorkflowExecutor {
     )
   }
 
-  /** Accumulate one call's tokens and derived cost onto the run. */
+  /** Accumulate one call's tokens and derived cost onto the run.
+   *  W8.6-P4: also enforces the per-run OUTPUT-token ceiling when
+   *  configured — the count-based guard that works without pricing. */
   private async recordUsage(
     runId: RunId,
     provider: string,
@@ -1619,6 +1697,23 @@ export class WorkflowExecutor {
       outputTokens: usage.outputTokens,
       costUsd: computeCostUsd(price, usage),
     })
+    const ceiling = this.options.maxOutputTokensPerRun
+    if (ceiling !== undefined && ceiling > 0) {
+      const spent = this.runOf(runId).usage.outputTokens
+      if (spent > ceiling) {
+        await this.engine.transitionRun(runId, 'paused')
+        await this.audit({
+          eventType: 'budget_exceeded',
+          actor: 'paper-executor',
+          runId,
+          detail: { kind: 'output_tokens_per_run', ceiling, spent },
+        })
+        throw new WorkflowExecutionError(
+          'budget-exhausted',
+          `run '${runId}' is paused: output-token ceiling ${ceiling} exceeded (spent ${spent}) — per-run guard, pricing-independent`,
+        )
+      }
+    }
   }
 
   /** Cost recorded for runs created today, the budget's spend basis. */

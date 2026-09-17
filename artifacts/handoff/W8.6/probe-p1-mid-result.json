@@ -1,0 +1,15 @@
+{
+  "http_status": 200,
+  "finish_reason": "stop",
+  "usage": {
+    "prompt_tokens": 110,
+    "completion_tokens": 106,
+    "total_tokens": 216
+  },
+  "content_chars": 79,
+  "reasoning_chars": 265,
+  "unknown_delta_keys": [],
+  "wall_seconds": 24,
+  "content": "17×23 = 17×(20+3) = 17×20 + 17×3 = 340 + 51 = 391。\n\n```json\n{\"result\": 391}\n```",
+  "reasoning_head": "We need answer in Chinese. Need compute 17*23. Need show reasoning process then one line JSON result. Need comply \"先展示推理过程,然后用一行 JSON 输出结果\". We can do concise. Need ensure final has reasoning and JSON"
+}
