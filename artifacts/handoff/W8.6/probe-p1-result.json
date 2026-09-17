@@ -1,0 +1,12 @@
+{
+  "model_requested": "deepseek/deepseek-v4-flash",
+  "finish_reason": null,
+  "usage": null,
+  "content_chars": 0,
+  "content_chunks": 0,
+  "reasoning_chars": 0,
+  "reasoning_chunks": 0,
+  "wall_seconds": 125.8,
+  "content_is_json": false,
+  "raw_sse_bytes": 7860
+}

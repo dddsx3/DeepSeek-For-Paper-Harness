@@ -1,0 +1,18 @@
+{
+  "http_status": 200,
+  "finish_reason": "stop",
+  "usage": {
+    "prompt_tokens": 149,
+    "total_tokens": 156,
+    "completion_tokens": 7,
+    "prompt_tokens_details": {
+      "cached_tokens": 64,
+      "created_cache_tokens": 64
+    }
+  },
+  "content_chars": 11,
+  "reasoning_chars": 0,
+  "unknown_delta_keys": [],
+  "wall_seconds": 83,
+  "content": "{\"ok\":true}"
+}

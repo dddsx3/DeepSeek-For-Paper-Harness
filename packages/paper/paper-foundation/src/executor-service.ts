@@ -67,6 +67,12 @@ export interface ExecutorConfig {
    *  three fatal conditions block). Default 'strict-tolerance' keeps the
    *  historical fail-closed behavior byte-for-byte. */
   readonly deliveryGradeMode?: 'strict-tolerance' | 'fail-soft'
+  /** W8.6-P4: per-run OUTPUT-token ceiling (pricing-independent guard).
+   *  Zero/absent = unbounded (historical). */
+  readonly maxOutputTokensPerRun?: number
+  /** W9-P2: shard the EXECUTE declaration (three small outputs merged
+   *  into the same container). Default false — opt-in until proven. */
+  readonly shardDeclare?: boolean
 }
 
 const modelPrice: s<ModelPrice> = s.object({
@@ -113,6 +119,8 @@ export function resolveExecutorOptions(
     // P0-3: the delivery grade threshold; omitted = strict-tolerance
     // (historical fail-closed behavior).
     ...(config.deliveryGradeMode === undefined ? {} : { deliveryGradeMode: config.deliveryGradeMode }),
+    ...(config.maxOutputTokensPerRun === undefined ? {} : { maxOutputTokensPerRun: config.maxOutputTokensPerRun }),
+    ...(config.shardDeclare === true ? { shardDeclare: true } : {}),
     // exactOptionalPropertyTypes: an explicit undefined would be a type
     // error on the optional fields, so omit rather than pass through.
     ...ir === undefined ? {} : { ir },
@@ -153,6 +161,10 @@ export class PaperExecutorService extends Service {
     initialTier: s.union(['T1', 'T2', 'T3'] as const),
     // P0-3 (PRD v2 §3.3): fail-soft vs strict-tolerance delivery grading.
     deliveryGradeMode: s.union(['strict-tolerance', 'fail-soft'] as const).default('strict-tolerance'),
+    // W8.6-P4: per-run output-token ceiling; 0 = unbounded.
+    maxOutputTokensPerRun: s.number().step(1).min(0).default(0),
+    // W9-P2: opt-in shard declaration.
+    shardDeclare: s.boolean().default(false),
   })
 
   private executor: WorkflowExecutor | undefined

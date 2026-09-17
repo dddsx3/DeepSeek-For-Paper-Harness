@@ -218,6 +218,11 @@ async function main(): Promise<number> {
   const fake = parsed.fake === true || parsed.fake === 'true'
   // P0-3: --fail-soft = MARKED fail-soft delivery threshold (mass tier).
   const failSoft = parsed['fail-soft'] === true || parsed['fail-soft'] === 'true'
+  // W8.6-P4: PAPER_MAX_OUTPUT_TOKENS_PER_RUN (0/absent = unbounded).
+  const maxOutputTokensPerRun = Number(process.env.PAPER_MAX_OUTPUT_TOKENS_PER_RUN ?? '0') || 0
+  // W9-P2: --shard-declare = three small EXECUTE declarations instead of
+  // one big container (opt-in; default path unchanged).
+  const shardDeclare = parsed['shard-declare'] === true || parsed['shard-declare'] === 'true'
   // TASK-E: cassette record/replay. --cassette <file> records a REAL run's
   // every seam exchange; --replay <file> answers the seam from a cassette
   // (no network, no key). Exactly one of the three provider modes
@@ -298,6 +303,11 @@ async function main(): Promise<number> {
       // MARKED fail-soft (mass tier default). Without it the run keeps the
       // historical strict-tolerance (CLEAN or BLOCKED, never MARKED).
       deliveryGradeMode: failSoft ? 'fail-soft' : 'strict-tolerance',
+      // W8.6-P4 (O-L5-03): the per-run output-token ceiling protects a
+      // real key even when pricing is unconfigured. Env-set, recorded in
+      // the run report; 0/absent = unbounded.
+      maxOutputTokensPerRun: maxOutputTokensPerRun,
+      ...(shardDeclare ? { shardDeclare: true } : {}),
       ...(pricingFromEnv !== undefined ? { pricing: pricingFromEnv } : {}),
       ...(Number.isFinite(budgetFromEnv) && budgetFromEnv > 0 ? { dailyBudgetUsd: budgetFromEnv } : {}),
     })
