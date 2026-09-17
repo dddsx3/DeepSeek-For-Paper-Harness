@@ -1,0 +1,345 @@
+{
+  "unit": {
+    "name": "paper_audit",
+    "version": 0
+  },
+  "global": null,
+  "tables": {
+    "entries": {
+      "0000000000000001": {
+        "id": "03717430-5ed0-4984-9a56-d61cef15f945",
+        "seq": 1,
+        "ts": "2026-09-17T10:29:52.003Z",
+        "runId": null,
+        "actor": "paper-shell",
+        "eventType": "production_enabled",
+        "detail": {
+          "tier": "T1",
+          "mode": "strict",
+          "route": "https://openrouter.ai/api/v1 + stealth/union-alpha"
+        }
+      },
+      "0000000000000002": {
+        "id": "49523a4f-c2ff-4eac-943e-55bb5a95f498",
+        "seq": 2,
+        "ts": "2026-09-17T10:29:52.573Z",
+        "runId": "2fd94c38-d637-4f1b-ab84-1c0569805532",
+        "actor": "paper-executor",
+        "eventType": "workflow_started",
+        "detail": {
+          "mode": "strict"
+        }
+      },
+      "0000000000000003": {
+        "id": "1924a28d-21a2-49f0-9d85-44ebe5c26466",
+        "seq": 3,
+        "ts": "2026-09-17T10:31:40.030Z",
+        "runId": "2fd94c38-d637-4f1b-ab84-1c0569805532",
+        "actor": "paper-executor",
+        "eventType": "ir_entry_written",
+        "detail": {
+          "kind": "ShardOutput",
+          "id": "definitions",
+          "nodeId": "c792ab3f-2d9a-4088-a96f-41199350f8d1",
+          "stage": "shard-declare",
+          "chars": 705
+        }
+      },
+      "0000000000000004": {
+        "id": "3b3c517f-6801-4dd8-b56c-167b0a7ff6f6",
+        "seq": 4,
+        "ts": "2026-09-17T10:31:53.832Z",
+        "runId": "2fd94c38-d637-4f1b-ab84-1c0569805532",
+        "actor": "paper-executor",
+        "eventType": "ir_entry_written",
+        "detail": {
+          "kind": "ShardOutput",
+          "id": "models",
+          "nodeId": "c792ab3f-2d9a-4088-a96f-41199350f8d1",
+          "stage": "shard-declare",
+          "chars": 240
+        }
+      },
+      "0000000000000005": {
+        "id": "744a6ce3-6fa0-4773-bd3e-21dee90741e8",
+        "seq": 5,
+        "ts": "2026-09-17T10:32:29.613Z",
+        "runId": "2fd94c38-d637-4f1b-ab84-1c0569805532",
+        "actor": "paper-executor",
+        "eventType": "ir_entry_written",
+        "detail": {
+          "kind": "ShardOutput",
+          "id": "runtime",
+          "nodeId": "c792ab3f-2d9a-4088-a96f-41199350f8d1",
+          "stage": "shard-declare",
+          "chars": 433
+        }
+      },
+      "0000000000000006": {
+        "id": "4731a5c5-5005-40b5-9e97-5e9e9120254f",
+        "seq": 6,
+        "ts": "2026-09-17T10:32:29.617Z",
+        "runId": "2fd94c38-d637-4f1b-ab84-1c0569805532",
+        "actor": "paper-executor",
+        "eventType": "ir_entry_written",
+        "detail": {
+          "kind": "ShardMerge",
+          "id": "merged-container",
+          "nodeId": "c792ab3f-2d9a-4088-a96f-41199350f8d1",
+          "stage": "shard-declare",
+          "entries": 4
+        }
+      },
+      "0000000000000007": {
+        "id": "7f909b47-0b72-49a8-9007-a727fcd77e7a",
+        "seq": 7,
+        "ts": "2026-09-17T10:32:29.623Z",
+        "runId": "2fd94c38-d637-4f1b-ab84-1c0569805532",
+        "actor": "paper-executor",
+        "eventType": "ir_entry_written",
+        "detail": {
+          "kind": "DataArtifact",
+          "id": "DA-RAW",
+          "stage": "input-registration"
+        }
+      },
+      "0000000000000008": {
+        "id": "80b417a5-0acf-4ef5-8f82-96bc69b4c630",
+        "seq": 8,
+        "ts": "2026-09-17T10:32:29.628Z",
+        "runId": "2fd94c38-d637-4f1b-ab84-1c0569805532",
+        "actor": "paper-executor",
+        "eventType": "ir_entry_written",
+        "detail": {
+          "kind": "RequirementSpec",
+          "id": "R-OUT",
+          "stage": "input-registration"
+        }
+      },
+      "0000000000000009": {
+        "id": "9a10e9ab-4825-4f7d-9f1f-73fcfbd958af",
+        "seq": 9,
+        "ts": "2026-09-17T10:32:29.632Z",
+        "runId": "2fd94c38-d637-4f1b-ab84-1c0569805532",
+        "actor": "paper-executor",
+        "eventType": "ir_entry_written",
+        "detail": {
+          "kind": "ProblemSpec",
+          "id": "P1",
+          "stage": "input-registration"
+        }
+      },
+      "0000000000000010": {
+        "id": "0e0a2887-78f4-4f14-a399-9733b6f1516d",
+        "seq": 10,
+        "ts": "2026-09-17T10:32:29.638Z",
+        "runId": "2fd94c38-d637-4f1b-ab84-1c0569805532",
+        "actor": "paper-executor",
+        "eventType": "container_refused",
+        "detail": {
+          "nodeId": "c792ab3f-2d9a-4088-a96f-41199350f8d1",
+          "attempt": 1,
+          "code": "store_refused",
+          "reason": "entry 'AssumptionSpec' could not be admitted: reference_kind_mismatch: 'SYM-DATA' resolves to SymbolSpec, expected Result,DataArtifact (append-only store; a duplicate id is a conflict, not an update)",
+          "output_sha256": "5bbc80e78e0f98c5891742a1508f22ab0e833f180a3128e25671b21df6cd12e7",
+          "excerpt_head": "{\"__dsh_paper\":\"ir-container-v1\",\"entries\":[{\"kind\":\"SymbolSpec\",\"value\":{\"symbol_id\":\"SYM-DATA\",\"scope_ref\":\"P1\",\"token\":\"D\",\"meaning\":\"Raw data from DA-RAW\",\"unit\":\"UNKNOWN\",\"role\":\"PARAMETER\",\"shape\":\"UNKNOWN\",\"domain\":\"UNKNOWN\",\"index_set\":[]}},{\"kind\":\"SymbolSpec\",\"value\":{\"symbol_id\":\"SYM-OUTPUT\",\"scope_ref\":\"P1\",\"token\":\"Y\",\"meaning\":\"Output governed by R-OUT\",\"unit\":\"UNKNOWN\",\"role\":\"VARIA",
+          "excerpt_tail": "s'); const uptime_ms=process.uptime()*1000; fs.writeFileSync('runtime.json',JSON.stringify({uptime_ms}));\",\"run\":{\"outputBasenames\":[\"runtime.json\"],\"seed\":42},\"interpretations\":{\"results\":[{\"result_id\":\"RES-UPTIME\",\"name\":\"Node process uptime at measurement\",\"source\":{\"locator\":\"runtime.json\",\"jsonPath\":\"$.uptime_ms\"},\"unit\":\"ms\"}],\"figures\":[]},\"narrative\":{\"title\":\"Runtime uptime measurement\"}}"
+        }
+      },
+      "0000000000000011": {
+        "id": "4a3075cb-245e-4b5e-a2bf-cfa3645abfce",
+        "seq": 11,
+        "ts": "2026-09-17T10:32:29.651Z",
+        "runId": "2fd94c38-d637-4f1b-ab84-1c0569805532",
+        "actor": "paper-executor",
+        "eventType": "provider_retry",
+        "detail": {
+          "code": "store_refused",
+          "role": "executor",
+          "attempt": 1,
+          "w4Class": "DRIFT"
+        }
+      },
+      "0000000000000012": {
+        "id": "9b07c0ac-6c99-4c86-9751-a4fba5ce54f9",
+        "seq": 12,
+        "ts": "2026-09-17T10:33:22.164Z",
+        "runId": "2fd94c38-d637-4f1b-ab84-1c0569805532",
+        "actor": "paper-executor",
+        "eventType": "ir_entry_written",
+        "detail": {
+          "kind": "ShardOutput",
+          "id": "definitions",
+          "nodeId": "c792ab3f-2d9a-4088-a96f-41199350f8d1",
+          "stage": "shard-declare",
+          "chars": 711
+        }
+      },
+      "0000000000000013": {
+        "id": "5bd35b28-016f-4c0c-840d-596b949fe0ae",
+        "seq": 13,
+        "ts": "2026-09-17T10:33:49.197Z",
+        "runId": "2fd94c38-d637-4f1b-ab84-1c0569805532",
+        "actor": "paper-executor",
+        "eventType": "ir_entry_written",
+        "detail": {
+          "kind": "ShardOutput",
+          "id": "models",
+          "nodeId": "c792ab3f-2d9a-4088-a96f-41199350f8d1",
+          "stage": "shard-declare",
+          "chars": 240
+        }
+      },
+      "0000000000000014": {
+        "id": "a989af51-0a84-4045-8660-153e5f2d2502",
+        "seq": 14,
+        "ts": "2026-09-17T10:34:57.157Z",
+        "runId": "2fd94c38-d637-4f1b-ab84-1c0569805532",
+        "actor": "paper-executor",
+        "eventType": "ir_entry_written",
+        "detail": {
+          "kind": "ShardOutput",
+          "id": "runtime",
+          "nodeId": "c792ab3f-2d9a-4088-a96f-41199350f8d1",
+          "stage": "shard-declare",
+          "chars": 446
+        }
+      },
+      "0000000000000015": {
+        "id": "2f0a0ef1-3925-4c88-8d50-9998c5ea7e88",
+        "seq": 15,
+        "ts": "2026-09-17T10:34:57.161Z",
+        "runId": "2fd94c38-d637-4f1b-ab84-1c0569805532",
+        "actor": "paper-executor",
+        "eventType": "ir_entry_written",
+        "detail": {
+          "kind": "ShardMerge",
+          "id": "merged-container",
+          "nodeId": "c792ab3f-2d9a-4088-a96f-41199350f8d1",
+          "stage": "shard-declare",
+          "entries": 4
+        }
+      },
+      "0000000000000016": {
+        "id": "f05729d8-5d0f-4467-9ed3-ca1c84b05005",
+        "seq": 16,
+        "ts": "2026-09-17T10:34:57.165Z",
+        "runId": "2fd94c38-d637-4f1b-ab84-1c0569805532",
+        "actor": "paper-executor",
+        "eventType": "container_refused",
+        "detail": {
+          "nodeId": "c792ab3f-2d9a-4088-a96f-41199350f8d1",
+          "attempt": 2,
+          "code": "store_refused",
+          "reason": "entry 'ModelSpec' could not be admitted: reference_kind_mismatch: 'DA-RAW' resolves to DataArtifact, expected ModelSpec (append-only store; a duplicate id is a conflict, not an update)",
+          "output_sha256": "55992bc4bcabcc70d9be6d24618ac2f3c2d4fcc81c95ea7dfb922f01c940d2f9",
+          "excerpt_head": "{\"__dsh_paper\":\"ir-container-v1\",\"entries\":[{\"kind\":\"SymbolSpec\",\"value\":{\"symbol_id\":\"S-RAW\",\"scope_ref\":\"P1\",\"token\":\"raw\",\"meaning\":\"Data represented by DA-RAW\",\"unit\":\"UNKNOWN\",\"role\":\"PARAMETER\",\"shape\":\"UNKNOWN\",\"domain\":\"UNKNOWN\",\"index_set\":[]}},{\"kind\":\"SymbolSpec\",\"value\":{\"symbol_id\":\"S-OUT\",\"scope_ref\":\"P1\",\"token\":\"out\",\"meaning\":\"Output required by R-OUT\",\"unit\":\"UNKNOWN\",\"role\":\"VAR",
+          "excerpt_tail": "uptimeMs = process.uptime() * 1000; fs.writeFileSync('runtime.json', JSON.stringify({references:['DA-RAW','R-OUT','P1'],uptimeMs}));\",\"run\":{\"outputBasenames\":[\"runtime.json\"],\"seed\":0},\"interpretations\":{\"results\":[{\"result_id\":\"RES-UPTIME\",\"name\":\"Process uptime at measurement\",\"source\":{\"locator\":\"runtime.json\",\"jsonPath\":\"$.uptimeMs\"},\"unit\":\"ms\"}]},\"narrative\":{\"title\":\"Runtime measurement\"}}"
+        }
+      },
+      "0000000000000017": {
+        "id": "a2aa2e5d-ac68-4ec3-804a-c8bed40fba38",
+        "seq": 17,
+        "ts": "2026-09-17T10:34:57.176Z",
+        "runId": "2fd94c38-d637-4f1b-ab84-1c0569805532",
+        "actor": "paper-executor",
+        "eventType": "provider_retry",
+        "detail": {
+          "code": "store_refused",
+          "role": "executor",
+          "attempt": 2,
+          "w4Class": "DRIFT"
+        }
+      },
+      "0000000000000018": {
+        "id": "2b068ef0-f232-4540-bdaf-51180731e5ec",
+        "seq": 18,
+        "ts": "2026-09-17T10:35:34.908Z",
+        "runId": "2fd94c38-d637-4f1b-ab84-1c0569805532",
+        "actor": "paper-executor",
+        "eventType": "ir_entry_written",
+        "detail": {
+          "kind": "ShardOutput",
+          "id": "definitions",
+          "nodeId": "c792ab3f-2d9a-4088-a96f-41199350f8d1",
+          "stage": "shard-declare",
+          "chars": 677
+        }
+      },
+      "0000000000000019": {
+        "id": "3cb19678-fb99-4f1d-846b-621e5c8b66d9",
+        "seq": 19,
+        "ts": "2026-09-17T10:35:58.384Z",
+        "runId": "2fd94c38-d637-4f1b-ab84-1c0569805532",
+        "actor": "paper-executor",
+        "eventType": "ir_entry_written",
+        "detail": {
+          "kind": "ShardOutput",
+          "id": "models",
+          "nodeId": "c792ab3f-2d9a-4088-a96f-41199350f8d1",
+          "stage": "shard-declare",
+          "chars": 240
+        }
+      },
+      "0000000000000020": {
+        "id": "b6be089d-7aba-40a8-8967-1b2cea586c3a",
+        "seq": 20,
+        "ts": "2026-09-17T10:36:30.316Z",
+        "runId": "2fd94c38-d637-4f1b-ab84-1c0569805532",
+        "actor": "paper-executor",
+        "eventType": "ir_entry_written",
+        "detail": {
+          "kind": "ShardOutput",
+          "id": "runtime",
+          "nodeId": "c792ab3f-2d9a-4088-a96f-41199350f8d1",
+          "stage": "shard-declare",
+          "chars": 421
+        }
+      },
+      "0000000000000021": {
+        "id": "0dd2885d-2e3e-4e91-b206-8a06367c7013",
+        "seq": 21,
+        "ts": "2026-09-17T10:36:30.320Z",
+        "runId": "2fd94c38-d637-4f1b-ab84-1c0569805532",
+        "actor": "paper-executor",
+        "eventType": "ir_entry_written",
+        "detail": {
+          "kind": "ShardMerge",
+          "id": "merged-container",
+          "nodeId": "c792ab3f-2d9a-4088-a96f-41199350f8d1",
+          "stage": "shard-declare",
+          "entries": 4
+        }
+      },
+      "0000000000000022": {
+        "id": "2bb89337-d578-45b7-85e8-7648ff9381a1",
+        "seq": 22,
+        "ts": "2026-09-17T10:36:30.325Z",
+        "runId": "2fd94c38-d637-4f1b-ab84-1c0569805532",
+        "actor": "paper-executor",
+        "eventType": "container_refused",
+        "detail": {
+          "nodeId": "c792ab3f-2d9a-4088-a96f-41199350f8d1",
+          "attempt": 3,
+          "code": "store_refused",
+          "reason": "entry 'ModelSpec' could not be admitted: reference_kind_mismatch: 'DA-RAW' resolves to DataArtifact, expected ModelSpec (append-only store; a duplicate id is a conflict, not an update)",
+          "output_sha256": "6ce5fa5713b0a415a77172ed0e4eadf26750c6ac5c63ad60826ee7d681342ce6",
+          "excerpt_head": "{\"__dsh_paper\":\"ir-container-v1\",\"entries\":[{\"kind\":\"SymbolSpec\",\"value\":{\"symbol_id\":\"S-X\",\"scope_ref\":\"P1\",\"token\":\"x\",\"meaning\":\"Abstract scalar quantity\",\"unit\":\"UNKNOWN\",\"role\":\"VARIABLE\",\"shape\":\"SCALAR\",\"domain\":\"UNKNOWN\",\"index_set\":[]}},{\"kind\":\"SymbolSpec\",\"value\":{\"symbol_id\":\"S-Y\",\"scope_ref\":\"P1\",\"token\":\"y\",\"meaning\":\"Abstract scalar quantity\",\"unit\":\"UNKNOWN\",\"role\":\"VARIABLE\",\"shap",
+          "excerpt_tail": "equire('node:fs'); const heapUsed = process.memoryUsage().heapUsed; fs.writeFileSync('runtime.json', JSON.stringify({heapUsed}));\",\"run\":{\"outputBasenames\":[\"runtime.json\"],\"seed\":0},\"interpretations\":{\"results\":[{\"result_id\":\"RES-HEAP\",\"name\":\"Runtime heap memory used\",\"source\":{\"locator\":\"runtime.json\",\"jsonPath\":\"$.heapUsed\"},\"unit\":\"bytes\"}]},\"narrative\":{\"title\":\"Runtime memory measurement\"}}"
+        }
+      },
+      "0000000000000023": {
+        "id": "526b98da-be35-4872-bb81-99f97e94ef7f",
+        "seq": 23,
+        "ts": "2026-09-17T10:36:30.344Z",
+        "runId": "2fd94c38-d637-4f1b-ab84-1c0569805532",
+        "actor": "paper-executor",
+        "eventType": "gate_failed",
+        "detail": {
+          "gate": "ir_producer",
+          "reason": "DRIFT guidance budget exhausted"
+        }
+      }
+    }
+  }
+}

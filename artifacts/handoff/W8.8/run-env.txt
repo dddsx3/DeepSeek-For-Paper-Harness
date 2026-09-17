@@ -1,0 +1,11 @@
+ROUTE=https://openrouter.ai/api/v1
+MODEL=stealth/union-alpha
+API_FORMAT=Chat Completions
+SMOKE: HTTP 200 in 3.45s; actual model=stealth/union-alpha (provider Stealth); max_tokens honored (finish=length@16); reasoning_tokens=0; cost=0 (free stealth model); MODEL WRITES THINKING INTO content (not a reasoning channel)
+BUDGET: PAPER_MAX_OUTPUT_TOKENS_PER_RUN=120000
+START_UTC=2026-09-17T05:21:11Z
+START_UTC=2026-09-17T06:59:36Z
+START_UTC=2026-09-17T07:54:52Z (run#3, lib rebuilt)
+START_UTC=2026-09-17T09:02:46Z (run#4, raw debug)
+START_UTC=2026-09-17T09:28:12Z (run#5 SHARD A/B)
+START_UTC=2026-09-17T10:29:48Z (run#6 retry)

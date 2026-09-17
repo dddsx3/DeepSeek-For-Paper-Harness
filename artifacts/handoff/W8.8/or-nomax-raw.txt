@@ -1,0 +1,313 @@
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+data: {"id":"gen-1789632919-YXNd5OKLhQ2o0SeZfg2y","object":"chat.completion.chunk","created":1789632919,"model":"stealth/union-alpha","provider":"Stealth","choices":[{"index":0,"delta":{"content":"{\"__dsh_paper\":\"ir-container-v1\",\"entries\":[{\"type\":\"symbol\",\"id\":\"x\",\"definition\":\"Binary inspection decisions ","role":"assistant"},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1789632919-YXNd5OKLhQ2o0SeZfg2y","object":"chat.completion.chunk","created":1789632919,"model":"stealth/union-alpha","provider":"Stealth","choices":[{"index":0,"delta":{"content":"(x1,x2,xf): inspect component 1, component 2, and the finished product, ","role":"assistant"},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1789632919-YXNd5OKLhQ2o0SeZfg2y","object":"chat.completion.chunk","created":1789632919,"model":"stealth/union-alpha","provider":"Stealth","choices":[{"index":0,"delta":{"content":"respectively.\"},{\"type\":\"symbol\",\"id\":\"p\",\"definition\":\"Defect probabilities (p1,p2,pa), where pa is the assembly ","role":"assistant"},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1789632919-YXNd5OKLhQ2o0SeZfg2y","object":"chat.completion.chunk","created":1789632919,"model":"stealth/union-alpha","provider":"Stealth","choices":[{"index":0,"delta":{"content":"defect probability conditional on both components being ","role":"assistant"},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1789632919-YXNd5OKLhQ2o0SeZfg2y","object":"chat.completion.chunk","created":1789632919,"model":"stealth/union-alpha","provider":"Stealth","choices":[{"index":0,"delta":{"content":"good.\",\"value\":[0.1,0.1,0.05]},{\"type\":\"symbol\",\"id\":\"c\",\"definition\":\"Economic parameters in currency units per item ","role":"assistant"},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1789632919-YXNd5OKLhQ2o0SeZfg2y","object":"chat.completion.chunk","created":1789632919,"model":"stealth/union-alpha","provider":"Stealth","choices":[{"index":0,"delta":{"content":"or operation. Loss is the total incremental cost of shipping a defective product, including any refund or replacement ","role":"assistant"},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1789632919-YXNd5OKLhQ2o0SeZfg2y","object":"chat.completion.chunk","created":1789632919,"model":"stealth/union-alpha","provider":"Stealth","choices":[{"index":0,"delta":{"content":"obligation.\",\"value\":{\"purchase1\":4,\"purchase2\":18,\"inspect1\":2,\"inspect2\":3,\"assembly\":6,\"inspectFinal\":3,\"price\":56,\"l","role":"assistant"},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1789632919-YXNd5OKLhQ2o0SeZfg2y","object":"chat.completion.chunk","created":1789632919,"model":"stealth/union-alpha","provider":"Stealth","choices":[{"index":0,"delta":{"content":"oss\":90}},{\"type\":\"symbol\",\"id\":\"q\",\"definition\":\"Probability that an assembled product is good under decision ","role":"assistant"},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1789632919-YXNd5OKLhQ2o0SeZfg2y","object":"chat.completion.chunk","created":1789632919,"model":"stealth/union-alpha","provider":"Stealth","choices":[{"index":0,"delta":{"content":"x.\"},{\"type\":\"symbol\",\"id\":\"Pi\",\"definition\":\"Expected profit per assembly attempt under decision ","role":"assistant"},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1789632919-YXNd5OKLhQ2o0SeZfg2y","object":"chat.completion.chunk","created":1789632919,"model":"stealth/union-alpha","provider":"Stealth","choices":[{"index":0,"delta":{"content":"x.\"},{\"type\":\"assumption\",\"id\":\"A1\",\"statement\":\"Component defects are independent, defect probabilities are known and ","role":"assistant"},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1789632919-YXNd5OKLhQ2o0SeZfg2y","object":"chat.completion.chunk","created":1789632919,"model":"stealth/union-alpha","provider":"Stealth","choices":[{"index":0,"delta":{"content":"stationary, and assembly succeeds with probability 1-pa when both components are good. Any defective component makes ","role":"assistant"},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1789632919-YXNd5OKLhQ2o0SeZfg2y","object":"chat.completion.chunk","created":1789632919,"model":"stealth/union-alpha","provider":"Stealth","choices":[{"index":0,"delta":{"content":"the finished product defective.\"},{\"type\":\"assumption\",\"id\":\"A2\",\"statement\":\"Inspection is perfect. Inspected ","role":"assistant"},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1789632919-YXNd5OKLhQ2o0SeZfg2y","object":"chat.completion.chunk","created":1789632919,"model":"stealth/union-alpha","provider":"Stealth","choices":[{"index":0,"delta":{"content":"defective components are discarded and independently repurchased until accepted; each purchase and inspection is ","role":"assistant"},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1789632919-YXNd5OKLhQ2o0SeZfg2y","object":"chat.completion.chunk","created":1789632919,"model":"stealth/union-alpha","provider":"Stealth","choices":[{"index":0,"delta":{"content":"charged. Final-inspection rejects are scrapped without salvage. Uninspected finished products are sold, with defective ","role":"assistant"},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1789632919-YXNd5OKLhQ2o0SeZfg2y","object":"chat.completion.chunk","created":1789632919,"model":"stealth/union-alpha","provider":"Stealth","choices":[{"index":0,"delta":{"content":"shipments incurring the lump-sum loss. No disassembly, reuse, or additional replacement cycles are modeled beyond that ","role":"assistant"},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1789632919-YXNd5OKLhQ2o0SeZfg2y","object":"chat.completion.chunk","created":1789632919,"model":"stealth/union-alpha","provider":"Stealth","choices":[{"index":0,"delta":{"content":"loss.\"},{\"type\":\"equation\",\"id\":\"E1\",\"expression\":\"q(x) = ","role":"assistant"},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1789632919-YXNd5OKLhQ2o0SeZfg2y","object":"chat.completion.chunk","created":1789632919,"model":"stealth/union-alpha","provider":"Stealth","choices":[{"index":0,"delta":{"content":"(1-(1-x1)*p1)*(1-(1-x2)*p2)*(1-pa)\"},{\"type\":\"equation\",\"id\":\"E2\",\"expression\":\"Pi(x) = c.price*(1-xf+xf*q(x)) - ","role":"assistant"},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1789632919-YXNd5OKLhQ2o0SeZfg2y","object":"chat.completion.chunk","created":1789632919,"model":"stealth/union-alpha","provider":"Stealth","choices":[{"index":0,"delta":{"content":"(c.purchase1+x1*c.inspect1)/(1-x1*p1) - (c.purchase2+x2*c.inspect2)/(1-x2*p2) - c.assembly - xf*c.inspectFinal - ","role":"assistant"},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1789632919-YXNd5OKLhQ2o0SeZfg2y","object":"chat.completion.chunk","created":1789632919,"model":"stealth/union-alpha","provider":"Stealth","choices":[{"index":0,"delta":{"content":"(1-xf)*(1-q(x))*c.loss\"},{\"type\":\"model\",\"id\":\"M1\",\"name\":\"Binary inspection-policy optimization\",\"objective\":\"Maximize ","role":"assistant"},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1789632919-YXNd5OKLhQ2o0SeZfg2y","object":"chat.completion.chunk","created":1789632919,"model":"stealth/union-alpha","provider":"Stealth","choices":[{"index":0,"delta":{"content":"Pi(x).\",\"domain\":\"x in {0,1}^3\",\"method\":\"Enumerate all eight policies and select the highest expected ","role":"assistant"},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1789632919-YXNd5OKLhQ2o0SeZfg2y","object":"chat.completion.chunk","created":1789632919,"model":"stealth/union-alpha","provider":"Stealth","choices":[{"index":0,"delta":{"content":"profit.\",\"scope\":\"Illustrative CUMCM 2024-B-style inspection subproblem; parameters are examples rather than official ","role":"assistant"},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1789632919-YXNd5OKLhQ2o0SeZfg2y","object":"chat.completion.chunk","created":1789632919,"model":"stealth/union-alpha","provider":"Stealth","choices":[{"index":0,"delta":{"content":"contest data.\"}],\"code\":\"'use strict';\\nconst fs = require('node:fs');\\nconst p = [0.1, 0.1, 0.05];\\nconst c = ","role":"assistant"},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1789632919-YXNd5OKLhQ2o0SeZfg2y","object":"chat.completion.chunk","created":1789632919,"model":"stealth/union-alpha","provider":"Stealth","choices":[{"index":0,"delta":{"content":"{purchase1:4, purchase2:18, inspect1:2, inspect2:3, assembly:6, inspectFinal:3, price:56, loss:90};\\nfunction ","role":"assistant"},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1789632919-YXNd5OKLhQ2o0SeZfg2y","object":"chat.completion.chunk","created":1789632919,"model":"stealth/union-alpha","provider":"Stealth","choices":[{"index":0,"delta":{"content":"evaluate(x) {\\n  const [x1,x2,xf] = x;\\n  const q = (1-(1-x1)*p[0])*(1-(1-x2)*p[1])*(1-p[2]);\\n  const profit = ","role":"assistant"},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1789632919-YXNd5OKLhQ2o0SeZfg2y","object":"chat.completion.chunk","created":1789632919,"model":"stealth/union-alpha","provider":"Stealth","choices":[{"index":0,"delta":{"content":"c.price*(1-xf+xf*q)\\n    - (c.purchase1+x1*c.inspect1)/(1-x1*p[0])\\n    - (c.purchase2+x2*c.inspect2)/(1-x2*p[1])\\n    ","role":"assistant"},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1789632919-YXNd5OKLhQ2o0SeZfg2y","object":"chat.completion.chunk","created":1789632919,"model":"stealth/union-alpha","provider":"Stealth","choices":[{"index":0,"delta":{"content":"- c.assembly - xf*c.inspectFinal\\n    - (1-xf)*(1-q)*c.loss;\\n  return {x,q,profit};\\n}\\nconst policies = [];\\nfor (let ","role":"assistant"},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1789632919-YXNd5OKLhQ2o0SeZfg2y","object":"chat.completion.chunk","created":1789632919,"model":"stealth/union-alpha","provider":"Stealth","choices":[{"index":0,"delta":{"content":"x1=0; x1<=1; x1++) {\\n  for (let x2=0; x2<=1; x2++) {\\n    for (let xf=0; xf<=1; xf++) ","role":"assistant"},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1789632919-YXNd5OKLhQ2o0SeZfg2y","object":"chat.completion.chunk","created":1789632919,"model":"stealth/union-alpha","provider":"Stealth","choices":[{"index":0,"delta":{"content":"policies.push(evaluate([x1,x2,xf]));\\n  }\\n}\\npolicies.sort((a,b) => b.profit-a.profit);\\nconst best = ","role":"assistant"},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1789632919-YXNd5OKLhQ2o0SeZfg2y","object":"chat.completion.chunk","created":1789632919,"model":"stealth/union-alpha","provider":"Stealth","choices":[{"index":0,"delta":{"content":"policies[0];\\nconst baseline = evaluate([0,0,0]);\\nconst round = n => Number(n.toFixed(6));\\nconst output = {\\n  ","role":"assistant"},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1789632919-YXNd5OKLhQ2o0SeZfg2y","object":"chat.completion.chunk","created":1789632919,"model":"stealth/union-alpha","provider":"Stealth","choices":[{"index":0,"delta":{"content":"optimal_policy: {inspect_component_1:best.x[0], inspect_component_2:best.x[1], inspect_finished_product:best.x[2]},\\n  ","role":"assistant"},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1789632919-YXNd5OKLhQ2o0SeZfg2y","object":"chat.completion.chunk","created":1789632919,"model":"stealth/union-alpha","provider":"Stealth","choices":[{"index":0,"delta":{"content":"expected_profit: round(best.profit),\\n  gain_vs_baseline: ","role":"assistant"},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1789632919-YXNd5OKLhQ2o0SeZfg2y","object":"chat.completion.chunk","created":1789632919,"model":"stealth/union-alpha","provider":"Stealth","choices":[{"index":0,"delta":{"content":"round(best.profit-baseline.profit)\\n};\\nfs.writeFileSync('output.json', ","role":"assistant"},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1789632919-YXNd5OKLhQ2o0SeZfg2y","object":"chat.completion.chunk","created":1789632919,"model":"stealth/union-alpha","provider":"Stealth","choices":[{"index":0,"delta":{"content":"JSON.stringify(output,null,2)+'\\\\n');\\nconsole.log(JSON.stringify(output));\\n\",\"run\":{\"runtime\":\"Node.js ","role":"assistant"},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1789632919-YXNd5OKLhQ2o0SeZfg2y","object":"chat.completion.chunk","created":1789632919,"model":"stealth/union-alpha","provider":"Stealth","choices":[{"index":0,"delta":{"content":"18+\",\"dependencies\":[],\"instructions\":\"Save the code field as model.js, then execute the command.\",\"command\":\"node ","role":"assistant"},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1789632919-YXNd5OKLhQ2o0SeZfg2y","object":"chat.completion.chunk","created":1789632919,"model":"stealth/union-alpha","provider":"Stealth","choices":[{"index":0,"delta":{"content":"model.js\",\"output_file\":\"output.json\",\"execution_status\":\"Not executed here; expected results are analytically ","role":"assistant"},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1789632919-YXNd5OKLhQ2o0SeZfg2y","object":"chat.completion.chunk","created":1789632919,"model":"stealth/union-alpha","provider":"Stealth","choices":[{"index":0,"delta":{"content":"calculated.\",\"expected_output\":{\"optimal_policy\":{\"inspect_component_1\":1,\"inspect_component_2\":1,\"inspect_finished_prod","role":"assistant"},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1789632919-YXNd5OKLhQ2o0SeZfg2y","object":"chat.completion.chunk","created":1789632919,"model":"stealth/union-alpha","provider":"Stealth","choices":[{"index":0,"delta":{"content":"uct\":0},\"expected_profit\":15.5,\"gain_vs_baseline\":8.245}},\"interpretations\":{\"optimal_policy\":\"Inspect both components ","role":"assistant"},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1789632919-YXNd5OKLhQ2o0SeZfg2y","object":"chat.completion.chunk","created":1789632919,"model":"stealth/union-alpha","provider":"Stealth","choices":[{"index":0,"delta":{"content":"but skip finished-product inspection. The remaining defect probability is 5%; final inspection would cost 3 per ","role":"assistant"},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1789632919-YXNd5OKLhQ2o0SeZfg2y","object":"chat.completion.chunk","created":1789632919,"model":"stealth/union-alpha","provider":"Stealth","choices":[{"index":0,"delta":{"content":"assembly attempt while avoiding only 1.7 in expected net losses after accounting for foregone defective-product ","role":"assistant"},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1789632919-YXNd5OKLhQ2o0SeZfg2y","object":"chat.completion.chunk","created":1789632919,"model":"stealth/union-alpha","provider":"Stealth","choices":[{"index":0,"delta":{"content":"sales.\",\"expected_profit\":\"The optimal expected profit is 15.5 currency units per assembly attempt: revenue 56 minus ","role":"assistant"},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1789632919-YXNd5OKLhQ2o0SeZfg2y","object":"chat.completion.chunk","created":1789632919,"model":"stealth/union-alpha","provider":"Stealth","choices":[{"index":0,"delta":{"content":"expected component and assembly costs 36 minus expected defective-shipment loss 4.5.\",\"gain_vs_baseline\":\"The optimal ","role":"assistant"},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1789632919-YXNd5OKLhQ2o0SeZfg2y","object":"chat.completion.chunk","created":1789632919,"model":"stealth/union-alpha","provider":"Stealth","choices":[{"index":0,"delta":{"content":"policy improves expected profit by 8.245 currency units per assembly attempt relative to inspecting nothing, whose ","role":"assistant"},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1789632919-YXNd5OKLhQ2o0SeZfg2y","object":"chat.completion.chunk","created":1789632919,"model":"stealth/union-alpha","provider":"Stealth","choices":[{"index":0,"delta":{"content":"expected profit is 7.255.\"},\"narrative\":{\"purpose\":\"Choose economically justified inspection points in a two-component ","role":"assistant"},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1789632919-YXNd5OKLhQ2o0SeZfg2y","object":"chat.completion.chunk","created":1789632919,"model":"stealth/union-alpha","provider":"Stealth","choices":[{"index":0,"delta":{"content":"production process.\",\"limitations\":\"This compact model excludes sampling-plan design, uncertainty in defect estimates, ","role":"assistant"},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1789632919-YXNd5OKLhQ2o0SeZfg2y","object":"chat.completion.chunk","created":1789632919,"model":"stealth/union-alpha","provider":"Stealth","choices":[{"index":0,"delta":{"content":"capacity constraints, and disassembly or reuse. Results depend on the stated revenue and loss accounting.\"}}","role":"assistant"},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1789632919-YXNd5OKLhQ2o0SeZfg2y","object":"chat.completion.chunk","created":1789632919,"model":"stealth/union-alpha","provider":"Stealth","choices":[{"index":0,"delta":{"content":"","role":"assistant"},"finish_reason":"stop","native_finish_reason":"stop"}]}
+
+data: {"id":"gen-1789632919-YXNd5OKLhQ2o0SeZfg2y","object":"chat.completion.chunk","created":1789632919,"model":"stealth/union-alpha","provider":"Stealth","service_tier":null,"choices":[{"index":0,"delta":{"content":"","role":"assistant"},"finish_reason":"stop","native_finish_reason":"stop"}],"usage":{"prompt_tokens":121,"completion_tokens":1811,"total_tokens":1932,"cost":0,"is_byok":false,"prompt_tokens_details":{"cached_tokens":0,"cache_write_tokens":0,"audio_tokens":0,"video_tokens":0},"cost_details":{"upstream_inference_cost":0,"upstream_inference_prompt_cost":0,"upstream_inference_completions_cost":0},"completion_tokens_details":{"reasoning_tokens":0,"image_tokens":0,"audio_tokens":0}}}
+
+data: [DONE]

@@ -1,0 +1,418 @@
+{
+  "unit": {
+    "name": "paper_workflow",
+    "version": 1
+  },
+  "global": null,
+  "tables": {
+    "runs": {
+      "2fd94c38-d637-4f1b-ab84-1c0569805532": {
+        "id": "2fd94c38-d637-4f1b-ab84-1c0569805532",
+        "createdAt": "2026-09-17T10:29:52.556Z",
+        "updatedAt": "2026-09-17T10:36:30.336Z",
+        "status": "failed",
+        "mode": "strict",
+        "harnessVersion": "paper-shell-v0",
+        "configHash": "sha256:dmshell",
+        "usage": {
+          "inputTokens": 4564,
+          "outputTokens": 3760,
+          "costUsd": 0
+        },
+        "version": 13
+      }
+    },
+    "nodes": {
+      "1dbefb29-04e5-4557-9eaa-86909db3e408": {
+        "id": "1dbefb29-04e5-4557-9eaa-86909db3e408",
+        "runId": "2fd94c38-d637-4f1b-ab84-1c0569805532",
+        "parentId": null,
+        "type": "plan",
+        "title": "plan",
+        "role": "executor",
+        "state": "succeeded",
+        "attempts": 1,
+        "maxAttempts": 3,
+        "idempotent": true,
+        "inputArtifactId": null,
+        "outputArtifactId": null,
+        "lastErrorCode": null,
+        "version": 4
+      },
+      "c792ab3f-2d9a-4088-a96f-41199350f8d1": {
+        "id": "c792ab3f-2d9a-4088-a96f-41199350f8d1",
+        "runId": "2fd94c38-d637-4f1b-ab84-1c0569805532",
+        "parentId": null,
+        "type": "execute",
+        "title": "execute",
+        "role": "executor",
+        "state": "failed",
+        "attempts": 3,
+        "maxAttempts": 3,
+        "idempotent": true,
+        "inputArtifactId": null,
+        "outputArtifactId": null,
+        "lastErrorCode": null,
+        "version": 10
+      }
+    },
+    "events": {
+      "2fd94c38-d637-4f1b-ab84-1c0569805532:0000000000000001": {
+        "runId": "2fd94c38-d637-4f1b-ab84-1c0569805532",
+        "nodeId": null,
+        "seq": 1,
+        "type": "plan_ready",
+        "data": {
+          "status": "planning"
+        },
+        "timestamp": "2026-09-17T10:29:52.560Z"
+      },
+      "2fd94c38-d637-4f1b-ab84-1c0569805532:0000000000000002": {
+        "runId": "2fd94c38-d637-4f1b-ab84-1c0569805532",
+        "nodeId": null,
+        "seq": 2,
+        "type": "run_state",
+        "data": {
+          "from": "planning",
+          "to": "running"
+        },
+        "timestamp": "2026-09-17T10:29:52.569Z"
+      },
+      "2fd94c38-d637-4f1b-ab84-1c0569805532:0000000000000003": {
+        "runId": "2fd94c38-d637-4f1b-ab84-1c0569805532",
+        "nodeId": "1dbefb29-04e5-4557-9eaa-86909db3e408",
+        "seq": 3,
+        "type": "node_created",
+        "data": {
+          "state": "pending",
+          "type": "plan"
+        },
+        "timestamp": "2026-09-17T10:29:52.582Z"
+      },
+      "2fd94c38-d637-4f1b-ab84-1c0569805532:0000000000000004": {
+        "runId": "2fd94c38-d637-4f1b-ab84-1c0569805532",
+        "nodeId": "1dbefb29-04e5-4557-9eaa-86909db3e408",
+        "seq": 4,
+        "type": "node_state",
+        "data": {
+          "from": "pending",
+          "to": "ready"
+        },
+        "timestamp": "2026-09-17T10:29:52.587Z"
+      },
+      "2fd94c38-d637-4f1b-ab84-1c0569805532:0000000000000005": {
+        "runId": "2fd94c38-d637-4f1b-ab84-1c0569805532",
+        "nodeId": "1dbefb29-04e5-4557-9eaa-86909db3e408",
+        "seq": 5,
+        "type": "node_state",
+        "data": {
+          "from": "ready",
+          "to": "running"
+        },
+        "timestamp": "2026-09-17T10:29:52.595Z"
+      },
+      "2fd94c38-d637-4f1b-ab84-1c0569805532:0000000000000006": {
+        "runId": "2fd94c38-d637-4f1b-ab84-1c0569805532",
+        "nodeId": "1dbefb29-04e5-4557-9eaa-86909db3e408",
+        "seq": 6,
+        "type": "request_started",
+        "data": {
+          "provider": "openai-compatible-relay",
+          "model": "stealth/union-alpha",
+          "attempt": 1
+        },
+        "timestamp": "2026-09-17T10:29:52.598Z"
+      },
+      "2fd94c38-d637-4f1b-ab84-1c0569805532:0000000000000007": {
+        "runId": "2fd94c38-d637-4f1b-ab84-1c0569805532",
+        "nodeId": null,
+        "seq": 7,
+        "type": "usage",
+        "data": {
+          "inputTokens": 1471,
+          "outputTokens": 663,
+          "costUsd": 0
+        },
+        "timestamp": "2026-09-17T10:30:31.192Z"
+      },
+      "2fd94c38-d637-4f1b-ab84-1c0569805532:0000000000000008": {
+        "runId": "2fd94c38-d637-4f1b-ab84-1c0569805532",
+        "nodeId": "1dbefb29-04e5-4557-9eaa-86909db3e408",
+        "seq": 8,
+        "type": "node_state",
+        "data": {
+          "from": "running",
+          "to": "succeeded"
+        },
+        "timestamp": "2026-09-17T10:30:31.199Z"
+      },
+      "2fd94c38-d637-4f1b-ab84-1c0569805532:0000000000000009": {
+        "runId": "2fd94c38-d637-4f1b-ab84-1c0569805532",
+        "nodeId": "c792ab3f-2d9a-4088-a96f-41199350f8d1",
+        "seq": 9,
+        "type": "node_created",
+        "data": {
+          "state": "pending",
+          "type": "execute"
+        },
+        "timestamp": "2026-09-17T10:30:31.207Z"
+      },
+      "2fd94c38-d637-4f1b-ab84-1c0569805532:0000000000000010": {
+        "runId": "2fd94c38-d637-4f1b-ab84-1c0569805532",
+        "nodeId": "c792ab3f-2d9a-4088-a96f-41199350f8d1",
+        "seq": 10,
+        "type": "node_state",
+        "data": {
+          "from": "pending",
+          "to": "ready"
+        },
+        "timestamp": "2026-09-17T10:30:31.215Z"
+      },
+      "2fd94c38-d637-4f1b-ab84-1c0569805532:0000000000000011": {
+        "runId": "2fd94c38-d637-4f1b-ab84-1c0569805532",
+        "nodeId": "c792ab3f-2d9a-4088-a96f-41199350f8d1",
+        "seq": 11,
+        "type": "node_state",
+        "data": {
+          "from": "ready",
+          "to": "running"
+        },
+        "timestamp": "2026-09-17T10:30:31.223Z"
+      },
+      "2fd94c38-d637-4f1b-ab84-1c0569805532:0000000000000012": {
+        "runId": "2fd94c38-d637-4f1b-ab84-1c0569805532",
+        "nodeId": "c792ab3f-2d9a-4088-a96f-41199350f8d1",
+        "seq": 12,
+        "type": "request_started",
+        "data": {
+          "provider": "openai-compatible-relay",
+          "model": "stealth/union-alpha",
+          "attempt": 1
+        },
+        "timestamp": "2026-09-17T10:30:31.226Z"
+      },
+      "2fd94c38-d637-4f1b-ab84-1c0569805532:0000000000000013": {
+        "runId": "2fd94c38-d637-4f1b-ab84-1c0569805532",
+        "nodeId": null,
+        "seq": 13,
+        "type": "usage",
+        "data": {
+          "inputTokens": 436,
+          "outputTokens": 471,
+          "costUsd": 0
+        },
+        "timestamp": "2026-09-17T10:31:40.025Z"
+      },
+      "2fd94c38-d637-4f1b-ab84-1c0569805532:0000000000000014": {
+        "runId": "2fd94c38-d637-4f1b-ab84-1c0569805532",
+        "nodeId": null,
+        "seq": 14,
+        "type": "usage",
+        "data": {
+          "inputTokens": 213,
+          "outputTokens": 222,
+          "costUsd": 0
+        },
+        "timestamp": "2026-09-17T10:31:53.828Z"
+      },
+      "2fd94c38-d637-4f1b-ab84-1c0569805532:0000000000000015": {
+        "runId": "2fd94c38-d637-4f1b-ab84-1c0569805532",
+        "nodeId": null,
+        "seq": 15,
+        "type": "usage",
+        "data": {
+          "inputTokens": 382,
+          "outputTokens": 501,
+          "costUsd": 0
+        },
+        "timestamp": "2026-09-17T10:32:29.609Z"
+      },
+      "2fd94c38-d637-4f1b-ab84-1c0569805532:0000000000000016": {
+        "runId": "2fd94c38-d637-4f1b-ab84-1c0569805532",
+        "nodeId": "c792ab3f-2d9a-4088-a96f-41199350f8d1",
+        "seq": 16,
+        "type": "node_state",
+        "data": {
+          "from": "running",
+          "to": "failed"
+        },
+        "timestamp": "2026-09-17T10:32:29.647Z"
+      },
+      "2fd94c38-d637-4f1b-ab84-1c0569805532:0000000000000017": {
+        "runId": "2fd94c38-d637-4f1b-ab84-1c0569805532",
+        "nodeId": "c792ab3f-2d9a-4088-a96f-41199350f8d1",
+        "seq": 17,
+        "type": "node_state",
+        "data": {
+          "from": "failed",
+          "to": "ready"
+        },
+        "timestamp": "2026-09-17T10:32:29.658Z"
+      },
+      "2fd94c38-d637-4f1b-ab84-1c0569805532:0000000000000018": {
+        "runId": "2fd94c38-d637-4f1b-ab84-1c0569805532",
+        "nodeId": "c792ab3f-2d9a-4088-a96f-41199350f8d1",
+        "seq": 18,
+        "type": "node_state",
+        "data": {
+          "from": "ready",
+          "to": "running"
+        },
+        "timestamp": "2026-09-17T10:32:30.679Z"
+      },
+      "2fd94c38-d637-4f1b-ab84-1c0569805532:0000000000000019": {
+        "runId": "2fd94c38-d637-4f1b-ab84-1c0569805532",
+        "nodeId": "c792ab3f-2d9a-4088-a96f-41199350f8d1",
+        "seq": 19,
+        "type": "request_started",
+        "data": {
+          "provider": "openai-compatible-relay",
+          "model": "stealth/union-alpha",
+          "attempt": 2
+        },
+        "timestamp": "2026-09-17T10:32:30.683Z"
+      },
+      "2fd94c38-d637-4f1b-ab84-1c0569805532:0000000000000020": {
+        "runId": "2fd94c38-d637-4f1b-ab84-1c0569805532",
+        "nodeId": null,
+        "seq": 20,
+        "type": "usage",
+        "data": {
+          "inputTokens": 436,
+          "outputTokens": 490,
+          "costUsd": 0
+        },
+        "timestamp": "2026-09-17T10:33:22.161Z"
+      },
+      "2fd94c38-d637-4f1b-ab84-1c0569805532:0000000000000021": {
+        "runId": "2fd94c38-d637-4f1b-ab84-1c0569805532",
+        "nodeId": null,
+        "seq": 21,
+        "type": "usage",
+        "data": {
+          "inputTokens": 213,
+          "outputTokens": 170,
+          "costUsd": 0
+        },
+        "timestamp": "2026-09-17T10:33:49.193Z"
+      },
+      "2fd94c38-d637-4f1b-ab84-1c0569805532:0000000000000022": {
+        "runId": "2fd94c38-d637-4f1b-ab84-1c0569805532",
+        "nodeId": null,
+        "seq": 22,
+        "type": "usage",
+        "data": {
+          "inputTokens": 382,
+          "outputTokens": 328,
+          "costUsd": 0
+        },
+        "timestamp": "2026-09-17T10:34:57.153Z"
+      },
+      "2fd94c38-d637-4f1b-ab84-1c0569805532:0000000000000023": {
+        "runId": "2fd94c38-d637-4f1b-ab84-1c0569805532",
+        "nodeId": "c792ab3f-2d9a-4088-a96f-41199350f8d1",
+        "seq": 23,
+        "type": "node_state",
+        "data": {
+          "from": "running",
+          "to": "failed"
+        },
+        "timestamp": "2026-09-17T10:34:57.172Z"
+      },
+      "2fd94c38-d637-4f1b-ab84-1c0569805532:0000000000000024": {
+        "runId": "2fd94c38-d637-4f1b-ab84-1c0569805532",
+        "nodeId": "c792ab3f-2d9a-4088-a96f-41199350f8d1",
+        "seq": 24,
+        "type": "node_state",
+        "data": {
+          "from": "failed",
+          "to": "ready"
+        },
+        "timestamp": "2026-09-17T10:34:57.183Z"
+      },
+      "2fd94c38-d637-4f1b-ab84-1c0569805532:0000000000000025": {
+        "runId": "2fd94c38-d637-4f1b-ab84-1c0569805532",
+        "nodeId": "c792ab3f-2d9a-4088-a96f-41199350f8d1",
+        "seq": 25,
+        "type": "node_state",
+        "data": {
+          "from": "ready",
+          "to": "running"
+        },
+        "timestamp": "2026-09-17T10:34:58.939Z"
+      },
+      "2fd94c38-d637-4f1b-ab84-1c0569805532:0000000000000026": {
+        "runId": "2fd94c38-d637-4f1b-ab84-1c0569805532",
+        "nodeId": "c792ab3f-2d9a-4088-a96f-41199350f8d1",
+        "seq": 26,
+        "type": "request_started",
+        "data": {
+          "provider": "openai-compatible-relay",
+          "model": "stealth/union-alpha",
+          "attempt": 3
+        },
+        "timestamp": "2026-09-17T10:34:58.943Z"
+      },
+      "2fd94c38-d637-4f1b-ab84-1c0569805532:0000000000000027": {
+        "runId": "2fd94c38-d637-4f1b-ab84-1c0569805532",
+        "nodeId": null,
+        "seq": 27,
+        "type": "usage",
+        "data": {
+          "inputTokens": 436,
+          "outputTokens": 446,
+          "costUsd": 0
+        },
+        "timestamp": "2026-09-17T10:35:34.905Z"
+      },
+      "2fd94c38-d637-4f1b-ab84-1c0569805532:0000000000000028": {
+        "runId": "2fd94c38-d637-4f1b-ab84-1c0569805532",
+        "nodeId": null,
+        "seq": 28,
+        "type": "usage",
+        "data": {
+          "inputTokens": 213,
+          "outputTokens": 161,
+          "costUsd": 0
+        },
+        "timestamp": "2026-09-17T10:35:58.380Z"
+      },
+      "2fd94c38-d637-4f1b-ab84-1c0569805532:0000000000000029": {
+        "runId": "2fd94c38-d637-4f1b-ab84-1c0569805532",
+        "nodeId": null,
+        "seq": 29,
+        "type": "usage",
+        "data": {
+          "inputTokens": 382,
+          "outputTokens": 308,
+          "costUsd": 0
+        },
+        "timestamp": "2026-09-17T10:36:30.312Z"
+      },
+      "2fd94c38-d637-4f1b-ab84-1c0569805532:0000000000000030": {
+        "runId": "2fd94c38-d637-4f1b-ab84-1c0569805532",
+        "nodeId": "c792ab3f-2d9a-4088-a96f-41199350f8d1",
+        "seq": 30,
+        "type": "node_state",
+        "data": {
+          "from": "running",
+          "to": "failed"
+        },
+        "timestamp": "2026-09-17T10:36:30.332Z"
+      },
+      "2fd94c38-d637-4f1b-ab84-1c0569805532:0000000000000031": {
+        "runId": "2fd94c38-d637-4f1b-ab84-1c0569805532",
+        "nodeId": null,
+        "seq": 31,
+        "type": "run_state",
+        "data": {
+          "from": "running",
+          "to": "failed"
+        },
+        "timestamp": "2026-09-17T10:36:30.340Z"
+      }
+    },
+    "artifacts": {},
+    "manifests": {}
+  }
+}

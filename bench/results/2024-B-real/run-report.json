@@ -1,0 +1,31 @@
+{
+  "runId": "a473fdf9-0384-48ef-8aa5-e49272984cd4",
+  "tier": "T1",
+  "mode": "strict",
+  "status": "BLOCKED",
+  "routed_family": "F4",
+  "route_truth": "F3+F4",
+  "route_mismatch": true,
+  "classifier": "transport",
+  "code": "gate-failed",
+  "humanized": "调用/传输失败（gate-failed）：node '8122d956-a386-412c-8295-69800f00fca7' exhausted 3 attempts: EXECUTE output was not a schema-valid ir-container-v1 (BLOCKED)",
+  "wall_clock_seconds": 1000.6,
+  "usage": {
+    "input_tokens": 1471,
+    "output_tokens": 603,
+    "cost_usd": 0
+  },
+  "memo": {
+    "passed_gates": [
+      "plan"
+    ],
+    "minted_ir_kinds": [],
+    "minted_ir_count": 0,
+    "failing_node": {
+      "title": "execute",
+      "attempts": 3,
+      "code": null
+    },
+    "suggested_intervention": "重试一次；若持续失败报告给维护者。"
+  }
+}

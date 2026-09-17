@@ -1,0 +1,399 @@
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+data: {"id":"gen-1789630305-fc7qEtppMD75dTaEkYkL","object":"chat.completion.chunk","created":1789630305,"model":"stealth/union-alpha","provider":"Stealth","choices":[{"index":0,"delta":{"content":"{\"__dsh_paper\":\"ir-container-v1\",\"entries\":[{\"symbol_id\":\"x\",\"scope_ref\":\"P1\",\"token\":\"x_i\",\"meaning\":\"Whether part i ","role":"assistant"},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1789630305-fc7qEtppMD75dTaEkYkL","object":"chat.completion.chunk","created":1789630305,"model":"stealth/union-alpha","provider":"Stealth","choices":[{"index":0,"delta":{"content":"receives perfect inspection and defect remediation before ","role":"assistant"},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1789630305-fc7qEtppMD75dTaEkYkL","object":"chat.completion.chunk","created":1789630305,"model":"stealth/union-alpha","provider":"Stealth","choices":[{"index":0,"delta":{"content":"shipment\",\"unit\":\"dimensionless\",\"role\":\"decision_variable\",\"shape\":\"vector\",\"domain\":\"{0,1}\",\"index_set\":\"I: set of ","role":"assistant"},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1789630305-fc7qEtppMD75dTaEkYkL","object":"chat.completion.chunk","created":1789630305,"model":"stealth/union-alpha","provider":"Stealth","choices":[{"index":0,"delta":{"content":"produced parts\"},{\"symbol_id\":\"p\",\"scope_ref\":\"P1\",\"token\":\"p_i\",\"meaning\":\"Probability that part i is defective before ","role":"assistant"},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1789630305-fc7qEtppMD75dTaEkYkL","object":"chat.completion.chunk","created":1789630305,"model":"stealth/union-alpha","provider":"Stealth","choices":[{"index":0,"delta":{"content":"inspection\",\"unit\":\"dimensionless\",\"role\":\"parameter\",\"shape\":\"vector\",\"domain\":\"[0,1]\",\"index_set\":\"I: set of produced ","role":"assistant"},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1789630305-fc7qEtppMD75dTaEkYkL","object":"chat.completion.chunk","created":1789630305,"model":"stealth/union-alpha","provider":"Stealth","choices":[{"index":0,"delta":{"content":"parts\"},{\"symbol_id\":\"c\",\"scope_ref\":\"P1\",\"token\":\"c_i\",\"meaning\":\"Expected inspection and remediation cost for part i, ","role":"assistant"},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1789630305-fc7qEtppMD75dTaEkYkL","object":"chat.completion.chunk","created":1789630305,"model":"stealth/union-alpha","provider":"Stealth","choices":[{"index":0,"delta":{"content":"divided by the loss from shipping one defective ","role":"assistant"},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1789630305-fc7qEtppMD75dTaEkYkL","object":"chat.completion.chunk","created":1789630305,"model":"stealth/union-alpha","provider":"Stealth","choices":[{"index":0,"delta":{"content":"part\",\"unit\":\"dimensionless\",\"role\":\"parameter\",\"shape\":\"vector\",\"domain\":\"[0,infinity)\",\"index_set\":\"I: set of ","role":"assistant"},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1789630305-fc7qEtppMD75dTaEkYkL","object":"chat.completion.chunk","created":1789630305,"model":"stealth/union-alpha","provider":"Stealth","choices":[{"index":0,"delta":{"content":"produced ","role":"assistant"},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1789630305-fc7qEtppMD75dTaEkYkL","object":"chat.completion.chunk","created":1789630305,"model":"stealth/union-alpha","provider":"Stealth","choices":[{"index":0,"delta":{"content":"parts\"},{\"model_id\":\"M1\",\"problem_refs\":[\"P1\"],\"assumption_refs\":[],\"variable_refs\":[\"x\"],\"parameter_refs\":[\"p\",\"c\"],\"eq","role":"assistant"},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1789630305-fc7qEtppMD75dTaEkYkL","object":"chat.completion.chunk","created":1789630305,"model":"stealth/union-alpha","provider":"Stealth","choices":[{"index":0,"delta":{"content":"uation_refs\":[],\"constraints\":[\"x_i in {0,1} for every i in I\"],\"objective\":\"Minimize sum_{i in I} [c_i*x_i + ","role":"assistant"},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1789630305-fc7qEtppMD75dTaEkYkL","object":"chat.completion.chunk","created":1789630305,"model":"stealth/union-alpha","provider":"Stealth","choices":[{"index":0,"delta":{"content":"p_i*(1-x_i)], the expected total cost normalized by a common per-defective-part shipment loss, assuming perfect ","role":"assistant"},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1789630305-fc7qEtppMD75dTaEkYkL","object":"chat.completion.chunk","created":1789630305,"model":"stealth/union-alpha","provider":"Stealth","choices":[{"index":0,"delta":{"content":"inspection and remediation eliminate that loss for inspected ","role":"assistant"},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1789630305-fc7qEtppMD75dTaEkYkL","object":"chat.completion.chunk","created":1789630305,"model":"stealth/union-alpha","provider":"Stealth","choices":[{"index":0,"delta":{"content":"parts.\",\"dependencies\":[]}],\"narrative\":{\"title\":\"Part-Level Quality Inspection Decisions\"}}","role":"assistant"},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1789630305-fc7qEtppMD75dTaEkYkL","object":"chat.completion.chunk","created":1789630305,"model":"stealth/union-alpha","provider":"Stealth","choices":[{"index":0,"delta":{"content":"","role":"assistant"},"finish_reason":"stop","native_finish_reason":"stop"}]}
+
+data: {"id":"gen-1789630305-fc7qEtppMD75dTaEkYkL","object":"chat.completion.chunk","created":1789630305,"model":"stealth/union-alpha","provider":"Stealth","service_tier":null,"choices":[{"index":0,"delta":{"content":"","role":"assistant"},"finish_reason":"stop","native_finish_reason":"stop"}],"usage":{"prompt_tokens":140,"completion_tokens":554,"total_tokens":694,"cost":0,"is_byok":false,"prompt_tokens_details":{"cached_tokens":0,"cache_write_tokens":0,"audio_tokens":0,"video_tokens":0},"cost_details":{"upstream_inference_cost":0,"upstream_inference_prompt_cost":0,"upstream_inference_completions_cost":0},"completion_tokens_details":{"reasoning_tokens":0,"image_tokens":0,"audio_tokens":0}}}
+
+data: [DONE]

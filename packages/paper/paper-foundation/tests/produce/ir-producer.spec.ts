@@ -323,3 +323,31 @@ describe('W1 producer — unchanged walls', () => {
     expect((stored?.value as { statement: string }).statement).toBe(special)
   })
 })
+
+describe('W9-P2 / O-L1-10 — idempotent re-entry after a partial write', () => {
+  it('re-running the SAME container over a partially-written store succeeds (retry-safe)', () => {
+    const ir = new ModelingIr()
+    registerHarnessAssets(ir)
+    const container = modelFaceContainer([]) // legal container
+    // attempt 1: write it fully
+    const first = produceContainerInto(ir, container)
+    expect(first.ok).toBe(true)
+    // attempt 2 (retry): the SAME container again — every entry already
+    // exists with identical content → idempotent, not a duplicate conflict.
+    const second = produceContainerInto(ir, container)
+    expect(second.ok).toBe(true)
+    if (second.ok) expect(second.entries.length).toBe(first.ok ? first.entries.length : 0)
+  })
+
+  it('re-running a CHANGED container still conflicts (append-only unchanged)', () => {
+    const ir = new ModelingIr()
+    registerHarnessAssets(ir)
+    const first = produceContainerInto(ir, modelFaceContainer([]))
+    expect(first.ok).toBe(true)
+    // same ids, different content → a real conflict, never a quiet update
+    const changed = modelFaceContainer([{ kind: 'SymbolSpec', value: { ...variableSymbol(), meaning: 'CHANGED' } }])
+    const second = produceContainerInto(ir, changed)
+    expect(second.ok).toBe(false)
+    if (!second.ok) expect(second.code).toBe('conflicting_id')
+  })
+})
