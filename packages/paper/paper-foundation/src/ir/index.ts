@@ -99,7 +99,7 @@ export type { ScanVerdict, StrictJsonFailureReason, StrictJsonResult } from './p
 
 export { deepFreeze } from './freeze.ts'
 
-export { IR_REF_FIELDS, isAllowedTarget, validateRefFields, validateScopeOwnership, IR_SCOPE_FIELDS } from './refs.ts'
+export { IR_REF_FIELDS, isAllowedTarget, splitCompositeRef, validateRefFields, validateScopeOwnership, IR_SCOPE_FIELDS } from './refs.ts'
 export type { IrRefFieldSpec, IrRefProblem, IrRefResolution, IrRefTarget, IrRefResolver } from './refs.ts'
 
 // TASK-T1 Sprint 2 — derived reverse indexes (REF-001/005). Derived data

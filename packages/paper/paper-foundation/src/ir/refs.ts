@@ -47,7 +47,7 @@
  */
 
 import { deepFreeze } from './freeze.ts'
-import type { IrKind } from './schema.ts'
+import { IR_KINDS, type IrKind } from './schema.ts'
 
 /**
  * What a reference field is allowed to point at.
@@ -193,7 +193,6 @@ deepFreeze(IR_REF_FIELDS)
 
 /** Why a reference failed to resolve. */
 export type IrRefResolution = 'missing' | 'kind_mismatch' | 'scope_mismatch'
-
 /** A ref that the resolver rejected, with enough context for a stable audit. */
 export interface IrRefProblem {
   /** Field path on the offending object (e.g. `parameter_refs.2.symbol_ref`). */
@@ -243,6 +242,15 @@ export function validateRefFields(
 
   for (const spec of IR_REF_FIELDS[kind]) {
     const raw = source[spec.path]
+    // W8.11-D1: an EXPLICIT `null` is a legal "this reference does not apply"
+    // value, not a dangling reference. Before this short-circuit the null fell
+    // through to `resolve(null)` → `Map.get(null)` → undefined → `missing`,
+    // so the store refused a value the schema had just accepted and reported
+    // it as "the reference does not exist" — the least diagnosable shape a
+    // failure can take. `undefined` is NOT the same thing: it means the field
+    // was absent, which the schema has already rejected for a required ref,
+    // and it keeps its old behaviour here.
+    if (raw === null) continue
     if (spec.arity === 'single') {
       // Bare string ref. Schema has already rejected `undefined` / wrong type.
       const ref = raw as string
@@ -261,11 +269,49 @@ export function validateRefFields(
     for (let i = 0; i < entries.length; i += 1) {
       const entry = entries[i] ?? {}
       const ref = entry[spec.arity.child] as string
+      // W8.11-D1: same null tolerance as the single case above — a nested
+      // entry may legally say "no reference here" with an explicit null.
+      if ((entry[spec.arity.child] as unknown) === null) continue
       problems.push(...checkRef(`${spec.path}.${i}.${spec.arity.child}`, ref, spec.target, resolve))
     }
   }
 
   return problems
+}
+
+/**
+ * W8.11-D1 — split a COMPOSITE reference into its object id and optional path.
+ *
+ * 规格（`docs/quality/CAPABILITY-SCHEMA.md:78`）用的形式是
+ * `'Result:r_q1_surface_dev.value'` / `'run_output:result1.xlsx!C2'`——即
+ * `<Kind>:<id>.<field>`。全仓此前**没有任何解析器**（`grep "split(':')"` 零命中），
+ * 故 `Map.get('Result:r_q1.value')` 恒 `undefined`，整个示例按字面 ingest 会全部
+ * 失败。这里补上解析，但**只解析，不改变解析结果的含义**：
+ *
+ *   - `Kind` 若是一个已知的 IR kind 名，作为**目标种类的显式断言**；
+ *   - `id` 之前的最后一段是对象 id（`Result:r_q1.value` → `r_q1`）；
+ *   - 剩余部分是**字段路径**，供未来的算子使用（本函数不校验它是否存在——
+ *     引用校验的职责是"这个对象在不在"，字段路径的解析属于使用它的算子）。
+ *
+ * 非复合形式（`'P1'`、`'DA-RAW'`）原样返回 id，无 path——所以既有引用
+ * **零行为变化**。
+ *
+ * @param ref - the raw reference string.
+ */
+export function splitCompositeRef(ref: string): { kind: string | undefined; id: string; path: string | undefined } {
+  const colon = ref.indexOf(':')
+  if (colon <= 0) return { kind: undefined, id: ref, path: undefined }
+  const head = ref.slice(0, colon)
+  const rest = ref.slice(colon + 1)
+  // Only treat the head as a kind assertion when it names a kind we know.
+  // `run_output:result1.xlsx!C2` is the spec's other example and `run_output`
+  // is NOT an IR kind — it is an external locator, so the whole string stays
+  // the id. Guessing otherwise would silently mangle legitimate ids that
+  // happen to contain a colon.
+  if (!(IR_KINDS as ReadonlyArray<string>).includes(head)) return { kind: undefined, id: ref, path: undefined }
+  const dot = rest.indexOf('.')
+  if (dot < 0) return { kind: head, id: rest, path: undefined }
+  return { kind: head, id: rest.slice(0, dot), path: rest.slice(dot + 1) }
 }
 
 function checkRef(
@@ -274,12 +320,24 @@ function checkRef(
   target: IrRefTarget,
   resolve: IrRefResolver,
 ): ReadonlyArray<IrRefProblem> {
-  const actual = resolve(ref)
+  const composite = splitCompositeRef(ref)
+  const actual = resolve(composite.id)
   if (actual === undefined) {
-    return [{ path, ref, target, resolution: 'missing', actual: null }]
+    // W8.11-D1: the problem carries the ID that failed to resolve, not the
+    // whole composite string — otherwise a reader sees `Result:r_q1.value` in
+    // the "missing" message and cannot tell which part was missing.
+    return [{ path, ref: composite.id, target, resolution: 'missing', actual: null }]
+  }
+  // A composite ref names its kind explicitly; a mismatch against the
+  // declared target is reported against the kind the REF claims, so the
+  // message says "you wrote Result but this field takes RunArtifact".
+  // `IR_KINDS` is the closed list of kind NAMES, so the head IS the kind.
+  const claimed: IrKind | undefined = composite.kind === undefined ? actual : (composite.kind as IrKind)
+  if (claimed !== undefined && !isAllowedTarget(target, claimed)) {
+    return [{ path, ref: composite.id, target, resolution: 'kind_mismatch', actual: claimed }]
   }
   if (!isAllowedTarget(target, actual)) {
-    return [{ path, ref, target, resolution: 'kind_mismatch', actual }]
+    return [{ path, ref: composite.id, target, resolution: 'kind_mismatch', actual }]
   }
   return []
 }
