@@ -30,6 +30,7 @@ import {
 import { EXECUTE_PROTOCOL_TEACHING } from '../src/executor.ts'
 import { ModelingIr } from '../src/ir/store.ts'
 import { ID_FIELD_BY_KIND, IR_SCHEMAS, isIrId } from '../src/ir/schema.ts'
+import { IR_REF_FIELDS } from '../src/ir/refs.ts'
 import {
   e1AnalysisInstruction,
   E1_ASSUMPTION_MARKER,
@@ -1143,5 +1144,50 @@ describe('W8.11-A1c — the one unstated field shape', () => {
     // and the shape the model actually wrote is REFUSED (proving the gate is real)
     const wrong = { ...example, parameter_refs: ['S-P0'] }
     expect(IR_SCHEMAS.ModelSpec.safeParse(wrong).success).toBe(false)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// W8.11-A1d — the reference TARGETS reach the first attempt
+// ---------------------------------------------------------------------------
+
+describe('W8.11-A1d — reference rules are taught, and derived', () => {
+  it('run-3 shape: the E2 prompt states that sensitivity_refs takes Result/DataArtifact', () => {
+    // 事故（run-3 真实运行）：模型把 SymbolSpec 的 id（`S-P1`）放进
+    // `AssumptionSpec.sensitivity_refs`——那个字段只接受 Result/DataArtifact。
+    // 封闭 store 于是拒绝**整个容器**（`reference_kind_mismatch`），而这发生在
+    // **fidelity 门已经全部通过之后**，白白吃掉最后一次尝试。
+    //
+    // 根因：讲义只列了字段名，从没说过每个引用字段指向哪些 kind。
+    const prompt = e2NormalizationPrompt('ANALYSIS', 'TEACHING')
+    expect(prompt).toContain('sensitivity_refs -> Result | DataArtifact')
+    expect(prompt).toContain('lhs_symbols -> SymbolSpec')
+  })
+
+  it('the rules are DERIVED from IR_REF_FIELDS (no second copy to drift)', () => {
+    // 逐条比对：讲义里出现的每个规则，都必须在 `IR_REF_FIELDS` 里找得到；
+    // 且覆盖了模型会声明的主要 kind。
+    const rules = declarableRefRules()
+    const kinds = new Set(rules.map(r => r.kind))
+    for (const kind of ['SymbolSpec', 'AssumptionSpec', 'EquationSpec', 'ModelSpec']) {
+      expect(kinds.has(kind), `${kind} missing from the taught rules`).toBe(true)
+    }
+    // the specific field that failed must be present with the right target
+    const sens = rules.find(r => r.kind === 'AssumptionSpec' && r.path === 'sensitivity_refs')
+    expect(sens?.target).toBe('Result | DataArtifact')
+    // and it matches the validator's own table
+    const fromTable = IR_REF_FIELDS.AssumptionSpec.find(s => s.path === 'sensitivity_refs')
+    expect(sens?.target).toBe(Array.isArray(fromTable?.target) ? fromTable.target.join(' | ') : String(fromTable?.target))
+  })
+
+  it('the taught rule set covers EVERY reference field of the declarable kinds', () => {
+    // 防漏：`declarableRefRules` 曾漏掉 AssumptionSpec/EquationSpec/SymbolSpec
+    // ——**正是模型声明最多的三个 kind**。这条断言把"漏掉"变成红的。
+    const taught = new Set(declarableRefRules().map(r => `${r.kind}.${r.path}`))
+    for (const kind of ['SymbolSpec', 'AssumptionSpec', 'EquationSpec', 'ModelSpec'] as const) {
+      for (const spec of IR_REF_FIELDS[kind]) {
+        expect(taught.has(`${kind}.${spec.path}`), `${kind}.${spec.path} not taught`).toBe(true)
+      }
+    }
   })
 })

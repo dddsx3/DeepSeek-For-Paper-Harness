@@ -140,6 +140,14 @@ export {
 } from './artifact-body.ts'
 export type { ArtifactBody, ArtifactBodyConfig } from './artifact-body.ts'
 export {
+  BOUNDARY_IDS, CAPABILITY_JUDGES, FAMILIES, MACHINE_CHECK_KINDS,
+  PROBE_IDS, THRESHOLD_OPERATORS, VERIFICATION_DEPTHS,
+} from './capability-sets.ts'
+export type {
+  BoundaryId, CapabilityJudge, Family, MachineCheckKind,
+  ProbeId, ThresholdOperator, VerificationDepth,
+} from './capability-sets.ts'
+export {
   DEFAULT_LEGACY_TIMEOUT_MS, LegacyMigrationError, PAPER_ROLES, inferProvider,
   legacyEventSchema, legacyNodeSchema, legacyRunSchema, legacySettingsSchema,
   migrateLegacyEvent, migrateLegacyNode, migrateLegacyRun, migrateLegacySettings,

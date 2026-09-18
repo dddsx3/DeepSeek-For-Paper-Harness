@@ -35,6 +35,11 @@
  */
 
 import { isIrId } from '../ir/schema.ts'
+// W8.11-A1d: the reference-target list is DERIVED from the validator's own
+// table, not restated here — a hand-written copy is how the teaching and the
+// store come to disagree. `e2-guidance.ts` is a leaf (only `executor.ts`
+// imports it), so this edge introduces no cycle.
+import { declarableRefRules } from './e2-guidance.ts'
 
 /** The E1 anchor markers. Exported so prompts, parser and tests share one source. */
 export const E1_ASSUMPTION_MARKER = '[[ASSUMPTION:'
@@ -243,6 +248,16 @@ export function e2NormalizationPrompt(e1Text: string, containerTeaching: string)
     '  3. Every requirement id the harness listed has a [[REQUIREMENT: <id>]] anchor in the analysis.',
     '  4. No numbers of your own anywhere outside your `code`.',
     '  5. Do not re-declare any id the harness registered.',
+    // W8.11-A1d (repair, found by the third real run): the reference TARGETS
+    // were never stated, so the model put a SymbolSpec id (`S-P1`) into
+    // `AssumptionSpec.sensitivity_refs` — a field that takes Result/DataArtifact.
+    // The store then refused the whole container (`reference_kind_mismatch`)
+    // AFTER the fidelity gate had passed, costing the run. Every reference
+    // field's legal target is now listed, derived from `IR_REF_FIELDS` (the
+    // same table the validator walks) rather than hand-written, so this list
+    // cannot drift from what the store enforces.
+    '  6. Every REFERENCE field must point at the kinds listed here — a reference to the wrong kind refuses the whole container:',
+    ...declarableRefRules().map(r => `       ${r.kind}.${r.path} -> ${r.target}`),
   ].join('\n')
 }
 

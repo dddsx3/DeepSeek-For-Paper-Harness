@@ -27,9 +27,19 @@
  */
 
 import { getContract } from './contracts/index.ts'
+import { FAMILIES as CANONICAL_FAMILIES } from '@deepseek-ai/dsh-paper-foundation'
 
-/** Closed family ids (keep in sync with bench/PREREGISTRATION.md §A). */
-export const FAMILIES = ['F1', 'F2', 'F3', 'F4'] as const
+/**
+ * Closed family ids.
+ *
+ * W8.11-D2: the canonical definition moved into `paper-foundation`
+ * (`capability-sets.ts`) because `paper-foundation` does NOT depend on this
+ * app — the dependency runs the other way — so W8.12's `CapabilitySpec` could
+ * never import it from here. Re-exported under the same name so every
+ * existing importer keeps working, and there is exactly ONE definition
+ * (a second copy is how "F3+F4" and "F4" came to disagree in the first place).
+ */
+export const FAMILIES = CANONICAL_FAMILIES
 export type MethodFamily = (typeof FAMILIES)[number]
 /** Families that HAVE an implemented contract. W8.6-C1: derived from the
  *  contract registry itself (not a hand-kept list) — "supported" can
