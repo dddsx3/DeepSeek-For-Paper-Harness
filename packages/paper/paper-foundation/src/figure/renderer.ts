@@ -16,6 +16,7 @@
 
 import { canonicalJson, sha256Hex } from '../ir/evidence-freeze.ts'
 import { parseLedger, seriesFromLedger, type LedgerTable } from './ledger.ts'
+import { planCategoricalLabels } from './axis-labels.ts'
 import type { IrObjectRecord } from '../ir/store.ts'
 
 export const FIGURE_STYLE_PROFILE = 'okabe-ito-v1'
@@ -336,7 +337,13 @@ function renderSeries2DSvg(input: RenderInput): string {
   const L = 76
   const R = 24
   const T = 28
-  const B = 52
+  // W9（用户实测）：类别标签需要旋转/抽稀时，底部预留更多空间
+  const catLabels = (input.series2d?.[0]?.xLabels) ?? []
+  const catSlotPx = (W - L - R) / Math.max(1, catLabels.length)
+  const catPlan = catLabels.length > 0
+    ? planCategoricalLabels(catLabels, catSlotPx, recipe.font_size - 2)
+    : undefined
+  const B = catPlan?.rotate === true ? 86 : 52
   const plotW = W - L - R
   const plotH = H - T - B
 
@@ -405,13 +412,19 @@ function renderSeries2DSvg(input: RenderInput): string {
 
   const color = (i: number): string => recipe.palette[i % recipe.palette.length] ?? recipe.ink
 
-  // category labels under the axis (one per category slot)
-  if (categorical) {
-    const labels = series2d[0]?.xLabels ?? []
-    labels.forEach((lab, i) => {
-      const gx = sx(i + 1)
-      parts.push(`<text x="${fmt(gx)}" y="${T + plotH + 16}" text-anchor="middle" font-family="sans-serif" font-size="${recipe.font_size - 2}" fill="${recipe.ink}">${escapeXml(lab)}</text>`)
-    })
+  // category labels under the axis — planned (rotate + thin when crowded).
+  // 事故（用户实测）：54 个地块名横排在 580px 里全部重叠。照搬 matplotlib
+  // 的 rotation=45/ha='right' + 确定性抽稀（首标签必画）。
+  if (categorical && catPlan !== undefined) {
+    const tickFont = recipe.font_size - 2
+    for (const p of catPlan.labels) {
+      const gx = sx(p.index + 1)
+      if (!p.rotate) {
+        parts.push(`<text x="${fmt(gx)}" y="${T + plotH + 16}" text-anchor="middle" font-family="sans-serif" font-size="${tickFont}" fill="${recipe.ink}">${escapeXml(p.label)}</text>`)
+      } else {
+        parts.push(`<text x="${fmt(gx)}" y="${T + plotH + 12}" text-anchor="end" font-family="sans-serif" font-size="${tickFont}" fill="${recipe.ink}" transform="rotate(-45 ${fmt(gx)} ${T + plotH + 12})">${escapeXml(p.label)}</text>`)
+      }
+    }
   }
   series2d.forEach((sr, si) => {
     const c = color(si)
