@@ -27,7 +27,7 @@ import {
   WorkflowEngineService,
 } from '../src/index.ts'
 import { ModelingIr } from '../src/ir/store.ts'
-import { ID_FIELD_BY_KIND } from '../src/ir/schema.ts'
+import { ID_FIELD_BY_KIND, isIrId } from '../src/ir/schema.ts'
 import {
   e1AnalysisInstruction,
   E1_ASSUMPTION_MARKER,
@@ -37,6 +37,7 @@ import {
   fidelityOk,
   foldForAnchorMatch,
   diagnoseSpanMismatch,
+  isUsableAnchorId,
   parseE1Anchors,
 } from '../src/produce/e1-e2.ts'
 import {
@@ -324,6 +325,70 @@ describe('W8.9-B3 — two-way fidelity (each rule gets a constructed counter-exa
       requiredOutputIds: ['R-OUT'],
     })
     expect(findings.find(f => f.rule.includes('B4'))?.ok).toBe(true)
+  })
+
+  // -------------------------------------------------------------------------
+  // W8.11-A1 — the anchor id must be a USABLE NAME (not a placeholder)
+  // -------------------------------------------------------------------------
+
+  it('B5 violation: a placeholder anchor id (`...`) is caught and named', () => {
+    // 真实事故（run-4）：E1 写了 `[[ASSUMPTION: ...]]`，反向检查于是报
+    // "E1 标记了但 IR 未声明的假设：..."——**读者无法分辨**这是模型漏声明一条
+    // 假设，还是写了个占位符。两件事的修法完全不同，而当时的文案把两者说成
+    // 同一件事。这条把占位符**单独命名**。
+    const e1 = '[[ASSUMPTION: ...]] 检测本身无误差。\n[[REQUIREMENT: R-OUT]] 问题 1 要求设计抽样方案。'
+    const findings = checkE1E2Fidelity({ e1Text: e1, entries: [], requiredOutputIds: ['R-OUT'] })
+    const b5 = findings.find(f => f.rule.includes('B5'))
+    expect(b5?.ok, JSON.stringify(findings)).toBe(false)
+    expect(b5?.detail).toContain('...')
+    // 反向**不再**把占位符当成"一条未声明的假设"——那是范畴错误
+    expect(findings.find(f => f.rule.includes('反向'))?.ok).toBe(true)
+  })
+
+  it('B5 counter-examples: placeholder / space / control chars → rejected; real names → accepted', () => {
+    const cases: ReadonlyArray<{ id: string; ok: boolean; why: string }> = [
+      { id: '...', ok: false, why: '全标点占位符，没命名任何东西' },
+      { id: '……', ok: false, why: '中文省略号，同样是占位符' },
+      { id: 'A B', ok: false, why: '含空格，下游无法逐字引用' },
+      { id: 'A-EXACT-TEST', ok: true, why: '正例（指令里给的）' },
+      { id: 'A_BATCH_2', ok: true, why: '正例（下划线 + 数字）' },
+      { id: '假设1', ok: true, why: '**中文是合法的 IR id**——IR 刻意不折叠兼容等价字符' },
+      { id: 'A-ONESIDED', ok: true, why: '正例' },
+    ]
+    for (const c of cases) {
+      const e1 = `[[ASSUMPTION: ${c.id}]] 某条假设的正文，足够长以避开长度检查。\n[[REQUIREMENT: R-OUT]] 推理。`
+      const findings = checkE1E2Fidelity({ e1Text: e1, entries: [], requiredOutputIds: ['R-OUT'] })
+      expect(findings.find(f => f.rule.includes('B5'))?.ok, `${c.id} (${c.why})`).toBe(c.ok)
+    }
+  })
+
+  it('B5 does NOT tighten the charset beyond what the IR accepts (no false red)', () => {
+    // 方向性守卫：锚点规则**不得比 IR 自己的 id 规则更严**。IR 的策略是刻意
+    // 宽松的（`problem-contract.ts`："NFC deliberately does not fold
+    // compatibility equivalents … that is the same policy the IR already
+    // applies to object IDs"）。若此处凭空收紧字符集，就会对 IR 本来接受的
+    // id 制造**假红**——那正是本轮要消灭的形态（红线 N2）。
+    // 用一个 IR 明确接受的 id 来钉住这一点。
+    expect(isIrId('假设1')).toBe(true)
+    expect(isUsableAnchorId('假设1')).toBe(true)
+    // and the two rules agree on everything the IR accepts EXCEPT bare punctuation
+    expect(isIrId('...')).toBe(true)          // IR accepts it...
+    expect(isUsableAnchorId('...')).toBe(false) // ...but it is not a NAME
+  })
+
+  it('the E1 instruction states the id rule AND its reason', () => {
+    // 任务书 A1 要求 ②：**理由要说清**——"只加禁令不加理由，模型会换一种
+    // 方式违反"。实测正是如此：它躲开了 `<your-short-id>`，改写成 `...`。
+    const instruction = e1AnalysisInstruction(['R-OUT'])
+    expect(instruction).toContain('VERBATIM')
+    expect(instruction).toContain('NAME')
+    // 正例与反例都在（任务书 A1 要求 ①）
+    expect(instruction).toContain('A-EXACT-TEST')
+    expect(instruction).toContain('[[ASSUMPTION: ...]]')
+    // 原有的禁令仍在（要求 ③）
+    expect(instruction).toContain('Do NOT write the literal text')
+    // 且**没有**把 E1 推向 JSON（W8.9 明令，任务书 A1 禁止项）
+    expect(instruction).toContain('Do NOT output JSON')
   })
 
   it('no required outputs declared -> B4 is vacuously satisfied (stated, not silent)', () => {
@@ -841,5 +906,51 @@ describe('W8.10-D4 — E1 and the container lecture are separated', () => {
     const { prompts } = await harness([FAITHFUL_CONTAINER], { disableE1E2: true, disableShardDeclare: true })
     expect(prompts.some(p => p.includes('Produce ONE JSON object'))).toBe(true)
     expect(prompts.some(p => p.includes('ir-container-v1'))).toBe(true)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// W8.11-A1 — the E1-side anchor rule, through the REAL object (red line N3)
+// ---------------------------------------------------------------------------
+
+describe('W8.11-A1 — a placeholder anchor fails the run as an E1-side finding', () => {
+  it('run-4 shape: E1 writes `[[ASSUMPTION: ...]]` → B5 fails, reverse does not', async () => {
+    // **走真实对象**（红线 N3 / 任务书 H1 要求）：这里的 E1 文本由真实
+    // executor 接收，B5 由真实 fidelity 门产出，audit 由真实 audit service 落盘。
+    // 不得手传参数——手传参数会让"判定条件正确"掩盖"传递链断裂"（W8.10-A1 教训）。
+    const PLACEHOLDER_E1 = [
+      '审题：本题是抽样检验 + 生产决策。',
+      '[[REQUIREMENT: R-OUT]] 问题 1 要求设计检测次数尽可能少的抽样方案。',
+      '[[ASSUMPTION: ...]] 检测本身无误差，检测出的次品确实是次品。',
+    ].join('\n')
+    const { ctx, runId, outcome, prompts } = await harness([PLACEHOLDER_E1, FAITHFUL_CONTAINER])
+    expect(outcome.status, outcome.message).toBe('rejected')
+    const findings = ctx.paperAudit.list(runId)
+      .filter((e: { detail?: { kind?: string } }) => e.detail?.kind === 'FidelityFinding')
+      .map((e: { detail?: { ok?: boolean; id?: string; detail?: string } }) => e.detail)
+    const b5 = findings.find((f: { id?: string }) => String(f.id).includes('B5'))
+    expect(b5, 'B5 was never recorded on the audit trail').toBeDefined()
+    expect(b5?.ok, JSON.stringify(findings)).toBe(false)
+    expect(String(b5?.detail)).toContain('...')
+    // 反向不再把占位符当"一条未声明的假设"
+    const reverse = findings.find((f: { id?: string }) => String(f.id).includes('反向'))
+    expect(reverse?.ok, JSON.stringify(findings)).toBe(true)
+
+    // **E1 侧缺陷不得被回灌给 E2**：E2 无法把一个占位符变成一条真假设。
+    // 与 B4 同类——`e2Fixable` 必须把它排除，否则会向 E2 下达它做不到的指令。
+    const guidance = prompts.filter(p => p.includes('CORRECTIONS FOR THIS ATTEMPT'))
+    for (const g of guidance) {
+      expect(g, 'B5 leaked into the E2 backfill').not.toContain('B5 锚点 id 形态')
+    }
+  })
+
+  it('a well-named anchor is NOT flagged (the rule is narrow)', async () => {
+    // 反向守卫：这条规则只抓占位符，不得误伤正常命名的锚点。
+    const { ctx, runId } = await harness([E1_SAMPLE, FAITHFUL_CONTAINER])
+    const findings = ctx.paperAudit.list(runId)
+      .filter((e: { detail?: { kind?: string } }) => e.detail?.kind === 'FidelityFinding')
+      .map((e: { detail?: { ok?: boolean; id?: string } }) => e.detail)
+    const b5 = findings.find((f: { id?: string }) => String(f.id).includes('B5'))
+    expect(b5?.ok, JSON.stringify(findings)).toBe(true)
   })
 })

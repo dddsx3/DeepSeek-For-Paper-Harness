@@ -96,9 +96,26 @@ export type IrKind = (typeof IR_KINDS)[number]
  * two distinct Map keys that any normalising consumer reads as one id
  * (red team RT1-04).
  */
+export const IR_ID_CHARSET = /^[^\p{Cc}\p{Cf}\p{Cs}\p{Z}]+$/u
+
+/**
+ * Whether a string is an acceptable IR identifier.
+ *
+ * Exported (W8.11-A1) so the E1 anchor check validates against the SAME rule
+ * the store applies, instead of keeping a second copy that can drift. The
+ * direction matters: the anchor check must never be STRICTER than what the IR
+ * can actually carry, or it manufactures false refusals for ids the IR would
+ * have accepted happily.
+ *
+ * @param id - candidate identifier.
+ */
+export function isIrId(id: string): boolean {
+  return IR_ID_CHARSET.test(id) && id === id.normalize('NFC')
+}
+
 const idSchema = zod
   .string()
-  .regex(/^[^\p{Cc}\p{Cf}\p{Cs}\p{Z}]+$/u, 'must not contain control, format, surrogate or separator characters')
+  .regex(IR_ID_CHARSET, 'must not contain control, format, surrogate or separator characters')
   .refine(v => v === v.normalize('NFC'), 'must be in Unicode NFC form')
 
 /**

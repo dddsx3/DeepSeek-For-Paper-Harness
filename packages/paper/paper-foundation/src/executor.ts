@@ -1657,7 +1657,14 @@ export class WorkflowExecutor {
               // (which the same gate then refuses). It is reported as a
               // finding and, when it alone blocks, the run fails with that
               // reason instead of a misleading correction.
-              const e2Fixable = fidelity.filter(f => !f.ok && !f.rule.includes('B4'))
+              //
+              // W8.11-A1: B5 is E1-side for the same reason — E2 cannot turn a
+              // placeholder (`[[ASSUMPTION: ...]]`) into a real assumption; only
+              // the analyst can name it. Both rules name their side, so the
+              // exclusion is derived from the rule NAME rather than a second
+              // hand-kept list that could drift.
+              const E1_SIDE_RULES = ['B4', 'B5']
+              const e2Fixable = fidelity.filter(f => !f.ok && !E1_SIDE_RULES.some(r => f.rule.includes(r)))
               // A fidelity violation is a DRIFT: the model did produce
               // container-shaped output (so it is not NONE), and the fix is
               // to re-map the SAME analysis (so guidance helps and E1 must
