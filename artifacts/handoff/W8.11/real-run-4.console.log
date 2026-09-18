@@ -1,0 +1,4 @@
+[CODE-FRESH] 代码来源已断言：entry lib/index.js is 367830 ms newer than the newest source; entry lib/index.js is 1149973860 ms newer than the newest source; entry lib/index.js is 1149985659 ms newer than the newest source; entry lib/index.js is 1149985727 ms newer than the newest source; entry lib/index.js is 1149985929 ms newer than the newest source; entry lib/index.js is 1149973493 ms newer than the newest source
+[BLOCKED] 本次运行的输出在中途撞到提供方的输出长度上限被截断（不是题目或模型违规）。
+  → 上限不会变，重复提交同一个题目得不到不同结果。这是「输出预算/协议长度不匹配」：请报告给维护者（协议分片或提高预算后才能通过）。
+  run-id  -> f16b868d-4a67-4dcc-be37-86e2d30d1dc8
