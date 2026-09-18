@@ -51,7 +51,11 @@ export const AUDIT_EVENT_TYPES = [
   // TASK 5.0.5: written once per successful promotion by the single
   // final-output sink the promoter calls (INV-014).
   'final_output_written',
-  // P1-1: one entry written to canonical IR by the structured-output
+  // W8.12 (E1 direct delivery): the container path failed after every retry,
+  // the run fell back to delivering the E1 analysis under fail-soft, and the
+  // fidelity findings moved into the MARKED appendix. Carries the verbatim
+  // gate reason so the delivered paper quotes the store, not a paraphrase.
+  'e1_direct_delivery',  // P1-1: one entry written to canonical IR by the structured-output
   // producer (kind + id), so the trail reconstructs the run's IR evolution.
   'ir_entry_written',
   // TASK-PW W4: an ESCAPE-class EXECUTE output was hard-refused with zero
