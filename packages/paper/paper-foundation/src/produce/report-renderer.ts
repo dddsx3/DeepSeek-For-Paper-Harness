@@ -21,8 +21,6 @@
  * @module @deepseek-ai/dsh-paper-foundation/src/produce
  */
 
-import { createHash } from 'node:crypto'
-import { Buffer } from 'node:buffer'
 import { renderPaperSkeleton } from './paper-skeleton.ts'
 
 /** One canonical Result row, injected from the IR (never from prose). */
@@ -302,25 +300,26 @@ function renderReport(input: {
     modelLines.push('')
     modelLines.push(String(methods))
   }
-  // ---- Figure slot (P2-3): real rendered bytes, embedded; provenance. ----
+  // ---- Figure slot (P2-3 / W9-E1): figures are INDEPENDENT image files
+  // referenced by 题注, never base64 data-URIs (N21 — O-H-02: data-URIs die
+  // in Word/PDF conversion). The caller writes each figure.svg to
+  // `figures/<figureId>.svg` next to the report; the caption line 图 X：…
+  // stands ALONE on its line (the format reference's 铁律: 题注独占行).
+  // The data_hash 溯源表 moved OUT of the deliverable into the audit trail
+  // (N24/O-H-03 — the audit view is not part of the paper). ----
   const validationLines: string[] = []
   if (input.figures.length > 0) {
     modelLines.push('')
     modelLines.push('### 图')
     modelLines.push('')
-    for (const figure of input.figures) {
-      const dataUri = `data:image/svg+xml;base64,${Buffer.from(figure.svg, 'utf8').toString('base64')}`
-      modelLines.push(`![${figure.caption ?? figure.figureId}](${dataUri})`)
+    input.figures.forEach((figure, fi) => {
+      const fileName = `figures/${figure.figureId}.svg`
+      const caption = figure.caption ?? figure.figureId
+      modelLines.push(`![${caption}](${fileName})`)
       modelLines.push('')
-    }
-    validationLines.push('### 图数据溯源')
-    validationLines.push('')
-    validationLines.push('| 图 | data_hash | 源 Result | 渲染器 | 文件 sha256 |')
-    validationLines.push('|---|---|---|---|---|')
-    for (const figure of input.figures) {
-      const sha = createHash('sha256').update(figure.svg, 'utf8').digest('hex')
-      validationLines.push(`| \`${figure.figureId}\` | \`${figure.data_hash}\` | ${figure.resultRefs.map(r => `\`${r}\``).join(', ')} | ${figure.rendererVersion} | \`${sha}\` |`)
-    }
+      modelLines.push(`图 ${fi + 1}：${caption}`)
+      modelLines.push('')
+    })
   }
   const text = renderPaperSkeleton({
     title: input.title,

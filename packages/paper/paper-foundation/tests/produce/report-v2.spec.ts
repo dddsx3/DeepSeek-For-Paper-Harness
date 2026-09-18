@@ -90,7 +90,7 @@ describe('P2-4 figure embedding + provenance appendix', () => {
     resultRefs: ['RES-ICE'],
     rendererVersion: 'okabe-ito-v1/svg',
   }
-  it('embeds the real rendered bytes and lists provenance', () => {
+  it('references figures as INDEPENDENT files with 题注 (W9-E1/N21: no base64 inline)', () => {
     const verdict = renderReportV2({
       title: 't',
       results,
@@ -99,10 +99,14 @@ describe('P2-4 figure embedding + provenance appendix', () => {
     })
     expect(verdict.ok).toBe(true)
     if (verdict.ok) {
-      expect(verdict.text).toContain('data:image/svg+xml;base64,')
-      expect(verdict.text).toContain('## 图数据溯源')
-      expect(verdict.text).toContain('`FIG-1`')
-      expect(verdict.text).toContain('a'.repeat(64))
+      // W9-E1: the caller writes figures/FIG-1.svg next to the report; the
+      // paper references the FILE and carries a standalone caption line.
+      expect(verdict.text).toContain('](figures/FIG-1.svg)')
+      expect(verdict.text).toContain('图 1：')
+      // N21: no base64 data-URI may appear in the deliverable
+      expect(verdict.text).not.toContain('data:image/svg+xml;base64,')
+      // W9-D2/O-H-03: the data_hash 溯源表 is audit-trail material, not paper body
+      expect(verdict.text).not.toContain('## 图数据溯源')
     }
   })
 })
