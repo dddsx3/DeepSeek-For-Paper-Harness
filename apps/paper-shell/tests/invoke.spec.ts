@@ -57,10 +57,15 @@ describe('M1-2 BLOCKED 人话化 (九门拒绝 + 五类失败码 → 人话一�
     expect(h.advice.length).toBeGreaterThan(0)
   })
 
-  it('NONE 预算耗尽 → none 类、提示换层', () => {
+  it('NONE 预算耗尽 → none 类；建议中不得出现 T3', () => {
     const h = blockMessage('tier_degraded', 'gate-failed', 'exhausted 2 guided retries (NONE)')
     expect(h.classifier).toBe('none')
-    expect(h.advice).toContain('T3')
+    // W8.10-A3 (O-L5-05): the advice used to say "或用 --tier T3（最小填充面）
+    // 重试". T3 does not read the problem statement (PRD v2 F2) and its
+    // 14/14 was self-certifying; recommending it trades the user's paper for
+    // a green light. The judgement is now the opposite one.
+    expect(h.advice).not.toContain('T3')
+    expect(h.advice.length).toBeGreaterThan(0)
   })
 
   it('T3 自由选择 → guided 类、点名字段、建议用候选', () => {

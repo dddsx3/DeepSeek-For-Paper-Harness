@@ -20,6 +20,45 @@ export interface ShellRoute {
   readonly apiKey: string
 }
 
+/**
+ * W8.10-A1 (O-L3-06) — the failure-class events the audit trail carries.
+ *
+ * 事故：`blockMessage` 的 `truncated` 分支（W8.6-A3 写的）从未执行过。
+ * `executor.ts` 抛出的 `WorkflowExecutionError` 只带 `code='gate-failed'`
+ * 与一句 message，**不带 eventType**；CLI 于是传 `'gate-failed'`，落到最后
+ * 的 transport 兜底分支，建议用户"重试一次"——而截断是**零重试**类（上限
+ * 不会动，W8.5 用两次相同截断证明了这一点）。分类信息其实**已经写在
+ * audit 里**（`executor.ts` 在抛错前写 `eventType:'truncated'`），只是最后
+ * 一跳没有读它。
+ *
+ * 这是第六类"信号与原因不符"（修复只做判定侧、未做传递侧）。
+ */
+export const FAILURE_CLASS_EVENTS: ReadonlyArray<string> = [
+  'truncated',
+  'escape_refused',
+  'tier_degraded',
+  'container_refused',
+  'provider_blocked',
+  'budget_exceeded',
+]
+
+/**
+ * The LAST failure-class event of a run, or undefined when the run never
+ * wrote one. "Last" because a run may fail more than once inside its retry
+ * loop, and the terminal cause is the one that ended it.
+ *
+ * @param events - the run's audit entries in order (only `eventType` is read).
+ */
+export function lastFailureClassEvent(
+  events: ReadonlyArray<{ readonly eventType: string }>,
+): string | undefined {
+  for (let i = events.length - 1; i >= 0; i -= 1) {
+    const type = events[i]?.eventType
+    if (type !== undefined && FAILURE_CLASS_EVENTS.includes(type)) return type
+  }
+  return undefined
+}
+
 /** The engine failure→human sentence map (贪 the W4 text assets). */
 export interface BlockedHuman {
   readonly classifier: string
@@ -52,7 +91,12 @@ export function blockMessage(
     return {
       classifier: 'truncated',
       oneLine: '本次运行的输出在中途撞到提供方的输出长度上限被截断（不是题目或模型违规）。',
-      advice: '重试不会解决——上限不会变。这是「输出预算/协议长度不匹配」：请报告给维护者（协议分片或提高预算后才能通过）。',
+      // W8.10-A1: the wording states the ceiling is immovable WITHOUT the
+      // verb "重试". H1's judgement is "the advice must not advise a retry",
+      // and the previous phrasing ("重试不会解决") contained the verb while
+      // saying the opposite — a user scanning for an action still reads
+      // "retry". The negative is now carried by the noun ("上限不会变").
+      advice: '上限不会变，重复提交同一个题目得不到不同结果。这是「输出预算/协议长度不匹配」：请报告给维护者（协议分片或提高预算后才能通过）。',
     }
   }
 
@@ -67,7 +111,24 @@ export function blockMessage(
     return {
       classifier: 'none',
       oneLine: '模型没有给出可用结构（引擎引导了几次仍未对齐），这次运行被判为失败。',
-      advice: '换个说法重新提交题目；或用 --tier T3（最小填充面）重试。',
+      // W8.10-A3 (O-L5-05): the old advice recommended `--tier T3`. That is a
+      // product-level error, not a wording nit: T3 does NOT read the problem
+      // statement (PRD v2 F2), its 14/14 pass rate was self-certifying, and
+      // it has been withdrawn from the default path (P0-2). Telling a user to
+      // fall back to it would trade their paper for a green light.
+      advice: '换个说法重新提交题目（把问题描述得更具体），或把题面文件另存为纯文本 UTF-8 后重试。',
+    }
+  }
+  // W8.10-A1/A7: budget exhaustion is its own class. The per-run output-token
+  // ceiling (or the daily USD ceiling) stops the run by design — advising
+  // "retry" would tell the user to re-spend against a ceiling that is still
+  // there. Found by the A7 live test: before this branch the run reported
+  // `classifier: 'transport'` with a retry advice.
+  if (eventType === 'budget_exceeded' || code === 'budget-exhausted') {
+    return {
+      classifier: 'budget',
+      oneLine: '本次运行触发了预算门（本次运行 / 当日额度），已被主动暂停——不是题目或模型的问题。',
+      advice: '提高本次运行或当日的额度后重新提交；额度是为保护你的账户而设的。',
     }
   }
   if (eventType === 'provider_blocked' || (code !== undefined && ['CODE_RUN_NOT_CONFIGURED', 'RECORD_INVALID'].includes(code))) {

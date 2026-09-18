@@ -12,12 +12,12 @@
   },
   "baseline": {
     "files": 110,
-    "total_tests": 1213,
-    "passed_tests": 1213,
+    "total_tests": 1219,
+    "passed_tests": 1219,
     "failed_tests": 0,
     "failed_test_suites": 0,
     "tsc_clean": true,
-    "baseline_at": "W8.9 (接收层 E1/E2): A1 代码来源与新鲜度守卫(code-provenance.ts, 9 测试, 含变异击杀证明); A2 route_mismatch 改组件集合比较(route.ts routeCoversTruth, 13 测试); A3 空流独立成类 EMPTY_STREAM + 修 sseLines 尾部丢行(13 测试); A4 分片声明成为默认路径(disableShardDeclare/disableE1E2 透传缺口一并修复); B1/B2 E1/E2 两次独立调用 + 零数字通道(e1-e2.ts, executor 接线); B3/B4 保真双向锚定(正向逐字 e1_span / 反向 / 锚点同一性)+逐问覆盖, AssumptionSpec/EquationSpec 新增 e1_span; B5 E1 只跑一次(#e1ByRun 缓存 + E1Reused 审计); C2 局限写进交付物尾注; D1 run#4 真实文本经 E2 产出 schema-valid 容器(H7 达成, 16 entries); 三次真实运行 minted_ir_count=17/0/16(H8 达成), 全部 BLOCKED 但失败形态窄化至 E2 字段层; 基线 1112→1213/448 文件"
+    "baseline_at": "W8.10 (诊断链修复 + E2 字段层合规): A1 分类信息传递修复(executor 抛的 gate-failed 不再覆盖 audit 里的真实失败类; lastFailureClassEvent 读 audit; truncated 文案去'重试'; 6+1 classifier 可达性表 + 真实对象反例); A2 minted_ir_count 上提到 run-report 顶层(两条路径); A3 移除 T3 推荐(O-L5-05); A6 快照 family 语义拆分(TRUTH-FAMILIES 为准, preregistered_family 保先验, route_mismatch 改为重算+不可判定态); A7 预算门实测生效并修复其 classifier 缺失; 基线 1213→1219/110 文件"
   },
   "failures_by_origin": {},
   "gates_impl": [
