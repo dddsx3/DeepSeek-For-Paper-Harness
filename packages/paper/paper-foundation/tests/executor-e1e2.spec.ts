@@ -1256,3 +1256,65 @@ describe('W8.12 — E1 direct delivery (fail-soft, E2 exhausted)', () => {
     expect(outcome.status).toBe('rejected')
   })
 })
+
+describe('W8.12b — critical gates reach the grader under fail-soft', () => {
+  it('a critical-gate failure is ANNOTATED, not thrown (the transfer wire)', async () => {
+    // 事故（E1 直通首次真实运行）：`gradeDelivery` 的单元测试**喂它
+    // `critical_gate` 失败并断言变成 MARKED 标注**——但 `enforceDelivery`
+    // 在 `!allowed` 时无条件抛出，所以 grader 永远看不到它们。fail-soft 下
+    // 一个 critical gate 仍然终结运行，E1 直通稿在建成后一步死掉。
+    // 与 E1/E2 那个洞同类：**判定写好了，传递侧没接**。
+    const { ctx, runId, outcome } = await harness([E1_SAMPLE, FAITHFUL_CONTAINER], { failSoft: true })
+    expect(outcome.status, outcome.message).toBe('resolved')
+    const graded = ctx.paperAudit.list(runId).find((e: { eventType: string }) => e.eventType === 'delivery_graded')
+    expect(graded, 'delivery_graded never fired').toBeDefined()
+    // 这个 harness 的 IR 只有输入资产，缺 backbone → ir_canonicalization /
+    // requirement_coverage 是 critical。fail-soft 下它们必须变成标注。
+    expect(String(graded?.detail?.grade)).toBe('MARKED')
+  })
+
+  it('the grade MODE is what decides: same inputs, different annotation input', async () => {
+    // 反向守卫（第一版断言写错了，此处记账）：exploratory 模式是
+    // **backbone-exempt**（`requiresIrBackbone('EXPLORATORY') === false`），
+    // 所以这个 harness 里没有任何 critical gate 会拒——strict 下它并不 BLOCK，
+    // 只是 V1–V4 findings **不参与** strict-tolerance 的 grade input
+    // （那是有文档的行为，不是缺口）。故同一份输入两种模式给出不同评级：
+    //   fail-soft  → V findings 入 grade input → MARKED
+    //   strict     → 不入 → CLEAN
+    // 真正要测的"critical gate 在 fail-soft 下变成标注"由真实运行（strict 模式
+    // + 真 critical gate）验证，见 W8.12 报告。
+    const { ctx, runId, outcome } = await harness([E1_SAMPLE, FAITHFUL_CONTAINER])
+    expect(outcome.status, outcome.message).toBe('resolved')
+    const graded = ctx.paperAudit.list(runId).find((e: { eventType: string }) => e.eventType === 'delivery_graded')
+    expect(String(graded?.detail?.grade)).toBe('CLEAN')
+    expect(String(graded?.detail?.mode)).toBe('strict-tolerance')
+  })
+})
+
+describe('W8.12c — ALL THREE terminal refusal paths fall back', () => {
+  it('the BUDGET-EXHAUSTED path (the one real runs actually take) falls back', async () => {
+    // 事故（E1 直通的第二次真实运行）：我先把兜底接到「熔断器」和「重试耗尽」
+    // 两处，但真实运行走的是**第三处**——`DRIFT guidance budget exhausted`
+    // （W8.11 的四次运行全部终结在这里）。于是直通一次都没触发。
+    //
+    // 这条测试用**三个不同的失败容器**（指纹互异 → 不熔断），逼运行走
+    // 「预算耗尽」那条路径：DRIFT 预算 = 2，第 3 次尝试时才耗尽。
+    const DIFFERENT_FAILURES = [
+      INVENTED_ASSUMPTION_CONTAINER.replace('A-ONESIDED', 'A-VARIANT-1'),
+      INVENTED_ASSUMPTION_CONTAINER.replace('A-ONESIDED', 'A-VARIANT-2'),
+      INVENTED_ASSUMPTION_CONTAINER.replace('A-ONESIDED', 'A-VARIANT-3'),
+    ]
+    const { ctx, runId, outcome } = await harness(
+      [E1_SAMPLE, ...DIFFERENT_FAILURES],
+      { failSoft: true },
+    )
+    expect(outcome.status, outcome.message).toBe('resolved')
+    const kinds = ctx.paperAudit.list(runId).map((e: { eventType: string }) => e.eventType)
+    expect(kinds, 'the fallback must fire on the budget-exhausted path too').toContain('e1_direct_delivery')
+    // and the terminal reason names THAT path, not the circuit breaker
+    const direct = ctx.paperAudit.list(runId).find((e: { eventType: string }) => e.eventType === 'e1_direct_delivery')
+    expect(String(direct?.detail?.reason)).toContain('budget exhausted')
+    const graded = ctx.paperAudit.list(runId).find((e: { eventType: string }) => e.eventType === 'delivery_graded')
+    expect(String(graded?.detail?.grade)).toBe('MARKED')
+  })
+})

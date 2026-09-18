@@ -120,15 +120,39 @@ function nc6() {
 /** NC-7 (integrity): mutate one bench file byte — manifest check must go red. */
 async function nc7() {
   console.log('NC-7: 反作弊——篡改 bench 题面（完整性校验必红）')
-  const { verifyManifestIntegrity } = await import('../metrics/compute-metrics.mjs')
+  const { verifyManifestIntegrity, sha256File, benchRoot } = await import('../metrics/compute-metrics.mjs')
+  const { readFile, writeFile } = await import('node:fs/promises')
+  const { join } = await import('node:path')
   const good = await verifyManifestIntegrity()
-  check('未篡改时 integrity ok', good.ok === true)
-  // Simulation of tampering: recompute with a wrong expected hash.
-  const { sha256File } = await import('../metrics/compute-metrics.mjs')
-  const actual = await sha256File('bench/problems/2024-B/problem.pdf'.replace('bench/', 'D:/deepseek modex/deepseek-harness/bench/'))
-  check('篡改模拟：哈希不匹配可被检出', actual !== '0'.repeat(64), '篡改检测依赖逐字节比对，此处验证哈希函数活性')
-  const tampered = { ok: false, failures: [{ file: 'problems/2024-B/problem.pdf', expected: '0'.repeat(64), actual }] }
-  check('校验器对不匹配条目报告 ok=false', tampered.ok === false)
+  check('未篡改时 integrity ok', good.ok === true, `failures=${good.failures.length}`)
+
+  // 真篡改：改 manifest 里某个文件的一个字节，校验必须变红，然后**总是**还原。
+  // W8.11-E2 修掉的三处：① `actual !== '0'.repeat(64)` 恒真（没测任何东西）；
+  // ② 断言的是手写对象字面量（根本没调校验器）；③ 硬编码本机绝对路径
+  // （换 checkout 会 ENOENT，脚本崩溃在打印结果之前）。
+  const target = 'problems/2024-B/problem.pdf'
+  const full = join(benchRoot, target)
+  const before = await readFile(full)
+  const beforeHash = await sha256File(full)
+  try {
+    const mid = Math.floor(before.length / 2)
+    const mutated = Buffer.from(before)
+    mutated[mid] = mutated[mid] === 0x20 ? 0x21 : 0x20
+    await writeFile(full, mutated)
+    const afterHash = await sha256File(full)
+    check('篡改后哈希确实改变（哈希函数是活的）', afterHash !== beforeHash)
+    const bad = await verifyManifestIntegrity()
+    check('篡改后校验器报告 ok=false', bad.ok === false, `failures=${bad.failures.length}`)
+    check('篡改后 failures 点名该文件', bad.failures.some(f => f.file === target))
+    const rec = bad.failures.find(f => f.file === target)
+    check('失败记录含 expected 与 actual（可定位）',
+      typeof rec?.expected === 'string' && typeof rec?.actual === 'string' && rec.expected !== rec.actual)
+  } finally {
+    await writeFile(full, before) // ALWAYS restore — the corpus is frozen
+  }
+  const restored = await verifyManifestIntegrity()
+  check('还原后 integrity 恢复 ok', restored.ok === true, `failures=${restored.failures.length}`)
+  check('还原后哈希与原始逐字节相同', (await sha256File(full)) === beforeHash)
 }
 
 console.log('M-Bench 负对照（W1 硬门禁）——每个控制必须把指标变红：\n')

@@ -17,6 +17,7 @@ on:
   pull_request:
     paths:
       - 'packages/paper/**'
+      - 'bench/**'
       - 'artifacts/handoff/**'
       - 'package.json'
       - '.github/workflows/paper-harness.yml'
@@ -25,6 +26,7 @@ on:
       - main
     paths:
       - 'packages/paper/**'
+      - 'bench/**'
       - 'artifacts/handoff/**'
       - 'package.json'
       - '.github/workflows/paper-harness.yml'
@@ -106,6 +108,15 @@ jobs:
       # RG-06 + RG-07: the declared baseline must match reality.
       - name: TASK 5.0 gate-report self-check
         run: pnpm run test:task3:report-state
+
+      # W8.11-E2: the negative controls had NO CI caller at all — the W8.10
+      # independent review found the `18/18` green certificate was unexecuted
+      # (three of its checks were tautologies). This is the missing caller.
+      # `run-all.mjs` now also does a REAL one-byte tamper + restore cycle on
+      # the frozen corpus to exercise the manifest integrity check (it always
+      # restores, even on failure, via try/finally).
+      - name: W1 negative controls (every indicator must go red)
+        run: node bench/negative-controls/run-all.mjs
 
       # P1-5: FORMAL end-to-end demo + pass corpus. A REAL node child runs
       # the paper leaf's code; Result/Claim are minted from the real output
