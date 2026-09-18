@@ -36,6 +36,7 @@ import {
   e2NormalizationPrompt,
   fidelityOk,
   foldForAnchorMatch,
+  diagnoseSpanMismatch,
   parseE1Anchors,
 } from '../src/produce/e1-e2.ts'
 import {
@@ -230,6 +231,42 @@ describe('W8.9-B3 — two-way fidelity (each rule gets a constructed counter-exa
       expect(folded.length, `${c} grew`).toBeLessThanOrEqual(c.length)
       expect(foldForAnchorMatch(folded)).toBe(folded)
     }
+  })
+
+  // -------------------------------------------------------------------------
+  // W8.10-D5 — the failing verdict must carry its own evidence
+  // -------------------------------------------------------------------------
+
+  it('a near-match (typography only) reports ~100% similarity', () => {
+    // run-4 真实运行的正向失败集三次完全相同、恒含 `A-P1-CHOICE`，报"疑似
+    // 改写"——但 E1 全文与容器都没落盘，判定**事后无法核验**。这条诊断把
+    // 相似度写进 finding，让已落盘的 400 字符自带证据。
+    const e1 = '[[ASSUMPTION: A-X]] 采用单侧精确二项检验（不是正态近似），因为小样本会低估尾部概率。'
+    const diag = diagnoseSpanMismatch('采用单侧精确二项检验(不是正态近似)', e1)
+    expect(diag).toContain('100.0%')
+    expect(diag).toContain('无分歧点')
+  })
+
+  it('a real rewrite reports LOW similarity and names the divergence point', () => {
+    const e1 = '[[ASSUMPTION: A-X]] 采用单侧精确二项检验（不是正态近似），因为小样本会低估尾部概率。'
+    const diag = diagnoseSpanMismatch('采用双侧近似二项检验而不是正态近似', e1)
+    const pct = Number(/([0-9.]+)%/.exec(diag)?.[1] ?? '100')
+    expect(pct, diag).toBeLessThan(80)
+    expect(diag).toContain('首分歧')
+  })
+
+  it('the diagnostic is measurement only — it does NOT change the verdict', () => {
+    // 安全边界：D5 只让判定可核验，不得让任何原本失败的 span 通过。
+    const e1 = '[[ASSUMPTION: A-X]] 采用单侧精确二项检验而不是正态近似。'
+    const findings = checkE1E2Fidelity({
+      e1Text: e1,
+      entries: entriesOf({ kind: 'AssumptionSpec', value: { assumption_id: 'A-X', e1_span: '采用双侧近似二项检验而不是正态近似' } }),
+      requiredOutputIds: [],
+    })
+    const fwd = findings.find(f => f.rule.includes('正向'))!
+    expect(fwd.ok).toBe(false)
+    // and the evidence rode along
+    expect(fwd.detail).toContain('相似度')
   })
 
   it('REVERSE violation: E2 invents an assumption E1 never made → caught', () => {

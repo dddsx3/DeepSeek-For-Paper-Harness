@@ -231,6 +231,69 @@ export function foldForAnchorMatch(text: string): string {
 }
 
 /**
+ * W8.10-D5 — quantify WHY a span failed the anchor check.
+ *
+ * 事故（run-4 真实运行）：三次尝试的正向失败集**完全一致**且恒含
+ * `A-P1-CHOICE`，报的是"疑似改写"——但 E1 全文与容器**都没有落盘**，于是
+ * 这个判定**事后无法核验**：它到底是模型改写，还是 harness 又一处机械不匹配，
+ * 谁也无法回答。这正是本项目第 4/6 类形态（量具失效 / 判定侧写了传递侧没写）
+ * 的复发，也是 D3 那次修复**没能一次到位**的原因——D3 修了排版差异，但
+ * 判定仍然只输出一个二值结论，没有留下"差在哪"的证据。
+ *
+ * 这条诊断把**相似度与首个分歧点**写进 finding，于是审计轨迹（已落盘的那
+ * 400 字符）自带证据：读者不必重跑，就能分辨"几乎相同（排版/单字符）"与
+ * "真的重写了"。
+ *
+ * 它**不改变判定**——只让判定可核验。相似度不参与通过/失败。
+ *
+ * @param span - the declared span that failed.
+ * @param e1Text - E1's full analysis.
+ */
+export function diagnoseSpanMismatch(span: string, e1Text: string): string {
+  const a = foldForAnchorMatch(span)
+  const b = foldForAnchorMatch(e1Text)
+  if (a.length === 0) return '空 span'
+  // Find the best-matching WINDOW of E1 by sliding the span across it.
+  //
+  // Anchoring matters: an earlier version sampled start offsets on a stride and
+  // compared position-by-position, which scored the KNOWN near-misses (they
+  // differ only in full-width punctuation) at 12-17% — the sampling missed the
+  // true alignment entirely. The measurement has to be a real search, not a
+  // stride scan, or it reports "unrelated" for pairs that are 98% identical.
+  //
+  // Cost: O(|E1| x |span|) worst case. The folded E1 is ~10^4 and spans are
+  // ~10^2, so a linear scan with an early-exit on a perfect prefix is fast
+  // enough, and this runs only on FAILING spans (normally zero or a handful).
+  const width = a.length
+  let best = 0
+  let bestAt = 0
+  for (let i = 0; i + width <= b.length; i += 1) {
+    // Cheap reject: if the first character does not match, the window cannot
+    // beat a candidate that already matched a prefix. This is what keeps the
+    // scan from being |E1| x |span| in practice.
+    if (b[i] !== a[0] && best > 0) continue
+    let hit = 0
+    for (let j = 0; j < width; j += 1) if (b[i + j] === a[j]) hit += 1
+    if (hit > best) { best = hit; bestAt = i; if (best === width) break }
+  }
+  const ratio = best / width
+  // First divergence against the best window — the character a reader needs.
+  let firstDiff = -1
+  for (let j = 0; j < width; j += 1) {
+    if (b[bestAt + j] !== a[j]) { firstDiff = j; break }
+  }
+  const tail = b.slice(bestAt, bestAt + width)
+  const at = firstDiff < 0 ? width : firstDiff
+  const spanAround = a.slice(Math.max(0, at - 8), at + 8)
+  const e1Around = tail.slice(Math.max(0, at - 8), at + 8)
+  return [
+    `相似度 ${(ratio * 100).toFixed(1)}%`,
+    firstDiff < 0 ? '（无分歧点：应为匹配）' : `首分歧 @${firstDiff}`,
+    `span「${spanAround}」vs E1「${e1Around}」`,
+  ].join('，')
+}
+
+/**
  * W8.9-B3/B4 — the two-way fidelity check between E1 (analysis) and the
  * E2-declared entries.
  *
@@ -316,7 +379,10 @@ export function checkE1E2Fidelity(input: {
     // evidence as a byte-identical copy, and a reader must be able to tell.
     if (input.e1Text.includes(span.trim())) continue
     if (foldedE1.includes(foldForAnchorMatch(span))) continue
-    problems.push(`${id}: e1_span 在 E1 中找不到逐字匹配（疑似改写）`)
+    // W8.10-D5: the verdict carries its own evidence, so the audit trail
+    // (which truncates to 400 chars) is enough to tell a near-match from a
+    // real rewrite WITHOUT re-running the model.
+    problems.push(`${id}: e1_span 在 E1 中找不到逐字匹配（疑似改写）〔${diagnoseSpanMismatch(span, input.e1Text)}〕`)
   }
   findings.push({
     rule: 'B3 正向（声明须逐字锚定 E1）',
