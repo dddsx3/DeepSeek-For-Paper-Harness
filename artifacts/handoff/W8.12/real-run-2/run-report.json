@@ -1,0 +1,72 @@
+{
+  "runId": "a1fc7908-5e9f-46d9-a665-ae13ffd643b4",
+  "tier": "T1",
+  "mode": "strict",
+  "status": "BLOCKED",
+  "routed_family": "F4",
+  "route_truth": "F3+F4",
+  "route_mismatch": false,
+  "code_provenance": {
+    "checked_at": "2026-09-18T21:39:03.689Z",
+    "ok": true,
+    "targets": [
+      {
+        "name": "@deepseek-ai/dsh-paper-foundation",
+        "ok": true,
+        "detail": "entry lib/index.js is 333468 ms newer than the newest source"
+      },
+      {
+        "name": "@deepseek-ai/dsh-storage",
+        "ok": true,
+        "detail": "entry lib/index.js is 1163210605 ms newer than the newest source"
+      },
+      {
+        "name": "@deepseek-ai/dsh-storage-domain",
+        "ok": true,
+        "detail": "entry lib/index.js is 1163224384 ms newer than the newest source"
+      },
+      {
+        "name": "@deepseek-ai/dsh-storage-json",
+        "ok": true,
+        "detail": "entry lib/index.js is 1163224462 ms newer than the newest source"
+      },
+      {
+        "name": "@deepseek-ai/dsh-llm",
+        "ok": true,
+        "detail": "entry lib/index.js is 1163224648 ms newer than the newest source"
+      },
+      {
+        "name": "@deepseek-ai/cordis",
+        "ok": true,
+        "detail": "entry lib/index.js is 1163210269 ms newer than the newest source"
+      }
+    ]
+  },
+  "minted_ir_count": 3,
+  "classifier": "fidelity",
+  "code": "gate-failed",
+  "humanized": "模型已产出 6845 字符的建模分析，但**接收层的保真检查未通过**，这次运行被判为失败。未通过的检查：B3 正向（声明须逐字锚定 E1）。已通过：B4 逐问推理覆盖、B5 锚点 id 形态（E1 侧）、B3 反向（E1 假设须被声明）、B3 锚点同一性（声明须在 E1 中有同名锚点）。",
+  "wall_clock_seconds": 337.4,
+  "usage": {
+    "input_tokens": 22193,
+    "output_tokens": 28939,
+    "cost_usd": 0
+  },
+  "memo": {
+    "passed_gates": [
+      "plan"
+    ],
+    "minted_ir_kinds": [
+      "DataArtifact",
+      "RequirementSpec",
+      "ProblemSpec"
+    ],
+    "minted_ir_count": 3,
+    "failing_node": {
+      "title": "execute",
+      "attempts": 3,
+      "code": null
+    },
+    "suggested_intervention": "这类失败发生在**规范化侧**：分析内容合规，是把它映射成结构化记录的那一步没对齐。失败 gate：ir_producer（DRIFT guidance budget exhausted）。这不是\"模型没有给出可用结构\"——它给出了，是形式化忠实这一关没过。"
+  }
+}

@@ -1,0 +1,1250 @@
+{
+  "run": "real-run-3",
+  "archived_from": "apps/paper-shell/src/paper-shell-persist-MwhMa5/paper_audit.json",
+  "archived_from_sha256": "5f8b19163c8aa19cfc0fe407fcd18276a5ea8bf3234075dda97c31b6efb01b1c",
+  "event_count": 90,
+  "events": [
+    {
+      "id": "e37e4f0d-2744-4536-a546-9540105ab551",
+      "seq": 1,
+      "ts": "2026-09-18T21:54:28.043Z",
+      "runId": null,
+      "actor": "paper-shell",
+      "eventType": "production_enabled",
+      "detail": {
+        "tier": "T1",
+        "mode": "strict",
+        "route": "https://api.y-api.bestvirtualgoods.com/v1 + deepseek/deepseek-v4-flash"
+      }
+    },
+    {
+      "id": "69853b9a-4563-4a8d-a435-a353c342615c",
+      "seq": 2,
+      "ts": "2026-09-18T21:54:28.391Z",
+      "runId": "9b9e3aa3-83aa-4f80-9c2d-cb47e806e79e",
+      "actor": "paper-executor",
+      "eventType": "workflow_started",
+      "detail": {
+        "mode": "strict"
+      }
+    },
+    {
+      "id": "60d7f208-0243-4fed-bf8e-62a491057c79",
+      "seq": 3,
+      "ts": "2026-09-18T21:54:39.942Z",
+      "runId": "9b9e3aa3-83aa-4f80-9c2d-cb47e806e79e",
+      "actor": "paper-executor",
+      "eventType": "ir_entry_written",
+      "detail": {
+        "kind": "DataArtifact",
+        "id": "DA-RAW",
+        "stage": "input-registration"
+      }
+    },
+    {
+      "id": "93278031-7c28-4b16-9aef-eaaa924a3d5a",
+      "seq": 4,
+      "ts": "2026-09-18T21:54:39.946Z",
+      "runId": "9b9e3aa3-83aa-4f80-9c2d-cb47e806e79e",
+      "actor": "paper-executor",
+      "eventType": "ir_entry_written",
+      "detail": {
+        "kind": "RequirementSpec",
+        "id": "R-OUT",
+        "stage": "input-registration"
+      }
+    },
+    {
+      "id": "00ed5cce-b5c4-45c1-a138-8994284e9e71",
+      "seq": 5,
+      "ts": "2026-09-18T21:54:39.951Z",
+      "runId": "9b9e3aa3-83aa-4f80-9c2d-cb47e806e79e",
+      "actor": "paper-executor",
+      "eventType": "ir_entry_written",
+      "detail": {
+        "kind": "ProblemSpec",
+        "id": "P1",
+        "stage": "input-registration"
+      }
+    },
+    {
+      "id": "f00c7df8-c2f2-4b3d-8d1f-5c0fc723a371",
+      "seq": 6,
+      "ts": "2026-09-18T21:55:18.656Z",
+      "runId": "9b9e3aa3-83aa-4f80-9c2d-cb47e806e79e",
+      "actor": "paper-executor",
+      "eventType": "ir_entry_written",
+      "detail": {
+        "kind": "E1Analysis",
+        "id": "e1",
+        "nodeId": "7355ded6-6565-44f5-93ee-517bd7bfeaee",
+        "stage": "receive",
+        "chars": 6191
+      }
+    },
+    {
+      "id": "9df9c36e-a9ab-4a6f-9c67-260be4a56e26",
+      "seq": 7,
+      "ts": "2026-09-18T21:55:18.661Z",
+      "runId": "9b9e3aa3-83aa-4f80-9c2d-cb47e806e79e",
+      "actor": "paper-executor",
+      "eventType": "ir_entry_written",
+      "detail": {
+        "kind": "E2DriftGuidance",
+        "id": "e2-guidance",
+        "nodeId": "7355ded6-6565-44f5-93ee-517bd7bfeaee",
+        "stage": "receive",
+        "applied": true,
+        "guidance_chars": 1347
+      }
+    },
+    {
+      "id": "3f3fc419-41f7-474c-b832-8f3209de9813",
+      "seq": 8,
+      "ts": "2026-09-18T21:57:45.843Z",
+      "runId": "9b9e3aa3-83aa-4f80-9c2d-cb47e806e79e",
+      "actor": "paper-executor",
+      "eventType": "ir_entry_written",
+      "detail": {
+        "kind": "E2Normalization",
+        "id": "e2",
+        "nodeId": "7355ded6-6565-44f5-93ee-517bd7bfeaee",
+        "stage": "receive",
+        "chars": 24414,
+        "e1_chars": 6191
+      }
+    },
+    {
+      "id": "3e03b452-5659-4f23-95c8-89935197f5c3",
+      "seq": 9,
+      "ts": "2026-09-18T21:57:45.850Z",
+      "runId": "9b9e3aa3-83aa-4f80-9c2d-cb47e806e79e",
+      "actor": "paper-executor",
+      "eventType": "ir_entry_written",
+      "detail": {
+        "kind": "FidelityFinding",
+        "id": "B4 逐问推理覆盖",
+        "nodeId": "7355ded6-6565-44f5-93ee-517bd7bfeaee",
+        "ok": true,
+        "detail": "全部 1 个 REQUIRED_OUTPUT 在 E1 中有推理锚点"
+      }
+    },
+    {
+      "id": "dcc493ff-71d7-45d1-881a-c51a2470ae2e",
+      "seq": 10,
+      "ts": "2026-09-18T21:57:45.854Z",
+      "runId": "9b9e3aa3-83aa-4f80-9c2d-cb47e806e79e",
+      "actor": "paper-executor",
+      "eventType": "ir_entry_written",
+      "detail": {
+        "kind": "FidelityFinding",
+        "id": "B5 锚点 id 形态（E1 侧）",
+        "nodeId": "7355ded6-6565-44f5-93ee-517bd7bfeaee",
+        "ok": true,
+        "detail": "全部 9 个锚点 id 都是可用名字"
+      }
+    },
+    {
+      "id": "5f2f878f-b26f-4713-8d50-af2509f56e7b",
+      "seq": 11,
+      "ts": "2026-09-18T21:57:45.858Z",
+      "runId": "9b9e3aa3-83aa-4f80-9c2d-cb47e806e79e",
+      "actor": "paper-executor",
+      "eventType": "ir_entry_written",
+      "detail": {
+        "kind": "FidelityFinding",
+        "id": "B3 反向（E1 假设须被声明）",
+        "nodeId": "7355ded6-6565-44f5-93ee-517bd7bfeaee",
+        "ok": true,
+        "detail": "E1 的 8 条假设锚点均有对应 AssumptionSpec"
+      }
+    },
+    {
+      "id": "1b0bfcc5-48eb-4bb2-9894-695f5cc9b775",
+      "seq": 12,
+      "ts": "2026-09-18T21:57:45.861Z",
+      "runId": "9b9e3aa3-83aa-4f80-9c2d-cb47e806e79e",
+      "actor": "paper-executor",
+      "eventType": "ir_entry_written",
+      "detail": {
+        "kind": "FidelityFinding",
+        "id": "B3 锚点同一性（声明须在 E1 中有同名锚点）",
+        "nodeId": "7355ded6-6565-44f5-93ee-517bd7bfeaee",
+        "ok": true,
+        "detail": "6 条假设声明在 E1 中均有同名锚点"
+      }
+    },
+    {
+      "id": "5f4d22a2-b4b5-46a4-96ae-7ecabff1f7d6",
+      "seq": 13,
+      "ts": "2026-09-18T21:57:45.864Z",
+      "runId": "9b9e3aa3-83aa-4f80-9c2d-cb47e806e79e",
+      "actor": "paper-executor",
+      "eventType": "ir_entry_written",
+      "detail": {
+        "kind": "FidelityFinding",
+        "id": "B3 正向（声明须逐字锚定 E1）",
+        "nodeId": "7355ded6-6565-44f5-93ee-517bd7bfeaee",
+        "ok": true,
+        "detail": "14 条 Assumption/Equation 声明全部逐字锚定 E1"
+      }
+    },
+    {
+      "id": "bbc93d31-2821-4567-901e-f9f3380d2b5a",
+      "seq": 14,
+      "ts": "2026-09-18T21:57:45.873Z",
+      "runId": "9b9e3aa3-83aa-4f80-9c2d-cb47e806e79e",
+      "actor": "paper-executor",
+      "eventType": "container_refused",
+      "detail": {
+        "nodeId": "7355ded6-6565-44f5-93ee-517bd7bfeaee",
+        "attempt": 1,
+        "code": "schema_violation",
+        "reason": "entry 'ModelSpec' violates its closed IR schema — constraints: Invalid input: expected array, received string",
+        "output_sha256": "e233cd956d89c0d30be7a3265e2b4640a6b4c8804d0a421f1e41fffe49042ef5",
+        "excerpt_head": "{\n  \"__dsh_paper\": \"ir-container-v1\",\n  \"entries\": [\n    {\n      \"kind\": \"SymbolSpec\",\n      \"value\": {\n        \"symbol_id\": \"S-N\",\n        \"scope_ref\": \"P1\",\n        \"token\": \"n\",\n        \"meaning\": \"sample size for sampling inspection\",\n        \"unit\": \"pieces\",\n        \"role\": \"VARIABLE\",\n        \"shape\": \"SCALAR\",\n        \"domain\": \"NONNEGATIVE_INTEGER\",\n        \"index_set\": []\n      }\n    },\n",
+        "excerpt_tail": "\n      }\n    ],\n    \"figures\": []\n  },\n  \"narrative\": {\n    \"title\": \"生产过程中的决策问题——建模分析\",\n    \"conclusion\": {\n      \"claims\": [\n        {\n          \"text\": \"情形(1)的抽样方案为抽 n 件,不合格数达到 c 则拒收。\",\n          \"quantity_refs\": [\"R-PLAN1-N\", \"R-PLAN1-C\"]\n        },\n        {\n          \"text\": \"情形(2)的抽样方案为抽 n 件,不合格数不超过 c 则接收。\",\n          \"quantity_refs\": [\"R-PLAN2-N\", \"R-PLAN2-C\"]\n        }\n      ]\n    }\n  }\n}"
+      }
+    },
+    {
+      "id": "ff5954f4-ca07-4b42-bfce-69c34610e56e",
+      "seq": 15,
+      "ts": "2026-09-18T21:57:45.884Z",
+      "runId": "9b9e3aa3-83aa-4f80-9c2d-cb47e806e79e",
+      "actor": "paper-executor",
+      "eventType": "provider_retry",
+      "detail": {
+        "code": "schema_violation",
+        "role": "executor",
+        "attempt": 1,
+        "w4Class": "DRIFT"
+      }
+    },
+    {
+      "id": "082ea34b-27bc-466f-93fd-551ea0c40d83",
+      "seq": 16,
+      "ts": "2026-09-18T21:57:47.046Z",
+      "runId": "9b9e3aa3-83aa-4f80-9c2d-cb47e806e79e",
+      "actor": "paper-executor",
+      "eventType": "ir_entry_written",
+      "detail": {
+        "kind": "E1Reused",
+        "id": "e1",
+        "nodeId": "7355ded6-6565-44f5-93ee-517bd7bfeaee",
+        "stage": "receive",
+        "chars": 6191
+      }
+    },
+    {
+      "id": "c507924b-0c05-418c-9b39-3340210b21ae",
+      "seq": 17,
+      "ts": "2026-09-18T21:57:47.049Z",
+      "runId": "9b9e3aa3-83aa-4f80-9c2d-cb47e806e79e",
+      "actor": "paper-executor",
+      "eventType": "ir_entry_written",
+      "detail": {
+        "kind": "E2DriftGuidance",
+        "id": "e2-guidance",
+        "nodeId": "7355ded6-6565-44f5-93ee-517bd7bfeaee",
+        "stage": "receive",
+        "applied": true,
+        "guidance_chars": 1549
+      }
+    },
+    {
+      "id": "3f00730e-f274-4e1a-bc80-a75a06c92fa2",
+      "seq": 18,
+      "ts": "2026-09-18T21:58:56.181Z",
+      "runId": "9b9e3aa3-83aa-4f80-9c2d-cb47e806e79e",
+      "actor": "paper-executor",
+      "eventType": "ir_entry_written",
+      "detail": {
+        "kind": "E2Normalization",
+        "id": "e2",
+        "nodeId": "7355ded6-6565-44f5-93ee-517bd7bfeaee",
+        "stage": "receive",
+        "chars": 24125,
+        "e1_chars": 6191
+      }
+    },
+    {
+      "id": "6a498c65-f16a-40d1-842a-9cc4c8cfc9a1",
+      "seq": 19,
+      "ts": "2026-09-18T21:58:56.187Z",
+      "runId": "9b9e3aa3-83aa-4f80-9c2d-cb47e806e79e",
+      "actor": "paper-executor",
+      "eventType": "ir_entry_written",
+      "detail": {
+        "kind": "FidelityFinding",
+        "id": "B4 逐问推理覆盖",
+        "nodeId": "7355ded6-6565-44f5-93ee-517bd7bfeaee",
+        "ok": true,
+        "detail": "全部 1 个 REQUIRED_OUTPUT 在 E1 中有推理锚点"
+      }
+    },
+    {
+      "id": "4f0d0b0c-a180-4f7c-9be2-125fea34b9fd",
+      "seq": 20,
+      "ts": "2026-09-18T21:58:56.190Z",
+      "runId": "9b9e3aa3-83aa-4f80-9c2d-cb47e806e79e",
+      "actor": "paper-executor",
+      "eventType": "ir_entry_written",
+      "detail": {
+        "kind": "FidelityFinding",
+        "id": "B5 锚点 id 形态（E1 侧）",
+        "nodeId": "7355ded6-6565-44f5-93ee-517bd7bfeaee",
+        "ok": true,
+        "detail": "全部 9 个锚点 id 都是可用名字"
+      }
+    },
+    {
+      "id": "3b757d5a-542a-4d18-a1fb-6b99ea35581a",
+      "seq": 21,
+      "ts": "2026-09-18T21:58:56.194Z",
+      "runId": "9b9e3aa3-83aa-4f80-9c2d-cb47e806e79e",
+      "actor": "paper-executor",
+      "eventType": "ir_entry_written",
+      "detail": {
+        "kind": "FidelityFinding",
+        "id": "B3 反向（E1 假设须被声明）",
+        "nodeId": "7355ded6-6565-44f5-93ee-517bd7bfeaee",
+        "ok": true,
+        "detail": "E1 的 8 条假设锚点均有对应 AssumptionSpec"
+      }
+    },
+    {
+      "id": "c4313246-27e7-4ad1-8575-0bd2fed04903",
+      "seq": 22,
+      "ts": "2026-09-18T21:58:56.198Z",
+      "runId": "9b9e3aa3-83aa-4f80-9c2d-cb47e806e79e",
+      "actor": "paper-executor",
+      "eventType": "ir_entry_written",
+      "detail": {
+        "kind": "FidelityFinding",
+        "id": "B3 锚点同一性（声明须在 E1 中有同名锚点）",
+        "nodeId": "7355ded6-6565-44f5-93ee-517bd7bfeaee",
+        "ok": true,
+        "detail": "6 条假设声明在 E1 中均有同名锚点"
+      }
+    },
+    {
+      "id": "ef75bc47-e4df-4e3c-a5a3-06dfc5fd73f1",
+      "seq": 23,
+      "ts": "2026-09-18T21:58:56.201Z",
+      "runId": "9b9e3aa3-83aa-4f80-9c2d-cb47e806e79e",
+      "actor": "paper-executor",
+      "eventType": "ir_entry_written",
+      "detail": {
+        "kind": "FidelityFinding",
+        "id": "B3 正向（声明须逐字锚定 E1）",
+        "nodeId": "7355ded6-6565-44f5-93ee-517bd7bfeaee",
+        "ok": true,
+        "detail": "13 条 Assumption/Equation 声明全部逐字锚定 E1"
+      }
+    },
+    {
+      "id": "c57aa9cc-84ad-4441-8033-d4e4452b6308",
+      "seq": 24,
+      "ts": "2026-09-18T21:58:56.208Z",
+      "runId": "9b9e3aa3-83aa-4f80-9c2d-cb47e806e79e",
+      "actor": "paper-executor",
+      "eventType": "ir_entry_written",
+      "detail": {
+        "kind": "SymbolSpec",
+        "id": "S-N",
+        "nodeId": "7355ded6-6565-44f5-93ee-517bd7bfeaee"
+      }
+    },
+    {
+      "id": "b38f77c3-6254-4f61-b82f-f9d7140c371d",
+      "seq": 25,
+      "ts": "2026-09-18T21:58:56.213Z",
+      "runId": "9b9e3aa3-83aa-4f80-9c2d-cb47e806e79e",
+      "actor": "paper-executor",
+      "eventType": "ir_entry_written",
+      "detail": {
+        "kind": "SymbolSpec",
+        "id": "S-C",
+        "nodeId": "7355ded6-6565-44f5-93ee-517bd7bfeaee"
+      }
+    },
+    {
+      "id": "2fd97663-7359-45aa-bcd1-fc3a3a615fd6",
+      "seq": 26,
+      "ts": "2026-09-18T21:58:56.216Z",
+      "runId": "9b9e3aa3-83aa-4f80-9c2d-cb47e806e79e",
+      "actor": "paper-executor",
+      "eventType": "ir_entry_written",
+      "detail": {
+        "kind": "SymbolSpec",
+        "id": "S-X",
+        "nodeId": "7355ded6-6565-44f5-93ee-517bd7bfeaee"
+      }
+    },
+    {
+      "id": "fd4103aa-147c-4774-8631-afe7e6aad8ed",
+      "seq": 27,
+      "ts": "2026-09-18T21:58:56.220Z",
+      "runId": "9b9e3aa3-83aa-4f80-9c2d-cb47e806e79e",
+      "actor": "paper-executor",
+      "eventType": "ir_entry_written",
+      "detail": {
+        "kind": "SymbolSpec",
+        "id": "S-P0",
+        "nodeId": "7355ded6-6565-44f5-93ee-517bd7bfeaee"
+      }
+    },
+    {
+      "id": "1dcd6b4f-a8cb-4f4f-bdc0-8d0c2baed5d7",
+      "seq": 28,
+      "ts": "2026-09-18T21:58:56.224Z",
+      "runId": "9b9e3aa3-83aa-4f80-9c2d-cb47e806e79e",
+      "actor": "paper-executor",
+      "eventType": "ir_entry_written",
+      "detail": {
+        "kind": "SymbolSpec",
+        "id": "S-P1",
+        "nodeId": "7355ded6-6565-44f5-93ee-517bd7bfeaee"
+      }
+    },
+    {
+      "id": "e8402e95-f1b8-41a2-91c6-45b01f17fe17",
+      "seq": 29,
+      "ts": "2026-09-18T21:58:56.227Z",
+      "runId": "9b9e3aa3-83aa-4f80-9c2d-cb47e806e79e",
+      "actor": "paper-executor",
+      "eventType": "ir_entry_written",
+      "detail": {
+        "kind": "SymbolSpec",
+        "id": "S-P2",
+        "nodeId": "7355ded6-6565-44f5-93ee-517bd7bfeaee"
+      }
+    },
+    {
+      "id": "0bba78c8-cb99-4035-9bd4-3ca7a21eda75",
+      "seq": 30,
+      "ts": "2026-09-18T21:58:56.230Z",
+      "runId": "9b9e3aa3-83aa-4f80-9c2d-cb47e806e79e",
+      "actor": "paper-executor",
+      "eventType": "ir_entry_written",
+      "detail": {
+        "kind": "SymbolSpec",
+        "id": "S-PF",
+        "nodeId": "7355ded6-6565-44f5-93ee-517bd7bfeaee"
+      }
+    },
+    {
+      "id": "d096d113-1ce2-48b6-bdc7-b123431236bd",
+      "seq": 31,
+      "ts": "2026-09-18T21:58:56.234Z",
+      "runId": "9b9e3aa3-83aa-4f80-9c2d-cb47e806e79e",
+      "actor": "paper-executor",
+      "eventType": "ir_entry_written",
+      "detail": {
+        "kind": "SymbolSpec",
+        "id": "S-X1",
+        "nodeId": "7355ded6-6565-44f5-93ee-517bd7bfeaee"
+      }
+    },
+    {
+      "id": "90f8bd28-67b5-4b93-beee-cf38a3d09800",
+      "seq": 32,
+      "ts": "2026-09-18T21:58:56.237Z",
+      "runId": "9b9e3aa3-83aa-4f80-9c2d-cb47e806e79e",
+      "actor": "paper-executor",
+      "eventType": "ir_entry_written",
+      "detail": {
+        "kind": "SymbolSpec",
+        "id": "S-X2",
+        "nodeId": "7355ded6-6565-44f5-93ee-517bd7bfeaee"
+      }
+    },
+    {
+      "id": "c91a99b4-743f-4374-bd2f-a6419a7f0564",
+      "seq": 33,
+      "ts": "2026-09-18T21:58:56.241Z",
+      "runId": "9b9e3aa3-83aa-4f80-9c2d-cb47e806e79e",
+      "actor": "paper-executor",
+      "eventType": "ir_entry_written",
+      "detail": {
+        "kind": "SymbolSpec",
+        "id": "S-Y",
+        "nodeId": "7355ded6-6565-44f5-93ee-517bd7bfeaee"
+      }
+    },
+    {
+      "id": "433c678a-6d77-494b-b49d-63340839a0e7",
+      "seq": 34,
+      "ts": "2026-09-18T21:58:56.245Z",
+      "runId": "9b9e3aa3-83aa-4f80-9c2d-cb47e806e79e",
+      "actor": "paper-executor",
+      "eventType": "ir_entry_written",
+      "detail": {
+        "kind": "SymbolSpec",
+        "id": "S-Z",
+        "nodeId": "7355ded6-6565-44f5-93ee-517bd7bfeaee"
+      }
+    },
+    {
+      "id": "ce115f88-30e1-4b6e-9929-e6fee0bacddc",
+      "seq": 35,
+      "ts": "2026-09-18T21:58:56.249Z",
+      "runId": "9b9e3aa3-83aa-4f80-9c2d-cb47e806e79e",
+      "actor": "paper-executor",
+      "eventType": "ir_entry_written",
+      "detail": {
+        "kind": "SymbolSpec",
+        "id": "S-C1",
+        "nodeId": "7355ded6-6565-44f5-93ee-517bd7bfeaee"
+      }
+    },
+    {
+      "id": "f9b4eb4c-ea80-4b9a-9be4-bc85764706e8",
+      "seq": 36,
+      "ts": "2026-09-18T21:58:56.252Z",
+      "runId": "9b9e3aa3-83aa-4f80-9c2d-cb47e806e79e",
+      "actor": "paper-executor",
+      "eventType": "ir_entry_written",
+      "detail": {
+        "kind": "SymbolSpec",
+        "id": "S-C2",
+        "nodeId": "7355ded6-6565-44f5-93ee-517bd7bfeaee"
+      }
+    },
+    {
+      "id": "c1bbe95e-3d26-4c6b-bc7a-c8b692329e5a",
+      "seq": 37,
+      "ts": "2026-09-18T21:58:56.255Z",
+      "runId": "9b9e3aa3-83aa-4f80-9c2d-cb47e806e79e",
+      "actor": "paper-executor",
+      "eventType": "ir_entry_written",
+      "detail": {
+        "kind": "SymbolSpec",
+        "id": "S-D1",
+        "nodeId": "7355ded6-6565-44f5-93ee-517bd7bfeaee"
+      }
+    },
+    {
+      "id": "be1149f0-edb8-41b1-92db-b6055d3b54f9",
+      "seq": 38,
+      "ts": "2026-09-18T21:58:56.259Z",
+      "runId": "9b9e3aa3-83aa-4f80-9c2d-cb47e806e79e",
+      "actor": "paper-executor",
+      "eventType": "ir_entry_written",
+      "detail": {
+        "kind": "SymbolSpec",
+        "id": "S-D2",
+        "nodeId": "7355ded6-6565-44f5-93ee-517bd7bfeaee"
+      }
+    },
+    {
+      "id": "fa039f83-7d10-400f-bc83-a4f701d37200",
+      "seq": 39,
+      "ts": "2026-09-18T21:58:56.262Z",
+      "runId": "9b9e3aa3-83aa-4f80-9c2d-cb47e806e79e",
+      "actor": "paper-executor",
+      "eventType": "ir_entry_written",
+      "detail": {
+        "kind": "SymbolSpec",
+        "id": "S-A",
+        "nodeId": "7355ded6-6565-44f5-93ee-517bd7bfeaee"
+      }
+    },
+    {
+      "id": "12898803-393e-49e1-bd57-13c1d7717baa",
+      "seq": 40,
+      "ts": "2026-09-18T21:58:56.266Z",
+      "runId": "9b9e3aa3-83aa-4f80-9c2d-cb47e806e79e",
+      "actor": "paper-executor",
+      "eventType": "ir_entry_written",
+      "detail": {
+        "kind": "SymbolSpec",
+        "id": "S-DF",
+        "nodeId": "7355ded6-6565-44f5-93ee-517bd7bfeaee"
+      }
+    },
+    {
+      "id": "0c5d542c-26b3-4dc5-9b86-e909a1fcadef",
+      "seq": 41,
+      "ts": "2026-09-18T21:58:56.270Z",
+      "runId": "9b9e3aa3-83aa-4f80-9c2d-cb47e806e79e",
+      "actor": "paper-executor",
+      "eventType": "ir_entry_written",
+      "detail": {
+        "kind": "SymbolSpec",
+        "id": "S-S",
+        "nodeId": "7355ded6-6565-44f5-93ee-517bd7bfeaee"
+      }
+    },
+    {
+      "id": "184ccb08-ebfa-4df2-a381-5b3239a95cb3",
+      "seq": 42,
+      "ts": "2026-09-18T21:58:56.273Z",
+      "runId": "9b9e3aa3-83aa-4f80-9c2d-cb47e806e79e",
+      "actor": "paper-executor",
+      "eventType": "ir_entry_written",
+      "detail": {
+        "kind": "SymbolSpec",
+        "id": "S-L",
+        "nodeId": "7355ded6-6565-44f5-93ee-517bd7bfeaee"
+      }
+    },
+    {
+      "id": "1342d253-c1bd-4423-8a0f-7e727d586ad6",
+      "seq": 43,
+      "ts": "2026-09-18T21:58:56.277Z",
+      "runId": "9b9e3aa3-83aa-4f80-9c2d-cb47e806e79e",
+      "actor": "paper-executor",
+      "eventType": "ir_entry_written",
+      "detail": {
+        "kind": "SymbolSpec",
+        "id": "S-R",
+        "nodeId": "7355ded6-6565-44f5-93ee-517bd7bfeaee"
+      }
+    },
+    {
+      "id": "a08ecbfd-6f7f-449a-a182-4aa6311ba149",
+      "seq": 44,
+      "ts": "2026-09-18T21:58:56.281Z",
+      "runId": "9b9e3aa3-83aa-4f80-9c2d-cb47e806e79e",
+      "actor": "paper-executor",
+      "eventType": "ir_entry_written",
+      "detail": {
+        "kind": "SymbolSpec",
+        "id": "S-Q",
+        "nodeId": "7355ded6-6565-44f5-93ee-517bd7bfeaee"
+      }
+    },
+    {
+      "id": "4c46ed7c-29c6-4a3a-961c-69390837a4da",
+      "seq": 45,
+      "ts": "2026-09-18T21:58:56.284Z",
+      "runId": "9b9e3aa3-83aa-4f80-9c2d-cb47e806e79e",
+      "actor": "paper-executor",
+      "eventType": "ir_entry_written",
+      "detail": {
+        "kind": "SymbolSpec",
+        "id": "S-QD",
+        "nodeId": "7355ded6-6565-44f5-93ee-517bd7bfeaee"
+      }
+    },
+    {
+      "id": "7aa59b10-4298-4734-a349-a89aa563e68b",
+      "seq": 46,
+      "ts": "2026-09-18T21:58:56.288Z",
+      "runId": "9b9e3aa3-83aa-4f80-9c2d-cb47e806e79e",
+      "actor": "paper-executor",
+      "eventType": "ir_entry_written",
+      "detail": {
+        "kind": "SymbolSpec",
+        "id": "S-V",
+        "nodeId": "7355ded6-6565-44f5-93ee-517bd7bfeaee"
+      }
+    },
+    {
+      "id": "d350eebd-5305-4549-8a6d-fe6d532f914b",
+      "seq": 47,
+      "ts": "2026-09-18T21:58:56.291Z",
+      "runId": "9b9e3aa3-83aa-4f80-9c2d-cb47e806e79e",
+      "actor": "paper-executor",
+      "eventType": "ir_entry_written",
+      "detail": {
+        "kind": "SymbolSpec",
+        "id": "S-B",
+        "nodeId": "7355ded6-6565-44f5-93ee-517bd7bfeaee"
+      }
+    },
+    {
+      "id": "11cf38ab-a1e7-4839-a1e6-8729e3f97c14",
+      "seq": 48,
+      "ts": "2026-09-18T21:58:56.294Z",
+      "runId": "9b9e3aa3-83aa-4f80-9c2d-cb47e806e79e",
+      "actor": "paper-executor",
+      "eventType": "ir_entry_written",
+      "detail": {
+        "kind": "SymbolSpec",
+        "id": "S-XI",
+        "nodeId": "7355ded6-6565-44f5-93ee-517bd7bfeaee"
+      }
+    },
+    {
+      "id": "68a27131-499f-482c-ad6d-86ebd980cd38",
+      "seq": 49,
+      "ts": "2026-09-18T21:58:56.297Z",
+      "runId": "9b9e3aa3-83aa-4f80-9c2d-cb47e806e79e",
+      "actor": "paper-executor",
+      "eventType": "ir_entry_written",
+      "detail": {
+        "kind": "SymbolSpec",
+        "id": "S-YJ",
+        "nodeId": "7355ded6-6565-44f5-93ee-517bd7bfeaee"
+      }
+    },
+    {
+      "id": "3eb079d8-674b-4ca5-8b87-6a56297c6f73",
+      "seq": 50,
+      "ts": "2026-09-18T21:58:56.301Z",
+      "runId": "9b9e3aa3-83aa-4f80-9c2d-cb47e806e79e",
+      "actor": "paper-executor",
+      "eventType": "ir_entry_written",
+      "detail": {
+        "kind": "SymbolSpec",
+        "id": "S-ZJ",
+        "nodeId": "7355ded6-6565-44f5-93ee-517bd7bfeaee"
+      }
+    },
+    {
+      "id": "b04dcb0a-312c-498d-8287-5e643146f44c",
+      "seq": 51,
+      "ts": "2026-09-18T21:58:56.304Z",
+      "runId": "9b9e3aa3-83aa-4f80-9c2d-cb47e806e79e",
+      "actor": "paper-executor",
+      "eventType": "ir_entry_written",
+      "detail": {
+        "kind": "SymbolSpec",
+        "id": "S-YF",
+        "nodeId": "7355ded6-6565-44f5-93ee-517bd7bfeaee"
+      }
+    },
+    {
+      "id": "a47d300e-7c13-40a3-934e-748ecf7a0f50",
+      "seq": 52,
+      "ts": "2026-09-18T21:58:56.308Z",
+      "runId": "9b9e3aa3-83aa-4f80-9c2d-cb47e806e79e",
+      "actor": "paper-executor",
+      "eventType": "ir_entry_written",
+      "detail": {
+        "kind": "SymbolSpec",
+        "id": "S-ZF",
+        "nodeId": "7355ded6-6565-44f5-93ee-517bd7bfeaee"
+      }
+    },
+    {
+      "id": "b691d3bd-3010-4063-8d71-f91b2bdbd78e",
+      "seq": 53,
+      "ts": "2026-09-18T21:58:56.311Z",
+      "runId": "9b9e3aa3-83aa-4f80-9c2d-cb47e806e79e",
+      "actor": "paper-executor",
+      "eventType": "ir_entry_written",
+      "detail": {
+        "kind": "SymbolSpec",
+        "id": "S-QJ",
+        "nodeId": "7355ded6-6565-44f5-93ee-517bd7bfeaee"
+      }
+    },
+    {
+      "id": "760a4af0-e00e-4276-83cf-1b099ca0ea9a",
+      "seq": 54,
+      "ts": "2026-09-18T21:58:56.314Z",
+      "runId": "9b9e3aa3-83aa-4f80-9c2d-cb47e806e79e",
+      "actor": "paper-executor",
+      "eventType": "ir_entry_written",
+      "detail": {
+        "kind": "SymbolSpec",
+        "id": "S-QF",
+        "nodeId": "7355ded6-6565-44f5-93ee-517bd7bfeaee"
+      }
+    },
+    {
+      "id": "488cef05-c8d4-4001-add9-438c69373dcd",
+      "seq": 55,
+      "ts": "2026-09-18T21:58:56.317Z",
+      "runId": "9b9e3aa3-83aa-4f80-9c2d-cb47e806e79e",
+      "actor": "paper-executor",
+      "eventType": "ir_entry_written",
+      "detail": {
+        "kind": "SymbolSpec",
+        "id": "S-VF",
+        "nodeId": "7355ded6-6565-44f5-93ee-517bd7bfeaee"
+      }
+    },
+    {
+      "id": "5722ee5e-aa02-4818-816b-0d7785afd1c4",
+      "seq": 56,
+      "ts": "2026-09-18T21:58:56.320Z",
+      "runId": "9b9e3aa3-83aa-4f80-9c2d-cb47e806e79e",
+      "actor": "paper-executor",
+      "eventType": "ir_entry_written",
+      "detail": {
+        "kind": "SymbolSpec",
+        "id": "S-VSJ",
+        "nodeId": "7355ded6-6565-44f5-93ee-517bd7bfeaee"
+      }
+    },
+    {
+      "id": "2e5f945c-83d1-4f40-bd61-57233986e414",
+      "seq": 57,
+      "ts": "2026-09-18T21:58:56.323Z",
+      "runId": "9b9e3aa3-83aa-4f80-9c2d-cb47e806e79e",
+      "actor": "paper-executor",
+      "eventType": "ir_entry_written",
+      "detail": {
+        "kind": "SymbolSpec",
+        "id": "S-PU",
+        "nodeId": "7355ded6-6565-44f5-93ee-517bd7bfeaee"
+      }
+    },
+    {
+      "id": "8cf3b9af-3b30-47ed-8699-8f566901babd",
+      "seq": 58,
+      "ts": "2026-09-18T21:58:56.326Z",
+      "runId": "9b9e3aa3-83aa-4f80-9c2d-cb47e806e79e",
+      "actor": "paper-executor",
+      "eventType": "ir_entry_written",
+      "detail": {
+        "kind": "SymbolSpec",
+        "id": "S-PHAT",
+        "nodeId": "7355ded6-6565-44f5-93ee-517bd7bfeaee"
+      }
+    },
+    {
+      "id": "f8632a47-efc7-49bf-909d-f9286367f747",
+      "seq": 59,
+      "ts": "2026-09-18T21:58:56.329Z",
+      "runId": "9b9e3aa3-83aa-4f80-9c2d-cb47e806e79e",
+      "actor": "paper-executor",
+      "eventType": "ir_entry_written",
+      "detail": {
+        "kind": "AssumptionSpec",
+        "id": "A-BINOMIAL-APPROX",
+        "nodeId": "7355ded6-6565-44f5-93ee-517bd7bfeaee"
+      }
+    },
+    {
+      "id": "400cd3db-5afc-4fbd-bcb2-80f2ce6d31b6",
+      "seq": 60,
+      "ts": "2026-09-18T21:58:56.333Z",
+      "runId": "9b9e3aa3-83aa-4f80-9c2d-cb47e806e79e",
+      "actor": "paper-executor",
+      "eventType": "ir_entry_written",
+      "detail": {
+        "kind": "AssumptionSpec",
+        "id": "A-RECURSION-CONVERGENCE",
+        "nodeId": "7355ded6-6565-44f5-93ee-517bd7bfeaee"
+      }
+    },
+    {
+      "id": "e591f838-8be9-45e3-9e49-fcba3de3e67b",
+      "seq": 61,
+      "ts": "2026-09-18T21:58:56.336Z",
+      "runId": "9b9e3aa3-83aa-4f80-9c2d-cb47e806e79e",
+      "actor": "paper-executor",
+      "eventType": "ir_entry_written",
+      "detail": {
+        "kind": "AssumptionSpec",
+        "id": "A-INDEPENDENT-DEFECTS",
+        "nodeId": "7355ded6-6565-44f5-93ee-517bd7bfeaee"
+      }
+    },
+    {
+      "id": "5036f394-b25d-49c2-a0f0-87aafe2ec80e",
+      "seq": 62,
+      "ts": "2026-09-18T21:58:56.340Z",
+      "runId": "9b9e3aa3-83aa-4f80-9c2d-cb47e806e79e",
+      "actor": "paper-executor",
+      "eventType": "ir_entry_written",
+      "detail": {
+        "kind": "AssumptionSpec",
+        "id": "A-LINEAR-COST",
+        "nodeId": "7355ded6-6565-44f5-93ee-517bd7bfeaee"
+      }
+    },
+    {
+      "id": "e31d7ae8-19f3-4571-ab4d-c6d15894616a",
+      "seq": 63,
+      "ts": "2026-09-18T21:58:56.343Z",
+      "runId": "9b9e3aa3-83aa-4f80-9c2d-cb47e806e79e",
+      "actor": "paper-executor",
+      "eventType": "ir_entry_written",
+      "detail": {
+        "kind": "AssumptionSpec",
+        "id": "A-UNLIMITED-DEMAND",
+        "nodeId": "7355ded6-6565-44f5-93ee-517bd7bfeaee"
+      }
+    },
+    {
+      "id": "6c59cb70-4f1a-478e-8418-dd9a3681d228",
+      "seq": 64,
+      "ts": "2026-09-18T21:58:56.346Z",
+      "runId": "9b9e3aa3-83aa-4f80-9c2d-cb47e806e79e",
+      "actor": "paper-executor",
+      "eventType": "ir_entry_written",
+      "detail": {
+        "kind": "AssumptionSpec",
+        "id": "A-SINGLE-PERIOD",
+        "nodeId": "7355ded6-6565-44f5-93ee-517bd7bfeaee"
+      }
+    },
+    {
+      "id": "a2d16ade-2e48-46bf-ba79-eee8f452dbbf",
+      "seq": 65,
+      "ts": "2026-09-18T21:58:56.350Z",
+      "runId": "9b9e3aa3-83aa-4f80-9c2d-cb47e806e79e",
+      "actor": "paper-executor",
+      "eventType": "ir_entry_written",
+      "detail": {
+        "kind": "EquationSpec",
+        "id": "EQ-REJECTION",
+        "nodeId": "7355ded6-6565-44f5-93ee-517bd7bfeaee"
+      }
+    },
+    {
+      "id": "67fb0437-e583-4ed3-aada-82c688f8ad5c",
+      "seq": 66,
+      "ts": "2026-09-18T21:58:56.353Z",
+      "runId": "9b9e3aa3-83aa-4f80-9c2d-cb47e806e79e",
+      "actor": "paper-executor",
+      "eventType": "ir_entry_written",
+      "detail": {
+        "kind": "EquationSpec",
+        "id": "EQ-ACCEPTANCE",
+        "nodeId": "7355ded6-6565-44f5-93ee-517bd7bfeaee"
+      }
+    },
+    {
+      "id": "c5a4928a-cc1c-4164-a2ea-42bb09e18b4b",
+      "seq": 67,
+      "ts": "2026-09-18T21:58:56.356Z",
+      "runId": "9b9e3aa3-83aa-4f80-9c2d-cb47e806e79e",
+      "actor": "paper-executor",
+      "eventType": "ir_entry_written",
+      "detail": {
+        "kind": "EquationSpec",
+        "id": "EQ-Q",
+        "nodeId": "7355ded6-6565-44f5-93ee-517bd7bfeaee"
+      }
+    },
+    {
+      "id": "f033891c-1862-42a8-94e4-bf6d10dd7bf0",
+      "seq": 68,
+      "ts": "2026-09-18T21:58:56.359Z",
+      "runId": "9b9e3aa3-83aa-4f80-9c2d-cb47e806e79e",
+      "actor": "paper-executor",
+      "eventType": "ir_entry_written",
+      "detail": {
+        "kind": "EquationSpec",
+        "id": "EQ-QD",
+        "nodeId": "7355ded6-6565-44f5-93ee-517bd7bfeaee"
+      }
+    },
+    {
+      "id": "ad51afb3-714e-4224-bcd3-a67b9709f9f1",
+      "seq": 69,
+      "ts": "2026-09-18T21:58:56.363Z",
+      "runId": "9b9e3aa3-83aa-4f80-9c2d-cb47e806e79e",
+      "actor": "paper-executor",
+      "eventType": "ir_entry_written",
+      "detail": {
+        "kind": "EquationSpec",
+        "id": "EQ-FIXEDPOINT",
+        "nodeId": "7355ded6-6565-44f5-93ee-517bd7bfeaee"
+      }
+    },
+    {
+      "id": "b7ef2a51-e280-442f-9b33-d42940b9c7ce",
+      "seq": 70,
+      "ts": "2026-09-18T21:58:56.366Z",
+      "runId": "9b9e3aa3-83aa-4f80-9c2d-cb47e806e79e",
+      "actor": "paper-executor",
+      "eventType": "ir_entry_written",
+      "detail": {
+        "kind": "EquationSpec",
+        "id": "EQ-QJ",
+        "nodeId": "7355ded6-6565-44f5-93ee-517bd7bfeaee"
+      }
+    },
+    {
+      "id": "2a0c821a-b878-49f5-b2ee-bd905589b3ad",
+      "seq": 71,
+      "ts": "2026-09-18T21:58:56.370Z",
+      "runId": "9b9e3aa3-83aa-4f80-9c2d-cb47e806e79e",
+      "actor": "paper-executor",
+      "eventType": "ir_entry_written",
+      "detail": {
+        "kind": "EquationSpec",
+        "id": "EQ-QF",
+        "nodeId": "7355ded6-6565-44f5-93ee-517bd7bfeaee"
+      }
+    },
+    {
+      "id": "91ca775f-4ef4-447f-a287-08e3e8a3a90e",
+      "seq": 72,
+      "ts": "2026-09-18T21:58:56.374Z",
+      "runId": "9b9e3aa3-83aa-4f80-9c2d-cb47e806e79e",
+      "actor": "paper-executor",
+      "eventType": "ir_entry_written",
+      "detail": {
+        "kind": "ModelSpec",
+        "id": "M-MAIN",
+        "nodeId": "7355ded6-6565-44f5-93ee-517bd7bfeaee"
+      }
+    },
+    {
+      "id": "5ee3dad3-8a6b-4c5e-a17a-53716dfc6e75",
+      "seq": 73,
+      "ts": "2026-09-18T21:58:56.433Z",
+      "runId": "9b9e3aa3-83aa-4f80-9c2d-cb47e806e79e",
+      "actor": "paper-executor",
+      "eventType": "ir_entry_written",
+      "detail": {
+        "kind": "RunArtifact",
+        "id": "9b9e3aa3-83aa-4f80-9c2d-cb47e806e79e",
+        "nodeId": "execute",
+        "stage": "code-run"
+      }
+    },
+    {
+      "id": "60b36c9e-a721-49cb-af0d-b70225248363",
+      "seq": 74,
+      "ts": "2026-09-18T21:58:56.437Z",
+      "runId": "9b9e3aa3-83aa-4f80-9c2d-cb47e806e79e",
+      "actor": "paper-executor",
+      "eventType": "ir_entry_written",
+      "detail": {
+        "kind": "ExecutionRecord",
+        "id": "EXEC-9b9e3aa3-83aa-4f80-9c2d-cb47e806e79e",
+        "nodeId": "execute",
+        "stage": "code-run"
+      }
+    },
+    {
+      "id": "7eb48c74-35a8-4050-8bad-ce76e0dd703e",
+      "seq": 75,
+      "ts": "2026-09-18T21:58:56.449Z",
+      "runId": "9b9e3aa3-83aa-4f80-9c2d-cb47e806e79e",
+      "actor": "paper-executor",
+      "eventType": "provider_retry",
+      "detail": {
+        "code": "result_source_invalid",
+        "role": "executor",
+        "attempt": 2,
+        "w4Class": "DRIFT"
+      }
+    },
+    {
+      "id": "6476b247-2898-438d-8f13-4dc6442dc435",
+      "seq": 76,
+      "ts": "2026-09-18T21:58:58.656Z",
+      "runId": "9b9e3aa3-83aa-4f80-9c2d-cb47e806e79e",
+      "actor": "paper-executor",
+      "eventType": "ir_entry_written",
+      "detail": {
+        "kind": "E1Reused",
+        "id": "e1",
+        "nodeId": "7355ded6-6565-44f5-93ee-517bd7bfeaee",
+        "stage": "receive",
+        "chars": 6191
+      }
+    },
+    {
+      "id": "996dc3f9-5aaa-420b-8e98-7ef932d26340",
+      "seq": 77,
+      "ts": "2026-09-18T21:58:58.660Z",
+      "runId": "9b9e3aa3-83aa-4f80-9c2d-cb47e806e79e",
+      "actor": "paper-executor",
+      "eventType": "ir_entry_written",
+      "detail": {
+        "kind": "E2DriftGuidance",
+        "id": "e2-guidance",
+        "nodeId": "7355ded6-6565-44f5-93ee-517bd7bfeaee",
+        "stage": "receive",
+        "applied": true,
+        "guidance_chars": 2182
+      }
+    },
+    {
+      "id": "a15ce518-8b33-4b46-8208-47f4197f77ac",
+      "seq": 78,
+      "ts": "2026-09-18T21:59:31.577Z",
+      "runId": "9b9e3aa3-83aa-4f80-9c2d-cb47e806e79e",
+      "actor": "paper-executor",
+      "eventType": "ir_entry_written",
+      "detail": {
+        "kind": "E2Normalization",
+        "id": "e2",
+        "nodeId": "7355ded6-6565-44f5-93ee-517bd7bfeaee",
+        "stage": "receive",
+        "chars": 8161,
+        "e1_chars": 6191
+      }
+    },
+    {
+      "id": "334e0550-6662-4a3b-8d90-7b9953a285a1",
+      "seq": 79,
+      "ts": "2026-09-18T21:59:31.585Z",
+      "runId": "9b9e3aa3-83aa-4f80-9c2d-cb47e806e79e",
+      "actor": "paper-executor",
+      "eventType": "ir_entry_written",
+      "detail": {
+        "kind": "FidelityFinding",
+        "id": "B4 逐问推理覆盖",
+        "nodeId": "7355ded6-6565-44f5-93ee-517bd7bfeaee",
+        "ok": true,
+        "detail": "全部 1 个 REQUIRED_OUTPUT 在 E1 中有推理锚点"
+      }
+    },
+    {
+      "id": "a58174bc-4bf7-46e7-9123-5491f1f9b0b0",
+      "seq": 80,
+      "ts": "2026-09-18T21:59:31.588Z",
+      "runId": "9b9e3aa3-83aa-4f80-9c2d-cb47e806e79e",
+      "actor": "paper-executor",
+      "eventType": "ir_entry_written",
+      "detail": {
+        "kind": "FidelityFinding",
+        "id": "B5 锚点 id 形态（E1 侧）",
+        "nodeId": "7355ded6-6565-44f5-93ee-517bd7bfeaee",
+        "ok": true,
+        "detail": "全部 9 个锚点 id 都是可用名字"
+      }
+    },
+    {
+      "id": "b9822757-36a0-47bb-9361-1e3e93c7faeb",
+      "seq": 81,
+      "ts": "2026-09-18T21:59:31.591Z",
+      "runId": "9b9e3aa3-83aa-4f80-9c2d-cb47e806e79e",
+      "actor": "paper-executor",
+      "eventType": "ir_entry_written",
+      "detail": {
+        "kind": "FidelityFinding",
+        "id": "B3 反向（E1 假设须被声明）",
+        "nodeId": "7355ded6-6565-44f5-93ee-517bd7bfeaee",
+        "ok": false,
+        "detail": "E1 标记了但 IR 未声明的假设：A-BINOMIAL-APPROX、A-RECURSION-CONVERGENCE、A-BINOMIAL-APPROX、A-RECURSION-CONVERGENCE、A-INDEPENDENT-DEFECTS、A-LINEAR-COST、A-UNLIMITED-DEMAND、A-SINGLE-PERIOD"
+      }
+    },
+    {
+      "id": "7cdafa62-c314-4515-be45-e1c9b8a87c59",
+      "seq": 82,
+      "ts": "2026-09-18T21:59:31.593Z",
+      "runId": "9b9e3aa3-83aa-4f80-9c2d-cb47e806e79e",
+      "actor": "paper-executor",
+      "eventType": "ir_entry_written",
+      "detail": {
+        "kind": "FidelityFinding",
+        "id": "B3 锚点同一性（声明须在 E1 中有同名锚点）",
+        "nodeId": "7355ded6-6565-44f5-93ee-517bd7bfeaee",
+        "ok": true,
+        "detail": "0 条假设声明在 E1 中均有同名锚点"
+      }
+    },
+    {
+      "id": "63355f72-e3f8-49a8-81cf-426e3f1f7848",
+      "seq": 83,
+      "ts": "2026-09-18T21:59:31.597Z",
+      "runId": "9b9e3aa3-83aa-4f80-9c2d-cb47e806e79e",
+      "actor": "paper-executor",
+      "eventType": "ir_entry_written",
+      "detail": {
+        "kind": "FidelityFinding",
+        "id": "B3 正向（声明须逐字锚定 E1）",
+        "nodeId": "7355ded6-6565-44f5-93ee-517bd7bfeaee",
+        "ok": false,
+        "detail": "EQ-REJ-RULE: e1_span 在 E1 中找不到逐字匹配（疑似改写）〔相似度 12.2%，首分歧 @5，span「情形(1):要求当$p=p」vs E1「情形(1)**:要求当$p」〕；EQ-ACC-RULE: e1_span 在 E1 中找不到逐字匹配（疑似改写）〔相似度 11.0%，首分歧 @5，span「情形(2):要求当$p=p」vs E1「情形(2)**:要求当$p」〕"
+      }
+    },
+    {
+      "id": "9f349d7e-651a-4acf-b687-4b3c5fd1351f",
+      "seq": 84,
+      "ts": "2026-09-18T21:59:31.609Z",
+      "runId": "9b9e3aa3-83aa-4f80-9c2d-cb47e806e79e",
+      "actor": "paper-executor",
+      "eventType": "e1_direct_delivery",
+      "detail": {
+        "nodeId": "7355ded6-6565-44f5-93ee-517bd7bfeaee",
+        "gate": "ir_producer",
+        "reason": "DRIFT guidance budget exhausted",
+        "failedRules": [
+          "B3 反向（E1 假设须被声明）",
+          "B3 正向（声明须逐字锚定 E1）"
+        ],
+        "e1_chars": 6191,
+        "assumptions": 8
+      }
+    },
+    {
+      "id": "58e42ce9-4825-4f37-9739-d08f7458f951",
+      "seq": 85,
+      "ts": "2026-09-18T22:00:55.330Z",
+      "runId": "9b9e3aa3-83aa-4f80-9c2d-cb47e806e79e",
+      "actor": "paper-executor",
+      "eventType": "gate_failed",
+      "detail": {
+        "kind": "critical_gate",
+        "reason": "ir_canonicalization:BLOCKED:missing IR backbone: Result,Claim; no CRITICAL claim in canonical IR; 13 Problem Contract failure(s): problem.ModelSpec.M-MAIN.parameter_refs.S-P0:parameter_role_mismatch,problem.ModelSpec.M-MAIN.parameter_refs.S-P1:parameter_role_mismatch,problem.ModelSpec.M-MAIN.parameter_refs.S-P2:parameter_role_mismatch,problem.ModelSpec.M-MAIN.parameter_refs.S-PF:parameter_role_mismatch,problem.ModelSpec.M-MAIN.parameter_refs.S-C1:parameter_role_mismatch,problem.ModelSpec.M-MAIN.parameter_refs.S-C2:parameter_role_mismatch,problem.ModelSpec.M-MAIN.parameter_refs.S-D1:parameter_role_mismatch,problem.ModelSpec.M-MAIN.parameter_refs.S-D2:parameter_role_mismatch,problem.ModelSpec.M-MAIN.parameter_refs.S-A:parameter_role_mismatch,problem.ModelSpec.M-MAIN.parameter_refs.S-DF:parameter_role_mismatch,problem.ModelSpec.M-MAIN.parameter_refs.S-S:parameter_role_mismatch,problem.ModelSpec.M-MAIN.parameter_refs.S-L:parameter_role_mismatch,problem.ModelSpec.M-MAIN.parameter_refs.S-R:parameter_role_mismatch",
+        "mode": "strict"
+      }
+    },
+    {
+      "id": "664e66e6-2b80-4f51-a393-de3b306633d2",
+      "seq": 86,
+      "ts": "2026-09-18T22:00:55.334Z",
+      "runId": "9b9e3aa3-83aa-4f80-9c2d-cb47e806e79e",
+      "actor": "paper-executor",
+      "eventType": "gate_failed",
+      "detail": {
+        "kind": "critical_gate",
+        "reason": "requirement_coverage:BLOCKED:requirement coverage: 1 finding(s) (R-OUT: REQUIRED_OUTPUT 'R-OUT' of problem 'P1' is not covered: only 0/1 distinct CRITICAL results reach this problem (A7 v0 fail-closed))",
+        "mode": "strict"
+      }
+    },
+    {
+      "id": "e4657479-0176-4f0d-825b-80a13ff46031",
+      "seq": 87,
+      "ts": "2026-09-18T22:00:55.338Z",
+      "runId": "9b9e3aa3-83aa-4f80-9c2d-cb47e806e79e",
+      "actor": "paper-executor",
+      "eventType": "delivery_graded",
+      "detail": {
+        "grade": "MARKED",
+        "mode": "fail-soft",
+        "annotations": 10,
+        "fatal": {
+          "emptyContent": false,
+          "executionFailed": false,
+          "referenceCatastrophe": false
+        }
+      }
+    },
+    {
+      "id": "8c1c1766-a9d2-408e-9ea9-e18b580fdbdb",
+      "seq": 88,
+      "ts": "2026-09-18T22:00:55.381Z",
+      "runId": "9b9e3aa3-83aa-4f80-9c2d-cb47e806e79e",
+      "actor": "paper-executor",
+      "eventType": "final_output_written",
+      "detail": {
+        "path": "D:\\deepseek modex\\deepseek-harness\\apps\\paper-shell\\src\\paper-shell-persist-MwhMa5\\9b9e3aa3-83aa-4f80-9c2d-cb47e806e79e\\final\\final",
+        "bytes": 14567,
+        "sha256": "30657e861af6a77229133ab74b253e17fdbf772f5cb16c94928546422daecef9"
+      }
+    },
+    {
+      "id": "4b5ca48d-f139-479c-8628-e5125ef4f43a",
+      "seq": 89,
+      "ts": "2026-09-18T22:00:55.385Z",
+      "runId": "9b9e3aa3-83aa-4f80-9c2d-cb47e806e79e",
+      "actor": "paper-executor",
+      "eventType": "promotion_succeeded",
+      "detail": {
+        "type": "promotion_succeeded",
+        "at": "2026-09-18T22:00:55.380Z",
+        "artifactId": "cfa77914-f89a-4119-b4b8-bba7f70b3974",
+        "finalOutputPath": "/var/paper-harness/final",
+        "mode": "strict"
+      }
+    },
+    {
+      "id": "f393d25f-80ae-42d1-9772-e989a6b6aa57",
+      "seq": 90,
+      "ts": "2026-09-18T22:00:55.396Z",
+      "runId": "9b9e3aa3-83aa-4f80-9c2d-cb47e806e79e",
+      "actor": "paper-executor",
+      "eventType": "workflow_completed",
+      "detail": {
+        "gatePassed": true,
+        "costUsd": 0
+      }
+    }
+  ]
+}
