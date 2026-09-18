@@ -25,6 +25,7 @@ import Storage from '@deepseek-ai/dsh-storage'
 import { JsonStorageBackend } from '@deepseek-ai/dsh-storage-json'
 import { DomainFacility } from '@deepseek-ai/dsh-storage-domain'
 import {
+  PaperArtifactBodyService,
   PaperAuditService,
   PaperExecutorService,
   PaperFoundationService,
@@ -126,6 +127,11 @@ async function buildContext(shellRoot: string, display?: { provider: string; mod
   const ir = new ModelingIr()
   ctx.provide('paperModelingIr', ir)
   await ctx.plugin(PaperAuditService, {})
+  // W8.11-B2: mount the artifact body store so receive-layer texts (E1/E2) are
+  // durable. Without it the fidelity gate's verdicts ("this e1_span was
+  // paraphrased") cannot be re-checked against the text they judged — which is
+  // exactly what made W8.10's run-4 failures unattributable.
+  await ctx.plugin(PaperArtifactBodyService, {})
   return {
     ctx,
     baseRoot,

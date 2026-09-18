@@ -195,6 +195,20 @@ export interface AuditSink {
   record(entry: AuditEntryInput): Promise<unknown>
 }
 
+/**
+ * W8.11-B2 — minimal artifact BODY sink; {@link PaperArtifactBodyService}
+ * satisfies it. Separate from the metadata store on purpose (see
+ * `artifact-body.ts`).
+ */
+export interface ArtifactBodySink {
+  /**
+   * Store one body under the digest its metadata record carries.
+   * @param input - artifact id, run id, digest, and text.
+   * @returns resolution after the body is durable.
+   */
+  put(input: { artifactId: string; runId: string; sha256: string; text: string }): Promise<unknown>
+}
+
 /** Deployment-varying execution knobs resolved by the owning service. */
 export interface ExecutorOptions {
   /** Route prices used to turn token counts into cost. */
@@ -207,6 +221,8 @@ export interface ExecutorOptions {
   readonly contextUtilization: number
   /** Audit sink; omitted in compositions that mount no trail. */
   readonly audit?: AuditSink
+  /** Artifact body sink (W8.11-B2); omitted when bodies are not persisted. */
+  readonly artifactBodies?: ArtifactBodySink
   /**
    * The canonical Modeling IR store the workflow's mathematical facts live in
    * (TASK 1.25). Deliberately optional at the type level — the composition may
@@ -1452,6 +1468,12 @@ export class WorkflowExecutor {
             const e1Prompt = `${e1Base}\n\n${e1AnalysisInstruction(requiredIds)}`
             const e1 = await this.call(role, e1Prompt)
             await this.recordUsage(runId, route.provider, route.model, e1.usage)
+            // W8.11-B2: persist the analysis BEFORE anything judges it. The
+            // fidelity gate below decides "this e1_span was paraphrased" — and
+            // until now that verdict was unverifiable after the fact, because
+            // the text it judged existed only in this process. Same digest the
+            // metadata record will carry, so `getVerified` can re-check later.
+            await this.persistReceiveBody(runId, node.id, 'E1Analysis', e1.text)
             await this.audit({
               eventType: 'ir_entry_written',
               actor: 'paper-executor',
@@ -1504,6 +1526,11 @@ export class WorkflowExecutor {
           }
           const e2 = await this.call(role, e2Prompt)
           await this.recordUsage(runId, route.provider, route.model, e2.usage)
+          // W8.11-B2: persist the container too. The fidelity gate judges the
+          // PAIR (E1 text, container); storing only one half would leave the
+          // verdict half-checkable. Note this is a per-attempt artifact — each
+          // retry stores its own, so a reader can diff attempt N against N+1.
+          await this.persistReceiveBody(runId, node.id, `E2Normalization-attempt${attempt}`, e2.text)
           await this.audit({
             eventType: 'ir_entry_written',
             actor: 'paper-executor',
@@ -2114,6 +2141,34 @@ export class WorkflowExecutor {
     }
   }
 
+  /**
+   * W8.11-B2 — persist one receive-layer text as an artifact body.
+   *
+   * 与 `storeArtifact` 分开的理由：那条路径会写一条 `ArtifactRecord`，而
+   * `ArtifactRecord.nodeId` 指向一个 **node**——接收层的 E1/E2 文本没有自己的
+   * 节点（它们跑在 EXECUTE 节点内），硬塞一条记录会让"artifact 属于哪个节点"
+   * 的语义变糊。这里只存**正文**，键是 `label`，与元数据解耦。
+   *
+   * **不得进节点输出**（红线 N17）：本方法只写 artifact body 域，不碰
+   * `node`/`event`/`prompt` 任何模型可见通道。
+   *
+   * @param runId - owning run.
+   * @param nodeId - the EXECUTE node the receive layer runs inside (for the label).
+   * @param label - stable name (`E1Analysis`, `E2Normalization-attempt2`, …).
+   * @param text - the body.
+   */
+  private async persistReceiveBody(
+    runId: RunId,
+    nodeId: NodeRecord['id'],
+    label: string,
+    text: string,
+  ): Promise<void> {
+    const sink = this.options.artifactBodies
+    if (sink === undefined) return
+    const digest = createHash('sha256').update(text).digest('hex')
+    await sink.put({ artifactId: `${String(nodeId)}:${label}`, runId: String(runId), sha256: digest, text })
+  }
+
   private async storeArtifact(runId: RunId, nodeId: NodeRecord['id'], text: string): Promise<ArtifactRecord> {
     const digest = createHash('sha256').update(text).digest('hex')
     const record: ArtifactRecord = {
@@ -2127,6 +2182,19 @@ export class WorkflowExecutor {
       storageKey: `inline:${digest}`,
     }
     await this.engine.putArtifact(record)
+    // W8.11-B2: the metadata record above has always pointed at a body store
+    // that was never built (`spec.ts`: "content is stored separately by a
+    // later provider"). Until now the body existed only in memory, so a
+    // judgement recorded on the audit trail — "this e1_span was paraphrased" —
+    // could not be re-checked against the text it judged. Persisting here, at
+    // the ONE choke point every artifact flows through, covers E1/E2 and the
+    // deliverable alike without adding a second call site to keep in sync.
+    //
+    // 红线 N17: this is the artifact store, NOT the node output. Putting the
+    // text on the EXECUTE node's output is what broke every TASK-E cassette in
+    // W8.9-C2 (the node output is also the reviewer's input, so the request
+    // fingerprint moved). Nothing here is model-visible.
+    await this.options.artifactBodies?.put({ artifactId: String(record.id), runId: String(runId), sha256: digest, text })
     return record
   }
 

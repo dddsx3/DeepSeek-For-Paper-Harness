@@ -19,6 +19,7 @@ import { DomainFacility } from '@deepseek-ai/dsh-storage-domain'
 import PaperRuntimeGuard from '../src/runtime/runtime-guard.ts'
 import { createExploratoryProfile } from '../src/runtime/profile.ts'
 import {
+  PaperArtifactBodyService,
   PaperAuditService,
   PaperExecutorService,
   PaperFoundationService,
@@ -501,7 +502,14 @@ const routes = {
   editorAi: { provider: 'fake', model: 'fake-model', credentialRef: 'c', timeoutMs: 1000 },
 }
 
-async function harness(outputs: ReadonlyArray<string>, opts?: { disableE1E2?: boolean; disableShardDeclare?: boolean }) {
+interface HarnessOpts {
+  disableE1E2?: boolean
+  disableShardDeclare?: boolean
+  /** W8.11-B2: omit the artifact body store (the "store not mounted" guard). */
+  noBodyStore?: boolean
+}
+
+async function harness(outputs: ReadonlyArray<string>, opts?: HarnessOpts) {
   const ctx = new Context()
   await ctx.plugin(Storage)
   ctx.storage.backend.register('memory', new MemoryStorageBackend(new MemoryMediaPool()))
@@ -550,6 +558,11 @@ ${joined}`
   const ir = new ModelingIr()
   ctx.provide('paperModelingIr', ir)
   await ctx.plugin(PaperAuditService, {})
+  // W8.11-B2: mount the artifact body store so the tests can assert that the
+  // receive-layer texts really became durable (and that they did NOT enter any
+  // model-visible channel — red line N17). `noBodyStore` omits it, which is the
+  // guard for "a composition without the store still runs".
+  if (opts?.noBodyStore !== true) await ctx.plugin(PaperArtifactBodyService, {})
   await ctx.plugin(PaperExecutorService, {
     produceFromExecute: true,
     ...(opts?.disableE1E2 === true ? { disableE1E2: true } : {}),
@@ -928,12 +941,12 @@ describe('W8.11-A1 — a placeholder anchor fails the run as an E1-side finding'
     const findings = ctx.paperAudit.list(runId)
       .filter((e: { detail?: { kind?: string } }) => e.detail?.kind === 'FidelityFinding')
       .map((e: { detail?: { ok?: boolean; id?: string; detail?: string } }) => e.detail)
-    const b5 = findings.find((f: { id?: string }) => String(f.id).includes('B5'))
+    const b5 = findings.find((f: { ok?: boolean; id?: string; detail?: string } | undefined) => String(f?.id).includes('B5'))
     expect(b5, 'B5 was never recorded on the audit trail').toBeDefined()
     expect(b5?.ok, JSON.stringify(findings)).toBe(false)
     expect(String(b5?.detail)).toContain('...')
     // 反向不再把占位符当"一条未声明的假设"
-    const reverse = findings.find((f: { id?: string }) => String(f.id).includes('反向'))
+    const reverse = findings.find((f: { ok?: boolean; id?: string; detail?: string } | undefined) => String(f?.id).includes('反向'))
     expect(reverse?.ok, JSON.stringify(findings)).toBe(true)
 
     // **E1 侧缺陷不得被回灌给 E2**：E2 无法把一个占位符变成一条真假设。
@@ -950,7 +963,91 @@ describe('W8.11-A1 — a placeholder anchor fails the run as an E1-side finding'
     const findings = ctx.paperAudit.list(runId)
       .filter((e: { detail?: { kind?: string } }) => e.detail?.kind === 'FidelityFinding')
       .map((e: { detail?: { ok?: boolean; id?: string } }) => e.detail)
-    const b5 = findings.find((f: { id?: string }) => String(f.id).includes('B5'))
+    const b5 = findings.find((f: { ok?: boolean; id?: string } | undefined) => String(f?.id).includes('B5'))
     expect(b5?.ok, JSON.stringify(findings)).toBe(true)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// W8.11-B2 — the receive-layer texts become durable (and stay invisible)
+// ---------------------------------------------------------------------------
+
+describe('W8.11-B2 — E1/E2 land in the artifact body store', () => {
+  it('both halves of the fidelity judgement are persisted', async () => {
+    // 事故：run-4 报"e1_span 疑似改写"，但 E1 全文与容器都没落盘 → 该判定
+    // **事后无法核验**。这里断言两半都真的durable。
+    const { ctx, runId, outcome } = await harness([E1_SAMPLE, FAITHFUL_CONTAINER])
+    expect(outcome.status, outcome.message).toBe('resolved')
+    const bodies = ctx.paperArtifactBody.list(runId)
+    const labels = bodies.map(b => b.artifactId)
+    expect(labels.some(l => l.endsWith(':E1Analysis')), JSON.stringify(labels)).toBe(true)
+    expect(labels.some(l => l.includes('E2Normalization-attempt')), JSON.stringify(labels)).toBe(true)
+    // the E1 body really holds the analysis
+    const e1 = bodies.find(b => b.artifactId.endsWith(':E1Analysis'))
+    expect(e1?.text).toBe(E1_SAMPLE)
+  })
+
+  it('every stored body verifies against the digest it carries', async () => {
+    // 一个 hash 对不上的 body 比没有 body 更糟——读者会把它当证据。
+    const { ctx, runId } = await harness([E1_SAMPLE, FAITHFUL_CONTAINER])
+    const bodies = ctx.paperArtifactBody.list(runId)
+    expect(bodies.length).toBeGreaterThan(0)
+    for (const body of bodies) {
+      const verified = ctx.paperArtifactBody.getVerified(body.artifactId, body.sha256)
+      expect(verified, `${body.artifactId} failed verification`).toBeDefined()
+      // and a wrong digest must NOT verify
+      expect(ctx.paperArtifactBody.getVerified(body.artifactId, 'f'.repeat(64))).toBeUndefined()
+    }
+  })
+
+  it('each E2 attempt is stored separately (retries are diffable)', async () => {
+    // 重试时 E2 文本每次不同——分开存才能 diff attempt N 与 N+1，这正是
+    // "回灌是否改变了产出"的证据。
+    const { ctx, runId, prompts } = await harness([E1_SAMPLE, INVENTED_ASSUMPTION_CONTAINER])
+    const e2calls = prompts.filter(p => p.includes('NORMALIZING a modeling analysis')).length
+    expect(e2calls).toBeGreaterThan(1)
+    const attempts = ctx.paperArtifactBody.list(runId).filter(b => b.artifactId.includes('E2Normalization-attempt'))
+    expect(attempts.length, 'one body per E2 attempt').toBe(e2calls)
+  })
+
+  it('RED LINE N17: bodies do NOT enter any model-visible channel', async () => {
+    // W8.9-C2 的教训：把内容放进 EXECUTE 节点输出会改 reviewer 输入指纹 →
+    // TASK-E 每个 cassette miss。故断言：body 只进 artifact body 域，
+    // **不出现在任何 prompt 里**。
+    const { ctx, runId, prompts } = await harness([E1_SAMPLE, FAITHFUL_CONTAINER])
+    const bodies = ctx.paperArtifactBody.list(runId)
+    expect(bodies.length).toBeGreaterThan(0)
+    // 用 body 的 artifactId（一个不可能自然出现在 prompt 里的串）做标记
+    for (const body of bodies) {
+      for (const p of prompts) {
+        expect(p, `body id ${body.artifactId} leaked into a prompt`).not.toContain(body.artifactId)
+      }
+    }
+    // 更强的守卫：节点的 public 输出里也不得出现。`public` 的形状由 engine
+    // 拥有，故按 `unknown` 收进来再投影，而不是在这里复述它的类型。
+    const nodeOutputs = ctx.paperWorkflow.runs.listNodes(RunId(runId))
+      .flatMap((n: unknown) => {
+        const entries = (n as { public?: ReadonlyArray<{ payload?: unknown }> }).public ?? []
+        return entries.map(e => JSON.stringify(e.payload ?? {}))
+      })
+    for (const body of bodies) {
+      for (const out of nodeOutputs) {
+        expect(out).not.toContain(body.artifactId)
+      }
+    }
+  })
+
+  it('a composition with NO body store still runs (the store is optional)', async () => {
+    // 反向守卫：body store 未挂载时，运行必须照常（不得因缺少 sink 而崩）。
+    // 这条钉住的是 `persistReceiveBody` 的 early return —— 用一个**把 sink
+    // 摘掉**的组合跑同一段 harness 逻辑。
+    //
+    // 实现注记：第一版在这里手写了一个 fake provider，结果它永远喂 E1 样本
+    // （index 没越过 1）→ 运行被 fidelity 门正确拒绝，测试自己错了。改为复用
+    // 真实 harness 的 provider 行为，只把 body store 换成"不挂载"。
+    const { ctx, outcome } = await harness([E1_SAMPLE, FAITHFUL_CONTAINER], { noBodyStore: true })
+    expect(outcome.status, outcome.message).toBe('resolved')
+    // 没有 store → 查询返回空，而不是抛错
+    expect(ctx.get('paperArtifactBody')).toBeUndefined()
   })
 })
