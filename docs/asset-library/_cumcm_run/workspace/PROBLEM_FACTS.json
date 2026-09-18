@@ -1,0 +1,544 @@
+{
+  "_meta": {
+    "problem_id": "2026-A",
+    "title": "药材的烘干问题",
+    "source_pages": [
+      1,
+      2,
+      3,
+      4
+    ],
+    "source_files": [
+      {
+        "path": "user_data/A题_extracted.txt",
+        "sha256": "da66b484388ba6e110f74c99ee9b0fdf4d2fa02c09c58c59dd352f6ca8101dd2",
+        "role": "PDF 正文 OCR: 题面给定参数的唯一权威来源"
+      },
+      {
+        "path": "ATTACHMENT_FACTS.md",
+        "sha256": "30387b8ac167daf0df0133ebb73acfa3c845fb3b24f672654d8ba9bebd21fcb4",
+        "role": "机器生成台账: 附件 xlsx 的量测值 + 由题面数字做算术的派生量。PDF 正文不含这两类数字, 故单独立档并附 xlsx 哈希供复核"
+      }
+    ],
+    "verification_notes": "全部数值逐字抄自 Vision OCR 原文；附录2/3/4 三套物性公式分别只适用于指定问题，禁止混用。附件1(241行,0-14400s,dt=60s)与附件2(145行,0-259200s,dt=1800s)行数以 DATA_PROFILE.json 为准。【原始 PDF 核验】附录2/3/4 的 D 公式已对 user_data/A题.pdf 第3-4页做 400 DPI 栅格化(pdftoppm -r 400, 墨迹密度行扫描定位 + 6x 放大逐字判读)独立核对：7e-9/0.89、2.4e-3/0.45/3850、4.2e-4/0.30/3850，尾数与四处指数负号全部确认，与 A题_extracted.txt L126/L142/L156 逐字一致；同页确认附录3 rho=650+128C, cp=1450+2736C/(C+1), k=0.21+0.38C/(C+1) 与附录4 rho=760+90C, cp=1850+2150C/(C+1), k=0.12+0.20C/(C+1)。旁证：若指数取 +a/C 则 C->0 时 D->inf, 干燥永不终止, 与题面'2-3天'矛盾。该风险已关闭(HC-27)。【预检数值地位】PROBLEM_ANALYSIS 中的 t* 与场量均为探路数值解, 依赖网格/时间步/界面 D 取法, 仅作量级参考, 最终数值须通过 HC-26 的网格与时间步无关性闸门。"
+  },
+  "geometry": {
+    "shape": "圆柱形",
+    "length_cm": 25,
+    "radius_cm": 2,
+    "raw_quote": "某中药材形状大致呈圆柱形，长为 25 cm，半径为 2 cm",
+    "source": "P1, 问题1",
+    "aspect_ratio_L_over_R": 12.5,
+    "note": "问题4 半径随时间变化(附件2), 长度题面未给变化 → 视为定长"
+  },
+  "initial_conditions": {
+    "T0_degC": 28,
+    "C0_kg_per_kg": 2.55,
+    "raw_quote": "烘干开始时，药材的温度为 28℃，水分浓度（即干基含水率）为 2.55 kg/kg",
+    "source": "P1, 问题1",
+    "note": "题面明确 水分浓度 = 干基含水率(dry-basis moisture content)"
+  },
+  "given": [
+    {
+      "name": "密度(问题1)",
+      "kind": "constant",
+      "value": 820,
+      "unit": "kg/m^3",
+      "raw_quote": "密度为 820 kg/m³",
+      "source": "P3, 附录2",
+      "must_use_verbatim": true
+    },
+    {
+      "name": "比热容(问题1)",
+      "kind": "constant",
+      "value": 2600,
+      "unit": "J/(kg·K)",
+      "raw_quote": "比热容为 2600 J/(kg·K)",
+      "source": "P3, 附录2",
+      "must_use_verbatim": true
+    },
+    {
+      "name": "热传导系数(问题1)",
+      "kind": "constant",
+      "value": 0.36,
+      "unit": "W/(m·K)",
+      "raw_quote": "热传导系数为 0.36 W/(m·K)",
+      "source": "P3, 附录2",
+      "must_use_verbatim": true
+    },
+    {
+      "name": "对流换热系数",
+      "kind": "constant",
+      "value": 25,
+      "unit": "W/(m^2·K)",
+      "raw_quote": "对流换热系数为 25 W/(m²·K)",
+      "source": "P3, 附录2",
+      "must_use_verbatim": true,
+      "scope": "题面只在附录2给出, 问题2-4 沿用(附录3/4 未另给) → 全程 h=25"
+    },
+    {
+      "name": "对流传质系数",
+      "kind": "constant",
+      "value": 8e-07,
+      "unit": "m/s",
+      "raw_quote": "对流传质系数为 8 × 10^{-7} m/s",
+      "source": "P3, 附录2",
+      "must_use_verbatim": true,
+      "scope": "同上, 全程 h_m=8e-7"
+    },
+    {
+      "name": "扩散系数D(问题1,附录2)",
+      "kind": "formula",
+      "form": "D = 7e-9 * exp(-0.89/C)",
+      "acts_on": "指数中的 -0.89/C 作用在【水分浓度C的倒数】上(不是 exp(-0.89*C)); D 随 C 增大而增大",
+      "raw_quote": "D = 7 × 10^{-9} e^{-0.89/C}",
+      "source": "P3, 附录2",
+      "applies_to": [
+        "Q1"
+      ],
+      "must_use_verbatim": true,
+      "check_values": {
+        "C=2.55": 4.9377e-09,
+        "C=0.15": 1.8462e-11
+      }
+    },
+    {
+      "name": "密度(附录3)",
+      "kind": "formula",
+      "form": "rho = 650 + 128*C",
+      "acts_on": "线性作用在 C 本身(不是 C/(C+1))",
+      "raw_quote": "rho = 650 + 128C",
+      "source": "P4, 附录3",
+      "applies_to": [
+        "Q2",
+        "Q3"
+      ],
+      "must_use_verbatim": true,
+      "check_values": {
+        "C=2.55": 976.4,
+        "C=0.15": 669.2
+      }
+    },
+    {
+      "name": "比热容(附录3)",
+      "kind": "formula",
+      "form": "cp = 1450 + 2736*C/(C+1)",
+      "acts_on": "作用在【湿基折算量 C/(C+1)】上(不是 C 本身)",
+      "raw_quote": "c_p = 1450 + 2736 · C/(C+1)",
+      "source": "P4, 附录3",
+      "applies_to": [
+        "Q2",
+        "Q3"
+      ],
+      "must_use_verbatim": true,
+      "check_values": {
+        "C=2.55": 3415.3,
+        "C=0.15": 1806.9
+      }
+    },
+    {
+      "name": "热传导系数(附录3)",
+      "kind": "formula",
+      "form": "k = 0.21 + 0.38*C/(C+1)",
+      "acts_on": "作用在 C/(C+1) 上",
+      "raw_quote": "k = 0.21 + 0.38 · C/(C+1)",
+      "source": "P4, 附录3",
+      "applies_to": [
+        "Q2",
+        "Q3"
+      ],
+      "must_use_verbatim": true,
+      "check_values": {
+        "C=2.55": 0.483,
+        "C=0.15": 0.2596
+      }
+    },
+    {
+      "name": "扩散系数D(附录3)",
+      "kind": "formula",
+      "form": "D = 2.4e-3 * exp(-0.45/C) * exp(-3850/T)",
+      "acts_on": "两个指数分别作用在【1/C】和【1/T】上; T 必须是【开尔文】(K), 用摄氏度会使 D 小 30 个数量级",
+      "raw_quote": "D = 2.4 × 10^{-3} e^{-0.45/C} e^{-3850/T}",
+      "source": "P4, 附录3",
+      "applies_to": [
+        "Q2",
+        "Q3"
+      ],
+      "must_use_verbatim": true,
+      "check_values": {
+        "C=2.55,T=323.15K": 1.3471e-08,
+        "C=0.15,T=323.15K": 8.0012e-10
+      }
+    },
+    {
+      "name": "密度(附录4)",
+      "kind": "formula",
+      "form": "rho = 760 + 90*C",
+      "acts_on": "线性作用在 C 本身",
+      "raw_quote": "rho = 760 + 90C",
+      "source": "P4, 附录4",
+      "applies_to": [
+        "Q4"
+      ],
+      "must_use_verbatim": true
+    },
+    {
+      "name": "比热容(附录4)",
+      "kind": "formula",
+      "form": "cp = 1850 + 2150*C/(C+1)",
+      "acts_on": "作用在 C/(C+1) 上",
+      "raw_quote": "c_p = 1850 + 2150 · C/(C+1)",
+      "source": "P4, 附录4",
+      "applies_to": [
+        "Q4"
+      ],
+      "must_use_verbatim": true
+    },
+    {
+      "name": "热传导系数(附录4)",
+      "kind": "formula",
+      "form": "k = 0.12 + 0.20*C/(C+1)",
+      "acts_on": "作用在 C/(C+1) 上",
+      "raw_quote": "k = 0.12 + 0.20 · C/(C+1)",
+      "source": "P4, 附录4",
+      "applies_to": [
+        "Q4"
+      ],
+      "must_use_verbatim": true
+    },
+    {
+      "name": "扩散系数D(附录4)",
+      "kind": "formula",
+      "form": "D = 4.2e-4 * exp(-0.30/C) * exp(-3850/T)",
+      "acts_on": "两指数分别作用在 1/C 与 1/T(开尔文)上",
+      "raw_quote": "D = 4.2 × 10^{-4} e^{-0.30/C} e^{-3850/T}",
+      "source": "P4, 附录4",
+      "applies_to": [
+        "Q4"
+      ],
+      "must_use_verbatim": true,
+      "check_values": {
+        "C=2.55,T=323.15K": 2.5003e-09,
+        "C=0.15,T=323.15K": 3.8062e-10
+      }
+    }
+  ],
+  "targets": [
+    {
+      "id": "Q1",
+      "output": [
+        "T(r,t)",
+        "C(r,t)"
+      ],
+      "horizon_s": 1800,
+      "table_times_s": [
+        100,
+        300,
+        600,
+        900,
+        1200,
+        1500,
+        1800
+      ],
+      "table_radii_cm": [
+        0,
+        0.5,
+        1,
+        1.5,
+        2
+      ],
+      "file": "result1.xlsx",
+      "file_dt_s": 1,
+      "file_dr_cm": 0.1,
+      "file_sheets": [
+        "温度",
+        "水分浓度"
+      ],
+      "raw_quote": "给出 100、300、600、900、1200、1500、1800 s，到药材中心距离 0、0.5、1、1.5、2 cm 处的结果，并将 1800 s 内每隔 1 s、到药材中心距离每隔 0.1 cm 的完整结果保存到文件 result1.xlsx",
+      "source": "P1, 问题1",
+      "params_scope": "附录2"
+    },
+    {
+      "id": "Q2",
+      "output": [
+        "T(r,t)",
+        "C(r,t)"
+      ],
+      "horizon_s": 10800,
+      "table_times_h": [
+        0.5,
+        1.0,
+        1.5,
+        2.0,
+        2.5,
+        3.0
+      ],
+      "table_radii_cm": [
+        0,
+        0.5,
+        1,
+        1.5,
+        2
+      ],
+      "file": "result2.xlsx",
+      "file_dt_s": 1,
+      "file_dr_cm": 0.1,
+      "file_sheets": [
+        "温度",
+        "水分浓度"
+      ],
+      "raw_quote": "给出 3 h 内每隔 0.5 h、到药材中心距离 0、0.5、1、1.5、2 cm 处的结果，并将每隔 1 s、到药材中心距离每隔 0.1 cm 的完整结果保存到文件 result2.xlsx",
+      "source": "P2, 问题2",
+      "params_scope": "附录3(全程统一)"
+    },
+    {
+      "id": "Q3",
+      "output": [
+        "烘干总时长_h",
+        "C(r,t)"
+      ],
+      "threshold_C": 0.15,
+      "criterion": "药材各处(含中心, 即 max_r C) 均 < 0.15 kg/kg",
+      "table_dt_h": 6,
+      "table_dr_cm": 0.5,
+      "file": "result3.xlsx",
+      "file_dt_s": 60,
+      "file_dr_cm": 0.1,
+      "raw_quote": "药材各处的水分浓度应低于 0.15 kg/kg，请确定药材烘干所需要的时间（单位：h）",
+      "source": "P2, 问题3",
+      "params_scope": "附录3"
+    },
+    {
+      "id": "Q4",
+      "output": [
+        "烘干时长_h",
+        "C(r,t)",
+        "R(t)"
+      ],
+      "shrinkage_source": "附件2 半径-时间序列",
+      "threshold_C": 0.15,
+      "table_dt_h": 6,
+      "table_dr_cm": 0.5,
+      "table_last_col": "药材表面",
+      "file": "result4.xlsx",
+      "file_dt_s": 60,
+      "file_dr_cm": 0.1,
+      "raw_quote": "药材会因水分流失发生尺寸变化。请根据附件 2，确定药材的烘干时长（相关经验公式见附录 4）",
+      "source": "P2-P3, 问题4",
+      "params_scope": "附录4"
+    }
+  ],
+  "attachments": [
+    {
+      "file": "附件1.xlsx",
+      "rows": 241,
+      "cols": [
+        "时间",
+        "温度",
+        "水分浓度"
+      ],
+      "t_range_s": [
+        0,
+        14400
+      ],
+      "dt_s": 60,
+      "T_range_degC": [
+        28.0,
+        50.246
+      ],
+      "C_range_kg_per_kg": [
+        0.01963,
+        0.05025
+      ],
+      "raw_quote": "附件 1 给出了烘干初期各时间点（单位：s）烘房的温度（单位：℃）和水分浓度（单位：kg/kg）",
+      "source": "P3, 附录1",
+      "role": "烘房环境边界条件(第三类边界的环境侧)"
+    },
+    {
+      "file": "附件2.xlsx",
+      "rows": 145,
+      "cols": [
+        "时间",
+        "半径"
+      ],
+      "t_range_s": [
+        0,
+        259200
+      ],
+      "dt_s": 1800,
+      "R_range_cm": [
+        1.198,
+        2.0
+      ],
+      "R_plateau_cm": 1.2,
+      "R_plateau_start_s": 126000,
+      "R_final_reach_s": 241200,
+      "raw_quote": "附件 2 给出了烘干过程中各时间点（单位：s）药材的半径（单位：cm）",
+      "source": "P3, 附录1",
+      "role": "问题4 移动边界 R(t)"
+    }
+  ],
+  "rules": [
+    {
+      "id": "R1",
+      "natural_language": "水分浓度即干基含水率, 单位 kg/kg(每 kg 干物质所含水质量)",
+      "source": "P1, 问题1",
+      "machine_check": "C 量纲为 kg/kg, 非 kg/m^3; 边界条件两侧同为干基"
+    },
+    {
+      "id": "R2",
+      "natural_language": "烘干过程包括预热平衡与恒温干燥两个阶段",
+      "source": "P1, 背景",
+      "machine_check": "附件1 显示 T_air 由 28 升至约 50℃ 后基本恒定(t>=7200s 时 mean=49.97, std=0.16)"
+    },
+    {
+      "id": "R3",
+      "natural_language": "问题2和问题3 相关经验公式统一采用附录3 中的公式(不分阶段切换)",
+      "source": "P2, 问题2",
+      "machine_check": "Q2/Q3 代码中不得出现附录2 的 820/2600/0.36 常量, 也不得出现附录4 系数"
+    },
+    {
+      "id": "R4",
+      "natural_language": "问题4 用附录4 的经验公式",
+      "source": "P3, 问题4",
+      "machine_check": "Q4 代码中 rho/cp/k/D 系数须为 760/90, 1850/2150, 0.12/0.20, 4.2e-4/0.30"
+    },
+    {
+      "id": "R5",
+      "natural_language": "所有结果保留四位小数",
+      "source": "P1, 问题1(下同)",
+      "machine_check": "输出 xlsx/表格数值 round(x,4)"
+    },
+    {
+      "id": "R6",
+      "natural_language": "烘干要求: 药材各处水分浓度应低于 0.15 kg/kg",
+      "source": "P2, 问题3",
+      "machine_check": "终止判据 max_r C(r,t_end) < 0.15, 最慢点在中心 r=0"
+    },
+    {
+      "id": "R7",
+      "natural_language": "附录3/附录4 的 D 公式中 T 为药材温度(单位 K)",
+      "source": "P4, 附录3/附录4 符号说明",
+      "machine_check": "代码中 exp(-3850/(T_celsius+273.15)), 严禁直接用摄氏度"
+    },
+    {
+      "id": "R8",
+      "natural_language": "result4 的距离列最后一列为'药材表面'(随时间移动), 非固定 2 cm",
+      "source": "P3, 表6 + result4 模板首行",
+      "machine_check": "模板首行末列字符串为 '药材表面'; r>R(t) 的网格点应为空/NaN"
+    }
+  ],
+  "unit_conversions": [
+    {
+      "raw": "长 25 cm",
+      "si_value": 0.25,
+      "si_unit": "m"
+    },
+    {
+      "raw": "半径 2 cm",
+      "si_value": 0.02,
+      "si_unit": "m"
+    },
+    {
+      "raw": "距离步长 0.1 cm",
+      "si_value": 0.001,
+      "si_unit": "m"
+    },
+    {
+      "raw": "28 ℃",
+      "si_value": 301.15,
+      "si_unit": "K"
+    },
+    {
+      "raw": "50 ℃(恒温段)",
+      "si_value": 323.15,
+      "si_unit": "K"
+    },
+    {
+      "raw": "阈值 0.15 kg/kg",
+      "si_value": 0.15,
+      "si_unit": "kg/kg"
+    },
+    {
+      "raw": "半径 1.198 cm(附件2 终值)",
+      "si_value": 0.01198,
+      "si_unit": "m"
+    }
+  ],
+  "derived_formulas": [
+    {
+      "name": "热扩散率(问题1)",
+      "formula": "alpha = k/(rho*cp) = 0.36/(820*2600)",
+      "value": 1.6886e-07,
+      "unit": "m^2/s"
+    },
+    {
+      "name": "传热毕奥数",
+      "formula": "Bi_h = h*R/k = 25*0.02/0.36",
+      "value": 1.3889,
+      "unit": "1",
+      "note": "O(1) → 内外阻均不可忽略, 不能用集中参数法"
+    },
+    {
+      "name": "传质毕奥数(初始)",
+      "formula": "Bi_m = h_m*R/D(C0) = 8e-7*0.02/4.9377e-9",
+      "value": 3.2404,
+      "unit": "1"
+    },
+    {
+      "name": "傅里叶数(传热,1800s)",
+      "formula": "Fo_h = alpha*t/R^2",
+      "value": 0.7598,
+      "unit": "1"
+    },
+    {
+      "name": "傅里叶数(传质,1800s)",
+      "formula": "Fo_m = D(C0)*t/R^2",
+      "value": 0.02222,
+      "unit": "1",
+      "note": "<<1 → 预热阶段水分只在表层约3mm内变化, 中心 C 仍约2.55, 与'预热平衡'语义一致"
+    },
+    {
+      "name": "恒温段烘房条件(t>14400s 外推)",
+      "formula": "T_air=mean(T|t>=7200)=49.9685 约 50, C_air=mean(C|t>=7200)=0.04987 约 0.05",
+      "value": null,
+      "unit": "℃ / kg/kg",
+      "note": "附件1 只到 4h, Q3/Q4 需外推; 平台段 std(T)=0.16, std(C)=0.00029 → 取常数合理"
+    },
+    {
+      "name": "干物质密度(附录4)",
+      "formula": "rho_d = rho/(1+C) = (760+90C)/(1+C)",
+      "value": null,
+      "unit": "kg/m^3",
+      "note": "rho_d(2.55)=278.7324, rho_d(1.0502)=416.7974, rho_d(0.3385)=590.5603, rho_d(0.15)=672.6087, rho_d(0)=760.0"
+    },
+    {
+      "name": "附件2 半径平方比",
+      "formula": "(1.198/2.000)^2",
+      "value": 0.3588,
+      "unit": "1",
+      "note": "干物质守恒要求 rho_d*R^2=const, 故所需 rho_d 增幅 = 1/0.3588 = 2.7871"
+    },
+    {
+      "name": "仿射收缩假设所需末态 rho_d",
+      "formula": "278.7324 * 2.7871",
+      "value": 776.844,
+      "unit": "kg/m^3",
+      "note": "超过 rho(C) 的绝对上限 760 (C->0), 说明附件2 的 R(t) 与附录4 的 rho(C) 不相容"
+    },
+    {
+      "name": "干物质不自洽(全干下界)",
+      "formula": "(776.8440/760.0000 - 1) * 100",
+      "value": 2.2163,
+      "unit": "%",
+      "note": "论文报作 2.22%; 折算到半径 2.000*sqrt(278.7324/760)=1.2112 cm, 对实测 1.198 偏差 1.1021% (与 A5 同源)"
+    },
+    {
+      "name": "干物质不自洽(按终止 C=0.15)",
+      "formula": "(776.8440/672.6087 - 1) * 100",
+      "value": 15.4972,
+      "unit": "%",
+      "note": "论文报作 15.50%; 与 A4 '由 rho(C) 反算 C 变负' 是同一现象。A11: 仿射收缩为最小闭合假设, 须显式声明"
+    }
+  ]
+}
