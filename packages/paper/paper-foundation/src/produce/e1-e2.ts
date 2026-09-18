@@ -34,10 +34,41 @@
  * @module @deepseek-ai/dsh-paper-foundation/src/produce/e1-e2
  */
 
+import { isIrId } from '../ir/schema.ts'
+
 /** The E1 anchor markers. Exported so prompts, parser and tests share one source. */
 export const E1_ASSUMPTION_MARKER = '[[ASSUMPTION:'
 export const E1_REQUIREMENT_MARKER = '[[REQUIREMENT:'
 export const E1_MARKER_CLOSE = ']]'
+
+/**
+ * W8.11-A1 — whether an E1 anchor id is a USABLE NAME.
+ *
+ * 事故（run-4 真实运行）：E1 把 `...` 当假设 id 写（`[[ASSUMPTION: ...]]`），
+ * 反向检查于是报"E1 标记了但 IR 未声明的假设：..."——**读者无法分辨这是模型
+ * 漏声明一条假设，还是一个占位符**。指令当时只说"别写字面量
+ * `<your-short-id>`"，**从没说过"这个 id 会被下游逐字引用，所以它必须是一个
+ * 名字"**。
+ *
+ * 两条判据，**方向都是"不得比 IR 更严"**：
+ *
+ *   ① `isIrId` —— 直接复用 IR 自己的标识符规则（`ir/schema.ts`，单一真相源）。
+ *      **关键**：IR 的策略是刻意宽松的（`problem-contract.ts` 写明"NFC deliberately
+ *      does not fold compatibility equivalents … that is the same policy the IR
+ *      already applies to object IDs"），**中文 id 是合法的 IR id**。若此处凭空
+ *      发明一条"必须 ASCII"的规则，就会对 IR 本来接受的 id 制造**假红**——那正是
+ *      本轮要消灭的形态。故不引入字符集收紧。
+ *
+ *   ② **至少含一个字母或数字** —— 这是针对实测缺陷的**最窄**规则：`...` 全部是
+ *      标点，它**没有命名任何东西**；而 `A-EXACT-TEST`、`假设1`、`A_BATCH_2`
+ *      都通过。占位符与名字的区别就在于此，与字符集无关。
+ *
+ * @param id - the anchor id as parsed from E1.
+ */
+export function isUsableAnchorId(id: string): boolean {
+  if (!isIrId(id)) return false
+  return /[\p{L}\p{N}]/u.test(id)
+}
 
 /**
  * E1 — the free-analysis instruction.
@@ -68,7 +99,13 @@ export function e1AnalysisInstruction(requiredOutputIds: ReadonlyArray<string>):
     ...idLines,
     '',
     'Mark each assumption with an inline anchor on its own line: [[ASSUMPTION: <your-short-id>]] followed by the assumption sentence.',
-    '  Replace <your-short-id> with a real short id you choose (for example A-EXACT-TEST). Do NOT write the literal text "<your-short-id>".',
+    '  Replace <your-short-id> with a real short id you choose. Do NOT write the literal text "<your-short-id>".',
+    // W8.11-A1: the id must be a NAME, and the reason has to be stated.
+    // 只说禁令不给理由，模型会换一种方式违反——实测就是这样：它躲开了
+    // `<your-short-id>`，改写成 `...`。理由是真实的：这个 id 会被下一步
+    // 逐字抄进结构化记录，并被那份记录引用。
+    '  The id is a NAME that the next step copies VERBATIM into structured records and then references. So it must be a name that can be referenced: use letters, digits, "-" or "_", with no spaces.',
+    '  Good: [[ASSUMPTION: A-EXACT-TEST]] · [[ASSUMPTION: A_BATCH_2]]. Bad: [[ASSUMPTION: ...]] (a placeholder names nothing and cannot be referenced), [[ASSUMPTION: A B]] (contains a space).',
     '  Use the same short-id if you restate the same assumption.',
     'Mark the start of each sub-question\'s reasoning with an inline anchor: [[REQUIREMENT: <id>]], using the requirement ids listed above exactly.',
     'Be concrete about method choices and their justification. Where you must assume something the problem does not give, say so explicitly and mark it.',
@@ -326,16 +363,40 @@ export function checkE1E2Fidelity(input: {
       : `E1 缺少 ${missing.length} 个要求的推理段：${missing.join('、')}`,
   })
 
+  // --- B5: every anchor id is a usable name (W8.11-A1) -------------------
+  //
+  // W8.11-A1：这一条把"占位符冒充锚点"从**误导性的反向失败**里分离出来。
+  // 事故形态（run-4）：E1 写了 `[[ASSUMPTION: ...]]`，反向检查于是报
+  // "E1 标记了但 IR 未声明的假设：..."——读者无法分辨它是"漏声明一条假设"
+  // 还是"写了个占位符"。两件事的修法完全不同（前者要 E2 补声明，后者只能
+  // 由 E1 改写法），而当时的文案把两者说成同一件事。
+  //
+  // 它是 **E1 侧**缺陷（与 B4 同类）：E2 无法把一个占位符变成一条真假设。
+  // 故执行器把它排除在回灌之外（见 `executor.ts` 的 `e2Fixable`）。
+  const malformedAnchors = [...anchors.assumptions, ...anchors.requirements].filter(a => !isUsableAnchorId(a.id))
+  findings.push({
+    rule: 'B5 锚点 id 形态（E1 侧）',
+    ok: malformedAnchors.length === 0,
+    detail: malformedAnchors.length === 0
+      ? `全部 ${anchors.assumptions.length + anchors.requirements.length} 个锚点 id 都是可用名字`
+      : `以下锚点 id 不是可用名字（占位符或含空格，下游无法逐字引用）：${malformedAnchors.map(a => `「${a.id}」`).join('、')}`,
+  })
+
   // --- B3 reverse: every E1 assumption anchor is declared ----------------
+  //
+  // W8.11-A1: 只比较**可用名字**的锚点。占位符不是"一条被标记的假设"，拿它
+  // 去和 AssumptionSpec 比大小是范畴错误——它由 B5 单独报告。这不放松检查：
+  // 真正被命名的假设仍然必须被声明，一条都不少。
+  const usableAssumptions = anchors.assumptions.filter(a => isUsableAnchorId(a.id))
   const declaredAssumptionIds = new Set(
     input.entries.filter(e => e.kind === 'AssumptionSpec').map(e => String(e.value['assumption_id'] ?? '')),
   )
-  const undeclared = anchors.assumptions.filter(a => !declaredAssumptionIds.has(a.id))
+  const undeclared = usableAssumptions.filter(a => !declaredAssumptionIds.has(a.id))
   findings.push({
     rule: 'B3 反向（E1 假设须被声明）',
     ok: undeclared.length === 0,
     detail: undeclared.length === 0
-      ? `E1 的 ${anchors.assumptions.length} 条假设锚点均有对应 AssumptionSpec`
+      ? `E1 的 ${usableAssumptions.length} 条假设锚点均有对应 AssumptionSpec`
       : `E1 标记了但 IR 未声明的假设：${undeclared.map(a => a.id).join('、')}`,
   })
 
@@ -343,7 +404,7 @@ export function checkE1E2Fidelity(input: {
   //
   // 为什么需要这条（本支线自查发现的缺口）：只查"声明有 e1_span 且 span
   // 逐字存在"是不够的——E2 可以**凭空造一条假设，再把 E1 里另一条假设的
-  // 句子拿来当自己的 span**。那样的声明在两个已有检查下都会通过：正向
+  // 句子拿来当自己的 span**。那样的声明在两个已有检查下**都会通过**：正向
   // 看到的是真实存在的逐字 span，反向看到的是 E1 的锚点都被声明了。
   // 这条检查把"声明 ↔ 锚点"按 **id** 对上，才是 H6 说的"凭空造假设"的
   // 机械落点。
