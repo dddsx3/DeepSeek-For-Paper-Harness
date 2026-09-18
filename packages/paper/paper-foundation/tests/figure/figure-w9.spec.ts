@@ -450,3 +450,58 @@ describe('W9-D2 — the audit view never leaks into the deliverable', () => {
     expect(checkNoAuditLeak('干净的正文')).toEqual([])
   })
 })
+
+// ---------------------------------------------------------------------------
+// W9（用户实测反馈）— 类别轴防挤压规划
+// ---------------------------------------------------------------------------
+
+import { estimateLabelPx, planCategoricalLabels } from '../../src/figure/axis-labels.ts'
+
+describe('W9 — categorical axis anti-crowding (54 地块名不再重叠)', () => {
+  const fiftyFour = Array.from({ length: 52 }, (_, i) => {
+    const n = i + 1
+    const band = n <= 6 ? 'A' : n <= 20 ? 'B' : n <= 28 ? 'C' : n <= 36 ? 'D' : 'E'
+    return `${band}${n}`
+  })
+
+  it('the 52-地块 real chart gets a rotation+thinning plan (not all 52 horizontal)', () => {
+    // 事故（用户实测）：54 个地块名横排在 580px 里全部重叠成一坨。
+    const slotPx = 580 / 52
+    const plan = planCategoricalLabels(fiftyFour, slotPx, 10)
+    expect(plan.rotate).toBe(true)
+    expect(plan.labels.length, 'thinned to a readable subset').toBeLessThan(52)
+    expect(plan.labels.length).toBeGreaterThan(4)
+    // 首标签必画；采样均匀
+    expect(plan.labels[0]?.index).toBe(0)
+    const indices = plan.labels.map(l => l.index)
+    expect(indices).toEqual(indices.map(i => i).filter((_, i) => i * plan.step < fiftyFour.length))
+  })
+
+  it('spacious labels stay horizontal with no thinning', () => {
+    const plan = planCategoricalLabels(['A1', 'A2', 'A3', 'A4'], 120, 10)
+    expect(plan.rotate).toBe(false)
+    expect(plan.step).toBe(1)
+    expect(plan.labels.length).toBe(4)
+  })
+
+  it('estimation accounts for CJK width (中文≈全角)', () => {
+    expect(estimateLabelPx('地块', 10)).toBeCloseTo(20, 1) // 2 CJK chars = 2×fontSize
+    expect(estimateLabelPx('A10', 10)).toBeCloseTo(18.6, 1) // latin ≈ 0.62×fontSize
+  })
+
+  it('the rendered 52-label SVG has FEWER text elements than labels (thin + rotate)', () => {
+    const input = {
+      style_profile: 'okabe-ito-v1' as const,
+      chart_type: 'bar' as const,
+      x_label: '地块',
+      series: [],
+      series2d: [{ label: '地块面积', xLabels: fiftyFour, y: fiftyFour.map((_, i) => 20 + (i % 7)) }],
+      recipe: 'okabe-ito-v1',
+    }
+    const svg = renderFigureSvg(input)
+    const categoryTexts = [...svg.matchAll(/<text[^>]*rotate\(-45/g)].length
+    expect(categoryTexts, 'rotated labels present').toBeGreaterThan(0)
+    expect(categoryTexts, 'must be thinned below 52').toBeLessThan(52)
+    expect(svg).toContain('rotate(-45')
+  })
+})
