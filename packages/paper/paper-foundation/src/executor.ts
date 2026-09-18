@@ -1408,6 +1408,19 @@ export class WorkflowExecutor {
           // W8.9-B5: E1 runs AT MOST ONCE per run. A retry of this node (E2
           // drifted / refused) reuses the cached analysis — see #e1ByRun.
           const runKey = String(runId)
+          // W8.10-D1 (repair, found by the second real run on the target
+          // model): the input assets MUST be registered before E1 is asked to
+          // analyse the problem. They used to be registered further down, so
+          // `semanticContextOf()` returned nothing at E1 time, E1 was told
+          // "the harness registered no requirement ids", and B4 (per-question
+          // reasoning coverage) could never pass — the analysis had no id to
+          // anchor to. Same class as the fidelity-gate ordering bug: the check
+          // is fine, the object never arrived in the shape it needs.
+          // Registration is idempotent (`if (ir.get('DA-RAW') !== undefined)
+          // return RESERVED`), so the existing call site stays valid.
+          if (this.options.ir !== undefined) {
+            await this.registerInputAssets(runId, this.options.ir, taskText ?? '')
+          }
           let e1Text = this.#e1ByRun.get(runKey)
           if (e1Text === undefined) {
             // W8.9-B1 (repair, found by the first real run): E1 must SEE the
@@ -1619,6 +1632,14 @@ export class WorkflowExecutor {
               })
             }
             if (!fidelityOk(fidelity) && this.fidelityEnforced()) {
+              // W8.10-D1: B4 is an E1-SIDE defect ("the analysis never
+              // reasoned about requirement X"). Handing it to the E2 guidance
+              // would ask the normalizer to fix what the analyst omitted —
+              // an instruction it cannot satisfy without inventing content
+              // (which the same gate then refuses). It is reported as a
+              // finding and, when it alone blocks, the run fails with that
+              // reason instead of a misleading correction.
+              const e2Fixable = fidelity.filter(f => !f.ok && !f.rule.includes('B4'))
               // A fidelity violation is a DRIFT: the model did produce
               // container-shaped output (so it is not NONE), and the fix is
               // to re-map the SAME analysis (so guidance helps and E1 must
@@ -1626,9 +1647,10 @@ export class WorkflowExecutor {
               // so an identical re-emission trips the W8.6-A4 breaker.
               const failed = fidelity.filter(f => !f.ok).map(f => `${f.rule}: ${f.detail}`).join('；')
               // W8.10-B1: fidelity violations are corrections too.
-              if (this.#e1ByRun.has(String(runId))) {
+              if (this.#e1ByRun.has(String(runId)) && e2Fixable.length > 0) {
                 const prior = this.#e2ViolationsByRun.get(String(runId)) ?? []
-                this.#e2ViolationsByRun.set(String(runId), [...prior, { code: 'E1_E2_FIDELITY_VIOLATION', reason: failed }].slice(-3))
+                const reason = e2Fixable.map(f => `${f.rule}: ${f.detail}`).join('；')
+                this.#e2ViolationsByRun.set(String(runId), [...prior, { code: 'E1_E2_FIDELITY_VIOLATION', reason }].slice(-3))
               }
               const err = new Error(`EXECUTE output refused by the E1→E2 fidelity check: ${failed}`)
               ;(err as { code?: string }).code = 'E1_E2_FIDELITY_VIOLATION'

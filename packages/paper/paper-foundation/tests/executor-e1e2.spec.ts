@@ -27,6 +27,7 @@ import {
   WorkflowEngineService,
 } from '../src/index.ts'
 import { ModelingIr } from '../src/ir/store.ts'
+import { ID_FIELD_BY_KIND } from '../src/ir/schema.ts'
 import {
   e1AnalysisInstruction,
   E1_ASSUMPTION_MARKER,
@@ -617,11 +618,65 @@ describe('W8.10-B1 — the backfill reaches the SECOND E2 call (end to end)', ()
     expect(kinds).toContain('ir_entry_written:E2DriftGuidance')
   })
 
-  it('a first-attempt success gets NO guidance (the cassette-preserving property)', async () => {
+  it('a first-attempt success gets NO *corrections* (only the registered-id list)', async () => {
+    // W8.10-D1 (this assertion was too narrow and the test caught it):
+    // B1 has two halves. ② (the registered-id list) is PREVENTIVE — it must
+    // be present from the first attempt, because the duplicate-id failure it
+    // prevents (`S-P` declared twice) happens on attempt one. ③ (the prior
+    // violation) is CORRECTIVE and may only appear after a refusal.
+    // "First attempt gets no guidance" was the wrong statement; the right one
+    // is "first attempt gets no corrections".
     const { prompts, outcome } = await harness([E1_SAMPLE, FAITHFUL_CONTAINER])
     expect(outcome.status, outcome.message).toBe('resolved')
-    for (const p of prompts.filter(p => p.includes('NORMALIZING a modeling analysis'))) {
-      expect(p).not.toContain('CORRECTIONS FOR THIS ATTEMPT')
+    const e2s = prompts.filter(p => p.includes('NORMALIZING a modeling analysis'))
+    expect(e2s.length).toBeGreaterThan(0)
+    for (const p of e2s) {
+      // no corrections...
+      expect(p).not.toContain('What went wrong last time')
+      // ...but the preventive id list IS there (registration runs before E1)
+      expect(p).toContain('ALREADY REGISTERED')
+      expect(p).toContain('R-OUT')
+    }
+  })
+})
+
+// ---------------------------------------------------------------------------
+// W8.10-D1 — the input assets are registered BEFORE E1 is asked to analyse
+// ---------------------------------------------------------------------------
+
+describe('W8.10-D1 — registration precedes E1 (the ordering invariant)', () => {
+  it('E1 sees the requirement ids (B4 is satisfiable at all)', async () => {
+    // 事故（由目标模型上的第二次真实运行抓到）：注册原本发生在 E1 之后，
+    // 于是 `semanticContextOf()` 在 E1 时刻返回空，E1 被告知"harness 没有
+    // 注册任何 requirement id"，B4 因此**结构上不可能通过**——不是模型漏答，
+    // 是它从未被告知要答什么。这与 fidelity 门的顺序缺陷同类：检查没问题，
+    // 被检查对象从未以需要的形态到达（形态 6）。
+    //
+    // 这条断言钉住的是**顺序**，不是数值：E1 的 prompt 里必须出现已注册的
+    // requirement id。真实运行已证明修复有效（run-3 的 B4 由恒 FAIL 转 PASS），
+    // 但若没有这条断言，把注册挪回 E1 之后不会有任何测试变红。
+    const { prompts, outcome } = await harness([E1_SAMPLE, FAITHFUL_CONTAINER])
+    expect(outcome.status, outcome.message).toBe('resolved')
+    const e1Prompt = prompts.find(p => p.includes('Write a modeling analysis in prose'))
+    expect(e1Prompt, 'E1 was never called').toBeDefined()
+    // The registered id reached the analyst — this is what B4 anchors on.
+    expect(e1Prompt).toContain('R-OUT')
+  })
+
+  it('registration is idempotent: the store still holds exactly one of each', async () => {
+    // 修复把 `registerInputAssets` 提前调用，而它的原有调用点保留在原处
+    // （容器准入需要那个 RESERVED 集合）。因此它必须真的是幂等的——否则
+    // 修复会变成"注册两次"，而重复 id 正是本轮 B 组要消灭的失败类之一。
+    //
+    // 判定按各 kind 的**自己的 id 字段**（`ID_FIELD_BY_KIND`），不按
+    // "value 里出现过这个字符串"——后者会把引用也算进来（`RequirementSpec`
+    // 的 `source_data_ref` 正是 `DA-RAW`，实测会数出 3 条）。
+    const { ir, outcome } = await harness([E1_SAMPLE, FAITHFUL_CONTAINER])
+    expect(outcome.status, outcome.message).toBe('resolved')
+    for (const [kind, id] of [['DataArtifact', 'DA-RAW'], ['RequirementSpec', 'R-OUT'], ['ProblemSpec', 'P1']] as const) {
+      const field = ID_FIELD_BY_KIND[kind]
+      const hits = ir.list().filter(r => r.kind === kind && (r.value as Record<string, unknown>)[field] === id)
+      expect(hits.length, `${kind} ${id} declared ${hits.length} times`).toBe(1)
     }
   })
 })
