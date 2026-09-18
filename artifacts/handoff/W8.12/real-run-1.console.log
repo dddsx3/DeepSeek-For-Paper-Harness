@@ -1,0 +1,4 @@
+[CODE-FRESH] 代码来源已断言：entry lib/index.js is 51061 ms newer than the newest source; entry lib/index.js is 1161879081 ms newer than the newest source; entry lib/index.js is 1161891282 ms newer than the newest source; entry lib/index.js is 1161891325 ms newer than the newest source; entry lib/index.js is 1161891536 ms newer than the newest source; entry lib/index.js is 1161878726 ms newer than the newest source
+[BLOCKED] 模型已产出 12041 字符的建模分析，但**接收层的保真检查未通过**，这次运行被判为失败。未通过的检查：B3 正向（声明须逐字锚定 E1）。已通过：B4 逐问推理覆盖、B5 锚点 id 形态（E1 侧）、B3 反向（E1 假设须被声明）、B3 锚点同一性（声明须在 E1 中有同名锚点）。
+  → 这类失败发生在**规范化侧**：分析内容合规，是把它映射成结构化记录的那一步没对齐。失败 gate：ir_producer（requirement_coverage:BLOCKED:requirement coverage: 1 finding(s) (R-OUT: REQUIRED_OUTPUT 'R-OUT' of problem 'P1' is not covered: only 0/1 distinct CRITICAL results reach this problem (A7 v0 fail-closed))）。这不是"模型没有给出可用结构"——它给出了，是形式化忠实这一关没过。
+  run-id  -> 10ea94f7-6919-4706-9c61-324328f04ce5
