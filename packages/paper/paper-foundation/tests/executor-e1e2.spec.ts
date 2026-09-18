@@ -36,6 +36,15 @@ import {
   fidelityOk,
   parseE1Anchors,
 } from '../src/produce/e1-e2.ts'
+import {
+  E2_DRIFT_HEADER,
+  declarableRefRules,
+  e2DriftGuidance,
+  e2PromptWithGuidance,
+  hasNoNumericLiterals,
+  hasNoNumericLiteralsOutsideIds,
+  stripNumericLiterals,
+} from '../src/produce/e2-guidance.ts'
 
 // ---------------------------------------------------------------------------
 // ① pure-function layer
@@ -451,5 +460,168 @@ describe('W8.9-B3/B5 — fidelity refusal + E1 is never re-run', () => {
       .map((e: { detail?: { ok?: boolean; detail?: string } }) => e.detail)
     expect(findings.length).toBeGreaterThan(0)
     expect(JSON.stringify(findings)).toContain('A-INVENTED')
+  })
+})
+
+
+// ---------------------------------------------------------------------------
+// W8.10-B1/B2 — the drift guidance backfill
+// ---------------------------------------------------------------------------
+
+describe('W8.10-B2 — zero-numeric-literals guard (red line N12)', () => {
+  it('strips every digit from a guidance fragment', () => {
+    expect(stripNumericLiterals('position 4295 of 12983')).toBe('position #### of #####')
+    expect(hasNoNumericLiterals(stripNumericLiterals('entity 3 at byte 0xF3'))).toBe(true)
+  })
+
+  it('COUNTER-EXAMPLE: an injected number does not survive into the guidance', () => {
+    // The zero-number channel is the project's core constraint — numbers reach
+    // the paper only via code -> jsonPath -> Result. The backfill is prose and
+    // must not become a second entrance. Injecting one must not leak it.
+    const guidance = e2DriftGuidance({
+      priorViolations: [{ code: 'store_refused', reason: 'entry refused at offset 4295 with value 0.731' }],
+      registeredIds: [],
+    })
+    expect(hasNoNumericLiterals(guidance)).toBe(true)
+    expect(guidance).not.toContain('0.731')
+    expect(guidance).not.toContain('4295')
+  })
+
+  it('the shipped guidance has no numeric literal outside the id list', () => {
+    // ⚠ B2's scope, decided by this very test: a blanket `[0-9]` check CANNOT
+    // hold, because the harness's own canonical ids carry digits — `P1` is the
+    // ProblemSpec id registered by `registerInputAssets`. Stripping it would
+    // rewrite the guidance to say "reference P#" and the model would be told
+    // to use an id that does not exist. The invariant asserted is therefore
+    // the one the zero-number channel actually needs: every digit in the
+    // shipped text belongs to a registered id, none is a quantity.
+    const ids = ['DA-RAW', 'R-OUT', 'P1', 'SYM-q']
+    const shapes = [
+      { code: 'store_refused', reason: "entry 'ModelSpec' could not be admitted: reference_kind_mismatch: 'DA-RAW' resolves to DataArtifact, expected ModelSpec" },
+      { code: 'store_refused', reason: "entry 'SymbolSpec' could not be admitted: unresolved_reference: 'P(Bin(n,0.10) > c)' is not registered (expected SymbolSpec)" },
+      { code: 'conflicting_id', reason: "entry 'SymbolSpec' id 'S-P' is already registered with DIFFERENT content" },
+    ]
+    for (const v of shapes) {
+      const g = e2DriftGuidance({ priorViolations: [v], registeredIds: ids })
+      expect(hasNoNumericLiteralsOutsideIds(g, ids), v.code).toBe(true)
+      // and the ids survive verbatim — the guidance must remain usable
+      expect(g).toContain('P1')
+    }
+  })
+
+  it('the ids are NOT mangled (the failure mode a blanket strip would cause)', () => {
+    const g = e2DriftGuidance({ priorViolations: [], registeredIds: ['P1', 'SYM-q'] })
+    expect(g).toContain('P1')
+    expect(g).not.toContain('P#')
+  })
+})
+
+describe('W8.10-B1 — the three correction contents', () => {
+  const VIOLATIONS = [
+    { code: 'store_refused', reason: "'DA-RAW' resolves to DataArtifact, expected ModelSpec" },
+    { code: 'store_refused', reason: "'P(Bin(n,x) > c)' is not registered (expected SymbolSpec)" },
+    { code: 'conflicting_id', reason: "id 'S-P' is already registered with DIFFERENT content" },
+  ]
+
+  it('① carries the reference-type rules, DERIVED from the validator table', () => {
+    const g = e2DriftGuidance({ priorViolations: VIOLATIONS, registeredIds: ['P1'] })
+    const rules = declarableRefRules()
+    expect(rules.length).toBeGreaterThan(0)
+    // Every rule the validator enforces appears in the guidance — this is the
+    // anti-drift property: a hand-written lecture would fall out of sync.
+    expect(g).toContain('Reference rules')
+    expect(g).toContain('ModelSpec.variable_refs -> SymbolSpec')
+    expect(g).toContain('ModelSpec.assumption_refs -> AssumptionSpec')
+  })
+
+  it('② carries the registered id list ("never declare these again")', () => {
+    const g = e2DriftGuidance({ priorViolations: VIOLATIONS, registeredIds: ['DA-RAW', 'R-OUT', 'P1'] })
+    expect(g).toContain('ALREADY REGISTERED')
+    for (const id of ['DA-RAW', 'R-OUT', 'P1']) expect(g).toContain(id)
+  })
+
+  it('③ carries the SPECIFIC prior violations, verbatim and per-item', () => {
+    const g = e2DriftGuidance({ priorViolations: VIOLATIONS, registeredIds: [] })
+    for (const v of VIOLATIONS) {
+      expect(g).toContain(`[${v.code}]`)
+      expect(g).toContain(v.reason.slice(0, 30))
+    }
+  })
+
+  it('the FIRST attempt gets NO guidance (byte-identical to W8.9 prompt)', () => {
+    // Confines the backfill to retries — and keeps a never-retrying run's
+    // request byte-identical, which is what preserves the cassette corpus.
+    const g = e2DriftGuidance({ priorViolations: [], registeredIds: [] })
+    expect(g).toBe('')
+    const base = 'BASE-PROMPT'
+    expect(e2PromptWithGuidance(base, g)).toBe(base)
+  })
+
+  it('anti-drift: it does NOT restate the whole schema', () => {
+    // The forbidden shape is "加强协议教学" — that would drop E2's existing
+    // compliant output along with the correction.
+    const g = e2DriftGuidance({ priorViolations: VIOLATIONS, registeredIds: ['P1'] })
+    expect(g).toContain('Do not restate the whole schema')
+    expect(g.length).toBeLessThan(4000)
+    expect(g.startsWith(E2_DRIFT_HEADER)).toBe(true)
+  })
+
+  it('an id list alone still produces guidance (the duplicate-id fix works pre-emptively)', () => {
+    const g = e2DriftGuidance({ priorViolations: [], registeredIds: ['S-P'] })
+    expect(g).toContain('S-P')
+    expect(g).toContain('ALREADY REGISTERED')
+  })
+})
+
+
+describe('W8.10-B1 — the backfill reaches the SECOND E2 call (end to end)', () => {
+  it('H7: a refused attempt is followed by an E2 prompt carrying the reason + id list', async () => {
+    // Attempt 1 normalizes into a container that INVENTs an assumption ->
+    // fidelity refuses. Attempt 2 must be told what was wrong. This is the
+    // wiring half: the pure function is covered above, here the question is
+    // whether the executor actually feeds it back.
+    const { ctx, runId, outcome, prompts } = await harness([
+      E1_SAMPLE,
+      INVENTED_ASSUMPTION_CONTAINER,
+      FAITHFUL_CONTAINER,
+    ])
+    expect(outcome.status, outcome.message).toBe('resolved')
+
+    const e2Prompts = prompts.filter(p => p.includes('NORMALIZING a modeling analysis'))
+    expect(e2Prompts.length).toBeGreaterThanOrEqual(2)
+
+    const second = e2Prompts[1] ?? ''
+    // ③ the specific violation came back
+    expect(second).toContain('CORRECTIONS FOR THIS ATTEMPT')
+    expect(second).toContain('E1_E2_FIDELITY_VIOLATION')
+    expect(second).toContain('A-INVENTED')
+    // ① the reference rules
+    expect(second).toContain('ModelSpec.variable_refs -> SymbolSpec')
+    // ② the registered id list (the harness's own ids, verbatim)
+    expect(second).toContain('ALREADY REGISTERED')
+    expect(second).toContain('P1')
+    // and it is LONGER than the first (the backfill is additive)
+    expect(second.length).toBeGreaterThan((e2Prompts[0] ?? '').length)
+
+    // B2 on the shipped text: no numeric literal outside the harness's own
+    // identifiers. `P1` (a registered id) and `E1_E2_FIDELITY_VIOLATION`
+    // (a failure code) both carry digits and must survive verbatim — they
+    // are identifiers, not quantities.
+    const guidance = second.slice(second.indexOf('CORRECTIONS FOR THIS ATTEMPT'))
+    expect(hasNoNumericLiteralsOutsideIds(guidance, ['P1', 'E1_E2_FIDELITY_VIOLATION'])).toBe(true)
+
+    // B5 unchanged: E1 still ran exactly once despite the retry
+    expect(prompts.filter(p => p.includes('Write a modeling analysis in prose')).length).toBe(1)
+    const kinds = ctx.paperAudit.list(runId).map((e: { eventType: string; detail?: { kind?: string } }) => `${e.eventType}:${String(e.detail?.kind ?? '')}`)
+    expect(kinds).toContain('ir_entry_written:E1Reused')
+    expect(kinds).toContain('ir_entry_written:E2DriftGuidance')
+  })
+
+  it('a first-attempt success gets NO guidance (the cassette-preserving property)', async () => {
+    const { prompts, outcome } = await harness([E1_SAMPLE, FAITHFUL_CONTAINER])
+    expect(outcome.status, outcome.message).toBe('resolved')
+    for (const p of prompts.filter(p => p.includes('NORMALIZING a modeling analysis'))) {
+      expect(p).not.toContain('CORRECTIONS FOR THIS ATTEMPT')
+    }
   })
 })

@@ -34,6 +34,11 @@ import { produceInterpretation } from './produce/interpretation-producer.ts'
 import { renderReportV2 } from './produce/report-renderer.ts'
 import { SHARD_NAMES, shardPrompt, parseShard, mergeShards } from './produce/shard-declare.ts'
 import {
+  e2DriftGuidance,
+  e2PromptWithGuidance,
+  type PriorViolation,
+} from './produce/e2-guidance.ts'
+import {
   e1AnalysisInstruction,
   e2NormalizationPrompt,
   checkE1E2Fidelity,
@@ -457,6 +462,16 @@ export class WorkflowExecutor {
   readonly #e1ByRun: Map<string, string> = new Map()
 
   /**
+   * W8.10-B1 — violations from the previous E2 attempt, per run.
+   *
+   * Appended to the NEXT E2 prompt as drift guidance. Cleared on success so a
+   * later run of the node does not inherit stale corrections. Only E2 reads
+   * it: E1 must never see this (it would re-author the analysis, which B5's
+   * cache exists to prevent).
+   */
+  readonly #e2ViolationsByRun: Map<string, PriorViolation[]> = new Map()
+
+  /**
    * TASK-PW W4: guided-retry budget spent per run and per class (NONE and
    * DRIFT have independent budgets; ESCAPE has no budget at all — W-B).
    */
@@ -574,6 +589,27 @@ export class WorkflowExecutor {
   /** W8.9-B3: the E1 analysis of a run, if the receive layer produced one. */
   e1AnalysisOf(runId: RunId): string | undefined {
     return this.#e1ByRun.get(String(runId))
+  }
+
+  /**
+   * W8.10-B1: every id already in the canonical store. Handed to the drift
+   * guidance so a retry is told which ids it may reference but must not
+   * declare — the direct fix for W8.9 run-3's `conflicting_id` (`S-P` declared
+   * twice with different content).
+   */
+  private registeredIdsOf(): ReadonlyArray<string> {
+    const ir = this.options.ir
+    if (ir === undefined) return []
+    const snapshot = ModelingIr.snapshot(ir)
+    if (snapshot === null) return []
+    // Sorted so the guidance text is deterministic across runs (the same
+    // store must produce the same prompt bytes).
+    return [...snapshot.keys()].sort()
+  }
+
+  /** W8.10-B1: drop the pending corrections once an attempt succeeds. */
+  private clearE2Violations(runId: RunId): void {
+    this.#e2ViolationsByRun.delete(String(runId))
   }
 
   /**
@@ -1409,7 +1445,32 @@ export class WorkflowExecutor {
               detail: { kind: 'E1Reused', id: 'e1', nodeId: node.id, stage: 'receive', chars: e1Text.length },
             })
           }
-          const e2Prompt = e2NormalizationPrompt(e1Text, EXECUTE_PROTOCOL_TEACHING)
+          const baseE2Prompt = e2NormalizationPrompt(e1Text, EXECUTE_PROTOCOL_TEACHING)
+          // W8.10-B1: the drift guidance. Empty on the first attempt (the
+          // prompt is then byte-identical to W8.9's — the backfill is confined
+          // to retries, which is also what keeps the cassette corpus valid for
+          // runs that never retry).
+          const guidance = e2DriftGuidance({
+            priorViolations: this.#e2ViolationsByRun.get(runKey) ?? [],
+            registeredIds: this.registeredIdsOf(),
+          })
+          const e2Prompt = e2PromptWithGuidance(baseE2Prompt, guidance)
+          if (guidance.length > 0) {
+            await this.audit({
+              eventType: 'ir_entry_written',
+              actor: 'paper-executor',
+              runId,
+              detail: {
+                kind: 'E2DriftGuidance',
+                id: 'e2-guidance',
+                nodeId: node.id,
+                stage: 'receive',
+                applied: true,
+                // B2 evidence: the shipped text has no numeric literals.
+                guidance_chars: guidance.length,
+              },
+            })
+          }
           const e2 = await this.call(role, e2Prompt)
           await this.recordUsage(runId, route.provider, route.model, e2.usage)
           await this.audit({
@@ -1522,50 +1583,15 @@ export class WorkflowExecutor {
           const reserved = await this.registerInputAssets(runId, ir, taskText ?? '')
           const harnessAssembled = isGuidedTier
 
-          const verdict = produceContainerInto(ir, text, undefined, { reservedIds: reserved })
-          if (!verdict.ok) {
-            // W8.6-D1: a bounded excerpt of the refused container lands on
-            // the audit trail BEFORE the throw. Repo principle: 模型可见 ⟺
-            // 已记录. Pre-W8.6, exec#2's schema_violation left NO artifact
-            // — its offending field path was permanently unknowable (W8.5
-            // deviation two). Head/tail excerpts + hash + the producer's
-            // reason restore diagnosability without storing unbounded text.
-            const excerptHead = text.slice(0, 400)
-            const excerptTail = text.length > 800 ? text.slice(-400) : ''
-            await this.audit({
-              eventType: 'container_refused',
-              actor: 'paper-executor',
-              runId,
-              detail: {
-                nodeId: node.id,
-                attempt,
-                code: verdict.code,
-                reason: verdict.reason.slice(0, 400),
-                output_sha256: sha256Hex(text),
-                excerpt_head: excerptHead,
-                excerpt_tail: excerptTail,
-              },
-            })
-            const err = new Error(`EXECUTE output refused by the IR producer: ${verdict.reason}`)
-            ;(err as { code?: string }).code = verdict.code
-            // W8.6-A4: attach an OUTPUT fingerprint so the same-cause circuit
-            // breaker can tell "deterministic repeat" (same output refused
-            // the same way) from "different cause" (two different prose
-            // attempts — the guided-retry design must keep those). The
-            // failure message alone is NOT sufficient: parse_failed's
-            // message is input-independent (W8.6 review caught this as Q6).
-            ;(err as { outputFingerprint?: string }).outputFingerprint = sha256Hex(text)
-            // TASK-PW W4: carry the failure class so the catch below can
-            // apply class-specific budgets (ESCAPE zero / NONE+DRIFT guided).
-            // On the T2/T3 paths `text` is the HARNESS-assembled container — a
-            // producer refusal of it is a harness-side contract problem, not
-            // a model failure, so it must not re-enter under DRIFT guidance
-            // (which would loop the wizard on an un-fixable shape).
-            ;(err as { w4Class?: FailureClass }).w4Class = harnessAssembled
-              ? 'ESCAPE'
-              : failureClassOf(verdict.code, text)
-            throw err
-          }
+          // W8.10-B1 (repair, found by this batch's own end-to-end test):
+          // the fidelity gate MUST run BEFORE admission. It used to run
+          // after `produceContainerInto`, so a fidelity-refused container had
+          // ALREADY written its entries into the append-only store — and the
+          // retry then hit `conflicting_id` on its own previous attempt's
+          // state instead of the violation it was supposed to fix. The store
+          // is append-only: admission is irreversible, so every gate that can
+          // refuse must sit in front of it.
+          //
           // W8.9-B3/B4 — the E1→E2 fidelity gate. Only meaningful on the
           // receive layer (there is no E1 on the other paths, so the checks
           // have nothing to anchor against and are skipped).
@@ -1599,12 +1625,73 @@ export class WorkflowExecutor {
               // NOT be re-run — B5). The output fingerprint is the E2 text,
               // so an identical re-emission trips the W8.6-A4 breaker.
               const failed = fidelity.filter(f => !f.ok).map(f => `${f.rule}: ${f.detail}`).join('；')
+              // W8.10-B1: fidelity violations are corrections too.
+              if (this.#e1ByRun.has(String(runId))) {
+                const prior = this.#e2ViolationsByRun.get(String(runId)) ?? []
+                this.#e2ViolationsByRun.set(String(runId), [...prior, { code: 'E1_E2_FIDELITY_VIOLATION', reason: failed }].slice(-3))
+              }
               const err = new Error(`EXECUTE output refused by the E1→E2 fidelity check: ${failed}`)
               ;(err as { code?: string }).code = 'E1_E2_FIDELITY_VIOLATION'
               ;(err as { w4Class?: FailureClass }).w4Class = 'DRIFT'
               ;(err as { outputFingerprint?: string }).outputFingerprint = sha256Hex(text)
               throw err
             }
+          }
+
+          const verdict = produceContainerInto(ir, text, undefined, { reservedIds: reserved })
+          if (!verdict.ok) {
+            // W8.6-D1: a bounded excerpt of the refused container lands on
+            // the audit trail BEFORE the throw. Repo principle: 模型可见 ⟺
+            // 已记录. Pre-W8.6, exec#2's schema_violation left NO artifact
+            // — its offending field path was permanently unknowable (W8.5
+            // deviation two). Head/tail excerpts + hash + the producer's
+            // reason restore diagnosability without storing unbounded text.
+            const excerptHead = text.slice(0, 400)
+            const excerptTail = text.length > 800 ? text.slice(-400) : ''
+            await this.audit({
+              eventType: 'container_refused',
+              actor: 'paper-executor',
+              runId,
+              detail: {
+                nodeId: node.id,
+                attempt,
+                code: verdict.code,
+                reason: verdict.reason.slice(0, 400),
+                output_sha256: sha256Hex(text),
+                excerpt_head: excerptHead,
+                excerpt_tail: excerptTail,
+              },
+            })
+            // W8.10-B1: record the violation so the NEXT E2 attempt is told
+            // exactly what was refused. Only on the receive layer — on the
+            // single-shot/shard paths there is no E2 to correct.
+            if (this.#e1ByRun.has(String(runId))) {
+              const prior = this.#e2ViolationsByRun.get(String(runId)) ?? []
+              // Keep the list bounded: the most recent refusal is the one that
+              // describes what to fix, and an unbounded list would grow the
+              // prompt on every retry (R2 risk).
+              const next = [...prior, { code: String(verdict.code), reason: verdict.reason }].slice(-3)
+              this.#e2ViolationsByRun.set(String(runId), next)
+            }
+            const err = new Error(`EXECUTE output refused by the IR producer: ${verdict.reason}`)
+            ;(err as { code?: string }).code = verdict.code
+            // W8.6-A4: attach an OUTPUT fingerprint so the same-cause circuit
+            // breaker can tell "deterministic repeat" (same output refused
+            // the same way) from "different cause" (two different prose
+            // attempts — the guided-retry design must keep those). The
+            // failure message alone is NOT sufficient: parse_failed's
+            // message is input-independent (W8.6 review caught this as Q6).
+            ;(err as { outputFingerprint?: string }).outputFingerprint = sha256Hex(text)
+            // TASK-PW W4: carry the failure class so the catch below can
+            // apply class-specific budgets (ESCAPE zero / NONE+DRIFT guided).
+            // On the T2/T3 paths `text` is the HARNESS-assembled container — a
+            // producer refusal of it is a harness-side contract problem, not
+            // a model failure, so it must not re-enter under DRIFT guidance
+            // (which would loop the wizard on an un-fixable shape).
+            ;(err as { w4Class?: FailureClass }).w4Class = harnessAssembled
+              ? 'ESCAPE'
+              : failureClassOf(verdict.code, text)
+            throw err
           }
           for (const entry of verdict.entries) {
             await this.audit({
@@ -1631,6 +1718,8 @@ export class WorkflowExecutor {
               throw err
             }
             this.#codeLoaders.set(String(runId), chain.loadCode)
+            // W8.10-B1: the attempt succeeded — the corrections are spent.
+            this.clearE2Violations(runId)
             await this.engine.transitionNode(node.id, 'succeeded')
             return { nodeId: node.id, text: chain.reportText }
           }
