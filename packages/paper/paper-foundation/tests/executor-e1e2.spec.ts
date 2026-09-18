@@ -35,6 +35,7 @@ import {
   checkE1E2Fidelity,
   e2NormalizationPrompt,
   fidelityOk,
+  foldForAnchorMatch,
   parseE1Anchors,
 } from '../src/produce/e1-e2.ts'
 import {
@@ -159,6 +160,76 @@ describe('W8.9-B3 — two-way fidelity (each rule gets a constructed counter-exa
     expect(fidelityOk(findings)).toBe(false)
     expect(findings.find(f => f.rule.includes('正向'))?.detail).toContain('过短')
     expect(MIN_E1_SPAN_CHARS).toBeGreaterThan(2)
+  })
+
+  // -------------------------------------------------------------------------
+  // W8.10-D3 — the typographic fold (a harness-side量具 fix, not a model one)
+  // -------------------------------------------------------------------------
+
+  it('ACCEPTS a span whose only difference is typography (full-width ↔ half-width)', () => {
+    // 真实运行抓出的形态：模型复制了正确的句子，只是把 `）` 写成了 `)`。
+    // 旧比较器（裸 includes）把它报成"疑似改写"——把 harness 的比较器限制
+    // 归因给模型（红线 N2）。折叠后仍要求逐字命中。
+    const findings = checkE1E2Fidelity({
+      e1Text: '[[ASSUMPTION: A-PUNC]] 采用单侧精确二项检验（不是正态近似），因为小样本会低估尾部概率。',
+      entries: entriesOf({ kind: 'AssumptionSpec', value: { assumption_id: 'A-PUNC', e1_span: '采用单侧精确二项检验(不是正态近似)' } }),
+      requiredOutputIds: [],
+    })
+    expect(fidelityOk(findings), JSON.stringify(findings)).toBe(true)
+  })
+
+  it('ACCEPTS a span whose only difference is whitespace', () => {
+    // 实测形态：E1 写 `附录 (1)`，span 写 `附录（1）`，或复制时把换行折叠了。
+    const findings = checkE1E2Fidelity({
+      e1Text: '[[ASSUMPTION: A-WS]] 次品率定义按附录 (1) 给出，\n  即装配后的产品次品率。',
+      entries: entriesOf({ kind: 'AssumptionSpec', value: { assumption_id: 'A-WS', e1_span: '次品率定义按附录（1）给出，即装配后的产品次品率' } }),
+      requiredOutputIds: [],
+    })
+    expect(fidelityOk(findings), JSON.stringify(findings)).toBe(true)
+  })
+
+  it('ACCEPTS a span whose only difference is the math delimiter ($$ ↔ $)', () => {
+    const findings = checkE1E2Fidelity({
+      e1Text: '[[ASSUMPTION: A-MATH]] 单位成本为 $C_1 = \\frac{c_1+d_1}{1-p_1}$ 的形式。',
+      entries: entriesOf({ kind: 'AssumptionSpec', value: { assumption_id: 'A-MATH', e1_span: '$$C_1 = \\frac{c_1+d_1}{1-p_1}$$' } }),
+      requiredOutputIds: [],
+    })
+    expect(fidelityOk(findings), JSON.stringify(findings)).toBe(true)
+  })
+
+  it('NEGATIVE CONTROL: the fold does NOT accept a real rewrite', () => {
+    // 这是这条修法的安全边界。折叠只允许"删掉渲染差异"，不允许"删掉字词"。
+    // 若这条通过，说明折叠放得太宽，凭空改写的内容会进入论文——那比误报
+    // 改写危险得多（形态 4 的反面：判定与目标失去相关性）。
+    const cases: ReadonlyArray<{ label: string; span: string }> = [
+      { label: '实词被替换', span: '采用双侧近似二项检验而不是正态近似' },
+      { label: '语序颠倒', span: '采用二项检验单侧精确而不是正态近似' },
+      { label: '增加了一个词', span: '采用单侧精确二项检验而不是正态近似的方法' },
+      // 删词必须从**中间**删：从尾部截断得到的是真子串，`includes` 语义下
+      // 本来就该通过（改动前亦然，不是本次放宽引入的）。
+      { label: '中间删掉了一个词', span: '采用单侧精确二项检验正态近似' },
+      { label: '否定被去掉', span: '采用单侧精确二项检验而不是正态近似' },
+    ]
+    for (const c of cases) {
+      const findings = checkE1E2Fidelity({
+        e1Text: '[[ASSUMPTION: A-REWRITE]] 采用单侧精确二项检验而不是正态近似，因为小样本下近似会低估尾部概率。',
+        entries: entriesOf({ kind: 'AssumptionSpec', value: { assumption_id: 'A-REWRITE', e1_span: c.span } }),
+        requiredOutputIds: [],
+      })
+      // the last case IS the original sentence — it must pass, the rest must fail
+      const isOriginal = c.span === '采用单侧精确二项检验而不是正态近似'
+      expect(fidelityOk(findings), `${c.label} was accepted`).toBe(isOriginal)
+    }
+  })
+
+  it('the fold is idempotent and never invents characters', () => {
+    // 折叠不能凭空造字：`fold(x)` 的长度必须 ≤ 原文（只删空白、只做等长替换）。
+    const cases = ['采用（1）', '$$x$$', 'a\n\n b', '（全角）']
+    for (const c of cases) {
+      const folded = foldForAnchorMatch(c)
+      expect(folded.length, `${c} grew`).toBeLessThanOrEqual(c.length)
+      expect(foldForAnchorMatch(folded)).toBe(folded)
+    }
   })
 
   it('REVERSE violation: E2 invents an assumption E1 never made → caught', () => {
