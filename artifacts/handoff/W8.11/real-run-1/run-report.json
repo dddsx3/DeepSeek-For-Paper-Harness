@@ -1,0 +1,43 @@
+{
+  "runId": "39131b73-8244-4056-a761-9eb78abb3cab",
+  "tier": "T1",
+  "mode": "strict",
+  "status": "BLOCKED",
+  "routed_family": "F4",
+  "route_truth": "F3+F4",
+  "route_mismatch": false,
+  "code_provenance": {
+    "checked_at": "2026-09-18T17:14:57.060Z",
+    "ok": true,
+    "targets": [
+      {
+        "name": "@deepseek-ai/dsh-paper-foundation",
+        "ok": true,
+        "detail": "entry lib/index.js is 132201 ms newer than the newest source"
+      }
+    ]
+  },
+  "minted_ir_count": 3,
+  "classifier": "transport",
+  "code": "gate-failed",
+  "humanized": "调用/传输失败（gate-failed）：node '3bf0a375-8a9d-4fa1-b13e-f462f5f91277' exhausted 3 attempts: EXECUTE output was not a schema-valid ir-container-v1 (BLOCKED)",
+  "wall_clock_seconds": 470.5,
+  "usage": {
+    "input_tokens": 30585,
+    "output_tokens": 37361,
+    "cost_usd": 0
+  },
+  "memo": {
+    "passed_gates": [
+      "plan"
+    ],
+    "minted_ir_kinds": [
+      "DataArtifact",
+      "RequirementSpec",
+      "ProblemSpec"
+    ],
+    "minted_ir_count": 3,
+    "failing_node": null,
+    "suggested_intervention": "重试一次；若持续失败报告给维护者。"
+  }
+}
