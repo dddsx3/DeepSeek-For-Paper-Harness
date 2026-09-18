@@ -1,5 +1,5 @@
 import {  describe,  expect,  it  } from 'vitest'
-import {  IR_REF_FIELDS,  validateRefFields  } from '../../src/ir/index.ts'
+import {  IR_REF_FIELDS,  splitCompositeRef,  validateRefFields  } from '../../src/ir/index.ts'
 import type {  IrKind  } from '../../src/ir/index.ts'
 import {  claim,  figureSpec,  modelSpec,  result,  runArtifact,  verificationResult  } from './fixtures.ts'
 
@@ -143,5 +143,66 @@ describe('IR reference validation', () => {
       .toBe('kind_mismatch')
     expect(validateRefFields('ProblemSpec', { raw_problem_ref: 'DA-RAW', requirement_refs: ['NOPE'] }, resolve)[0]!.resolution)
       .toBe('missing')
+  })
+})
+
+// ---------------------------------------------------------------------------
+// W8.11-D1 — explicit null is LEGAL; a missing reference still is not
+// ---------------------------------------------------------------------------
+
+describe('W8.11-D1 — null tolerance + composite paths', () => {
+  it('COUNTER-EXAMPLE 1: an explicit null passes (it means "does not apply")', () => {
+    // 事故（C2 实测）：`required_output_ref: null` 落到 `resolve(null)` →
+    // `Map.get(null)` → undefined → 报 `unresolved_reference`。于是
+    // **schema 放行、下游拒绝**，且失败原因伪装成"引用不存在"——最难诊断的形态。
+    // 修法：显式 null 短路。**不放松判定**：不存在的引用仍然必须拒（见下一条）。
+    expect(validateRefFields('ProblemSpec', { raw_problem_ref: null, requirement_refs: [] }, resolve)).toEqual([])
+    // nested 分支同样容忍
+    expect(validateRefFields('ModelSpec', modelSpec({ assumption_refs: [], equation_refs: [], parameter_refs: [{ symbol_ref: null }] } as never), resolve)).toEqual([])
+  })
+
+  it('COUNTER-EXAMPLE 2: an existing path passes (composite ref)', () => {
+    // 规格用的形式是 `Result:RES1.value`（`CAPABILITY-SCHEMA.md:78`）。此前
+    // **全仓无解析器**，`Map.get('Result:RES1.value')` 恒 undefined → 整个
+    // 示例按字面 ingest 会全部失败。
+    const problems = validateRefFields('Claim', claim({ result_refs: ['Result:RES1.value'] } as never), resolve)
+    expect(problems, JSON.stringify(problems)).toEqual([])
+    // and the plain form is unchanged (zero behaviour change for existing refs)
+    expect(validateRefFields('Claim', claim({ result_refs: ['RES1'] }), resolve)).toEqual([])
+  })
+
+  it('COUNTER-EXAMPLE 3: a missing path gives a DISTINGUISHABLE error', () => {
+    // 判据要求：失败原因必须能区分"引用为 null（合法）"与"引用不存在（非法）"。
+    const problems = validateRefFields('Claim', claim({ result_refs: ['Result:RES-NOPE.value'] } as never), resolve)
+    expect(problems).toHaveLength(1)
+    expect(problems[0]!.resolution).toBe('missing')
+    // 报的是**对象 id**，不是整条复合串——否则读者看不出缺的是哪一半
+    expect(problems[0]!.ref).toBe('RES-NOPE')
+    expect(problems[0]!.ref).not.toContain(':')
+  })
+
+  it('a composite ref that LIES about its kind is caught', () => {
+    // `Result:RES1` 说自己是 Result——若该字段要求的是别的 kind，必须拒。
+    const problems = validateRefFields('Claim', claim({ result_refs: ['ProblemSpec:P1'] } as never), resolve)
+    expect(problems).toHaveLength(1)
+    expect(problems[0]!.resolution).toBe('kind_mismatch')
+    expect(problems[0]!.actual).toBe('ProblemSpec')
+  })
+
+  it('a non-kind prefix is NOT treated as a composite (no silent mangling)', () => {
+    // 规格的另一个例子是 `run_output:result1.xlsx!C2`——`run_output` **不是**
+    // IR kind，它是外部定位符。若把任何含冒号的串都当复合引用，就会把合法的
+    // id 悄悄改写成别的东西。
+    const problems = validateRefFields('RunArtifact', runArtifact({ code_ref: 'run_output:result1.xlsx!C2' }), resolve)
+    // code_ref is an external locator (never resolved) — proves the prefix
+    // logic did not turn it into an IR reference.
+    expect(problems).toEqual([])
+  })
+
+  it('splitCompositeRef parses the spec form and leaves plain ids alone', () => {
+    expect(splitCompositeRef('Result:RES1.value')).toEqual({ kind: 'Result', id: 'RES1', path: 'value' })
+    expect(splitCompositeRef('Result:RES1')).toEqual({ kind: 'Result', id: 'RES1', path: undefined })
+    expect(splitCompositeRef('P1')).toEqual({ kind: undefined, id: 'P1', path: undefined })
+    expect(splitCompositeRef('run_output:a.xlsx!C2')).toEqual({ kind: undefined, id: 'run_output:a.xlsx!C2', path: undefined })
   })
 })
