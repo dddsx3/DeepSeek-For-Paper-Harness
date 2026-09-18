@@ -23,6 +23,7 @@ import type { DeliveryDecision, DeliveryPolicy } from './delivery/delivery-polic
 import { makeCandidateArtifact } from './delivery/artifact-states.ts'
 import { promoteCandidateToDeliverable } from './delivery/promoter.ts'
 import { contentExists, gradeDelivery, renderDeliveryAppendix } from './delivery/delivery-grade.ts'
+import { renderE1DirectDraft } from './produce/e1-direct.ts'
 import type { DeliveryGrade } from './delivery/delivery-grade.ts'
 import { runVerificationV1V4 } from './verification/v-structure.ts'
 import { ModelingIr } from './ir/store.ts'
@@ -490,6 +491,14 @@ export class WorkflowExecutor {
   readonly #e1ByRun: Map<string, string> = new Map()
 
   /**
+   * W8.12 — the receive layer's terminal failure facts per run, stashed when
+   * the container path falls back to E1 direct delivery. The grader reads
+   * them so the MARKED appendix names the real cause (which fidelity rules
+   * failed) instead of a generic gate name.
+   */
+  readonly #receiveFailures: Map<string, { failedRules: ReadonlyArray<string>; reason: string }> = new Map()
+
+  /**
    * W8.10-B1 — violations from the previous E2 attempt, per run.
    *
    * Appended to the NEXT E2 prompt as drift guidance. Cleared on success so a
@@ -812,8 +821,22 @@ export class WorkflowExecutor {
           .filter(f => !f.ok)
           .map(f => ({ kind: f.rule, reason: f.detail }))
       const gateFailures = verdict.decision.failures
+      // W8.12 (E1 direct delivery): when the run got here via the fallback,
+      // the receive layer's terminal failure joins the grade input — it is an
+      // ANNOTATION (the appendix names the real cause) and never a separate
+      // verdict path. Without this the appendix would not say why the paper
+      // is an unverified analysis draft.
+      const receiveFacts = this.options.deliveryGradeMode === 'fail-soft'
+        ? this.#receiveFailures.get(String(runId))
+        : undefined
+      const receiveFailures: ReadonlyArray<{ kind: string; reason: string }> = receiveFacts === undefined
+        ? []
+        : [{
+          kind: 'e2_normalization_failed',
+          reason: `${receiveFacts.reason}（未通过的保真检查：${receiveFacts.failedRules.join('、') || '无'}）`,
+        }]
       const gradeInput = this.options.deliveryGradeMode === 'fail-soft'
-        ? [...gateFailures, ...reviewFailures, ...vFindings]
+        ? [...gateFailures, ...reviewFailures, ...vFindings, ...receiveFailures]
         : [...gateFailures, ...reviewFailures]
       const fatal = {
         emptyContent: !contentExists(current),
@@ -1716,6 +1739,12 @@ export class WorkflowExecutor {
                 const reason = e2Fixable.map(f => `${f.rule}: ${f.detail}`).join('；')
                 this.#e2ViolationsByRun.set(String(runId), [...prior, { code: 'E1_E2_FIDELITY_VIOLATION', reason }].slice(-3))
               }
+              // W8.12: stash the terminal receive failure so the E1-direct
+              // fallback (and the MARKED appendix) can name the real cause.
+              this.#receiveFailures.set(String(runId), {
+                failedRules: e2Fixable.length > 0 ? e2Fixable.map(f => f.rule) : fidelity.filter(f => !f.ok).map(f => f.rule),
+                reason: failed,
+              })
               const err = new Error(`EXECUTE output refused by the E1→E2 fidelity check: ${failed}`)
               ;(err as { code?: string }).code = 'E1_E2_FIDELITY_VIOLATION'
               ;(err as { w4Class?: FailureClass }).w4Class = 'DRIFT'
@@ -1759,6 +1788,12 @@ export class WorkflowExecutor {
               const next = [...prior, { code: String(verdict.code), reason: verdict.reason }].slice(-3)
               this.#e2ViolationsByRun.set(String(runId), next)
             }
+            // W8.12: same stash for producer refusals (schema/store), so the
+            // E1-direct fallback names them too.
+            this.#receiveFailures.set(String(runId), {
+              failedRules: [String(verdict.code)],
+              reason: verdict.reason.slice(0, 400),
+            })
             const err = new Error(`EXECUTE output refused by the IR producer: ${verdict.reason}`)
             ;(err as { code?: string }).code = verdict.code
             // W8.6-A4: attach an OUTPUT fingerprint so the same-cause circuit
@@ -1919,6 +1954,15 @@ export class WorkflowExecutor {
               sameCauseStreak = 1
             }
             if (sameCauseStreak >= 2) {
+              // W8.12: the fallback FIRST — a circuit-broken receive layer
+              // must not discard E1's analysis either (the breaker fires
+              // EARLIER than retry exhaustion, so this is the path real
+              // same-cause runs actually take).
+              const direct = await this.e1DirectFallback(
+                runId, node,
+                `same-cause circuit breaker: ${failureKey} repeated (attempt ${attempt})`,
+              )
+              if (direct !== null) return direct
               await this.engine.transitionRun(runId, 'failed')
               await this.audit({
                 eventType: 'gate_failed',
@@ -1995,6 +2039,22 @@ export class WorkflowExecutor {
     // (a persistent producer refusal is not a resumable transport pause).
     // Otherwise pause for review so a resumed run continues from this node.
     if (this.options.produceFromExecute === true && type === 'execute') {
+      // W8.12 — the E1 direct delivery path (Wave-3 audit §四). The container
+      // production failed after every retry, but E1's analysis — which the
+      // model HAS produced, and which the fidelity gate judged — is real work.
+      // Throwing here discards it and the user gets zero, which is exactly
+      // the gap fail-soft's MARKED grade was meant to close: its grading
+      // evaluates the post-review text, so a failure at THIS node never
+      // reached it. Under fail-soft, when E1 satisfies contentExists, the
+      // analysis is rendered into the skeleton and the run CONTINUES — the
+      // fidelity findings ride into the MARKED appendix instead of ending
+      // the run. The fidelity gate itself is untouched (red line N18): it
+      // still refuses containers, its findings are still recorded verbatim.
+      const direct = await this.e1DirectFallback(
+        runId, node,
+        `EXECUTE output refused ${policy.maxNodeAttempts} times`,
+      )
+      if (direct !== null) return direct
       // The node already sits in 'failed' (set by the catch path on its
       // last attempt); only the RUN transitions here.
       await this.engine.transitionRun(runId, 'failed')
@@ -2015,6 +2075,52 @@ export class WorkflowExecutor {
       'provider-unavailable',
       `node '${node.id}' exhausted ${policy.maxNodeAttempts} attempts and is paused for review`,
     )
+  }
+
+  /**
+   * W8.12 — the E1 direct delivery fallback, shared by BOTH terminal refusal
+   * paths (the same-cause circuit breaker inside the retry loop, and the
+   * post-retry exhaustion block). Returns the rendered draft when the
+   * fallback applies (fail-soft + E1 present + contentExists), else null so
+   * the caller keeps its historical BLOCKED behaviour.
+   *
+   * 提成方法而非两处内联的理由：两条路径的兜底必须**永远一致**——若只在
+   * 重试耗尽处兜底，熔断器（更早触发）仍会丢掉 E1，Wave-3 审计指出的洞
+   * 只修了一半。
+   */
+  private async e1DirectFallback(
+    runId: RunId,
+    node: NodeRecord,
+    gateReason: string,
+  ): Promise<{ nodeId: NodeRecord['id']; text: string } | null> {
+    if (this.options.deliveryGradeMode !== 'fail-soft') return null
+    const e1Text = this.#e1ByRun.get(String(runId))
+    if (e1Text === undefined || !contentExists(e1Text)) return null
+    const facts = this.#receiveFailures.get(String(runId))
+    const draft = renderE1DirectDraft({
+      e1Text,
+      title: '建模分析稿（E1 直通交付）',
+      failureReason: gateReason,
+      failedRules: facts?.failedRules ?? [],
+      gate: 'ir_producer',
+    })
+    await this.audit({
+      eventType: 'e1_direct_delivery',
+      actor: 'paper-executor',
+      runId,
+      detail: {
+        nodeId: node.id,
+        gate: 'ir_producer',
+        reason: gateReason,
+        failedRules: facts?.failedRules ?? [],
+        e1_chars: e1Text.length,
+        assumptions: draft.assumptionsCount,
+      },
+    })
+    // The node state stays 'failed' — that is the honest record (the
+    // container production DID fail). The run continues anyway; the MARKED
+    // appendix carries why.
+    return { nodeId: node.id, text: draft.markdown }
   }
 
   /**

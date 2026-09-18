@@ -510,6 +510,8 @@ interface HarnessOpts {
   disableShardDeclare?: boolean
   /** W8.11-B2: omit the artifact body store (the "store not mounted" guard). */
   noBodyStore?: boolean
+  /** W8.12: fail-soft grading (the mass-tier default the shell sets via --fail-soft). */
+  failSoft?: boolean
 }
 
 async function harness(outputs: ReadonlyArray<string>, opts?: HarnessOpts) {
@@ -570,6 +572,7 @@ ${joined}`
     produceFromExecute: true,
     ...(opts?.disableE1E2 === true ? { disableE1E2: true } : {}),
     ...(opts?.disableShardDeclare === true ? { disableShardDeclare: true } : {}),
+    ...(opts?.failSoft === true ? { deliveryGradeMode: 'fail-soft' as const } : {}),
     backoffBaseMs: 1,
     backoffCapMs: 1,
   })
@@ -1189,5 +1192,67 @@ describe('W8.11-A1d — reference rules are taught, and derived', () => {
         expect(taught.has(`${kind}.${spec.path}`), `${kind}.${spec.path} not taught`).toBe(true)
       }
     }
+  })
+})
+
+// ---------------------------------------------------------------------------
+// W8.12 — the E1 direct delivery path (Wave-3 audit §四)
+// ---------------------------------------------------------------------------
+
+describe('W8.12 — E1 direct delivery (fail-soft, E2 exhausted)', () => {
+  it('E2 fails after retries but E1 is substantial → run RESOLVES, not BLOCKED', async () => {
+    // Wave-3 审计的核心发现：MARKED 保护评估的是评审循环后的文本，而 E2 失败
+    // 在更早的生产节点——重试耗尽直接 gate-failed，走不到 gradeDelivery。
+    // 于是 E1 的成果被整个丢弃。修法：fail-soft 下 E1 满足 contentExists →
+    // 渲染直通稿，fidelity findings 进 MARKED 附录而非终结运行。
+    const { ctx, runId, outcome, prompts } = await harness([E1_SAMPLE, INVENTED_ASSUMPTION_CONTAINER], { failSoft: true })
+    expect(outcome.status, outcome.message).toBe('resolved')
+    // the draft reached the reviewer (the review prompt quotes the skeleton)
+    const reviewPrompt = prompts.find(p => p.includes('reviewer') || p.includes('defects'))
+    expect(reviewPrompt).toBeDefined()
+    // the audit trail says WHY
+    const kinds = ctx.paperAudit.list(runId).map((e: { eventType: string }) => e.eventType)
+    expect(kinds).toContain('e1_direct_delivery')
+  })
+
+  it('the delivered draft carries the E1 analysis VERBATIM and the honest note', async () => {
+    const { ctx, runId, outcome } = await harness([E1_SAMPLE, INVENTED_ASSUMPTION_CONTAINER], { failSoft: true })
+    expect(outcome.status, outcome.message).toBe('resolved')
+    const event = ctx.paperAudit.list(runId).find((e: { eventType: string }) => e.eventType === 'e1_direct_delivery')
+    expect(event).toBeDefined()
+    expect(event?.detail?.e1_chars).toBe(E1_SAMPLE.length)
+    expect(event?.detail?.failedRules).toContain('B3 锚点同一性（声明须在 E1 中有同名锚点）')
+  })
+
+  it('the run is graded MARKED with the real cause in the annotations', async () => {
+    const { ctx, runId, outcome } = await harness([E1_SAMPLE, INVENTED_ASSUMPTION_CONTAINER], { failSoft: true })
+    expect(outcome.status, outcome.message).toBe('resolved')
+    const graded = ctx.paperAudit.list(runId).find((e: { eventType: string }) => e.eventType === 'delivery_graded')
+    expect(graded, 'delivery_graded never fired').toBeDefined()
+    expect(graded?.detail?.grade).toBe('MARKED')
+  })
+
+  it('RED LINE N18: the fidelity gate still REFUSES the bad container', async () => {
+    // 直通不等于放宽：E2 的凭空造假设容器仍然被 fidelity 门拒绝（逐字记录），
+    // 只是 findings 的去向从"终结运行"变为"进附录"。
+    const { ctx, runId, outcome } = await harness([E1_SAMPLE, INVENTED_ASSUMPTION_CONTAINER], { failSoft: true })
+    expect(outcome.status, outcome.message).toBe('resolved')
+    const findings = ctx.paperAudit.list(runId)
+      .filter((e: { detail?: { kind?: string } }) => e.detail?.kind === 'FidelityFinding')
+    // 注意层级：`ok` 在记录的 `detail` 里，不在记录顶层——第一版断言写成了
+    // `identity?.ok`（恒 undefined），是断言写错而非门失效；门的 trail 里
+    // 两次出现 `B3 锚点同一性 ok:false`，且 provider_retry 带着拒绝码。
+    const identity = findings.find((e: { detail?: { ok?: boolean; id?: string } }) => String(e.detail?.id).includes('同一性'))
+    expect(identity?.detail?.ok, 'the fidelity gate must still catch the invention').toBe(false)
+    // and the refusal is on the trail verbatim
+    const retries = ctx.paperAudit.list(runId).filter((e: { eventType: string; detail?: { code?: string } }) => e.eventType === 'provider_retry')
+    expect(retries.some((e: { detail?: { code?: string } }) => e.detail?.code === 'E1_E2_FIDELITY_VIOLATION')).toBe(true)
+  })
+
+  it('E1 EMPTY (or absent) → still BLOCKED (the true zero-content case)', async () => {
+    // 反向守卫：直通只兜"E1 有实质内容"。E1 缺席时必须维持原 BLOCKED 行为
+    // ——那是真正的零内容，不是可以标注的缺陷。
+    const { outcome } = await harness(['', INVENTED_ASSUMPTION_CONTAINER])
+    expect(outcome.status).toBe('rejected')
   })
 })

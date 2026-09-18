@@ -26,3 +26,7 @@ bench/problems/**/*.csv filter=lfs diff=lfs merge=lfs -text
 # round's directory on purpose: prose written BY hand (bench/*-REPORT.md)
 # stays under the gate.
 artifacts/handoff/W8.10/** -whitespace
+
+# W8.12 experiment output: the E1-direct render is a verbatim capture of
+# what the skeleton produced (evaluation artifact), same reasoning as W8.10.
+artifacts/handoff/W8.12/** -whitespace
