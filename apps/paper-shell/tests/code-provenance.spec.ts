@@ -11,7 +11,7 @@
  */
 
 import { describe, expect, it } from 'vitest'
-import { mkdtempSync, mkdirSync, writeFileSync, utimesSync, rmSync } from 'node:fs'
+import { mkdtempSync, mkdirSync, writeFileSync, utimesSync, rmSync, readdirSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import {
@@ -122,5 +122,41 @@ describe('code-provenance — W8.9-A1 build-trap guard', () => {
       expect(t.dir).not.toMatch(/^[A-Za-z]:|^\//) // repo-relative, not absolute
       expect(t.entry.endsWith('.js')).toBe(true)
     }
+  })
+
+  // -------------------------------------------------------------------------
+  // W8.11-E1 — the list must cover what the CLI actually imports
+  // -------------------------------------------------------------------------
+
+  it('covers EVERY workspace package the shell imports (derived, not remembered)', () => {
+    // 事故：该常量只列 1 个包，而 `cli.ts` 通过 exports 加载 **6** 个 workspace
+    // 包。常量自己的注释却声称是"the workspace packages the paper-shell CLI
+    // loads"——**守卫的自我描述与内容不符**。缺口不是修辞问题：W8.8 那次事故
+    // （改了 src 没重建 lib）对 `dsh-storage*` / `dsh-llm` / `cordis` 同样成立，
+    // 而守卫对它们全盲。
+    //
+    // 这条断言从**真实 import 语句**推导应覆盖的集合，再与常量比对——
+    // 而不是把六个名字再抄一遍（那样只会得到第二个会漂移的真相源）。
+    const srcDir = join(import.meta.dirname, '..', 'src')
+    const imported = new Set<string>()
+    for (const file of readdirSync(srcDir)) {
+      if (!file.endsWith('.ts')) continue
+      const text = readFileSync(join(srcDir, file), 'utf8')
+      for (const m of text.matchAll(/from\s+'(@deepseek-ai\/[a-z0-9-]+)'/g)) imported.add(m[1]!)
+    }
+    const declared = new Set(SHELL_PROVENANCE_TARGETS.map(t => t.name))
+    const missing = [...imported].filter(name => !declared.has(name))
+    expect(missing, `imported but not guarded: ${missing.join(', ')}`).toEqual([])
+  })
+
+  it('every declared target resolves to a real built entry (the guard is not vacuous)', () => {
+    // 若某个 dir/entry 写错，守卫会**恒真**（"built entry missing" 只在
+    // 检查时报错，但没人跑过就不知道）。这里在测试里真跑一遍。
+    const repoRoot = join(import.meta.dirname, '..', '..', '..')
+    const verdict = checkCodeProvenance(
+      SHELL_PROVENANCE_TARGETS.map(t => ({ ...t, dir: join(repoRoot, t.dir) })),
+    )
+    const missing = verdict.checks.filter(c => !c.ok && c.detail.includes('missing'))
+    expect(missing, `targets with no built entry: ${missing.map(c => c.name).join(', ')}`).toEqual([])
   })
 })

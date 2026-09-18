@@ -145,7 +145,22 @@ export function checkCodeProvenance(targets: ReadonlyArray<ProvenanceTarget>): P
  *
  * `dir` values are repo-relative; the caller resolves them against the
  * repo root it already computes for `bench/TRUTH-FAMILIES.json`.
+ *
+ * W8.11-E1 — this list used to hold ONE package while `cli.ts` imports SIX
+ * workspace packages through their `exports`. The old comment claimed it was
+ * "the workspace packages the paper-shell CLI loads", so the guard's own
+ * description disagreed with its contents. The gap is not cosmetic: the W8.8
+ * incident it exists to prevent ("edited src, never rebuilt lib") is just as
+ * possible for `dsh-storage*`, `dsh-llm`, and `cordis` — and the guard was
+ * blind to all five of them. The list is derived from the actual imports
+ * (`rg "^import .* from '@deepseek-ai/" apps/paper-shell/src/*.ts`), not from
+ * memory, and the suite asserts the two stay in sync.
  */
 export const SHELL_PROVENANCE_TARGETS: ReadonlyArray<ProvenanceTarget> = [
   { name: '@deepseek-ai/dsh-paper-foundation', dir: 'packages/paper/paper-foundation', entry: 'lib/index.js' },
+  { name: '@deepseek-ai/dsh-storage', dir: 'packages/storage/storage', entry: 'lib/index.js' },
+  { name: '@deepseek-ai/dsh-storage-domain', dir: 'packages/storage/storage-domain', entry: 'lib/index.js' },
+  { name: '@deepseek-ai/dsh-storage-json', dir: 'packages/storage/storage-json', entry: 'lib/index.js' },
+  { name: '@deepseek-ai/dsh-llm', dir: 'packages/llm/llm', entry: 'lib/index.js' },
+  { name: '@deepseek-ai/cordis', dir: 'vendor/cordis', entry: 'lib/index.js' },
 ]
