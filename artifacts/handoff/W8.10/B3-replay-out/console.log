@@ -1,0 +1,46 @@
+################ CASSETTE: artifacts/handoff/TASK-E/cassettes/glm-t3-coursework-v4.json ################
+---- RUN A: node_modules/.bin/tsx apps/paper-shell/src/cli.ts run artifacts/handoff/TASK-M1/samples/course-work.md --tier T3 --mode strict --out artifacts/handoff/W8.10/B3-replay-out/glm-t3-coursework-v4-a --replay artifacts/handoff/TASK-E/cassettes/glm-t3-coursework-v4.json ----
+[CODE-FRESH] 代码来源已断言：entry lib/index.js is 391030 ms newer than the newest source
+[T3] 固定填充面（回归用）：跳过方法族路由——该路径按设计不读题面。
+[DELIVERED] sha256=f2fbb3bbc16c4f5a...
+  run-id  -> 83f93491-bd9c-4236-8194-961aec8214e0
+  report  -> artifacts\handoff\W8.10\B3-replay-out\glm-t3-coursework-v4-a\report.md
+  zip     -> artifacts\handoff\W8.10\B3-replay-out\glm-t3-coursework-v4-a\deliverable.zip (zip sha256=ad4125adbf3a4dcd...)
+  usage   -> in 2587 tok / out 769 tok / $0.0000 (TASK-Q2 telemetry)
+  audit   -> workflow_started,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,delivery_graded,final_output_written,promotion_succeeded,workflow_completed
+  tier    -> T3
+EXIT=0
+---- RUN B ----
+[CODE-FRESH] 代码来源已断言：entry lib/index.js is 391030 ms newer than the newest source
+[T3] 固定填充面（回归用）：跳过方法族路由——该路径按设计不读题面。
+[DELIVERED] sha256=f2fbb3bbc16c4f5a...
+  run-id  -> 3f447b04-88ef-49af-a1a1-d996b56d6742
+  report  -> artifacts\handoff\W8.10\B3-replay-out\glm-t3-coursework-v4-b\report.md
+  zip     -> artifacts\handoff\W8.10\B3-replay-out\glm-t3-coursework-v4-b\deliverable.zip (zip sha256=ad4125adbf3a4dcd...)
+  usage   -> in 2587 tok / out 769 tok / $0.0000 (TASK-Q2 telemetry)
+  audit   -> workflow_started,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,delivery_graded,final_output_written,promotion_succeeded,workflow_completed
+  tier    -> T3
+EXIT=0
+################ CASSETTE: artifacts/handoff/TASK-E/cassettes/glm53flash-t3-coursework-v2.json ################
+---- RUN A: node_modules/.bin/tsx apps/paper-shell/src/cli.ts run artifacts/handoff/TASK-M1/samples/course-work.md --tier T3 --mode strict --out artifacts/handoff/W8.10/B3-replay-out/glm53flash-t3-coursework-v2-a --replay artifacts/handoff/TASK-E/cassettes/glm53flash-t3-coursework-v2.json ----
+[CODE-FRESH] 代码来源已断言：entry lib/index.js is 391030 ms newer than the newest source
+[T3] 固定填充面（回归用）：跳过方法族路由——该路径按设计不读题面。
+[DELIVERED] sha256=6f23b0a25eb393dc...
+  run-id  -> b7c47aed-5fc3-4c75-b67c-fc8faeae7b34
+  report  -> artifacts\handoff\W8.10\B3-replay-out\glm53flash-t3-coursework-v2-a\report.md
+  zip     -> artifacts\handoff\W8.10\B3-replay-out\glm53flash-t3-coursework-v2-a\deliverable.zip (zip sha256=c518fa5918710e9e...)
+  usage   -> in 2801 tok / out 972 tok / $0.0000 (TASK-Q2 telemetry)
+  audit   -> workflow_started,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,delivery_graded,final_output_written,promotion_succeeded,workflow_completed
+  tier    -> T3
+EXIT=0
+---- RUN B ----
+[CODE-FRESH] 代码来源已断言：entry lib/index.js is 391030 ms newer than the newest source
+[T3] 固定填充面（回归用）：跳过方法族路由——该路径按设计不读题面。
+[DELIVERED] sha256=6f23b0a25eb393dc...
+  run-id  -> a2091447-68ac-471b-91a5-544cb5fc8750
+  report  -> artifacts\handoff\W8.10\B3-replay-out\glm53flash-t3-coursework-v2-b\report.md
+  zip     -> artifacts\handoff\W8.10\B3-replay-out\glm53flash-t3-coursework-v2-b\deliverable.zip (zip sha256=c518fa5918710e9e...)
+  usage   -> in 2801 tok / out 972 tok / $0.0000 (TASK-Q2 telemetry)
+  audit   -> workflow_started,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,delivery_graded,final_output_written,promotion_succeeded,workflow_completed
+  tier    -> T3
+EXIT=0

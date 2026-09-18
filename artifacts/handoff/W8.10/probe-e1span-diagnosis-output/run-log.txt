@@ -1,0 +1,144 @@
+=== W8.10-D3 — e1_span root-cause probe ===
+model: deepseek/deepseek-v4-flash   (target model; .env.local PAPER_PROBE_MODEL=z-ai/glm-5.3-flash — deliberately NOT used)
+max_tokens: 24000   reasoning_effort: none   temperature: 0.2   stream: true
+serial: one call at a time (relay concurrency limit 1)
+
+[preflight] HTTP 200 finish=stop 3298ms
+[plan] HTTP 200 663 chars 6068ms
+problem: bench/problems/2024-B/problem.pdf  (pypdf text 1910 chars)
+route: F4
+E1 prompt: 7944 chars -> e1-prompt.txt
+
+[fresh1] REUSE: E1 loaded from fresh1 (PAPER_D3_REUSE=1)
+      E1: 19190 chars; anchors assumptions=0 requirements=0
+[fresh1] REUSE: E2 output loaded from fresh1 (PAPER_D3_REUSE=1)
+
+[fresh2] calling E1 (fresh analysis) ...
+      HTTP 200 finish=stop content=4367 chars reasoning=0 chars 93326ms
+      E1: 4367 chars; anchors assumptions=2 requirements=1
+[fresh2] calling E2 ... prompt 9477 chars, max_tokens 65536
+      HTTP 200 finish=stop content=17401 chars 156890ms
+
+[fresh3] calling E1 (fresh analysis) ...
+      HTTP 200 finish=stop content=10634 chars reasoning=0 chars 52040ms
+      E1: 10634 chars; anchors assumptions=12 requirements=1
+[fresh3] calling E2 ... prompt 15744 chars, max_tokens 65536
+      HTTP 200 finish=length content=205012 chars 696427ms
+
+[archived] REUSE: E2 output loaded from e2-container.archived.json (PAPER_D3_REUSE=1)
+
+=== 结果 ===
+样本 fresh-1 — 本次新跑的 E1 全文: 35 条待检条目
+    精确匹配（harness 的裸 includes 即通过）: 32
+    标点/全角/markdown + 空白差异（全部折叠后匹配）: 1
+    标点/全角/markdown 差异（折叠后匹配）: 2
+    [harness] B4 逐问推理覆盖: ok=false — E1 缺少 1 个要求的推理段：R-OUT
+    [harness] B3 反向（E1 假设须被声明）: ok=true — E1 的 0 条假设锚点均有对应 AssumptionSpec
+    [harness] B3 锚点同一性（声明须在 E1 中有同名锚点）: ok=false — IR 声明了但 E1 从未标记的假设：ASSUMPTION_A1、ASSUMPTION_A2、ASSUMPTION_A3、ASSUMPTION_A4、ASSUMPTION_A5、ASSUMPTION_A6、ASSUMPTION_A7、ASSUMPTION_A8、ASSUMPTION_A9、ASSUMPTION_A10、ASSUMPTION_A11、ASSUMPTION_A12、ASSUMPTION
+    [harness] B3 正向（声明须逐字锚定 E1）: ok=false — ASSUMPTION_A12: e1_span 在 E1 中找不到逐字匹配（疑似改写）；EQ_5: e1_span 在 E1 中找不到逐字匹配（疑似改写）；EQ_6: e1_span 在 E1 中找不到逐字匹配（疑似改写）
+样本 fresh-2 — 本次新跑的 E1 全文: 9 条待检条目
+    精确匹配（harness 的裸 includes 即通过）: 8
+    真改写（折叠标点与空白后仍不匹配）: 1
+    [harness] B4 逐问推理覆盖: ok=true — 全部 1 个 REQUIRED_OUTPUT 在 E1 中有推理锚点
+    [harness] B3 反向（E1 假设须被声明）: ok=true — E1 的 2 条假设锚点均有对应 AssumptionSpec
+    [harness] B3 锚点同一性（声明须在 E1 中有同名锚点）: ok=true — 2 条假设声明在 E1 中均有同名锚点
+    [harness] B3 正向（声明须逐字锚定 E1）: ok=false — E-Q2: e1_span 在 E1 中找不到逐字匹配（疑似改写）
+样本 fresh-3 — 本次新跑的 E1 全文: 0 条待检条目
+    [harness] B4 逐问推理覆盖: ok=true — 全部 1 个 REQUIRED_OUTPUT 在 E1 中有推理锚点
+    [harness] B3 反向（E1 假设须被声明）: ok=false — E1 标记了但 IR 未声明的假设：A-BINOM-APPROX、A-PERFECT-TEST、A-FREQ-INTERP、A-STEADY-STATE、A-CONSISTENT-DECISION、A-RISK-NEUTRAL、A-LINEAR-SCALE、A-RETURN-DETECT、A-TOPOLOGY、A-INDEPENDENT-DEFECTS、A-FLAT-PRIOR、A-SAMPLE-
+    [harness] B3 锚点同一性（声明须在 E1 中有同名锚点）: ok=true — 0 条假设声明在 E1 中均有同名锚点
+    [harness] B3 正向（声明须逐字锚定 E1）: ok=true — 0 条 Assumption/Equation 声明全部逐字锚定 E1
+样本 archived — 存档的真实 E1 全文: 37 条待检条目
+    精确匹配（harness 的裸 includes 即通过）: 16
+    标点/全角/markdown 差异（折叠后匹配）: 2
+    未声明 e1_span（字段缺失）: 19
+    [harness] B4 逐问推理覆盖: ok=true — 全部 1 个 REQUIRED_OUTPUT 在 E1 中有推理锚点
+    [harness] B3 反向（E1 假设须被声明）: ok=true — E1 的 18 条假设锚点均有对应 AssumptionSpec
+    [harness] B3 锚点同一性（声明须在 E1 中有同名锚点）: ok=true — 18 条假设声明在 E1 中均有同名锚点
+    [harness] B3 正向（声明须逐字锚定 E1）: ok=false — A-HIER-DEFECT: e1_span 在 E1 中找不到逐字匹配（疑似改写）；A-CONJUGATE: e1_span 在 E1 中找不到逐字匹配（疑似改写）；EQ-BINOM-CDF: 未声明 e1_span；EQ-CASE1-CONST: 未声明 e1_span；EQ-CASE2-CONST: 未声明 e1_span；EQ-SPRT-BOUND: 未声明 e1_span；EQ-SPRT
+
+sample  id                   spanChars  harness  exact  ws  typo  gramFold  lcsRaw
+------  -------------------  ---------  -------  -----  --  ----  --------  ------
+fr      ASSUMPTION_A1        41         PASS     YES    -   -     1         1     
+fr      ASSUMPTION_A2        34         PASS     YES    -   -     1         1     
+fr      ASSUMPTION_A3        53         PASS     YES    -   -     1         1     
+fr      ASSUMPTION_A4        18         PASS     YES    -   -     1         1     
+fr      ASSUMPTION_A5        28         PASS     YES    -   -     1         1     
+fr      ASSUMPTION_A6        20         PASS     YES    -   -     1         1     
+fr      ASSUMPTION_A7        44         PASS     YES    -   -     1         1     
+fr      ASSUMPTION_A8        41         PASS     YES    -   -     1         1     
+fr      ASSUMPTION_A9        47         PASS     YES    -   -     1         1     
+fr      ASSUMPTION_A10       16         PASS     YES    -   -     1         1     
+fr      ASSUMPTION_A11       34         PASS     YES    -   -     1         1     
+fr      ASSUMPTION_A12       48         FAIL     no     -   YES   0.829     0.542 
+fr      ASSUMPTION_A13       35         PASS     YES    -   -     1         1     
+fr      ASSUMPTION_A14       33         PASS     YES    -   -     1         1     
+fr      ASSUMPTION_A15       34         PASS     YES    -   -     1         1     
+fr      ASSUMPTION_A16       18         PASS     YES    -   -     1         1     
+fr      ASSUMPTION_A17       43         PASS     YES    -   -     1         1     
+fr      ASSUMPTION_A18       44         PASS     YES    -   -     1         1     
+fr      ASSUMPTION_A19       41         PASS     YES    -   -     1         1     
+fr      EQ_1                 31         PASS     YES    -   -     1         1     
+fr      EQ_2                 32         PASS     YES    -   -     1         1     
+fr      EQ_3                 109        PASS     YES    -   -     1         1     
+fr      EQ_4                 41         PASS     YES    -   -     1         1     
+fr      EQ_5                 86         FAIL     no     -   YES   1         0.977 
+fr      EQ_6                 79         FAIL     no     -   YES   1         0.975 
+fr      EQ_7                 32         PASS     YES    -   -     1         1     
+fr      EQ_8                 21         PASS     YES    -   -     1         1     
+fr      EQ_9                 155        PASS     YES    -   -     1         1     
+fr      EQ_10                86         PASS     YES    -   -     1         1     
+fr      EQ_11                34         PASS     YES    -   -     1         1     
+fr      EQ_12                56         PASS     YES    -   -     1         1     
+fr      EQ_13                93         PASS     YES    -   -     1         1     
+fr      EQ_14                45         PASS     YES    -   -     1         1     
+fr      EQ_15                57         PASS     YES    -   -     1         1     
+fr      EQ_16                87         PASS     YES    -   -     1         1     
+fr      A-BINOMIAL-SAMPLING  14         PASS     YES    -   -     1         1     
+fr      A-SAMPLE-SIZE        22         PASS     YES    -   -     1         1     
+fr      E-BINOM-REJECT       28         PASS     YES    -   -     1         1     
+fr      E-BINOM-ACCEPT       31         PASS     YES    -   -     1         1     
+fr      E-Q1                 11         PASS     YES    -   -     1         1     
+fr      E-Q2                 11         FAIL     no     no  no    0         0.636 
+fr      E-PF                 25         PASS     YES    -   -     1         1     
+fr      E-P-SEMI             72         PASS     YES    -   -     1         1     
+fr      E-POSTERIOR-MEAN     18         PASS     YES    -   -     1         1     
+ar      A-BATCH-INFINITE     31         PASS     YES    -   -     1         1     
+ar      A-ALT-POINT          66         PASS     YES    -   -     1         1     
+ar      A-TEST-EXACT         22         PASS     YES    -   -     1         1     
+ar      A-COST-IGNORE        31         PASS     YES    -   -     1         1     
+ar      A-EXACT-TEST2        22         PASS     YES    -   -     1         1     
+ar      A-RECYCLE-LOSSLESS   26         PASS     YES    -   -     1         1     
+ar      A-RETURN-REPAIR      49         PASS     YES    -   -     1         1     
+ar      A-STEADY-STATE       37         PASS     YES    -   -     1         1     
+ar      A-PI-DEF             49         PASS     YES    -   -     1         1     
+ar      A-DEMAND-EXO         38         PASS     YES    -   -     1         1     
+ar      A-HIER-DEFECT        70         FAIL     no     -   YES   1         0.986 
+ar      A-RECYCLE-LEVEL      44         PASS     YES    -   -     1         1     
+ar      A-STEADY-STATE3      16         PASS     YES    -   -     1         1     
+ar      A-EXACT-TEST3        16         PASS     YES    -   -     1         1     
+ar      A-CONJUGATE          65         FAIL     no     -   YES   1         0.985 
+ar      A-INDEP-RATES        24         PASS     YES    -   -     1         1     
+ar      A-SAMPLE-COST        41         PASS     YES    -   -     1         1     
+ar      A-RISK-NEUTRAL       26         PASS     YES    -   -     1         1     
+ar      EQ-BINOM-CDF         0          FAIL     no     no  no    0         0     
+ar      EQ-CASE1-CONST       0          FAIL     no     no  no    0         0     
+ar      EQ-CASE2-CONST       0          FAIL     no     no  no    0         0     
+ar      EQ-SPRT-BOUND        0          FAIL     no     no  no    0         0     
+ar      EQ-SPRT-LR           0          FAIL     no     no  no    0         0     
+ar      EQ-QI                0          FAIL     no     no  no    0         0     
+ar      EQ-PBAD              0          FAIL     no     no  no    0         0     
+ar      EQ-PI                0          FAIL     no     no  no    0         0     
+ar      EQ-E1                0          FAIL     no     no  no    0         0     
+ar      EQ-U                 0          FAIL     no     no  no    0         0     
+ar      EQ-COST              0          FAIL     no     no  no    0         0     
+ar      EQ-PROFIT            0          FAIL     no     no  no    0         0     
+ar      EQ-HIER-S1           0          FAIL     no     no  no    0         0     
+ar      EQ-HIER-FINAL        0          FAIL     no     no  no    0         0     
+ar      EQ-NI                0          FAIL     no     no  no    0         0     
+ar      EQ-POSTERIOR         0          FAIL     no     no  no    0         0     
+ar      EQ-POST-MEAN         0          FAIL     no     no  no    0         0     
+ar      EQ-POST-OBJECTIVE    0          FAIL     no     no  no    0         0     
+ar      EQ-NS                0          FAIL     no     no  no    0         0     
+
+落盘目录：D:\deepseek modex\deepseek-harness\artifacts\handoff\W8.10\probe-e1span-diagnosis-output

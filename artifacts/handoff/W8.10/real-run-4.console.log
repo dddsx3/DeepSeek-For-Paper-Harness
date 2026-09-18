@@ -1,0 +1,4 @@
+[CODE-FRESH] 代码来源已断言：entry lib/index.js is 75910 ms newer than the newest source
+[BLOCKED] 模型没有给出可用结构（引擎引导了几次仍未对齐），这次运行被判为失败。
+  → 换个说法重新提交题目（把问题描述得更具体），或把题面文件另存为纯文本 UTF-8 后重试。
+  run-id  -> fe865595-dde3-48c6-a464-7101b364d703

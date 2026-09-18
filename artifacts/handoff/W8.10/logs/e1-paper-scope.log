@@ -1,0 +1,173 @@
+[33mThe plugin "vite-tsconfig-paths" is detected. Vite now supports tsconfig paths resolution natively via the [1mresolve.tsconfigPaths[22m option. You can remove the plugin and set [1mresolve.tsconfigPaths: true[22m in your Vite config instead.[39m
+[33mThe plugin "vite-tsconfig-paths" is detected. Vite now supports tsconfig paths resolution natively via the [1mresolve.tsconfigPaths[22m option. You can remove the plugin and set [1mresolve.tsconfigPaths: true[22m in your Vite config instead.[39m
+[33mThe plugin "vite-tsconfig-paths" is detected. Vite now supports tsconfig paths resolution natively via the [1mresolve.tsconfigPaths[22m option. You can remove the plugin and set [1mresolve.tsconfigPaths: true[22m in your Vite config instead.[39m
+
+[1m[30m[46m RUN [49m[39m[22m [36mv4.1.8 [39m[90mD:/deepseek modex/deepseek-harness[39m
+
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-foundation/tests/verification/v6-v7.spec.ts [2m([22m[2m10 tests[22m[2m)[22m[32m 176[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-foundation/tests/ir/redteam15.spec.ts [2m([22m[2m26 tests[22m[2m)[22m[32m 102[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-foundation/tests/produce/execution-producer.spec.ts [2m([22m[2m3 tests[22m[2m)[22m[33m 588[2mms[22m[39m
+     [33m[2m✓[22m[39m runs a real node child and commits RunArtifact + ExecutionRecord [33m 326[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-foundation/tests/rt-x/attacks.spec.ts [2m([22m[2m15 tests[22m[2m)[22m[32m 46[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-foundation/tests/rt-c2/numeric-binding-attacks.spec.ts [2m([22m[2m37 tests[22m[2m)[22m[32m 45[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-foundation/tests/rt-e/evidence-attacks.spec.ts [2m([22m[2m13 tests[22m[2m)[22m[32m 54[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-foundation/tests/delivery/gate-v014.spec.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 30[2mms[22m[39m
+[paperRuntimeGuard] audit not available: capability_check stage=PLAN cap=llm_inference allowed=true
+[paperRuntimeGuard] audit not available: capability_check stage=PLAN cap=llm_inference allowed=true
+[paperRuntimeGuard] audit not available: capability_check stage=PLAN cap=llm_inference allowed=true
+[paper-preflight] early-gate {"type":"preflight_missing","missing":[{"kind":"persistence","interfaceName":"paper.persistence"},{"kind":"artifact_store","interfaceName":"paper.artifactStore"},{"kind":"verifier_registry","interfaceName":"paper.verifierRegistry"},{"kind":"hash_provider","interfaceName":"paper.hashProvider"}],"unknownConfig":[],"at":"2026-09-18T13:45:41.137Z"} at=2026-09-18T13:45:41.137Z
+[paperRuntimeGuard] audit not available: capability_check stage=PLAN cap=llm_inference allowed=true
+[paperRuntimeGuard] audit not available: capability_check stage=PLAN cap=llm_inference allowed=true
+[paperRuntimeGuard] audit not available: capability_check stage=MODEL cap=llm_inference allowed=true
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-foundation/tests/skill-provider.spec.ts [2m([22m[2m1 test[22m[2m)[22m[32m 64[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-foundation/tests/service-guards.spec.ts [2m([22m[2m13 tests[22m[2m)[22m[32m 85[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-foundation/tests/runtime/integration.spec.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 123[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-foundation/tests/ir/redteam125.spec.ts [2m([22m[2m13 tests[22m[2m)[22m[32m 162[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-foundation/tests/executor-context.spec.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 193[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-foundation/tests/executor-producer.spec.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 232[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-foundation/tests/workflow-guards.spec.ts [2m([22m[2m12 tests[22m[2m)[22m[32m 219[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-foundation/tests/executor-budget.spec.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 244[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-foundation/tests/release-service.spec.ts [2m([22m[2m20 tests[22m[2m)[22m[32m 281[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-foundation/tests/executor-shard.spec.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 291[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-foundation/tests/migration.spec.ts [2m([22m[2m14 tests[22m[2m)[22m[32m 294[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-foundation/tests/executor-resilience.spec.ts [2m([22m[2m5 tests[22m[2m)[22m[33m 310[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-foundation/tests/rt-c4/workflow-bypass.spec.ts [2m([22m[2m27 tests[22m[2m)[22m[33m 332[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m apps/paper-shell/tests/cassette.spec.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 114[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-foundation/tests/executor.spec.ts [2m([22m[2m5 tests[22m[2m)[22m[33m 326[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-foundation/tests/execution/provenance-gate.spec.ts [2m([22m[2m15 tests[22m[2m)[22m[33m 352[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-foundation/tests/delivery/delivery-grade-fail-soft.spec.ts [2m([22m[2m4 tests[22m[2m)[22m[33m 384[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-foundation/tests/executor-review-v2.spec.ts [2m([22m[2m6 tests[22m[2m)[22m[33m 389[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-foundation/tests/executor-review-semantic.spec.ts [2m([22m[2m6 tests[22m[2m)[22m[33m 416[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-foundation/tests/executor-ir-bridge.spec.ts [2m([22m[2m8 tests[22m[2m)[22m[33m 500[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-foundation/tests/executor-e1e2.spec.ts [2m([22m[2m35 tests[22m[2m)[22m[33m 545[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m apps/paper-shell/tests/study-manifest.spec.ts [2m([22m[2m12 tests[22m[2m)[22m[33m 519[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-foundation/tests/executor-truncation.spec.ts [2m([22m[2m11 tests[22m[2m)[22m[33m 490[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-foundation/tests/executor-guards.spec.ts [2m([22m[2m13 tests[22m[2m)[22m[33m 566[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-foundation/tests/executor-tier.spec.ts [2m([22m[2m8 tests[22m[2m)[22m[33m 859[2mms[22m[39m
+     [33m[2m✓[22m[39m NONE ≠ 错: prose first, then a container after the guided retry — the run completes [33m 471[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-foundation/tests/executor-authoritative.spec.ts [2m([22m[2m4 tests[22m[2m)[22m[33m 899[2mms[22m[39m
+     [33m[2m✓[22m[39m delivers POLAR-ICE end to end with Result/Claim/record in the store and a 0.731 report on disk [33m 435[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-foundation/tests/catalog-provider.spec.ts [2m([22m[2m3 tests[22m[2m)[22m[33m 909[2mms[22m[39m
+     [33m[2m✓[22m[39m lists and loads the catalog active version, and ignores foreign locators [33m 604[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-foundation/tests/signed-skill-guards.spec.ts [2m([22m[2m12 tests[22m[2m)[22m[33m 919[2mms[22m[39m
+     [33m[2m✓[22m[39m refuses a package that requires a newer harness and accepts equal or older [33m 397[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-foundation/tests/skill-catalog.spec.ts [2m([22m[2m11 tests[22m[2m)[22m[33m 1110[2mms[22m[39m
+     [33m[2m✓[22m[39m installs versioned packages, keeps history, and rolls back after re-validation [33m 624[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-foundation/tests/produce/ir-producer.spec.ts [2m([22m[2m19 tests[22m[2m)[22m[32m 25[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-foundation/tests/executor-guided.spec.ts [2m([22m[2m10 tests[22m[2m)[22m[33m 1493[2mms[22m[39m
+     [33m[2m✓[22m[39m happy path: three steps deliver the SAME report sha256 as the T1 container path [33m 804[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m apps/paper-shell/tests/invoke.spec.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 66[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-foundation/tests/ir/attack.spec.ts [2m([22m[2m12 tests[22m[2m)[22m[32m 80[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-foundation/tests/ir/redteam.spec.ts [2m([22m[2m34 tests[22m[2m)[22m[32m 98[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-foundation/tests/ir/evidence-freeze.spec.ts [2m([22m[2m27 tests[22m[2m)[22m[32m 88[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-foundation/tests/ir/stale-engine.spec.ts [2m([22m[2m11 tests[22m[2m)[22m[32m 187[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-foundation/tests/delivery/figure-consistency.spec.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 96[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-foundation/tests/delivery/numeric-consistency.spec.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 105[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-foundation/tests/ir/bridge.spec.ts [2m([22m[2m29 tests[22m[2m)[22m[32m 87[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-foundation/tests/ir/ir-semantics.spec.ts [2m([22m[2m20 tests[22m[2m)[22m[32m 49[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m apps/paper-shell/tests/code-provenance.spec.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 72[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-foundation/tests/ir/store.spec.ts [2m([22m[2m21 tests[22m[2m)[22m[32m 92[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-foundation/tests/execution/capture-replay.spec.ts [2m([22m[2m17 tests[22m[2m)[22m[32m 100[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-foundation/tests/rt-c3/redteam-rt-c3.spec.ts [2m([22m[2m23 tests[22m[2m)[22m[32m 119[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-foundation/tests/produce/interpretation-producer.spec.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 54[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-foundation/tests/delivery/gate-loadcode.spec.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 80[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-foundation/tests/delivery/figure-semantic.spec.ts [2m([22m[2m10 tests[22m[2m)[22m[32m 67[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-foundation/tests/ir/bridge-dedup.spec.ts [2m([22m[2m11 tests[22m[2m)[22m[32m 58[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-foundation/tests/ir/claim-evidence.spec.ts [2m([22m[2m23 tests[22m[2m)[22m[32m 47[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-foundation/tests/rt-c1/discriminator.spec.ts [2m([22m[2m21 tests[22m[2m)[22m[32m 87[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-foundation/tests/verification/v-structure.spec.ts [2m([22m[2m11 tests[22m[2m)[22m[32m 62[2mms[22m[39m
+[paperRuntimeGuard] audit not available: capability_check stage=PLAN cap=read_problem allowed=true
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-bundle/tests/bundle.spec.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 164[2mms[22m[39m
+[paperRuntimeGuard] audit not available: capability_check stage=PLAN cap=read_problem allowed=true
+[paperRuntimeGuard] audit not available: capability_check stage=MODEL cap=llm_inference allowed=true
+[paperRuntimeGuard] audit not available: capability_check stage=REVIEW cap=shell allowed=false
+[paper-preflight] failures=["missing_service"] at=2026-09-18T13:45:43.571Z
+[paper-preflight] failures=["missing_service"] at=2026-09-18T13:45:43.572Z
+[paper-preflight] failures=["missing_service"] at=2026-09-18T13:45:43.572Z
+[paper-preflight] failures=["missing_service"] at=2026-09-18T13:45:43.572Z
+[paper-preflight] failures=["unknown_production_config"] at=2026-09-18T13:45:43.573Z
+[paper-preflight] failures=["gate_not_registered","gate_not_registered","gate_not_registered","gate_not_registered","gate_not_registered"] at=2026-09-18T13:45:43.574Z
+[paper-preflight] failures=["stage_policy_incomplete"] at=2026-09-18T13:45:43.575Z
+[paper-preflight] failures=["delivery_policy_unresolved"] at=2026-09-18T13:45:43.584Z
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-foundation/tests/runtime/runtime-guard.spec.ts [2m([22m[2m24 tests[22m[2m)[22m[32m 43[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-foundation/tests/ir/fault-corpus-d2.spec.ts [2m([22m[2m20 tests[22m[2m)[22m[32m 59[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-foundation/tests/rt-c1/edge.spec.ts [2m([22m[2m12 tests[22m[2m)[22m[32m 45[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-foundation/tests/delivery/gates-p14b.spec.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 80[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-foundation/tests/rt-c1/last-shot.spec.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 31[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-foundation/tests/rt-c4/promoter-and-pipeline.spec.ts [2m([22m[2m16 tests[22m[2m)[22m[32m 48[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-foundation/tests/security.spec.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 72[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-foundation/tests/signed-skill.spec.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 76[2mms[22m[39m
+[paperRuntimeGuard] audit not available: capability_check stage=PLAN cap=llm_inference allowed=true
+[paperRuntimeGuard] audit not available: capability_check stage=PLAN cap=llm_inference allowed=true
+[paperRuntimeGuard] audit not available: capability_check stage=PLAN cap=llm_inference allowed=true
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-foundation/tests/ir/execution-record.spec.ts [2m([22m[2m14 tests[22m[2m)[22m[32m 50[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-foundation/tests/rt-c1/subtle.spec.ts [2m([22m[2m10 tests[22m[2m)[22m[32m 40[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-foundation/tests/diagnostics.spec.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 41[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-foundation/tests/composition.spec.ts [2m([22m[2m1 test[22m[2m)[22m[32m 38[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-foundation/tests/rt-c1/rt-c1-27-gap.spec.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 22[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-foundation/tests/rt-c1/bridge-binding.spec.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 40[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-foundation/tests/ir/schema.spec.ts [2m([22m[2m18 tests[22m[2m)[22m[32m 37[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-foundation/tests/template-fill.spec.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 13[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-foundation/tests/ir/ir-contract.spec.ts [2m([22m[2m12 tests[22m[2m)[22m[32m 30[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-foundation/tests/ir/forge-producers.spec.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 41[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-foundation/tests/legacy.spec.ts [2m([22m[2m23 tests[22m[2m)[22m[32m 24[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-foundation/tests/store.spec.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 57[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-foundation/tests/ir/parse.spec.ts [2m([22m[2m25 tests[22m[2m)[22m[32m 26[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-foundation/tests/ir/stale-figure.spec.ts [2m([22m[2m1 test[22m[2m)[22m[32m 36[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-foundation/tests/release.spec.ts [2m([22m[2m10 tests[22m[2m)[22m[32m 32[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-foundation/tests/delivery/gate-registry-profile.spec.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 23[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-foundation/tests/ir/fault-corpus.spec.ts [2m([22m[2m18 tests[22m[2m)[22m[32m 58[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-foundation/tests/settings.spec.ts [2m([22m[2m1 test[22m[2m)[22m[32m 14[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-foundation/tests/produce/report-v2.spec.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 10[2mms[22m[39m
+[paper-preflight] failures=["missing_service"] at=2026-09-18T13:45:44.951Z
+[paper-preflight] failures=["missing_service"] at=2026-09-18T13:45:44.952Z
+[paper-preflight] failures=["missing_service"] at=2026-09-18T13:45:44.953Z
+[paper-preflight] failures=["unknown_production_config"] at=2026-09-18T13:45:44.954Z
+[paper-preflight] failures=["missing_service"] at=2026-09-18T13:45:44.956Z
+[paper-preflight] failures=["missing_service","missing_service"] at=2026-09-18T13:45:44.956Z
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-foundation/tests/runtime/preflight.spec.ts [2m([22m[2m10 tests[22m[2m)[22m[32m 17[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-foundation/tests/delivery/figure-producer.spec.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 54[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-foundation/tests/delivery/delivery-grade.spec.ts [2m([22m[2m18 tests[22m[2m)[22m[32m 13[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-foundation/tests/ir/refs.spec.ts [2m([22m[2m13 tests[22m[2m)[22m[32m 26[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m apps/paper-shell/tests/bundle.spec.ts [2m([22m[2m11 tests[22m[2m)[22m[33m 7062[2mms[22m[39m
+     [33m[2m✓[22m[39m extracts a PDF problem via pypdf (2024 C) [33m 400[2mms[22m[39m
+     [33m[2m✓[22m[39m appends a description-only profile for every xlsx attachment [33m 2324[2mms[22m[39m
+     [33m[2m✓[22m[39m carries sha256 + bytes for audit traceability [33m 1928[2mms[22m[39m
+     [33m[2m✓[22m[39m refuses an unsupported attachment extension [33m 955[2mms[22m[39m
+     [33m[2m✓[22m[39m refuses an empty attachment [33m 1352[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-foundation/tests/ir/ref-closure.spec.ts [2m([22m[2m13 tests[22m[2m)[22m[32m 41[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-foundation/tests/runtime/profile.spec.ts [2m([22m[2m11 tests[22m[2m)[22m[32m 14[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-foundation/tests/workflow.spec.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 40[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-foundation/tests/produce/expand-select.spec.ts [2m([22m[2m16 tests[22m[2m)[22m[32m 17[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m apps/paper-shell/tests/contracts.spec.ts [2m([22m[2m12 tests[22m[2m)[22m[32m 9[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m apps/paper-shell/tests/route.spec.ts [2m([22m[2m13 tests[22m[2m)[22m[32m 13[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-foundation/tests/verification/v5-adversarial.spec.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 8[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-foundation/tests/probe/record-trail.spec.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 11[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-foundation/tests/produce/paper-skeleton.spec.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 7[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-foundation/tests/guided-steps.spec.ts [2m([22m[2m10 tests[22m[2m)[22m[32m 14[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-foundation/tests/cost.spec.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 6[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-foundation/tests/probe/qualification.spec.ts [2m([22m[2m18 tests[22m[2m)[22m[32m 8[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-foundation/tests/skill-content.spec.ts [2m([22m[2m18 tests[22m[2m)[22m[32m 18[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-foundation/tests/spec.spec.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 10[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-foundation/tests/delivery/promoter.spec.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 9[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-foundation/tests/probe/usage-telemetry.spec.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 11[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-foundation/tests/provider.spec.ts [2m([22m[2m1 test[22m[2m)[22m[32m 14[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-foundation/tests/registry.spec.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 10[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m apps/paper-shell/tests/route-guard.spec.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 4[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-foundation/tests/produce/report-representation.spec.ts [2m([22m[2m13 tests[22m[2m)[22m[32m 11[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m apps/paper-shell/tests/real-provider.spec.ts [2m([22m[2m13 tests[22m[2m)[22m[32m 9[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-foundation/tests/ir/golden-fingerprints.spec.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 7[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-foundation/tests/runtime/firewall.spec.ts [2m([22m[2m11 tests[22m[2m)[22m[32m 8[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-foundation/tests/delivery/delivery-policy.spec.ts [2m([22m[2m18 tests[22m[2m)[22m[32m 8[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-foundation/tests/delivery/artifact-states.spec.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 7[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-foundation/tests/context.spec.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 6[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-foundation/tests/execution/local-runner.spec.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 3[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-foundation/tests/state-machine.spec.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 7[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-foundation/tests/replay.spec.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 3[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m120 passed[39m[22m[90m (120)[39m
+[2m      Tests [22m [1m[32m1328 passed[39m[22m[90m (1328)[39m
+[2m   Start at [22m 21:45:36
+[2m   Duration [22m 9.53s[2m (transform 68.43s, setup 42.78s, import 129.62s, tests 25.14s, environment 17ms)[22m
+
+EXIT=0

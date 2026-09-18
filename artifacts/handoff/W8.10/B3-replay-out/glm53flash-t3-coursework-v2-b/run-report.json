@@ -1,0 +1,31 @@
+{
+  "runId": "a2091447-68ac-471b-91a5-544cb5fc8750",
+  "tier": "T3",
+  "mode": "strict",
+  "status": "DELIVERED",
+  "grade": "CLEAN",
+  "routed_family": "F3",
+  "route_truth": null,
+  "route_mismatch": false,
+  "code_provenance": {
+    "checked_at": "2026-09-18T15:30:52.530Z",
+    "ok": true,
+    "targets": [
+      {
+        "name": "@deepseek-ai/dsh-paper-foundation",
+        "ok": true,
+        "detail": "entry lib/index.js is 391030 ms newer than the newest source"
+      }
+    ]
+  },
+  "minted_ir_count": 11,
+  "wall_clock_seconds": 0.4,
+  "sha256": "6f23b0a25eb393dc20f0840af1709c1161e148ff36d0df52774a955343219702",
+  "audit": "workflow_started,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,delivery_graded,final_output_written,promotion_succeeded,workflow_completed",
+  "usage": {
+    "input_tokens": 2801,
+    "output_tokens": 972,
+    "cost_usd": 0
+  },
+  "attachments": []
+}

@@ -1,0 +1,175 @@
+You are NORMALIZING a modeling analysis into a machine-readable declaration. The analysis below was already written; your job is ONLY to map it into the required JSON shape.
+Do NOT re-derive, improve, or extend the analysis. Do NOT invent anything it does not say. If the analysis is silent on something the schema wants, use the schema's honest-unknown values (UNKNOWN / empty array) rather than inventing content.
+NUMBERS: introduce NO numbers of your own. The schema's zero-number channel is unchanged — values reach the paper only by running your `code` and reading the numbers back through jsonPath.
+
+--- BEGIN ANALYSIS (this is the source of truth for content) ---
+[[REQUIREMENT: R-OUT]]
+
+# 建模分析笔记：生产过程中的决策问题（B题）
+
+## 总体思路
+
+本题是一个典型的**多阶段生产决策优化问题**，核心是：在次品率已知（或通过抽样估计）的前提下，对“是否检测”“是否拆解”“是否调换”等离散决策进行组合优化，以最大化期望利润（或最小化期望成本）。问题1是统计抽样检验问题（方法族F3），问题2–4是离散决策优化问题（方法族F2），其中问题4引入次品率不确定性，需结合F3的抽样结果做稳健决策。
+
+---
+
+## 问题1：抽样检测方案设计
+
+**问题实质**：在给定标称次品率 $p_0=10\%$ 下，设计最小样本量 $n$ 和拒收临界数 $c$，使得：
+- 情形(1)：在95%信度下，若样本中不合格品数 $X > c$，则判定 $p > p_0$，拒收；
+- 情形(2)：在90%信度下，若 $X \le c'$，则判定 $p \le p_0$，接收。
+
+**方法选择**：F3（统计检验）。采用**二项分布精确检验**（而非正态近似），因为 $p_0=0.1$ 且样本量可能不大，正态近似误差不可忽略。
+
+**模型**：设样本量为 $n$，不合格品数 $X \sim \text{Binomial}(n, p)$。
+
+- 情形(1)：求最小 $n$ 和整数 $c$，使得在 $p=p_0$ 下：
+  $$P(X > c \mid p=p_0) \le 0.05$$
+  即 $\sum_{k=c+1}^{n} \binom{n}{k} p_0^k (1-p_0)^{n-k} \le 0.05$。此时若观测到 $X > c$，则在95%信度下拒绝 $H_0: p \le p_0$。
+
+- 情形(2)：求最小 $n$ 和整数 $c'$，使得在 $p=p_0$ 下：
+  $$P(X \le c' \mid p=p_0) \ge 0.90$$
+  即 $\sum_{k=0}^{c'} \binom{n}{k} p_0^k (1-p_0)^{n-k} \ge 0.90$。此时若观测到 $X \le c'$，则在90%信度下接受 $H_0: p \le p_0$。
+
+[[ASSUMPTION: A-BINOMIAL-SAMPLING]] 抽样为有放回或总体远大于样本，$X$ 服从二项分布；若总体有限且样本占比大，应改用超几何分布，但题目未给批量大小，故用二项分布近似。
+
+**求解方法**：对 $n$ 从1开始递增，对每个 $n$ 搜索满足条件的 $c$（或 $c'$），取最小 $n$。计算可用数值方法（如Python的scipy.stats.binom或直接累加）。
+
+**结果预期**（需数值计算确认）：
+- 情形(1)：$n$ 约为 29–30，$c$ 约为 5–6（即样本中不合格品数 ≥6 时拒收）。
+- 情形(2)：$n$ 约为 22–24，$c'$ 约为 1–2（即样本中不合格品数 ≤1 时接收）。
+
+**验证**：用蒙特卡洛模拟验证在 $p=p_0$ 下的两类错误概率；对 $p$ 略高于/低于 $p_0$ 做功效分析。
+
+---
+
+## 问题2：两零配件+成品的生产决策
+
+**问题实质**：对表1的6种情形，在6个0/1决策变量上做组合优化，最大化单件期望净收益。
+
+**决策变量**（6个）：
+1. $d_1$：是否检测零配件1（1=检测，0=不检测）
+2. $d_2$：是否检测零配件2
+3. $d_3$：是否检测成品
+4. $d_4$：不合格成品是否拆解
+5. $d_5$：拆解后零配件是否再次检测（若 $d_4=1$）
+6. $d_6$：对退回的不合格品是否拆解（与 $d_4$ 相同策略，因退回品与检测出的不合格品同质）
+
+**方法选择**：F2（离散优化）。穷举 $2^6=64$ 种组合，对每种组合计算期望利润，取最大者。由于决策空间小，无需启发式算法。
+
+**模型**：设零配件1次品率 $p_1$、零配件2次品率 $p_2$、成品装配次品率 $p_a$（即两个零配件均合格时装配出不合格品的概率）。
+
+**关键递推**：
+- 零配件1经检测后合格率：$q_1 = 1-p_1$（若检测，不合格被丢弃）；若不检测，进入装配的零配件1合格率仍为 $q_1$。
+- 装配后成品次品率（未检测前）：
+  $$p_f = 1 - q_1 q_2 (1-p_a)$$
+  即：两个零配件均合格且装配成功才算合格品。
+
+**期望利润计算**（以单件成品为基准，考虑所有流入的零配件数量）：
+
+设每件成品需要1个零配件1和1个零配件2。由于检测会丢弃不合格零配件，需采购更多零配件以满足市场需求 $N$ 件合格成品。
+
+**计算框架**（对给定决策组合）：
+1. 计算每件最终合格成品所需的零配件1、零配件2的期望采购数量。
+2. 计算各环节的期望成本（采购、检测、装配、成品检测、拆解、调换损失）。
+3. 计算期望收入（市场售价 × 合格成品数）。
+4. 期望利润 = 收入 − 总成本。
+
+**具体递推**（设市场需求为1件合格成品）：
+
+- 零配件1：若检测，则需采购 $1/[q_1]$ 件（期望），检测成本为 $c_{d1} \times 1/q_1$；若不检测，采购1件，无检测成本。
+- 零配件2同理。
+- 装配：装配成本 $c_a$ 乘以装配次数（=进入装配的零配件对数）。
+- 成品检测：若检测，检测成本 $c_{df}$ 乘以成品数；检测后不合格品进入拆解或报废。
+- 拆解：若拆解，拆解费用 $c_{dis}$ 乘以不合格成品数；拆解后零配件回到步骤(1)（若 $d_5=1$ 则再检测，否则直接复用）。
+- 调换：对流入市场的不合格品（未检测或检测漏检），产生调换损失 $c_{rep}$。
+
+**注意**：拆解后的零配件可重复使用，因此这是一个**带回收的流模型**。需用期望值递推或解线性方程组计算稳态流量。
+
+**简化处理**：由于拆解不损坏零配件，拆解后的零配件与新品等价。可建立“每件最终合格成品”的期望成本方程，用迭代或直接求解。
+
+**对表1的6种情形**：分别代入参数，穷举64种组合，输出最优决策和对应指标（合格率、期望成本、期望利润）。
+
+**验证**：对最优决策做敏感性分析（次品率±2%、成本±10%），检查决策是否稳健；对次优方案比较利润差距。
+
+---
+
+## 问题3：多工序多零配件推广
+
+**问题实质**：将问题2推广到 $m$ 道工序、$n$ 个零配件的树状装配网络（图1为2道工序、8个零配件）。
+
+**方法选择**：F2（离散优化）。决策变量为：每个零配件是否检测、每个半成品/成品是否检测、每个不合格半成品/成品是否拆解。对表2的规模（8零配件+3半成品+1成品），决策变量约 $8+3+1=12$ 个检测决策 + 4个拆解决策 ≈ 16个0/1变量，穷举 $2^{16}=65536$ 种，可行。
+
+**模型推广**：
+- 对每个节点（零配件、半成品、成品），定义其“流入合格率”和“次品率”。
+- 半成品次品率：由上游零配件/半成品合格率与装配次品率递推：
+  $$p_{\text{半成品}} = 1 - \prod_{i \in \text{上游}} q_i \cdot (1-p_{\text{装配}})$$
+- 检测决策：检测则丢弃不合格品，提高后续合格率但增加成本。
+- 拆解决策：不合格半成品/成品拆解后，零配件回到上游节点。
+
+**计算框架**：与问题2类似，但需按装配树结构递推。对每个节点，计算“为得到1件最终合格成品，该节点需要流入的期望件数”。
+
+**对表2**：图1结构为：
+- 零配件1–4 → 半成品1；零配件5–8 → 半成品2
+- 半成品1、2 → 成品
+
+**求解**：穷举所有决策组合（或剪枝），计算期望利润，取最优。
+
+**验证**：与问题2类似，做敏感性分析；检查最优决策是否符合直觉（如高价值零配件更值得检测）。
+
+---
+
+## 问题4：次品率不确定性下的重做
+
+**问题实质**：问题2、3中的次品率不是精确已知，而是通过问题1的抽样方法估计得到的，存在抽样误差。需在次品率不确定性下重新决策。
+
+**方法选择**：F3（统计推断）+ F2（稳健决策）。核心是**贝叶斯决策**或**区间稳健决策**。
+
+**模型**：
+1. **后验分布**：假设先验为无信息先验（Beta(1,1)），抽样得到 $x$ 个不合格品（样本量 $n$），则次品率 $p$ 的后验为 $\text{Beta}(1+x, 1+n-x)$。
+2. **期望利润**：对每个决策组合，计算期望利润时对次品率取其后验期望（即 $E[p] = (1+x)/(2+n)$），或更精细地，对次品率分布做数值积分求期望利润。
+3. **稳健决策**：除期望最优外，还可考虑最坏情形（如取后验95%分位数）下的最优决策，或做敏感性分析。
+
+**对问题2、3的重做**：
+- 对表1、表2中的每个次品率，假设其来自问题1的抽样（需设定样本量 $n$ 和观测不合格数 $x$，题目未给，需假设或按问题1的最优方案反推）。
+- [[ASSUMPTION: A-SAMPLE-SIZE]] 假设每个次品率均通过问题1的最优抽样方案获得，样本量取问题1的结果（如 $n=30$），观测不合格数取使后验均值等于标称值的值（如 $x = \lfloor n \times p \rfloor$）。
+
+**决策输出**：对每个情形，给出在次品率后验分布下的最优决策，并与问题2、3的确定性结果对比，说明差异。
+
+**验证**：对次品率做蒙特卡洛抽样（从后验分布），计算各决策的期望利润分布，检查最优决策的稳健性（如最优决策在90%以上的抽样中仍为最优）。
+
+---
+
+## 总结
+
+| 问题 | 方法族 | 核心模型 | 关键假设 |
+|------|--------|----------|----------|
+| 1 | F3 | 二项分布精确检验 | A-BINOMIAL-SAMPLING |
+| 2 | F2 | 期望利润最大化，穷举64组合 | 拆解不损坏、零配件可复用 |
+| 3 | F2 | 树状网络递推，穷举决策组合 | 各节点独立、装配次品率独立 |
+| 4 | F3+F2 | 贝叶斯后验+稳健决策 | A-SAMPLE-SIZE |
+
+**最终交付**：对每个情形给出具体决策方案（哪些环节检测/拆解）、期望利润、合格率等指标，并附敏感性分析。
+--- END ANALYSIS ---
+
+Produce ONE JSON object — the ir-container-v1 — and nothing else. No prose, no markdown fences, no schema of your own.
+Shape: {"__dsh_paper":"ir-container-v1","entries":[...],"code":"...","run":{...},"interpretations":{...},"narrative":{...}}.
+  entries: an array of objects, each EXACTLY {"kind": <KIND>, "value": <object>}. The ONLY kinds you may declare are "SymbolSpec", "AssumptionSpec", "EquationSpec", "ModelSpec", and (optionally) "DataArtifact". The harness has ALREADY registered the problem assets for you — DataArtifact "DA-RAW" (the raw problem), RequirementSpec "R-OUT" (the requirement), ProblemSpec "P1" (the binding). NEVER declare those three: reference them by id instead (your ModelSpec sets problem_refs: ["P1"]). Re-declaring a registered id refuses the container.
+    SymbolSpec value: {"symbol_id","scope_ref":"P1","token","meaning","unit","role":"VARIABLE","shape","domain","index_set"} — shape is one of SCALAR|VECTOR|MATRIX|TENSOR|INDEXED|UNKNOWN; domain one of REAL|NONNEGATIVE_REAL|INTEGER|NONNEGATIVE_INTEGER|BOOLEAN|PROBABILITY|COMPLEX|UNKNOWN; if you are not sure, answer UNKNOWN honestly instead of inventing one; index_set is an array ([] for a scalar).
+    AssumptionSpec value: {"assumption_id","scope_ref":"P1","statement","source_type","justification_refs","risk_level","testable","sensitivity_refs","status"} — source_type GIVEN|DERIVED|MODELING_CHOICE|APPROXIMATION; risk_level HIGH|MEDIUM|LOW; status ACTIVE|OBSOLETE|QUESTIONED.
+    EquationSpec value: {"equation_id","scope_ref":"P1","expression","representation","lhs_symbols","rhs_symbols","equation_type","unit","depends_on","source"} — representation SYMPY|LATEX_PRESENTATION; equation_type DEFINITION|CONSTRAINT|OBJECTIVE|DERIVED.
+    ModelSpec value: {"model_id","problem_refs":["P1"],"assumption_refs","variable_refs","parameter_refs","equation_refs","constraints","objective","dependencies"} — every field is required; assumption_refs/equation_refs list the ids of AssumptionSpec/EquationSpec entries you declared.
+    DataArtifact (optional, output-pointer form) value: {"data_id","locator"} — locator is one of YOUR outputBasenames. NEVER write content_hash anywhere: every sha256 is computed by the harness over real bytes (declaring one refuses the container — the hash of bytes that do not exist yet cannot be known).
+  code: executable Node JavaScript that WRITES the measured numbers to the declared output files. All arithmetic happens here; never state a computed number anywhere else.
+  run: the ONLY fields are "outputBasenames" (the file names your code writes) and "seed" (an integer). No other key is accepted.
+  interpretations: declaration-based. results: [{ result_id, name, source: { locator: <one outputBasenames entry>, jsonPath: <path to the number inside that file> }, unit }]. The locator must be one of your declared outputs; every Result reads its value via jsonPath — never a literal number.
+  interpretations.figures (optional): [{ figure_id, chart_type: "line"|"scatter"|"bar"|"table", data_refs: [Result ids], caption? }] — structure only; the harness renders the bytes and computes every hash.
+  narrative: { title, conclusion: { claims: [{ text, quantity_refs: [Result ids], representation? }] } } — a conclusion number must be the bound Result value verbatim, or an explicitly declared rendering: {"kind":"rounded","dp":<0..20>} or {"kind":"with_uncertainty","uncertainty_refs":[...]}.
+The container is refused (and the attempt fails) if: you declare kind "ProblemSpec" or "RequirementSpec", or re-declare "DA-RAW"; you write content_hash anywhere; an entry kind is not one of the five above; a number appears outside code/declarations; a jsonPath is missing or does not resolve to a finite number; the run block carries a foreign key; or the conclusion states an undeclared rounding.
+
+=== BEFORE YOU ANSWER — CHECK EACH OF THESE (the harness refuses the container if any is missing) ===
+  1. EVERY AssumptionSpec and EVERY EquationSpec carries "e1_span": a verbatim substring (>= 10 chars, exact, no ellipsis, no paraphrase) of the analysis above that states it.
+  2. Every assumption you declare has a matching [[ASSUMPTION: <id>]] anchor in the analysis, with the SAME id.
+  3. Every requirement id the harness listed has a [[REQUIREMENT: <id>]] anchor in the analysis.
+  4. No numbers of your own anywhere outside your `code`.
+  5. Do not re-declare any id the harness registered.

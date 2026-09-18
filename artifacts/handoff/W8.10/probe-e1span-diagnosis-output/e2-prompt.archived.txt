@@ -1,0 +1,219 @@
+You are NORMALIZING a modeling analysis into a machine-readable declaration. The analysis below was already written; your job is ONLY to map it into the required JSON shape.
+Do NOT re-derive, improve, or extend the analysis. Do NOT invent anything it does not say. If the analysis is silent on something the schema wants, use the schema's honest-unknown values (UNKNOWN / empty array) rather than inventing content.
+NUMBERS: introduce NO numbers of your own. The schema's zero-number channel is unchanged — values reach the paper only by running your `code` and reading the numbers back through jsonPath.
+
+--- BEGIN ANALYSIS (this is the source of truth for content) ---
+# 建模分析笔记：2024 年高教社杯国赛 B 题《生产过程中的决策问题》
+
+## 总体理解
+
+本题不是"评价/排序/打分"型多准则决策题（F4），而是**随机优化 + 统计检验**型问题：核心是在次品率已知（问题 2、3）或由抽样估计（问题 1、4）的条件下，对"是否检测、是否拆解、是否再装配"这一串 0/1 决策做**期望成本（或期望利润）最小化/最大化**。题型路由给出的 F4（评价决策）方法族在此并不贴切——题目没有指标体系、没有权重、没有多准则排序，只有单目标期望值优化；真正的方法族应为 **F2（离散优化 / 决策树 / 动态规划）+ F3（统计检验、抽样方案）**。我在此明确偏离路由建议，理由：F4 的候选模型集（entropy/AHP/CRITIC/TOPSIS 等）无法产出"检测次数最少的抽样方案"，也无法处理"拆解后零配件回流装配"这一递归结构。下文按 F2+F3 展开。
+
+[[REQUIREMENT: R-OUT]] 总体输出要求：对问题 1–4 分别给出模型、决策方案、依据与指标结果。
+
+---
+
+## 问题 1：抽样检测方案（最少检测次数）
+
+**问的是什么**：供应商声称次品率 ≤ 标称值 p₀=10%。企业自付检测费，要设计"检测次数尽可能少"的抽样方案，并满足两种单向信度要求：
+- 情形 (1)：在 95% 信度下认定次品率 > 10% 才拒收（即"拒收"是高置信度的，犯"错拒"概率 ≤ 5%）；
+- 情形 (2)：在 90% 信度下认定次品率 ≤ 10% 才接收（即"接收"是高置信度的，犯"错收"概率 ≤ 10%）。
+
+**方法选择**：这是典型的**二项分布假设检验 / 序贯概率比检验（SPRT）**问题，属 F3。两种情形其实是同一检验的两个侧面，但题目把它们拆成两个独立的方案，因此应分别建模。
+
+**关键建模思路**：
+- 设批量为 N（或视为无限），真实次品率 p，抽 n 件、检出次品数 X ~ B(n, p)。
+- 情形 (1)：零假设 H₀: p ≤ p₀，备择 H₁: p > p₀。要"在 95% 信度下认定超过标称值才拒收"，即要求 P(拒收 | p = p₀) ≤ 0.05。用**单侧二项检验**：求最小 n 与临界值 c，使 P(X ≥ c | n, p₀) ≤ 0.05，且对 p > p₀ 有足够检出能力。若采用 Wald 正态近似：c ≈ n·p₀ + z₀.₉₅·√(n·p₀(1−p₀))，即 n·p₀ + 1.645√(n·0.09) ≤ c，取 c = ⌈n·p₀ + 1.645√(0.09n)⌉。但"检测次数尽可能少"若只约束第一类错误，n 可以很小（极端 n=1 时，"抽到 1 件次品即拒收"在 p₀=0.1 下 P=0.1 > 0.05，不满足；n=2 时 P(X≥2)=0.01 ≤ 0.05 满足）。所以必须补充第二类错误约束才有意义。
+- 因此需明确"在某个备择点 p₁ 下的检出力"，题目未给 p₁，这是**必须补充的假设**。合理选择：p₁ = 2p₀ = 20%（或取 p₁ 使 OC 曲线工程上可接受）。同时为避免"零检测"退化，应要求方案在 p = p₀ 处接收概率 ≥ 0.95（对应情形 2 的 90% 信度要求则放宽）。
+- 情形 (2)：H₀': p ≥ p₀，H₁': p < p₀，要求 P(接收 | p = p₀) ≤ 0.10，即 P(X ≤ c' | n, p₀) ≤ 0.10，同样在 p₁' < p₀ 处有足够检出力。
+- **序贯方案更省样本**：用 SPRT，检验 H₀: p = 0.1 vs H₁: p = 0.2，α = 0.05（情形 1）/ β = 0.10（情形 2），由 Wald 边界 a = ln[(1−β)/α], b = ln[β/(1−α)]，似然比判据
+  b < Σ ln[(p₁^x (1−p₁)^(n−x))/(p₀^x (1−p₀)^(n−x))] < a，
+  可把平均样本量 ASN 降到固定样本量方案的 50%–70%。这是"检测次数尽可能少"的最强答案。
+
+**必须做的假设**：
+[[ASSUMPTION: A-BATCH-INFINITE]] 批量足够大（或 N ≥ 10n），抽样用二项分布而非超几何近似；若 N 已知应改用超几何精确计算。
+[[ASSUMPTION: A-ALT-POINT]] 情形 (1) 的备择次品率取 p₁ = 20%（p₀ 的 2 倍），情形 (2) 取 p₁' = 5%（或 0），用于约束第二类错误；题目未给，属建模选择。
+[[ASSUMPTION: A-TEST-EXACT]] 检测本身完美（无漏检/误检），检出即真实次品。
+[[ASSUMPTION: A-COST-IGNORE]] 问题 1 只最小化检测次数 n，暂不计单件检测费用对方案的影响（题目说"检测费用由企业承担"但未给数值，故目标函数取 n 最小）。
+
+**具体结果方向**（数值由代码精确算）：
+- 情形 (1) 固定样本：解不等式组 P(X ≥ c | n, 0.1) ≤ 0.05 且 P(X ≤ c−1 | n, 0.2) ≤ 0.10（检出力 ≥ 0.9），最小 n 在 25–35 附近（正态近似给 n ≈ ((1.645√0.09 + 1.282√0.16)/0.1)² ≈ 28–29，精确二项搜索）。
+- 情形 (2)：P(X ≤ c | n, 0.1) ≤ 0.10 且 P(X ≥ c+1 | n, 0.05) ≤ 0.05，最小 n 类似量级。
+- SPRT：ASN(p=0.1) 与 ASN(p=0.2) 显著低于固定 n。
+
+**检验方法**：用精确二项 CDF（不用正态近似）枚举 n 从 1 起，找同时满足两类约束的最小 n；再对 SPRT 用数值仿真验证经验错误率与 ASN。
+
+---
+
+## 问题 2：生产过程各阶段决策（次品率已知）
+
+**问的是什么**：对表 1 的 6 种情况，决定 4 类 0/1 变量：
+1. 是否检测零配件 1、是否检测零配件 2（不检测则直接进装配）；
+2. 是否检测成品；
+3. 不合格成品是否拆解（拆解后零配件回流，重复 (1)(2)）；
+4. 退货的不合格品是否拆解（重复 (3)）。
+
+**方法选择**：**决策树 + 期望成本最小化**，属 F2（离散优化）。由于拆解导致零配件**回流**，这是一个带循环的决策结构，需用**不动点迭代 / 期望值方程组**而非简单树展开。
+
+**关键建模思路**：
+设决策变量
+- d₁, d₂ ∈ {0,1}：零配件 1、2 是否检测；
+- d₃ ∈ {0,1}：成品是否检测；
+- d₄ ∈ {0,1}：厂内不合格成品是否拆解；
+- d₅ ∈ {0,1}：退货不合格品是否拆解。
+
+参数：零配件次品率 p₁, p₂，成品次品率 p₃（在两零配件均合格条件下的装配次品率，见附录(1)），单价 b₁,b₂，检测成本 t₁,t₂,t₃，装配成本 a，市场售价 s，调换损失 L，拆解费用 r。
+
+**成品次品率的正确合成**（这是本题最容易错的地方）：
+- 若不检测零配件，进入装配的零配件次品率就是 p_i；
+- 若检测，检测出的次品被丢弃，则**通过检测的零配件次品率为 0**（假设 A-TEST-EXACT）。
+- 成品不合格 = 零配件 1 不合格 ∪ 零配件 2 不合格 ∪ (两件均合格但装配失败)。
+  令 q_i = d_i ? 0 : p_i，则成品不合格率
+  P_bad = 1 − (1−q₁)(1−q₂)(1−p₃)。
+- 市场退货率 = P_bad（若 d₃=0，所有成品直接上市，退货率 = P_bad；若 d₃=1，只有漏检的次品上市，退货率 = 0）。
+
+**单位成本结构**（以"产出 1 件合格品上市"为基准，或以"处理 1 批次"为基准——两种等价，我采用**每件上市合格品的期望总成本**，便于跨方案比较）：
+
+需要建立"零配件需求放大"的不动点：设生产 1 件成品需消耗零配件 1 的期望件数 E₁。若不检测（d₁=0），1 件成品耗 1 件；若检测，耗 1/(1−p₁) 件（丢弃次品）。拆解回流会减少新购量：设厂内不合格品拆解率与退货拆解率，每件不合格品拆解后回收 1 件零配件 1（不损坏）。
+
+定义单位上市合格品的期望净成本：
+- 零配件购买：E₁·b₁ + E₂·b₂（E_i 含回流抵扣）
+- 零配件检测：E₁·d₁·t₁ + E₂·d₂·t₂
+- 装配：E_assembly·a（装配次数 = 尝试次数，含拆解后重装）
+- 成品检测：d₃·t₃·(尝试次数)
+- 拆解：d₄·r·(厂内不合格量) + d₅·r·(退货量)
+- 调换损失：L·(退货量)
+- 收入：s（每件上市）
+
+目标：max 期望利润 = s − 期望总成本，等价 min 期望总成本。
+
+**不动点方程**（关键）：设 u = 单位上市品对应的"装配尝试次数"。每次尝试产出合格品概率
+π = (1−q₁)(1−q₂)(1−p₃)（若 d₃=1，合格才上市；若 d₃=0，所有尝试产出都上市，但次品会被退回）。
+
+厂内不合格量 = u·(1−π)·[d₃=1 时全部检出；d₃=0 时厂内不检出，全部流入市场再退回]。
+退货量 = u·(1−π)（若 d₃=0）或 0（若 d₃=1，假设检测精确）。
+
+拆解回流：若 d₄=1，每个厂内不合格品拆出 1 件零配件 1 + 1 件零配件 2（可再装配）；若 d₅=1，每个退货品同样拆出。回流件是否再检测？题目说"重复步骤(1)和(2)"——即回流件重新进入流程，**决策 d₁,d₂ 对回流件同样适用**。这导致 E₁ 的自洽方程：
+E₁ = 1/(1−q₁)·[需求] − 回流量… 需小心地以"每单位上市品"归一化，写成线性方程组求解（结构上是马尔可夫回报过程 / 线性不动点，可解）。
+
+**简化但正确的处理**：把整个生产看作"消耗新零配件、产出上市品与废弃物"的稳态流。以 1 件上市品为基准：
+- 若 d₃=1：退货率 0，厂内不合格率 (1−π)，每件厂内不合格品若拆解（d₄=1）回收 2 件零配件（各 1 件），重走流程。
+- 若 d₃=0：无厂内检测成本，但 (1−π) 比例的上市品被退回，产生 L + （若 d₅=1）r，并回收零配件。
+
+**决策空间**：d₁,d₂,d₃,d₄,d₅ 共 2⁵=32 种组合（情况 6 中 d₄ 与 d₅ 的拆解费用不同，需分开决策）。**穷举 32 种组合，对每种解不动点算期望成本，取最小**——这是最稳妥、最可解释的做法，避免启发式。
+
+**必须做的假设**：
+[[ASSUMPTION: A-EXACT-TEST2]] 检测精确：通过检测的零配件/成品次品率为 0。
+[[ASSUMPTION: A-RECYCLE-LOSSLESS]] 拆解不损坏零配件，回收的零配件与新件同质（题目给定）。
+[[ASSUMPTION: A-RETURN-REPAIR]] 退回的不合格品无条件调换：企业损失 L（不含退回品本身价值），退回品按步骤(3)处理（拆解或丢弃）。
+[[ASSUMPTION: A-STEADY-STATE]] 以"单位上市合格品"为成本基准的稳态流分析；拆解回流件再次进入同一决策流程（d₁,d₂,d₃ 对回流件同样适用）。
+[[ASSUMPTION: A-PI-DEF]] 成品合格率 π = (1−q₁)(1−q₂)(1−p₃)，其中 q_i = 0 若检测否则 p_i；附录(1) 明确 p₃ 是"正品零配件装配后的次品率"，故用乘法分解。
+[[ASSUMPTION: A-DEMAND-EXO]] 市场需求充足，售价 s 固定不随决策变化；决策只影响成本与退货率，不影响销量。
+
+**各情况的定性预判**（数值由代码算）：
+- 情况 1、2：调换损失 L=6 < 售价 56 的小比例，成品检测成本 t₃=3。检测零配件 2 单价 18、次品 10%–20%，检测成本 3 相对节省 = p₂·(后续装配+成品检测+调换的避免) —— 大概率值得检测零配件 2；零配件 1 单价 4，检测成本 2，节省 = p₁·(避免装配成本 6 + 成品检测 3 + …)，需算。拆解费用 5 vs 装配成本 6：拆解回收零配件（值 4+18=22）但花 5，且零配件已检测过（回流不需再检？需假设），通常值得拆解。
+- 情况 3：L=30 变大，成品检测与零配件检测的边际收益上升。
+- 情况 4：检测成本降到 1，几乎肯定全检测。
+- 情况 5：零配件 1 检测成本 8（很贵），零配件 2 检测成本 1；零配件 1 次品 10%，检测节省 vs 8 元成本，可能不检测零配件 1。
+- 情况 6：拆解费用 40（极贵），次品率 5%，L=10；很可能不拆解、不检测零配件（次品率低、检测成本相对高）。
+
+**检验方法**：32 组合穷举 + 不动点线性求解；对最优解做单参数敏感性分析（次品率 ±5%、检测成本 ±20%），验证决策稳健性；检查"不检测零配件但检测成品"与"检测零配件"之间的成本等价边界。
+
+---
+
+## 问题 3：m 道工序、n 个零配件
+
+**问的是什么**：把问题 2 推广到多工序多零配件。具体：图 1 的 2 道工序、8 个零配件，表 2 数据。工序 1 把零配件 1,2,3,4 装成半成品 1（次品率 10%），零配件 5,6,7,8 装成半成品 2；工序 2 把半成品 1、2 装成成品（次品率 10%）。
+
+**方法选择**：**多阶段决策树 / 动态规划 + 网络流**，属 F2。决策变量扩展为：
+- d_i ∈ {0,1}（i=1..8）：各零配件是否检测；
+- e_j ∈ {0,1}（j=1,2）：半成品是否检测；
+- f ∈ {0,1}：成品是否检测；
+- g_j ∈ {0,1}：不合格半成品是否拆解；
+- h ∈ {0,1}：不合格成品是否拆解（厂内）；
+- k ∈ {0,1}：退货成品是否拆解。
+
+**关键建模思路**：
+- **层级合格率传递**：半成品 1 的合格率 = ∏_{i∈{1,2,3,4}} (1−q_i) · (1−p_{s1})，其中 q_i = d_i ? 0 : p_i，p_{s1}=10% 为半成品 1 的装配次品率（附录(1)：用正品零配件装配后的次品率）。
+- 半成品 2 同理（零配件 5,6,7,8）。
+- 成品合格率 = (1−q_{s1})(1−q_{s2})·(1−p_f)，q_{sj} = e_j ? 0 : p_{sj}。
+- **成本结构**：零配件购买 b_i、检测 t_i；半成品装配 a_{s1}=8、检测 4、拆解 6；成品装配 8、检测 6、拆解 10；售价 200、调换损失 40。
+- **回流层级**：不合格成品拆解 → 回收半成品 1、2（各 1 件）→ 回流到半成品检测/装配环节；不合格半成品拆解 → 回收零配件 → 回流到零配件检测环节。退货品拆解同理。这是一个**三层嵌套的稳态回流网络**，用"单位上市成品"为基准列线性不动点方程组：
+  - 设 N_i = 单位上市品对零配件 i 的净消耗（新购量），
+  - M_j = 单位上市品对半成品 j 的净装配尝试次数，
+  - U = 单位上市品的成品装配尝试次数。
+  各层之间通过合格率与拆解回流率耦合，写成 3 组线性方程求解。
+- 决策空间 2^(8+2+1+2+1+1) = 2^15 = 32768，**可完全穷举**（每个方案解一次线性方程组，毫秒级）。这是最可靠的方法。
+
+**必须做的假设**：
+[[ASSUMPTION: A-HIER-DEFECT]] 各层级次品率按附录(1)定义：半成品/成品次品率是"用正品零配件（或半成品）装配后的次品率"，因此高层级合格率 = ∏(1−q_lower)·(1−p_assembly)，不合格事件在各层级独立叠加。
+[[ASSUMPTION: A-RECYCLE-LEVEL]] 不合格成品拆解回收的是其组成半成品（各 1 件，不损坏），不合格半成品拆解回收组成零配件；回收件回到对应层级的入口，适用同一层的检测决策。
+[[ASSUMPTION: A-STEADY-STATE3]] 稳态流分析，以单位上市成品为基准。
+[[ASSUMPTION: A-EXACT-TEST3]] 各级检测精确，通过者次品率为 0。
+
+**检验方法**：穷举 2^15；对最优方案做关键参数敏感性（零配件次品率 10%→15%、半成品次品率、拆解费用）；验证"检测成本 vs 避免的下游损失"的边际分析一致性。
+
+---
+
+## 问题 4：次品率由抽样估计带来的不确定性
+
+**问的是什么**：问题 2、3 的次品率不是已知的，而是用问题 1 的抽样方法估计的。重做问题 2、3。
+
+**方法选择**：**贝叶斯决策 / 后验期望 + 稳健优化**，F3+F2。
+
+**关键建模思路**：
+- 用问题 1 的抽样结果给出次品率的**后验分布**（或置信区间）。取共轭先验：Beta(α,β)（如 Jeffreys 先验 Beta(0.5,0.5) 或均匀先验 Beta(1,1)），抽样 (n, x) 后后验 p ~ Beta(α+x, β+n−x)。
+- 决策目标变为**最小化后验期望成本**：E_{p~后验}[ C(d, p) ]。由于 C(d,p) 对 p 是线性（或分段线性）的，后验期望 = 把 p 替换为后验均值 E[p] 即可——**这给出与问题 2 相同形式的最优决策，但用后验均值替代真值**。
+- 但"用后验均值"会掩盖风险：应进一步做**稳健性检验**——检查最优决策在后验的 95% 可信区间端点（如下界 p_low、上界 p_high）是否仍最优；若不稳健，给出**机会约束**版本：要求退货率/成本超限概率 ≤ 阈值，或用**极小化后悔（minimax regret）**准则。
+- 具体地：对问题 2 的 6 种情况、问题 3 的情形，假设进行了问题 1 方案的抽样（n 由问题 1 决定，如 n≈25–30），检出 x 件次品，得后验均值 p̂ = (α+x)/(α+β+n)。用 p̂ 重跑问题 2/3 的优化；再报告决策对 p 在 [p̂−2σ, p̂+2σ] 内的敏感性。
+- 还应量化"抽样成本 vs 决策改进收益"：抽样要花钱（问题 2 的检测成本），决定最优抽样量 n* 使 抽样成本 + 后验期望成本 最小。
+
+**必须做的假设**：
+[[ASSUMPTION: A-CONJUGATE]] 次品率先验取 Beta(1,1)（均匀）或 Jeffreys Beta(0.5,0.5)；后验为 Beta(α+x, β+n−x)。
+[[ASSUMPTION: A-INDEP-RATES]] 各零配件/半成品/成品次品率后验独立（抽样独立）。
+[[ASSUMPTION: A-SAMPLE-COST]] 每件抽样检测成本等于该件的检测成本（表 1、表 2 中的 t_i），计入决策总成本。
+[[ASSUMPTION: A-RISK-NEUTRAL]] 企业风险中性，最小化后验期望成本（非 CVaR 等）。
+
+**检验方法**：后验均值下重跑穷举；在可信区间端点检验决策稳定性；比较"抽样后决策"与"不抽样凭先验决策"的期望成本增益，验证抽样是否值得。
+
+---
+
+## 交叉验证与一致性检查
+
+1. **附录(1) 的正确解读**：成品/半成品次品率是"正品零配件装配后的次品率"，所以成品不合格率必须用 1−(1−q₁)(1−q₂)(1−p₃) 而非直接用 p₃。这是本题最关键的陷阱，问题 3 尤其。
+2. **回流的正确处理**：拆解后的零配件"重复步骤(1)(2)"，意味着检测决策对回流件同样适用；若检测决策为"检测"，回流件也需再检测（否则与新品不同质）。我在成本模型中把回流件与新品同等处理（同一决策），这是对题目"重复步骤"的忠实解读。
+3. **基准统一**：所有成本按"单位上市合格品"归一化，使不同决策方案可比；利润 = 售价 − 单位成本。
+4. **穷举 vs 启发式**：问题 2 的 32 种、问题 3 的 32768 种组合都可精确穷举，无需启发式，保证全局最优。
+5. **敏感性分析**：每个最优决策都要检验对次品率、检测成本、拆解费用的敏感性，确认不是边界上的脆弱解。
+
+## 输出结构规划
+
+- 问题 1：固定样本方案（情形 1、情形 2 的 n、c、OC 曲线）+ SPRT 方案（边界、ASN）；代码用精确二项 CDF 枚举最小 n。
+- 问题 2：6 种情况的最优决策表（d₁..d₅）+ 单位成本/利润 + 决策依据（边际成本分析）+ 敏感性。
+- 问题 3：2 工序 8 零配件的最优决策（d₁..d₈, e₁,e₂, f, g₁,g₂, h, k）+ 成本/利润 + 依据。
+- 问题 4：后验均值下的重优化结果 + 稳健性检验 + 抽样经济性分析。
+
+所有数值结果由可执行代码精确计算，不在正文手算硬编码。
+--- END ANALYSIS ---
+
+Produce ONE JSON object — the ir-container-v1 — and nothing else. No prose, no markdown fences, no schema of your own.
+Shape: {"__dsh_paper":"ir-container-v1","entries":[...],"code":"...","run":{...},"interpretations":{...},"narrative":{...}}.
+  entries: an array of objects, each EXACTLY {"kind": <KIND>, "value": <object>}. The ONLY kinds you may declare are "SymbolSpec", "AssumptionSpec", "EquationSpec", "ModelSpec", and (optionally) "DataArtifact". The harness has ALREADY registered the problem assets for you — DataArtifact "DA-RAW" (the raw problem), RequirementSpec "R-OUT" (the requirement), ProblemSpec "P1" (the binding). NEVER declare those three: reference them by id instead (your ModelSpec sets problem_refs: ["P1"]). Re-declaring a registered id refuses the container.
+    SymbolSpec value: {"symbol_id","scope_ref":"P1","token","meaning","unit","role":"VARIABLE","shape","domain","index_set"} — shape is one of SCALAR|VECTOR|MATRIX|TENSOR|INDEXED|UNKNOWN; domain one of REAL|NONNEGATIVE_REAL|INTEGER|NONNEGATIVE_INTEGER|BOOLEAN|PROBABILITY|COMPLEX|UNKNOWN; if you are not sure, answer UNKNOWN honestly instead of inventing one; index_set is an array ([] for a scalar).
+    AssumptionSpec value: {"assumption_id","scope_ref":"P1","statement","source_type","justification_refs","risk_level","testable","sensitivity_refs","status"} — source_type GIVEN|DERIVED|MODELING_CHOICE|APPROXIMATION; risk_level HIGH|MEDIUM|LOW; status ACTIVE|OBSOLETE|QUESTIONED.
+    EquationSpec value: {"equation_id","scope_ref":"P1","expression","representation","lhs_symbols","rhs_symbols","equation_type","unit","depends_on","source"} — representation SYMPY|LATEX_PRESENTATION; equation_type DEFINITION|CONSTRAINT|OBJECTIVE|DERIVED.
+    ModelSpec value: {"model_id","problem_refs":["P1"],"assumption_refs","variable_refs","parameter_refs","equation_refs","constraints","objective","dependencies"} — every field is required; assumption_refs/equation_refs list the ids of AssumptionSpec/EquationSpec entries you declared.
+    DataArtifact (optional, output-pointer form) value: {"data_id","locator"} — locator is one of YOUR outputBasenames. NEVER write content_hash anywhere: every sha256 is computed by the harness over real bytes (declaring one refuses the container — the hash of bytes that do not exist yet cannot be known).
+  code: executable Node JavaScript that WRITES the measured numbers to the declared output files. All arithmetic happens here; never state a computed number anywhere else.
+  run: the ONLY fields are "outputBasenames" (the file names your code writes) and "seed" (an integer). No other key is accepted.
+  interpretations: declaration-based. results: [{ result_id, name, source: { locator: <one outputBasenames entry>, jsonPath: <path to the number inside that file> }, unit }]. The locator must be one of your declared outputs; every Result reads its value via jsonPath — never a literal number.
+  interpretations.figures (optional): [{ figure_id, chart_type: "line"|"scatter"|"bar"|"table", data_refs: [Result ids], caption? }] — structure only; the harness renders the bytes and computes every hash.
+  narrative: { title, conclusion: { claims: [{ text, quantity_refs: [Result ids], representation? }] } } — a conclusion number must be the bound Result value verbatim, or an explicitly declared rendering: {"kind":"rounded","dp":<0..20>} or {"kind":"with_uncertainty","uncertainty_refs":[...]}.
+The container is refused (and the attempt fails) if: you declare kind "ProblemSpec" or "RequirementSpec", or re-declare "DA-RAW"; you write content_hash anywhere; an entry kind is not one of the five above; a number appears outside code/declarations; a jsonPath is missing or does not resolve to a finite number; the run block carries a foreign key; or the conclusion states an undeclared rounding.
+
+=== BEFORE YOU ANSWER — CHECK EACH OF THESE (the harness refuses the container if any is missing) ===
+  1. EVERY AssumptionSpec and EVERY EquationSpec carries "e1_span": a verbatim substring (>= 10 chars, exact, no ellipsis, no paraphrase) of the analysis above that states it.
+  2. Every assumption you declare has a matching [[ASSUMPTION: <id>]] anchor in the analysis, with the SAME id.
+  3. Every requirement id the harness listed has a [[REQUIREMENT: <id>]] anchor in the analysis.
+  4. No numbers of your own anywhere outside your `code`.
+  5. Do not re-declare any id the harness registered.

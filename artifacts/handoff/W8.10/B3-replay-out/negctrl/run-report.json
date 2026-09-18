@@ -1,0 +1,37 @@
+{
+  "runId": "8802cdad-a1b8-47cb-9f4a-1599e5ed3bd1",
+  "tier": "T3",
+  "mode": "strict",
+  "status": "BLOCKED",
+  "routed_family": "F3",
+  "route_truth": null,
+  "route_mismatch": false,
+  "code_provenance": {
+    "checked_at": "2026-09-18T15:35:32.341Z",
+    "ok": false,
+    "targets": [
+      {
+        "name": "@deepseek-ai/dsh-paper-foundation",
+        "ok": false,
+        "detail": "entry lib/index.js is 33319675 ms OLDER than the newest source — the built entry is stale"
+      }
+    ]
+  },
+  "minted_ir_count": 0,
+  "classifier": "transport",
+  "code": "provider-unavailable",
+  "humanized": "调用/传输失败（provider-unavailable）：node '9e8e51ad-1ea6-4d94-8f20-bc7a02edefd2' exhausted 3 attempts and is paused for review",
+  "wall_clock_seconds": 3.1,
+  "usage": {
+    "input_tokens": 0,
+    "output_tokens": 0,
+    "cost_usd": 0
+  },
+  "memo": {
+    "passed_gates": [],
+    "minted_ir_kinds": [],
+    "minted_ir_count": 0,
+    "failing_node": null,
+    "suggested_intervention": "重试一次；若持续失败报告给维护者。"
+  }
+}

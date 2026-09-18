@@ -1,0 +1,564 @@
+[33mThe plugin "vite-tsconfig-paths" is detected. Vite now supports tsconfig paths resolution natively via the [1mresolve.tsconfigPaths[22m option. You can remove the plugin and set [1mresolve.tsconfigPaths: true[22m in your Vite config instead.[39m
+[33mThe plugin "vite-tsconfig-paths" is detected. Vite now supports tsconfig paths resolution natively via the [1mresolve.tsconfigPaths[22m option. You can remove the plugin and set [1mresolve.tsconfigPaths: true[22m in your Vite config instead.[39m
+[33mThe plugin "vite-tsconfig-paths" is detected. Vite now supports tsconfig paths resolution natively via the [1mresolve.tsconfigPaths[22m option. You can remove the plugin and set [1mresolve.tsconfigPaths: true[22m in your Vite config instead.[39m
+
+[1m[30m[46m RUN [49m[39m[22m [36mv4.1.8 [39m[90mD:/deepseek modex/deepseek-harness[39m
+
+[90mstderr[2m | packages/e2b/subprocess-e2b/tests/subprocess.spec.ts[2m > [22m[2mE2BSubprocessHandle[2m > [22m[2mrejects an unrepresentable graceMs before any remote work
+[22m[39mPromise returned by `expect(actual).rejects.toThrow(expected)` was not awaited. Vitest currently auto-awaits hanging assertions at the end of the test, but this will cause the test to fail in the next Vitest major. Please remember to await the assertion.
+    at D:/deepseek modex/deepseek-harness/packages/e2b/subprocess-e2b/tests/subprocess.spec.ts:472:9
+
+[90mstderr[2m | packages/e2b/subprocess-e2b/tests/subprocess.spec.ts[2m > [22m[2mE2BSubprocessHandle[2m > [22m[2mrejects an unrepresentable graceMs before any remote work
+[22m[39mPromise returned by `expect(actual).rejects.toThrow(expected)` was not awaited. Vitest currently auto-awaits hanging assertions at the end of the test, but this will cause the test to fail in the next Vitest major. Please remember to await the assertion.
+    at D:/deepseek modex/deepseek-harness/packages/e2b/subprocess-e2b/tests/subprocess.spec.ts:472:9
+
+[90mstderr[2m | packages/e2b/subprocess-e2b/tests/subprocess.spec.ts[2m > [22m[2mE2BSubprocessHandle[2m > [22m[2mrejects an unrepresentable graceMs before any remote work
+[22m[39mPromise returned by `expect(actual).rejects.toThrow(expected)` was not awaited. Vitest currently auto-awaits hanging assertions at the end of the test, but this will cause the test to fail in the next Vitest major. Please remember to await the assertion.
+    at D:/deepseek modex/deepseek-harness/packages/e2b/subprocess-e2b/tests/subprocess.spec.ts:472:9
+
+[90mstderr[2m | packages/e2b/subprocess-e2b/tests/subprocess.spec.ts[2m > [22m[2mE2BSubprocessHandle[2m > [22m[2mrejects an unrepresentable graceMs before any remote work
+[22m[39mPromise returned by `expect(actual).rejects.toThrow(expected)` was not awaited. Vitest currently auto-awaits hanging assertions at the end of the test, but this will cause the test to fail in the next Vitest major. Please remember to await the assertion.
+    at D:/deepseek modex/deepseek-harness/packages/e2b/subprocess-e2b/tests/subprocess.spec.ts:472:9
+
+ [31m❯[39m [30m[45m thread-safe [49m[39m packages/e2b/subprocess-e2b/tests/terminal.spec.ts [2m([22m[2m35 tests[22m[2m | [22m[31m2 failed[39m[2m)[22m[33m 592[2mms[22m[39m
+[31m     [31m×[31m hides bootstrap-shell bytes and preserves requested-shell bytes across the output boundary[39m[32m 16[2mms[22m[39m
+[31m     [31m×[31m inherits only safe ambient values and limits the allocation signal to setup[39m[32m 6[2mms[22m[39m
+     [32m✓[39m publishes the PTY handle before honoring allocation cancellation[32m 64[2mms[22m[39m
+     [32m✓[39m rejects malformed environment and argv values before PTY allocation[32m 2[2mms[22m[39m
+     [32m✓[39m cleans malformed handles, bootstrap failures, and readiness failures[32m 67[2mms[22m[39m
+     [32m✓[39m propagates setup cancellation and provider failures[32m 1[2mms[22m[39m
+     [32m✓[39m bounds a missing bootstrap-output boundary by process exit or cancellation[32m 115[2mms[22m[39m
+     [32m✓[39m aborts and joins in-flight terminal operations before cleanup[32m 2[2mms[22m[39m
+     [32m✓[39m maps ordinary exits, closes output, and reports an absent foreground after exit[32m 1[2mms[22m[39m
+     [32m✓[39m classifies an unrequested command exit 7[32m 0[2mms[22m[39m
+     [32m✓[39m classifies an unrequested command exit 143[32m 0[2mms[22m[39m
+     [32m✓[39m classifies an unrequested command exit 255[32m 0[2mms[22m[39m
+     [32m✓[39m treats a terminal session containing only zombies as quiescent[32m 0[2mms[22m[39m
+     [32m✓[39m treats a timeout-killed sandbox as quiescent during terminal cleanup[32m 0[2mms[22m[39m
+     [32m✓[39m treats sandbox disappearance during PTY kill as quiescent[32m 2[2mms[22m[39m
+     [32m✓[39m propagates a non-missing PTY kill failure[32m 8[2mms[22m[39m
+     [32m✓[39m accepts sandbox loss while disconnecting a settled terminal[32m 1[2mms[22m[39m
+     [32m✓[39m propagates another failure while disconnecting a settled terminal[32m 1[2mms[22m[39m
+     [32m✓[39m rejects killing the terminal shell and propagates live foreground failures[32m 1[2mms[22m[39m
+     [32m✓[39m sends KILL before checking an expired force-cleanup deadline[32m 1[2mms[22m[39m
+     [32m✓[39m surfaces cleanup failures and allows a later retry[32m 1[2mms[22m[39m
+     [32m✓[39m propagates a process-group signalling transport failure before retry[32m 12[2mms[22m[39m
+     [32m✓[39m keeps command rejection authoritative while cleanup is already waiting[32m 2[2mms[22m[39m
+     [32m✓[39m keeps a late command rejection authoritative after PTY kill[32m 28[2mms[22m[39m
+     [32m✓[39m reports surviving groups, a surviving top-level pid, and transport failure[32m 45[2mms[22m[39m
+     [32m✓[39m resolves remote executables[32m 9[2mms[22m[39m
+     [32m✓[39m rejects invalid executable lookup inputs and results[32m 3[2mms[22m[39m
+     [32m✓[39m rejects a non-positive poll cadence at load[32m 6[2mms[22m[39m
+     [32m✓[39m owns live terminals through service disposal[32m 3[2mms[22m[39m
+     [32m✓[39m joins and rejects terminal setup that completes during service disposal[32m 55[2mms[22m[39m
+     [32m✓[39m aborts and rolls back terminal setup that cannot publish its output boundary during disposal[32m 55[2mms[22m[39m
+     [32m✓[39m owns and cancels terminal state-directory creation during disposal[32m 56[2mms[22m[39m
+     [32m✓[39m releases naturally settled terminals and validates terminal requests[32m 6[2mms[22m[39m
+     [32m✓[39m contains a failed automatic terminal release until service disposal retries it[32m 14[2mms[22m[39m
+     [32m✓[39m contains an immediate automatic terminal release rejection before disposal retries it[32m 7[2mms[22m[39m
+ [31m❯[39m [30m[42m process-bound [49m[39m packages/boot/app-boot/tests/app-boot.spec.ts [2m([22m[2m52 tests[22m[2m | [22m[31m1 failed[39m[2m)[22m[33m 661[2mms[22m[39m
+     [32m✓[39m resolves relative to the given cwd outside replay mode[32m 2[2mms[22m[39m
+     [32m✓[39m swaps a cordis.yml/.yaml basename for cordis.snapshot.yml in replay mode[32m 0[2mms[22m[39m
+     [32m✓[39m leaves a non-cordis basename alone in replay mode and defaults cwd to the process cwd[32m 0[2mms[22m[39m
+     [32m✓[39m loads variables from .env in the given dir[32m 12[2mms[22m[39m
+     [32m✓[39m stays silent when no .env exists (ambient environment wins)[32m 2[2mms[22m[39m
+     [32m✓[39m warns (labelled, single line) when .env exists but cannot be loaded[32m 2[2mms[22m[39m
+     [32m✓[39m defaults dir to the process cwd and warn to a stderr write[32m 29[2mms[22m[39m
+     [32m✓[39m layers user under project under the inherited environment[32m 20[2mms[22m[39m
+     [32m✓[39m refuses to launch when a .env sets a harness switch, before applying anything[32m 13[2mms[22m[39m
+     [32m✓[39m refuses to launch when a .env sets the executable search path, before applying anything[32m 13[2mms[22m[39m
+     [32m✓[39m refuses to launch when a .env sets a module preload, before applying anything[32m 10[2mms[22m[39m
+[31m     [31m×[31m refuses to launch when a .env sets a skill root, before applying anything[39m[32m 22[2mms[22m[39m
+     [32m✓[39m refuses to launch when a .env sets a network proxy, before applying anything[32m 4[2mms[22m[39m
+     [32m✓[39m refuses to launch when a .env sets a lowercase network proxy, before applying anything[32m 11[2mms[22m[39m
+     [32m✓[39m refuses to launch when a .env sets a browser command, before applying anything[32m 11[2mms[22m[39m
+     [32m✓[39m reports each file value with its absolute path[32m 12[2mms[22m[39m
+     [32m✓[39m resolves the harness home from the inherited environment, never from a file[32m 10[2mms[22m[39m
+     [32m✓[39m warns and continues when a layer exists but cannot be read[32m 13[2mms[22m[39m
+     [32m✓[39m reports to stderr when the caller supplies no reporter[32m 4[2mms[22m[39m
+     [32m✓[39m passes over an absent layer without reporting it[32m 3[2mms[22m[39m
+     [32m✓[39m carries only the inherited environment when neither file exists[32m 3[2mms[22m[39m
+     [32m✓[39m reads a harness home that is also the invocation directory exactly once[32m 8[2mms[22m[39m
+     [32m✓[39m writes one labelled line with the stack and exits 1 on an Error rejection[32m 1[2mms[22m[39m
+     [32m✓[39m stringifies a non-Error rejection and an Error without a stack falls back to its message[32m 0[2mms[22m[39m
+     [32m✓[39m returns an uninstaller that removes the handler (and defaults to the real process)[32m 1[2mms[22m[39m
+     [32m✓[39m does not report an activation rejection shared by entries in the boot audit[32m 2[2mms[22m[39m
+     [32m✓[39m awaits the release hook before exiting so the terminal owner can restore it[32m 52[2mms[22m[39m
+     [32m✓[39m still exits when the release hook rejects[32m 51[2mms[22m[39m
+     [32m✓[39m exits without waiting when a release hook never settles[32m 2[2mms[22m[39m
+     [32m✓[39m reports only the first rejection and keeps handling later ones during the release[32m 59[2mms[22m[39m
+     [32m✓[39m passes when every enabled entry has a fiber[32m 1[2mms[22m[39m
+     [32m✓[39m throws naming every enabled fiber-less entry[32m 1[2mms[22m[39m
+     [32m✓[39m passes active entries and ignores disabled entries[32m 1[2mms[22m[39m
+     [32m✓[39m reports the plugin name and original activation stack instead of fiber state 3[32m 2[2mms[22m[39m
+     [32m✓[39m formats stackless and non-Error activation failures[32m 1[2mms[22m[39m
+     [32m✓[39m reports unresolved services for pending entries[32m 0[2mms[22m[39m
+     [32m✓[39m retains the numeric diagnostic for a settled unexpected state[32m 0[2mms[22m[39m
+     [32m✓[39m loads expressions and rejects missing, malformed, non-array, and non-mapping overlays[32m 40[2mms[22m[39m
+     [32m✓[39m boots a leaf config through the real Loader and settles the tree[32m 80[2mms[22m[39m
+     [32m✓[39m can resolve bare plugins from the harness when the config project shadows their package name[32m 28[2mms[22m[39m
+     [32m✓[39m runs host preparation before the Loader tree mounts[32m 9[2mms[22m[39m
+     [32m✓[39m disposes partial host setup and labels non-Error preparation failures[32m 4[2mms[22m[39m
+     [32m✓[39m exposes dshHomePath to Loader config expressions[32m 14[2mms[22m[39m
+     [32m✓[39m returns instead of asserting over a tree a surface disposed mid-startup[32m 23[2mms[22m[39m
+     [32m✓[39m rejects (never exits 0 half-empty) when a config names a plugin that cannot be imported[32m 22[2mms[22m[39m
+     [32m✓[39m labels a deferred config failure with its row and leaves the source file unchanged[32m 20[2mms[22m[39m
+     [32m✓[39m appends the deepest cause with its original stack to the load failure[32m 15[2mms[22m[39m
+     [32m✓[39m falls back to the deepest cause message when its stack was erased[32m 3[2mms[22m[39m
+     [32m✓[39m reports a pending real Loader fiber and the service unresolved in its own context[32m 13[2mms[22m[39m
+     [32m✓[39m distinguishes the source path from the current workdir between identity and persona[32m 4[2mms[22m[39m
+     [32m✓[39m is a no-op returning undefined when no systemPrompt service is mounted[32m 2[2mms[22m[39m
+     [32m✓[39m disposes the section it added, so a systemPrompt reload leaves no residue[32m 2[2mms[22m[39m
+ [31m❯[39m [30m[45m thread-safe [49m[39m packages/subagent/subagent-claude-code/tests/subagent-claude-code.spec.ts [2m([22m[2m37 tests[22m[2m | [22m[31m1 failed[39m[2m)[22m[32m 117[2mms[22m[39m
+     [32m✓[39m ships one independently installable provider-only Bundle patch[32m 10[2mms[22m[39m
+     [32m✓[39m preserves text sequences and rejects empty, blank, and non-text tasks[32m 1[2mms[22m[39m
+     [32m✓[39m registers the default descriptor, validates config, and unregisters on HMR[32m 26[2mms[22m[39m
+     [32m✓[39m keeps named instances, runs, and HMR ownership isolated[32m 15[2mms[22m[39m
+     [32m✓[39m rejects duplicate provider names without replacing the first instance[32m 5[2mms[22m[39m
+     [32m✓[39m accepts only the five fixed non-interactive permission modes[32m 1[2mms[22m[39m
+     [32m✓[39m resolves the safe permission default when apply is called directly[32m 2[2mms[22m[39m
+     [32m✓[39m starts through the registered provider with its resolved config and diagnostics[32m 10[2mms[22m[39m
+     [32m✓[39m keeps the Loader namespace shape and package-owned empty invariant[32m 1[2mms[22m[39m
+     [32m✓[39m forwards command, arguments, cwd, environment, and signal exactly[32m 2[2mms[22m[39m
+     [32m✓[39m forwards the SDK-selected Windows native executable without a batch shim[32m 1[2mms[22m[39m
+     [32m✓[39m projects streams, exit facts, listeners, and idempotent tree termination[32m 1[2mms[22m[39m
+     [32m✓[39m emits spawn errors[32m 1[2mms[22m[39m
+     [32m✓[39m exposes a settled direct-child exit code[32m 0[2mms[22m[39m
+[31m     [31m×[31m builds the fixed unattended options over the scrubbed environment[39m[32m 2[2mms[22m[39m
+     [32m✓[39m maps the dontAsk mode and only confirms the dangerous bypass[32m 1[2mms[22m[39m
+     [32m✓[39m maps the acceptEdits mode and only confirms the dangerous bypass[32m 0[2mms[22m[39m
+     [32m✓[39m maps the auto mode and only confirms the dangerous bypass[32m 0[2mms[22m[39m
+     [32m✓[39m maps the plan mode and only confirms the dangerous bypass[32m 0[2mms[22m[39m
+     [32m✓[39m maps the bypassPermissions mode and only confirms the dangerous bypass[32m 0[2mms[22m[39m
+     [32m✓[39m disallows ExitPlanMode before native plan-mode allow rules[32m 0[2mms[22m[39m
+     [32m✓[39m accepts only a non-error success with a non-blank final result[32m 1[2mms[22m[39m
+     [32m✓[39m consumes the complete stream and keeps the latest strict success[32m 0[2mms[22m[39m
+     [32m✓[39m publishes only after Query and managed child exist, then disposes once[32m 1[2mms[22m[39m
+     [32m✓[39m flattens every SDK error result without inventing shared stop reasons[32m 3[2mms[22m[39m
+     [32m✓[39m attaches a safe diagnostic when a permission denial precedes failure[32m 1[2mms[22m[39m
+     [32m✓[39m omits captured diagnostics on success and isolates concurrent runs[32m 1[2mms[22m[39m
+     [32m✓[39m fails closed when iteration rejects after a result[32m 1[2mms[22m[39m
+     [32m✓[39m maps invalid success and missing result to fixed query-run facts[32m 2[2mms[22m[39m
+     [32m✓[39m reports an early process exit with independent code and signal facts[32m 2[2mms[22m[39m
+     [32m✓[39m gives local cancellation precedence and isolates overlapping controllers[32m 2[2mms[22m[39m
+     [32m✓[39m keeps local cancellation authoritative when the SDK iterator ends normally[32m 1[2mms[22m[39m
+     [32m✓[39m rejects pre-abort and every incomplete startup transaction[32m 9[2mms[22m[39m
+     [32m✓[39m closes the query, terminates the tree, and waits for direct-child outcome[32m 0[2mms[22m[39m
+     [32m✓[39m reports a published teardown failure to the Host diagnostic sink[32m 1[2mms[22m[39m
+     [32m✓[39m does not finish disposal before the managed tree exits[32m 0[2mms[22m[39m
+     [32m✓[39m reports close and tree-wait failures without skipping cleanup[32m 0[2mms[22m[39m
+WARNING: proceeding, even though we could not create PATH aliases: Refusing to create helper binaries under temporary dir "C:\\Users\\35702\\AppData\\Local\\Temp\\" (codex_home: AbsolutePathBuf("C:\\Users\\35702\\AppData\\Local\\Temp\\dsh-codex-real-Aw9DFS\\codex-home"))
+ [31m❯[39m [30m[45m thread-safe [49m[39m packages/e2b/subprocess-e2b/tests/subprocess.spec.ts [2m([22m[2m71 tests[22m[2m | [22m[31m1 failed[39m[2m)[22m[33m 2878[2mms[22m[39m
+     [32m✓[39m decodes base64 across arbitrary callback boundaries and rejects malformed framing[32m 7[2mms[22m[39m
+     [32m✓[39m keeps a byte-exact tail with independent whole-stream cursors[32m 2[2mms[22m[39m
+     [32m✓[39m drops whole head chunks and withholds absent or over-cap spills[32m 1[2mms[22m[39m
+[31m     [31m×[31m starts asynchronously, keeps secrets out of the command, and supports deferred piped stdin/output[39m[32m 17[2mms[22m[39m
+     [32m✓[39m rejects an unrepresentable graceMs before any remote work[32m 9[2mms[22m[39m
+     [32m✓[39m rejects malformed environment entries before command start[32m 2[2mms[22m[39m
+     [32m✓[39m preserves UTF-8 bytes when the ASCII transport is split across callbacks[32m 6[2mms[22m[39m
+     [32m✓[39m rejects malformed output transport without confusing it with a consumer sink failure[32m 6[2mms[22m[39m
+     [32m✓[39m rejects a naturally completed command whose encoder omits its completion frame[32m 1[2mms[22m[39m
+     [32m✓[39m bounds descendant-held output draining and withholds the incomplete spill[32m 72[2mms[22m[39m
+     [32m✓[39m releases an inherited-output callback blocked on host backpressure at drain expiry[32m 53[2mms[22m[39m
+     [32m✓[39m waits for lossless raw-pipe output after the direct status is published[32m 55[2mms[22m[39m
+     [32m✓[39m accepts clean encoder completion inside the output-drain grace[32m 24[2mms[22m[39m
+     [32m✓[39m preserves a published exit code when requested termination outlives output draining[32m 95[2mms[22m[39m
+     [32m✓[39m preserves a published nonzero exit code when termination settles the SDK inside the drain grace[32m 24[2mms[22m[39m
+     [32m✓[39m rejects an invalid direct-command exit status[32m 48[2mms[22m[39m
+     [32m✓[39m rolls back a published process group before rejecting a monitoring failure[32m 158[2mms[22m[39m
+     [32m✓[39m surfaces deferred piped-stdin write and close failures as stream errors[32m 5[2mms[22m[39m
+     [32m✓[39m collects bounded tails, retains valid spills, and maps natural nonzero exits[32m 2[2mms[22m[39m
+     [32m✓[39m removes a spill once the complete stream exceeds its cap[32m 4[2mms[22m[39m
+     [32m✓[39m contains remote spill-removal failures and routes empty inherited output[32m 4[2mms[22m[39m
+     [32m✓[39m terminates a process group with TERM and reports the signal outcome[32m 5[2mms[22m[39m
+     [32m✓[39m makes termination a permanent no-op after natural quiescence is observed[32m 5[2mms[22m[39m
+     [32m✓[39m treats a zombie-only process group as quiescent[32m 4[2mms[22m[39m
+     [32m✓[39m keeps proven quiescence after a concurrent termination transport fails[32m 127[2mms[22m[39m
+     [32m✓[39m escalates a TERM-trapping process group to KILL and uses the SDK kill as fallback[32m 38[2mms[22m[39m
+     [32m✓[39m keeps force cleanup retryable until quiescence is proven[32m 126[2mms[22m[39m
+     [32m✓[39m honors termination requested before asynchronous startup finishes[32m 1[2mms[22m[39m
+     [32m✓[39m aborts a stalled preparation request before reporting startup quiescence[32m 63[2mms[22m[39m
+     [32m✓[39m kills through the provisional SDK handle before process-group publication[32m 134[2mms[22m[39m
+     [32m✓[39m does not treat an unsuccessful SDK fallback as provisional group quiescence[32m 128[2mms[22m[39m
+     [32m✓[39m bounds a quiescence observer while provisional termination is awaiting the controller[32m 78[2mms[22m[39m
+     [32m✓[39m proves a provisional group exit when the SDK kill fallback fails[32m 86[2mms[22m[39m
+     [33m[2m✓[22m[39m reports failed provisional group and SDK force transports [33m 318[2mms[22m[39m
+     [32m✓[39m honors an already-aborted signal when constructing the asynchronous handle directly[32m 1[2mms[22m[39m
+     [32m✓[39m reacts to a signal that aborts after the remote command has started[32m 1[2mms[22m[39m
+     [32m✓[39m can terminate a surviving process group after the command leader settles[32m 9[2mms[22m[39m
+     [32m✓[39m bounds waitForExit while startup or a live group is pending[32m 5[2mms[22m[39m
+     [32m✓[39m bounds both sides of the liveness-poll abort race[32m 15[2mms[22m[39m
+     [32m✓[39m observes a live group across one successful bounded poll[32m 41[2mms[22m[39m
+     [32m✓[39m treats startup failure as no live tree and contains readiness rejection[32m 7[2mms[22m[39m
+     [32m✓[39m bounds a readiness rejection with a still-live caller signal[32m 1[2mms[22m[39m
+     [32m✓[39m propagates an unavailable sandbox unless the caller aborts the wait[32m 8[2mms[22m[39m
+     [32m✓[39m returns false when the caller aborts while reconnecting for liveness[32m 11[2mms[22m[39m
+     [32m✓[39m returns false when a liveness request itself is aborted and surfaces other probe failures[32m 2[2mms[22m[39m
+     [32m✓[39m treats a timeout-killed sandbox as quiescent during liveness probing[32m 5[2mms[22m[39m
+     [32m✓[39m treats a missing sandbox handle as quiescent during liveness acquisition[32m 1[2mms[22m[39m
+     [32m✓[39m treats sandbox loss during termination as quiescent[32m 18[2mms[22m[39m
+     [32m✓[39m makes batch stdin close failures best-effort[32m 15[2mms[22m[39m
+     [32m✓[39m rejects malformed SDK process ids and non-command settlement failures[32m 18[2mms[22m[39m
+     [32m✓[39m rejects invalid or absent process-group publication[32m 85[2mms[22m[39m
+     [32m✓[39m preserves publication failure and reports cleanup that cannot be verified[32m 66[2mms[22m[39m
+     [32m✓[39m waits for delayed process-group publication[32m 64[2mms[22m[39m
+     [32m✓[39m handles output backpressure and contains a stderr sink failure[32m 2[2mms[22m[39m
+     [32m✓[39m settles output backpressure when the consumer closes the pipe[32m 14[2mms[22m[39m
+     [32m✓[39m breaks output backpressure when termination owns the command[32m 16[2mms[22m[39m
+     [32m✓[39m settles backpressure when a synchronous pipe write starts termination[32m 15[2mms[22m[39m
+     [32m✓[39m contains a pipe callback failure instead of rejecting command settlement[32m 16[2mms[22m[39m
+     [32m✓[39m contains an already-gone group signal and escalates after a TERM transport failure[32m 48[2mms[22m[39m
+     [32m✓[39m allows termination retry after both force transports fail[32m 225[2mms[22m[39m
+     [32m✓[39m rejects an optimistic SDK kill while descendants survive a failed group KILL[32m 156[2mms[22m[39m
+     [32m✓[39m registers handles and disposal terminates and joins live remote groups regardless of sandbox policy[32m 58[2mms[22m[39m
+     [32m✓[39m awaits SDK settlement after the remote process group becomes quiescent[32m 8[2mms[22m[39m
+     [32m✓[39m reports a failed termination transaction from disposal instead of waiting on done[32m 100[2mms[22m[39m
+     [32m✓[39m aggregates sibling cleanup failures instead of reporting only the first[32m 5[2mms[22m[39m
+     [32m✓[39m waits for every owned cleanup before reporting a disposal failure[32m 4[2mms[22m[39m
+     [32m✓[39m releases naturally settled handles before later service disposal[32m 22[2mms[22m[39m
+     [32m✓[39m contains a release liveness failure and retries quiescence during disposal[32m 32[2mms[22m[39m
+     [32m✓[39m contains spawn rejection while disposal is joining the pending handle[32m 68[2mms[22m[39m
+     [32m✓[39m validates synchronous spawn preconditions[32m 2[2mms[22m[39m
+     [32m✓[39m registers the package-owned empty invariant installer[32m 2[2mms[22m[39m
+WARNING: proceeding, even though we could not create PATH aliases: Refusing to create helper binaries under temporary dir "C:\\Users\\35702\\AppData\\Local\\Temp\\" (codex_home: AbsolutePathBuf("C:\\Users\\35702\\AppData\\Local\\Temp\\dsh-codex-real-4gP7qq\\codex-home"))
+WARNING: proceeding, even though we could not create PATH aliases: Refusing to create helper binaries under temporary dir "C:\\Users\\35702\\AppData\\Local\\Temp\\" (codex_home: AbsolutePathBuf("C:\\Users\\35702\\AppData\\Local\\Temp\\dsh-codex-real-emk1gX\\codex-home"))
+ [31m❯[39m [30m[45m thread-safe [49m[39m packages/sdk/server/tests/plugin-apply.spec.ts [2m([22m[2m6 tests[22m[2m | [22m[31m2 failed[39m[2m)[22m[33m 990[2mms[22m[39m
+[31m     [31m×[31m serves initialize over the injected stdio pair[39m[32m 150[2mms[22m[39m
+[31m     [31m×[31m does not answer initialize until async sibling Loader entries settle[39m[32m 161[2mms[22m[39m
+     [32m✓[39m drives a session/prompt turn end-to-end and forwards session notifications as output frames[32m 210[2mms[22m[39m
+     [32m✓[39m answers shutdown before exiting 0 exactly once, even against a racing second shutdown[32m 190[2mms[22m[39m
+     [32m✓[39m still disposes and exits once when the flush callback fails[32m 147[2mms[22m[39m
+     [32m✓[39m stops serving on a bare fiber dispose (HMR-style unload) without calling exit[32m 131[2mms[22m[39m
+WARNING: proceeding, even though we could not create PATH aliases: Refusing to create helper binaries under temporary dir "C:\\Users\\35702\\AppData\\Local\\Temp\\" (codex_home: AbsolutePathBuf("C:\\Users\\35702\\AppData\\Local\\Temp\\dsh-codex-real-HXu5Op\\codex-home"))
+[2m2026-09-18T13:48:25.867872Z[0m [31mERROR[0m [2mcodex_core::tools::router[0m[2m:[0m [3merror[0m[2m=[0mapproval policy is Never; reject command — you should not ask for escalated permissions if the approval policy is Never
+WARNING: proceeding, even though we could not create PATH aliases: Refusing to create helper binaries under temporary dir "C:\\Users\\35702\\AppData\\Local\\Temp\\" (codex_home: AbsolutePathBuf("C:\\Users\\35702\\AppData\\Local\\Temp\\dsh-codex-real-z3qKYY\\codex-home"))
+ [31m❯[39m [30m[45m thread-safe [49m[39m packages/sandbox/sandbox-windows-acl/tests/runner.spec.ts [2m([22m[2m14 tests[22m[2m | [22m[31m6 failed[39m[2m)[22m[33m 4881[2mms[22m[39m
+[31m     [31m×[31m workspace-write: the confined child writes granted directories only[39m[32m 213[2mms[22m[39m
+[31m     [31m×[31m read-only: no write-SID grants — workspace/temp writes denied, reads and $null redirection fine, CIM unavailable[39m[32m 178[2mms[22m[39m
+[31m     [31m×[31m workspace-write: Remove-Item and Rename-Item succeed in the granted workspace (DELETE + FILE_DELETE_CHILD)[39m[32m 217[2mms[22m[39m
+[31m     [31m×[31m paired SIDs: the runner trusts caller-owned private-temp grants and materializes nothing itself[39m[32m 220[2mms[22m[39m
+     [33m[2m✓[22m[39m temp capabilities isolate sibling sessions that share one workspace SID [33m 638[2mms[22m[39m
+     [33m[2m✓[22m[39m agentless workspace-write creates a fresh private temp per call and removes it on exit [33m 543[2mms[22m[39m
+     [32m✓[39m agentless workspace-write rejects a temp root inside the workspace before spawning[32m 197[2mms[22m[39m
+     [33m[2m✓[22m[39m confined children spawn grandchildren with inherited stdio; piped capture stays denied (named-pipe default SD template) [33m 713[2mms[22m[39m
+[31m     [31m×[31m mode-downgrade leak regression: a STANDING workspace grant is inert under read-only and effective again on re-upgrade[39m[32m 174[2mms[22m[39m
+[31m     [31m×[31m ambient-writable escape regression: a C:\Users\Public subdirectory is denied under BOTH modes (INTERACTIVE absent from both lists)[39m[32m 240[2mms[22m[39m
+     [33m[2m✓[22m[39m partial boundary: an external Everyone-Modify directory stays writable under BOTH modes [33m 550[2mms[22m[39m
+     [32m✓[39m partial boundary: a workspace hard link lets the grant reach an external file object[32m 257[2mms[22m[39m
+     [32m✓[39m runner-side failure: signature on stderr and exit 127, the command never runs[32m 167[2mms[22m[39m
+     [33m[2m✓[22m[39m runner-side failure: seam-managed SID flags must be paired and match their owning paths [33m 540[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/test-support/acp-snapshot/tests/harness.spec.ts [2m([22m[2m62 tests[22m[2m)[22m[33m 11897[2mms[22m[39m
+     [33m[2m✓[22m[39m centralizes ACP boot, captures, updates, fail-closed permissions, and shutdown [33m 360[2mms[22m[39m
+     [33m[2m✓[22m[39m rejects promptly when fallback termination is refused [33m 537[2mms[22m[39m
+     [33m[2m✓[22m[39m waitForInboxMessage times out when the session log or matching insertion is absent [33m 387[2mms[22m[39m
+     [33m[2m✓[22m[39m waitForTurnStart rejects missing, earlier, and malformed durable turns [33m 1366[2mms[22m[39m
+     [33m[2m✓[22m[39m waitForTurnEnd times out for a missing log and an open logged turn [33m 355[2mms[22m[39m
+     [33m[2m✓[22m[39m waitForGoalPhase requires the requested durable goal phase [33m 314[2mms[22m[39m
+     [33m[2m✓[22m[39m waitForSubagentTurnEnd requires a closed child work turn [33m 634[2mms[22m[39m
+     [33m[2m✓[22m[39m waitForEventAfterTurnEnd holds the app for a typed post-boundary record and times out otherwise [33m 321[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/subagent/subagent-claude-code/tests/real-product.spec.ts [2m([22m[2m8 tests[22m[2m)[22m[33m 26860[2mms[22m[39m
+     [33m[2m✓[22m[39m inherits host settings and sends the exact task and fake key to local Messages [33m 2762[2mms[22m[39m
+     [33m[2m✓[22m[39m maps a real SDK max-turns result to safe query-run facts [33m 1763[2mms[22m[39m
+     [33m[2m✓[22m[39m runs two named instances concurrently and unloads one without revoking its run [33m 8283[2mms[22m[39m
+     [33m[2m✓[22m[39m maps a real CLI process failure to its exit outcome [33m 1236[2mms[22m[39m
+     [33m[2m✓[22m[39m overrides interactive settings, denies a write, and returns a safe diagnostic [33m 1287[2mms[22m[39m
+     [33m[2m✓[22m[39m runs an explicitly selected bypass write in the isolated workspace [33m 1297[2mms[22m[39m
+     [33m[2m✓[22m[39m returns the completed plan without approving execution [33m 1605[2mms[22m[39m
+     [33m[2m✓[22m[39m settles cancellation and leaves the real SDK-spawned CLI tree quiescent [33m 8626[2mms[22m[39m
+WARNING: proceeding, even though we could not create PATH aliases: Refusing to create helper binaries under temporary dir "C:\\Users\\35702\\AppData\\Local\\Temp\\" (codex_home: AbsolutePathBuf("C:\\Users\\35702\\AppData\\Local\\Temp\\dsh-codex-real-4hDQwc\\codex-home"))
+WARNING: proceeding, even though we could not create PATH aliases: Refusing to create helper binaries under temporary dir "C:\\Users\\35702\\AppData\\Local\\Temp\\" (codex_home: AbsolutePathBuf("C:\\Users\\35702\\AppData\\Local\\Temp\\dsh-codex-real-SZHZ2W\\codex-home"))
+WARNING: proceeding, even though we could not create PATH aliases: Refusing to create helper binaries under temporary dir "C:\\Users\\35702\\AppData\\Local\\Temp\\" (codex_home: AbsolutePathBuf("C:\\Users\\35702\\AppData\\Local\\Temp\\dsh-codex-real-4OsUHY\\codex-home"))
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/subagent/subagent-codex/tests/real-product.spec.ts [2m([22m[2m7 tests[22m[2m)[22m[33m 35962[2mms[22m[39m
+     [33m[2m✓[22m[39m starts approve-for-me through the real app-server and returns exact text [33m 1715[2mms[22m[39m
+     [33m[2m✓[22m[39m runs two named instances concurrently and unloads one without revoking its run [33m 1041[2mms[22m[39m
+     [33m[2m✓[22m[39m overrides on-request with never and reports a denied command safely [33m 908[2mms[22m[39m
+     [33m[2m✓[22m[39m reports a real service failure and an early app-server exit safely [33m 26202[2mms[22m[39m
+     [33m[2m✓[22m[39m executes an explicitly selected dangerous bypass write in the isolated workspace [33m 5076[2mms[22m[39m
+     [33m[2m✓[22m[39m settles cancellation locally and leaves the real app-server tree quiescent [33m 933[2mms[22m[39m
+
+[31m⎯⎯⎯⎯⎯⎯[39m[1m[41m Failed Tests 13 [49m[22m[31m⎯⎯⎯⎯⎯⎯⎯[39m
+
+[41m[1m FAIL [22m[49m [30m[42m process-bound [49m[39m packages/boot/app-boot/tests/app-boot.spec.ts[2m > [22mloadLayeredEnv[2m > [22mrefuses to launch when a .env sets a skill root, before applying anything
+[31m[1mAssertionError[22m: expected [Function] to throw an error[39m
+
+[32m- Expected:[39m
+null
+
+[31m+ Received:[39m
+undefined
+
+[36m [2m❯[22m packages/boot/app-boot/tests/app-boot.spec.ts:[2m144:60[22m[39m
+    [90m142|[39m     vi[33m.[39m[34mstubEnv[39m([32m'DPH_HOME'[39m[33m,[39m home)
+    [90m143|[39m     [35mtry[39m {
+    [90m144|[39m       expect(() => loadLayeredEnv(NAME, project, vi.fn())).toThrow(/on…
+    [90m   |[39m                                                            [31m^[39m
+    [90m145|[39m       [34mexpect[39m(process[33m.[39menv[[33mNAMES[39m[[34m1[39m]])[33m.[39m[34mtoBeUndefined[39m()
+    [90m146|[39m     } [35mfinally[39m {
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/13]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m [30m[45m thread-safe [49m[39m packages/e2b/subprocess-e2b/tests/subprocess.spec.ts[2m > [22mE2BSubprocessHandle[2m > [22mstarts asynchronously, keeps secrets out of the command, and supports deferred piped stdin/output
+[31m[1mAssertionError[22m: expected { TERM: 'dumb', NPM_TOKEN: '', …(1) } to deeply equal { TERM: 'dumb', NPM_TOKEN: '', …(2) }[39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[2m  {[22m
+[32m-   "DPH_STALE": "",[39m
+[2m    "HOME": "/.dsh-e2b-control-a6cdce2d-0aae-4ae3-8111-fc52aba7d072",[22m
+[2m    "NPM_TOKEN": "",[22m
+[2m    "TERM": "dumb",[22m
+[2m  }[22m
+
+[36m [2m❯[22m packages/e2b/subprocess-e2b/tests/subprocess.spec.ts:[2m415:25[22m[39m
+    [90m413|[39m     [35mconst[39m controlEnvs [33m=[39m fake[33m.[39mstartOptions[33m?.[39menvs
+    [90m414|[39m     [34mexpect[39m(controlEnvs[33m?.[39m[33mHOME[39m)[33m.[39m[34mtoMatch[39m([36m/^\/\.dsh-e2b-control-/[39m)
+    [90m415|[39m     [34mexpect[39m(controlEnvs)[33m.[39m[34mtoEqual[39m({
+    [90m   |[39m                         [31m^[39m
+    [90m416|[39m       [33mTERM[39m[33m:[39m [32m'dumb'[39m[33m,[39m
+    [90m417|[39m       [33mNPM_TOKEN[39m[33m:[39m [32m''[39m[33m,[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/13]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m [30m[45m thread-safe [49m[39m packages/e2b/subprocess-e2b/tests/terminal.spec.ts[2m > [22mE2B terminal allocation[2m > [22mhides bootstrap-shell bytes and preserves requested-shell bytes across the output boundary
+[31m[1mAssertionError[22m: expected { TERM: 'dumb', NPM_TOKEN: '', …(1) } to deeply equal { TERM: 'dumb', NPM_TOKEN: '', …(2) }[39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[2m  {[22m
+[32m-   "DPH_STALE": "",[39m
+[2m    "HOME": "/.dsh-e2b-control-4d808e7a-dfc1-46ee-9f86-5dd6697d842c",[22m
+[2m    "NPM_TOKEN": "",[22m
+[2m    "TERM": "dumb",[22m
+[2m  }[22m
+
+[36m [2m❯[22m packages/e2b/subprocess-e2b/tests/terminal.spec.ts:[2m286:25[22m[39m
+    [90m284|[39m     [35mconst[39m controlEnvs [33m=[39m fake[33m.[39mcreateOptions[33m?.[39menvs
+    [90m285|[39m     [34mexpect[39m(controlEnvs[33m?.[39m[33mHOME[39m)[33m.[39m[34mtoMatch[39m([36m/^\/\.dsh-e2b-control-/[39m)
+    [90m286|[39m     [34mexpect[39m(controlEnvs)[33m.[39m[34mtoEqual[39m({
+    [90m   |[39m                         [31m^[39m
+    [90m287|[39m       [33mTERM[39m[33m:[39m [32m'dumb'[39m[33m,[39m
+    [90m288|[39m       [33mNPM_TOKEN[39m[33m:[39m [32m''[39m[33m,[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/13]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m [30m[45m thread-safe [49m[39m packages/e2b/subprocess-e2b/tests/terminal.spec.ts[2m > [22mE2B terminal allocation[2m > [22minherits only safe ambient values and limits the allocation signal to setup
+[31m[1mAssertionError[22m: expected 'KEEP=visible\u0000UNICODE=你好\u0000DPH…' not to contain 'DPH_STALE'[39m
+
+Expected: [32m"DPH_STALE"[39m
+Received: [31m"KEEP=visible UNICODE=你好 DPH_STALE=old HOME=/home/user "[39m
+
+[36m [2m❯[22m packages/e2b/subprocess-e2b/tests/terminal.spec.ts:[2m335:29[22m[39m
+    [90m333|[39m     [34mexpect[39m(environment)[33m.[39m[34mtoContain[39m([32m'KEEP=visible\0'[39m)
+    [90m334|[39m     [34mexpect[39m(environment)[33m.[39mnot[33m.[39m[34mtoContain[39m([32m'secret'[39m)
+    [90m335|[39m     [34mexpect[39m(environment)[33m.[39mnot[33m.[39m[34mtoContain[39m([32m'DPH_STALE'[39m)
+    [90m   |[39m                             [31m^[39m
+    [90m336|[39m
+    [90m337|[39m     controller[33m.[39m[34mabort[39m([35mnew[39m [33mError[39m([32m'stop'[39m))
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/13]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m [30m[45m thread-safe [49m[39m packages/sandbox/sandbox-windows-acl/tests/runner.spec.ts[2m > [22mwindows-acl runner[2m > [22mworkspace-write: the confined child writes granted directories only
+[31m[1mAssertionError[22m: stderr: windows-acl-run: CreateProcessAsUserW failed (Win32 2): command: pwsh, cwd: D:\deepseek modex\deepseek-harness
+: expected 127 to be +0 // Object.is equality[39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- 0[39m
+[31m+ 127[39m
+
+[36m [2m❯[22m packages/sandbox/sandbox-windows-acl/tests/runner.spec.ts:[2m99:55[22m[39m
+    [90m 97|[39m       '--', 'pwsh', '/NoLogo', '/NonInteractive', '/NoProfile', '/Comm…
+    [90m 98|[39m     ])
+    [90m 99|[39m     [34mexpect[39m(result[33m.[39mstatus[33m,[39m [32m`stderr: [39m[36m${[39mresult[33m.[39mstderr[36m}[39m[32m`[39m)[33m.[39m[34mtoBe[39m([34m0[39m)
+    [90m   |[39m                                                       [31m^[39m
+    [90m100|[39m     [34mexpect[39m(result[33m.[39mstdout)[33m.[39m[34mtoContain[39m([32m'LANGMODE: FullLanguage'[39m)
+    [90m101|[39m     [34mexpect[39m(result[33m.[39mstdout)[33m.[39m[34mtoContain[39m([32m'TARGET-WRITE: OK'[39m)
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/13]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m [30m[45m thread-safe [49m[39m packages/sandbox/sandbox-windows-acl/tests/runner.spec.ts[2m > [22mwindows-acl runner[2m > [22mread-only: no write-SID grants — workspace/temp writes denied, reads and $null redirection fine, CIM unavailable
+[31m[1mAssertionError[22m: stderr: windows-acl-run: CreateProcessAsUserW failed (Win32 2): command: pwsh, cwd: D:\deepseek modex\deepseek-harness
+: expected 127 to be +0 // Object.is equality[39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- 0[39m
+[31m+ 127[39m
+
+[36m [2m❯[22m packages/sandbox/sandbox-windows-acl/tests/runner.spec.ts:[2m131:55[22m[39m
+    [90m129|[39m       '--', 'pwsh', '/NoLogo', '/NonInteractive', '/NoProfile', '/Comm…
+    [90m130|[39m     ])
+    [90m131|[39m     [34mexpect[39m(result[33m.[39mstatus[33m,[39m [32m`stderr: [39m[36m${[39mresult[33m.[39mstderr[36m}[39m[32m`[39m)[33m.[39m[34mtoBe[39m([34m0[39m)
+    [90m   |[39m                                                       [31m^[39m
+    [90m132|[39m     [34mexpect[39m(result[33m.[39mstdout)[33m.[39m[34mtoContain[39m([32m'LANGMODE: ConstrainedLanguage'[39m)
+    [90m133|[39m     [34mexpect[39m(result[33m.[39mstdout)[33m.[39m[34mtoContain[39m([32m'TARGET-WRITE: DENIED'[39m)
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/13]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m [30m[45m thread-safe [49m[39m packages/sandbox/sandbox-windows-acl/tests/runner.spec.ts[2m > [22mwindows-acl runner[2m > [22mworkspace-write: Remove-Item and Rename-Item succeed in the granted workspace (DELETE + FILE_DELETE_CHILD)
+[31m[1mAssertionError[22m: stderr: windows-acl-run: CreateProcessAsUserW failed (Win32 2): command: pwsh, cwd: D:\deepseek modex\deepseek-harness
+: expected 127 to be +0 // Object.is equality[39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- 0[39m
+[31m+ 127[39m
+
+[36m [2m❯[22m packages/sandbox/sandbox-windows-acl/tests/runner.spec.ts:[2m160:55[22m[39m
+    [90m158|[39m       '--', 'pwsh', '/NoLogo', '/NonInteractive', '/NoProfile', '/Comm…
+    [90m159|[39m     ])
+    [90m160|[39m     [34mexpect[39m(result[33m.[39mstatus[33m,[39m [32m`stderr: [39m[36m${[39mresult[33m.[39mstderr[36m}[39m[32m`[39m)[33m.[39m[34mtoBe[39m([34m0[39m)
+    [90m   |[39m                                                       [31m^[39m
+    [90m161|[39m     [34mexpect[39m(result[33m.[39mstdout)[33m.[39m[34mtoContain[39m([32m'DELETE-FILE: OK'[39m)
+    [90m162|[39m     [34mexpect[39m(result[33m.[39mstdout)[33m.[39m[34mtoContain[39m([32m'RENAME-DIR: OK'[39m)
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/13]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m [30m[45m thread-safe [49m[39m packages/sandbox/sandbox-windows-acl/tests/runner.spec.ts[2m > [22mwindows-acl runner[2m > [22mpaired SIDs: the runner trusts caller-owned private-temp grants and materializes nothing itself
+[31m[1mAssertionError[22m: stderr: windows-acl-run: CreateProcessAsUserW failed (Win32 2): command: pwsh, cwd: D:\deepseek modex\deepseek-harness
+: expected 127 to be +0 // Object.is equality[39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- 0[39m
+[31m+ 127[39m
+
+[36m [2m❯[22m packages/sandbox/sandbox-windows-acl/tests/runner.spec.ts:[2m189:57[22m[39m
+    [90m187|[39m         '--', 'pwsh', '/NoLogo', '/NonInteractive', '/NoProfile', '/Co…
+    [90m188|[39m       ])
+    [90m189|[39m       [34mexpect[39m(result[33m.[39mstatus[33m,[39m [32m`stderr: [39m[36m${[39mresult[33m.[39mstderr[36m}[39m[32m`[39m)[33m.[39m[34mtoBe[39m([34m0[39m)
+    [90m   |[39m                                                         [31m^[39m
+    [90m190|[39m       [90m// The runner granted nothing (only the caller's temp-SID grant[39m
+    [90m191|[39m       // stands): the workspace write is denied, the private temp writ…
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/13]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m [30m[45m thread-safe [49m[39m packages/sandbox/sandbox-windows-acl/tests/runner.spec.ts[2m > [22mwindows-acl runner[2m > [22mmode-downgrade leak regression: a STANDING workspace grant is inert under read-only and effective again on re-upgrade
+[31m[1mAssertionError[22m: stderr: windows-acl-run: CreateProcessAsUserW failed (Win32 2): command: pwsh, cwd: D:\deepseek modex\deepseek-harness
+: expected 127 to be +0 // Object.is equality[39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- 0[39m
+[31m+ 127[39m
+
+[36m [2m❯[22m packages/sandbox/sandbox-windows-acl/tests/runner.spec.ts:[2m352:65[22m[39m
+    [90m350|[39m         '--', 'pwsh', '/NoLogo', '/NonInteractive', '/NoProfile', '/Co…
+    [90m351|[39m       ])
+    [90m352|[39m       [34mexpect[39m(downgraded[33m.[39mstatus[33m,[39m [32m`stderr: [39m[36m${[39mdowngraded[33m.[39mstderr[36m}[39m[32m`[39m)[33m.[39m[34mtoBe[39m([34m0[39m)
+    [90m   |[39m                                                                 [31m^[39m
+    [90m353|[39m       [34mexpect[39m(downgraded[33m.[39mstdout)[33m.[39m[34mtoContain[39m([32m'DOWNGRADE-WRITE: DENIED'[39m)
+    [90m354|[39m       expect(existsSync(join(writableDir, 'downgraded.txt'))).toBe(fal…
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[9/13]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m [30m[45m thread-safe [49m[39m packages/sandbox/sandbox-windows-acl/tests/runner.spec.ts[2m > [22mwindows-acl runner[2m > [22mambient-writable escape regression: a C:\Users\Public subdirectory is denied under BOTH modes (INTERACTIVE absent from both lists)
+[31m[1mAssertionError[22m: stderr: windows-acl-run: CreateProcessAsUserW failed (Win32 2): command: pwsh, cwd: D:\deepseek modex\deepseek-harness
+: expected 127 to be +0 // Object.is equality[39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- 0[39m
+[31m+ 127[39m
+
+[36m [2m❯[22m packages/sandbox/sandbox-windows-acl/tests/runner.spec.ts:[2m392:57[22m[39m
+    [90m390|[39m         '--', 'pwsh', '/NoLogo', '/NonInteractive', '/NoProfile', '/Co…
+    [90m391|[39m       ])
+    [90m392|[39m       [34mexpect[39m(result[33m.[39mstatus[33m,[39m [32m`stderr: [39m[36m${[39mresult[33m.[39mstderr[36m}[39m[32m`[39m)[33m.[39m[34mtoBe[39m([34m0[39m)
+    [90m   |[39m                                                         [31m^[39m
+    [90m393|[39m       expect(result.stdout, `mode: ${mode}`).toContain('PUBLIC-WRITE: …
+    [90m394|[39m       expect(existsSync(join(publicProbeDir, 'public-escaped.txt')), `…
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[10/13]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m [30m[45m thread-safe [49m[39m packages/sdk/server/tests/plugin-apply.spec.ts[2m > [22mdsh-sdk-jsonrpc-server plugin apply[2m > [22mserves initialize over the injected stdio pair
+[31m[1mAssertionError[22m: expected { jsonrpc: '2.0', id: 'init-1', …(1) } to deeply equal { jsonrpc: '2.0', id: 'init-1', …(1) }[39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[2m  {[22m
+[31m+   "error": {[39m
+[31m+     "code": -32603,[39m
+[31m+     "message": "llm-deepseek: no endpoint configured. Set config.baseURL (or the DEEPSEEK_BASE_URL environment variable) to the endpoint this deployment should call — the adapter intentionally ships no default so no deployment is silently bound to any single vendor.",[39m
+[31m+   },[39m
+[2m    "id": "init-1",[22m
+[2m    "jsonrpc": "2.0",[22m
+[32m-   "result": {[39m
+[32m-     "serverInfo": {[39m
+[32m-       "name": "deepseek-harness-sdk-runtime",[39m
+[32m-       "version": "0.0.1",[39m
+[32m-     },[39m
+[32m-   },[39m
+[2m  }[22m
+
+[36m [2m❯[22m packages/sdk/server/tests/plugin-apply.spec.ts:[2m167:24[22m[39m
+    [90m165|[39m
+    [90m166|[39m       const response = await harness.waitForFrame(frame => frame.id ==…
+    [90m167|[39m       [34mexpect[39m(response)[33m.[39m[34mtoEqual[39m({
+    [90m   |[39m                        [31m^[39m
+    [90m168|[39m         jsonrpc[33m:[39m [32m'2.0'[39m[33m,[39m
+    [90m169|[39m         id[33m:[39m [32m'init-1'[39m[33m,[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[11/13]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m [30m[45m thread-safe [49m[39m packages/sdk/server/tests/plugin-apply.spec.ts[2m > [22mdsh-sdk-jsonrpc-server plugin apply[2m > [22mdoes not answer initialize until async sibling Loader entries settle
+[31m[1mAssertionError[22m: expected { jsonrpc: '2.0', …(2) } to match object { Object (id, result) }
+(4 matching properties omitted from actual)[39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[2m  {[22m
+[2m    "id": "init-delayed",[22m
+[32m-   "result": {[39m
+[32m-     "serverInfo": {[39m
+[32m-       "name": "deepseek-harness-sdk-runtime",[39m
+[32m-     },[39m
+[32m-   },[39m
+[2m  }[22m
+
+[36m [2m❯[22m packages/sdk/server/tests/plugin-apply.spec.ts:[2m219:24[22m[39m
+    [90m217|[39m       [35mawait[39m delayedEntry
+    [90m218|[39m       const response = await harness.waitForFrame(frame => frame.id ==…
+    [90m219|[39m       [34mexpect[39m(response)[33m.[39m[34mtoMatchObject[39m({
+    [90m   |[39m                        [31m^[39m
+    [90m220|[39m         id[33m:[39m [32m'init-delayed'[39m[33m,[39m
+    [90m221|[39m         result: { serverInfo: { name: 'deepseek-harness-sdk-runtime' }…
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[12/13]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m [30m[45m thread-safe [49m[39m packages/subagent/subagent-claude-code/tests/subagent-claude-code.spec.ts[2m > [22mquery options and result mapping[2m > [22mbuilds the fixed unattended options over the scrubbed environment
+[31m[1mAssertionError[22m: expected { …(124) } to not have property "DSH_INTERNAL"[39m
+
+[32m- Expected:[39m
+undefined
+
+[31m+ Received:[39m
+"must-not-leak"
+
+[36m [2m❯[22m packages/subagent/subagent-claude-code/tests/subagent-claude-code.spec.ts:[2m876:29[22m[39m
+    [90m874|[39m     })
+    [90m875|[39m     [34mexpect[39m(options[33m.[39menv)[33m.[39mnot[33m.[39m[34mtoHaveProperty[39m([32m'HOST_SECRET_TOKEN'[39m)
+    [90m876|[39m     [34mexpect[39m(options[33m.[39menv)[33m.[39mnot[33m.[39m[34mtoHaveProperty[39m([32m'DSH_INTERNAL'[39m)
+    [90m   |[39m                             [31m^[39m
+    [90m877|[39m     [34mexpect[39m(options)[33m.[39mnot[33m.[39m[34mtoHaveProperty[39m([32m'settingSources'[39m)
+    [90m878|[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[13/13]⎯[22m[39m
+
+
+[2m Test Files [22m [1m[31m6 failed[39m[22m[2m | [22m[1m[32m3 passed[39m[22m[90m (9)[39m
+[2m      Tests [22m [1m[31m13 failed[39m[22m[2m | [22m[1m[32m279 passed[39m[22m[90m (292)[39m
+[2m   Start at [22m 21:48:19
+[2m   Duration [22m 38.77s[2m (transform 8.24s, setup 5.34s, import 12.44s, tests 84.84s, environment 1ms)[22m
+
+EXIT=1

@@ -1,0 +1,636 @@
+{
+  "__dsh_paper": "ir-container-v1",
+  "entries": [
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-P0",
+        "scope_ref": "P1",
+        "token": "p_0",
+        "meaning": "标称次品率",
+        "unit": "1",
+        "role": "VARIABLE",
+        "shape": "SCALAR",
+        "domain": "PROBABILITY",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-N",
+        "scope_ref": "P1",
+        "token": "n",
+        "meaning": "样本量",
+        "unit": "件",
+        "role": "VARIABLE",
+        "shape": "SCALAR",
+        "domain": "NONNEGATIVE_INTEGER",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-X",
+        "scope_ref": "P1",
+        "token": "X",
+        "meaning": "样本中不合格品数",
+        "unit": "件",
+        "role": "VARIABLE",
+        "shape": "SCALAR",
+        "domain": "NONNEGATIVE_INTEGER",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-C",
+        "scope_ref": "P1",
+        "token": "c",
+        "meaning": "拒收临界数",
+        "unit": "件",
+        "role": "VARIABLE",
+        "shape": "SCALAR",
+        "domain": "NONNEGATIVE_INTEGER",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-CPRIME",
+        "scope_ref": "P1",
+        "token": "c'",
+        "meaning": "接收临界数",
+        "unit": "件",
+        "role": "VARIABLE",
+        "shape": "SCALAR",
+        "domain": "NONNEGATIVE_INTEGER",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-P1",
+        "scope_ref": "P1",
+        "token": "p_1",
+        "meaning": "零配件1次品率",
+        "unit": "1",
+        "role": "VARIABLE",
+        "shape": "SCALAR",
+        "domain": "PROBABILITY",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-P2",
+        "scope_ref": "P1",
+        "token": "p_2",
+        "meaning": "零配件2次品率",
+        "unit": "1",
+        "role": "VARIABLE",
+        "shape": "SCALAR",
+        "domain": "PROBABILITY",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PA",
+        "scope_ref": "P1",
+        "token": "p_a",
+        "meaning": "成品装配次品率",
+        "unit": "1",
+        "role": "VARIABLE",
+        "shape": "SCALAR",
+        "domain": "PROBABILITY",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-Q1",
+        "scope_ref": "P1",
+        "token": "q_1",
+        "meaning": "零配件1合格率",
+        "unit": "1",
+        "role": "VARIABLE",
+        "shape": "SCALAR",
+        "domain": "PROBABILITY",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-Q2",
+        "scope_ref": "P1",
+        "token": "q_2",
+        "meaning": "零配件2合格率",
+        "unit": "1",
+        "role": "VARIABLE",
+        "shape": "SCALAR",
+        "domain": "PROBABILITY",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PF",
+        "scope_ref": "P1",
+        "token": "p_f",
+        "meaning": "装配后成品次品率（未检测前）",
+        "unit": "1",
+        "role": "VARIABLE",
+        "shape": "SCALAR",
+        "domain": "PROBABILITY",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-D1",
+        "scope_ref": "P1",
+        "token": "d_1",
+        "meaning": "是否检测零配件1",
+        "unit": "1",
+        "role": "VARIABLE",
+        "shape": "SCALAR",
+        "domain": "BOOLEAN",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-D2",
+        "scope_ref": "P1",
+        "token": "d_2",
+        "meaning": "是否检测零配件2",
+        "unit": "1",
+        "role": "VARIABLE",
+        "shape": "SCALAR",
+        "domain": "BOOLEAN",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-D3",
+        "scope_ref": "P1",
+        "token": "d_3",
+        "meaning": "是否检测成品",
+        "unit": "1",
+        "role": "VARIABLE",
+        "shape": "SCALAR",
+        "domain": "BOOLEAN",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-D4",
+        "scope_ref": "P1",
+        "token": "d_4",
+        "meaning": "不合格成品是否拆解",
+        "unit": "1",
+        "role": "VARIABLE",
+        "shape": "SCALAR",
+        "domain": "BOOLEAN",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-D5",
+        "scope_ref": "P1",
+        "token": "d_5",
+        "meaning": "拆解后零配件是否再次检测",
+        "unit": "1",
+        "role": "VARIABLE",
+        "shape": "SCALAR",
+        "domain": "BOOLEAN",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-D6",
+        "scope_ref": "P1",
+        "token": "d_6",
+        "meaning": "对退回的不合格品是否拆解",
+        "unit": "1",
+        "role": "VARIABLE",
+        "shape": "SCALAR",
+        "domain": "BOOLEAN",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-C-D1",
+        "scope_ref": "P1",
+        "token": "c_{d1}",
+        "meaning": "零配件1检测成本",
+        "unit": "元/件",
+        "role": "VARIABLE",
+        "shape": "SCALAR",
+        "domain": "NONNEGATIVE_REAL",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-C-D2",
+        "scope_ref": "P1",
+        "token": "c_{d2}",
+        "meaning": "零配件2检测成本",
+        "unit": "元/件",
+        "role": "VARIABLE",
+        "shape": "SCALAR",
+        "domain": "NONNEGATIVE_REAL",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-C-DF",
+        "scope_ref": "P1",
+        "token": "c_{df}",
+        "meaning": "成品检测成本",
+        "unit": "元/件",
+        "role": "VARIABLE",
+        "shape": "SCALAR",
+        "domain": "NONNEGATIVE_REAL",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-C-DIS",
+        "scope_ref": "P1",
+        "token": "c_{dis}",
+        "meaning": "拆解费用",
+        "unit": "元/件",
+        "role": "VARIABLE",
+        "shape": "SCALAR",
+        "domain": "NONNEGATIVE_REAL",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-C-REP",
+        "scope_ref": "P1",
+        "token": "c_{rep}",
+        "meaning": "调换损失",
+        "unit": "元/件",
+        "role": "VARIABLE",
+        "shape": "SCALAR",
+        "domain": "NONNEGATIVE_REAL",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-C-A",
+        "scope_ref": "P1",
+        "token": "c_a",
+        "meaning": "装配成本",
+        "unit": "元/次",
+        "role": "VARIABLE",
+        "shape": "SCALAR",
+        "domain": "NONNEGATIVE_REAL",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-P-SEMI",
+        "scope_ref": "P1",
+        "token": "p_{\\text{半成品}}",
+        "meaning": "半成品次品率",
+        "unit": "1",
+        "role": "VARIABLE",
+        "shape": "SCALAR",
+        "domain": "PROBABILITY",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-P-ASSEMBLY",
+        "scope_ref": "P1",
+        "token": "p_{\\text{装配}}",
+        "meaning": "装配次品率",
+        "unit": "1",
+        "role": "VARIABLE",
+        "shape": "SCALAR",
+        "domain": "PROBABILITY",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-POSTERIOR-P",
+        "scope_ref": "P1",
+        "token": "p",
+        "meaning": "次品率（后验分布）",
+        "unit": "1",
+        "role": "VARIABLE",
+        "shape": "SCALAR",
+        "domain": "PROBABILITY",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "AssumptionSpec",
+      "value": {
+        "assumption_id": "A-BINOMIAL-SAMPLING",
+        "scope_ref": "P1",
+        "statement": "抽样为有放回或总体远大于样本，X 服从二项分布；若总体有限且样本占比大，应改用超几何分布，但题目未给批量大小，故用二项分布近似。",
+        "source_type": "APPROXIMATION",
+        "justification_refs": [],
+        "risk_level": "MEDIUM",
+        "testable": true,
+        "sensitivity_refs": [],
+        "status": "ACTIVE",
+        "e1_span": "抽样为有放回或总体远大于样本"
+      }
+    },
+    {
+      "kind": "AssumptionSpec",
+      "value": {
+        "assumption_id": "A-SAMPLE-SIZE",
+        "scope_ref": "P1",
+        "statement": "假设每个次品率均通过问题1的最优抽样方案获得，样本量取问题1的结果（如 n=30），观测不合格数取使后验均值等于标称值的值（如 x = floor(n * p)）。",
+        "source_type": "MODELING_CHOICE",
+        "justification_refs": [],
+        "risk_level": "MEDIUM",
+        "testable": true,
+        "sensitivity_refs": [],
+        "status": "ACTIVE",
+        "e1_span": "假设每个次品率均通过问题1的最优抽样方案获得"
+      }
+    },
+    {
+      "kind": "EquationSpec",
+      "value": {
+        "equation_id": "E-BINOM-REJECT",
+        "scope_ref": "P1",
+        "expression": "P(X > c | p=p0) <= 0.05",
+        "representation": "LATEX_PRESENTATION",
+        "lhs_symbols": ["S-X", "S-C", "S-P0"],
+        "rhs_symbols": [],
+        "equation_type": "CONSTRAINT",
+        "unit": "1",
+        "depends_on": [],
+        "source": "情形(1):求最小 n 和整数 c，使得在 p=p0 下: P(X > c | p=p0) <= 0.05",
+        "e1_span": "P(X > c \\mid p=p_0) \\le 0.05"
+      }
+    },
+    {
+      "kind": "EquationSpec",
+      "value": {
+        "equation_id": "E-BINOM-ACCEPT",
+        "scope_ref": "P1",
+        "expression": "P(X <= c' | p=p0) >= 0.90",
+        "representation": "LATEX_PRESENTATION",
+        "lhs_symbols": ["S-X", "S-CPRIME", "S-P0"],
+        "rhs_symbols": [],
+        "equation_type": "CONSTRAINT",
+        "unit": "1",
+        "depends_on": [],
+        "source": "情形(2):求最小 n 和整数 c'，使得在 p=p0 下: P(X <= c' | p=p0) >= 0.90",
+        "e1_span": "P(X \\le c' \\mid p=p_0) \\ge 0.90"
+      }
+    },
+    {
+      "kind": "EquationSpec",
+      "value": {
+        "equation_id": "E-Q1",
+        "scope_ref": "P1",
+        "expression": "q1 = 1 - p1",
+        "representation": "LATEX_PRESENTATION",
+        "lhs_symbols": ["S-Q1"],
+        "rhs_symbols": ["S-P1"],
+        "equation_type": "DEFINITION",
+        "unit": "1",
+        "depends_on": [],
+        "source": "零配件1经检测后合格率: q1 = 1-p1",
+        "e1_span": "q_1 = 1-p_1"
+      }
+    },
+    {
+      "kind": "EquationSpec",
+      "value": {
+        "equation_id": "E-Q2",
+        "scope_ref": "P1",
+        "expression": "q2 = 1 - p2",
+        "representation": "LATEX_PRESENTATION",
+        "lhs_symbols": ["S-Q2"],
+        "rhs_symbols": ["S-P2"],
+        "equation_type": "DEFINITION",
+        "unit": "1",
+        "depends_on": [],
+        "source": "零配件2经检测后合格率: q2 = 1-p2",
+        "e1_span": "q_2 = 1-p_2"
+      }
+    },
+    {
+      "kind": "EquationSpec",
+      "value": {
+        "equation_id": "E-PF",
+        "scope_ref": "P1",
+        "expression": "pf = 1 - q1*q2*(1-pa)",
+        "representation": "LATEX_PRESENTATION",
+        "lhs_symbols": ["S-PF"],
+        "rhs_symbols": ["S-Q1", "S-Q2", "S-PA"],
+        "equation_type": "DERIVED",
+        "unit": "1",
+        "depends_on": [],
+        "source": "装配后成品次品率（未检测前）: pf = 1 - q1*q2*(1-pa)",
+        "e1_span": "p_f = 1 - q_1 q_2 (1-p_a)"
+      }
+    },
+    {
+      "kind": "EquationSpec",
+      "value": {
+        "equation_id": "E-P-SEMI",
+        "scope_ref": "P1",
+        "expression": "p_semi = 1 - prod_{i in upstream} q_i * (1 - p_assembly)",
+        "representation": "LATEX_PRESENTATION",
+        "lhs_symbols": ["S-P-SEMI"],
+        "rhs_symbols": ["S-P-ASSEMBLY"],
+        "equation_type": "DERIVED",
+        "unit": "1",
+        "depends_on": [],
+        "source": "半成品次品率: 由上游零配件/半成品合格率与装配次品率递推: p_semi = 1 - prod_{i in upstream} q_i * (1-p_assembly)",
+        "e1_span": "p_{\\text{半成品}} = 1 - \\prod_{i \\in \\text{上游}} q_i \\cdot (1-p_{\\text{装配}})"
+      }
+    },
+    {
+      "kind": "EquationSpec",
+      "value": {
+        "equation_id": "E-POSTERIOR-MEAN",
+        "scope_ref": "P1",
+        "expression": "E[p] = (1+x)/(2+n)",
+        "representation": "LATEX_PRESENTATION",
+        "lhs_symbols": ["S-POSTERIOR-P"],
+        "rhs_symbols": ["S-X", "S-N"],
+        "equation_type": "DERIVED",
+        "unit": "1",
+        "depends_on": [],
+        "source": "期望利润: 对每个决策组合，计算期望利润时对次品率取其后验期望（即 E[p] = (1+x)/(2+n)）",
+        "e1_span": "E[p] = (1+x)/(2+n)"
+      }
+    },
+    {
+      "kind": "ModelSpec",
+      "value": {
+        "model_id": "M-PROBLEM1",
+        "problem_refs": ["P1"],
+        "assumption_refs": ["A-BINOMIAL-SAMPLING"],
+        "variable_refs": ["S-P0", "S-N", "S-X", "S-C", "S-CPRIME"],
+        "parameter_refs": [],
+        "equation_refs": ["E-BINOM-REJECT", "E-BINOM-ACCEPT"],
+        "constraints": "在 p=p0 下，P(X>c|p=p0)<=0.05 且 P(X<=c'|p=p0)>=0.90",
+        "objective": "最小化样本量 n",
+        "dependencies": []
+      }
+    },
+    {
+      "kind": "ModelSpec",
+      "value": {
+        "model_id": "M-PROBLEM2",
+        "problem_refs": ["P1"],
+        "assumption_refs": [],
+        "variable_refs": ["S-P1", "S-P2", "S-PA", "S-Q1", "S-Q2", "S-PF", "S-D1", "S-D2", "S-D3", "S-D4", "S-D5", "S-D6", "S-C-D1", "S-C-D2", "S-C-DF", "S-C-DIS", "S-C-REP", "S-C-A"],
+        "parameter_refs": [],
+        "equation_refs": ["E-Q1", "E-Q2", "E-PF"],
+        "constraints": "决策变量为0/1",
+        "objective": "最大化单件期望净收益",
+        "dependencies": []
+      }
+    },
+    {
+      "kind": "ModelSpec",
+      "value": {
+        "model_id": "M-PROBLEM3",
+        "problem_refs": ["P1"],
+        "assumption_refs": [],
+        "variable_refs": ["S-P-SEMI", "S-P-ASSEMBLY"],
+        "parameter_refs": [],
+        "equation_refs": ["E-P-SEMI"],
+        "constraints": "决策变量为0/1",
+        "objective": "最大化期望利润",
+        "dependencies": []
+      }
+    },
+    {
+      "kind": "ModelSpec",
+      "value": {
+        "model_id": "M-PROBLEM4",
+        "problem_refs": ["P1"],
+        "assumption_refs": ["A-SAMPLE-SIZE"],
+        "variable_refs": ["S-POSTERIOR-P", "S-X", "S-N"],
+        "parameter_refs": [],
+        "equation_refs": ["E-POSTERIOR-MEAN"],
+        "constraints": "次品率服从后验分布",
+        "objective": "在次品率不确定性下最大化期望利润（或稳健决策）",
+        "dependencies": []
+      }
+    }
+  ],
+  "code": "const fs = require('fs');\n// Placeholder: compute minimal n and c for problem 1.\n// The analysis expects n ~ 29-30 for reject, n ~ 22-24 for accept.\n// We implement a simple search using the binomial CDF.\nfunction binomCDF(k, n, p) {\n  let sum = 0;\n  for (let i = 0; i <= k; i++) {\n    sum += binomPMF(i, n, p);\n  }\n  return sum;\n}\nfunction binomPMF(k, n, p) {\n  return comb(n, k) * Math.pow(p, k) * Math.pow(1-p, n-k);\n}\nfunction comb(n, k) {\n  if (k < 0 || k > n) return 0;\n  let res = 1;\n  for (let i = 0; i < k; i++) {\n    res *= (n - i) / (i + 1);\n  }\n  return res;\n}\nconst p0 = 0.1;\n// Reject case: find minimal n and c such that P(X>c) <= 0.05\nlet rejectN = null, rejectC = null;\nfor (let n = 1; n <= 100; n++) {\n  for (let c = 0; c <= n; c++) {\n    if (1 - binomCDF(c, n, p0) <= 0.05) {\n      rejectN = n; rejectC = c; break;\n    }\n  }\n  if (rejectN !== null) break;\n}\n// Accept case: find minimal n and c' such that P(X<=c') >= 0.90\nlet acceptN = null, acceptC = null;\nfor (let n = 1; n <= 100; n++) {\n  for (let cp = 0; cp <= n; cp++) {\n    if (binomCDF(cp, n, p0) >= 0.90) {\n      acceptN = n; acceptC = cp; break;\n    }\n  }\n  if (acceptN !== null) break;\n}\nconst out = {\n  reject_n: rejectN,\n  reject_c: rejectC,\n  accept_n: acceptN,\n  accept_c: acceptC\n};\nfs.writeFileSync('output.json', JSON.stringify(out, null, 2));\n",
+  "run": {
+    "outputBasenames": ["output.json"],
+    "seed": 42
+  },
+  "interpretations": {
+    "results": [
+      {
+        "result_id": "R-REJECT-N",
+        "name": "问题1情形(1)最小样本量 n",
+        "source": {
+          "locator": "output.json",
+          "jsonPath": "$.reject_n"
+        },
+        "unit": "件"
+      },
+      {
+        "result_id": "R-REJECT-C",
+        "name": "问题1情形(1)拒收临界数 c",
+        "source": {
+          "locator": "output.json",
+          "jsonPath": "$.reject_c"
+        },
+        "unit": "件"
+      },
+      {
+        "result_id": "R-ACCEPT-N",
+        "name": "问题1情形(2)最小样本量 n",
+        "source": {
+          "locator": "output.json",
+          "jsonPath": "$.accept_n"
+        },
+        "unit": "件"
+      },
+      {
+        "result_id": "R-ACCEPT-C",
+        "name": "问题1情形(2)接收临界数 c'",
+        "source": {
+          "locator": "output.json",
+          "jsonPath": "$.accept_c"
+        },
+        "unit": "件"
+      }
+    ],
+    "figures": []
+  },
+  "narrative": {
+    "title": "生产过程中的决策问题建模分析",
+    "conclusion": {
+      "claims": [
+        {
+          "text": "问题1情形(1)的最小样本量为",
+          "quantity_refs": ["R-REJECT-N"]
+        },
+        {
+          "text": "问题1情形(1)的拒收临界数为",
+          "quantity_refs": ["R-REJECT-C"]
+        },
+        {
+          "text": "问题1情形(2)的最小样本量为",
+          "quantity_refs": ["R-ACCEPT-N"]
+        },
+        {
+          "text": "问题1情形(2)的接收临界数为",
+          "quantity_refs": ["R-ACCEPT-C"]
+        }
+      ]
+    }
+  }
+}

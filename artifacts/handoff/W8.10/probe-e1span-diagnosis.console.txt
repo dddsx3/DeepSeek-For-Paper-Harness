@@ -1,0 +1,75 @@
+=== W8.10-D3 — e1_span root-cause probe ===
+model: deepseek/deepseek-v4-flash   (target model; .env.local PAPER_PROBE_MODEL=z-ai/glm-5.3-flash — deliberately NOT used)
+max_tokens: 24000   reasoning_effort: none   temperature: 0.2   stream: true
+serial: one call at a time (relay concurrency limit 1)
+
+[preflight] HTTP 200 finish=stop 5491ms
+[plan] HTTP 200 547 chars 101140ms
+problem: bench/problems/2024-B/problem.pdf  (pypdf text 1910 chars)
+route: F4
+E1 prompt: 7828 chars -> e1-prompt.txt
+
+[1/2] calling E1 (fresh analysis) ...
+      HTTP 200 finish=stop content=19190 chars reasoning=0 chars 124579ms
+      E1 anchors: assumptions=0 requirements=0
+      E1 full text -> e1-analysis.md
+[1/2] calling E2 (normalization of the fresh E1) ... prompt 24300 chars
+      HTTP 200 finish=stop content=51403 chars 154413ms
+
+[2/2] calling E2 (normalization of the ARCHIVED E1, 8806 chars) ...
+      HTTP 200 finish=length content=81494 chars 240746ms
+
+=== 结果 ===
+样本 1 — 本次新跑的 E1 全文: 35 条待检条目
+    精确匹配（harness 的裸 includes 即通过）: 32
+    标点/全角/markdown + 空白差异（全部折叠后匹配）: 1
+    真改写（折叠标点与空白后仍不匹配）: 2
+    [harness] B4 逐问推理覆盖: ok=false — E1 缺少 1 个要求的推理段：R-OUT
+    [harness] B3 反向（E1 假设须被声明）: ok=true — E1 的 0 条假设锚点均有对应 AssumptionSpec
+    [harness] B3 锚点同一性（声明须在 E1 中有同名锚点）: ok=false — IR 声明了但 E1 从未标记的假设：ASSUMPTION_A1、ASSUMPTION_A2、ASSUMPTION_A3、ASSUMPTION_A4、ASSUMPTION_A5、ASSUMPTION_A6、ASSUMPTION_A7、ASSUMPTION_A8、ASSUMPTION_A9、ASSUMPTION_A10、ASSUMPTION_A11、ASSUMPTION_A12、ASSUMPTION
+    [harness] B3 正向（声明须逐字锚定 E1）: ok=false — ASSUMPTION_A12: e1_span 在 E1 中找不到逐字匹配（疑似改写）；EQ_5: e1_span 在 E1 中找不到逐字匹配（疑似改写）；EQ_6: e1_span 在 E1 中找不到逐字匹配（疑似改写）
+样本 2 — 存档的真实 E1 全文: 0 条待检条目
+    [harness] B4 逐问推理覆盖: ok=true — 全部 1 个 REQUIRED_OUTPUT 在 E1 中有推理锚点
+    [harness] B3 反向（E1 假设须被声明）: ok=false — E1 标记了但 IR 未声明的假设：A-BATCH-INFINITE、A-ALT-POINT、A-TEST-EXACT、A-COST-IGNORE、A-EXACT-TEST2、A-RECYCLE-LOSSLESS、A-RETURN-REPAIR、A-STEADY-STATE、A-PI-DEF、A-DEMAND-EXO、A-HIER-DEFECT、A-RECYCLE-LEVEL、A-STEADY-S
+    [harness] B3 锚点同一性（声明须在 E1 中有同名锚点）: ok=true — 0 条假设声明在 E1 中均有同名锚点
+    [harness] B3 正向（声明须逐字锚定 E1）: ok=true — 0 条 Assumption/Equation 声明全部逐字锚定 E1
+
+sample  id              spanChars  exact  ws  typo  gramFold  lcsRaw
+------  --------------  ---------  -----  --  ----  --------  ------
+1       ASSUMPTION_A1   41         YES    no  no    1         1     
+1       ASSUMPTION_A2   34         YES    no  no    1         1     
+1       ASSUMPTION_A3   53         YES    no  no    1         1     
+1       ASSUMPTION_A4   18         YES    no  no    1         1     
+1       ASSUMPTION_A5   28         YES    no  no    1         1     
+1       ASSUMPTION_A6   20         YES    no  no    1         1     
+1       ASSUMPTION_A7   44         YES    no  no    1         1     
+1       ASSUMPTION_A8   41         YES    no  no    1         1     
+1       ASSUMPTION_A9   47         YES    no  no    1         1     
+1       ASSUMPTION_A10  16         YES    no  no    1         1     
+1       ASSUMPTION_A11  34         YES    no  no    1         1     
+1       ASSUMPTION_A12  48         no     no  YES   0.829     0.542 
+1       ASSUMPTION_A13  35         YES    no  no    1         1     
+1       ASSUMPTION_A14  33         YES    no  no    1         1     
+1       ASSUMPTION_A15  34         YES    no  no    1         1     
+1       ASSUMPTION_A16  18         YES    no  no    1         1     
+1       ASSUMPTION_A17  43         YES    no  no    1         1     
+1       ASSUMPTION_A18  44         YES    no  no    1         1     
+1       ASSUMPTION_A19  41         YES    no  no    1         1     
+1       EQ_1            31         YES    no  no    1         1     
+1       EQ_2            32         YES    no  no    1         1     
+1       EQ_3            109        YES    no  no    1         1     
+1       EQ_4            41         YES    no  no    1         1     
+1       EQ_5            86         no     no  no    0.986     0.977 
+1       EQ_6            79         no     no  no    0.985     0.975 
+1       EQ_7            32         YES    no  no    1         1     
+1       EQ_8            21         YES    no  no    1         1     
+1       EQ_9            155        YES    no  no    1         1     
+1       EQ_10           86         YES    no  no    1         1     
+1       EQ_11           34         YES    no  no    1         1     
+1       EQ_12           56         YES    no  no    1         1     
+1       EQ_13           93         YES    no  no    1         1     
+1       EQ_14           45         YES    no  no    1         1     
+1       EQ_15           57         YES    no  no    1         1     
+1       EQ_16           87         YES    no  no    1         1     
+
+落盘目录：D:\deepseek modex\deepseek-harness\artifacts\handoff\W8.10\probe-e1span-diagnosis-output

@@ -1,0 +1,297 @@
+[33mThe plugin "vite-tsconfig-paths" is detected. Vite now supports tsconfig paths resolution natively via the [1mresolve.tsconfigPaths[22m option. You can remove the plugin and set [1mresolve.tsconfigPaths: true[22m in your Vite config instead.[39m
+[33mThe plugin "vite-tsconfig-paths" is detected. Vite now supports tsconfig paths resolution natively via the [1mresolve.tsconfigPaths[22m option. You can remove the plugin and set [1mresolve.tsconfigPaths: true[22m in your Vite config instead.[39m
+[33mThe plugin "vite-tsconfig-paths" is detected. Vite now supports tsconfig paths resolution natively via the [1mresolve.tsconfigPaths[22m option. You can remove the plugin and set [1mresolve.tsconfigPaths: true[22m in your Vite config instead.[39m
+
+[1m[30m[46m RUN [49m[39m[22m [36mv4.1.8 [39m[90mD:/deepseek modex/deepseek-harness[39m
+
+ [31m❯[39m [30m[45m thread-safe [49m[39m scripts/verify-dsh-package-licenses.spec.ts [2m([22m[2m2 tests[22m[2m | [22m[31m1 failed[39m[2m)[22m[32m 60[2mms[22m[39m
+[31m     [31m×[31m checks root, unhyphenated CLI, and dsh-prefixed package names while ignoring other families[39m[32m 40[2mms[22m[39m
+     [32m✓[39m rejects a missing license declaration[32m 17[2mms[22m[39m
+(node:39800) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/attachment/attachment-local/tests/normalization.spec.ts [2m([22m[2m23 tests[22m[2m)[22m[33m 599[2mms[22m[39m
+ [31m❯[39m [30m[45m thread-safe [49m[39m apps/cli/tests/source-launch.compat.spec.ts [2m([22m[2m2 tests[22m[2m | [22m[31m1 failed[39m[2m)[22m[33m 1739[2mms[22m[39m
+[31m     [31m×[31m launches the source CLI without building[39m[32m 10[2mms[22m[39m
+     [33m[2m✓[22m[39m boots the source entry and requires a profile [33m 1727[2mms[22m[39m
+Switched to a new branch 'current'
+Switched to branch 'master'
+Switched to branch 'current'
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/settings/settings-file/tests/concurrency.spec.ts [2m([22m[2m4 tests[22m[2m | [22m[33m1 skipped[39m[2m)[22m[33m 2907[2mms[22m[39m
+     [33m[2m✓[22m[39m keeps both namespaces when two providers write the same document concurrently [33m 516[2mms[22m[39m
+     [33m[2m✓[22m[39m does not steal an old writer lock [33m 2210[2mms[22m[39m
+ [31m❯[39m [30m[45m thread-safe [49m[39m packages/client/ui-brand-official/tests/browser-plugin.client.spec.tsx [2m([22m[2m4 tests[22m[2m | [22m[31m1 failed[39m[2m)[22m[32m 139[2mms[22m[39m
+     [32m✓[39m declares only the slot service it uses[32m 4[2mms[22m[39m
+     [32m✓[39m leaves every slot empty outside the official build profile[32m 38[2mms[22m[39m
+     [32m✓[39m fills declarations before or after apply and removes every occupant on teardown[32m 30[2mms[22m[39m
+[31m     [31m×[31m renders the official name independently from both requested mark sizes[39m[32m 64[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/core/tools/tests/py-types.spec.ts [2m([22m[2m53 tests[22m[2m)[22m[33m 5222[2mms[22m[39m
+     [33m[2m✓[22m[39m renders a deeply nested oneOf chain in linear time (no per-level re-materialization) [33m 2394[2mms[22m[39m
+     [33m[2m✓[22m[39m names a deep oneOf-of-object chain in linear time (bounded propagated class names) [33m 2485[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m apps/paper-shell/tests/bundle.spec.ts [2m([22m[2m11 tests[22m[2m)[22m[33m 7595[2mms[22m[39m
+     [33m[2m✓[22m[39m extracts a PDF problem via pypdf (2024 C) [33m 705[2mms[22m[39m
+     [33m[2m✓[22m[39m appends a description-only profile for every xlsx attachment [33m 2577[2mms[22m[39m
+     [33m[2m✓[22m[39m carries sha256 + bytes for audit traceability [33m 2141[2mms[22m[39m
+     [33m[2m✓[22m[39m refuses an unsupported attachment extension [33m 1028[2mms[22m[39m
+     [33m[2m✓[22m[39m refuses an empty attachment [33m 1038[2mms[22m[39m
+ [31m❯[39m [30m[45m thread-safe [49m[39m packages/shell/pwsh-sandbox/tests/sandbox.spec.ts [2m([22m[2m19 tests[22m[2m | [22m[31m1 failed[39m[2m | [22m[33m2 skipped[39m[2m)[22m[33m 4952[2mms[22m[39m
+       [32m✓[39m attributes ENOENT/EACCES with argv[0] provenance and a usable workdir[32m 5[2mms[22m[39m
+       [32m✓[39m rejects mismatched provenance, foreign codes, unusable workdirs, and non-object errors[32m 2[2mms[22m[39m
+       [32m✓[39m matches a fatal signature on a gated exit code, skipping informational lines[32m 1[2mms[22m[39m
+       [32m✓[39m rejects zero/null exits, gate mismatches, and empty signatures[32m 1[2mms[22m[39m
+       [32m✓[39m the windows-acl rule is exit-gated on 127: a confined command that merely prints the signature on a non-127 exit is NOT a runner failure[32m 1[2mms[22m[39m
+       [32m✓[39m matches non-zero exits case-insensitively, never zero or signal exits[32m 0[2mms[22m[39m
+[31m     [31m×[31m wraps the exact pwsh argv through ctx.sandbox with the per-call policy[39m[33m 1009[2mms[22m[39m
+     [33m[2m✓[22m[39m advertises the deployment default mode and stamps the deployment policy when none rides the request [33m 904[2mms[22m[39m
+     [33m[2m✓[22m[39m danger-full-access bypasses confine entirely and stamps full-access facts [33m 893[2mms[22m[39m
+     [32m✓[39m an aborted caller signal outranks runner-spawn attribution[32m 20[2mms[22m[39m
+     [2m[90m↓[39m[22m classifies a failed write against the backend denial dialect
+     [32m✓[39m a runner launch refusal fails closed with SANDBOX_UNAVAILABLE, never unconfined[32m 28[2mms[22m[39m
+     [32m✓[39m a SYNCHRONOUS attributable spawn rejection in run() fails closed, an unattributable one rethrows[32m 43[2mms[22m[39m
+     [32m✓[39m a SYNCHRONOUS spawn rejection in start() follows the same attribution split[32m 32[2mms[22m[39m
+     [32m✓[39m a runner that REFUSES at runtime (fatal signature, nonzero exit) fails closed too[32m 145[2mms[22m[39m
+     [33m[2m✓[22m[39m background confined runs stamp clean facts at settlement [33m 974[2mms[22m[39m
+     [2m[90m↓[39m[22m background denied writes stamp denied facts at settlement
+     [32m✓[39m background spawn rejections settle as runnerFailed facts[32m 20[2mms[22m[39m
+     [33m[2m✓[22m[39m danger-full-access background runs bypass confine and carry no facts [33m 866[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/client/ui-primitives/tests/code-block.client.spec.tsx [2m([22m[2m15 tests[22m[2m)[22m[33m 4685[2mms[22m[39m
+     [33m[2m✓[22m[39m lazily loads every read-card grammar: plain first, highlighted after load [33m 4184[2mms[22m[39m
+ [31m❯[39m [30m[45m thread-safe [49m[39m packages/client/ui-settings-models/tests/welcome-notice.client.spec.tsx [2m([22m[2m5 tests[22m[2m | [22m[31m1 failed[39m[2m)[22m[33m 416[2mms[22m[39m
+[31m     [31m×[31m uses the exact owner copy in both GUI locales[39m[32m 16[2mms[22m[39m
+     [33m[2m✓[22m[39m renders one blocking modal action and focuses the title [33m 303[2mms[22m[39m
+     [32m✓[39m completes only after the acknowledgement write commits[32m 31[2mms[22m[39m
+     [32m✓[39m skips itself when this exact version was already acknowledged[32m 5[2mms[22m[39m
+     [32m✓[39m keeps the sole action disabled while saving and reports a refused write[32m 58[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/client/ui-trajectory/tests/client-bundle.client.spec.ts [2m([22m[2m3 tests[22m[2m)[22m[33m 4504[2mms[22m[39m
+     [33m[2m✓[22m[39m hands off with the manifest id and a DI-require factory [33m 4063[2mms[22m[39m
+     [33m[2m✓[22m[39m mounted as an object plugin, apply registers the view tab on the real ring [33m 399[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/host/apiproxy/tests/api-proxy-search.spec.ts [2m([22m[2m24 tests[22m[2m)[22m[33m 2588[2mms[22m[39m
+     [33m[2m✓[22m[39m keeps visibility sets above SQLite variable limits out of provider bindings [33m 2236[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/typert/generator/tests/tools-catalog.spec.ts [2m([22m[2m1 test[22m[2m)[22m[33m 12658[2mms[22m[39m
+     [33m[2m✓[22m[39m round-trips the complete service and event structure through the runtime registry [33m 12656[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/shell/tool-pwsh/tests/loader.spec.ts [2m([22m[2m1 test[22m[2m)[22m[33m 13442[2mms[22m[39m
+     [33m[2m✓[22m[39m registers the pwsh surface and renders real foreground and background results [33m 13440[2mms[22m[39m
+Switched to a new branch 'current'
+Switched to branch 'master'
+Switched to branch 'current'
+Switched to a new branch 'current'
+Switched to branch 'master'
+Switched to branch 'current'
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/shell/tool-pwsh-persistent/tests/loader-composition.spec.ts [2m([22m[2m1 test[22m[2m)[22m[33m 16167[2mms[22m[39m
+     [33m[2m✓[22m[39m preserves cwd and environment across calls [33m 16164[2mms[22m[39m
+Switched to a new branch 'current'
+Switched to branch 'master'
+Switched to branch 'current'
+Switched to a new branch 'current'
+Switched to branch 'master'
+Switched to branch 'current'
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/session/session-persistence-sqlite/tests/differential.spec.ts [2m([22m[2m3 tests[22m[2m)[22m[33m 24474[2mms[22m[39m
+     [33m[2m✓[22m[39m matches JSONL/Zstandard for every packed kind, scalar fallback, suffix, partition, and reopen [33m 1313[2mms[22m[39m
+     [33m[2m✓[22m[39m matches JSONL/Zstandard across randomized logical logs and append partitions [33m 23012[2mms[22m[39m
+Switched to a new branch 'current'
+Switched to branch 'master'
+Switched to branch 'current'
+Switched to a new branch 'current'
+Switched to branch 'master'
+Switched to branch 'current'
+Switched to a new branch 'current'
+Switched to branch 'master'
+Switched to branch 'current'
+Switched to a new branch 'current'
+Switched to branch 'master'
+Switched to branch 'current'
+Switched to a new branch 'current'
+Switched to branch 'master'
+Switched to branch 'current'
+Switched to a new branch 'current'
+Switched to branch 'master'
+Switched to branch 'current'
+Switched to a new branch 'current'
+Switched to branch 'master'
+Switched to branch 'current'
+Switched to a new branch 'current'
+Switched to branch 'master'
+Switched to branch 'current'
+ [32m✓[39m [30m[45m thread-safe [49m[39m scripts/translation-pairing-merge.spec.ts [2m([22m[2m23 tests[22m[2m)[22m[33m 57541[2mms[22m[39m
+     [33m[2m✓[22m[39m merges the owner blobs named by three valid records [33m 3436[2mms[22m[39m
+     [33m[2m✓[22m[39m accepts locale-specific paths to the same paired document [33m 2292[2mms[22m[39m
+     [33m[2m✓[22m[39m rejects a clean merge whose Chinese link uses the English sibling [33m 1790[2mms[22m[39m
+     [33m[2m✓[22m[39m merges a generated source without an English language switcher [33m 1871[2mms[22m[39m
+     [33m[2m✓[22m[39m rejects an authored source without an English language switcher [33m 1491[2mms[22m[39m
+     [33m[2m✓[22m[39m rejects generated Chinese content without its English backlink [33m 1288[2mms[22m[39m
+     [33m[2m✓[22m[39m leaves owner-content conflicts for a human [33m 1120[2mms[22m[39m
+     [33m[2m✓[22m[39m rejects structurally divergent clean owner merges [33m 1391[2mms[22m[39m
+     [33m[2m✓[22m[39m refuses owners assigned to another merge strategy [33m 1508[2mms[22m[39m
+     [33m[2m✓[22m[39m refuses unspecified owners affected by merge.default [33m 1938[2mms[22m[39m
+     [33m[2m✓[22m[39m runs as Git's custom driver and commits a clean composed record [33m 3954[2mms[22m[39m
+     [33m[2m✓[22m[39m sees a paired link target added by the other branch [33m 5066[2mms[22m[39m
+     [33m[2m✓[22m[39m leaves an ordinary recoverable conflict when the configured runtime is unavailable [33m 4404[2mms[22m[39m
+     [33m[2m✓[22m[39m falls back before a broken driver entrypoint can replace the launcher [33m 2442[2mms[22m[39m
+     [33m[2m✓[22m[39m keeps a clean text fallback unresolved until the explicit resolver confirms it [33m 3597[2mms[22m[39m
+     [33m[2m✓[22m[39m leaves a staged merge when the pre-merge-commit hook rejects it [33m 4540[2mms[22m[39m
+     [33m[2m✓[22m[39m prints the recovery path when driver input is not composable [33m 763[2mms[22m[39m
+     [33m[2m✓[22m[39m resolves an already-stopped generated-only conflict from index stages [33m 3382[2mms[22m[39m
+     [33m[2m✓[22m[39m refuses to confirm unstaged owner bytes after a stopped merge [33m 3545[2mms[22m[39m
+     [33m[2m✓[22m[39m refuses to overwrite an edited sidecar after a stopped merge [33m 2535[2mms[22m[39m
+     [33m[2m✓[22m[39m resolves safe records while leaving an owner-conflicted pair untouched [33m 4985[2mms[22m[39m
+ [31m❯[39m [30m[45m thread-safe [49m[39m packages/typert/generator/tests/cordis-catalog.spec.ts [2m([22m[2m3 tests[22m[2m | [22m[31m1 failed[39m[2m)[22m[33m 62080[2mms[22m[39m
+     [32m✓[39m omits subsystem source lines while preserving inherited Cordis source lines[32m 5[2mms[22m[39m
+[31m     [31m×[31m reproduces every committed catalog artifact byte for byte[39m[33m 62071[2mms[22m[39m
+     [32m✓[39m resolves each key to the declaration a caller meets, and drops keys no plugin provides[32m 1[2mms[22m[39m
+
+[31m⎯⎯⎯⎯⎯⎯⎯[39m[1m[41m Failed Tests 6 [49m[22m[31m⎯⎯⎯⎯⎯⎯⎯[39m
+
+[41m[1m FAIL [22m[49m [30m[45m thread-safe [49m[39m scripts/verify-dsh-package-licenses.spec.ts[2m > [22mDSH package license gate[2m > [22mchecks root, unhyphenated CLI, and dsh-prefixed package names while ignoring other families
+[31m[1mAssertionError[22m: expected { packageCount: 2, …(1) } to deeply equal { packageCount: 3, …(1) }[39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[2m  {[22m
+[2m    "failures": [[22m
+[2m      "packages/core/agent/package.json: @deepseek-ai/dsh-agent must declare \"license\": \"MIT\"; found \"BSD-3-Clause\".",[22m
+[2m    ],[22m
+[32m-   "packageCount": 3,[39m
+[31m+   "packageCount": 2,[39m
+[2m  }[22m
+
+[36m [2m❯[22m scripts/verify-dsh-package-licenses.spec.ts:[2m43:45[22m[39m
+    [90m 41|[39m     })
+    [90m 42|[39m
+    [90m 43|[39m     [34mexpect[39m([34minspectDshPackageLicenses[39m(root))[33m.[39m[34mtoEqual[39m({
+    [90m   |[39m                                             [31m^[39m
+    [90m 44|[39m       packageCount[33m:[39m [34m3[39m[33m,[39m
+    [90m 45|[39m       failures[33m:[39m [
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/6]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m [30m[45m thread-safe [49m[39m apps/cli/tests/source-launch.compat.spec.ts[2m > [22mdsh SOURCE launcher (node --import tsx/esm)[2m > [22mlaunches the source CLI without building
+[31m[1mAssertionError[22m: expected undefined to be 'node --import tsx/esm apps/cli/src/bi…' // Object.is equality[39m
+
+[32m- Expected:[39m
+"node --import tsx/esm apps/cli/src/bin.ts"
+
+[31m+ Received:[39m
+undefined
+
+[36m [2m❯[22m apps/cli/tests/source-launch.compat.spec.ts:[2m24:38[22m[39m
+    [90m 22|[39m       readonly scripts[33m?[39m[33m:[39m [33mRecord[39m[33m<[39mstring[33m,[39m string[33m>[39m
+    [90m 23|[39m     }
+    [90m 24|[39m     expect(rootPackage.scripts?.dsh).toBe('node --import tsx/esm apps/…
+    [90m   |[39m                                      [31m^[39m
+    [90m 25|[39m   })
+    [90m 26|[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/6]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m [30m[45m thread-safe [49m[39m packages/client/ui-brand-official/tests/browser-plugin.client.spec.tsx[2m > [22mofficial browser-brand plugin[2m > [22mrenders the official name independently from both requested mark sizes
+[31m[1mAssertionError[22m: expected undefined to be '26 0 156 24' // Object.is equality[39m
+
+[32m- Expected:[39m
+"26 0 156 24"
+
+[31m+ Received:[39m
+undefined
+
+[36m [2m❯[22m packages/client/ui-brand-official/tests/browser-plugin.client.spec.tsx:[2m70:74[22m[39m
+    [90m 68|[39m   it('renders the official name independently from both requested mark…
+    [90m 69|[39m     [35mconst[39m name [33m=[39m [34mrender[39m([33m<[39m[33mOfficialBrandName[39m [33m/[39m[33m>[39m)
+    [90m 70|[39m     expect(name.container.querySelector('svg')?.getAttribute('viewBox'…
+    [90m   |[39m                                                                          [31m^[39m
+    [90m 71|[39m     name[33m.[39m[34munmount[39m()
+    [90m 72|[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/6]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m [30m[45m thread-safe [49m[39m packages/client/ui-settings-models/tests/welcome-notice.client.spec.tsx[2m > [22mWelcomeNotice[2m > [22muses the exact owner copy in both GUI locales
+[31m[1mAssertionError[22m: expected { …(3) } to deeply equal { …(3) }[39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[2m  {[22m
+[32m-   "body": "DeepSeek Harness 0.1 remains in testing for Harness developers. Many areas need further improvement, and we welcome feedback from the developer community. DeepSeek Harness's core plugins and foundational APIs will continue to evolve rapidly over the coming months.[39m
+[31m+   "body": "DeepSeek-For-Paper-Harness (dph) 0.1 remains in testing. Many areas need further improvement, and we welcome feedback from the community. The project's core plugins and foundational APIs will continue to evolve rapidly over the coming months.[39m
+
+[32m- We look forward to exploring the limits of intelligence with developers around the world, building on open-source, open, reusable, and composable infrastructure. We welcome Harness developers everywhere to join the DSH plugin ecosystem.",[39m
+[31m+ We look forward to exploring the limits of intelligence with users around the world, building on open-source, open, reusable, and composable infrastructure. Welcome to the dph plugin ecosystem.",[39m
+[2m    "continueLabel": "Continue",[22m
+[2m    "title": "Internal Testing Notice",[22m
+[2m  }[22m
+
+[36m [2m❯[22m packages/client/ui-settings-models/tests/welcome-notice.client.spec.tsx:[2m90:36[22m[39m
+
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/6]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m [30m[45m thread-safe [49m[39m packages/shell/pwsh-sandbox/tests/sandbox.spec.ts[2m > [22mSandboxPwshExecutor[2m > [22mwraps the exact pwsh argv through ctx.sandbox with the per-call policy
+[31m[1mAssertionError[22m: expected 'C:\Windows\System32\WindowsPowerShell…' to match /pwsh(\.exe)?$/u[39m
+
+[32m- Expected:[39m
+/pwsh(\.exe)?$/u
+
+[31m+ Received:[39m
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe"
+
+[36m [2m❯[22m packages/shell/pwsh-sandbox/tests/sandbox.spec.ts:[2m178:27[22m[39m
+    [90m176|[39m     [34mexpect[39m(call[33m?.[39mpolicy)[33m.[39m[34mtoEqual[39m([33mRO[39m)
+    [90m177|[39m     // The confined argv is the pwsh invocation, ready for a runner pr…
+    [90m178|[39m     [34mexpect[39m(call[33m?.[39margv[[34m0[39m])[33m.[39m[34mtoMatch[39m([36m/pwsh(\.exe)?$/u[39m)
+    [90m   |[39m                           [31m^[39m
+    [90m179|[39m     [34mexpect[39m(call[33m?.[39margv)[33m.[39m[34mtoContain[39m([32m'-NonInteractive'[39m)
+    [90m180|[39m     [34mexpect[39m(call[33m?.[39margv[33m.[39m[34mat[39m([33m-[39m[34m1[39m))[33m.[39m[34mtoContain[39m([32m'echo wrapped'[39m)
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/6]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m [30m[45m thread-safe [49m[39m packages/typert/generator/tests/cordis-catalog.spec.ts[2m > [22mTypert-backed Cordis catalog[2m > [22mreproduces every committed catalog artifact byte for byte
+[31m[1mAssertionError[22m: expected '<!-- BEGIN GENERATED cordis-surface (…' to be '<!-- BEGIN GENERATED cordis-surface (…' // Object.is equality[39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[33m@@ -37,14 +37,10 @@[39m
+[2m  LLM service wrapper for bounded, non-session diagnostics.[22m
+
+[2m  ```ts cordis-catalog[22m
+[2m  /**[22m
+[2m   * Execute one short request without creating a Session or persisting content.[22m
+[32m-  * The probe is routed through `PaperRuntimeGuard.invokeCapability` so the[39m
+[32m-  * `PLAN` stage firewall can reject bypass attempts. The LLM seam is reached[39m
+[32m-  * through the guard token `diagnostics_probe`; without the guard being[39m
+[32m-  * readied, the probe throws `RuntimeNotReadyError`.[39m
+[2m   * @param request - provider route, model, and timeout policy.[22m
+[2m   * @returns status and non-sensitive timing/error facts.[22m
+[2m   */[22m
+[2m  async probe(request: DiagnosticsRequest): Promise<DiagnosticsResult>[22m
+[2m  ```[22m
+[33m@@ -114,13 +110,10 @@[39m
+[2m   */[22m
+[2m  async resolveRole( role: PaperRole, settings: PaperSettings, signal?: AbortSignal, ): Promise<{ route: ResolvedRoleRoute; model: LlmResolvedModelInfo }>[22m
+
+[2m  /**[22m
+[2m   * Dispatch one already assembled request through the shared runtime.[22m
+[32m-  * Every call goes through `PaperRuntimeGuard.invokeCapability` so the[39m
+[32m-  * `MODEL` stage capability firewall can veto it; bypassing the guard[39m
+[32m-  * (calling `ctx.llm.stream` directly) is the explicit red-team path A-010.[39m
+[2m   * @param options - provider-neutral request assembled by a workflow consumer.[22m
+[2m   * @returns the provider-neutral stream.[22m
+[2m   */[22m
+[2m  stream(options: GenerateOptions): AsyncIterable<StreamChunk>[22m
+[2m  ```[22m
+
+[36m [2m❯[22m packages/typert/generator/tests/cordis-catalog.spec.ts:[2m78:65[22m[39m
+    [90m 76|[39m         [35mconst[39m end [33m=[39m committed[33m.[39m[34mindexOf[39m([33mREGION_END[39m)
+    [90m 77|[39m         expect(begin, `${rel} carries the region`).toBeGreaterThanOrEq…
+    [90m 78|[39m         [34mexpect[39m(committed[33m.[39m[34mslice[39m(begin[33m,[39m end [33m+[39m [33mREGION_END[39m[33m.[39mlength))[33m.[39m[34mtoBe[39m(
+    [90m   |[39m                                                                 [31m^[39m
+    [90m 79|[39m           [34mlocalizePageRegion[39m(region[33m,[39m rel[33m,[39m workspaceRoot)[33m,[39m
+    [90m 80|[39m         )
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/6]⎯[22m[39m
+
+
+[2m Test Files [22m [1m[31m6 failed[39m[22m[2m | [22m[1m[32m12 passed[39m[22m[90m (18)[39m
+[2m      Tests [22m [1m[31m6 failed[39m[22m[2m | [22m[1m[32m188 passed[39m[22m[2m | [22m[33m3 skipped[39m[90m (197)[39m
+[2m   Start at [22m 21:58:55
+[2m   Duration [22m 66.15s[2m (transform 35.94s, setup 17.54s, import 52.12s, tests 221.77s, environment 9.42s)[22m
+
+EXIT=1
