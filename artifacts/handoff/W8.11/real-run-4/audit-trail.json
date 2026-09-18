@@ -1,0 +1,269 @@
+{
+  "run": "real-run-4",
+  "runId": "f16b868d-4a67-4dcc-be37-86e2d30d1dc8",
+  "archived_from": "apps/paper-shell/src/paper-shell-persist-amrvKj/paper_audit.json",
+  "archived_from_sha256": "75d30870913e2ef261a43447b6aaa0a2817d5aa16ed9186b2a074270ef74935a",
+  "event_count": 18,
+  "events": [
+    {
+      "id": "ebfd6793-01bf-4a7e-ad69-2e350380f564",
+      "seq": 1,
+      "ts": "2026-09-18T17:58:21.644Z",
+      "runId": null,
+      "actor": "paper-shell",
+      "eventType": "production_enabled",
+      "detail": {
+        "tier": "T1",
+        "mode": "strict",
+        "route": "https://api.y-api.bestvirtualgoods.com/v1 + deepseek/deepseek-v4-flash"
+      }
+    },
+    {
+      "id": "94d54819-be1a-4f25-800e-a9e7a8392f01",
+      "seq": 2,
+      "ts": "2026-09-18T17:58:22.232Z",
+      "runId": "f16b868d-4a67-4dcc-be37-86e2d30d1dc8",
+      "actor": "paper-executor",
+      "eventType": "workflow_started",
+      "detail": {
+        "mode": "strict"
+      }
+    },
+    {
+      "id": "145c8d8c-9241-4ddb-a455-33f8d083dfac",
+      "seq": 3,
+      "ts": "2026-09-18T17:59:22.003Z",
+      "runId": "f16b868d-4a67-4dcc-be37-86e2d30d1dc8",
+      "actor": "paper-executor",
+      "eventType": "ir_entry_written",
+      "detail": {
+        "kind": "DataArtifact",
+        "id": "DA-RAW",
+        "stage": "input-registration"
+      }
+    },
+    {
+      "id": "f088a466-c69f-4f20-bb61-dbcc9d2fd9a3",
+      "seq": 4,
+      "ts": "2026-09-18T17:59:22.008Z",
+      "runId": "f16b868d-4a67-4dcc-be37-86e2d30d1dc8",
+      "actor": "paper-executor",
+      "eventType": "ir_entry_written",
+      "detail": {
+        "kind": "RequirementSpec",
+        "id": "R-OUT",
+        "stage": "input-registration"
+      }
+    },
+    {
+      "id": "6495f9a1-2c6e-4f5f-927b-5c44c7a59c2a",
+      "seq": 5,
+      "ts": "2026-09-18T17:59:22.012Z",
+      "runId": "f16b868d-4a67-4dcc-be37-86e2d30d1dc8",
+      "actor": "paper-executor",
+      "eventType": "ir_entry_written",
+      "detail": {
+        "kind": "ProblemSpec",
+        "id": "P1",
+        "stage": "input-registration"
+      }
+    },
+    {
+      "id": "d60ec7dc-efa5-4607-93fd-02276a68af95",
+      "seq": 6,
+      "ts": "2026-09-18T18:01:40.503Z",
+      "runId": "f16b868d-4a67-4dcc-be37-86e2d30d1dc8",
+      "actor": "paper-executor",
+      "eventType": "ir_entry_written",
+      "detail": {
+        "kind": "E1Analysis",
+        "id": "e1",
+        "nodeId": "3bb260dc-054b-492b-9a24-220af6e2d264",
+        "stage": "receive",
+        "chars": 4585
+      }
+    },
+    {
+      "id": "4d3693d4-5146-4eee-b034-3acb87c0446f",
+      "seq": 7,
+      "ts": "2026-09-18T18:01:40.508Z",
+      "runId": "f16b868d-4a67-4dcc-be37-86e2d30d1dc8",
+      "actor": "paper-executor",
+      "eventType": "ir_entry_written",
+      "detail": {
+        "kind": "E2DriftGuidance",
+        "id": "e2-guidance",
+        "nodeId": "3bb260dc-054b-492b-9a24-220af6e2d264",
+        "stage": "receive",
+        "applied": true,
+        "guidance_chars": 1347
+      }
+    },
+    {
+      "id": "bb57b848-9f5a-498c-aea8-1c6fd4425d1d",
+      "seq": 8,
+      "ts": "2026-09-18T18:02:00.450Z",
+      "runId": "f16b868d-4a67-4dcc-be37-86e2d30d1dc8",
+      "actor": "paper-executor",
+      "eventType": "ir_entry_written",
+      "detail": {
+        "kind": "E2Normalization",
+        "id": "e2",
+        "nodeId": "3bb260dc-054b-492b-9a24-220af6e2d264",
+        "stage": "receive",
+        "chars": 11785,
+        "e1_chars": 4585
+      }
+    },
+    {
+      "id": "5ca27aab-3c5f-4f9e-8ac7-641451cca6e3",
+      "seq": 9,
+      "ts": "2026-09-18T18:02:00.562Z",
+      "runId": "f16b868d-4a67-4dcc-be37-86e2d30d1dc8",
+      "actor": "paper-executor",
+      "eventType": "ir_entry_written",
+      "detail": {
+        "kind": "FidelityFinding",
+        "id": "B4 逐问推理覆盖",
+        "nodeId": "3bb260dc-054b-492b-9a24-220af6e2d264",
+        "ok": false,
+        "detail": "E1 缺少 1 个要求的推理段：R-OUT"
+      }
+    },
+    {
+      "id": "65db90f9-5d12-4bf1-a41e-c97b0c2dc9fa",
+      "seq": 10,
+      "ts": "2026-09-18T18:02:00.566Z",
+      "runId": "f16b868d-4a67-4dcc-be37-86e2d30d1dc8",
+      "actor": "paper-executor",
+      "eventType": "ir_entry_written",
+      "detail": {
+        "kind": "FidelityFinding",
+        "id": "B5 锚点 id 形态（E1 侧）",
+        "nodeId": "3bb260dc-054b-492b-9a24-220af6e2d264",
+        "ok": true,
+        "detail": "全部 6 个锚点 id 都是可用名字"
+      }
+    },
+    {
+      "id": "9a47710c-a427-4034-bf9b-1936f0ae315d",
+      "seq": 11,
+      "ts": "2026-09-18T18:02:00.570Z",
+      "runId": "f16b868d-4a67-4dcc-be37-86e2d30d1dc8",
+      "actor": "paper-executor",
+      "eventType": "ir_entry_written",
+      "detail": {
+        "kind": "FidelityFinding",
+        "id": "B3 反向（E1 假设须被声明）",
+        "nodeId": "3bb260dc-054b-492b-9a24-220af6e2d264",
+        "ok": true,
+        "detail": "E1 的 6 条假设锚点均有对应 AssumptionSpec"
+      }
+    },
+    {
+      "id": "bda85a96-f9a5-416c-89dc-d78674bdbb49",
+      "seq": 12,
+      "ts": "2026-09-18T18:02:00.572Z",
+      "runId": "f16b868d-4a67-4dcc-be37-86e2d30d1dc8",
+      "actor": "paper-executor",
+      "eventType": "ir_entry_written",
+      "detail": {
+        "kind": "FidelityFinding",
+        "id": "B3 锚点同一性（声明须在 E1 中有同名锚点）",
+        "nodeId": "3bb260dc-054b-492b-9a24-220af6e2d264",
+        "ok": true,
+        "detail": "6 条假设声明在 E1 中均有同名锚点"
+      }
+    },
+    {
+      "id": "66d2aa38-f851-4760-8cf5-b955cde54029",
+      "seq": 13,
+      "ts": "2026-09-18T18:02:00.576Z",
+      "runId": "f16b868d-4a67-4dcc-be37-86e2d30d1dc8",
+      "actor": "paper-executor",
+      "eventType": "ir_entry_written",
+      "detail": {
+        "kind": "FidelityFinding",
+        "id": "B3 正向（声明须逐字锚定 E1）",
+        "nodeId": "3bb260dc-054b-492b-9a24-220af6e2d264",
+        "ok": false,
+        "detail": "E-PART-INSPECT-COMPARE: 未声明 e1_span；E-PRODUCT-INSPECT-COMPARE: 未声明 e1_span；E-EXPECTED-COST: 未声明 e1_span；E-POSTERIOR-MEAN: 未声明 e1_span；E-POSTERIOR: 未声明 e1_span；E-TYPE1: 未声明 e1_span；E-TYPE2: 未声明 e1_span"
+      }
+    },
+    {
+      "id": "bc81ffba-6fe5-420e-bd2a-5b028d567f75",
+      "seq": 14,
+      "ts": "2026-09-18T18:02:00.586Z",
+      "runId": "f16b868d-4a67-4dcc-be37-86e2d30d1dc8",
+      "actor": "paper-executor",
+      "eventType": "provider_retry",
+      "detail": {
+        "code": "E1_E2_FIDELITY_VIOLATION",
+        "role": "executor",
+        "attempt": 1,
+        "w4Class": "DRIFT"
+      }
+    },
+    {
+      "id": "08a82fb0-6833-4c33-96c2-d7a4735a10ce",
+      "seq": 15,
+      "ts": "2026-09-18T18:02:01.609Z",
+      "runId": "f16b868d-4a67-4dcc-be37-86e2d30d1dc8",
+      "actor": "paper-executor",
+      "eventType": "ir_entry_written",
+      "detail": {
+        "kind": "E1Reused",
+        "id": "e1",
+        "nodeId": "3bb260dc-054b-492b-9a24-220af6e2d264",
+        "stage": "receive",
+        "chars": 4585
+      }
+    },
+    {
+      "id": "53d85e60-06a3-440f-b18d-6c4f399ed393",
+      "seq": 16,
+      "ts": "2026-09-18T18:02:01.612Z",
+      "runId": "f16b868d-4a67-4dcc-be37-86e2d30d1dc8",
+      "actor": "paper-executor",
+      "eventType": "ir_entry_written",
+      "detail": {
+        "kind": "E2DriftGuidance",
+        "id": "e2-guidance",
+        "nodeId": "3bb260dc-054b-492b-9a24-220af6e2d264",
+        "stage": "receive",
+        "applied": true,
+        "guidance_chars": 1667
+      }
+    },
+    {
+      "id": "181e38f7-9ae8-4b2d-a118-b09b79357b1d",
+      "seq": 17,
+      "ts": "2026-09-18T18:07:30.702Z",
+      "runId": "f16b868d-4a67-4dcc-be37-86e2d30d1dc8",
+      "actor": "paper-executor",
+      "eventType": "ir_entry_written",
+      "detail": {
+        "kind": "E2Normalization",
+        "id": "e2",
+        "nodeId": "3bb260dc-054b-492b-9a24-220af6e2d264",
+        "stage": "receive",
+        "chars": 93823,
+        "e1_chars": 4585
+      }
+    },
+    {
+      "id": "5e952e2b-a85d-4b07-a236-11bd293accfd",
+      "seq": 18,
+      "ts": "2026-09-18T18:07:30.721Z",
+      "runId": "f16b868d-4a67-4dcc-be37-86e2d30d1dc8",
+      "actor": "paper-executor",
+      "eventType": "truncated",
+      "detail": {
+        "code": "EXECUTE_OUTPUT_TRUNCATED",
+        "role": "executor",
+        "attempt": 2,
+        "class": "truncated"
+      }
+    }
+  ]
+}
