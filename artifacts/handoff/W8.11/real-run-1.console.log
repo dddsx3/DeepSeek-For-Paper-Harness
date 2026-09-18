@@ -1,0 +1,4 @@
+[CODE-FRESH] 代码来源已断言：entry lib/index.js is 132201 ms newer than the newest source
+[BLOCKED] 调用/传输失败（gate-failed）：node '3bf0a375-8a9d-4fa1-b13e-f462f5f91277' exhausted 3 attempts: EXECUTE output was not a schema-valid ir-container-v1 (BLOCKED)
+  → 重试一次；若持续失败报告给维护者。
+  run-id  -> 39131b73-8244-4056-a761-9eb78abb3cab

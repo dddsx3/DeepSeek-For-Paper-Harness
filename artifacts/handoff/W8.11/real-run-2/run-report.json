@@ -1,0 +1,47 @@
+{
+  "runId": "af1fb14a-8d70-467b-8d07-af5da6fc0cdc",
+  "tier": "T1",
+  "mode": "strict",
+  "status": "BLOCKED",
+  "routed_family": "F4",
+  "route_truth": "F3+F4",
+  "route_mismatch": false,
+  "code_provenance": {
+    "checked_at": "2026-09-18T17:28:32.096Z",
+    "ok": true,
+    "targets": [
+      {
+        "name": "@deepseek-ai/dsh-paper-foundation",
+        "ok": true,
+        "detail": "entry lib/index.js is 83534 ms newer than the newest source"
+      }
+    ]
+  },
+  "minted_ir_count": 3,
+  "classifier": "none",
+  "code": "gate-failed",
+  "humanized": "模型没有给出可用结构（引擎引导了几次仍未对齐），这次运行被判为失败。",
+  "wall_clock_seconds": 354,
+  "usage": {
+    "input_tokens": 11653,
+    "output_tokens": 20105,
+    "cost_usd": 0
+  },
+  "memo": {
+    "passed_gates": [
+      "plan"
+    ],
+    "minted_ir_kinds": [
+      "DataArtifact",
+      "RequirementSpec",
+      "ProblemSpec"
+    ],
+    "minted_ir_count": 3,
+    "failing_node": {
+      "title": "execute",
+      "attempts": 3,
+      "code": null
+    },
+    "suggested_intervention": "换个说法重新提交题目（把问题描述得更具体），或把题面文件另存为纯文本 UTF-8 后重试。"
+  }
+}
