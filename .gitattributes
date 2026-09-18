@@ -17,3 +17,12 @@
 bench/problems/**/*.pdf filter=lfs diff=lfs merge=lfs -text
 bench/problems/**/*.xlsx filter=lfs diff=lfs merge=lfs -text
 bench/problems/**/*.csv filter=lfs diff=lfs merge=lfs -text
+
+# W8.10 handoff evidence: raw captures, exempt from the whitespace gate.
+# These are verbatim records — provider outputs, terminal logs, and the
+# archive files that quote audit detail character-for-character. Normalizing
+# their whitespace would EDIT the evidence, which the round's own archive
+# discipline forbids ("原样归档，不做美化"). The exemption is scoped to this
+# round's directory on purpose: prose written BY hand (bench/*-REPORT.md)
+# stays under the gate.
+artifacts/handoff/W8.10/** -whitespace

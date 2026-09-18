@@ -1,0 +1,95 @@
+[33mThe plugin "vite-tsconfig-paths" is detected. Vite now supports tsconfig paths resolution natively via the [1mresolve.tsconfigPaths[22m option. You can remove the plugin and set [1mresolve.tsconfigPaths: true[22m in your Vite config instead.[39m
+[33mThe plugin "vite-tsconfig-paths" is detected. Vite now supports tsconfig paths resolution natively via the [1mresolve.tsconfigPaths[22m option. You can remove the plugin and set [1mresolve.tsconfigPaths: true[22m in your Vite config instead.[39m
+[33mThe plugin "vite-tsconfig-paths" is detected. Vite now supports tsconfig paths resolution natively via the [1mresolve.tsconfigPaths[22m option. You can remove the plugin and set [1mresolve.tsconfigPaths: true[22m in your Vite config instead.[39m
+
+[1m[30m[46m RUN [49m[39m[22m [36mv4.1.8 [39m[90mD:/deepseek modex/deepseek-harness[39m
+
+ [32m✓[39m [30m[45m thread-safe [49m[39m scripts/publint-all.spec.ts [2m([22m[2m5 tests[22m[2m)[22m[33m 5017[2mms[22m[39m
+     [33m[2m✓[22m[39m lints recursively declared files from an in-memory publication view [33m 1042[2mms[22m[39m
+     [33m[2m✓[22m[39m rejects an export that exists in the workspace but is not published [33m 1000[2mms[22m[39m
+     [33m[2m✓[22m[39m rejects a public export whose built file is missing [33m 955[2mms[22m[39m
+     [33m[2m✓[22m[39m accepts published relative JavaScript and CSS targets [33m 1156[2mms[22m[39m
+     [33m[2m✓[22m[39m rejects unpublished relative JavaScript and CSS targets [33m 862[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m scripts/test-invariants.spec.ts [2m([22m[2m13 tests[22m[2m)[22m[33m 5062[2mms[22m[39m
+     [33m[2m✓[22m[39m uses one exhaustive topology to reserve every package name with enabled checks [33m 4535[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/workflow/workflow-worker-thread/tests/integration.spec.ts [2m([22m[2m2 tests[22m[2m)[22m[33m 6385[2mms[22m[39m
+     [33m[2m✓[22m[39m runs a two-stage workflow: a plain child, then a schema child through the structured runtime [33m 3542[2mms[22m[39m
+     [33m[2m✓[22m[39m a child that fails against its schema (nudges exhausted) reaches the script as null [33m 2840[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m scripts/change-scope.spec.ts [2m([22m[2m8 tests[22m[2m | [22m[33m3 skipped[39m[2m)[22m[33m 10643[2mms[22m[39m
+     [33m[2m✓[22m[39m uses an explicit base on a fresh branch without a same-name remote and after its first push [33m 2715[2mms[22m[39m
+     [33m[2m✓[22m[39m reports an exact head above a non-master stacked base while dirty paths remain worktree-local [33m 2598[2mms[22m[39m
+     [33m[2m✓[22m[39m keeps committed, staged, unstaged, and untracked paths independent and does not mutate state [33m 2176[2mms[22m[39m
+     [33m[2m✓[22m[39m rejects missing, ambiguous, and non-commit refs [33m 1215[2mms[22m[39m
+     [33m[2m✓[22m[39m renders deterministic versioned JSON [33m 1937[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/workflow/tool-ralph/tests/integration.spec.ts [2m([22m[2m8 tests[22m[2m)[22m[33m 16182[2mms[22m[39m
+     [33m[2m✓[22m[39m uses distinct empty-seed children, shared cwd, and only the prior bounded handoff [33m 3519[2mms[22m[39m
+     [33m[2m✓[22m[39m reports the failed round and last good handoff when a child fails [33m 3003[2mms[22m[39m
+     [33m[2m✓[22m[39m enforces the fixed script for 'blocked' [33m 1790[2mms[22m[39m
+     [33m[2m✓[22m[39m enforces the fixed script for 'budget-limited' [33m 1577[2mms[22m[39m
+     [33m[2m✓[22m[39m enforces the fixed script for 'unnormalized report' [33m 1760[2mms[22m[39m
+     [33m[2m✓[22m[39m enforces the fixed script for 'invalid continuing report' [33m 1588[2mms[22m[39m
+     [33m[2m✓[22m[39m enforces the fixed script for 'oversized report' [33m 1457[2mms[22m[39m
+     [33m[2m✓[22m[39m cancels the real worker and fresh child to quiescence [33m 1485[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m scripts/oxlint-contract.spec.ts [2m([22m[2m13 tests[22m[2m)[22m[33m 22065[2mms[22m[39m
+     [33m[2m✓[22m[39m discovers the owning TypeScript project for every file class [33m 3991[2mms[22m[39m
+     [33m[2m✓[22m[39m runs JavaScript compatibility and nursery rules [33m 2361[2mms[22m[39m
+     [33m[2m✓[22m[39m checks preserved TypeGraph syntax without type-aware analysis [33m 1409[2mms[22m[39m
+     [33m[2m✓[22m[39m reports an unused suppression [33m 2016[2mms[22m[39m
+     [33m[2m✓[22m[39m accepts an ignored-only staged selection [33m 996[2mms[22m[39m
+     [33m[2m✓[22m[39m keeps staged validation project-free while preserving source rules [33m 1019[2mms[22m[39m
+     [33m[2m✓[22m[39m preserves successful fix output channels [33m 1240[2mms[22m[39m
+     [33m[2m✓[22m[39m prints only the final diagnostics when a fix retry still fails [33m 2255[2mms[22m[39m
+     [33m[2m✓[22m[39m converges overlapping staged stylistic fixes through Oxlint under --fix [33m 2312[2mms[22m[39m
+     [33m[2m✓[22m[39m converges overlapping staged stylistic fixes through Oxlint under --fix-suggestions [33m 2231[2mms[22m[39m
+     [33m[2m✓[22m[39m converges overlapping staged stylistic fixes through Oxlint under --fix-dangerously [33m 2207[2mms[22m[39m
+ [32m✓[39m [30m[45m thread-safe [49m[39m packages/workflow/workflow-worker-thread/tests/workflow-worker-thread.spec.ts [2m([22m[2m54 tests[22m[2m)[22m[33m 60145[2mms[22m[39m
+       [33m[2m✓[22m[39m runs a script end-to-end: agent() text results, phases, log, args, return value, events [33m 3530[2mms[22m[39m
+       [33m[2m✓[22m[39m agent({schema, model}) forwards outputSchema and agentOptions to the provider across the thread [33m 3019[2mms[22m[39m
+       [33m[2m✓[22m[39m agent({provider}) forwards provider-only agentOptions across the thread [33m 1754[2mms[22m[39m
+       [33m[2m✓[22m[39m a start-request provider override selects every child without changing the engine default [33m 3263[2mms[22m[39m
+       [33m[2m✓[22m[39m enforces a per-run total-agent cap below the engine ceiling [33m 1627[2mms[22m[39m
+       [33m[2m✓[22m[39m a fatal hook error inside the worker kills the script and reports the error [33m 1445[2mms[22m[39m
+       [33m[2m✓[22m[39m waits for async provider start before announcing a result that settled early [33m 1538[2mms[22m[39m
+       [33m[2m✓[22m[39m observes an early result rejection but sends ChildStarted before ChildFailed after start fulfills [33m 1217[2mms[22m[39m
+       [33m[2m✓[22m[39m classifies provider start rejection as AGENT_START, drops an early result, and emits no false lifecycle pair [33m 1188[2mms[22m[39m
+       [33m[2m✓[22m[39m aborts a pending provider start once without publishing workflow lifecycle [33m 1254[2mms[22m[39m
+       [33m[2m✓[22m[39m a child result REJECTION crosses back as a fatal AGENT_RESULT error (a broken provider is not a failed child) [33m 1132[2mms[22m[39m
+       [33m[2m✓[22m[39m maps a non-JSON ready-child result to fatal AGENT_RESULT instead of wedging the bridge [33m 1030[2mms[22m[39m
+       [33m[2m✓[22m[39m contains a non-JSON result even if the injected subagent service violates its normalization contract [33m 1040[2mms[22m[39m
+       [33m[2m✓[22m[39m a child whose dispose() throws synchronously cannot wedge the script (the host acks anyway) [33m 1112[2mms[22m[39m
+       [33m[2m✓[22m[39m a child dispose() rejecting an UNRENDERABLE value still acks — the containment warn is total [33m 996[2mms[22m[39m
+       [33m[2m✓[22m[39m the worker spawns with a scrubbed environment: an escaped script finds no ambient credentials [33m 985[2mms[22m[39m
+       [33m[2m✓[22m[39m the unbuilt worker forwards exactly TSX_TSCONFIG_PATH through the scrub: the paths-map pin survives, secrets do not [33m 944[2mms[22m[39m
+       [33m[2m✓[22m[39m cancel() aborts in-flight children (signal AND cancel RPC) and settles the run cancelled [33m 1118[2mms[22m[39m
+       [33m[2m✓[22m[39m an already-aborted request signal cancels before the body ever runs (the go handshake holds it) [33m 1039[2mms[22m[39m
+       [33m[2m✓[22m[39m cancel() right after start() cancels before the body runs; the signal aborting mid-run cancels like cancel() [33m 2220[2mms[22m[39m
+       [33m[2m✓[22m[39m removes the exact external abort callback on first settlement or teardown [33m 2128[2mms[22m[39m
+       [33m[2m✓[22m[39m a child-start racing the host cancel is refused: no child starts after cancellation [33m 956[2mms[22m[39m
+       [33m[2m✓[22m[39m post-cancel narration is suppressed host-side, and completion racing a cancel reports cancelled [33m 1922[2mms[22m[39m
+       [33m[2m✓[22m[39m dispose() is idempotent and settles cleanly after a completed run [33m 1083[2mms[22m[39m
+       [33m[2m✓[22m[39m a settled run arms NO grace timer: disposing a completed run must not pin it for disposeGraceMs [33m 1101[2mms[22m[39m
+       [33m[2m✓[22m[39m strays: children fired without await are aborted once the script settles, and dispose() waits for their disposal [33m 1207[2mms[22m[39m
+       [33m[2m✓[22m[39m result settlement reaps a registered stray even when the worker cannot relay disposal [33m 1176[2mms[22m[39m
+       [33m[2m✓[22m[39m the settle-reap fires the request signal too: a provider honoring ONLY the signal winds its stray down promptly [33m 1087[2mms[22m[39m
+       [33m[2m✓[22m[39m the settle-reap aborts a pending provider start before workflow/end [33m 1002[2mms[22m[39m
+       [33m[2m✓[22m[39m a duplicate Result after the terminal claim cannot repeat cleanup or rewrite the outcome [33m 1004[2mms[22m[39m
+       [33m[2m✓[22m[39m a grace-terminated worker reaps its child on exit without waiting for consumer dispose() [33m 1199[2mms[22m[39m
+       [33m[2m✓[22m[39m dispose() on a wedged worker host-drives child disposal inside the grace: it returns with the children DISPOSED, not with their teardown still in flight [33m 1426[2mms[22m[39m
+       [33m[2m✓[22m[39m a live child disposed by the dispose() drive is disposed ONCE, and the worker's late dispose RPC still gets its ack (the script settles, not the grace) [33m 1156[2mms[22m[39m
+       [33m[2m✓[22m[39m the grace force-settle pairs every stranded start: a host-synthesized cancelled agent-end lands before workflow/end [33m 1486[2mms[22m[39m
+       [33m[2m✓[22m[39m graceful cancellation keeps pairing worker-authored: exactly one agent-end per start, nothing synthesized on top [33m 1145[2mms[22m[39m
+       [33m[2m✓[22m[39m refuses and disposes a provider run that becomes ready after its real worker dies [33m 1083[2mms[22m[39m
+       [33m[2m✓[22m[39m a worker that exits before settling reports an error result and reaps its children [33m 954[2mms[22m[39m
+       [33m[2m✓[22m[39m an uncaught exception inside the worker surfaces as an error result and reaps the in-flight child [33m 1244[2mms[22m[39m
+       [33m[2m✓[22m[39m a worker death pairs every stranded start: the synthesized cancelled agent-end precedes the error workflow/end [33m 1244[2mms[22m[39m
+       [33m[2m✓[22m[39m a dispose ack racing the worker death is dropped, not crashed (post after exit) [33m 1389[2mms[22m[39m
+       [33m[2m✓[22m[39m a worker death AFTER a cancel reports cancelled, not error [33m 1059[2mms[22m[39m
+       [33m[2m✓[22m[39m run ids are unique and lifecycle meta is the run's borrowed immutable value [33m 1438[2mms[22m[39m
+       [33m[2m✓[22m[39m keeps a holder-owned run usable when the engine unloads before its child starts [33m 1001[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m7 passed[39m[22m[90m (7)[39m
+[2m      Tests [22m [1m[32m100 passed[39m[22m[2m | [22m[33m3 skipped[39m[90m (103)[39m
+[2m   Start at [22m 21:46:49
+[2m   Duration [22m 63.64s[2m (transform 26.53s, setup 4.81s, import 8.80s, tests 125.50s, environment 1ms)[22m
+
+EXIT=0

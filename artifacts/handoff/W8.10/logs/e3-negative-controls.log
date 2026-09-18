@@ -1,0 +1,30 @@
+M-Bench 负对照（W1 硬门禁）——每个控制必须把指标变红：
+
+NC-1: M1 分层与禁汇总（红队 S-2 虚高攻击）
+  PASS  F1 族报告 clean_readable=1 — {"problems":1,"clean_readable":1,"marked_readable":0,"blocked":0,"silent_errors_total":0,"silent_errors_measured_on":1,"m4_avg":1,"m5_usable":1}
+  PASS  F3 族报告 blocked=1（不被 F1 平均掉） — {"problems":1,"clean_readable":0,"marked_readable":0,"blocked":1,"silent_errors_total":0,"silent_errors_measured_on":0,"m4_avg":0,"m5_usable":0}
+  PASS  混合总成功率会虚高（0.5 > 族内真相） — blended=0.5 — 这正是被禁止的报告方式
+  PASS  MARKED 交付计入 marked 而非 clean
+NC-2: M1 把 T3 设为默认路径（复述题面必降）
+  PASS  正常稿 m1_readable_draft=true
+  PASS  复述稿 m1_readable_draft=false（n-gram 命中禁线） — overlap=0
+NC-3: M2 关闭 numeric_consistency 门（静默数字错误必升）
+  PASS  注入前 m2_silent_errors=0
+  PASS  注入后 m2_silent_errors>0 且 M1 翻负 — errors=1
+NC-4: M3a 请求级 deadline 缺失（人工介入必降）
+  PASS  无人介入 m3a_zero_manual=true
+  PASS  一次人工判断即 m3a_zero_manual=false
+  PASS  无计价配置 → m3c_cost_usd=null（禁止假 $0）
+NC-5: M4 移除骨架层（完整率必降）
+  PASS  全章节 m4_skeleton_ratio=1
+  PASS  无骨架 m4_skeleton_ratio<1 且 M1 翻负 — ratio=0
+NC-6: M5 保留 DataArtifact 拒绝（图表可用率必为 0）
+  PASS  数据图接线时 m5_figure_usable=true
+  PASS  维持拒绝时 m5_figure_usable=false（负对照：当前真实现状）
+NC-7: 反作弊——篡改 bench 题面（完整性校验必红）
+  PASS  未篡改时 integrity ok
+  PASS  篡改模拟：哈希不匹配可被检出 — 篡改检测依赖逐字节比对，此处验证哈希函数活性
+  PASS  校验器对不匹配条目报告 ok=false
+
+18 passed, 0 failed
+EXIT=0

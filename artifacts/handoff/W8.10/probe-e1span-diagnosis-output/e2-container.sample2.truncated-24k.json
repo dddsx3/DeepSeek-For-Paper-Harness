@@ -1,0 +1,3232 @@
+{
+  "__dsh_paper": "ir-container-v1",
+  "entries": [
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-N",
+        "scope_ref": "P1",
+        "token": "n",
+        "meaning": "sample size (number of items inspected) in the sampling plan",
+        "unit": "items",
+        "role": "VARIABLE",
+        "shape": "SCALAR",
+        "domain": "NONNEGATIVE_INTEGER",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-C",
+        "scope_ref": "P1",
+        "token": "c",
+        "meaning": "critical value (minimum number of defectives to reject) in the fixed-sample plan",
+        "unit": "items",
+        "role": "VARIABLE",
+        "shape": "SCALAR",
+        "domain": "NONNEGATIVE_INTEGER",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-P0",
+        "scope_ref": "P1",
+        "token": "p0",
+        "meaning": "nominal (claimed) defective rate, 10%",
+        "unit": "1",
+        "role": "PARAMETER",
+        "shape": "SCALAR",
+        "domain": "PROBABILITY",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-P1",
+        "scope_ref": "P1",
+        "token": "p1",
+        "meaning": "alternative defective rate used to constrain the second-type error (e.g., 20% for case 1)",
+        "unit": "1",
+        "role": "PARAMETER",
+        "shape": "SCALAR",
+        "domain": "PROBABILITY",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-X",
+        "scope_ref": "P1",
+        "token": "X",
+        "meaning": "number of defectives found in a sample of size n",
+        "unit": "items",
+        "role": "VARIABLE",
+        "shape": "SCALAR",
+        "domain": "NONNEGATIVE_INTEGER",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-D1",
+        "scope_ref": "P1",
+        "token": "d1",
+        "meaning": "binary decision whether to inspect component 1",
+        "unit": "1",
+        "role": "VARIABLE",
+        "shape": "SCALAR",
+        "domain": "BOOLEAN",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-D2",
+        "scope_ref": "P1",
+        "token": "d2",
+        "meaning": "binary decision whether to inspect component 2",
+        "unit": "1",
+        "role": "VARIABLE",
+        "shape": "SCALAR",
+        "domain": "BOOLEAN",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-D3",
+        "scope_ref": "P1",
+        "token": "d3",
+        "meaning": "binary decision whether to inspect the finished product",
+        "unit": "1",
+        "role": "VARIABLE",
+        "shape": "SCALAR",
+        "domain": "BOOLEAN",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-D4",
+        "scope_ref": "P1",
+        "token": "d4",
+        "meaning": "binary decision whether to disassemble a defective finished product found in-house",
+        "unit": "1",
+        "role": "VARIABLE",
+        "shape": "SCALAR",
+        "domain": "BOOLEAN",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-D5",
+        "scope_ref": "P1",
+        "token": "d5",
+        "meaning": "binary decision whether to disassemble a returned defective product",
+        "unit": "1",
+        "role": "VARIABLE",
+        "shape": "SCALAR",
+        "domain": "BOOLEAN",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-P1RATE",
+        "scope_ref": "P1",
+        "token": "p1",
+        "meaning": "defective rate of component 1",
+        "unit": "1",
+        "role": "PARAMETER",
+        "shape": "SCALAR",
+        "domain": "PROBABILITY",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-P2RATE",
+        "scope_ref": "P1",
+        "token": "p2",
+        "meaning": "defective rate of component 2",
+        "unit": "1",
+        "role": "PARAMETER",
+        "shape": "SCALAR",
+        "domain": "PROBABILITY",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-P3",
+        "scope_ref": "P1",
+        "token": "p3",
+        "meaning": "assembly defective rate of the finished product when both components are good",
+        "unit": "1",
+        "role": "PARAMETER",
+        "shape": "SCALAR",
+        "domain": "PROBABILITY",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-Q1",
+        "scope_ref": "P1",
+        "token": "q1",
+        "meaning": "effective defective rate of component 1 entering assembly (0 if inspected, else p1)",
+        "unit": "1",
+        "role": "VARIABLE",
+        "shape": "SCALAR",
+        "domain": "PROBABILITY",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-Q2",
+        "scope_ref": "P1",
+        "token": "q2",
+        "meaning": "effective defective rate of component 2 entering assembly (0 if inspected, else p2)",
+        "unit": "1",
+        "role": "VARIABLE",
+        "shape": "SCALAR",
+        "domain": "PROBABILITY",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PBAD",
+        "scope_ref": "P1",
+        "token": "P_bad",
+        "meaning": "probability that the finished product is defective",
+        "unit": "1",
+        "role": "VARIABLE",
+        "shape": "SCALAR",
+        "domain": "PROBABILITY",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PI",
+        "scope_ref": "P1",
+        "token": "π",
+        "meaning": "probability that an assembly attempt yields a good finished product",
+        "unit": "1",
+        "role": "VARIABLE",
+        "shape": "SCALAR",
+        "domain": "PROBABILITY",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-E1",
+        "scope_ref": "P1",
+        "token": "E1",
+        "meaning": "expected number of component 1 consumed per unit of sold good product (including recycling offsets)",
+        "unit": "items",
+        "role": "VARIABLE",
+        "shape": "SCALAR",
+        "domain": "NONNEGATIVE_REAL",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-E2",
+        "scope_ref": "P1",
+        "token": "E2",
+        "meaning": "expected number of component 2 consumed per unit of sold good product (including recycling offsets)",
+        "unit": "items",
+        "role": "VARIABLE",
+        "shape": "SCALAR",
+        "domain": "NONNEGATIVE_REAL",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-U",
+        "scope_ref": "P1",
+        "token": "u",
+        "meaning": "number of assembly attempts per unit of sold good product",
+        "unit": "attempts",
+        "role": "VARIABLE",
+        "shape": "SCALAR",
+        "domain": "NONNEGATIVE_REAL",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-B1",
+        "scope_ref": "P1",
+        "token": "b1",
+        "meaning": "unit purchase cost of component 1",
+        "unit": "yuan",
+        "role": "PARAMETER",
+        "shape": "SCALAR",
+        "domain": "NONNEGATIVE_REAL",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-B2",
+        "scope_ref": "P1",
+        "token": "b2",
+        "meaning": "unit purchase cost of component 2",
+        "unit": "yuan",
+        "role": "PARAMETER",
+        "shape": "SCALAR",
+        "domain": "NONNEGATIVE_REAL",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-T1",
+        "scope_ref": "P1",
+        "token": "t1",
+        "meaning": "unit inspection cost of component 1",
+        "unit": "yuan",
+        "role": "PARAMETER",
+        "shape": "SCALAR",
+        "domain": "NONNEGATIVE_REAL",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-T2",
+        "scope_ref": "P1",
+        "token": "t2",
+        "meaning": "unit inspection cost of component 2",
+        "unit": "yuan",
+        "role": "PARAMETER",
+        "shape": "SCALAR",
+        "domain": "NONNEGATIVE_REAL",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-T3",
+        "scope_ref": "P1",
+        "token": "t3",
+        "meaning": "unit inspection cost of the finished product",
+        "unit": "yuan",
+        "role": "PARAMETER",
+        "shape": "SCALAR",
+        "domain": "NONNEGATIVE_REAL",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-A",
+        "scope_ref": "P1",
+        "token": "a",
+        "meaning": "assembly cost per attempt",
+        "unit": "yuan",
+        "role": "PARAMETER",
+        "shape": "SCALAR",
+        "domain": "NONNEGATIVE_REAL",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-S",
+        "scope_ref": "P1",
+        "token": "s",
+        "meaning": "market selling price per good product",
+        "unit": "yuan",
+        "role": "PARAMETER",
+        "shape": "SCALAR",
+        "domain": "NONNEGATIVE_REAL",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-L",
+        "scope_ref": "P1",
+        "token": "L",
+        "meaning": "loss per returned defective product (replacement loss)",
+        "unit": "yuan",
+        "role": "PARAMETER",
+        "shape": "SCALAR",
+        "domain": "NONNEGATIVE_REAL",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-R",
+        "scope_ref": "P1",
+        "token": "r",
+        "meaning": "disassembly cost per defective product",
+        "unit": "yuan",
+        "role": "PARAMETER",
+        "shape": "SCALAR",
+        "domain": "NONNEGATIVE_REAL",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PS1",
+        "scope_ref": "P1",
+        "token": "p_{s1}",
+        "meaning": "assembly defective rate of semi-finished product 1 (10%)",
+        "unit": "1",
+        "role": "PARAMETER",
+        "shape": "SCALAR",
+        "domain": "PROBABILITY",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PS2",
+        "scope_ref": "P1",
+        "token": "p_{s2}",
+        "meaning": "assembly defective rate of semi-finished product 2 (10%)",
+        "unit": "1",
+        "role": "PARAMETER",
+        "shape": "SCALAR",
+        "domain": "PROBABILITY",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PF",
+        "scope_ref": "P1",
+        "token": "p_f",
+        "meaning": "assembly defective rate of the finished product (10%)",
+        "unit": "1",
+        "role": "PARAMETER",
+        "shape": "SCALAR",
+        "domain": "PROBABILITY",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-DI",
+        "scope_ref": "P1",
+        "token": "d_i",
+        "meaning": "binary decision whether to inspect component i (i=1..8)",
+        "unit": "1",
+        "role": "VARIABLE",
+        "shape": "INDEXED",
+        "domain": "BOOLEAN",
+        "index_set": ["i=1..8"]
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-EJ",
+        "scope_ref": "P1",
+        "token": "e_j",
+        "meaning": "binary decision whether to inspect semi-finished product j (j=1,2)",
+        "unit": "1",
+        "role": "VARIABLE",
+        "shape": "INDEXED",
+        "domain": "BOOLEAN",
+        "index_set": ["j=1,2"]
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-F",
+        "scope_ref": "P1",
+        "token": "f",
+        "meaning": "binary decision whether to inspect the finished product",
+        "unit": "1",
+        "role": "VARIABLE",
+        "shape": "SCALAR",
+        "domain": "BOOLEAN",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-GJ",
+        "scope_ref": "P1",
+        "token": "g_j",
+        "meaning": "binary decision whether to disassemble defective semi-finished product j (j=1,2)",
+        "unit": "1",
+        "role": "VARIABLE",
+        "shape": "INDEXED",
+        "domain": "BOOLEAN",
+        "index_set": ["j=1,2"]
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-H",
+        "scope_ref": "P1",
+        "token": "h",
+        "meaning": "binary decision whether to disassemble a defective finished product found in-house",
+        "unit": "1",
+        "role": "VARIABLE",
+        "shape": "SCALAR",
+        "domain": "BOOLEAN",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-K",
+        "scope_ref": "P1",
+        "token": "k",
+        "meaning": "binary decision whether to disassemble a returned defective product",
+        "unit": "1",
+        "role": "VARIABLE",
+        "shape": "SCALAR",
+        "domain": "BOOLEAN",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-ALPHA",
+        "scope_ref": "P1",
+        "token": "α",
+        "meaning": "first-type error probability (e.g., 0.05 in case 1)",
+        "unit": "1",
+        "role": "PARAMETER",
+        "shape": "SCALAR",
+        "domain": "PROBABILITY",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-BETA",
+        "scope_ref": "P1",
+        "token": "β",
+        "meaning": "second-type error probability (e.g., 0.10 in case 2)",
+        "unit": "1",
+        "role": "PARAMETER",
+        "shape": "SCALAR",
+        "domain": "PROBABILITY",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PHAT",
+        "scope_ref": "P1",
+        "token": "p̂",
+        "meaning": "posterior mean of the defective rate after sampling",
+        "unit": "1",
+        "role": "VARIABLE",
+        "shape": "SCALAR",
+        "domain": "PROBABILITY",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-ALPHA-PRIOR",
+        "scope_ref": "P1",
+        "token": "α",
+        "meaning": "first parameter of the Beta prior",
+        "unit": "1",
+        "role": "PARAMETER",
+        "shape": "SCALAR",
+        "domain": "NONNEGATIVE_REAL",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-BETA-PRIOR",
+        "scope_ref": "P1",
+        "token": "β",
+        "meaning": "second parameter of the Beta prior",
+        "unit": "1",
+        "role": "PARAMETER",
+        "shape": "SCALAR",
+        "domain": "NONNEGATIVE_REAL",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-NI",
+        "scope_ref": "P1",
+        "token": "N_i",
+        "meaning": "net consumption (new purchases) of component i per unit of sold good product",
+        "unit": "items",
+        "role": "VARIABLE",
+        "shape": "INDEXED",
+        "domain": "NONNEGATIVE_REAL",
+        "index_set": ["i=1..8"]
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-MJ",
+        "scope_ref": "P1",
+        "token": "M_j",
+        "meaning": "net assembly attempts of semi-finished product j per unit of sold good product",
+        "unit": "attempts",
+        "role": "VARIABLE",
+        "shape": "INDEXED",
+        "domain": "NONNEGATIVE_REAL",
+        "index_set": ["j=1,2"]
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-U3",
+        "scope_ref": "P1",
+        "token": "U",
+        "meaning": "assembly attempts of the finished product per unit of sold good product",
+        "unit": "attempts",
+        "role": "VARIABLE",
+        "shape": "SCALAR",
+        "domain": "NONNEGATIVE_REAL",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-AS1",
+        "scope_ref": "P1",
+        "token": "a_{s1}",
+        "meaning": "assembly cost of semi-finished product 1 (8 yuan)",
+        "unit": "yuan",
+        "role": "PARAMETER",
+        "shape": "SCALAR",
+        "domain": "NONNEGATIVE_REAL",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-AS2",
+        "scope_ref": "P1",
+        "token": "a_{s2}",
+        "meaning": "assembly cost of semi-finished product 2 (8 yuan)",
+        "unit": "yuan",
+        "role": "PARAMETER",
+        "shape": "SCALAR",
+        "domain": "NONNEGATIVE_REAL",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-AF",
+        "scope_ref": "P1",
+        "token": "a_f",
+        "meaning": "assembly cost of the finished product (8 yuan)",
+        "unit": "yuan",
+        "role": "PARAMETER",
+        "shape": "SCALAR",
+        "domain": "NONNEGATIVE_REAL",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-TS1",
+        "scope_ref": "P1",
+        "token": "t_{s1}",
+        "meaning": "inspection cost of semi-finished product 1 (4 yuan)",
+        "unit": "yuan",
+        "role": "PARAMETER",
+        "shape": "SCALAR",
+        "domain": "NONNEGATIVE_REAL",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-TS2",
+        "scope_ref": "P1",
+        "token": "t_{s2}",
+        "meaning": "inspection cost of semi-finished product 2 (4 yuan)",
+        "unit": "yuan",
+        "role": "PARAMETER",
+        "shape": "SCALAR",
+        "domain": "NONNEGATIVE_REAL",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-TF",
+        "scope_ref": "P1",
+        "token": "t_f",
+        "meaning": "inspection cost of the finished product (6 yuan)",
+        "unit": "yuan",
+        "role": "PARAMETER",
+        "shape": "SCALAR",
+        "domain": "NONNEGATIVE_REAL",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-RS",
+        "scope_ref": "P1",
+        "token": "r_s",
+        "meaning": "disassembly cost of a semi-finished product (6 yuan)",
+        "unit": "yuan",
+        "role": "PARAMETER",
+        "shape": "SCALAR",
+        "domain": "NONNEGATIVE_REAL",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-RF",
+        "scope_ref": "P1",
+        "token": "r_f",
+        "meaning": "disassembly cost of the finished product (10 yuan)",
+        "unit": "yuan",
+        "role": "PARAMETER",
+        "shape": "SCALAR",
+        "domain": "NONNEGATIVE_REAL",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-S3",
+        "scope_ref": "P1",
+        "token": "s",
+        "meaning": "selling price of the finished product (200 yuan)",
+        "unit": "yuan",
+        "role": "PARAMETER",
+        "shape": "SCALAR",
+        "domain": "NONNEGATIVE_REAL",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-L3",
+        "scope_ref": "P1",
+        "token": "L",
+        "meaning": "replacement loss per returned product (40 yuan)",
+        "unit": "yuan",
+        "role": "PARAMETER",
+        "shape": "SCALAR",
+        "domain": "NONNEGATIVE_REAL",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-POSTERIOR",
+        "scope_ref": "P1",
+        "token": "p ~ Beta(α+x, β+n−x)",
+        "meaning": "posterior distribution of the defective rate after sampling",
+        "unit": "1",
+        "role": "VARIABLE",
+        "shape": "SCALAR",
+        "domain": "PROBABILITY",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-COST",
+        "scope_ref": "P1",
+        "token": "C(d,p)",
+        "meaning": "expected total cost per unit of sold good product as a function of decisions d and defective rates p",
+        "unit": "yuan",
+        "role": "VARIABLE",
+        "shape": "SCALAR",
+        "domain": "NONNEGATIVE_REAL",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PROFIT",
+        "scope_ref": "P1",
+        "token": "profit",
+        "meaning": "expected profit per unit of sold good product",
+        "unit": "yuan",
+        "role": "VARIABLE",
+        "shape": "SCALAR",
+        "domain": "REAL",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-ASN",
+        "scope_ref": "P1",
+        "token": "ASN",
+        "meaning": "average sample number of the sequential probability ratio test",
+        "unit": "items",
+        "role": "VARIABLE",
+        "shape": "SCALAR",
+        "domain": "NONNEGATIVE_REAL",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-A-SPRT",
+        "scope_ref": "P1",
+        "token": "a",
+        "meaning": "upper Wald boundary for the SPRT",
+        "unit": "1",
+        "role": "PARAMETER",
+        "shape": "SCALAR",
+        "domain": "REAL",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-B-SPRT",
+        "scope_ref": "P1",
+        "token": "b",
+        "meaning": "lower Wald boundary for the SPRT",
+        "unit": "1",
+        "role": "PARAMETER",
+        "shape": "SCALAR",
+        "domain": "REAL",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PLOW",
+        "scope_ref": "P1",
+        "token": "p_low",
+        "meaning": "lower endpoint of the posterior credible interval",
+        "unit": "1",
+        "role": "VARIABLE",
+        "shape": "SCALAR",
+        "domain": "PROBABILITY",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PHIGH",
+        "scope_ref": "P1",
+        "token": "p_high",
+        "meaning": "upper endpoint of the posterior credible interval",
+        "unit": "1",
+        "role": "VARIABLE",
+        "shape": "SCALAR",
+        "domain": "PROBABILITY",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-SIGMA",
+        "scope_ref": "P1",
+        "token": "σ",
+        "meaning": "standard deviation of the posterior distribution",
+        "unit": "1",
+        "role": "VARIABLE",
+        "shape": "SCALAR",
+        "domain": "NONNEGATIVE_REAL",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-NSTAR",
+        "scope_ref": "P1",
+        "token": "n*",
+        "meaning": "optimal sample size that minimizes sampling cost plus posterior expected cost",
+        "unit": "items",
+        "role": "VARIABLE",
+        "shape": "SCALAR",
+        "domain": "NONNEGATIVE_INTEGER",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-OC",
+        "scope_ref": "P1",
+        "token": "OC(p)",
+        "meaning": "operating characteristic curve: probability of accepting the batch as a function of true defective rate p",
+        "unit": "1",
+        "role": "VARIABLE",
+        "shape": "SCALAR",
+        "domain": "PROBABILITY",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-Z",
+        "scope_ref": "P1",
+        "token": "z0.95",
+        "meaning": "0.95 quantile of the standard normal distribution (1.645)",
+        "unit": "1",
+        "role": "PARAMETER",
+        "shape": "SCALAR",
+        "domain": "REAL",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-Z2",
+        "scope_ref": "P1",
+        "token": "z0.90",
+        "meaning": "0.90 quantile of the standard normal distribution",
+        "unit": "1",
+        "role": "PARAMETER",
+        "shape": "SCALAR",
+        "domain": "REAL",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-ALPHA-POST",
+        "scope_ref": "P1",
+        "token": "α+x",
+        "meaning": "first parameter of the posterior Beta distribution",
+        "unit": "1",
+        "role": "PARAMETER",
+        "shape": "SCALAR",
+        "domain": "NONNEGATIVE_REAL",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-BETA-POST",
+        "scope_ref": "P1",
+        "token": "β+n−x",
+        "meaning": "second parameter of the posterior Beta distribution",
+        "unit": "1",
+        "role": "PARAMETER",
+        "shape": "SCALAR",
+        "domain": "NONNEGATIVE_REAL",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-REGRET",
+        "scope_ref": "P1",
+        "token": "regret",
+        "meaning": "regret of a decision under a given defective rate",
+        "unit": "yuan",
+        "role": "VARIABLE",
+        "shape": "SCALAR",
+        "domain": "NONNEGATIVE_REAL",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-EXPCOST",
+        "scope_ref": "P1",
+        "token": "E[C(d,p)]",
+        "meaning": "posterior expected cost of decision d",
+        "unit": "yuan",
+        "role": "VARIABLE",
+        "shape": "SCALAR",
+        "domain": "NONNEGATIVE_REAL",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-EXPCOST-POST",
+        "scope_ref": "P1",
+        "token": "E_{p~后验}[ C(d, p) ]",
+        "meaning": "posterior expected cost of decision d",
+        "unit": "yuan",
+        "role": "VARIABLE",
+        "shape": "SCALAR",
+        "domain": "NONNEGATIVE_REAL",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PROFIT-POST",
+        "scope_ref": "P1",
+        "token": "profit",
+        "meaning": "expected profit per unit of sold good product under posterior mean",
+        "unit": "yuan",
+        "role": "VARIABLE",
+        "shape": "SCALAR",
+        "domain": "REAL",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-DECISION",
+        "scope_ref": "P1",
+        "token": "d",
+        "meaning": "vector of binary decisions (d1..d5, or extended for problem 3)",
+        "unit": "1",
+        "role": "VARIABLE",
+        "shape": "VECTOR",
+        "domain": "BOOLEAN",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM",
+        "scope_ref": "P1",
+        "token": "p",
+        "meaning": "vector of defective rates",
+        "unit": "1",
+        "role": "PARAMETER",
+        "shape": "VECTOR",
+        "domain": "PROBABILITY",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM-POST",
+        "scope_ref": "P1",
+        "token": "p̂",
+        "meaning": "vector of posterior means of defective rates",
+        "unit": "1",
+        "role": "PARAMETER",
+        "shape": "VECTOR",
+        "domain": "PROBABILITY",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM-LOW",
+        "scope_ref": "P1",
+        "token": "p_low",
+        "meaning": "vector of lower credible endpoints",
+        "unit": "1",
+        "role": "PARAMETER",
+        "shape": "VECTOR",
+        "domain": "PROBABILITY",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM-HIGH",
+        "scope_ref": "P1",
+        "token": "p_high",
+        "meaning": "vector of upper credible endpoints",
+        "unit": "1",
+        "role": "PARAMETER",
+        "shape": "VECTOR",
+        "domain": "PROBABILITY",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM-SIGMA",
+        "scope_ref": "P1",
+        "token": "σ",
+        "meaning": "vector of posterior standard deviations",
+        "unit": "1",
+        "role": "PARAMETER",
+        "shape": "VECTOR",
+        "domain": "NONNEGATIVE_REAL",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM-ALPHA",
+        "scope_ref": "P1",
+        "token": "α",
+        "meaning": "vector of first parameters of Beta priors",
+        "unit": "1",
+        "role": "PARAMETER",
+        "shape": "VECTOR",
+        "domain": "NONNEGATIVE_REAL",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM-BETA",
+        "scope_ref": "P1",
+        "token": "β",
+        "meaning": "vector of second parameters of Beta priors",
+        "unit": "1",
+        "role": "PARAMETER",
+        "shape": "VECTOR",
+        "domain": "NONNEGATIVE_REAL",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM-X",
+        "scope_ref": "P1",
+        "token": "x",
+        "meaning": "vector of observed defective counts in samples",
+        "unit": "items",
+        "role": "PARAMETER",
+        "shape": "VECTOR",
+        "domain": "NONNEGATIVE_INTEGER",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM-N",
+        "scope_ref": "P1",
+        "token": "n",
+        "meaning": "vector of sample sizes",
+        "unit": "items",
+        "role": "PARAMETER",
+        "shape": "VECTOR",
+        "domain": "NONNEGATIVE_INTEGER",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM-B",
+        "scope_ref": "P1",
+        "token": "b_i",
+        "meaning": "vector of unit purchase costs of components",
+        "unit": "yuan",
+        "role": "PARAMETER",
+        "shape": "VECTOR",
+        "domain": "NONNEGATIVE_REAL",
+        "index_set": ["i=1..8"]
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM-T",
+        "scope_ref": "P1",
+        "token": "t_i",
+        "meaning": "vector of unit inspection costs of components",
+        "unit": "yuan",
+        "role": "PARAMETER",
+        "shape": "VECTOR",
+        "domain": "NONNEGATIVE_REAL",
+        "index_set": ["i=1..8"]
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM-A",
+        "scope_ref": "P1",
+        "token": "a",
+        "meaning": "vector of assembly costs",
+        "unit": "yuan",
+        "role": "PARAMETER",
+        "shape": "VECTOR",
+        "domain": "NONNEGATIVE_REAL",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM-R",
+        "scope_ref": "P1",
+        "token": "r",
+        "meaning": "vector of disassembly costs",
+        "unit": "yuan",
+        "role": "PARAMETER",
+        "shape": "VECTOR",
+        "domain": "NONNEGATIVE_REAL",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM-S",
+        "scope_ref": "P1",
+        "token": "s",
+        "meaning": "selling price",
+        "unit": "yuan",
+        "role": "PARAMETER",
+        "shape": "SCALAR",
+        "domain": "NONNEGATIVE_REAL",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM-L",
+        "scope_ref": "P1",
+        "token": "L",
+        "meaning": "replacement loss",
+        "unit": "yuan",
+        "role": "PARAMETER",
+        "shape": "SCALAR",
+        "domain": "NONNEGATIVE_REAL",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM-P",
+        "scope_ref": "P1",
+        "token": "p_i",
+        "meaning": "vector of defective rates of components",
+        "unit": "1",
+        "role": "PARAMETER",
+        "shape": "VECTOR",
+        "domain": "PROBABILITY",
+        "index_set": ["i=1..8"]
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM-PS",
+        "scope_ref": "P1",
+        "token": "p_{sj}",
+        "meaning": "vector of defective rates of semi-finished products",
+        "unit": "1",
+        "role": "PARAMETER",
+        "shape": "VECTOR",
+        "domain": "PROBABILITY",
+        "index_set": ["j=1,2"]
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM-PF",
+        "scope_ref": "P1",
+        "token": "p_f",
+        "meaning": "defective rate of the finished product",
+        "unit": "1",
+        "role": "PARAMETER",
+        "shape": "SCALAR",
+        "domain": "PROBABILITY",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM-Q",
+        "scope_ref": "P1",
+        "token": "q_i",
+        "meaning": "vector of effective defective rates of components entering assembly",
+        "unit": "1",
+        "role": "VARIABLE",
+        "shape": "VECTOR",
+        "domain": "PROBABILITY",
+        "index_set": ["i=1..8"]
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM-QS",
+        "scope_ref": "P1",
+        "token": "q_{sj}",
+        "meaning": "vector of effective defective rates of semi-finished products entering final assembly",
+        "unit": "1",
+        "role": "VARIABLE",
+        "shape": "VECTOR",
+        "domain": "PROBABILITY",
+        "index_set": ["j=1,2"]
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM-PBAD",
+        "scope_ref": "P1",
+        "token": "P_bad",
+        "meaning": "probability that the finished product is defective",
+        "unit": "1",
+        "role": "VARIABLE",
+        "shape": "SCALAR",
+        "domain": "PROBABILITY",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM-PI",
+        "scope_ref": "P1",
+        "token": "π",
+        "meaning": "probability that an assembly attempt yields a good finished product",
+        "unit": "1",
+        "role": "VARIABLE",
+        "shape": "SCALAR",
+        "domain": "PROBABILITY",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM-E",
+        "scope_ref": "P1",
+        "token": "E_i",
+        "meaning": "vector of expected component consumption per unit of sold good product",
+        "unit": "items",
+        "role": "VARIABLE",
+        "shape": "VECTOR",
+        "domain": "NONNEGATIVE_REAL",
+        "index_set": ["i=1..8"]
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM-M",
+        "scope_ref": "P1",
+        "token": "M_j",
+        "meaning": "vector of expected semi-finished assembly attempts per unit of sold good product",
+        "unit": "attempts",
+        "role": "VARIABLE",
+        "shape": "VECTOR",
+        "domain": "NONNEGATIVE_REAL",
+        "index_set": ["j=1,2"]
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM-U",
+        "scope_ref": "P1",
+        "token": "U",
+        "meaning": "expected finished-product assembly attempts per unit of sold good product",
+        "unit": "attempts",
+        "role": "VARIABLE",
+        "shape": "SCALAR",
+        "domain": "NONNEGATIVE_REAL",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM-COST",
+        "scope_ref": "P1",
+        "token": "C",
+        "meaning": "expected total cost per unit of sold good product",
+        "unit": "yuan",
+        "role": "VARIABLE",
+        "shape": "SCALAR",
+        "domain": "NONNEGATIVE_REAL",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM-PROFIT",
+        "scope_ref": "P1",
+        "token": "profit",
+        "meaning": "expected profit per unit of sold good product",
+        "unit": "yuan",
+        "role": "VARIABLE",
+        "shape": "SCALAR",
+        "domain": "REAL",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM-ASN",
+        "scope_ref": "P1",
+        "token": "ASN",
+        "meaning": "average sample number of the SPRT",
+        "unit": "items",
+        "role": "VARIABLE",
+        "shape": "SCALAR",
+        "domain": "NONNEGATIVE_REAL",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM-NSTAR",
+        "scope_ref": "P1",
+        "token": "n*",
+        "meaning": "optimal sample size",
+        "unit": "items",
+        "role": "VARIABLE",
+        "shape": "SCALAR",
+        "domain": "NONNEGATIVE_INTEGER",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM-OC",
+        "scope_ref": "P1",
+        "token": "OC(p)",
+        "meaning": "operating characteristic curve",
+        "unit": "1",
+        "role": "VARIABLE",
+        "shape": "SCALAR",
+        "domain": "PROBABILITY",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM-Z",
+        "scope_ref": "P1",
+        "token": "z",
+        "meaning": "standard normal quantile",
+        "unit": "1",
+        "role": "PARAMETER",
+        "shape": "SCALAR",
+        "domain": "REAL",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM-ALPHA-POST",
+        "scope_ref": "P1",
+        "token": "α+x",
+        "meaning": "first parameter of posterior Beta",
+        "unit": "1",
+        "role": "PARAMETER",
+        "shape": "SCALAR",
+        "domain": "NONNEGATIVE_REAL",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM-BETA-POST",
+        "scope_ref": "P1",
+        "token": "β+n−x",
+        "meaning": "second parameter of posterior Beta",
+        "unit": "1",
+        "role": "PARAMETER",
+        "shape": "SCALAR",
+        "domain": "NONNEGATIVE_REAL",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM-REGRET",
+        "scope_ref": "P1",
+        "token": "regret",
+        "meaning": "regret",
+        "unit": "yuan",
+        "role": "VARIABLE",
+        "shape": "SCALAR",
+        "domain": "NONNEGATIVE_REAL",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM-EXPCOST",
+        "scope_ref": "P1",
+        "token": "E[C(d,p)]",
+        "meaning": "posterior expected cost",
+        "unit": "yuan",
+        "role": "VARIABLE",
+        "shape": "SCALAR",
+        "domain": "NONNEGATIVE_REAL",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM-PROFIT-POST",
+        "scope_ref": "P1",
+        "token": "profit",
+        "meaning": "expected profit under posterior mean",
+        "unit": "yuan",
+        "role": "VARIABLE",
+        "shape": "SCALAR",
+        "domain": "REAL",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM-DECISION",
+        "scope_ref": "P1",
+        "token": "d",
+        "meaning": "decision vector",
+        "unit": "1",
+        "role": "VARIABLE",
+        "shape": "VECTOR",
+        "domain": "BOOLEAN",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM-P",
+        "scope_ref": "P1",
+        "token": "p",
+        "meaning": "defective rate vector",
+        "unit": "1",
+        "role": "PARAMETER",
+        "shape": "VECTOR",
+        "domain": "PROBABILITY",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM-POST",
+        "scope_ref": "P1",
+        "token": "p̂",
+        "meaning": "posterior mean vector",
+        "unit": "1",
+        "role": "PARAMETER",
+        "shape": "VECTOR",
+        "domain": "PROBABILITY",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM-LOW",
+        "scope_ref": "P1",
+        "token": "p_low",
+        "meaning": "lower credible endpoint vector",
+        "unit": "1",
+        "role": "PARAMETER",
+        "shape": "VECTOR",
+        "domain": "PROBABILITY",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM-HIGH",
+        "scope_ref": "P1",
+        "token": "p_high",
+        "meaning": "upper credible endpoint vector",
+        "unit": "1",
+        "role": "PARAMETER",
+        "shape": "VECTOR",
+        "domain": "PROBABILITY",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM-SIGMA",
+        "scope_ref": "P1",
+        "token": "σ",
+        "meaning": "posterior standard deviation vector",
+        "unit": "1",
+        "role": "PARAMETER",
+        "shape": "VECTOR",
+        "domain": "NONNEGATIVE_REAL",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM-ALPHA",
+        "scope_ref": "P1",
+        "token": "α",
+        "meaning": "Beta prior first parameter vector",
+        "unit": "1",
+        "role": "PARAMETER",
+        "shape": "VECTOR",
+        "domain": "NONNEGATIVE_REAL",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM-BETA",
+        "scope_ref": "P1",
+        "token": "β",
+        "meaning": "Beta prior second parameter vector",
+        "unit": "1",
+        "role": "PARAMETER",
+        "shape": "VECTOR",
+        "domain": "NONNEGATIVE_REAL",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM-X",
+        "scope_ref": "P1",
+        "token": "x",
+        "meaning": "observed defective count vector",
+        "unit": "items",
+        "role": "PARAMETER",
+        "shape": "VECTOR",
+        "domain": "NONNEGATIVE_INTEGER",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM-N",
+        "scope_ref": "P1",
+        "token": "n",
+        "meaning": "sample size vector",
+        "unit": "items",
+        "role": "PARAMETER",
+        "shape": "VECTOR",
+        "domain": "NONNEGATIVE_INTEGER",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM-B",
+        "scope_ref": "P1",
+        "token": "b_i",
+        "meaning": "component purchase cost vector",
+        "unit": "yuan",
+        "role": "PARAMETER",
+        "shape": "VECTOR",
+        "domain": "NONNEGATIVE_REAL",
+        "index_set": ["i=1..8"]
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM-T",
+        "scope_ref": "P1",
+        "token": "t_i",
+        "meaning": "component inspection cost vector",
+        "unit": "yuan",
+        "role": "PARAMETER",
+        "shape": "VECTOR",
+        "domain": "NONNEGATIVE_REAL",
+        "index_set": ["i=1..8"]
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM-A",
+        "scope_ref": "P1",
+        "token": "a",
+        "meaning": "assembly cost vector",
+        "unit": "yuan",
+        "role": "PARAMETER",
+        "shape": "VECTOR",
+        "domain": "NONNEGATIVE_REAL",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM-R",
+        "scope_ref": "P1",
+        "token": "r",
+        "meaning": "disassembly cost vector",
+        "unit": "yuan",
+        "role": "PARAMETER",
+        "shape": "VECTOR",
+        "domain": "NONNEGATIVE_REAL",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM-S",
+        "scope_ref": "P1",
+        "token": "s",
+        "meaning": "selling price",
+        "unit": "yuan",
+        "role": "PARAMETER",
+        "shape": "SCALAR",
+        "domain": "NONNEGATIVE_REAL",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM-L",
+        "scope_ref": "P1",
+        "token": "L",
+        "meaning": "replacement loss",
+        "unit": "yuan",
+        "role": "PARAMETER",
+        "shape": "SCALAR",
+        "domain": "NONNEGATIVE_REAL",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM-P",
+        "scope_ref": "P1",
+        "token": "p_i",
+        "meaning": "component defective rate vector",
+        "unit": "1",
+        "role": "PARAMETER",
+        "shape": "VECTOR",
+        "domain": "PROBABILITY",
+        "index_set": ["i=1..8"]
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM-PS",
+        "scope_ref": "P1",
+        "token": "p_{sj}",
+        "meaning": "semi-finished defective rate vector",
+        "unit": "1",
+        "role": "PARAMETER",
+        "shape": "VECTOR",
+        "domain": "PROBABILITY",
+        "index_set": ["j=1,2"]
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM-PF",
+        "scope_ref": "P1",
+        "token": "p_f",
+        "meaning": "finished-product defective rate",
+        "unit": "1",
+        "role": "PARAMETER",
+        "shape": "SCALAR",
+        "domain": "PROBABILITY",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM-Q",
+        "scope_ref": "P1",
+        "token": "q_i",
+        "meaning": "effective component defective rate vector",
+        "unit": "1",
+        "role": "VARIABLE",
+        "shape": "VECTOR",
+        "domain": "PROBABILITY",
+        "index_set": ["i=1..8"]
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM-QS",
+        "scope_ref": "P1",
+        "token": "q_{sj}",
+        "meaning": "effective semi-finished defective rate vector",
+        "unit": "1",
+        "role": "VARIABLE",
+        "shape": "VECTOR",
+        "domain": "PROBABILITY",
+        "index_set": ["j=1,2"]
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM-PBAD",
+        "scope_ref": "P1",
+        "token": "P_bad",
+        "meaning": "finished-product defective probability",
+        "unit": "1",
+        "role": "VARIABLE",
+        "shape": "SCALAR",
+        "domain": "PROBABILITY",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM-PI",
+        "scope_ref": "P1",
+        "token": "π",
+        "meaning": "good-product probability per assembly attempt",
+        "unit": "1",
+        "role": "VARIABLE",
+        "shape": "SCALAR",
+        "domain": "PROBABILITY",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM-E",
+        "scope_ref": "P1",
+        "token": "E_i",
+        "meaning": "expected component consumption vector",
+        "unit": "items",
+        "role": "VARIABLE",
+        "shape": "VECTOR",
+        "domain": "NONNEGATIVE_REAL",
+        "index_set": ["i=1..8"]
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM-M",
+        "scope_ref": "P1",
+        "token": "M_j",
+        "meaning": "expected semi-finished assembly attempts vector",
+        "unit": "attempts",
+        "role": "VARIABLE",
+        "shape": "VECTOR",
+        "domain": "NONNEGATIVE_REAL",
+        "index_set": ["j=1,2"]
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM-U",
+        "scope_ref": "P1",
+        "token": "U",
+        "meaning": "expected finished-product assembly attempts",
+        "unit": "attempts",
+        "role": "VARIABLE",
+        "shape": "SCALAR",
+        "domain": "NONNEGATIVE_REAL",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM-COST",
+        "scope_ref": "P1",
+        "token": "C",
+        "meaning": "expected total cost per unit of sold good product",
+        "unit": "yuan",
+        "role": "VARIABLE",
+        "shape": "SCALAR",
+        "domain": "NONNEGATIVE_REAL",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM-PROFIT",
+        "scope_ref": "P1",
+        "token": "profit",
+        "meaning": "expected profit per unit of sold good product",
+        "unit": "yuan",
+        "role": "VARIABLE",
+        "shape": "SCALAR",
+        "domain": "REAL",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM-ASN",
+        "scope_ref": "P1",
+        "token": "ASN",
+        "meaning": "average sample number",
+        "unit": "items",
+        "role": "VARIABLE",
+        "shape": "SCALAR",
+        "domain": "NONNEGATIVE_REAL",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM-NSTAR",
+        "scope_ref": "P1",
+        "token": "n*",
+        "meaning": "optimal sample size",
+        "unit": "items",
+        "role": "VARIABLE",
+        "shape": "SCALAR",
+        "domain": "NONNEGATIVE_INTEGER",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM-OC",
+        "scope_ref": "P1",
+        "token": "OC(p)",
+        "meaning": "operating characteristic curve",
+        "unit": "1",
+        "role": "VARIABLE",
+        "shape": "SCALAR",
+        "domain": "PROBABILITY",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM-Z",
+        "scope_ref": "P1",
+        "token": "z",
+        "meaning": "standard normal quantile",
+        "unit": "1",
+        "role": "PARAMETER",
+        "shape": "SCALAR",
+        "domain": "REAL",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM-ALPHA-POST",
+        "scope_ref": "P1",
+        "token": "α+x",
+        "meaning": "posterior Beta first parameter",
+        "unit": "1",
+        "role": "PARAMETER",
+        "shape": "SCALAR",
+        "domain": "NONNEGATIVE_REAL",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM-BETA-POST",
+        "scope_ref": "P1",
+        "token": "β+n−x",
+        "meaning": "posterior Beta second parameter",
+        "unit": "1",
+        "role": "PARAMETER",
+        "shape": "SCALAR",
+        "domain": "NONNEGATIVE_REAL",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM-REGRET",
+        "scope_ref": "P1",
+        "token": "regret",
+        "meaning": "regret",
+        "unit": "yuan",
+        "role": "VARIABLE",
+        "shape": "SCALAR",
+        "domain": "NONNEGATIVE_REAL",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM-EXPCOST",
+        "scope_ref": "P1",
+        "token": "E[C(d,p)]",
+        "meaning": "posterior expected cost",
+        "unit": "yuan",
+        "role": "VARIABLE",
+        "shape": "SCALAR",
+        "domain": "NONNEGATIVE_REAL",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM-PROFIT-POST",
+        "scope_ref": "P1",
+        "token": "profit",
+        "meaning": "expected profit under posterior mean",
+        "unit": "yuan",
+        "role": "VARIABLE",
+        "shape": "SCALAR",
+        "domain": "REAL",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM-DECISION",
+        "scope_ref": "P1",
+        "token": "d",
+        "meaning": "decision vector",
+        "unit": "1",
+        "role": "VARIABLE",
+        "shape": "VECTOR",
+        "domain": "BOOLEAN",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM-P",
+        "scope_ref": "P1",
+        "token": "p",
+        "meaning": "defective rate vector",
+        "unit": "1",
+        "role": "PARAMETER",
+        "shape": "VECTOR",
+        "domain": "PROBABILITY",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM-POST",
+        "scope_ref": "P1",
+        "token": "p̂",
+        "meaning": "posterior mean vector",
+        "unit": "1",
+        "role": "PARAMETER",
+        "shape": "VECTOR",
+        "domain": "PROBABILITY",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM-LOW",
+        "scope_ref": "P1",
+        "token": "p_low",
+        "meaning": "lower credible endpoint vector",
+        "unit": "1",
+        "role": "PARAMETER",
+        "shape": "VECTOR",
+        "domain": "PROBABILITY",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM-HIGH",
+        "scope_ref": "P1",
+        "token": "p_high",
+        "meaning": "upper credible endpoint vector",
+        "unit": "1",
+        "role": "PARAMETER",
+        "shape": "VECTOR",
+        "domain": "PROBABILITY",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM-SIGMA",
+        "scope_ref": "P1",
+        "token": "σ",
+        "meaning": "posterior standard deviation vector",
+        "unit": "1",
+        "role": "PARAMETER",
+        "shape": "VECTOR",
+        "domain": "NONNEGATIVE_REAL",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM-ALPHA",
+        "scope_ref": "P1",
+        "token": "α",
+        "meaning": "Beta prior first parameter vector",
+        "unit": "1",
+        "role": "PARAMETER",
+        "shape": "VECTOR",
+        "domain": "NONNEGATIVE_REAL",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM-BETA",
+        "scope_ref": "P1",
+        "token": "β",
+        "meaning": "Beta prior second parameter vector",
+        "unit": "1",
+        "role": "PARAMETER",
+        "shape": "VECTOR",
+        "domain": "NONNEGATIVE_REAL",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM-X",
+        "scope_ref": "P1",
+        "token": "x",
+        "meaning": "observed defective count vector",
+        "unit": "items",
+        "role": "PARAMETER",
+        "shape": "VECTOR",
+        "domain": "NONNEGATIVE_INTEGER",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM-N",
+        "scope_ref": "P1",
+        "token": "n",
+        "meaning": "sample size vector",
+        "unit": "items",
+        "role": "PARAMETER",
+        "shape": "VECTOR",
+        "domain": "NONNEGATIVE_INTEGER",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM-B",
+        "scope_ref": "P1",
+        "token": "b_i",
+        "meaning": "component purchase cost vector",
+        "unit": "yuan",
+        "role": "PARAMETER",
+        "shape": "VECTOR",
+        "domain": "NONNEGATIVE_REAL",
+        "index_set": ["i=1..8"]
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM-T",
+        "scope_ref": "P1",
+        "token": "t_i",
+        "meaning": "component inspection cost vector",
+        "unit": "yuan",
+        "role": "PARAMETER",
+        "shape": "VECTOR",
+        "domain": "NONNEGATIVE_REAL",
+        "index_set": ["i=1..8"]
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM-A",
+        "scope_ref": "P1",
+        "token": "a",
+        "meaning": "assembly cost vector",
+        "unit": "yuan",
+        "role": "PARAMETER",
+        "shape": "VECTOR",
+        "domain": "NONNEGATIVE_REAL",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM-R",
+        "scope_ref": "P1",
+        "token": "r",
+        "meaning": "disassembly cost vector",
+        "unit": "yuan",
+        "role": "PARAMETER",
+        "shape": "VECTOR",
+        "domain": "NONNEGATIVE_REAL",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM-S",
+        "scope_ref": "P1",
+        "token": "s",
+        "meaning": "selling price",
+        "unit": "yuan",
+        "role": "PARAMETER",
+        "shape": "SCALAR",
+        "domain": "NONNEGATIVE_REAL",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM-L",
+        "scope_ref": "P1",
+        "token": "L",
+        "meaning": "replacement loss",
+        "unit": "yuan",
+        "role": "PARAMETER",
+        "shape": "SCALAR",
+        "domain": "NONNEGATIVE_REAL",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM-P",
+        "scope_ref": "P1",
+        "token": "p_i",
+        "meaning": "component defective rate vector",
+        "unit": "1",
+        "role": "PARAMETER",
+        "shape": "VECTOR",
+        "domain": "PROBABILITY",
+        "index_set": ["i=1..8"]
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM-PS",
+        "scope_ref": "P1",
+        "token": "p_{sj}",
+        "meaning": "semi-finished defective rate vector",
+        "unit": "1",
+        "role": "PARAMETER",
+        "shape": "VECTOR",
+        "domain": "PROBABILITY",
+        "index_set": ["j=1,2"]
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM-PF",
+        "scope_ref": "P1",
+        "token": "p_f",
+        "meaning": "finished-product defective rate",
+        "unit": "1",
+        "role": "PARAMETER",
+        "shape": "SCALAR",
+        "domain": "PROBABILITY",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM-Q",
+        "scope_ref": "P1",
+        "token": "q_i",
+        "meaning": "effective component defective rate vector",
+        "unit": "1",
+        "role": "VARIABLE",
+        "shape": "VECTOR",
+        "domain": "PROBABILITY",
+        "index_set": ["i=1..8"]
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM-QS",
+        "scope_ref": "P1",
+        "token": "q_{sj}",
+        "meaning": "effective semi-finished defective rate vector",
+        "unit": "1",
+        "role": "VARIABLE",
+        "shape": "VECTOR",
+        "domain": "PROBABILITY",
+        "index_set": ["j=1,2"]
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM-PBAD",
+        "scope_ref": "P1",
+        "token": "P_bad",
+        "meaning": "finished-product defective probability",
+        "unit": "1",
+        "role": "VARIABLE",
+        "shape": "SCALAR",
+        "domain": "PROBABILITY",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM-PI",
+        "scope_ref": "P1",
+        "token": "π",
+        "meaning": "good-product probability per assembly attempt",
+        "unit": "1",
+        "role": "VARIABLE",
+        "shape": "SCALAR",
+        "domain": "PROBABILITY",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM-E",
+        "scope_ref": "P1",
+        "token": "E_i",
+        "meaning": "expected component consumption vector",
+        "unit": "items",
+        "role": "VARIABLE",
+        "shape": "VECTOR",
+        "domain": "NONNEGATIVE_REAL",
+        "index_set": ["i=1..8"]
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM-M",
+        "scope_ref": "P1",
+        "token": "M_j",
+        "meaning": "expected semi-finished assembly attempts vector",
+        "unit": "attempts",
+        "role": "VARIABLE",
+        "shape": "VECTOR",
+        "domain": "NONNEGATIVE_REAL",
+        "index_set": ["j=1,2"]
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM-U",
+        "scope_ref": "P1",
+        "token": "U",
+        "meaning": "expected finished-product assembly attempts",
+        "unit": "attempts",
+        "role": "VARIABLE",
+        "shape": "SCALAR",
+        "domain": "NONNEGATIVE_REAL",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM-COST",
+        "scope_ref": "P1",
+        "token": "C",
+        "meaning": "expected total cost per unit of sold good product",
+        "unit": "yuan",
+        "role": "VARIABLE",
+        "shape": "SCALAR",
+        "domain": "NONNEGATIVE_REAL",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM-PROFIT",
+        "scope_ref": "P1",
+        "token": "profit",
+        "meaning": "expected profit per unit of sold good product",
+        "unit": "yuan",
+        "role": "VARIABLE",
+        "shape": "SCALAR",
+        "domain": "REAL",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM-ASN",
+        "scope_ref": "P1",
+        "token": "ASN",
+        "meaning": "average sample number",
+        "unit": "items",
+        "role": "VARIABLE",
+        "shape": "SCALAR",
+        "domain": "NONNEGATIVE_REAL",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM-NSTAR",
+        "scope_ref": "P1",
+        "token": "n*",
+        "meaning": "optimal sample size",
+        "unit": "items",
+        "role": "VARIABLE",
+        "shape": "SCALAR",
+        "domain": "NONNEGATIVE_INTEGER",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM-OC",
+        "scope_ref": "P1",
+        "token": "OC(p)",
+        "meaning": "operating characteristic curve",
+        "unit": "1",
+        "role": "VARIABLE",
+        "shape": "SCALAR",
+        "domain": "PROBABILITY",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM-Z",
+        "scope_ref": "P1",
+        "token": "z",
+        "meaning": "standard normal quantile",
+        "unit": "1",
+        "role": "PARAMETER",
+        "shape": "SCALAR",
+        "domain": "REAL",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM-ALPHA-POST",
+        "scope_ref": "P1",
+        "token": "α+x",
+        "meaning": "posterior Beta first parameter",
+        "unit": "1",
+        "role": "PARAMETER",
+        "shape": "SCALAR",
+        "domain": "NONNEGATIVE_REAL",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM-BETA-POST",
+        "scope_ref": "P1",
+        "token": "β+n−x",
+        "meaning": "posterior Beta second parameter",
+        "unit": "1",
+        "role": "PARAMETER",
+        "shape": "SCALAR",
+        "domain": "NONNEGATIVE_REAL",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM-REGRET",
+        "scope_ref": "P1",
+        "token": "regret",
+        "meaning": "regret",
+        "unit": "yuan",
+        "role": "VARIABLE",
+        "shape": "SCALAR",
+        "domain": "NONNEGATIVE_REAL",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM-EXPCOST",
+        "scope_ref": "P1",
+        "token": "E[C(d,p)]",
+        "meaning": "posterior expected cost",
+        "unit": "yuan",
+        "role": "VARIABLE",
+        "shape": "SCALAR",
+        "domain": "NONNEGATIVE_REAL",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM-PROFIT-POST",
+        "scope_ref": "P1",
+        "token": "profit",
+        "meaning": "expected profit under posterior mean",
+        "unit": "yuan",
+        "role": "VARIABLE",
+        "shape": "SCALAR",
+        "domain": "REAL",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM-DECISION",
+        "scope_ref": "P1",
+        "token": "d",
+        "meaning": "decision vector",
+        "unit": "1",
+        "role": "VARIABLE",
+        "shape": "VECTOR",
+        "domain": "BOOLEAN",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM-P",
+        "scope_ref": "P1",
+        "token": "p",
+        "meaning": "defective rate vector",
+        "unit": "1",
+        "role": "PARAMETER",
+        "shape": "VECTOR",
+        "domain": "PROBABILITY",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM-POST",
+        "scope_ref": "P1",
+        "token": "p̂",
+        "meaning": "posterior mean vector",
+        "unit": "1",
+        "role": "PARAMETER",
+        "shape": "VECTOR",
+        "domain": "PROBABILITY",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM-LOW",
+        "scope_ref": "P1",
+        "token": "p_low",
+        "meaning": "lower credible endpoint vector",
+        "unit": "1",
+        "role": "PARAMETER",
+        "shape": "VECTOR",
+        "domain": "PROBABILITY",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM-HIGH",
+        "scope_ref": "P1",
+        "token": "p_high",
+        "meaning": "upper credible endpoint vector",
+        "unit": "1",
+        "role": "PARAMETER",
+        "shape": "VECTOR",
+        "domain": "PROBABILITY",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM-SIGMA",
+        "scope_ref": "P1",
+        "token": "σ",
+        "meaning": "posterior standard deviation vector",
+        "unit": "1",
+        "role": "PARAMETER",
+        "shape": "VECTOR",
+        "domain": "NONNEGATIVE_REAL",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM-ALPHA",
+        "scope_ref": "P1",
+        "token": "α",
+        "meaning": "Beta prior first parameter vector",
+        "unit": "1",
+        "role": "PARAMETER",
+        "shape": "VECTOR",
+        "domain": "NONNEGATIVE_REAL",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM-BETA",
+        "scope_ref": "P1",
+        "token": "β",
+        "meaning": "Beta prior second parameter vector",
+        "unit": "1",
+        "role": "PARAMETER",
+        "shape": "VECTOR",
+        "domain": "NONNEGATIVE_REAL",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM-X",
+        "scope_ref": "P1",
+        "token": "x",
+        "meaning": "observed defective count vector",
+        "unit": "items",
+        "role": "PARAMETER",
+        "shape": "VECTOR",
+        "domain": "NONNEGATIVE_INTEGER",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM-N",
+        "scope_ref": "P1",
+        "token": "n",
+        "meaning": "sample size vector",
+        "unit": "items",
+        "role": "PARAMETER",
+        "shape": "VECTOR",
+        "domain": "NONNEGATIVE_INTEGER",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM-B",
+        "scope_ref": "P1",
+        "token": "b_i",
+        "meaning": "component purchase cost vector",
+        "unit": "yuan",
+        "role": "PARAMETER",
+        "shape": "VECTOR",
+        "domain": "NONNEGATIVE_REAL",
+        "index_set": ["i=1..8"]
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM-T",
+        "scope_ref": "P1",
+        "token": "t_i",
+        "meaning": "component inspection cost vector",
+        "unit": "yuan",
+        "role": "PARAMETER",
+        "shape": "VECTOR",
+        "domain": "NONNEGATIVE_REAL",
+        "index_set": ["i=1..8"]
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM-A",
+        "scope_ref": "P1",
+        "token": "a",
+        "meaning": "assembly cost vector",
+        "unit": "yuan",
+        "role": "PARAMETER",
+        "shape": "VECTOR",
+        "domain": "NONNEGATIVE_REAL",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM-R",
+        "scope_ref": "P1",
+        "token": "r",
+        "meaning": "disassembly cost vector",
+        "unit": "yuan",
+        "role": "PARAMETER",
+        "shape": "VECTOR",
+        "domain": "NONNEGATIVE_REAL",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM-S",
+        "scope_ref": "P1",
+        "token": "s",
+        "meaning": "selling price",
+        "unit": "yuan",
+        "role": "PARAMETER",
+        "shape": "SCALAR",
+        "domain": "NONNEGATIVE_REAL",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM-L",
+        "scope_ref": "P1",
+        "token": "L",
+        "meaning": "replacement loss",
+        "unit": "yuan",
+        "role": "PARAMETER",
+        "shape": "SCALAR",
+        "domain": "NONNEGATIVE_REAL",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM-P",
+        "scope_ref": "P1",
+        "token": "p_i",
+        "meaning": "component defective rate vector",
+        "unit": "1",
+        "role": "PARAMETER",
+        "shape": "VECTOR",
+        "domain": "PROBABILITY",
+        "index_set": ["i=1..8"]
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM-PS",
+        "scope_ref": "P1",
+        "token": "p_{sj}",
+        "meaning": "semi-finished defective rate vector",
+        "unit": "1",
+        "role": "PARAMETER",
+        "shape": "VECTOR",
+        "domain": "PROBABILITY",
+        "index_set": ["j=1,2"]
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM-PF",
+        "scope_ref": "P1",
+        "token": "p_f",
+        "meaning": "finished-product defective rate",
+        "unit": "1",
+        "role": "PARAMETER",
+        "shape": "SCALAR",
+        "domain": "PROBABILITY",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM-Q",
+        "scope_ref": "P1",
+        "token": "q_i",
+        "meaning": "effective component defective rate vector",
+        "unit": "1",
+        "role": "VARIABLE",
+        "shape": "VECTOR",
+        "domain": "PROBABILITY",
+        "index_set": ["i=1..8"]
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM-QS",
+        "scope_ref": "P1",
+        "token": "q_{sj}",
+        "meaning": "effective semi-finished defective rate vector",
+        "unit": "1",
+        "role": "VARIABLE",
+        "shape": "VECTOR",
+        "domain": "PROBABILITY",
+        "index_set": ["j=1,2"]
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM-PBAD",
+        "scope_ref": "P1",
+        "token": "P_bad",
+        "meaning": "finished-product defective probability",
+        "unit": "1",
+        "role": "VARIABLE",
+        "shape": "SCALAR",
+        "domain": "PROBABILITY",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM-PI",
+        "scope_ref": "P1",
+        "token": "π",
+        "meaning": "good-product probability per assembly attempt",
+        "unit": "1",
+        "role": "VARIABLE",
+        "shape": "SCALAR",
+        "domain": "PROBABILITY",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM-E",
+        "scope_ref": "P1",
+        "token": "E_i",
+        "meaning": "expected component consumption vector",
+        "unit": "items",
+        "role": "VARIABLE",
+        "shape": "VECTOR",
+        "domain": "NONNEGATIVE_REAL",
+        "index_set": ["i=1..8"]
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM-M",
+        "scope_ref": "P1",
+        "token": "M_j",
+        "meaning": "expected semi-finished assembly attempts vector",
+        "unit": "attempts",
+        "role": "VARIABLE",
+        "shape": "VECTOR",
+        "domain": "NONNEGATIVE_REAL",
+        "index_set": ["j=1,2"]
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM-U",
+        "scope_ref": "P1",
+        "token": "U",
+        "meaning": "expected finished-product assembly attempts",
+        "unit": "attempts",
+        "role": "VARIABLE",
+        "shape": "SCALAR",
+        "domain": "NONNEGATIVE_REAL",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM-COST",
+        "scope_ref": "P1",
+        "token": "C",
+        "meaning": "expected total cost per unit of sold good product",
+        "unit": "yuan",
+        "role": "VARIABLE",
+        "shape": "SCALAR",
+        "domain": "NONNEGATIVE_REAL",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM-PROFIT",
+        "scope_ref": "P1",
+        "token": "profit",
+        "meaning": "expected profit per unit of sold good product",
+        "unit": "yuan",
+        "role": "VARIABLE",
+        "shape": "SCALAR",
+        "domain": "REAL",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM-ASN",
+        "scope_ref": "P1",
+        "token": "ASN",
+        "meaning": "average sample number",
+        "unit": "items",
+        "role": "VARIABLE",
+        "shape": "SCALAR",
+        "domain": "NONNEGATIVE_REAL",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM-NSTAR",
+        "scope_ref": "P1",
+        "token": "n*",
+        "meaning": "optimal sample size",
+        "unit": "items",
+        "role": "VARIABLE",
+        "shape": "SCALAR",
+        "domain": "NONNEGATIVE_INTEGER",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM-OC",
+        "scope_ref": "P1",
+        "token": "OC(p)",
+        "meaning": "operating characteristic curve",
+        "unit": "1",
+        "role": "VARIABLE",
+        "shape": "SCALAR",
+        "domain": "PROBABILITY",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM-Z",
+        "scope_ref": "P1",
+        "token": "z",
+        "meaning": "standard normal quantile",
+        "unit": "1",
+        "role": "PARAMETER",
+        "shape": "SCALAR",
+        "domain": "REAL",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM-ALPHA-POST",
+        "scope_ref": "P1",
+        "token": "α+x",
+        "meaning": "posterior Beta first parameter",
+        "unit": "1",
+        "role": "PARAMETER",
+        "shape": "SCALAR",
+        "domain": "NONNEGATIVE_REAL",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM-BETA-POST",
+        "scope_ref": "P1",
+        "token": "β+n−x",
+        "meaning": "posterior Beta second parameter",
+        "unit": "1",
+        "role": "PARAMETER",
+        "shape": "SCALAR",
+        "domain": "NONNEGATIVE_REAL",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM-REGRET",
+        "scope_ref": "P1",
+        "token": "regret",
+        "meaning": "regret",
+        "unit": "yuan",
+        "role": "VARIABLE",
+        "shape": "SCALAR",
+        "domain": "NONNEGATIVE_REAL",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM-EXPCOST",
+        "scope_ref": "P1",
+        "token": "E[C(d,p)]",
+        "meaning": "posterior expected cost",
+        "unit": "yuan",
+        "role": "VARIABLE",
+        "shape": "SCALAR",
+        "domain": "NONNEGATIVE_REAL",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM-PROFIT-POST",
+        "scope_ref": "P1",
+        "token": "profit",
+        "meaning": "expected profit under posterior mean",
+        "unit": "yuan",
+        "role": "VARIABLE",
+        "shape": "SCALAR",
+        "domain": "REAL",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM-DECISION",
+        "scope_ref": "P1",
+        "token": "d",
+        "meaning": "decision vector",
+        "unit": "1",
+        "role": "VARIABLE",
+        "shape": "VECTOR",
+        "domain": "BOOLEAN",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM-P",
+        "scope_ref": "P1",
+        "token": "p",
+        "meaning": "defective rate vector",
+        "unit": "1",
+        "role": "PARAMETER",
+        "shape": "VECTOR",
+        "domain": "PROBABILITY",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM-POST",
+        "scope_ref": "P1",
+        "token": "p̂",
+        "meaning": "posterior mean vector",
+        "unit": "1",
+        "role": "PARAMETER",
+        "shape": "VECTOR",
+        "domain": "PROBABILITY",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM-LOW",
+        "scope_ref": "P1",
+        "token": "p_low",
+        "meaning": "lower credible endpoint vector",
+        "unit": "1",
+        "role": "PARAMETER",
+        "shape": "VECTOR",
+        "domain": "PROBABILITY",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM-HIGH",
+        "scope_ref": "P1",
+        "token": "p_high",
+        "meaning": "upper credible endpoint vector",
+        "unit": "1",
+        "role": "PARAMETER",
+        "shape": "VECTOR",
+        "domain": "PROBABILITY",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM-SIGMA",
+        "scope_ref": "P1",
+        "token": "σ",
+        "meaning": "posterior standard deviation vector",
+        "unit": "1",
+        "role": "PARAMETER",
+        "shape": "VECTOR",
+        "domain": "NONNEGATIVE_REAL",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM-ALPHA",
+        "scope_ref": "P1",
+        "token": "α",
+        "meaning": "Beta prior first parameter vector",
+        "unit": "1",
+        "role": "PARAMETER",
+        "shape": "VECTOR",
+        "domain": "NONNEGATIVE_REAL",
+        "index_set": []
+      }
+    },
+    {
+      "kind": "SymbolSpec",
+      "value": {
+        "symbol_id": "S-PARAM-BETA",
+        "scope_ref": "P1",
+        "token": "β",
+        "meaning": "Beta prior second parameter vector",
+        "unit": "1",
+        "role": "PARAM

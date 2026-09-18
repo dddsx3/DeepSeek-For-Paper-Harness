@@ -1,0 +1,63 @@
+{
+  "cassette_version": 1,
+  "recorded_from": "paper-shell real run → artifacts/handoff/TASK-E/cassettes/glm-t3-coursework-v4.json",
+  "provider": "openai-compatible-relay",
+  "model": "z-ai/glm-5.3-flash",
+  "entries": [
+    {
+      "request_fingerprint": "deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
+      "provider": "openai-compatible-relay",
+      "model": "z-ai/glm-5.3-flash",
+      "response_sha256": "6ee594f407569aceaca9427f55662e9d11b9bf422fee189bdd11d3a6a338406a",
+      "response_text": "**执行计划**\n\n1. 明确输入：题目未提供任何数据（无测厚数据、卫星观测、雪深或密度参数）。\n2. 确定方法框架：常用估计途径为 (a) 原位钻孔/UPB 测量均值，(b) 卫星测高（ICESat/CryoSat-2）自由板 + 雪/密度假设换算，(c) 海冰—海洋盐度/温度通量模型。\n3. 检查可计算性：均值公式 h̄ = (1/N)Σhᵢ 需要样本数据；本任务未给出。\n4. 结论：**无法给出数值估计**——缺少观测数据，mean ice thickness 不可估（单位应为 m，但数值 N/A）。\n5. 一行结论：**Mean sea-ice thickness cannot be estimated from the information given; with data it would be reported in metres (m).**",
+      "usage": {
+        "inputTokens": 90,
+        "outputTokens": 229
+      }
+    },
+    {
+      "request_fingerprint": "3b04c706f5a6dead73b480b245d252c43ae17b4d3f33066e3a289f3b9dbb94f5",
+      "provider": "openai-compatible-relay",
+      "model": "z-ai/glm-5.3-flash",
+      "response_sha256": "66b8c3d6f406fed39d1f956b7b694729e995d4ea1fa56bdc969700dcdf06392b",
+      "response_text": "{\"symbol_id\": \"SYM-q\", \"unit\": \"m\", \"output_file\": \"result.json\", \"json_path\": \"mean_thickness\"}",
+      "usage": {
+        "inputTokens": 126,
+        "outputTokens": 32
+      }
+    },
+    {
+      "request_fingerprint": "032bcc0fae030a67900b975171d7abaf1bc4c9dd2f2f36602e4570fea198101b",
+      "provider": "openai-compatible-relay",
+      "model": "z-ai/glm-5.3-flash",
+      "response_sha256": "a7da1bc3f0578d4d1061f6f6c0160b716691924060fc26137e72160f8b081fa4",
+      "response_text": "{\"defects\":[{\"id\":\"D1\",\"severity\":\"minor\",\"description\":\"标题行出现重复的 '#' 前缀（'# # 示例论文题目…'），格式瑕疵。\"}]}",
+      "usage": {
+        "inputTokens": 873,
+        "outputTokens": 61
+      }
+    },
+    {
+      "request_fingerprint": "8cbaf84201a65de4f7d93e0e8e2def54fbffb718df27e3823b378e1ceb537831",
+      "provider": "openai-compatible-relay",
+      "model": "z-ai/glm-5.3-flash",
+      "response_sha256": "9eaff831a70288c8a82101f32233ccb4af22de2f46524303e26c599bf9e65720",
+      "response_text": "# 示例论文题目（course-work 题型，T3 最小面适合）\n\nEstimate mean sea-ice thickness.\n\n请给出：mean ice thickness 的估计值（含单位）与一行结论。\n\n## 摘要\n\n_(模型待写入)_\n\n## 问题重述\n\n| 要求 | 说明 |\n|---|---|\n| # 示例论文题目（course-work 题型，T3 最小面适合）\n\nEstimate mean sea-ice thickness.\n\n请给出：mean ice thickness 的估计值（含单位）与一行结论。 | REQUIRED_OUTPUT | [R-OUT]\n\n## 问题分析\n\n_(模型待写入)_\n\n## 模型假设\n\n| 假设 | 来源 | 风险 | 可检验 |\n|---|---|---|---|\n| homogeneous slab | MODELING_CHOICE | MEDIUM | 否 | [ASM-1]\n\n## 符号说明\n\n| 符号 | 含义 | 单位 |\n|---|---|---|\n| SYM-q | mean_thickness | m | [SYM-q]\n\n## 模型建立与求解\n\n### 结果表（由规范 IR 注入；结论区关键数字必须与此表一致）\n\n| 量名 | 数值 | 单位 | 不确定度 | 来源 |\n|---|---|---|---|---|\n| mean_thickness | 0.731 | m |  | `RES-OUT` |\n\n### 结论\n\nmean_thickness is 0.731 m\n\n## 模型检验\n\n_(模型待写入)_\n\n## 模型评价\n\n_(模型待写入)_\n\n## 参考文献\n\n_(模型待写入)_\n\n## 代码附录\n\n_(模型待写入)_\n\n\n---\n*机器数字由规范 IR Result 记录渲染；结论数字经槽位或守卫散文注入；图表由固定 harness 渲染器渲染（骨架 v2）。*",
+      "usage": {
+        "inputTokens": 516,
+        "outputTokens": 400
+      }
+    },
+    {
+      "request_fingerprint": "c59222b8b1232d3884f1181af43edaecfbe1a2e1f65f8f165e110e3c094d2f34",
+      "provider": "openai-compatible-relay",
+      "model": "z-ai/glm-5.3-flash",
+      "response_sha256": "d136295e5d77c214c23f6aa7cb13cadc862035bc5b0540972910e04ed31d5207",
+      "response_text": "{\"defects\":[],\"resolved\":[\"D1\"]}",
+      "usage": {
+        "inputTokens": 982,
+        "outputTokens": 47
+      }
+    }
+  ]
+}
