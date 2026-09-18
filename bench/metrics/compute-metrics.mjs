@@ -142,6 +142,36 @@ export function figureUsability(draftText, report) {
  * Compute the per-problem metric record from one run report + draft.
  * Returns the full record even when indicators are red — red IS data.
  */
+/**
+ * W8.10-A6 — the component-set mismatch rule, mirrored from
+ * `routeCoversTruth` (apps/paper-shell/src/route.ts). A truth label like
+ * "F3+F4" is COVERED when every one of its components appears in the router's
+ * component set; the primary family alone is not the claim.
+ *
+ * Kept as a local mirror because this script is plain .mjs and cannot import
+ * the TypeScript module. The two implementations are pinned together by the
+ * A6 verification (same inputs -> same verdict on the archived runs).
+ */
+export function routeMismatchOf(routedFamily, truthLabel) {
+  const decide = (routed, truth) => {
+    if (routed === null || truth === null) return { mismatch: null, basis: 'missing_input' }
+    const truthParts = String(truth).split('+').map(s => s.trim()).filter(s => /^F[1-4]$/.test(s))
+    if (truthParts.length === 0) return { mismatch: null, basis: 'unparseable_truth' }
+    const routedParts = String(routed).split('+').map(s => s.trim()).filter(s => /^F[1-4]$/.test(s))
+    // Single-family truth: the primary family IS the whole claim, so the
+    // comparison is exact and the archive is sufficient.
+    if (truthParts.length === 1) {
+      return { mismatch: !routedParts.includes(truthParts[0]), basis: 'single_family_exact' }
+    }
+    // Multi-family truth (2024-B: F3+F4): coverage needs the router's COMPONENT
+    // SET. The archived run-reports predate that field, so the archive alone
+    // cannot decide. Returning `true` here would be the old string comparison
+    // wearing a new name — the exact defect A6 exists to remove.
+    return { mismatch: null, basis: 'archive_lacks_routed_components' }
+  }
+  return decide(routedFamily, truthLabel)
+}
+
 export function computeProblemMetrics(problemId, family, report, draftText, problemText, meta = {}) {
   const grade = deliveryGrade(report)
   const recital = recitalOverlap(draftText ?? '', problemText ?? '')
@@ -181,12 +211,29 @@ export function computeProblemMetrics(problemId, family, report, draftText, prob
 
   return {
     problem_id: problemId,
+    // W8.10-A6: `family` = the revised human truth (TRUTH-FAMILIES.json);
+    // `preregistered_family` = the frozen W1 prior (MANIFEST.json). They
+    // differ for 2024-B (F3+F4 vs F3) and 2024-C (F3+F2 vs F3) — carrying
+    // only one of them under the name `family` is what made a single record
+    // disagree with itself.
     family,
+    preregistered_family: meta.preregistered_family ?? null,
     // W8.6-E2: the human truth label vs what the router decided. Either
     // alone cannot answer "is routing accurate" over time.
     routed_family: report.routed_family ?? meta.routed_family ?? null,
     route_truth: report.route_truth ?? null,
-    route_mismatch: report.route_mismatch ?? null,
+    // W8.10-A6: recomputed here from `routed_family` + `route_truth` using the
+    // component-SET rule (mirrors apps/paper-shell/src/route.ts:routeCoversTruth).
+    // The archived `route_mismatch` was written by the pre-W8.9 string
+    // comparison, which marked every legal mixed-family problem as a mismatch
+    // (2024-B: truth F3+F4 vs routed F4). Archives stay immutable; the metrics
+    // view states the verdict the current rule gives.
+    ...(() => {
+      const verdict = routeMismatchOf(report.routed_family ?? null, report.route_truth ?? null)
+      return { route_mismatch: verdict.mismatch, route_mismatch_basis: verdict.basis }
+    })(),
+    // The archived verdict is kept, named, so the drift is visible rather than erased.
+    route_mismatch_archived: report.route_mismatch ?? null,
     provider_mode: providerMode,
     grade,
     m1_readable_draft: m1Readable,
@@ -258,11 +305,23 @@ export async function computeFromResults() {
     throw new Error(`bench manifest integrity FAILED (anti-cheat F): ${JSON.stringify(integrity.failures)}`)
   }
   const { manifest } = await loadManifest()
-  const families = new Map()
+  // W8.10-A6 (O-L3-01): TWO truth sources existed and the record carried
+  // only one of them, unlabelled.
+  //   - `bench/MANIFEST.json` holds the PRE-REGISTRATION family (frozen at W1,
+  //     "族已定，不得改"). It is the prior, not the answer.
+  //   - `bench/TRUTH-FAMILIES.json` holds the human-annotated truth AFTER the
+  //     W8.6 revision (2024-B: F3 -> F3+F4; 2024-C: F3 -> F3+F2), and it is
+  //     what `route_truth` / `route_mismatch` must be judged against.
+  // The old code read only MANIFEST, so `family` said 'F3' for 2024-B while
+  // `route_truth` on the same record said 'F3+F4' — two fields disagreeing
+  // about the truth inside one JSON object. Both are now carried, each named
+  // for what it is.
+  const preregisteredFamilies = new Map()
+  const truthFamilies = new Map()
   const problemTexts = new Map()
   for (const p of [...(manifest.problems ?? []), ...(manifest.pending_placeholders ?? [])]) {
-    families.set(p.id, p.family)
-    if (!families.has(p.id.replace(/^CUMCM-/, ''))) families.set(p.id.replace(/^CUMCM-/, ''), p.family)
+    preregisteredFamilies.set(p.id, p.family)
+    if (!preregisteredFamilies.has(p.id.replace(/^CUMCM-/, ''))) preregisteredFamilies.set(p.id.replace(/^CUMCM-/, ''), p.family)
     for (const f of p.files ?? []) {
       if (f.path.endsWith('.md')) {
         problemTexts.set(p.id, join(benchRoot, f.path))
@@ -270,6 +329,12 @@ export async function computeFromResults() {
       }
     }
   }
+
+  // The revised human truth (W8.6): the authority for route_truth comparison.
+  try {
+    const truth = JSON.parse(await readFile(join(benchRoot, 'TRUTH-FAMILIES.json'), 'utf8'))
+    for (const p of truth.problems ?? []) truthFamilies.set(p.id, p.family)
+  } catch { /* absent truth file: fall back to the preregistration label */ }
 
   const resultsDir = join(benchRoot, 'results')
   const entries = await readdir(resultsDir, { withFileTypes: true }).catch(() => [])
@@ -292,8 +357,19 @@ export async function computeFromResults() {
     // W8.5: a "<id>-real" directory is the SAME problem run with a real
     // provider (bench/results/2024-C-real) — resolve to the same family.
     const baseName = entry.name.replace(/-real(-shard)?$/, '')
-    const family = families.get(entry.name) ?? families.get(`CUMCM-${entry.name}`)
-      ?? families.get(baseName) ?? families.get(`CUMCM-${baseName}`) ?? '?'
+    const lookups = [entry.name, `CUMCM-${entry.name}`, baseName, `CUMCM-${baseName}`]
+    const firstOf = (map) => {
+      for (const key of lookups) {
+        const hit = map.get(key)
+        if (hit !== undefined) return hit
+      }
+      return undefined
+    }
+    // W8.10-A6: `family` is the REVISED human truth (what the paper should be
+    // judged against); `preregistered_family` preserves the frozen W1 prior.
+    // Before this the field silently held the prior under the truth's name.
+    const preregistered = firstOf(preregisteredFamilies) ?? '?'
+    const family = firstOf(truthFamilies) ?? preregistered
     if (report === null) {
       records.push({ problem_id: entry.name, family, grade: 'NO-REPORT', missing: true })
       continue
@@ -307,7 +383,7 @@ export async function computeFromResults() {
       report,
       draftText,
       problemText,
-      report.meta ?? {},
+      { ...(report.meta ?? {}), preregistered_family: preregistered },
     ))
   }
   return { integrity, records, per_family: aggregatePerFamily(records), generated_from: resultsDir }

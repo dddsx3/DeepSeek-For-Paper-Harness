@@ -1,0 +1,37 @@
+{
+  "runId": "d59b9d1c-54f7-4446-9e94-a29e0fa6fc07",
+  "tier": "T1",
+  "mode": "strict",
+  "status": "BLOCKED",
+  "routed_family": "F4",
+  "route_truth": "F3+F4",
+  "route_mismatch": false,
+  "code_provenance": {
+    "checked_at": "2026-09-17T19:38:26.856Z",
+    "ok": true,
+    "targets": [
+      {
+        "name": "@deepseek-ai/dsh-paper-foundation",
+        "ok": true,
+        "detail": "entry lib/index.js is 5957148 ms newer than the newest source"
+      }
+    ]
+  },
+  "minted_ir_count": 0,
+  "classifier": "transport",
+  "code": "budget-exhausted",
+  "humanized": "调用/传输失败（budget-exhausted）：run 'd59b9d1c-54f7-4446-9e94-a29e0fa6fc07' is paused: output-token ceiling 10 exceeded (spent 358) — per-run guard, pricing-independent",
+  "wall_clock_seconds": 8,
+  "usage": {
+    "input_tokens": 1605,
+    "output_tokens": 358,
+    "cost_usd": 0
+  },
+  "memo": {
+    "passed_gates": [],
+    "minted_ir_kinds": [],
+    "minted_ir_count": 0,
+    "failing_node": null,
+    "suggested_intervention": "重试一次；若持续失败报告给维护者。"
+  }
+}

@@ -36,7 +36,7 @@ import {
   createExploratoryProfile,
 } from '@deepseek-ai/dsh-paper-foundation'
 import { ModelingIr } from '@deepseek-ai/dsh-paper-foundation'
-import { resolveShellRoute, blockMessage, type ShellRoute } from './invoke.ts'
+import { resolveShellRoute, blockMessage, lastFailureClassEvent, type ShellRoute } from './invoke.ts'
 import { assembleBundle } from './bundle.ts'
 import { classifyProblem, routeBanner, routeMismatch } from './route.ts'
 import { contractBanner } from './contracts/index.ts'
@@ -452,7 +452,17 @@ async function main(): Promise<number> {
     await ctx.paperExecutor.runs.execute(RunId(run.id), taskText)
   } catch (error) {
     const err = error as { code?: string; eventType?: string; message?: string }
-    const human = blockMessage(String(err.eventType ?? 'gate-failed'), err.code, err.message ?? '')
+    // W8.10-A1 (O-L3-06): the thrown WorkflowExecutionError carries only
+    // `code: 'gate-failed'` — never the failure CLASS. The class IS on the
+    // audit trail (the executor writes `truncated` / `escape_refused` /
+    // `tier_degraded` / `container_refused` / `provider_blocked` /
+    // `budget_exceeded` before it throws), so read it there. Falling back to
+    // the literal 'gate-failed' landed every truncation in the transport
+    // bucket and advised "重试一次" — the one action W8.5 proved cannot work
+    // for a length ceiling.
+    const auditEvents = ctx.paperAudit.list(String(run.id))
+    const classEvent = lastFailureClassEvent(auditEvents)
+    const human = blockMessage(classEvent ?? String(err.eventType ?? 'gate-failed'), err.code, err.message ?? '')
     console.error(`[BLOCKED] ${human.oneLine}`)
     console.error(`  → ${human.advice}`)
     console.error(`  run-id  -> ${String(run.id)}`)
@@ -486,6 +496,12 @@ async function main(): Promise<number> {
       route_truth: truth,
       route_mismatch: mismatched,
       code_provenance: provenanceRecord,
+      // W8.10-A2 (O-L3-07): the IR mint count is the load-bearing fact for
+      // "did the receive layer actually produce canonical state?" — it was
+      // only reachable inside `memo`, so every reader had to know the memo
+      // shape (W8.9's own report had to say "it's inside memo"). Promoted to
+      // the top level; `memo.minted_ir_count` keeps its value unchanged.
+      minted_ir_count: memo.minted_ir_count,
       classifier: human.classifier,
       code: err.code,
       humanized: human.oneLine,
@@ -530,6 +546,9 @@ async function main(): Promise<number> {
   const report = (await readFile(join(finalDir, firstFile), 'utf8')) + scopeNote
   const sha256 = createHash('sha256').update(report).digest('hex')
   const audit = ctx.paperAudit.list(String(run.id)).map(e => `${e.eventType}`).join(',')
+  // W8.10-A2: same top-level field as the BLOCKED path, so a reader compares
+  // the two reports without knowing which one they are holding.
+  const mintedIrCount = (ModelingIr.snapshot(ctx.get('paperModelingIr')) ?? new Map()).size
   // P0-3: the run-report carries the delivery grade. The MARKED appendix
   // lives in report.md itself; this field makes the grade machine-readable
   // for the bench metrics (M1's CLEAN/MARKED split) without re-parsing
@@ -568,8 +587,8 @@ async function main(): Promise<number> {
   // to judge the delivery — tier, mode, grade, family, sha256, audit, usage,
   // provenance verdicts — stays.
   const zipProvenance = { ...provenanceRecord, checked_at: '<per-run>' }
-  const runReport = JSON.stringify({ runId: '<redacted-run-id>', tier, mode, status: 'DELIVERED', grade, routed_family: familyVerdict.family, route_truth: truth, route_mismatch: mismatched, code_provenance: zipProvenance, wall_clock_seconds: '<per-run>', sha256, audit, usage: { input_tokens: usageSummary.input_tokens, output_tokens: usageSummary.output_tokens, cost_usd: usageSummary.cost_usd }, attachments: attachmentLedger }, null, 2)
-  const runReportFull = JSON.stringify({ runId: String(run.id), tier, mode, status: 'DELIVERED', grade, routed_family: familyVerdict.family, route_truth: truth, route_mismatch: mismatched, code_provenance: provenanceRecord, wall_clock_seconds: wallClockSeconds, sha256, audit, usage: { input_tokens: usageSummary.input_tokens, output_tokens: usageSummary.output_tokens, cost_usd: usageSummary.cost_usd }, attachments: attachmentLedger }, null, 2)
+  const runReport = JSON.stringify({ runId: '<redacted-run-id>', tier, mode, status: 'DELIVERED', grade, routed_family: familyVerdict.family, route_truth: truth, route_mismatch: mismatched, code_provenance: zipProvenance, minted_ir_count: mintedIrCount, wall_clock_seconds: '<per-run>', sha256, audit, usage: { input_tokens: usageSummary.input_tokens, output_tokens: usageSummary.output_tokens, cost_usd: usageSummary.cost_usd }, attachments: attachmentLedger }, null, 2)
+  const runReportFull = JSON.stringify({ runId: String(run.id), tier, mode, status: 'DELIVERED', grade, routed_family: familyVerdict.family, route_truth: truth, route_mismatch: mismatched, code_provenance: provenanceRecord, minted_ir_count: mintedIrCount, wall_clock_seconds: wallClockSeconds, sha256, audit, usage: { input_tokens: usageSummary.input_tokens, output_tokens: usageSummary.output_tokens, cost_usd: usageSummary.cost_usd }, attachments: attachmentLedger }, null, 2)
   await mkdir(outDir, { recursive: true })
   await writeFile(join(outDir, 'report.md'), report, 'utf8')
   await writeFile(join(outDir, 'sha256.txt'), sha256, 'utf8')
