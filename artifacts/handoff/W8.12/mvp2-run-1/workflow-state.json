@@ -1,0 +1,560 @@
+{
+  "unit": {
+    "name": "paper_workflow",
+    "version": 1
+  },
+  "global": null,
+  "tables": {
+    "runs": {
+      "94c91b01-8c9f-45b1-b6da-4c00b9a07b43": {
+        "id": "94c91b01-8c9f-45b1-b6da-4c00b9a07b43",
+        "createdAt": "2026-09-18T22:04:27.700Z",
+        "updatedAt": "2026-09-18T22:09:52.286Z",
+        "status": "completed",
+        "mode": "strict",
+        "harnessVersion": "paper-shell-v0",
+        "configHash": "sha256:dmshell",
+        "usage": {
+          "inputTokens": 27474,
+          "outputTokens": 26751,
+          "costUsd": 0
+        },
+        "version": 9
+      }
+    },
+    "nodes": {
+      "309a8ef3-c858-48ae-9242-843766e4dbfb": {
+        "id": "309a8ef3-c858-48ae-9242-843766e4dbfb",
+        "runId": "94c91b01-8c9f-45b1-b6da-4c00b9a07b43",
+        "parentId": null,
+        "type": "plan",
+        "title": "plan",
+        "role": "executor",
+        "state": "succeeded",
+        "attempts": 1,
+        "maxAttempts": 3,
+        "idempotent": true,
+        "inputArtifactId": null,
+        "outputArtifactId": null,
+        "lastErrorCode": null,
+        "version": 4
+      },
+      "44ee3f71-a601-4de2-9ca7-d0b323c076b7": {
+        "id": "44ee3f71-a601-4de2-9ca7-d0b323c076b7",
+        "runId": "94c91b01-8c9f-45b1-b6da-4c00b9a07b43",
+        "parentId": null,
+        "type": "execute",
+        "title": "execute",
+        "role": "executor",
+        "state": "failed",
+        "attempts": 3,
+        "maxAttempts": 3,
+        "idempotent": true,
+        "inputArtifactId": null,
+        "outputArtifactId": null,
+        "lastErrorCode": null,
+        "version": 10
+      },
+      "e95d18c8-a174-4af7-a519-e43e562ece48": {
+        "id": "e95d18c8-a174-4af7-a519-e43e562ece48",
+        "runId": "94c91b01-8c9f-45b1-b6da-4c00b9a07b43",
+        "parentId": null,
+        "type": "review",
+        "title": "review",
+        "role": "reviewer",
+        "state": "succeeded",
+        "attempts": 1,
+        "maxAttempts": 3,
+        "idempotent": true,
+        "inputArtifactId": null,
+        "outputArtifactId": null,
+        "lastErrorCode": null,
+        "version": 4
+      },
+      "ab6a3a84-a07f-4bcb-a2ad-710d3b9ccf73": {
+        "id": "ab6a3a84-a07f-4bcb-a2ad-710d3b9ccf73",
+        "runId": "94c91b01-8c9f-45b1-b6da-4c00b9a07b43",
+        "parentId": null,
+        "type": "deliver",
+        "title": "deliver",
+        "role": null,
+        "state": "succeeded",
+        "attempts": 1,
+        "maxAttempts": 1,
+        "idempotent": true,
+        "inputArtifactId": null,
+        "outputArtifactId": null,
+        "lastErrorCode": null,
+        "version": 4
+      }
+    },
+    "events": {
+      "94c91b01-8c9f-45b1-b6da-4c00b9a07b43:0000000000000001": {
+        "runId": "94c91b01-8c9f-45b1-b6da-4c00b9a07b43",
+        "nodeId": null,
+        "seq": 1,
+        "type": "plan_ready",
+        "data": {
+          "status": "planning"
+        },
+        "timestamp": "2026-09-18T22:04:27.704Z"
+      },
+      "94c91b01-8c9f-45b1-b6da-4c00b9a07b43:0000000000000002": {
+        "runId": "94c91b01-8c9f-45b1-b6da-4c00b9a07b43",
+        "nodeId": null,
+        "seq": 2,
+        "type": "run_state",
+        "data": {
+          "from": "planning",
+          "to": "running"
+        },
+        "timestamp": "2026-09-18T22:04:27.712Z"
+      },
+      "94c91b01-8c9f-45b1-b6da-4c00b9a07b43:0000000000000003": {
+        "runId": "94c91b01-8c9f-45b1-b6da-4c00b9a07b43",
+        "nodeId": "309a8ef3-c858-48ae-9242-843766e4dbfb",
+        "seq": 3,
+        "type": "node_created",
+        "data": {
+          "state": "pending",
+          "type": "plan"
+        },
+        "timestamp": "2026-09-18T22:04:27.723Z"
+      },
+      "94c91b01-8c9f-45b1-b6da-4c00b9a07b43:0000000000000004": {
+        "runId": "94c91b01-8c9f-45b1-b6da-4c00b9a07b43",
+        "nodeId": "309a8ef3-c858-48ae-9242-843766e4dbfb",
+        "seq": 4,
+        "type": "node_state",
+        "data": {
+          "from": "pending",
+          "to": "ready"
+        },
+        "timestamp": "2026-09-18T22:04:27.730Z"
+      },
+      "94c91b01-8c9f-45b1-b6da-4c00b9a07b43:0000000000000005": {
+        "runId": "94c91b01-8c9f-45b1-b6da-4c00b9a07b43",
+        "nodeId": "309a8ef3-c858-48ae-9242-843766e4dbfb",
+        "seq": 5,
+        "type": "node_state",
+        "data": {
+          "from": "ready",
+          "to": "running"
+        },
+        "timestamp": "2026-09-18T22:04:27.738Z"
+      },
+      "94c91b01-8c9f-45b1-b6da-4c00b9a07b43:0000000000000006": {
+        "runId": "94c91b01-8c9f-45b1-b6da-4c00b9a07b43",
+        "nodeId": "309a8ef3-c858-48ae-9242-843766e4dbfb",
+        "seq": 6,
+        "type": "request_started",
+        "data": {
+          "provider": "openai-compatible-relay",
+          "model": "deepseek/deepseek-v4-flash",
+          "attempt": 1
+        },
+        "timestamp": "2026-09-18T22:04:27.741Z"
+      },
+      "94c91b01-8c9f-45b1-b6da-4c00b9a07b43:0000000000000007": {
+        "runId": "94c91b01-8c9f-45b1-b6da-4c00b9a07b43",
+        "nodeId": null,
+        "seq": 7,
+        "type": "usage",
+        "data": {
+          "inputTokens": 1619,
+          "outputTokens": 456,
+          "costUsd": 0
+        },
+        "timestamp": "2026-09-18T22:04:40.346Z"
+      },
+      "94c91b01-8c9f-45b1-b6da-4c00b9a07b43:0000000000000008": {
+        "runId": "94c91b01-8c9f-45b1-b6da-4c00b9a07b43",
+        "nodeId": "309a8ef3-c858-48ae-9242-843766e4dbfb",
+        "seq": 8,
+        "type": "node_state",
+        "data": {
+          "from": "running",
+          "to": "succeeded"
+        },
+        "timestamp": "2026-09-18T22:04:40.353Z"
+      },
+      "94c91b01-8c9f-45b1-b6da-4c00b9a07b43:0000000000000009": {
+        "runId": "94c91b01-8c9f-45b1-b6da-4c00b9a07b43",
+        "nodeId": "44ee3f71-a601-4de2-9ca7-d0b323c076b7",
+        "seq": 9,
+        "type": "node_created",
+        "data": {
+          "state": "pending",
+          "type": "execute"
+        },
+        "timestamp": "2026-09-18T22:04:40.359Z"
+      },
+      "94c91b01-8c9f-45b1-b6da-4c00b9a07b43:0000000000000010": {
+        "runId": "94c91b01-8c9f-45b1-b6da-4c00b9a07b43",
+        "nodeId": "44ee3f71-a601-4de2-9ca7-d0b323c076b7",
+        "seq": 10,
+        "type": "node_state",
+        "data": {
+          "from": "pending",
+          "to": "ready"
+        },
+        "timestamp": "2026-09-18T22:04:40.366Z"
+      },
+      "94c91b01-8c9f-45b1-b6da-4c00b9a07b43:0000000000000011": {
+        "runId": "94c91b01-8c9f-45b1-b6da-4c00b9a07b43",
+        "nodeId": "44ee3f71-a601-4de2-9ca7-d0b323c076b7",
+        "seq": 11,
+        "type": "node_state",
+        "data": {
+          "from": "ready",
+          "to": "running"
+        },
+        "timestamp": "2026-09-18T22:04:40.373Z"
+      },
+      "94c91b01-8c9f-45b1-b6da-4c00b9a07b43:0000000000000012": {
+        "runId": "94c91b01-8c9f-45b1-b6da-4c00b9a07b43",
+        "nodeId": "44ee3f71-a601-4de2-9ca7-d0b323c076b7",
+        "seq": 12,
+        "type": "request_started",
+        "data": {
+          "provider": "openai-compatible-relay",
+          "model": "deepseek/deepseek-v4-flash",
+          "attempt": 1
+        },
+        "timestamp": "2026-09-18T22:04:40.376Z"
+      },
+      "94c91b01-8c9f-45b1-b6da-4c00b9a07b43:0000000000000013": {
+        "runId": "94c91b01-8c9f-45b1-b6da-4c00b9a07b43",
+        "nodeId": null,
+        "seq": 13,
+        "type": "usage",
+        "data": {
+          "inputTokens": 1392,
+          "outputTokens": 4173,
+          "costUsd": 0
+        },
+        "timestamp": "2026-09-18T22:05:40.399Z"
+      },
+      "94c91b01-8c9f-45b1-b6da-4c00b9a07b43:0000000000000014": {
+        "runId": "94c91b01-8c9f-45b1-b6da-4c00b9a07b43",
+        "nodeId": null,
+        "seq": 14,
+        "type": "usage",
+        "data": {
+          "inputTokens": 6199,
+          "outputTokens": 6102,
+          "costUsd": 0
+        },
+        "timestamp": "2026-09-18T22:06:30.491Z"
+      },
+      "94c91b01-8c9f-45b1-b6da-4c00b9a07b43:0000000000000015": {
+        "runId": "94c91b01-8c9f-45b1-b6da-4c00b9a07b43",
+        "nodeId": "44ee3f71-a601-4de2-9ca7-d0b323c076b7",
+        "seq": 15,
+        "type": "node_state",
+        "data": {
+          "from": "running",
+          "to": "failed"
+        },
+        "timestamp": "2026-09-18T22:06:30.764Z"
+      },
+      "94c91b01-8c9f-45b1-b6da-4c00b9a07b43:0000000000000016": {
+        "runId": "94c91b01-8c9f-45b1-b6da-4c00b9a07b43",
+        "nodeId": "44ee3f71-a601-4de2-9ca7-d0b323c076b7",
+        "seq": 16,
+        "type": "node_state",
+        "data": {
+          "from": "failed",
+          "to": "ready"
+        },
+        "timestamp": "2026-09-18T22:06:30.775Z"
+      },
+      "94c91b01-8c9f-45b1-b6da-4c00b9a07b43:0000000000000017": {
+        "runId": "94c91b01-8c9f-45b1-b6da-4c00b9a07b43",
+        "nodeId": "44ee3f71-a601-4de2-9ca7-d0b323c076b7",
+        "seq": 17,
+        "type": "node_state",
+        "data": {
+          "from": "ready",
+          "to": "running"
+        },
+        "timestamp": "2026-09-18T22:06:31.840Z"
+      },
+      "94c91b01-8c9f-45b1-b6da-4c00b9a07b43:0000000000000018": {
+        "runId": "94c91b01-8c9f-45b1-b6da-4c00b9a07b43",
+        "nodeId": "44ee3f71-a601-4de2-9ca7-d0b323c076b7",
+        "seq": 18,
+        "type": "request_started",
+        "data": {
+          "provider": "openai-compatible-relay",
+          "model": "deepseek/deepseek-v4-flash",
+          "attempt": 2
+        },
+        "timestamp": "2026-09-18T22:06:31.844Z"
+      },
+      "94c91b01-8c9f-45b1-b6da-4c00b9a07b43:0000000000000019": {
+        "runId": "94c91b01-8c9f-45b1-b6da-4c00b9a07b43",
+        "nodeId": null,
+        "seq": 19,
+        "type": "usage",
+        "data": {
+          "inputTokens": 6585,
+          "outputTokens": 7492,
+          "costUsd": 0
+        },
+        "timestamp": "2026-09-18T22:07:30.595Z"
+      },
+      "94c91b01-8c9f-45b1-b6da-4c00b9a07b43:0000000000000020": {
+        "runId": "94c91b01-8c9f-45b1-b6da-4c00b9a07b43",
+        "nodeId": "44ee3f71-a601-4de2-9ca7-d0b323c076b7",
+        "seq": 20,
+        "type": "node_state",
+        "data": {
+          "from": "running",
+          "to": "failed"
+        },
+        "timestamp": "2026-09-18T22:07:30.640Z"
+      },
+      "94c91b01-8c9f-45b1-b6da-4c00b9a07b43:0000000000000021": {
+        "runId": "94c91b01-8c9f-45b1-b6da-4c00b9a07b43",
+        "nodeId": "44ee3f71-a601-4de2-9ca7-d0b323c076b7",
+        "seq": 21,
+        "type": "node_state",
+        "data": {
+          "from": "failed",
+          "to": "ready"
+        },
+        "timestamp": "2026-09-18T22:07:30.652Z"
+      },
+      "94c91b01-8c9f-45b1-b6da-4c00b9a07b43:0000000000000022": {
+        "runId": "94c91b01-8c9f-45b1-b6da-4c00b9a07b43",
+        "nodeId": "44ee3f71-a601-4de2-9ca7-d0b323c076b7",
+        "seq": 22,
+        "type": "node_state",
+        "data": {
+          "from": "ready",
+          "to": "running"
+        },
+        "timestamp": "2026-09-18T22:07:32.405Z"
+      },
+      "94c91b01-8c9f-45b1-b6da-4c00b9a07b43:0000000000000023": {
+        "runId": "94c91b01-8c9f-45b1-b6da-4c00b9a07b43",
+        "nodeId": "44ee3f71-a601-4de2-9ca7-d0b323c076b7",
+        "seq": 23,
+        "type": "request_started",
+        "data": {
+          "provider": "openai-compatible-relay",
+          "model": "deepseek/deepseek-v4-flash",
+          "attempt": 3
+        },
+        "timestamp": "2026-09-18T22:07:32.408Z"
+      },
+      "94c91b01-8c9f-45b1-b6da-4c00b9a07b43:0000000000000024": {
+        "runId": "94c91b01-8c9f-45b1-b6da-4c00b9a07b43",
+        "nodeId": null,
+        "seq": 24,
+        "type": "usage",
+        "data": {
+          "inputTokens": 6590,
+          "outputTokens": 7755,
+          "costUsd": 0
+        },
+        "timestamp": "2026-09-18T22:08:34.833Z"
+      },
+      "94c91b01-8c9f-45b1-b6da-4c00b9a07b43:0000000000000025": {
+        "runId": "94c91b01-8c9f-45b1-b6da-4c00b9a07b43",
+        "nodeId": "44ee3f71-a601-4de2-9ca7-d0b323c076b7",
+        "seq": 25,
+        "type": "node_state",
+        "data": {
+          "from": "running",
+          "to": "failed"
+        },
+        "timestamp": "2026-09-18T22:08:34.880Z"
+      },
+      "94c91b01-8c9f-45b1-b6da-4c00b9a07b43:0000000000000026": {
+        "runId": "94c91b01-8c9f-45b1-b6da-4c00b9a07b43",
+        "nodeId": "e95d18c8-a174-4af7-a519-e43e562ece48",
+        "seq": 26,
+        "type": "node_created",
+        "data": {
+          "state": "pending",
+          "type": "review"
+        },
+        "timestamp": "2026-09-18T22:08:34.892Z"
+      },
+      "94c91b01-8c9f-45b1-b6da-4c00b9a07b43:0000000000000027": {
+        "runId": "94c91b01-8c9f-45b1-b6da-4c00b9a07b43",
+        "nodeId": "e95d18c8-a174-4af7-a519-e43e562ece48",
+        "seq": 27,
+        "type": "node_state",
+        "data": {
+          "from": "pending",
+          "to": "ready"
+        },
+        "timestamp": "2026-09-18T22:08:34.900Z"
+      },
+      "94c91b01-8c9f-45b1-b6da-4c00b9a07b43:0000000000000028": {
+        "runId": "94c91b01-8c9f-45b1-b6da-4c00b9a07b43",
+        "nodeId": "e95d18c8-a174-4af7-a519-e43e562ece48",
+        "seq": 28,
+        "type": "node_state",
+        "data": {
+          "from": "ready",
+          "to": "running"
+        },
+        "timestamp": "2026-09-18T22:08:34.907Z"
+      },
+      "94c91b01-8c9f-45b1-b6da-4c00b9a07b43:0000000000000029": {
+        "runId": "94c91b01-8c9f-45b1-b6da-4c00b9a07b43",
+        "nodeId": "e95d18c8-a174-4af7-a519-e43e562ece48",
+        "seq": 29,
+        "type": "request_started",
+        "data": {
+          "provider": "openai-compatible-relay",
+          "model": "deepseek/deepseek-v4-flash",
+          "attempt": 1
+        },
+        "timestamp": "2026-09-18T22:08:34.910Z"
+      },
+      "94c91b01-8c9f-45b1-b6da-4c00b9a07b43:0000000000000030": {
+        "runId": "94c91b01-8c9f-45b1-b6da-4c00b9a07b43",
+        "nodeId": null,
+        "seq": 30,
+        "type": "usage",
+        "data": {
+          "inputTokens": 5089,
+          "outputTokens": 773,
+          "costUsd": 0
+        },
+        "timestamp": "2026-09-18T22:09:52.183Z"
+      },
+      "94c91b01-8c9f-45b1-b6da-4c00b9a07b43:0000000000000031": {
+        "runId": "94c91b01-8c9f-45b1-b6da-4c00b9a07b43",
+        "nodeId": "e95d18c8-a174-4af7-a519-e43e562ece48",
+        "seq": 31,
+        "type": "node_state",
+        "data": {
+          "from": "running",
+          "to": "succeeded"
+        },
+        "timestamp": "2026-09-18T22:09:52.189Z"
+      },
+      "94c91b01-8c9f-45b1-b6da-4c00b9a07b43:0000000000000032": {
+        "runId": "94c91b01-8c9f-45b1-b6da-4c00b9a07b43",
+        "nodeId": null,
+        "seq": 32,
+        "type": "gate_result",
+        "data": {
+          "gate": "review",
+          "passed": true,
+          "defects_total": 0,
+          "defects_critical": 0,
+          "advisory": 0
+        },
+        "timestamp": "2026-09-18T22:09:52.194Z"
+      },
+      "94c91b01-8c9f-45b1-b6da-4c00b9a07b43:0000000000000033": {
+        "runId": "94c91b01-8c9f-45b1-b6da-4c00b9a07b43",
+        "nodeId": null,
+        "seq": 33,
+        "type": "delivery_authorized",
+        "data": {
+          "authorizedAt": "2026-09-18T22:09:52.224Z",
+          "gates": [
+            "review",
+            "ir_canonicalization",
+            "provenance"
+          ]
+        },
+        "timestamp": "2026-09-18T22:09:52.224Z"
+      },
+      "94c91b01-8c9f-45b1-b6da-4c00b9a07b43:0000000000000034": {
+        "runId": "94c91b01-8c9f-45b1-b6da-4c00b9a07b43",
+        "nodeId": "ab6a3a84-a07f-4bcb-a2ad-710d3b9ccf73",
+        "seq": 34,
+        "type": "node_created",
+        "data": {
+          "state": "pending",
+          "type": "deliver"
+        },
+        "timestamp": "2026-09-18T22:09:52.235Z"
+      },
+      "94c91b01-8c9f-45b1-b6da-4c00b9a07b43:0000000000000035": {
+        "runId": "94c91b01-8c9f-45b1-b6da-4c00b9a07b43",
+        "nodeId": "ab6a3a84-a07f-4bcb-a2ad-710d3b9ccf73",
+        "seq": 35,
+        "type": "node_state",
+        "data": {
+          "from": "pending",
+          "to": "ready"
+        },
+        "timestamp": "2026-09-18T22:09:52.242Z"
+      },
+      "94c91b01-8c9f-45b1-b6da-4c00b9a07b43:0000000000000036": {
+        "runId": "94c91b01-8c9f-45b1-b6da-4c00b9a07b43",
+        "nodeId": "ab6a3a84-a07f-4bcb-a2ad-710d3b9ccf73",
+        "seq": 36,
+        "type": "node_state",
+        "data": {
+          "from": "ready",
+          "to": "running"
+        },
+        "timestamp": "2026-09-18T22:09:52.251Z"
+      },
+      "94c91b01-8c9f-45b1-b6da-4c00b9a07b43:0000000000000037": {
+        "runId": "94c91b01-8c9f-45b1-b6da-4c00b9a07b43",
+        "nodeId": "ab6a3a84-a07f-4bcb-a2ad-710d3b9ccf73",
+        "seq": 37,
+        "type": "node_state",
+        "data": {
+          "from": "running",
+          "to": "succeeded"
+        },
+        "timestamp": "2026-09-18T22:09:52.267Z"
+      },
+      "94c91b01-8c9f-45b1-b6da-4c00b9a07b43:0000000000000038": {
+        "runId": "94c91b01-8c9f-45b1-b6da-4c00b9a07b43",
+        "nodeId": null,
+        "seq": 38,
+        "type": "run_state",
+        "data": {
+          "from": "running",
+          "to": "completed"
+        },
+        "timestamp": "2026-09-18T22:09:52.290Z"
+      }
+    },
+    "artifacts": {
+      "cb2c85dc-c003-4af4-836d-f2d87b098c7d": {
+        "id": "cb2c85dc-c003-4af4-836d-f2d87b098c7d",
+        "runId": "94c91b01-8c9f-45b1-b6da-4c00b9a07b43",
+        "nodeId": "ab6a3a84-a07f-4bcb-a2ad-710d3b9ccf73",
+        "kind": "text",
+        "mime": "text/plain",
+        "size": 21459,
+        "sha256": "84544ed942a008540eb70f661a5f9229c3b2f0c1130db8eafa3eec319754872c",
+        "storageKey": "inline:84544ed942a008540eb70f661a5f9229c3b2f0c1130db8eafa3eec319754872c"
+      }
+    },
+    "manifests": {
+      "94c91b01-8c9f-45b1-b6da-4c00b9a07b43": {
+        "schemaVersion": 1,
+        "runId": "94c91b01-8c9f-45b1-b6da-4c00b9a07b43",
+        "harnessVersion": "paper-shell-v0",
+        "mode": "strict",
+        "informal": false,
+        "finalArtifactId": "cb2c85dc-c003-4af4-836d-f2d87b098c7d",
+        "gates": {
+          "review": true
+        },
+        "usage": {
+          "inputTokens": 27474,
+          "outputTokens": 26751,
+          "costUsd": 0
+        },
+        "redacted": true
+      }
+    }
+  }
+}
