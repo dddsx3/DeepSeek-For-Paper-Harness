@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>③编程求解 · 针对性作战包 · 2026国赛A题</title>
+<style>
+  :root{--bg:#f4f6fb;--card:#fff;--ink:#1c2333;--mut:#66708a;--line:#e3e8f4;--brand:#2c5ecc;--gap:#b4232c;--model:#7a3df0;--ok:#0f7a5c}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:"Segoe UI","Microsoft YaHei",system-ui,sans-serif;background:var(--bg);color:var(--ink)}
+  header{background:linear-gradient(120deg,#12204a,#2c5ecc 60%,#7a3df0);color:#fff;padding:32px 40px}
+  header .k{font-size:12px;letter-spacing:2px;opacity:.85;text-transform:uppercase}
+  header h1{margin:8px 0 6px;font-size:24px}
+  header p{margin:0;opacity:.92;font-size:14px;max-width:1000px}
+  .wrap{max-width:1060px;margin:0 auto;padding:22px 40px 90px}
+  .toc{background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px 20px;font-size:13px;box-shadow:0 2px 8px rgba(20,40,90,.05)}
+  .toc b{color:#53627f}
+  .toc a{color:var(--brand);text-decoration:none;margin-right:14px}
+  h2.sec{font-size:18px;border-left:6px solid var(--brand);padding-left:12px;margin:34px 0 12px}
+  .card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:18px 22px;margin:14px 0;box-shadow:0 2px 8px rgba(20,40,90,.05)}
+  table{border-collapse:collapse;width:100%;font-size:12.5px;margin-top:8px}
+  th,td{border:1px solid var(--line);padding:6px 8px;text-align:left;vertical-align:top}
+  th{background:#f3f6fd;color:#46587b;font-weight:600}
+  .f{font-family:Consolas,monospace;font-size:11.5px;background:#eef3fb;border:1px solid #dce6f5;color:#1e4b9e;border-radius:4px;padding:0 4px}
+  .mc{font-family:Consolas,monospace;font-size:11px;color:#5b3aa8;background:#f5effd;border:1px solid #e2d4f7;border-radius:4px;padding:0 4px}
+  .warn{background:#fff4f5;border:1px solid #f3ccd0;border-left:5px solid var(--gap);border-radius:10px;padding:12px 16px;font-size:12.5px;line-height:1.9;margin:12px 0;color:#6b2b2b}
+  .note{background:#f5effd;border:1px solid #e2d4f7;border-left:5px solid var(--model);border-radius:10px;padding:12px 16px;font-size:12.5px;line-height:1.9;margin:12px 0;color:#4a2d80}
+  .ok{background:#e9f7f0;border:1px solid #cdeadd;border-left:5px solid var(--ok);border-radius:10px;padding:12px 16px;font-size:13px;line-height:1.9;margin:12px 0;color:#0c573f}
+  .prompt{position:relative;background:#0f1930;border-radius:12px;margin:16px 0}
+  .prompt .bar{display:flex;justify-content:space-between;align-items:center;padding:10px 16px;color:#9fb4ee;font-size:12px;border-bottom:1px solid #243355}
+  .prompt pre{color:#dbe7ff;padding:14px 18px;font-family:Consolas,Menlo,monospace;font-size:11.8px;line-height:1.78;white-space:pre-wrap;word-break:break-word;margin:0}
+  .cp{background:#2c5ecc;color:#fff;border:none;border-radius:6px;padding:4px 12px;font-size:11px;cursor:pointer}
+  .cp.ok{background:#0f7a5c}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px}
+  .badge{display:inline-block;font-size:10.5px;padding:1px 7px;border-radius:999px;background:#eaf0fc;color:#33508f;border:1px solid #d7e2f5;margin-left:6px;vertical-align:middle}
+  .badge.gap{background:#fdecec;color:var(--gap);border-color:#f3c7c2}
+  .foot{margin:36px 0 0;color:var(--mut);font-size:12px;border-top:1px solid var(--line);padding-top:14px}
+</style>
+</head>
+<body>
+<header>
+  <div class="k">Targeted Ops Pack · Code Phase</div>
+  <h1>③ 编程求解 — 针对性作战包（2026国赛 A 题 · 药材的烘干）</h1>
+  <p>目标：把 <span style="font-family:monospace">MODELING_REPORT.md §7 可执行契约 + §9 落地清单</span> 变成可运行代码，交付 <span style="font-family:monospace">result1-4.xlsx</span> + 验证证据。所有方法、约束、数值锚点均从建模报告逐条抽出。</p>
+</header>
+
+<div class="wrap">
+
+  <div class="toc"><b>本包结构：</b>
+    <a href="#files">① 输入文件+依赖</a>
+    <a href="#props">② 物性速查</a>
+    <a href="#methods">③ 方法指定</a>
+    <a href="#contracts">④ 机器审计/验证/算例</a>
+    <a href="#deliver">⑤ 交付格式</a>
+    <a href="#prompts">⑥ 分阶段 Prompt</a>
+    <a href="#accept">⑦ 验收清单</a>
+    <a href="#debt">⑧ 现存债</a>
+  </div>
+
+  <h2 class="sec" id="files">① 输入文件与运行时</h2>
+  <div class="card">
+    <table>
+      <tr><th>文件（精确路径）</th><th>在本任务中怎么用</th></tr>
+      <tr><td><span class="f">workspace\MODELING_REPORT.md</span></td><td>唯一规格源。§7 契约（⓪参数表/①A1-A16/②预期/③异常/④方法/⑤V1-V14/⑥S1-S9/MC表/逻辑契约B·MF·M·CM·CA）+ §9 实现清单。写码前必整段读。</td></tr>
+      <tr><td><span class="f">workspace\PROBLEM_ANALYSIS.md</span></td><td>§6 子问题语义、§7 数据探索、§11 图表预规划（给后续绘图继承 FIGURE_MANIFEST）。本步只读 §6/§7。</td></tr>
+      <tr><td><span class="f">workspace\CAPABILITY_CHECKLIST.json</span></td><td>能力合同（23项），求解阶段逐项认领并写进 RESULTS。</td></tr>
+      <tr><td><span class="f">workspace\AUDIT_REPORT.md</span></td><td>⚠53个OCR数字未登记 / 74个数值待溯源 → 写码时不得删改这74个数，成立后重跑求解阶段审计。</td></tr>
+      <tr><td><span class="f">workspace\user_data\附件1.xlsx</span></td><td>环境时变数据（241点，t=0–14400s，dt=60，列：时间/温度/水分浓度）。Q1预热源；Q3/4 超出14400s取平台段均值(49.9685℃/0.04987)+声明93%外推。</td></tr>
+      <tr><td><span class="f">workspace\user_data\附件2.xlsx</span></td><td>Q4 移动边界 R(t)（145点，2.000→1.198cm）。线性插值+单调保护 <span class="mc">dR/dt≤0</span>。</td></tr>
+      <tr><td><span class="f">workspace\user_data\result1-4.xlsx</span></td><td>交付模板：result1/2 各`温度`/`水分浓度`两表；result3 单表`Sheet1`；result4 单表、末列名`药材表面`。覆写为正式网格（第1行时间点，第1列距离，数据四位小数）。</td></tr>
+      <tr><td><span class="f">workspace\user_data\A题.pdf / A题_extracted.txt</span></td><td>防虚构核验：数字与题面/提取文本对齐（facts_audit）。</td></tr>
+    </table>
+    <div class="ok"><b>运行前前置：</b>①把 <span class="f">skills/shared-scripts/</span> 物化为 <span class="f">workspace\_utils/</span>（facts_audit / data_ingest_check / delivery_audit / claim_code_check / modeling_coverage_check 都要从这里跑）；②python 依赖<u>已确认全装</u>（numpy/scipy/pandas/openpyxl/mpmath/matplotlib）。③生成 <span class="f">code/requirements.txt</span> 记录依赖。</div>
+  </div>
+
+  <h2 class="sec" id="props">② 物性速查卡（四组，禁混用）</h2>
+  <div class="card">
+    <table>
+      <tr><th>量</th><th>问题1（附录2）</th><th>问题2/3（附录3）</th><th>问题4（附录4）</th><th>易错</th></tr>
+      <tr><td>密度 ρ</td><td>820 恒定</td><td><span class="mc">650+128C</span></td><td><span class="mc">760+90C</span></td><td>自变量是干基 C 本身</td></tr>
+      <tr><td>比热 c<sub>p</sub></td><td>2600 恒定</td><td><span class="mc">1450+2736·C/(C+1)</span></td><td><span class="mc">1850+2150·C/(C+1)</span></td><td>自变量是 <b>湿基 C/(C+1)</b>；写成 C → c_p 涨到 8426.8</td></tr>
+      <tr><td>导热 k</td><td>0.36 恒定</td><td><span class="mc">0.21+0.38·C/(C+1)</span></td><td><span class="mc">0.12+0.20·C/(C+1)</span></td><td>同 c<sub>p</sub></td></tr>
+      <tr><td>扩散 D</td><td><span class="mc">7e-9·e<sup>-0.89/C</sup></span></td><td><span class="mc">2.4e-3·e<sup>-0.45/C</sup>·e<sup>-3850/T</sup></span></td><td><span class="mc">4.2e-4·e<sup>-0.30/C</sup>·e<sup>-3850/T</sup></span></td><td><b>T 必须开尔文</b> (T+273.15)；用摄氏 → D≈1e-34</td></tr>
+      <tr><td>h / h<sub>m</sub></td><td colspan="3">全问一律 <span class="mc">h=25 W/m²K</span>、<span class="mc">h_m=8e-7 m/s</span>（附录2给出，附录3/4沿用）</td><td>Robin 两场同生效</td></tr>
+      <tr><td>R / L / T<sub>0</sub> / C<sub>0</sub></td><td colspan="3">R=0.02m（Q4用附件2的R(t)）；L=0.25m；T<sub>0</sub>=28℃；C<sub>0</sub>=2.55 kg/kg</td><td>Q4 半径收缩 -40.1%→1.198cm</td></tr>
+    </table>
+    <div><b>V1 锚点断言（写成 test，跑过再往下）：</b>
+      附录3：ρ(2.55)=976.4 · c_p=3415.3 · k=0.483 · <b>D(2.55,323.15K)=1.3471e-8</b>；
+      附录4：ρ=989.5 · c_p=3394.4 · k=0.2637 · <b>D=2.5003e-9</b>（<u>须&lt;附录3的D</u>，比值0.1856）；
+      附录2：D(2.55)=4.9377e-9。无量纲：Bi_h=1.3889 · Bi_m=3.2404 · Fo_h=0.7598 · Fo_m=0.0222。</div>
+  </div>
+
+  <h2 class="sec" id="methods">③ 方法指定（唯一定向，不做第二选择）</h2>
+  <div class="card">
+    <table>
+      <tr><th>步骤</th><th>唯一方法</th><th>禁止（MC forbid / 反例）</th></tr>
+      <tr><td>空间离散</td><td>柱坐标守恒型有限体积，节点 r<sub>i</sub>=(i-1/2)Δr，r=0 与 r=R 半控制体</td><td>直接有限差分（r=0 奇点）、有限元</td></tr>
+      <tr><td>温度时间推进</td><td><b>后向Euler隐式 + Thomas三对角</b>（显式稳定限 dt&lt;0.118s / N=100，Q3/4要推到2e5s，显式发散）</td><td>前向Euler、Crank–Nicolson、RK45；<span class="mc">forbid:T_new=T+dt*alpha</span></td></tr>
+      <tr><td>水分时间推进</td><td>前向Euler显式 + <b>Δr底线 Δt≤0.4Δr²/(2maxD)</b> + 子循环</td><td>隐式牛顿（D 强非线性不稳）、无约束定步长</td></tr>
+      <tr><td>两场耦合</td><td>每层<b>顺序耦合单次扫描</b>（先T→新T更新物性→再C）；超阈值<b>回退步长</b></td><td><b>Picard / while-max_iter / tol不动点</b>（MC-13）；旧层T更新C（Jacobi型）</td></tr>
+      <tr><td>界面物性</td><td>先算术平均界面 C,T 再代入 k(),D()</td><td>调和平均D（造硬壳，内部永不干）、上风取值</td></tr>
+      <tr><td>Robin边界</td><td>表面对流阻力 + 最外半格扩散阻力<b>串联</b>（式3.8）</td><td>一阶单侧差分、虚拟外推、令表面=环境值</td></tr>
+      <tr><td>环境数据</td><td>附件1 时间<b>线性插值</b>；t&gt;14400s 平台段均值 + 声明外推</td><td>样条（过冲）、最近邻、常数50℃全程</td></tr>
+      <tr><td>移动边界(Q4)</td><td>归一化坐标 η=r/R(t)，仿射假设对流项置零，对照算例留隐式上风对流项；<b>AFFINE_SHRINK 两场同一开关</b></td><td><span class="mc">forbid:eta*Rdot/R*dTdeta</span>（漏固相输运项）；物理坐标朴素ALE、等效收缩系数</td></tr>
+      <tr><td>R(t) 与 dR/dt</td><td>附件2 线性插值；中心差商 + <b>dR/dt≤0 单调保护</b></td><td>拟合解析式、样条求导（放大锯齿）</td></tr>
+      <tr><td>t* 定位</td><td>检测 <b>max<sub>r</sub>C − 0.15</b> 变号后<b>线性插值</b>（式4.12）</td><td>取首个满足采样的索引、二分重跑</td></tr>
+      <tr><td>判据口径</td><td>对空间取 <b>max</b> 后与0.15比较（『各处』）</td><td>体均判据（差约60%）</td></tr>
+      <tr><td>独立性检验</td><td>N∈{100,200,400} 与 Δt,Δt/2 直接对比</td><td>Richardson/GCI（界面D强非线性不满足光滑）</td></tr>
+      <tr><td>守恒审计</td><td><b>两层分报</b>：离散残差(格式自证) + ρ<sub>d</sub>=ρ/(1+C)干物质积分(物理自洽)</td><td>把离散守恒0.0000%当物理验证</td></tr>
+    </table>
+  </div>
+
+  <h2 class="sec" id="contracts">④ 机器可审计约束 · 验证 · 结构算例</h2>
+  <div class="card">
+    <b>A1-A16 结果约束（写 assert，跑完逐条验）：</b>A1 0≤C≤2.55 全场 · A2 ∂tC≤0 · A3 28≤T≤min/max边界 · A4 r=0 梯度&lt;1e-8 · A5 表面含水≤中心·表面温≥中心 · A6/A7 热量/水分收支&lt;0.1% · A8 N独立性 t*差&lt;0.5% · A9 步长独立性 t*差&lt;0.2% · A10 最慢点恒为r=0 · A11 D(2.55,323.15)∈1e-8量级 · A12 c_p(2.55)=3415.3 · A13 Q4 域外列=NaN · A14 Q4 dR/dt≤0 · A15 四位小数+表结构 · A16 t*∈48–72h(soft,出区间须解释)。<br><br>
+    <b>V1–V14 验证检查点：</b>V1 物性锚点 · V2 无量纲 · V3 解析退化≤1e-4℃ · V4/V5 收支&lt;0.1% · V6/V7 网格/步长独立性 · V8 干物质残差报数值(2.2163%–15.4972%，<u>无阈值</u>) · V9 最慢点 · V10 穿越唯一1次 · V11 A/B/C三配置t* · V12 输出文件读回校验 · V13 外推占比(≈93%) · V14 k/c_p 动态性。<br><br>
+    <b>S1–S9 结构算例（不看数值判对错）：</b>S1 T∞≡28、C∞≡2.55→全场恒定 · S2 h,hm→0→绝热绝湿守恒 · S3 h→1e6→表面贴环境(第一类) · S4 常系数+T∞恒→Bessel解析解 · S5 dR/dt=0→结果与Q3结构一致 · S6 查仿射收缩一致性O(Δη²) · S7 阈值=C0→t*=0 · S8 阈值=0→报未达 · <b>S9</b>（判决性）k=D=0、均匀收缩、初值T~=C~=η → 逐点冻结 max_η|T~-η|&lt;1e-12（若温度漂移则(5.5)漏固相输运项）。<br><br>
+    <b>逻辑契约（B/MF/M/CM/CA）：</b>B1 C∈[0,2.55] · B2 T∈[28,50.246] · B3 t*∈[172800,259200]s(soft) · B4 t*<sub>Q4</sub>&lt;t*<sub>Q3</sub> · B5 D附3∈[1e-8,2e-8] · B6 Bi∈(1,4) · B7 Fo_h/Fo_m=34 · B8 干物质残差∈[2.2163,15.4972]。MF1-12（逐时逐点更新物性、T开尔文、C vs C/(C+1)、Robin、附件1时变、逐点max判据、R(t)收缩、域外空、隐式温度、界面均C、round4、物性组不混用）。CM1-7 带边距报告。<br>
+    <b>强制 A/B/C 受控归因（ND2，<u>不许合并</u>）：</b>A=附录3+固定域=58.57h(预检) · B=附录4+固定域=130.87h · C=附录4+收缩域=51.32h。增量 +72.31(物性) / −79.55(收缩) 分别报。Q3 用附录3、Q4 用附录4，禁止混用（附录4的D小5.39倍）。</div>
+    <div class="warn"><b>易错六处（优先级最高）：</b>① D 中 T 用开尔文 <span class="mc">T+273.15</span>（否则 D≈1e-34，药材永远不干）；② c<sub>p</sub>/k 用 <span class="mc">C/(C+1)</span> 而 ρ 用 <span class="mc">C</span>；③ 界面 D 先均 C 再代入（调和平均→硬壳）；④ 温度必须隐式+Thomas（显式发散）；⑤ 判据逐点 <span class="mc">max_rC</span> 非体均；⑥ t* 线性插值定位非采样取整。</div>
+
+  <h2 class="sec" id="deliver">⑤ 交付文件（结构与格式验收）</h2>
+  <div class="card">
+    <table>
+      <tr><th>文件</th><th>结构</th><th>时域/步进</th><th>说明</th></tr>
+      <tr><td class="f">code/{problem1..4}.py + main.py + requirements.txt</td><td colspan="3">单一求解核心 + 物性策略注入 + 配置分离（四问各一份配置，禁混物性组）。Q1-3 固定域分支 / Q4 归一化坐标分支，共用同套有限体积装配。</td></tr>
+      <tr><td class="f">result1.xlsx</td><td>1800×21×2，Sheet`温度`+`水分浓度`</td><td>[0,1800]s，dt=1s / dr=0.1cm</td><td>题目要求：仅预热平衡段，附录2物性</td></tr>
+      <tr><td class="f">result2.xlsx</td><td>10800×21×2，同两表</td><td>[0,10800]s，dt=1s / 0.1cm</td><td>全过程，附录3</td></tr>
+      <tr><td class="f">result3.xlsx</td><td>⌈t*/60⌉×21，单表Sheet1</td><td>[0,t*]，dt=60s / 0.1cm</td><td>t* 由逐点 max_rC&lt;0.15 线性插值定位</td></tr>
+      <tr><td class="f">result4.xlsx</td><td>⌈t*/60⌉×(21+1)，末列`药材表面`，域外置NaN</td><td>[0,t*]，dt=60s / 0.1cm</td><td>R(t) 收缩域；距离以当前表面为末列</td></tr>
+      <tr><td class="f">figures/{problem_*_results.json, all_results.json}</td><td colspan="3">V1-V14 断言结果 + t*（+报告正式值与"量级参考"标注）+ A/B/C归因 + 独立性表 + 外推占比 + 收支残差，供绘图/论文引用</td></tr>
+      <tr><td class="f">RESULTS.md</td><td colspan="3">人类可读汇总：逐问方法+数值、V1-V14、A/B/C、输出格式校验结果（对应第⑤包）</td></tr>
+    </table>
+    <div class="note"><b>粗采样表（给论文 表1-表4，也写进 RESULTS.md）：</b>Q1 表1/表2：t=100,300,600,900,1200,1500,1800 s × r=0,0.5,1,1.5,2 cm（7×5）；Q2 表3/表4：t=0.5..3.0h(步0.5) × r=0..2cm(步0.5)（6×5）。所有交付数值 <span class="mc">round(·,4)</span>。</div>
+  </div>
+
+  <h2 class="sec" id="prompts">⑥ 分阶段 Prompt（逐个贴到窗口/Agent，每个以『加载 comp-code 技能』开头）</h2>
+
+  <div class="prompt"><div class="bar"><span>P0 · 装配与规格读入</span><button class="cp" data-t="p0">复制</button></div>
+  <pre data-cp="p0">加载并执行 skills 库里的 comp-code 技能（工作目录 workspace/，路径见上下文）。
+
+第一轮：只做装配，不写求解代码。
+1) 通读规格（用 Read，不必整篇贴回给我）：
+   - MODELING_REPORT.md 的 §7「可执行契约」与 §9「落地清单」（重点：⓪参数口径表、①A1-A16、③异常处理表、④方法指定、⑤V1-V14、⑥S1-S9、MC方法声明表、逻辑契约、A/B/C归因）
+   - PROBLEM_ANALYSIS.md 的 §6(子问题语义)、§7(数据探索)、§11(图表预规划)
+2) 读数据并报告结构（我已用 openpyxl 探明，请你复核）：
+   - user_data/附件1.xlsx（时间/温度/水分浓度，241点，0-14400s，dt=60）
+   - user_data/附件2.xlsx（时间/半径，R:2.000→1.198cm）
+   - user_data/result1-4.xlsx（输出模板：result1/2两表`温度`/`水分浓度`；result3/4单表；result4末列`药材表面`）
+3) 建目录 code/，写 code/requirements.txt（numpy scipy pandas openpyxl mpmath）。
+4) 设计 4 份配置字典（物性组/时域/输出步/是否移动域），锁定"单一求解核心+物性策略注入"骨架。
+完成后给我：规格要点确认 + 数据统计 + 目录/配置结构。先停，等我确认再进 P1。</pre></div>
+
+  <div class="prompt"><div class="bar"><span>P1 · 基础求解核心 + 物性库</span><button class="cp" data-t="p1">复制</button></div>
+  <pre data-pc="p1" data-cp="p1">继续执行 comp-code。第二轮：写基础层，先可单测。
+1) code/props.py——三组物性（附录2/附录3/附录4），严格按参数口径表：
+   - ρ 用 C；c_p、k 用 C/(C+1)（MF3）
+   - D 的 Arrhenius 项温度取开尔文 T+273.15（MC-5/MF2）
+2) code/step.py——一维柱坐标守恒型有限体积装配（半控制体处理 r=0 与 r=R）+ 后向Euler温度/Thomas追赶 + 显式水分子循环 + "先均界面C_T再代入D"（MC-1/2/6）+ 两场顺序耦合单次扫描、超阈值回退步长（MC-13，禁 Picard/while .*> tol）。
+3) code/bc.py——第三类Robin两场（h=25、h_m=8e-7）、表面对流+最外半格扩散串联（式3.8）。
+4) code/tests_props.py——做 V1 锚点断言（附录3/4的ρ/cp/k/D五个值、B5、无量纲Bi_h/Bi_m/Fo_h/Fo_m），必须全部通过。
+跑通 tests_props.py 并把输出给我。先停。</pre></div>
+
+  <div class="prompt"><div class="bar"><span>P2 · 结构算例自检（S1–S4）</span><button class="cp" data-t="p2">复制</button></div>
+  <pre data-cp="p2">继续执行 comp-code。第三轮：跑结构算例验证装配正确性，不碰正式题。
+- S1: T∞≡28、C∞≡2.55 → 全场恒定（检验无寄生源项）
+- S2: h,h_m→0 → 绝热绝湿、总水量/总内能守恒
+- S3: h→1e6 → 表面立即贴环境（Robin退化第一类）
+- S4: 常系数 + T∞恒 → 与 Bessel 级数 + Duhamel 卷积解析解对比（含初值失配齐次项），最大偏差≤1e-4℃（MC-10/V3）
+要是有算例不过，先停下来逐条诊断原因（参照 §7 异常处理表），不要糊弄跳过。
+给我：四个算例的通过/偏差结果表。先停，验收后再进正题。</pre></div>
+
+  <div class="prompt"><div class="bar"><span>P3 · 逐问求解（Q1 → Q2 → Q3）</span><button class="cp" data-t="p3">复制</button></div>
+  <pre data-cp="p3">继续执行 comp-code。第四轮：正式求解，分问逐步，每问跑完贴摘要。
+【Q1】固定域、附录2物性、[0,1800]s、dt=1s/抽样0.1cm → result1.xlsx（`温度`/`水分浓度`两表）+ 输出论文表1/表2粗采样值。断言：A1-A5、A11(附录2 D)、B7(1800s中心C下降O(1e-3))。
+【Q2】固定域、附录3物性、[0,10800]s → result2.xlsx 两表 + 表3/表4粗采样。断言：V14(物性动态)、MF1。
+【Q3】t* 求解：逐点 max_rC&lt;0.15 → 线性插值定位（MC-7/8）。到 t* 用 step 主时钟隐式(Δt≥1s)+水分子循环。输出令保存全部时刻到 result3.xlsx（单表，⌈t*/60⌉行）。断言：V10(穿越唯一1次)、V9(最慢点r=0)、V13(外推占比≈93%)、B3(t*∈48-72h,soft)。
+每问把：关键数值、通过的断言、t*（Q3）、保守/外推标注「量级参考」vs「正式值」写进 RESULTS.md。先逐问给我验收。</pre></div>
+
+  <div class="prompt"><div class="bar"><span>P4 · Q4 收缩域 + A/B/C 归因 + 独立性</span><button class="cp" data-t="p4">复制</button></div>
+  <pre data-cp="p4">继续执行 comp-code。第五轮：
+【Q4】归一化坐标 η=r/R(t)，附录4物性，R(t)按附件2线性插值 + dR/dt≤0 保护，AFFINE_SHRINK 两场统一开关（MC-14，禁 solo 对流项）。输出 result4.xlsx（末列`药材表面`，<u>r&gt;R(t) 域外置 NaN</u>，非0非外推 A13）。
+【A/B/C 归因 ND2】三段受控对比（<u>不许合并陈述</u>）：
+   A=附录3+固定域 → t*A ；B=附录4+固定域 → t*B ；C=附录4+收缩域(=Q4本身) → t*C。
+   增量 (B-A)=物性效应、(C-B)=收缩效应，分别报。
+【独立性】S5(强制R=R0→回Q3结构)；三套N{100,200,400}得t*相对差&lt;0.5%(A8/V6)；两套Δt得t*&lt;0.2%(A9/V7)。
+【守恒两层】离散残差(格式)+ρd=ρ/(1+C)干物质积分，分两层报告，不合并（ND1/MC-12）。
+跑完把 t*A,B,C、两个增量、独立性三表、干物质残差(2.2163%-15.4972%区间)、守恒两层数值给我。</pre></div>
+
+  <div class="prompt"><div class="bar"><span>P5 · 审计绕行 + 交付自检</span><button class="cp" data-t="p5">复制</button></div>
+  <pre data-cp="p5">继续执行 comp-code。第六轮：收尾。
+1) 文件自检（对应 A15/V12/CM5）：读回 result1-4.xlsx 校验行列数、工作表名、末列语义、四位小数、Q4域外NaN；输出抽样插值误差≤1e-5。
+2) 跑审计：python _utils/facts_audit.py --stage code（若该工具仅 .pyc 无法运行，则改为人工逐项核：题设8条rules、74个数值溯源、与A题_extracted.txt的OCR数字对齐）。
+3) 用 MC 方法声明的 forbid 正则扫 code/（禁 Picard/while tol、禁 T+摄氏进D、禁接口调和平均D、禁体均判据、禁固定R自称收缩、禁dTdeta单边对流项），0命中才算过。
+4) 产出 figures/problem_*_results.json + all_results.json + RESULTS.md（含V1-V14、A/B/C、独立性、外推占比、收支残差、表1-表4粗采样）。
+最后给我：交付文件清单 + 全部V项证据 + 审计结论 + 一份《还有哪些未过校验/待人工确认》说明。</pre></div>
+
+  <h2 class="sec" id="accept">⑦ 验收清单（每项打勾）</h2>
+  <div class="card">
+    <table>
+      <tr><th>类别</th><th>验收项</th></tr>
+      <tr><td>产物</td><td>result1/2/3/4.xlsx 生成且读回有效 · code/problem*.py 可独立重跑 · RESULTS.md + all_results.json 落盘</td></tr>
+      <tr><td>数值质量</td><td>V1 锚点全过 · 收支&lt;0.1% · 独立性 t*&lt;0.5%/0.2% · 守恒两层分报 · t*∈48-72h(或已解释)</td></tr>
+      <tr><td>针对性</td><td>附录2/3/4 物性不混用 · 判据逐点 max_rC · Q4 收缩+R(t)+域外NaN · A/B/C 归因分报</td></tr>
+      <tr><td>防错</td><td>MC forbid 正则 0 命中 · 无人工阻尼 · 无凑参数进区间 · 数值四位小数</td></tr>
+      <tr><td>审慎</td><td>外推占比≈93% 已声明 · 干物质残差如实报(无阈值) · 预检值标注「量级参考」</td></tr>
+    </table>
+  </div>
+
+  <h2 class="sec" id="debt">⑧ 现存债 / 本步不依赖项</h2>
+  <div class="card">
+    <ul style="font-size:13px;line-height:1.9;margin:0">
+      <li><b>本步必需但待物化：</b><span class="f">_utils/</span>（把 <span class="f">skills/shared-scripts/</span> 物化），否则 <span class="mc">facts_audit</span> 等校验脚本找不到。</li>
+      <li><span class="badge gap">缺内容</span>审计脚本 <span class="f">facts_audit / data_ingest_check / delivery_audit / claim_code_check</span> 若只有 .pyc 无法改参跑（`--stage code`）→ 降级为人工核验（清单已在 P5 写死）。</li>
+      <li><b>现存债：</b>AUDIT_REPORT ⚠ 53 个 OCR 数字未登记、MODELING_REPORT 74 个数值待溯源 → 本步只读不改，写论文前一并清。</li>
+      <li><b>本步不依赖（后续环节）：</b>图表产出（paper-figure）、论文撰写、格式导出 docx —— 都活在 P5 之后，本包不碰。</li>
+    </ul>
+  </div>
+
+  <div class="foot">2026 国赛 A 题 · 编程求解作战包 · 生成 2026-09-11 · 规格源=MODELING_REPORT §7/§9 + 附件结构实测 · Prompt 逐个执行，P0→P5 有检查点，别跳步。</div>
+</div>
+<script>
+document.querySelectorAll('.cp').forEach(b=>b.addEventListener('click',()=>{
+  const t=b.dataset.t; const el=document.querySelector('[data-cp="'+t+'"]');
+  try{ navigator.clipboard.writeText(el.innerText).then(()=>{b.textContent='✓ 已复制';b.classList.add('ok');setTimeout(()=>{b.textContent='复制';b.classList.remove('ok')},1200);}); }catch(e){}
+}));
+</script>
+</body>
+</html>
