@@ -12,12 +12,12 @@
   },
   "baseline": {
     "files": 110,
-    "total_tests": 1219,
-    "passed_tests": 1219,
+    "total_tests": 1231,
+    "passed_tests": 1231,
     "failed_tests": 0,
     "failed_test_suites": 0,
     "tsc_clean": true,
-    "baseline_at": "W8.10 (诊断链修复 + E2 字段层合规): A1 分类信息传递修复(executor 抛的 gate-failed 不再覆盖 audit 里的真实失败类; lastFailureClassEvent 读 audit; truncated 文案去'重试'; 6+1 classifier 可达性表 + 真实对象反例); A2 minted_ir_count 上提到 run-report 顶层(两条路径); A3 移除 T3 推荐(O-L5-05); A6 快照 family 语义拆分(TRUTH-FAMILIES 为准, preregistered_family 保先验, route_mismatch 改为重算+不可判定态); A7 预算门实测生效并修复其 classifier 缺失; 基线 1213→1219/110 文件"
+    "baseline_at": "W8.10-B (E2 字段层合规): B1 DRIFT 引导回灌（三类内容：引用类型约束派生自 IR_REF_FIELDS / 已注册 id 清单 / 上次具体违规；空引导时 prompt 与 W8.9 逐字相同，回灌只作用于重试）；B2 零数字护栏（散文剥数字、标识符逐字保留——测试发现 P1 与 E1_E2_FIDELITY_VIOLATION 都含数字，盲剥会把引导改成教模型引用不存在的 id；不变量改为 hasNoNumericLiteralsOutsideIds）；顺带修一个真实缺陷：保真门原本跑在 produceContainerInto 之后，被拒容器已污染 append-only store，重试因此撞 conflicting_id——已前置到准入之前。基线 1219→1231"
   },
   "failures_by_origin": {},
   "gates_impl": [
