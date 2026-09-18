@@ -37,7 +37,7 @@ import {
   createExploratoryProfile,
 } from '@deepseek-ai/dsh-paper-foundation'
 import { ModelingIr } from '@deepseek-ai/dsh-paper-foundation'
-import { resolveShellRoute, blockMessage, lastFailureClassEvent, type ShellRoute } from './invoke.ts'
+import { resolveShellRoute, blockMessage, failureFactsOf, fidelityBlockedHuman, lastFailureClassEvent, type ShellRoute } from './invoke.ts'
 import { assembleBundle } from './bundle.ts'
 import { classifyProblem, routeBanner, routeMismatch } from './route.ts'
 import { contractBanner } from './contracts/index.ts'
@@ -468,7 +468,16 @@ async function main(): Promise<number> {
     // for a length ceiling.
     const auditEvents = ctx.paperAudit.list(String(run.id))
     const classEvent = lastFailureClassEvent(auditEvents)
-    const human = blockMessage(classEvent ?? String(err.eventType ?? 'gate-failed'), err.code, err.message ?? '')
+    // W8.11-C1 (O-L5-07): the wording is generated from the trail's STRUCTURED
+    // facts, not from a table keyed by failure code. The old `none` branch said
+    // "模型没有给出可用结构" — and run-4 falsified that flatly: E1 produced
+    // 14010 characters, minted_ir_count was 3, and two of the four fidelity
+    // checks PASSED. The run really died on the fidelity gate, so the sentence
+    // has to say that instead of blaming a model that had produced plenty.
+    const facts = failureFactsOf(auditEvents)
+    const human = facts.failedRules.length > 0
+      ? fidelityBlockedHuman(facts)
+      : blockMessage(classEvent ?? String(err.eventType ?? 'gate-failed'), err.code, err.message ?? '')
     console.error(`[BLOCKED] ${human.oneLine}`)
     console.error(`  → ${human.advice}`)
     console.error(`  run-id  -> ${String(run.id)}`)
