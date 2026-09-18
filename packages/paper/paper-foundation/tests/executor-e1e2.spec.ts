@@ -27,8 +27,9 @@ import {
   RunId,
   WorkflowEngineService,
 } from '../src/index.ts'
+import { EXECUTE_PROTOCOL_TEACHING } from '../src/executor.ts'
 import { ModelingIr } from '../src/ir/store.ts'
-import { ID_FIELD_BY_KIND, isIrId } from '../src/ir/schema.ts'
+import { ID_FIELD_BY_KIND, IR_SCHEMAS, isIrId } from '../src/ir/schema.ts'
 import {
   e1AnalysisInstruction,
   E1_ASSUMPTION_MARKER,
@@ -1112,5 +1113,35 @@ describe('W8.11-A1b — only line-start markers declare', () => {
     expect(isLineStartMarker('a\n[[ASSUMPTION: X]]', 2)).toBe(true)
     expect(isLineStartMarker('a\n  [[ASSUMPTION: X]]', 4)).toBe(true)
     expect(isLineStartMarker('a\r\n[[ASSUMPTION: X]]', 3)).toBe(true)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// W8.11-A1c — the teaching states parameter_refs' element shape
+// ---------------------------------------------------------------------------
+
+describe('W8.11-A1c — the one unstated field shape', () => {
+  it('the lecture explains that parameter_refs entries are OBJECTS, not ids', () => {
+    // 事故（run-2 真实运行）：`parameter_refs` 是这份讲义里**唯一**没给出元素
+    // 形状的字段——它作为裸名字列在 `variable_refs` 旁边，而后者**确实**是纯
+    // id 列表。模型合理地推断两者同形，写了 ["S-P0","S-P1"]，封闭 schema 拒绝：
+    //   parameter_refs.0: Invalid input: expected object, received string
+    // 这次拒绝吃掉了第三次尝试并终结了运行。字段之所以需要对象，是因为**参数
+    // 携带绑定值**（零数字通道的要点）；说清这一点就是修法。
+    expect(EXECUTE_PROTOCOL_TEACHING).toContain('parameter_refs is NOT a list of ids')
+    expect(EXECUTE_PROTOCOL_TEACHING).toContain('symbol_ref')
+    // 正例与反例都在（只给禁令不给例子，模型会换一种方式违反）
+    expect(EXECUTE_PROTOCOL_TEACHING).toContain('NOT ["S-P0"]')
+  })
+
+  it('the stated shape MATCHES the closed schema (no drift)', () => {
+    // 讲义说的形状必须与 schema 一致——否则是在教一个 harness 会拒的东西。
+    // 用 schema 真解析一次讲义里的正例。
+    const example = { model_id: 'M1', problem_refs: ['P1'], assumption_refs: [], variable_refs: [], parameter_refs: [{ symbol_ref: 'S-P0', value: 0.1 }], equation_refs: [], constraints: [], objective: null, dependencies: [] }
+    const verdict = IR_SCHEMAS.ModelSpec.safeParse(example)
+    expect(verdict.success, JSON.stringify(verdict.error?.issues ?? [])).toBe(true)
+    // and the shape the model actually wrote is REFUSED (proving the gate is real)
+    const wrong = { ...example, parameter_refs: ['S-P0'] }
+    expect(IR_SCHEMAS.ModelSpec.safeParse(wrong).success).toBe(false)
   })
 })

@@ -176,6 +176,18 @@ export const EXECUTE_PROTOCOL_TEACHING = [
   '    AssumptionSpec value: {"assumption_id","scope_ref":"P1","statement","source_type","justification_refs","risk_level","testable","sensitivity_refs","status"} — source_type GIVEN|DERIVED|MODELING_CHOICE|APPROXIMATION; risk_level HIGH|MEDIUM|LOW; status ACTIVE|OBSOLETE|QUESTIONED.',
   '    EquationSpec value: {"equation_id","scope_ref":"P1","expression","representation","lhs_symbols","rhs_symbols","equation_type","unit","depends_on","source"} — representation SYMPY|LATEX_PRESENTATION; equation_type DEFINITION|CONSTRAINT|OBJECTIVE|DERIVED.',
   '    ModelSpec value: {"model_id","problem_refs":["P1"],"assumption_refs","variable_refs","parameter_refs","equation_refs","constraints","objective","dependencies"} — every field is required; assumption_refs/equation_refs list the ids of AssumptionSpec/EquationSpec entries you declared.',
+  // W8.11-A1c (repair, found by the second real run): `parameter_refs` was the
+  // ONE field in this lecture whose ELEMENT shape was never stated — the line
+  // above lists it as a bare name, right next to `variable_refs`, which IS a
+  // plain id list. The model reasonably inferred the same shape and wrote
+  // ["S-P0", "S-P1"], and the closed schema refused it:
+  //   parameter_refs.0: Invalid input: expected object, received string
+  // That refusal cost the run its third attempt and ended it. The field needs
+  // an object because a PARAMETER carries a bound value (the whole point of
+  // the zero-number channel); saying so is the fix. This is 信息不足, not a
+  // model defect — the same class W8.10-B existed to eliminate.
+  '      NOTE: parameter_refs is NOT a list of ids — each entry is an OBJECT {"symbol_ref": <a SymbolSpec id>, "value": <a number>}. variable_refs/equation_refs/assumption_refs ARE plain id lists; parameter_refs is the exception, because a parameter carries a bound value.',
+  '      Example: "parameter_refs": [{"symbol_ref": "S-P0", "value": 0.1}]  — NOT ["S-P0"].',
   '    DataArtifact (optional, output-pointer form) value: {"data_id","locator"} — locator is one of YOUR outputBasenames. NEVER write content_hash anywhere: every sha256 is computed by the harness over real bytes (declaring one refuses the container — the hash of bytes that do not exist yet cannot be known).',
   '  code: executable Node JavaScript that WRITES the measured numbers to the declared output files. All arithmetic happens here; never state a computed number anywhere else.',
   '  run: the ONLY fields are "outputBasenames" (the file names your code writes) and "seed" (an integer). No other key is accepted.',
