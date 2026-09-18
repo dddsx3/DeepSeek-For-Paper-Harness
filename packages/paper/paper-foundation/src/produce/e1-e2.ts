@@ -177,6 +177,60 @@ const ANCHORED_KINDS: ReadonlySet<string> = new Set(['AssumptionSpec', 'Equation
 export const MIN_E1_SPAN_CHARS = 10
 
 /**
+ * W8.10-D3 — the typographic fold for the B3 forward anchor check.
+ *
+ * 事故（由目标模型上的真实运行抓出，探针 `probe-e1span-diagnosis.mts` 复现）：
+ * 35 条受检条目里 **32 条原生精确命中**，剩下 3 条的 LCS 相似度是
+ * 0.977 / 0.985 / 0.986，差异**全部**是排版层的——
+ *   - 全角 vs 半角标点（`）` ↔ `)`）
+ *   - 空白的折叠与插入（`附录（1）` ↔ `附录 (1)`）
+ *   - 数学定界符（`$$…$$` ↔ `$…$`）
+ * **没有一条是语义改写。** 而当时的判定是裸 `String.includes`，于是这三条被
+ * 报成"疑似改写"——把 harness 的**比较器限制**归因给了模型（红线 N2 / 形态 2），
+ * 与 W8.9 的 `finish_reason` 事故同源：判定条件写好了，被判定对象从未以需要
+ * 的形态到达（形态 6）。
+ *
+ * 修法是让**比较**容忍排版差异，而不是降低判定标准：折叠只做"不改变任何
+ * 字词"的三件事（全角→半角标点、删除空白、`$$`→`$`），折叠后**仍要求逐字
+ * 子串命中**。
+ *
+ * **不设相似度阈值**：阈值会放过真改写（LCS 0.9 的改写照样是改写），而
+ * "放过真改写"比"误报改写"危险得多——前者让凭空造的假设进入论文，后者只是
+ * 让人多看一眼。负对照见 `tests/executor-e1e2.spec.ts`：把实词替换掉的真改写
+ * 在折叠后仍必须 FAIL。
+ */
+const FULLWIDTH_TO_ASCII: Readonly<Record<string, string>> = {
+  '\uFF08': '(', '\uFF09': ')', '\uFF0C': ',', '\uFF1A': ':', '\uFF1B': ';',
+  '\uFF01': '!', '\uFF1F': '?', '\uFF0E': '.', '\uFF02': '"', '\uFF07': "'",
+  '\uFF0D': '-', '\uFF5E': '~', '\u3001': ',', '\u3002': '.',
+  '\u201C': '"', '\u201D': '"', '\u2018': "'", '\u2019': "'",
+  '\u2014': '-', '\u2013': '-',
+  '\uFF1D': '=', '\uFF0B': '+', '\uFF0A': '*', '\uFF0F': '/', '\uFF5C': '|',
+  '\uFF3B': '[', '\uFF3D': ']', '\uFF5B': '{', '\uFF5D': '}',
+  '\uFF1C': '<', '\uFF1E': '>', '\uFF05': '%', '\uFF06': '&', '\uFF20': '@',
+  '\uFF03': '#', '\uFF04': '$', '\uFF3F': '_', '\uFF40': '`', '\uFF5F': '^',
+}
+
+/**
+ * Fold a piece of text to its typography-insensitive form.
+ *
+ * Deliberately conservative: every step removes a *rendering* difference, never
+ * a word. Exported so the negative control can apply the same fold to a real
+ * rewrite and confirm it still fails.
+ *
+ * @param text - any text (E1 or a declared span).
+ */
+export function foldForAnchorMatch(text: string): string {
+  let out = ''
+  for (const ch of text) out += FULLWIDTH_TO_ASCII[ch] ?? ch
+  // Display math and inline math are the same content in two delimiters.
+  out = out.replace(/\$\$/g, '$')
+  // Whitespace is a rendering difference: the model may re-wrap a sentence it
+  // copied. Removing it is what lets `附录（1）` match `附录 (1)`.
+  return out.replace(/\s+/g, '')
+}
+
+/**
  * W8.9-B3/B4 — the two-way fidelity check between E1 (analysis) and the
  * E2-declared entries.
  *
@@ -243,6 +297,8 @@ export function checkE1E2Fidelity(input: {
   // --- B3 forward: every anchored kind carries a verbatim E1 span --------
   const anchoredEntries = input.entries.filter(e => ANCHORED_KINDS.has(e.kind))
   const problems: string[] = []
+  // Fold E1 once; the per-entry fold is cheap but E1 is the long side.
+  const foldedE1 = foldForAnchorMatch(input.e1Text)
   for (const entry of anchoredEntries) {
     const id = String(entry.value[entry.kind === 'AssumptionSpec' ? 'assumption_id' : 'equation_id'] ?? '?')
     const span = entry.value['e1_span']
@@ -254,9 +310,13 @@ export function checkE1E2Fidelity(input: {
       problems.push(`${id}: e1_span 过短（${span.trim().length} < ${MIN_E1_SPAN_CHARS}）`)
       continue
     }
-    if (!input.e1Text.includes(span.trim())) {
-      problems.push(`${id}: e1_span 在 E1 中找不到逐字匹配（疑似改写）`)
-    }
+    // W8.10-D3: exact first (the common case), then the typographic fold.
+    // The message distinguishes the two so the audit trail says which one
+    // happened — a folded match is still a match, but it is NOT the same
+    // evidence as a byte-identical copy, and a reader must be able to tell.
+    if (input.e1Text.includes(span.trim())) continue
+    if (foldedE1.includes(foldForAnchorMatch(span))) continue
+    problems.push(`${id}: e1_span 在 E1 中找不到逐字匹配（疑似改写）`)
   }
   findings.push({
     rule: 'B3 正向（声明须逐字锚定 E1）',
