@@ -1285,6 +1285,20 @@ export class WorkflowExecutor {
         : {}),
     })
     const decision = evaluateDelivery(policy)
+    // W8.12 — the OTHER half of the Wave-3 audit's finding, found by the first
+    // E1-direct real run. `gradeDelivery`'s own unit tests feed it
+    // `critical_gate` failures and assert they become MARKED annotations —
+    // but this method threw BEFORE the grader ever saw them, so under
+    // fail-soft a critical gate still ended the run and the E1-direct draft
+    // died one step after it was built. The same class as the E1/E2 gap:
+    // the judgement was written, the transfer side was never wired.
+    //
+    // Fix: under fail-soft the verdict is still RECORDED (one audit entry per
+    // failure kind, verbatim) but delivery is no longer refused here — the
+    // decision flows to `gradeDelivery`, whose CLOSED fatal list is the only
+    // thing that can still BLOCK. Strict-tolerance keeps the historical
+    // fail-closed behaviour byte-for-byte.
+    const failSoft = this.options.deliveryGradeMode === 'fail-soft'
     if (decision.allowed) return { policy, decision }
     // Record one audit entry per failure kind so external auditors can
     // triage without re-running the executor.
@@ -1296,6 +1310,7 @@ export class WorkflowExecutor {
         detail: { kind: failure.kind, reason: failure.reason, mode },
       })
     }
+    if (failSoft) return { policy, decision }
     await this.engine.transitionRun(runId, 'failed')
     throw new WorkflowExecutionError(
       'gate-failed',
@@ -1910,6 +1925,16 @@ export class WorkflowExecutor {
             const spentMap = w4Class === 'NONE' ? this.#noneSpent : this.#driftSpent
             const spent = spentOf(spentMap)
             if (spent >= NONE_RETRY_BUDGET) {
+              // W8.12: the THIRD terminal refusal path — and the one real runs
+              // actually take (W8.11's four runs all ended here with
+              // `DRIFT guidance budget exhausted`, not at retry exhaustion or
+              // the circuit breaker). The first E1-direct attempt was wired to
+              // the other two and therefore never fired. Wired here too, BEFORE
+              // the run transitions to failed.
+              const direct = await this.e1DirectFallback(
+                runId, node, `${w4Class} guidance budget exhausted`,
+              )
+              if (direct !== null) return direct
               // Budget exhausted: record the failure and (NONE only — W-B)
               // step the protocol tier down, then fail the run.
               await this.engine.transitionRun(runId, 'failed')

@@ -23,7 +23,9 @@ import { join, dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const here = dirname(fileURLToPath(import.meta.url))
-const benchRoot = resolve(here, '..')
+/** The bench/ root, resolved from this module. Exported so callers
+ *  (negative controls) resolve paths identically instead of hardcoding. */
+export const benchRoot = resolve(here, '..')
 
 /** Paper skeleton sections M4 counts (PRD P0-7's 10-section list). */
 export const M4_SECTIONS = [
