@@ -132,6 +132,22 @@ export interface E1Anchors {
  * A marker with no id (`[[ASSUMPTION: ]]`) is ignored rather than treated
  * as an empty id — an empty anchor cannot be checked against anything, and
  * inventing one would manufacture a phantom declaration.
+ *
+ * W8.11-A1b — only a **LINE-START** marker is a declaration.
+ *
+ * 事故（run-1 真实运行，A1 落地后的第一次运行）：E1 在正文里**引用**了这个
+ * 语法——"这三处都在上文以 `[[ASSUMPTION: ...]]` 标注。"——而解析器用
+ * `indexOf` 扫全文，于是把这句**散文里的引用**当成了一条假设声明，B5 报
+ * 「...」不是可用名字。E1 其实写对了：它的 16 条真锚点**全部行首**。
+ *
+ * 契约早就写在指令里（`e1AnalysisInstruction`："Mark each assumption with an
+ * inline anchor **on its own line**"），而真实产出**100% 遵守**。解析器却比
+ * 契约更宽——宽出来的部分正是这个假阳性。收窄到契约本身：
+ * **行首（允许前导空白）的标记才是声明**，行内的标记是散文。
+ *
+ * 这不放松判定：行首的锚点仍然逐条被 B3/B5 检查，一条都不少。
+ *
+ * @param e1Text - E1's full analysis.
  */
 export function parseE1Anchors(e1Text: string): E1Anchors {
   const collect = (marker: string): ReadonlyArray<E1Anchor> => {
@@ -144,12 +160,48 @@ export function parseE1Anchors(e1Text: string): E1Anchors {
       const close = e1Text.indexOf(E1_MARKER_CLOSE, idStart)
       if (close === -1) break
       const id = e1Text.slice(idStart, close).trim()
-      if (id.length > 0) out.push({ id, at: start })
       from = close + E1_MARKER_CLOSE.length
+      if (id.length === 0) continue
+      // Only line-start markers declare. A marker mid-line is prose that
+      // mentions the syntax (the run-1 shape).
+      if (!isLineStartMarker(e1Text, start)) continue
+      out.push({ id, at: start })
     }
     return out
   }
   return { assumptions: collect(E1_ASSUMPTION_MARKER), requirements: collect(E1_REQUIREMENT_MARKER) }
+}
+
+/**
+ * Whether the marker at `at` begins its line (leading whitespace and an
+ * optional Markdown list bullet allowed).
+ *
+ * 为什么允许列表符号：`- [[ASSUMPTION: X]]` 里标记前面只有**结构标记**，
+ * 没有任何散文——它是 Markdown 的一条列表项，声明意图明确。反过来，
+ * `…都以 [[ASSUMPTION: ...]] 标注。` 里标记前面是**正文**，那是引用语法。
+ * 判据因此是"标记之前只有结构标记"，不是"字面上是行首"——前者既修掉假阳性，
+ * 又不会把模型用列表写的真声明丢掉（丢真声明会削弱 B3 这条核心资产，
+ * 红线 N18）。
+ *
+ * Exported so the tests can pin the contract without re-deriving it.
+ *
+ * @param text - the E1 analysis.
+ * @param at - offset of the marker.
+ */
+export function isLineStartMarker(text: string, at: number): boolean {
+  let i = at - 1
+  // walk back over horizontal whitespace
+  while (i >= 0 && (text[i] === ' ' || text[i] === '\t')) i -= 1
+  if (i < 0) return true
+  if (text[i] === '\n' || text[i] === '\r') return true
+  // an optional Markdown list bullet immediately before the whitespace run
+  const ch = text[i]
+  if (ch === '-' || ch === '*' || ch === '+') {
+    let j = i - 1
+    while (j >= 0 && (text[j] === ' ' || text[j] === '\t')) j -= 1
+    return j < 0 || text[j] === '\n' || text[j] === '\r'
+  }
+  return false
 }
 
 /**
