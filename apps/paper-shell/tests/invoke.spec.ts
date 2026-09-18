@@ -12,7 +12,7 @@ import { describe, expect, it } from 'vitest'
 import { writeFile, mkdtemp, rm } from 'node:fs/promises'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
-import { blockMessage, readProblemFile } from '../src/invoke.ts'
+import { blockMessage, failureFactsOf, fidelityBlockedHuman, readProblemFile, ruleSide } from '../src/invoke.ts'
 
 describe('M1-2 problem-file guardrails (三攻击)', () => {
   it('攻击 1: 巨量文本被外壳拒绝', async () => {
@@ -79,5 +79,98 @@ describe('M1-2 BLOCKED 人话化 (九门拒绝 + 五类失败码 → 人话一�
     const h = blockMessage('provider_retry', 'network-timeout', 'fetch failed')
     expect(h.classifier).toBe('transport')
     expect(h.advice).toContain('重试')
+  })
+})
+
+// ---------------------------------------------------------------------------
+// W8.11-C1 (O-L5-07) — the wording is generated from STRUCTURED facts
+// ---------------------------------------------------------------------------
+
+describe('W8.11-C1 — fidelity wording tells the truth about run-4', () => {
+  /** The exact event shape run-4 wrote to its audit trail. */
+  const run4Events = [
+    { eventType: 'workflow_started', detail: { mode: 'strict' } },
+    { eventType: 'ir_entry_written', detail: { kind: 'E1Analysis', id: 'e1', chars: 14010 } },
+    { eventType: 'ir_entry_written', detail: { kind: 'FidelityFinding', id: 'B4 逐问推理覆盖', ok: true } },
+    { eventType: 'ir_entry_written', detail: { kind: 'FidelityFinding', id: 'B3 反向（E1 假设须被声明）', ok: false } },
+    { eventType: 'ir_entry_written', detail: { kind: 'FidelityFinding', id: 'B3 锚点同一性（声明须在 E1 中有同名锚点）', ok: true } },
+    { eventType: 'ir_entry_written', detail: { kind: 'FidelityFinding', id: 'B3 正向（声明须逐字锚定 E1）', ok: false } },
+    { eventType: 'gate_failed', detail: { gate: 'ir_producer', reason: 'DRIFT guidance budget exhausted' } },
+  ]
+
+  it('extracts the structured facts (gate / failed rules / passed rules / E1 size)', () => {
+    const facts = failureFactsOf(run4Events)
+    expect(facts.gate).toBe('ir_producer')
+    expect(facts.reason).toBe('DRIFT guidance budget exhausted')
+    expect(facts.e1Chars).toBe(14010)
+    expect(facts.failedRules).toEqual(['B3 反向（E1 假设须被声明）', 'B3 正向（声明须逐字锚定 E1）'])
+    expect(facts.passedRules).toContain('B4 逐问推理覆盖')
+  })
+
+  it('the wording does NOT claim the model produced nothing', () => {
+    // 这是本条的核心反例：旧 `none` 分支说"模型没有给出可用结构"，而 run-4
+    // 的 E1 = 14010 字符、四条检查里两条 PASS。**该描述与事实相反。**
+    const human = fidelityBlockedHuman(failureFactsOf(run4Events))
+    expect(human.oneLine).not.toContain('模型没有给出可用结构')
+    expect(human.oneLine).toContain('14010')
+    expect(human.oneLine).toContain('保真检查未通过')
+    // 必须点名失败的规则
+    expect(human.oneLine).toContain('B3 反向')
+    expect(human.oneLine).toContain('B3 正向')
+    // 且必须点出通过的规则（证明"它给出了"）
+    expect(human.oneLine).toContain('B4')
+  })
+
+  it('the advice names the gate and does NOT say "换个说法重新提交题目"', () => {
+    // 用户改题目措辞对 fidelity 失败无效——建议他这么做是误导。
+    const human = fidelityBlockedHuman(failureFactsOf(run4Events))
+    expect(human.advice).not.toContain('换个说法重新提交题目')
+    expect(human.advice).toContain('ir_producer')
+    expect(human.advice).toContain('DRIFT guidance budget exhausted')
+  })
+
+  it('the advice states which SIDE the failure belongs to', () => {
+    // run-4 的失败集里 B3 反向/正向都属 E2 侧（分析内容合规，映射没对齐）。
+    const e2Only = fidelityBlockedHuman(failureFactsOf([
+      { eventType: 'ir_entry_written', detail: { kind: 'FidelityFinding', id: 'B3 正向（声明须逐字锚定 E1）', ok: false } },
+    ]))
+    expect(e2Only.advice).toContain('规范化侧')
+    // E1 侧的缺陷，改题目措辞没用——文案必须说清
+    const e1Only = fidelityBlockedHuman(failureFactsOf([
+      { eventType: 'ir_entry_written', detail: { kind: 'FidelityFinding', id: 'B5 锚点 id 形态（E1 侧）', ok: false } },
+    ]))
+    expect(e1Only.advice).toContain('分析侧')
+    expect(e1Only.advice).toContain('重试同一份分析不会改变结果')
+  })
+
+  it('a LATER wave replaces an earlier one (the terminal cause wins)', () => {
+    // attempt 1 失败 → attempt 2 全过 → attempt 3 只挂一条。文案必须报第三条，
+    // 不得把 attempt 1 的失败也算进来。
+    const facts = failureFactsOf([
+      { eventType: 'ir_entry_written', detail: { kind: 'FidelityFinding', id: 'B3 反向（E1 假设须被声明）', ok: false } },
+      { eventType: 'ir_entry_written', detail: { kind: 'E2Normalization', id: 'e2', chars: 100 } },
+      { eventType: 'ir_entry_written', detail: { kind: 'FidelityFinding', id: 'B3 反向（E1 假设须被声明）', ok: true } },
+      { eventType: 'ir_entry_written', detail: { kind: 'FidelityFinding', id: 'B3 正向（声明须逐字锚定 E1）', ok: true } },
+      { eventType: 'ir_entry_written', detail: { kind: 'E2Normalization', id: 'e2', chars: 120 } },
+      { eventType: 'ir_entry_written', detail: { kind: 'FidelityFinding', id: 'B5 锚点 id 形态（E1 侧）', ok: false } },
+    ])
+    expect(facts.failedRules).toEqual(['B5 锚点 id 形态（E1 侧）'])
+    expect(facts.passedRules).toEqual([])
+  })
+
+  it('ruleSide maps the four rules to the side the executor already uses', () => {
+    // 归属不是新语义——`executor.ts` 的 E1_SIDE_RULES 已用它决定能否回灌。
+    expect(ruleSide('B4 逐问推理覆盖')).toBe('E1')
+    expect(ruleSide('B5 锚点 id 形态（E1 侧）')).toBe('E1')
+    expect(ruleSide('B3 正向（声明须逐字锚定 E1）')).toBe('E2')
+    expect(ruleSide('B3 反向（E1 假设须被声明）')).toBe('E2')
+    expect(ruleSide('B3 锚点同一性（声明须在 E1 中有同名锚点）')).toBe('E2')
+  })
+
+  it('a run with no fidelity failure yields empty facts (falls back to the table)', () => {
+    // 反向守卫：不得凭空造出 fidelity 失败——没有失败就必须返回空，让调用方
+    // 走原来的 blockMessage 表。
+    const facts = failureFactsOf([{ eventType: 'gate_failed', detail: { gate: 'review', reason: 'x' } }])
+    expect(facts.failedRules).toEqual([])
   })
 })
