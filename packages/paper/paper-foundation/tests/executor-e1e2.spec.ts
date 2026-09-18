@@ -751,3 +751,58 @@ describe('W8.10-D1 — registration precedes E1 (the ordering invariant)', () =>
     }
   })
 })
+
+// ---------------------------------------------------------------------------
+// W8.10-D4 — E1 must NOT receive the container lecture
+// ---------------------------------------------------------------------------
+
+describe('W8.10-D4 — E1 and the container lecture are separated', () => {
+  it('E1 prompt carries NO container lecture (the contradiction is gone)', async () => {
+    // 事故（由 D3 探针抓出）：EXECUTE 节点的 instruction 段在
+    // `produceFromExecute` 打开时就是容器讲义，而它的**第一句**是
+    // "Produce ONE JSON object — and nothing else. No prose"。E1 拿到的是
+    // `task + plan + 讲义` 再拼上 E1 指令，于是整个 prompt 的 85%
+    // （实测 6749 / 7944 字符）在要求 JSON 容器，最后 15% 才说"写 prose、
+    // 不要输出 JSON"。模型服从了多数派——探针在同一 prompt 上三次采样，
+    // 锚点遵从度是 0 / 2 / 12，**不稳定的是矛盾本身，不是模型能力**。
+    //
+    // E2 才是需要讲义的那次调用，而它经由
+    // `e2NormalizationPrompt(e1Text, EXECUTE_PROTOCOL_TEACHING)` 显式收到，
+    // 所以 E1 侧丢掉它不损失任何信息。
+    const { prompts, outcome } = await harness([E1_SAMPLE, FAITHFUL_CONTAINER])
+    expect(outcome.status, outcome.message).toBe('resolved')
+    const e1Prompt = prompts.find(p => p.includes('Write a modeling analysis in prose'))
+    expect(e1Prompt, 'E1 was never called').toBeDefined()
+    // the container demand must not reach the analyst...
+    expect(e1Prompt).not.toContain('Produce ONE JSON object')
+    expect(e1Prompt).not.toContain('ir-container-v1')
+    // ...while the task and the plan (what E1 legitimately needs) still do
+    expect(e1Prompt).toContain('solve the sampling problem')
+    expect(e1Prompt).toContain('Plan:')
+  })
+
+  it('E2 STILL receives the container lecture (nothing was lost, only moved)', async () => {
+    // 与上一条配对：D4 是"把讲义从 E1 挪走"，不是"删掉讲义"。
+    const { prompts, outcome } = await harness([E1_SAMPLE, FAITHFUL_CONTAINER])
+    expect(outcome.status, outcome.message).toBe('resolved')
+    const e2Prompt = prompts.find(p => p.includes('NORMALIZING a modeling analysis'))
+    expect(e2Prompt, 'E2 was never called').toBeDefined()
+    expect(e2Prompt).toContain('Produce ONE JSON object')
+    expect(e2Prompt).toContain('ir-container-v1')
+  })
+
+  it('the single-shot path still teaches the protocol (D4 touches ONLY E1)', async () => {
+    // 回归守卫：非接收层路径的 instruction 段必须原样保留讲义——D4 的
+    // 过滤只允许作用在 E1 那一次调用上。
+    //
+    // 这里断言的是**讲义到达了模型**，不是运行终态：喂进去的 `FAITHFUL_CONTAINER`
+    // 是 E2 形状的输出，走单发路径本来就不合规。D4 若误把过滤也作用到这条
+    // 路径，讲义会消失，而那时运行**照样**会失败——只看终态抓不到。
+    //
+    // 两个开关都要给：`disableE1E2` 单独作用会落到**分片**路径（A4 默认），
+    // 而分片有自己的 instruction，讲义在那条路径上本就不出现。
+    const { prompts } = await harness([FAITHFUL_CONTAINER], { disableE1E2: true, disableShardDeclare: true })
+    expect(prompts.some(p => p.includes('Produce ONE JSON object'))).toBe(true)
+    expect(prompts.some(p => p.includes('ir-container-v1'))).toBe(true)
+  })
+})

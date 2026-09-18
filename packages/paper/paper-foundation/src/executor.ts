@@ -1430,8 +1430,26 @@ export class WorkflowExecutor {
             // `[[ASSUMPTION: <short-id>]]` and could not possibly cover the
             // requirements. The prompt the node assembled (`task` + `plan` +
             // this instruction) is what carries them, so E1 gets THAT.
+            //
+            // W8.10-D4 (repair, found by the D3 probe): but NOT the container
+            // lecture. That lecture IS the EXECUTE node's instruction section
+            // whenever `produceFromExecute` is on, and it opens with "Produce
+            // ONE JSON object — and nothing else. No prose". E1 was therefore
+            // receiving a prompt that spent ~85% of its length (6749 of 7944
+            // chars) demanding a JSON container and then, in its last 15%,
+            // asking for prose and saying "Do NOT output JSON". The model
+            // obeyed the majority: the probe measured anchor compliance of
+            // 0 / 2 / 12 across three samples of the SAME prompt — the
+            // instability is the contradiction, not the model's ability.
+            // E2 is the call that needs the lecture, and it receives it
+            // explicitly via `e2NormalizationPrompt(e1Text, …)`, so dropping
+            // it here loses nothing and removes the conflict.
             const requiredIds = (this.semanticContextOf()?.requiredOutputs ?? []).map(o => o.requirement_id)
-            const e1Prompt = `${prompt}\n\n${e1AnalysisInstruction(requiredIds)}`
+            const e1Sections = sections.filter(s => s.text !== EXECUTE_PROTOCOL_TEACHING)
+            const e1Base = e1Sections.length === sections.length
+              ? prompt
+              : await this.fitPrompt(runId, node.id, role, e1Sections)
+            const e1Prompt = `${e1Base}\n\n${e1AnalysisInstruction(requiredIds)}`
             const e1 = await this.call(role, e1Prompt)
             await this.recordUsage(runId, route.provider, route.model, e1.usage)
             await this.audit({
