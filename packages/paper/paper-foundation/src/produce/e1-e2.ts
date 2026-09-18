@@ -132,7 +132,6 @@ export function e2NormalizationPrompt(e1Text: string, containerTeaching: string)
   return [
     'You are NORMALIZING a modeling analysis into a machine-readable declaration. The analysis below was already written; your job is ONLY to map it into the required JSON shape.',
     'Do NOT re-derive, improve, or extend the analysis. Do NOT invent anything it does not say. If the analysis is silent on something the schema wants, use the schema\'s honest-unknown values (UNKNOWN / empty array) rather than inventing content.',
-    'FIDELITY: for every AssumptionSpec and EquationSpec you declare, add a field "e1_span" whose value is a VERBATIM substring (at least 10 characters, copied exactly, no ellipsis) of the analysis below that states it. The harness checks the substring is really there; a paraphrase fails.',
     'NUMBERS: introduce NO numbers of your own. The schema\'s zero-number channel is unchanged — values reach the paper only by running your `code` and reading the numbers back through jsonPath.',
     '',
     '--- BEGIN ANALYSIS (this is the source of truth for content) ---',
@@ -140,6 +139,21 @@ export function e2NormalizationPrompt(e1Text: string, containerTeaching: string)
     '--- END ANALYSIS ---',
     '',
     containerTeaching,
+    // W8.10-D1 (repair, found by the first real run on the target model):
+    // the per-field obligations are repeated LAST, immediately before the
+    // model starts writing. In that run the model emitted all ten assumption
+    // anchors correctly (the reverse and anchor-identity checks PASSED) but
+    // omitted `e1_span` on every one — the requirement sat third in a
+    // ~4k-character prompt whose bulk is the schema lecture, so by the time
+    // it was writing entries it was no longer steering. The lecture stays
+    // where it is; the checklist goes where the writing starts.
+    '',
+    '=== BEFORE YOU ANSWER — CHECK EACH OF THESE (the harness refuses the container if any is missing) ===',
+    '  1. EVERY AssumptionSpec and EVERY EquationSpec carries "e1_span": a verbatim substring (>= 10 chars, exact, no ellipsis, no paraphrase) of the analysis above that states it.',
+    '  2. Every assumption you declare has a matching [[ASSUMPTION: <id>]] anchor in the analysis, with the SAME id.',
+    '  3. Every requirement id the harness listed has a [[REQUIREMENT: <id>]] anchor in the analysis.',
+    '  4. No numbers of your own anywhere outside your `code`.',
+    '  5. Do not re-declare any id the harness registered.',
   ].join('\n')
 }
 
