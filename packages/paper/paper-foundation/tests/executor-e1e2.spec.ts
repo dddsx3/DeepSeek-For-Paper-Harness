@@ -38,6 +38,7 @@ import {
   fidelityOk,
   foldForAnchorMatch,
   diagnoseSpanMismatch,
+  isLineStartMarker,
   isUsableAnchorId,
   parseE1Anchors,
 } from '../src/produce/e1-e2.ts'
@@ -1049,5 +1050,67 @@ describe('W8.11-B2 — E1/E2 land in the artifact body store', () => {
     expect(outcome.status, outcome.message).toBe('resolved')
     // 没有 store → 查询返回空，而不是抛错
     expect(ctx.get('paperArtifactBody')).toBeUndefined()
+  })
+})
+
+// ---------------------------------------------------------------------------
+// W8.11-A1b — a mid-line marker is PROSE, not a declaration
+// ---------------------------------------------------------------------------
+
+describe('W8.11-A1b — only line-start markers declare', () => {
+  it('run-1 shape: a prose MENTION of the syntax is not an anchor', () => {
+    // 事故（run-1 真实运行，A1 落地后的第一次运行）：E1 在正文里**引用**了这个
+    // 语法——"这三处都在上文以 `[[ASSUMPTION: ...]]` 标注。"——解析器用
+    // `indexOf` 扫全文，于是把散文里的引用当成一条假设声明，B5 报「...」。
+    // E1 其实写对了：它的 16 条真锚点**全部行首**，契约（"on its own line"）
+    // 100% 被遵守。解析器比契约更宽，宽出来的正是这个假阳性。
+    const e1 = [
+      '[[ASSUMPTION: A-REAL]] 这是一条真声明，行首。',
+      '**风险点**：这三处都在上文以 [[ASSUMPTION: ...]] 标注。',
+      '[[REQUIREMENT: R-OUT]] 行首的需求锚点。',
+    ].join('\n')
+    const anchors = parseE1Anchors(e1)
+    expect(anchors.assumptions.map(a => a.id)).toEqual(['A-REAL'])
+    expect(anchors.requirements.map(a => a.id)).toEqual(['R-OUT'])
+    // and B5 does NOT fire on the prose mention
+    const findings = checkE1E2Fidelity({
+      e1Text: e1,
+      entries: entriesOf({ kind: 'AssumptionSpec', value: { assumption_id: 'A-REAL', e1_span: '这是一条真声明，行首' } }),
+      requiredOutputIds: ['R-OUT'],
+    })
+    expect(findings.find(f => f.rule.includes('B5'))?.ok, JSON.stringify(findings)).toBe(true)
+  })
+
+  it('leading WHITESPACE counts as line-start; a list bullet does not', () => {
+    // 契约说 "on its own line"。缩进（空白）不改变"行首"这一事实；但
+    // `- [[ASSUMPTION: X]]` 里的 `- ` 是**内容**，标记不在行首。
+    // 实测的真实产出两种都出现过（16 条锚点均为纯行首），而指令要求的就是
+    // "行首"，故解析器与契约一致：缩进可以，项目符号前缀不算。
+    expect(parseE1Anchors('  [[ASSUMPTION: A-INDENTED]] 缩进两格的声明。').assumptions.map(a => a.id))
+      .toEqual(['A-INDENTED'])
+    expect(isLineStartMarker('  [[ASSUMPTION: X]]', 2)).toBe(true)
+    // a Markdown bullet is STRUCTURE, not prose — the declaration intent is
+    // unambiguous, so it counts (dropping a real declaration would weaken B3)
+    expect(isLineStartMarker('  - [[ASSUMPTION: X]]', 4)).toBe(true)
+    expect(isLineStartMarker('* [[ASSUMPTION: X]]', 2)).toBe(true)
+    // but a bullet that is itself mid-line is still prose
+    expect(isLineStartMarker('text - [[ASSUMPTION: X]]', 7)).toBe(false)
+  })
+
+  it('the contract is not WIDENED either: a genuine line-start placeholder still fails', () => {
+    // 反向守卫：收窄解析器不得让真占位符漏网。行首的 `...` 仍然是声明，
+    // 仍然被 B5 拒——A1 的规则一条都没少。
+    const e1 = '[[ASSUMPTION: ...]] 行首的占位符，必须被拒。'
+    expect(parseE1Anchors(e1).assumptions.map(a => a.id)).toEqual(['...'])
+    const findings = checkE1E2Fidelity({ e1Text: e1, entries: [], requiredOutputIds: [] })
+    expect(findings.find(f => f.rule.includes('B5'))?.ok).toBe(false)
+  })
+
+  it('isLineStartMarker handles document start and mid-line correctly', () => {
+    expect(isLineStartMarker('[[ASSUMPTION: X]]', 0)).toBe(true)
+    expect(isLineStartMarker('text [[ASSUMPTION: X]]', 5)).toBe(false)
+    expect(isLineStartMarker('a\n[[ASSUMPTION: X]]', 2)).toBe(true)
+    expect(isLineStartMarker('a\n  [[ASSUMPTION: X]]', 4)).toBe(true)
+    expect(isLineStartMarker('a\r\n[[ASSUMPTION: X]]', 3)).toBe(true)
   })
 })
