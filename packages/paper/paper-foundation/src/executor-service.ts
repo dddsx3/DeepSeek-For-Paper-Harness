@@ -108,6 +108,7 @@ export function resolveExecutorOptions(
   config: ExecutorConfig,
   audit?: ExecutorOptions['audit'],
   ir?: ExecutorOptions['ir'],
+  artifactBodies?: ExecutorOptions['artifactBodies'],
 ): ExecutorOptions {
   return {
     pricing: config.pricing ?? {},
@@ -152,6 +153,7 @@ export function resolveExecutorOptions(
     // error on the optional fields, so omit rather than pass through.
     ...ir === undefined ? {} : { ir },
     ...audit === undefined ? {} : { audit },
+    ...artifactBodies === undefined ? {} : { artifactBodies },
   }
 }
 
@@ -228,6 +230,11 @@ export class PaperExecutorService extends Service {
         // Absent, the executor treats it as an empty store and blocks FORMAL
         // and FAST delivery rather than delivering text-only.
         this.ctx.get('paperModelingIr'),
+        // W8.11-B2: the artifact body store, when the composition mounts one.
+        // Absent, receive-layer texts are not persisted — the pre-W8.11
+        // behaviour, kept as the explicit fallback for compositions that do
+        // not mount the store.
+        this.ctx.get('paperArtifactBody'),
       ),
       this.ctx.paperRuntimeGuard,
     )

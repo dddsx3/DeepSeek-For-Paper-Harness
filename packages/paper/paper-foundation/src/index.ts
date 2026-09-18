@@ -136,6 +136,10 @@ export {
 } from './audit.ts'
 export type { AuditConfig, AuditEntryInput, AuditEventType, AuditRecord } from './audit.ts'
 export {
+  PaperArtifactBodyService, artifactBodyDomainSpec, artifactBodySchema,
+} from './artifact-body.ts'
+export type { ArtifactBody, ArtifactBodyConfig } from './artifact-body.ts'
+export {
   DEFAULT_LEGACY_TIMEOUT_MS, LegacyMigrationError, PAPER_ROLES, inferProvider,
   legacyEventSchema, legacyNodeSchema, legacyRunSchema, legacySettingsSchema,
   migrateLegacyEvent, migrateLegacyNode, migrateLegacyRun, migrateLegacySettings,
