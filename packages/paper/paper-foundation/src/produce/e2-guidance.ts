@@ -45,7 +45,18 @@ export interface RefRule {
  * would then be told a rule the harness does not enforce.
  */
 export function declarableRefRules(): ReadonlyArray<RefRule> {
-  const declarable: ReadonlyArray<IrKind> = ['ModelSpec', 'RunArtifact', 'Result', 'Claim', 'FigureSpec']
+  // W8.11-A1d: AssumptionSpec / EquationSpec / SymbolSpec were MISSING from
+  // this list — and they are exactly the kinds the model declares most. The
+  // omission is why the guidance never told the model that
+  // `AssumptionSpec.sensitivity_refs` takes Result/DataArtifact: run-3 put a
+  // SymbolSpec id (`S-P1`) there and the store refused the whole container
+  // (`reference_kind_mismatch`) — AFTER the fidelity gate had already passed.
+  // The list is now "the kinds a container may declare", which is what the
+  // function's own name promises.
+  const declarable: ReadonlyArray<IrKind> = [
+    'SymbolSpec', 'AssumptionSpec', 'EquationSpec',
+    'ModelSpec', 'RunArtifact', 'Result', 'Claim', 'FigureSpec',
+  ]
   const out: RefRule[] = []
   for (const kind of declarable) {
     for (const spec of IR_REF_FIELDS[kind] ?? []) {
