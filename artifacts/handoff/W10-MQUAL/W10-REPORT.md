@@ -158,6 +158,31 @@ result1.xlsx 的实际形态（A1=None + '0.0cm' 后缀 + 时间列 '1s'）逐�
 **E2E 后全量回归**：tsc 0 错误；scoped **1481/1481**；lib 重建；构建守卫
 **ok = true**。
 
+## §8 全 CLI 真实运行（2026-09-20）
+
+> 定点探针之后的端到端验证：`paper-shell run bench/problems/2024-B/problem.pdf
+> --tier T1 --mode strict --fail-soft`（对齐 real-run-3 的同题同参）。
+
+| | run-1（e2e-full-run-1） | run-2（e2e-full-run-2） |
+|---|---|---|
+| 路由模型 | z-ai/glm-5.3-flash（.env.local 默认，**非预期变量**） | deepseek/deepseek-v4-flash（命令前缀显式钉住） |
+| 输出上限 | 60000（**误设过低**） | 100000 |
+| 结果 | **BLOCKED**（68155 out 超限 → 预算路径中断，绕过 E1 直通——HANDOFF §7.5 已知形态） | **DELIVERED / MARKED**（44 IR，389s，18.3k in / 21.5k out） |
+| E2 规范化 | 未达（预算先断） | 未过保真门：**B3 反向（E1 假设须被声明）+ DRIFT guidance budget exhausted** |
+| 生产链 | 未达 | 未达（E2 是前置）——M-QUAL 配置闸契约**正确地惰性**：无配置 → 零发现 → 无新增标注（真实运行级的无假绿回归确认） |
+
+**结论**：
+1. **run-2 完整复现历史主阻断点**（E2 保真门，全部既往真实运行同款）——**非
+   M-QUAL 引入**；E1 直通 fail-soft 交付链完好（MARKED + 诚实附录 + 44 IR）。
+2. run-1 的两个教训已归档：`.env.local` 的 PAPER_PROBE_MODEL 会抢路由
+   （单变量纪律必须命令前缀钉模型）；输出上限设低于历史用量会把失败从
+   "E1 直通交付"改道成"预算 BLOCKED"。
+3. **生产链的真实 CLI 级验证仍被 E2 挡住**——下一步的最高杠杆是修 E2 保真
+   （B3 反向：E1 的假设须逐字进容器），这是与 M-QUAL 正交的既有缺口（W8.9+
+   的 receive 层问题域）。
+4. M-QUAL 闸门在真实运行中的"正确惰性"与定点探针中的"正确在线"（探针里
+   配置存在 → C-2 真跑）合起来构成契约激活逻辑的两侧证据。
+
 ## §8 改动文件清单
 
 **新增（10 src + 8 test + 1 corpus）**:
