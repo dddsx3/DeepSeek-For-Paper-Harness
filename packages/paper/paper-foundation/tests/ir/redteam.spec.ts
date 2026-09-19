@@ -457,6 +457,13 @@ describe('RT4-01 — the reference table covers every reference-bearing field', 
       AssumptionSpec: ['scope_ref', 'justification_refs', 'sensitivity_refs'],
       EquationSpec: ['scope_ref', 'lhs_symbols', 'rhs_symbols', 'depends_on'],
       ExperimentSpec: ['input_data_refs', 'parameter_sweep', 'run_refs'],
+      // M-QUAL (W10) quality-mechanism kinds. CapabilitySpec registers
+      // `falsifiable_thresholds` TWICE — two nested children with different
+      // targets (subject_ref → Result, at_config_ref → RunArtifact); the
+      // duplicated path in this list is the honest shape of the table.
+      NumericConfig: ['run_ref', 'discretization', 'physical'],
+      CapabilitySpec: ['scope_ref', 'source_anchor', 'required_output_ref', 'falsifiable_thresholds', 'falsifiable_thresholds'],
+      BoundaryDeclaration: ['subject_ref', 'slots'],
     }
     for (const kind of IR_KINDS) {
       expect(IR_REF_FIELDS[kind].map(f => f.path), `${kind} ref fields`).toEqual(expected[kind])

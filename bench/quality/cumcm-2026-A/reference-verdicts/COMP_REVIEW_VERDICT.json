@@ -1,0 +1,75 @@
+{
+  "step": "comp-review",
+  "problem_id": "2026-A",
+  "findings": [
+    {
+      "category": "numerics_validation_mismatch",
+      "severity": "major",
+      "where": "code/problem1.py:19,62,139 + RESULTS.md:44-45 + figures/problem_1_results.json.analytic_max_dev_degC",
+      "evidence": "解析校核在 dt=0.25 跑得 2.9459e-4 并据此 assert<1e-3, 但 result1.xlsx 交付用 dt=1.0, 其解析最大偏差实测 1.1945e-3 超 1e-3 限。交付表 vs dt=0.1 收敛解: 温度 36558/37800 格(96.71%)第4位小数不一致(最大 0.0018degC), 水分 7910/37800(20.93%, 最大 0.0036); 论文表1 的 35 个抽样格全部不一致。网格已收敛(N200->400 差 1.08e-5), 欠收敛的只是时间步。",
+      "fix": "Q1 以 DT=0.25(或0.1) 重出 result1.xlsx 与表1/表2, 并令 cross_check() 复用交付配置; 若不重跑则论文必须改报 dt=1.0 的 1.19e-3, 禁止引用 2.95e-4 为交付表背书。"
+    },
+    {
+      "category": "bound_direction",
+      "severity": "major",
+      "where": "code/problem2.py:18(DT=1.0),:35(dC_cap=0.5) + result2.xlsx[水分浓度] t=31/33/35s, r=1.8-1.9cm",
+      "evidence": "附录3 在 C0/28degC 处 D=5.6417e-9, N=200 显式传质稳定限 dr^2/(2D)=0.8863s, 交付 dt=1.0 裕度比 1.128 超限。result2.xlsx 有 4/226800 格 C>2.55(最大 2.5520, 超 C0 0.078%), 违反 LOGIC_CONTRACT_MACHINE.bounds.B1 声明的 hi=2.55 与最大值原理(C_inf~0.05 恒低于 C, 表面只出流, C 必单调不增)。追溯格心场超出达 1.945e-01(约 C0 的 7.6%), 持续 t=14-37s, 被输出插值平滑到 2.0e-3 才进交付表; dC_cap=0.5 未拦住(单步变化 0.19<0.5, 仅回退 1 次)。dt=0.2 与 0.05 对照均 0 越界, 确认为数值伪影而非插值伪影。终态不受影响(@3h 与 dt=0.2 解四位小数全同)。",
+      "fix": "Q2 以 DT=0.2 重出 result2.xlsx, 或把 dC_cap 收到 0.01 让回退真起作用; 顺带解决 Q2 温度 62.18% 格第4位不一致。"
+    },
+    {
+      "category": "deliverable_format",
+      "severity": "major",
+      "where": "result1.xlsx / result2.xlsx / result3.xlsx / result4.xlsx vs user_data/result*.xlsx 模板",
+      "evidence": "题面四问均写明'模板文件见附件3', 附录1 规定'A列为时间(单位:s), 第1行为到药材中心的距离(单位:cm)'。openpyxl 逐单元对比: A1 模板为 '时间\\到药材中心的距离'(str) 交付为 None; 时间列模板 1/60/120(int) 交付 '1s'/'60s'/'120s'(str); 距离表头模板 0(int)/0.1(float)/2(int) 交付 '0.0cm'/'0.1cm'(str); result3/4 sheet 名 Sheet1 被改为 水分浓度(result1/2 的 温度/水分浓度 与模板一致)。数值型时间/距离变文本会使按模板取数的脚本索引失败。",
+      "fix": "写 xlsx 前: A1 填模板原表头, 时间列写 int(t), 距离表头写 float(r_cm)(问4 末列保留 '药材表面'); result3/4 sheet 名回 Sheet1。改 code/problem{1,2,3,4}.py 各 1 处 DataFrame 构造。"
+    },
+    {
+      "category": "cross_problem",
+      "severity": "minor",
+      "where": "RESULTS.md:70-78 归因表 + code/problem4.py:153-155(N=100) vs :161-162(N=200)",
+      "evidence": "归因链自身闭合(A=57.378888, B=129.681117, C=51.055447, A+72.302229-78.625670=51.055447, 残差 7.11e-15), 但 RESULTS.md 表格 C 行填主答案 51.11(N=200) 而增量按 N=100 算, 读者做减法得 129.68-78.63=51.05 != 51.11(差 0.103%); 同理 A 行 57.38(N100/dt0.5) 与正文问3 的 57.47(N200/dt0.2) 并列, 同物性组同固定域出现两值(差 0.151%)。两者各自都对且在已过闸网格敏感度内, 但并列易被读成算错。另 B 段用 dt=1.0 而 A/C 用 dt=0.5。",
+      "fix": "归因表加'网格'列, 或统一在 N=100 陈述增量、主答案单独给 N=200 并注明'归因链为 N=100 受控对比, 两者差 0.10%, 在 CM3 网格敏感度内'; 同时写明 B 段 dt=1.0 的理由(附录4 D 小 5.39 倍, 稳定限宽)。"
+    },
+    {
+      "category": "metadata_mismatch",
+      "severity": "minor",
+      "where": "code/problem3.py:125 -> figures/problem_3_results.json.dt",
+      "evidence": "JSON 记 dt=0.5, 但 :58 主算例实际 run_to_tstar(200, 0.2), 且 :57 注释明确 'dt=0.2 < 稳定限 0.385s; dt=0.5 会伪穿阈值失稳'。论文若照抄该 dt, 会把一个已知失稳的配置写成主算例参数。",
+      "fix": "改 problem3.py:125 为 \"dt\": 0.2, 并在论文数值方法表列清各算例 (N, dt)。"
+    },
+    {
+      "category": "extrapolation",
+      "severity": "minor",
+      "where": "RESULTS.md:31 (t*=57.47h), RESULTS.md:36 (t*=51.11h)",
+      "evidence": "附件1 只覆盖 0-14400s, Q3 t*=206876s 外推占比 93.04%, Q4 t*=183990s 占 92.17%。MODELING_REPORT.md 已用 H8/V13/B3.out_of_window_protocol 做实该假设, RESULTS.md:13 方法段亦标'声明为假设', 但结论句为确定性口吻未就近标注。减轻情节: 题面自述'预热平衡和恒温干燥两个阶段', 恒温段取平台均值(49.9685degC, sigma=0.1648, 121点)是题面语义的落实; 附件2 覆盖到 72h > t*, 故问4 的 R(t) 是插值非外推。属口吻而非证据问题。",
+      "fix": "结论句就近改为'在恒温段环境取平台均值(H8)的假设下, t*=57.47h', 并按 B3 保留三项偏离解释。禁止为凑 48-72h 反调 h_m/阈值 0.15/界面 D 取法。"
+    }
+  ],
+  "fatal_count": 0,
+  "major_count": 3,
+  "minor_count": 3,
+  "passed_checks": [
+    "B1 反向探针(C_inf=3.0 -> C 上升至 2.7269)",
+    "B1 正向探针(C_inf=0.04987 -> C 降至 1.5501)",
+    "B2 冻结探针 S1(T_inf=28 -> maxdev T 2.13e-14, C 0)",
+    "B2 上界(交付场 max 36.7863/49.9664 <= 50.246)",
+    "B5 开尔文探针(摄氏度误用比值 1.847e+28)",
+    "B7 尺度分离(alpha/D=34.20, 中心 C 降 7.63e-6)",
+    "B4 收缩方向(同物性组 B=129.68h -> C=51.06h)",
+    "跨问一致性 Q2@3h 中心C 1.766160 vs Q3模型 1.766166 (0.0004%)",
+    "Q3 主算例与 Q4 归因 A 段同配置逐位相同 57.378888h",
+    "无重复计量: 两层守恒分层陈述未相加, 归因链闭合残差 7.11e-15",
+    "无漏观测量: DATA_FACTS 5 个 role=observed 全部进模型",
+    "阈值可达性 C_inf 平台 0.049865 < 0.15",
+    "附件2 R(t) 逐点非增, Q4 t*=51.11h<72h 故为插值",
+    "平台值可复现 49.9685/0.049865 与附件1 实测均值逐位吻合",
+    "任务理解 13 条题面原句对撞全部一致(含问3'各处'=max_r 非均值、问4'根据附件2'、三套物性组未混用)"
+  ],
+  "review_limits": [
+    "复核 AI 与答题同源, 读同一份 Vision OCR 文本, 若 OCR 阶段读错则共犯同一错误",
+    "物性经验公式正确性不可验证(题面给定, 无实测可比)",
+    "药材内部 T(r,t)/C(r,t) 无任何实测, 所有正确性均为自证, 不存在'与实测吻合'",
+    "仿射收缩假设 H10 的物理真伪不可判定, 只能量化代价(干物质残差 2.22%/15.50%, 对流项 t* 差 0.49%)"
+  ],
+  "verdict": "PASS_WITH_FIXES"
+}

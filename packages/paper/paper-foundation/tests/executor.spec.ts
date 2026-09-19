@@ -187,7 +187,12 @@ describe('WorkflowExecutor', () => {
     // its sha256 matches the deliverable the approving script produced.
     const file = join(root, run.id, 'final', 'final')
     const bytes = await readFile(file, 'utf8')
-    expect(bytes).toBe('The final deliverable text.')
+    // M-QUAL (W10) DP-8: the backbone store declares a BoundaryDeclaration
+    // fixture, and the boundary appendix renders UNCONDITIONALLY (CLEAN
+    // deliveries carry their limits too) — so the promoted bytes are the
+    // body plus the generated limits section.
+    expect(bytes.startsWith('The final deliverable text.')).toBe(true)
+    expect(bytes).toContain('## 附录：局限与边界声明')
     expect(createHash('sha256').update(bytes).digest('hex')).toMatch(/^[0-9a-f]{64}$/)
     expect(outcome.manifest.finalArtifactId).not.toBeNull()
     // 5.0-R (R1-4): an EXPLORATORY deliverable is explicitly informal.

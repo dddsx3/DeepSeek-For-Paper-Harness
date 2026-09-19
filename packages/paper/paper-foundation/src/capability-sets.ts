@@ -68,10 +68,14 @@ export type VerificationDepth = (typeof VERIFICATION_DEPTHS)[number]
  *
  * 取值出处：`docs/quality/CAPABILITY-SCHEMA.md:68-72`。
  *
- * **诚实边界**：这 13 个算子目前**没有任何消费方**——落地即产生"声明了但无人
- * 执行"的悬空闭集（C2 已把这点记为缺口）。之所以仍然落地，是因为不落地则
- * W8.12 的 schema 无法写；而"算子有声明无实现"这件事**必须保持可见**，
- * 故在此写明，而不是让它看起来已经可用。
+ * **消费方（M-QUAL 阶段 B 落地后更新）**：`delivery/capability-thresholds.ts`
+ * 执行其中 10 个标量算子（LT/LE/GT/GE/EQ/NE/ABS_LT/REL_LT/COUNT_ZERO/
+ * MATCHES_EXACT——后者仅在显式 threshold 下可执行，否则 fail-closed）。
+ * **3 个系列算子（MONOTONE_INCREASING / MONOTONE_NONINCREASING /
+ * MAX_OVER_AXIS）的数据通道尚未落地**——引擎对它们 fail-closed
+ * （`capability_threshold_unsupported`），绝不静默通过；当前请用代码发射的
+ * 聚合标量 + 普通比较算子表达同类判据（见 bench/quality/cumcm-2026-A 的
+ * capability-library）。
  */
 export const THRESHOLD_OPERATORS = [
   'LT', 'LE', 'GT', 'GE', 'EQ', 'NE', 'ABS_LT', 'REL_LT',

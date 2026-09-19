@@ -1,0 +1,56 @@
+{
+  "_meta": {
+    "purpose": "M-QUAL 阶段 C/D（E-5 交付形态闸）的 golden 契约与清单。契约 = 题面模板（user_data/result*.xlsx）的机械投影；清单 = 参考工作流**实际交付**的 result*.xlsx 与'修正后'形态的机械投影（openpyxl 2026-09-19 实测抽取，见表内 provenance）。",
+    "provenance": {
+      "template": "参考工作区 user_data/result1.xlsx（表头 '时间\\到药材中心的距离'，时间列数据 int）",
+      "bad_deliverable": "参考工作区 result1.xlsx（comp-review F3 major 的实物：A1=None 表头丢失、时间列 '1s' 字符串、距离表头 '0.0cm' 加后缀）",
+      "review_finding": "reference-verdicts/COMP_REVIEW_VERDICT.json findings[2] (deliverable_format, major)"
+    }
+  },
+  "contracts": [
+    {
+      "locator": "result1.xlsx!温度",
+      "columns": [
+        { "name": "时间\\到药材中心的距离", "type": "int" },
+        { "name": "0", "type": "float" },
+        { "name": "0.1", "type": "float" },
+        { "name": "0.2", "type": "float" }
+      ],
+      "minRows": 1800
+    }
+  ],
+  "manifests": {
+    "bad_delivered": {
+      "locator": "result1.xlsx!温度",
+      "columns": [
+        { "name": "", "type": "string" },
+        { "name": "0.0cm", "type": "float" },
+        { "name": "0.1cm", "type": "float" },
+        { "name": "0.2cm", "type": "float" }
+      ],
+      "rows": 1800
+    },
+    "names_fixed_time_string": {
+      "_note": "表头已修复但时间列仍写成 '1s' 字符串——单列类型漂移的最小反例",
+      "locator": "result1.xlsx!温度",
+      "columns": [
+        { "name": "时间\\到药材中心的距离", "type": "string" },
+        { "name": "0", "type": "float" },
+        { "name": "0.1", "type": "float" },
+        { "name": "0.2", "type": "float" }
+      ],
+      "rows": 1800
+    },
+    "corrected": {
+      "_note": "与模板同构的修正交付——期望零发现",
+      "locator": "result1.xlsx!温度",
+      "columns": [
+        { "name": "时间\\到药材中心的距离", "type": "int" },
+        { "name": "0", "type": "float" },
+        { "name": "0.1", "type": "float" },
+        { "name": "0.2", "type": "float" }
+      ],
+      "rows": 1800
+    }
+  }
+}

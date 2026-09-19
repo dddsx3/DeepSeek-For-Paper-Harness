@@ -1,0 +1,214 @@
+{
+  "_meta": {
+    "problem_id": "2026-A",
+    "title": "药材的烘干问题（F1 机理/连续：分布参数 PDE 数值求解）",
+    "family": "F1",
+    "purpose": "M-QUAL 阶段 B/D：把参考工作流 2026-A 的能力清单（CAPABILITY_CHECKLIST/VERDICT 23 条中的 machine 子集）蒸馏为 DPH CapabilitySpec 形态的结构化阈值库。每条 threshold 的 subject_ref 指向**代码发射的聚合标量 Result**（如 state_len / max_C / analytic_max_dev_degC）——系列判据由代码在数据所在处聚合，IR 钉阈值，引擎比较标量（见 capability-thresholds.ts 的诚实边界）。",
+    "provenance": {
+      "capability_source": "reference-verdicts/CAPABILITY_VERDICT.json（sha256 d405c9213ea6bb7e…，与 QUALITY-MECHANISM-SPEC §5 对账值逐位一致）",
+      "facts_source": "reference-verdicts/PROBLEM_FACTS.json（sha256 6fc53139e8a599ef…）",
+      "degradation_map": "docs/quality/FAMILY-DEGRADATION-LISTS.md §1（F1-1..F1-11）"
+    },
+    "scope_note": "本库只收录 machine 通道的能力（semantic 项不进门）。subject_ref 的 Result id 是**实例化占位**——golden 测试把它们绑定到构造 store 的 Result 上；E2E 期由生产链的 jsonPath 声明产生同名 Result。"
+  },
+  "capabilities": [
+    {
+      "capability_id": "CAP-2026A-DISTRIBUTED",
+      "family": "F1",
+      "scope_ref": "R-OUT",
+      "name": "分布参数 PDE 非集总求解",
+      "criterion": "求解器状态必须承载分布场（径向节点数 ≥101），不得压成集中参数/单点 ODE（F1-1）。",
+      "judge": "machine",
+      "machine_check": "CONSTRAINT",
+      "falsifiable_thresholds": [
+        { "subject_ref": "Result:state_len", "operator": "GE", "threshold": 101, "tolerance": null, "unit": "nodes", "at_config_ref": null }
+      ],
+      "source_anchor": "R-OUT",
+      "required_output_ref": null,
+      "verification_depth": "SUBSTANTIVE",
+      "existence_disclaimer": null,
+      "probe_refs": ["P-1", "P-3"],
+      "boundary_refs": ["L-2"]
+    },
+    {
+      "capability_id": "CAP-2026A-MAX-CRITERION",
+      "family": "F1",
+      "scope_ref": "R-OUT",
+      "name": "判据按'各处'逐点取 max 而非均值",
+      "criterion": "t* 的判据函数必须返回所有径向节点的 max（题面'各处<0.15'），不得用均值判据（F1-2；逐点 57.9h vs 均值约 36.5h，差 >20h）。",
+      "judge": "machine",
+      "machine_check": "CONSTRAINT",
+      "falsifiable_thresholds": [
+        { "subject_ref": "Result:criterion_max", "operator": "LT", "threshold": 0.15, "tolerance": null, "unit": "kg/kg", "at_config_ref": null }
+      ],
+      "source_anchor": "R-OUT",
+      "required_output_ref": null,
+      "verification_depth": "SUBSTANTIVE",
+      "existence_disclaimer": null,
+      "probe_refs": ["P-6"],
+      "boundary_refs": ["L-2"]
+    },
+    {
+      "capability_id": "CAP-2026A-SHRINK",
+      "family": "F1",
+      "scope_ref": "R-OUT",
+      "name": "移动边界真实收缩",
+      "criterion": "问题4 的计算域必须随附件2 R(t) 收缩（R(0)=2.0cm → R(259200s)=1.198cm，收缩量 0.802cm），不得只换物性忽略移动边界（F1-3）。",
+      "judge": "machine",
+      "machine_check": "CONSTRAINT",
+      "falsifiable_thresholds": [
+        { "subject_ref": "Result:radius_shrink_cm", "operator": "GE", "threshold": 0.8, "tolerance": null, "unit": "cm", "at_config_ref": null }
+      ],
+      "source_anchor": "R-OUT",
+      "required_output_ref": null,
+      "verification_depth": "SUBSTANTIVE",
+      "existence_disclaimer": null,
+      "probe_refs": ["P-7"],
+      "boundary_refs": ["L-2"]
+    },
+    {
+      "capability_id": "CAP-2026A-ANALYTIC-DEV",
+      "family": "F1",
+      "scope_ref": "R-OUT",
+      "name": "解析校核偏差在交付配置下 <1e-3",
+      "criterion": "解析解（Bessel+Duhamel）与数值解的最大偏差必须以**交付配置**度量并 <1e-3 ℃（X-2/F1-6）。2026-A 实测：dt=0.25 得 2.9459e-4 通过，交付 dt=1.0 实测 1.1945e-3 超限——comp-review 靠人肉查出的 F1 major。",
+      "judge": "machine",
+      "machine_check": "CUSTOM",
+      "falsifiable_thresholds": [
+        { "subject_ref": "Result:analytic_max_dev_degC", "operator": "LT", "threshold": 0.001, "tolerance": null, "unit": "degC", "at_config_ref": "RunArtifact:RUN-DELIVERY" }
+      ],
+      "source_anchor": "R-OUT",
+      "required_output_ref": null,
+      "verification_depth": "SUBSTANTIVE",
+      "existence_disclaimer": null,
+      "probe_refs": ["P-8"],
+      "boundary_refs": ["L-2"]
+    },
+    {
+      "capability_id": "CAP-2026A-BOUND-C",
+      "family": "F1",
+      "scope_ref": "R-OUT",
+      "name": "含水率场上界（最大值原理）",
+      "criterion": "交付场逐点 C ∈ [0, 2.55]（LOGIC_CONTRACT B1）。2026-A 实测越界：result2.xlsx max C=2.5520 超 C0 0.078%（显式传质超稳定限的数值伪影，P-4 抓的正是它）。",
+      "judge": "machine",
+      "machine_check": "CONSTRAINT",
+      "falsifiable_thresholds": [
+        { "subject_ref": "Result:max_C", "operator": "LE", "threshold": 2.55, "tolerance": null, "unit": "kg/kg", "at_config_ref": null }
+      ],
+      "source_anchor": "R-OUT",
+      "required_output_ref": null,
+      "verification_depth": "SUBSTANTIVE",
+      "existence_disclaimer": null,
+      "probe_refs": ["P-4"],
+      "boundary_refs": ["L-2"]
+    },
+    {
+      "capability_id": "CAP-2026A-BOUND-T",
+      "family": "F1",
+      "scope_ref": "R-OUT",
+      "name": "温度场上界（附件1 平台）",
+      "criterion": "交付场逐点 T ∈ [28, 50.246]（附件1 平台均值 49.9685 + std 上界，LOGIC_CONTRACT B2）。",
+      "judge": "machine",
+      "machine_check": "CONSTRAINT",
+      "falsifiable_thresholds": [
+        { "subject_ref": "Result:max_T", "operator": "LE", "threshold": 50.246, "tolerance": null, "unit": "degC", "at_config_ref": null }
+      ],
+      "source_anchor": "R-OUT",
+      "required_output_ref": null,
+      "verification_depth": "SUBSTANTIVE",
+      "existence_disclaimer": null,
+      "probe_refs": ["P-4"],
+      "boundary_refs": ["L-2"]
+    },
+    {
+      "capability_id": "CAP-2026A-KELVIN",
+      "family": "F1",
+      "scope_ref": "R-OUT",
+      "name": "开尔文量纲正确（Arrhenius 项）",
+      "criterion": "附录3 扩散系数 D(C=2.55, T=50℃)=1.3471e-8（exp(-3850/(T+273.15))，相对误差 <1e-3）。摄氏度误用得 ~1e-37 量级——开尔文探针 P-5 的机械判据（F1-9）。",
+      "judge": "machine",
+      "machine_check": "FACTS",
+      "falsifiable_thresholds": [
+        { "subject_ref": "Result:D_at_ref", "operator": "REL_LT", "threshold": 1.3471e-8, "tolerance": 0.001, "unit": "m^2/s", "at_config_ref": null }
+      ],
+      "source_anchor": "R-OUT",
+      "required_output_ref": null,
+      "verification_depth": "SUBSTANTIVE",
+      "existence_disclaimer": null,
+      "probe_refs": ["P-5"],
+      "boundary_refs": ["L-3"]
+    },
+    {
+      "capability_id": "CAP-2026A-SCALE-SEP",
+      "family": "F1",
+      "scope_ref": "R-OUT",
+      "name": "热/质扩散时间尺度分离",
+      "criterion": "alpha/D=34.20 ⇒ 1800s 内热已贯穿而质几乎未动：中心含水率漂移 <1e-3 kg/kg（实测 7.63e-6；P-6 尺度分离探针）。漂移显著即 D 用错或量纲错。",
+      "judge": "machine",
+      "machine_check": "CONSTRAINT",
+      "falsifiable_thresholds": [
+        { "subject_ref": "Result:center_C_drift_1800s", "operator": "LT", "threshold": 0.001, "tolerance": null, "unit": "kg/kg", "at_config_ref": null }
+      ],
+      "source_anchor": "R-OUT",
+      "required_output_ref": null,
+      "verification_depth": "SUBSTANTIVE",
+      "existence_disclaimer": null,
+      "probe_refs": ["P-6"],
+      "boundary_refs": ["L-2"]
+    },
+    {
+      "capability_id": "CAP-2026A-STABILITY",
+      "family": "F1",
+      "scope_ref": "R-OUT",
+      "name": "显式传质稳定限裕度 ≥1",
+      "criterion": "交付 dt 不得超过显式格式稳定限 dr²/(2D)（附录3 在 C0/28℃ 处 =0.8863s；交付 dt=1.0 裕度比 0.886 超限，正是越界的根因）。",
+      "judge": "machine",
+      "machine_check": "CONSTRAINT",
+      "falsifiable_thresholds": [
+        { "subject_ref": "Result:stability_margin", "operator": "GE", "threshold": 1, "tolerance": null, "unit": "dimensionless", "at_config_ref": null }
+      ],
+      "source_anchor": "R-OUT",
+      "required_output_ref": null,
+      "verification_depth": "SUBSTANTIVE",
+      "existence_disclaimer": null,
+      "probe_refs": ["P-4"],
+      "boundary_refs": ["L-2"]
+    },
+    {
+      "capability_id": "CAP-2026A-CONSERVATION-DISCRETE",
+      "family": "F1",
+      "scope_ref": "R-OUT",
+      "name": "离散层守恒漂移 <1e-6（不得冒充物理层）",
+      "criterion": "物质坐标格式的干物质漂移 <1e-6。**边界声明（F1-7）**：这是格式自证恒等式，不是物理验证；物理不自洽残差 2.22% 须如实另报（由 L-4 BoundaryDeclaration 承载，本条只钉离散层）。",
+      "judge": "machine",
+      "machine_check": "CUSTOM",
+      "falsifiable_thresholds": [
+        { "subject_ref": "Result:dry_matter_drift", "operator": "LE", "threshold": 1e-6, "tolerance": null, "unit": "dimensionless", "at_config_ref": null }
+      ],
+      "source_anchor": "R-OUT",
+      "required_output_ref": null,
+      "verification_depth": "SUBSTANTIVE",
+      "existence_disclaimer": null,
+      "probe_refs": ["P-9"],
+      "boundary_refs": ["L-2", "L-4"]
+    },
+    {
+      "capability_id": "CAP-2026A-TSTAR-WINDOW",
+      "family": "F1",
+      "scope_ref": "R-OUT",
+      "name": "干燥终点落在题面'2-3 天'窗口",
+      "criterion": "t* ≥ 48h（题面'2-3 天'的机械下界；预检 57.9h、逐位复现 57.378888h）。提前收敛通常意味着均值判据或漏项（可达性 P-10a 的对照）。",
+      "judge": "machine",
+      "machine_check": "CONSTRAINT",
+      "falsifiable_thresholds": [
+        { "subject_ref": "Result:t_star_hours", "operator": "GE", "threshold": 48, "tolerance": null, "unit": "h", "at_config_ref": null }
+      ],
+      "source_anchor": "R-OUT",
+      "required_output_ref": null,
+      "verification_depth": "SUBSTANTIVE",
+      "existence_disclaimer": null,
+      "probe_refs": ["P-10"],
+      "boundary_refs": ["L-2"]
+    }
+  ]
+}

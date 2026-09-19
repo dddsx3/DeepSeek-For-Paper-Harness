@@ -184,6 +184,37 @@ export const IR_REF_FIELDS: Readonly<Record<IrKind, ReadonlyArray<IrRefFieldSpec
     { path: 'parameter_sweep', arity: { kind: 'nested', child: 'symbol_ref' }, target: 'SymbolSpec' as const },
     { path: 'run_refs', arity: 'many', target: 'RunArtifact' as const },
   ],
+  // M-QUAL (W10) — the quality-mechanism kinds' refs. NumericConfig owns a
+  // back edge to the run it records (append-only topology: the run is
+  // declared before the config is captured, so `RunArtifact.config_ref` was
+  // structurally impossible — see numeric-config.ts header). CapabilitySpec
+  // anchors to the RequirementSpec it responds to (分层 + 引用, Q1-D1 §1.3),
+  // its thresholds resolve to Results (the engine's subjects) and to the
+  // RunArtifact whose config they assert at.
+  NumericConfig: [
+    { path: 'run_ref', arity: 'single', target: 'RunArtifact' as const },
+    { path: 'discretization', arity: { kind: 'nested', child: 'symbol_ref' }, target: 'SymbolSpec' as const },
+    { path: 'physical', arity: { kind: 'nested', child: 'symbol_ref' }, target: 'SymbolSpec' as const },
+  ],
+  CapabilitySpec: [
+    { path: 'scope_ref', arity: 'single', target: 'RequirementSpec' as const },
+    { path: 'source_anchor', arity: 'single', target: 'RequirementSpec' as const },
+    { path: 'required_output_ref', arity: 'single', target: 'RequirementSpec' as const },
+    {
+      path: 'falsifiable_thresholds',
+      arity: { kind: 'nested', child: 'subject_ref' },
+      target: 'Result' as const,
+    },
+    {
+      path: 'falsifiable_thresholds',
+      arity: { kind: 'nested', child: 'at_config_ref' },
+      target: 'RunArtifact' as const,
+    },
+  ],
+  BoundaryDeclaration: [
+    { path: 'subject_ref', arity: 'single', target: ['AssumptionSpec', 'DataArtifact', 'Result'] as const },
+    { path: 'slots', arity: { kind: 'nested', child: 'ref_value' }, target: 'ANY' as const },
+  ],
 }
 
 // This table *is* the reference policy, so it must not be writable at

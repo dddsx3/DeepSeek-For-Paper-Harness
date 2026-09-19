@@ -72,3 +72,22 @@ export type {
   GradeAnnotation,
   GradeDecision,
 } from './delivery-grade.ts'
+
+// M-QUAL (W10) — the quality-mechanism checks (all ride EXISTING critical
+// gate ids; no new gate id, N4).
+export { configConsistencyFindings } from './config-consistency.ts'
+export type { ConfigConsistencyFinding } from './config-consistency.ts'
+export { capabilityThresholdFindings } from './capability-thresholds.ts'
+export type { CapabilityThresholdFinding } from './capability-thresholds.ts'
+export {
+  DELIVERY_FORM_COLUMN_TYPES,
+  deliveryFormFindings,
+} from './delivery-form.ts'
+export type {
+  DeliveryFormColumn,
+  DeliveryFormColumnType,
+  DeliveryFormContract,
+  DeliveryFormFinding,
+  DeliveryFormManifestEntry,
+} from './delivery-form.ts'
+export { renderBoundaryAppendix, RENDERABLE_BOUNDARY_CLASSES } from './boundary-render.ts'

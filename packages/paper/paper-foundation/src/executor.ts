@@ -23,6 +23,11 @@ import type { DeliveryDecision, DeliveryPolicy } from './delivery/delivery-polic
 import { makeCandidateArtifact } from './delivery/artifact-states.ts'
 import { promoteCandidateToDeliverable } from './delivery/promoter.ts'
 import { contentExists, gradeDelivery, renderDeliveryAppendix } from './delivery/delivery-grade.ts'
+// M-QUAL (W10) DP-8: the boundary appendix renders UNCONDITIONALLY (CLEAN
+// deliveries carry their limits too) — a separate path from the MARKED
+// appendix, exactly as the spec demands.
+import { renderBoundaryAppendix } from './delivery/boundary-render.ts'
+import type { BoundaryDeclaration } from './ir/boundary-declaration.ts'
 import { renderE1DirectDraft } from './produce/e1-direct.ts'
 import type { DeliveryGrade } from './delivery/delivery-grade.ts'
 import { runVerificationV1V4 } from './verification/v-structure.ts'
@@ -173,9 +178,9 @@ export const EXECUTE_PROTOCOL_TEACHING = [
   'Produce ONE JSON object — the ir-container-v1 — and nothing else. No prose, no markdown fences, no schema of your own.',
   'Shape: {"__dsh_paper":"ir-container-v1","entries":[...],"code":"...","run":{...},"interpretations":{...},"narrative":{...}}.',
   '  entries: an array of objects, each EXACTLY {"kind": <KIND>, "value": <object>}. The ONLY kinds you may declare are "SymbolSpec", "AssumptionSpec", "EquationSpec", "ModelSpec", and (optionally) "DataArtifact". The harness has ALREADY registered the problem assets for you — DataArtifact "DA-RAW" (the raw problem), RequirementSpec "R-OUT" (the requirement), ProblemSpec "P1" (the binding). NEVER declare those three: reference them by id instead (your ModelSpec sets problem_refs: ["P1"]). Re-declaring a registered id refuses the container.',
-  '    SymbolSpec value: {"symbol_id","scope_ref":"P1","token","meaning","unit","role":"VARIABLE","shape","domain","index_set"} — shape is one of SCALAR|VECTOR|MATRIX|TENSOR|INDEXED|UNKNOWN; domain one of REAL|NONNEGATIVE_REAL|INTEGER|NONNEGATIVE_INTEGER|BOOLEAN|PROBABILITY|COMPLEX|UNKNOWN; if you are not sure, answer UNKNOWN honestly instead of inventing one; index_set is an array ([] for a scalar).',
-  '    AssumptionSpec value: {"assumption_id","scope_ref":"P1","statement","source_type","justification_refs","risk_level","testable","sensitivity_refs","status"} — source_type GIVEN|DERIVED|MODELING_CHOICE|APPROXIMATION; risk_level HIGH|MEDIUM|LOW; status ACTIVE|OBSOLETE|QUESTIONED.',
-  '    EquationSpec value: {"equation_id","scope_ref":"P1","expression","representation","lhs_symbols","rhs_symbols","equation_type","unit","depends_on","source"} — representation SYMPY|LATEX_PRESENTATION; equation_type DEFINITION|CONSTRAINT|OBJECTIVE|DERIVED.',
+  '    SymbolSpec value: {"symbol_id","scope_ref":"P1","token","meaning","unit","role","shape","domain","index_set"} — role is "VARIABLE" for unknowns the solve determines, or "PARAMETER" for quantities whose value you bind in ModelSpec.parameter_refs (k, dt, N...): EVERY symbol you list in parameter_refs must have role "PARAMETER", and a parameter must not be listed in variable_refs. shape is one of SCALAR|VECTOR|MATRIX|TENSOR|INDEXED|UNKNOWN; domain one of REAL|NONNEGATIVE_REAL|INTEGER|NONNEGATIVE_INTEGER|BOOLEAN|PROBABILITY|COMPLEX|UNKNOWN; if you are not sure, answer UNKNOWN honestly instead of inventing one; index_set is an array ([] for a scalar). unit MUST be a NON-EMPTY string — a dimensionless or count-like quantity takes the literal "dimensionless" (an empty "" unit refuses the container).',
+  '    AssumptionSpec value: {"assumption_id","scope_ref":"P1","statement","source_type","justification_refs","risk_level","testable","sensitivity_refs","status"} — source_type GIVEN|DERIVED|MODELING_CHOICE|APPROXIMATION; risk_level HIGH|MEDIUM|LOW; status ACTIVE|OBSOLETE|QUESTIONED. Ref-field shapes: justification_refs is a list of REGISTERED IR ids (or []); sensitivity_refs MUST be [] at declaration time — no Results exist yet (they are minted only after your code runs), and if non-empty they may only name Result/DataArtifact ids. NEVER put SymbolSpec ids (like "S-DT") into justification_refs/sensitivity_refs — that refuses the container.',
+  '    EquationSpec value: {"equation_id","scope_ref":"P1","expression","representation","lhs_symbols","rhs_symbols","equation_type","unit","depends_on","source"} — representation SYMPY|LATEX_PRESENTATION; equation_type DEFINITION|CONSTRAINT|OBJECTIVE|DERIVED. lhs_symbols/rhs_symbols are lists of the symbol_id VALUES you declared in your SymbolSpec entries (like ["S-Y"]) — NEVER raw math tokens (like ["y"]): an unregistered name refuses the container. depends_on lists your equation_ids; unit is a non-empty string ("dimensionless" when unitless).',
   '    ModelSpec value: {"model_id","problem_refs":["P1"],"assumption_refs","variable_refs","parameter_refs","equation_refs","constraints","objective","dependencies"} — every field is required; assumption_refs/equation_refs list the ids of AssumptionSpec/EquationSpec entries you declared.',
   // W8.11-A1c (repair, found by the second real run): `parameter_refs` was the
   // ONE field in this lecture whose ELEMENT shape was never stated — the line
@@ -192,8 +197,14 @@ export const EXECUTE_PROTOCOL_TEACHING = [
   '    DataArtifact (optional, output-pointer form) value: {"data_id","locator"} — locator is one of YOUR outputBasenames. NEVER write content_hash anywhere: every sha256 is computed by the harness over real bytes (declaring one refuses the container — the hash of bytes that do not exist yet cannot be known).',
   '  code: executable Node JavaScript that WRITES the measured numbers to the declared output files. All arithmetic happens here; never state a computed number anywhere else.',
   '  run: the ONLY fields are "outputBasenames" (the file names your code writes) and "seed" (an integer). No other key is accepted.',
-  '  interpretations: declaration-based. results: [{ result_id, name, source: { locator: <one outputBasenames entry>, jsonPath: <path to the number inside that file> }, unit }]. The locator must be one of your declared outputs; every Result reads its value via jsonPath — never a literal number.',
-  '  interpretations.figures (optional): [{ figure_id, chart_type: "line"|"scatter"|"bar"|"table", data_refs: [Result ids], caption? }] — structure only; the harness renders the bytes and computes every hash.',
+  // M-QUAL (W10) DP-4: teach the execution-time config emission. The config
+  // is CODE-emitted (N19) — its keys must be the tokens of the SymbolSpecs
+  // the container already declared, so the harness can resolve them into a
+  // canonical NumericConfig (fail-closed on unknown tokens).
+  '  Config emission (SHOULD): declare "numeric_config.json" in run.outputBasenames and write it from your code — ONE JSON object {"discretization": {<token>: <number>}, "physical": {<token>: <number>}, "choices": {<key>: <string>}, "property_set": <string or null>} where every discretization/physical key is EXACTLY the token of a SymbolSpec you declared (e.g. the N, dt, h you solve with). This is the mechanical record of what your code actually ran with; the config-consistency gate compares it against your declared parameters and sibling runs. A declared emission that does not parse or resolve refuses the container.',
+  '  interpretations: declaration-based. results: [{ result_id, name, source: { locator: <one outputBasenames entry>, jsonPath: <path to the number inside that file> }, unit }]. The locator must be one of your declared outputs; every Result reads its value via jsonPath — never a literal number. '
+  + 'claims (declare them here): [{ claim_id, text, claim_type: "NUMERIC", criticality: "CRITICAL", result_refs: [<a result_id>], model_refs: [<your model_id>], evidence_refs: [<a result_id>] }] — a CRITICAL NUMERIC claim binds one Result as the number the paper states; without a claim your REQUIRED_OUTPUT stays unpaid and delivery is blocked.',
+  '  interpretations.figures (optional): [{ figure_id, chart_type: "line"|"scatter"|"bar"|"table", data_refs: [Result ids], caption? }] — structure only; the harness renders the bytes and computes every hash. caption/x_label/y_label must NOT contain numeric literals (write quantities in words, e.g. "final value" instead of "y(2.0)"): a number in these strings is refused unless it is exactly the value of a referenced Result.',
   '  narrative: { title, conclusion: { claims: [{ text, quantity_refs: [Result ids], representation? }] } } — a conclusion number must be the bound Result value verbatim, or an explicitly declared rendering: {"kind":"rounded","dp":<0..20>} or {"kind":"with_uncertainty","uncertainty_refs":[...]}.',
   'The container is refused (and the attempt fails) if: you declare kind "ProblemSpec" or "RequirementSpec", or re-declare "DA-RAW"; you write content_hash anywhere; an entry kind is not one of the five above; a number appears outside code/declarations; a jsonPath is missing or does not resolve to a finite number; the run block carries a foreign key; or the conclusion states an undeclared rounding.',
 ].join('\n')
@@ -894,9 +905,20 @@ export class WorkflowExecutor {
       // P0-3 (PRD v2 §3.3): a MARKED delivery ships the appendix with the
       // paper — annotations live in the appendix, never inline (design
       // point 1), and the product does not lie by omission.
+      //
+      // M-QUAL (W10) DP-8: boundary declarations ship UNCONDITIONALLY —
+      // a CLEAN delivery carries its limits appendix too (L-2/L-3 hold in
+      // any real delivery). Stores without BoundaryDeclarations render ''
+      // here, so historical deliveries are byte-identical.
+      const boundaryDeclarations: ReadonlyArray<BoundaryDeclaration> = this.options.ir === undefined
+        ? []
+        : this.options.ir.list()
+          .filter(r => r.kind === 'BoundaryDeclaration')
+          .map(r => r.value as BoundaryDeclaration)
+      const boundaryAppendix = renderBoundaryAppendix(boundaryDeclarations)
       const deliverableText = grade === 'MARKED'
-        ? `${current}${renderDeliveryAppendix(grade, graded.annotations)}`
-        : current
+        ? `${current}${boundaryAppendix}${renderDeliveryAppendix(grade, graded.annotations)}`
+        : `${current}${boundaryAppendix}`
 
       // TASK 5.0.5 / INV-014: the ONLY path to a DeliverableArtifact
       // is `promoteCandidateToDeliverable`. The executor no longer
@@ -2455,7 +2477,7 @@ export class WorkflowExecutor {
  * that is not one of the run's declared outputs is a refusal — the model
  * can only read what the code actually produced.
  */
-function normalizeInterpretationLocators(
+export function normalizeInterpretationLocators(
   block: Record<string, unknown>,
   basenames: ReadonlyArray<string>,
   locators: ReadonlyArray<string>,

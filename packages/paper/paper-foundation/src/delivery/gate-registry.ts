@@ -34,6 +34,14 @@ import { executionGateFindings } from './execution-gate.ts'
 import { requirementCoverageFindings } from './requirement-coverage.ts'
 import { runtimeIntegrityFindings } from './runtime-integrity.ts'
 import { figureConsistencyFindings } from './figure-consistency.ts'
+// M-QUAL (W10): the three quality-mechanism checks ride EXISTING critical
+// gate ids (N4 — no new gate id; CRITICAL_GATE_IDS stays 9). Config
+// consistency is the `execution` gate's cross-artifact extension (N-1),
+// capability thresholds extend `numeric_consistency` (E-1..E-3), and the
+// delivery-form check extends `requirement_coverage` (E-5).
+import { configConsistencyFindings } from './config-consistency.ts'
+import { capabilityThresholdFindings } from './capability-thresholds.ts'
+import { deliveryFormFindings, type DeliveryFormContract, type DeliveryFormManifestEntry } from './delivery-form.ts'
 import {
   CRITICAL_GATE_IDS,
   DEFAULT_REPLAY_MAX_AGE_MS,
@@ -64,6 +72,16 @@ export const UNIMPLEMENTED = Symbol.for('paper.UNIMPLEMENTED_GATE_PRODUCER')
  */
 export interface GateContext {
   readonly loadCode?: (codeRef: string) => string
+  /**
+   * M-QUAL E-5: the delivery-form pair (template contract + produced
+   * manifest), parsed from the run's real outputs by the composition. Both
+   * halves must be present for the check to activate — a half-supplied pair
+   * is refused as a finding rather than silently skipped.
+   */
+  readonly formChecks?: {
+    readonly contracts: ReadonlyArray<DeliveryFormContract>
+    readonly manifest: ReadonlyArray<DeliveryFormManifestEntry>
+  }
 }
 
 /**
@@ -215,9 +233,16 @@ registerCriticalGate('execution', (_mode, ir, ctx) => {
   if (store === null) {
     return { id: 'execution', critical: true, status: 'BLOCKED', reason: 'no canonical store', observedAt: new Date().toISOString() }
   }
-  const findings = executionGateFindings(store, ctx.loadCode === undefined ? {} : { loadCode: ctx.loadCode })
+  // M-QUAL (W10): the config-consistency walk rides this gate (N-1, no new
+  // id). Pre-M5 stores carry no NumericConfig and add zero findings, so the
+  // historical verdict is unchanged until the pipeline emits its first
+  // config (DP-4).
+  const findings = [
+    ...executionGateFindings(store, ctx.loadCode === undefined ? {} : { loadCode: ctx.loadCode }),
+    ...configConsistencyFindings(store),
+  ]
   if (findings.length === 0) {
-    return { id: 'execution', critical: true, status: 'PASS', reason: 'every CRITICAL claim chain reaches a captured, fresh run', observedAt: new Date().toISOString() }
+    return { id: 'execution', critical: true, status: 'PASS', reason: 'every CRITICAL claim chain reaches a captured, fresh run, and every configuration pair agrees (M5 N-1)', observedAt: new Date().toISOString() }
   }
   const first = findings.at(0)
   // Unreachable in practice: the empty case returned PASS above. Fallback
@@ -231,13 +256,19 @@ registerCriticalGate('execution', (_mode, ir, ctx) => {
 })
 // P1-3: numeric_consistency is a REAL gate — it walks every NUMERIC Claim
 // in the store and runs the claim-evidence semantic guards (exact value +
-// unit equality, role binding; R1-3 frozen, no tolerance layer yet).
+// unit equality, role binding; R1-3 frozen, no tolerance layer on the
+// Claim↔Result binding). M-QUAL (W10): the capability-threshold engine
+// (E-1/E-2/E-3) rides the same gate id — stores without CapabilitySpecs add
+// zero findings, so the historical verdict is unchanged.
 registerCriticalGate('numeric_consistency', (_mode, ir) => {
   const store = ModelingIr.snapshot(ir)
   if (store === null) {
     return { id: 'numeric_consistency', critical: true, status: 'BLOCKED', reason: 'no canonical store', observedAt: new Date().toISOString() }
   }
-  const findings = numericConsistencyFindings(store)
+  const findings = [
+    ...numericConsistencyFindings(store),
+    ...capabilityThresholdFindings(store),
+  ]
   if (findings.length === 0) {
     return { id: 'numeric_consistency', critical: true, status: 'PASS', reason: 'no numeric inconsistency found', observedAt: new Date().toISOString() }
   }
@@ -294,13 +325,22 @@ registerCriticalGate('reference_validation', (_mode, ir) => {
 })
 // P1-4: requirement_coverage is a REAL gate (A7 v0 frozen) — every
 // ProblemSpec's REQUIRED_OUTPUTs must be paid by distinct reaching CRITICAL
-// results (fail-closed count bound).
-registerCriticalGate('requirement_coverage', (_mode, ir) => {
+// results (fail-closed count bound). M-QUAL (W10): the E-5 delivery-form
+// check rides this gate id when the composition supplies BOTH halves of the
+// form pair (contract + manifest); a half-supplied pair is itself a finding.
+registerCriticalGate('requirement_coverage', (_mode, ir, ctx) => {
   const store = ModelingIr.snapshot(ir)
   if (store === null) {
     return { id: 'requirement_coverage', critical: true, status: 'BLOCKED', reason: 'no canonical store', observedAt: new Date().toISOString() }
   }
-  const findings = requirementCoverageFindings(store)
+  const formChecks = ctx.formChecks
+  const findings = [
+    // Coverage findings predate the closed-kind convention (A7 v0); give
+    // them the same {kind, reason} shape the form findings carry so the
+    // BLOCK reason names both uniformly.
+    ...requirementCoverageFindings(store).map(f => ({ kind: 'required_output_unpaid', ...f })),
+    ...deliveryFormFindings(formChecks?.contracts, formChecks?.manifest),
+  ]
   if (findings.length === 0) {
     return { id: 'requirement_coverage', critical: true, status: 'PASS', reason: 'every REQUIRED_OUTPUT is covered (A7 v0)', observedAt: new Date().toISOString() }
   }
@@ -310,7 +350,7 @@ registerCriticalGate('requirement_coverage', (_mode, ir) => {
   ?? ({ kind: 'none', reason: 'findings were reported as non-empty', path: 'unknown', requirementId: 'unknown', figureId: 'unknown', nodePath: 'unknown' })
   return {
     id: 'requirement_coverage', critical: true, status: 'BLOCKED',
-    reason: `requirement coverage: ${findings.length} finding(s) (${first.requirementId}: ${first.reason})`,
+    reason: `requirement coverage: ${findings.length} finding(s) (${first.kind}: ${first.reason})`,
     observedAt: new Date().toISOString(),
   }
 })
@@ -386,6 +426,18 @@ export interface BuildDeliveryPolicyInput {
    */
   readonly replayEvidence?: { readonly replayedAt: string | null }
   /**
+   * M-QUAL (W10) E-5 — the delivery-form pair the composition parsed from
+   * the run's real outputs (template contract + produced manifest).
+   * Forwarded to the `requirement_coverage` producer's per-invocation
+   * context; absent → the form check does not activate (documented in
+   * delivery-form.ts — a check that was never handed its object does not
+   * pretend to have run).
+   */
+  readonly formChecks?: {
+    readonly contracts: ReadonlyArray<DeliveryFormContract>
+    readonly manifest: ReadonlyArray<DeliveryFormManifestEntry>
+  }
+  /**
    * TASK 5.0.8 — the caller's replay-staleness window in milliseconds,
    * or `null` for the explicit no-requirement downgrade. Only consulted
    * when `replayEvidence` is present: a caller that declares a window
@@ -459,8 +511,11 @@ export function buildDeliveryPolicy(input: BuildDeliveryPolicyInput): DeliveryPo
       mode,
       ir,
       // exactOptionalPropertyTypes: an explicit undefined would be a type
-      // error on GateContext.loadCode, so omit rather than pass through.
-      input.loadCode === undefined ? {} : { loadCode: input.loadCode },
+      // error on GateContext's optional fields, so omit rather than pass.
+      {
+        ...(input.loadCode === undefined ? {} : { loadCode: input.loadCode }),
+        ...(input.formChecks === undefined ? {} : { formChecks: input.formChecks }),
+      },
     ))
   }
 
