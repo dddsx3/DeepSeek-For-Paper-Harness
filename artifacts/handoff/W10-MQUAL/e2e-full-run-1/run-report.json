@@ -1,0 +1,77 @@
+{
+  "runId": "28b42f0c-58ac-4c60-a0be-51b454ca4ce1",
+  "tier": "T1",
+  "mode": "strict",
+  "status": "BLOCKED",
+  "routed_family": "F4",
+  "route_truth": "F3+F4",
+  "route_mismatch": false,
+  "code_provenance": {
+    "checked_at": "2026-09-19T16:16:02.660Z",
+    "ok": true,
+    "targets": [
+      {
+        "name": "@deepseek-ai/dsh-paper-foundation",
+        "ok": true,
+        "detail": "entry lib/index.js is 97421 ms newer than the newest source"
+      },
+      {
+        "name": "@deepseek-ai/dsh-storage",
+        "ok": true,
+        "detail": "entry lib/index.js is 1227322438 ms newer than the newest source"
+      },
+      {
+        "name": "@deepseek-ai/dsh-storage-domain",
+        "ok": true,
+        "detail": "entry lib/index.js is 1227333320 ms newer than the newest source"
+      },
+      {
+        "name": "@deepseek-ai/dsh-storage-json",
+        "ok": true,
+        "detail": "entry lib/index.js is 1227333386 ms newer than the newest source"
+      },
+      {
+        "name": "@deepseek-ai/dsh-llm",
+        "ok": true,
+        "detail": "entry lib/index.js is 1227333628 ms newer than the newest source"
+      },
+      {
+        "name": "@deepseek-ai/cordis",
+        "ok": true,
+        "detail": "entry lib/index.js is 1227322091 ms newer than the newest source"
+      }
+    ]
+  },
+  "minted_ir_count": 3,
+  "classifier": "fidelity",
+  "code": "budget-exhausted",
+  "humanized": "模型已产出 3156 字符的建模分析，但**接收层的保真检查未通过**，这次运行被判为失败。未通过的检查：B4 逐问推理覆盖、B3 正向（声明须逐字锚定 E1）。已通过：B5 锚点 id 形态（E1 侧）、B3 反向（E1 假设须被声明）、B3 锚点同一性（声明须在 E1 中有同名锚点）。",
+  "wall_clock_seconds": 622.5,
+  "usage": {
+    "input_tokens": 45408,
+    "output_tokens": 68155,
+    "cost_usd": 0
+  },
+  "memo": {
+    "passed_gates": [
+      "plan",
+      "review",
+      "revise #1",
+      "review #2",
+      "revise #2",
+      "review #3"
+    ],
+    "minted_ir_kinds": [
+      "DataArtifact",
+      "RequirementSpec",
+      "ProblemSpec"
+    ],
+    "minted_ir_count": 3,
+    "failing_node": {
+      "title": "execute",
+      "attempts": 3,
+      "code": null
+    },
+    "suggested_intervention": "这类失败跨两侧（分析侧 + 规范化侧）。失败 gate：ir_producer。这不是\"模型没有给出可用结构\"——它给出了，是形式化忠实这一关没过。"
+  }
+}
