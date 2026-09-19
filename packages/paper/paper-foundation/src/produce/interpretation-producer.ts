@@ -85,7 +85,10 @@ export const interpretationSchema = zod
         zod
           .object({
             figure_id: zod.string().min(1),
-            chart_type: zod.enum(['line', 'scatter', 'bar']),
+            // P3-4 added the table chart downstream (figureSpecSchema +
+            // figure/producer.ts); keeping it out here contradicted the
+            // EXECUTE teaching line and refused legal containers (形态 7).
+            chart_type: zod.enum(['line', 'scatter', 'bar', 'table']),
             data_refs: zod.array(zod.string()).min(1),
             claim_refs: zod.array(zod.string()).optional(),
             caption: zod.string().max(4096).optional(),
@@ -118,11 +121,11 @@ export interface MintedFigure {
 
 export type InterpretationVerdict =
   | {
-      ok: true
-      resultIds: ReadonlyArray<string>
-      claimIds: ReadonlyArray<string>
-      figures: ReadonlyArray<MintedFigure>
-    }
+    ok: true
+    resultIds: ReadonlyArray<string>
+    claimIds: ReadonlyArray<string>
+    figures: ReadonlyArray<MintedFigure>
+  }
   | { ok: false; code: InterpretationFailureCode; reason: string }
 
 interface ParsedInterpretation {
@@ -195,7 +198,7 @@ export function produceInterpretation(input: {
       ...r,
       uncertainty: r.uncertainty ?? null,
     })),
-    claims: (block.claims ?? []).map(c => {
+    claims: (block.claims ?? []).map((c) => {
       const { criticality_rationale, ...rest } = c
       return {
         ...rest,
@@ -299,7 +302,18 @@ export function produceInterpretation(input: {
           reason: `NUMERIC claim '${declared.claim_id}' must name ≥1 result_ref (D-001)`,
         }
       }
-      const bound = resultById.get(declared.result_refs[0]!)
+      const firstResultRef = declared.result_refs[0]
+      if (firstResultRef === undefined) {
+        // Unreachable: the ≥1 guard above returned on an empty list. Kept as
+        // an explicit check so the store lookup below never sees `undefined`
+        // silently (this file's lint forbids non-null assertions).
+        return {
+          ok: false,
+          code: 'claim_binding_unknown',
+          reason: `NUMERIC claim '${declared.claim_id}' binds result which is neither produced by this interpretation nor already in the store`,
+        }
+      }
+      const bound = resultById.get(firstResultRef)
       if (bound === undefined) {
         return {
           ok: false,

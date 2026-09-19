@@ -129,6 +129,26 @@ export {
   ModelingIr,
 } from './store.ts'
 
+// M-QUAL (W10) — the three quality-mechanism kinds (schemas are re-exported
+// through the schema barrel above; the emission mapper lives with its schema).
+export {
+  numericConfigFromEmission,
+  numericConfigEmissionSchema,
+  numericConfigSchema,
+  NUMERIC_CONFIG_EMISSION_BASENAME,
+  NUMERIC_CONFIG_EMISSION_FAILURE_KINDS,
+} from './numeric-config.ts'
+export type {
+  NumericConfig,
+  NumericConfigEmission,
+  NumericConfigEmissionFailure,
+  NumericConfigEmissionFailureKind,
+} from './numeric-config.ts'
+export { capabilitySpecSchema, falsifiableThresholdSchema } from './capability-spec.ts'
+export type { CapabilitySpec, FalsifiableThreshold } from './capability-spec.ts'
+export { boundaryDeclarationSchema } from './boundary-declaration.ts'
+export type { BoundaryDeclaration } from './boundary-declaration.ts'
+
 // TASK 3.5 — STALE engine (INV-3.5-A, S-001..S-009).
 export {
   STALE_REASONS,

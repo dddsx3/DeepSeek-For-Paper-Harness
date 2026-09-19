@@ -124,3 +124,82 @@ describe('P1-2 execution producer — attacks', () => {
     expect(ir.list().filter(r => r.kind === 'ExecutionRecord')).toHaveLength(0)
   }, 60_000)
 })
+
+// ---------------------------------------------------------------------------
+// M-QUAL (W10) DP-4 — execution-time config capture. The code emits
+// `numeric_config.json` among its declared outputs; the producer
+// materializes it into a canonical NumericConfig bound to the run.
+// ---------------------------------------------------------------------------
+
+const CONFIG_EMISSION = JSON.stringify({
+  discretization: {},
+  physical: { rho: 917 },
+  choices: { time_integrator: 'explicit' },
+  property_set: 'A2',
+})
+
+function configRunArgs(configJson: string) {
+  const base = runArgs()
+  const locators = [base.outputLocators[0], `file:///runs/${RUN_ID}/numeric_config.json`]
+  return {
+    ...base,
+    outputBasenames: ['result.json', 'numeric_config.json'],
+    outputLocators: locators,
+    declaredOutputBytes: new Map<string, string>([
+      [LOCATOR, REAL_RESULT],
+      [`file:///runs/${RUN_ID}/numeric_config.json`, configJson],
+    ]),
+    codeText: [
+      'const fs = require("node:fs");',
+      `fs.writeFileSync("result.json", ${JSON.stringify(REAL_RESULT)});`,
+      `fs.writeFileSync("numeric_config.json", ${JSON.stringify(configJson)});`,
+      'console.log("run ok");',
+    ].join('\n'),
+  }
+}
+
+describe('M-QUAL DP-4 — execution-time config capture', () => {
+  it('a code-emitted numeric_config.json lands as a NumericConfig bound to the run', async () => {
+    const ir = new ModelingIr()
+    seedContract(ir)
+    const verdict = await produceRunExecution({ ir, ...configRunArgs(CONFIG_EMISSION) })
+    expect(verdict.ok).toBe(true)
+    if (!verdict.ok) return
+    const configs = ir.list().filter(r => r.kind === 'NumericConfig')
+    expect(configs).toHaveLength(1)
+    const config = configs[0]!.value as { config_id: string; run_ref: string; physical: Array<{ symbol_ref: string; value: number }> }
+    expect(config.config_id).toBe(`NC-${RUN_ID}`)
+    expect(config.run_ref).toBe(RUN_ID)
+    expect(config.physical).toEqual([{ symbol_ref: 'SYM-rho', value: 917 }])
+  }, 60_000)
+
+  it('a declared emission that is not valid JSON refuses the chain (fail-closed)', async () => {
+    const ir = new ModelingIr()
+    seedContract(ir)
+    const verdict = await produceRunExecution({ ir, ...configRunArgs('dt = 0.25 (prose, not JSON)') })
+    expect(verdict.ok).toBe(false)
+    if (verdict.ok) return
+    expect(verdict.code).toBe('CONFIG_EMISSION_INVALID')
+  }, 60_000)
+
+  it('an emission token that resolves to no declared SymbolSpec refuses the chain', async () => {
+    const ir = new ModelingIr()
+    seedContract(ir)
+    const verdict = await produceRunExecution({
+      ir,
+      ...configRunArgs(JSON.stringify({ discretization: { mystery: 1 }, physical: {}, choices: {}, property_set: null })),
+    })
+    expect(verdict.ok).toBe(false)
+    if (verdict.ok) return
+    expect(verdict.code).toBe('CONFIG_EMISSION_TOKEN_UNRESOLVED')
+    expect(verdict.reason).toContain('mystery')
+  }, 60_000)
+
+  it('a run that never declares the emission simply leaves the contract inactive', async () => {
+    const ir = new ModelingIr()
+    seedContract(ir)
+    const verdict = await produceRunExecution({ ir, ...runArgs() })
+    expect(verdict.ok).toBe(true)
+    expect(ir.list().filter(r => r.kind === 'NumericConfig')).toHaveLength(0)
+  }, 60_000)
+})

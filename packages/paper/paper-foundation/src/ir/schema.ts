@@ -47,6 +47,19 @@ import {
   equationSpecSchema,
   experimentSpecSchema,
 } from './contract-objects.ts'
+// M-QUAL (W10): the three quality-mechanism kinds. Their schemas live in
+// standalone modules (same pattern as the TASK-T1 contract objects) so the
+// store, the reference table and the producers can pick them up without
+// touching this file beyond registration.
+import {
+  boundaryDeclarationSchema,
+} from './boundary-declaration.ts'
+import {
+  capabilitySpecSchema,
+} from './capability-spec.ts'
+import {
+  numericConfigSchema,
+} from './numeric-config.ts'
 // The closed enum constants are re-exported at the bottom of this file
 // straight from `problem-contract.ts`; importing them here as well only to
 // re-export them is what made them read as unused.
@@ -83,6 +96,19 @@ export const IR_KINDS = [
   'AssumptionSpec',
   'EquationSpec',
   'ExperimentSpec',
+  // M-QUAL (W10) — the quality-mechanism kinds (Q1-D1 §1.1, DP-1/DP-2 landed):
+  //   NumericConfig      — the comparable identity of one solve's numeric
+  //                        configuration (M5 / config-consistency N-1);
+  //                        producer is the execution-time capture of the
+  //                        code-emitted `numeric_config.json` (N19).
+  //   CapabilitySpec     — one capability of the method family with its
+  //                        structured falsifiable thresholds ("质量识别 =
+  //                        退化检测"的对象底座).
+  //   BoundaryDeclaration— one honesty boundary with per-slot decidable
+  //                        values (免责声明在类型层不可表达, N6).
+  'NumericConfig',
+  'CapabilitySpec',
+  'BoundaryDeclaration',
 ] as const
 
 export type IrKind = (typeof IR_KINDS)[number]
@@ -556,6 +582,10 @@ export type ReviewerFinding = zod.infer<typeof reviewerFindingSchema>
 export type AssumptionSpec = zod.infer<typeof assumptionSpecSchema>
 export type EquationSpec = zod.infer<typeof equationSpecSchema>
 export type ExperimentSpec = zod.infer<typeof experimentSpecSchema>
+// M-QUAL (W10): the three quality-mechanism kinds join the same barrel.
+export type NumericConfig = import('./numeric-config.ts').NumericConfig
+export type CapabilitySpec = import('./capability-spec.ts').CapabilitySpec
+export type BoundaryDeclaration = import('./boundary-declaration.ts').BoundaryDeclaration
 
 /** Re-export the TASK 1.5 kinds so callers can `import { DataArtifact, … }
  * from './schema.ts'` (and so the schema barrel does not need a second
@@ -590,6 +620,25 @@ export {
   EQUATION_TYPES,
   EXPERIMENT_SEED_POLICIES,
 } from './contract-objects.ts'
+// M-QUAL (W10): the quality-mechanism schemas and their closed emission
+// constants join the schema barrel.
+export {
+  numericConfigSchema,
+  numericConfigEmissionSchema,
+  NUMERIC_CONFIG_EMISSION_BASENAME,
+  NUMERIC_CONFIG_EMISSION_FAILURE_KINDS,
+  numericConfigFromEmission,
+} from './numeric-config.ts'
+export type {
+  NumericConfigEmission,
+  NumericConfigEmissionFailure,
+  NumericConfigEmissionFailureKind,
+  NumericConfigFromEmissionInput,
+  NumericConfigFromEmissionResult,
+} from './numeric-config.ts'
+export { capabilitySpecSchema, falsifiableThresholdSchema } from './capability-spec.ts'
+export type { FalsifiableThreshold } from './capability-spec.ts'
+export { boundaryDeclarationSchema } from './boundary-declaration.ts'
 export type {
   AssumptionSourceType,
   AssumptionStatus,
@@ -615,6 +664,9 @@ export interface IrObjectMap {
   AssumptionSpec: import('./contract-objects.ts').AssumptionSpec
   EquationSpec: import('./contract-objects.ts').EquationSpec
   ExperimentSpec: import('./contract-objects.ts').ExperimentSpec
+  NumericConfig: import('./numeric-config.ts').NumericConfig
+  CapabilitySpec: import('./capability-spec.ts').CapabilitySpec
+  BoundaryDeclaration: import('./boundary-declaration.ts').BoundaryDeclaration
 }
 
 /**
@@ -638,6 +690,9 @@ export const IR_SCHEMAS: { readonly [K in IrKind]: zod.ZodType<IrObjectMap[K]> }
   AssumptionSpec: assumptionSpecSchema,
   EquationSpec: equationSpecSchema,
   ExperimentSpec: experimentSpecSchema,
+  NumericConfig: numericConfigSchema,
+  CapabilitySpec: capabilitySpecSchema,
+  BoundaryDeclaration: boundaryDeclarationSchema,
 }
 
 
@@ -663,6 +718,9 @@ export const ID_FIELD_BY_KIND: Readonly<Record<IrKind, string>> = {
   AssumptionSpec: 'assumption_id',
   EquationSpec: 'equation_id',
   ExperimentSpec: 'experiment_id',
+  NumericConfig: 'config_id',
+  CapabilitySpec: 'capability_id',
+  BoundaryDeclaration: 'declaration_id',
 }
 
 /**

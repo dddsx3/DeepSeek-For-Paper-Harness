@@ -7,6 +7,28 @@
 
 ---
 
+## ⚠️ 落地状态更新（2026-09-19，M-QUAL 专项）
+
+> 上面"只出规格"的纪律针对编制当时（W8.9-Q 支线）。**M-QUAL 专项
+> （2026-09-19）已按 §3.4 的 P0→P3 顺序把规格落进 `src`**，以下状态表
+> 取代各文档中的"未实施"字样（原文保留不改，以规格为出处）：
+
+| 规格 | 落地物（src） | 状态 |
+|---|---|---|
+| DP-4 / M5（`CONFIG-CONSISTENCY-CHECK.md`） | `ir/numeric-config.ts`（kind 16）+ `delivery/config-consistency.ts` + `produce/execution-producer.ts` 的执行期捕获（code emit `numeric_config.json`，N19） | ✅ **已落地** |
+| DP-1 / O-1（`CAPABILITY-SCHEMA.md`） | `ir/capability-spec.ts`（kind 17，四条 refine）+ `delivery/capability-thresholds.ts`（E-1/E-2/E-3 引擎，接 G5） | ✅ 已落地（系列算子 fail-closed） |
+| DP-8 / O-3（`LIMITS-TEMPLATE.md`） | `ir/boundary-declaration.ts`（kind 18，"没有第三条路"refine）+ `delivery/boundary-render.ts`（无条件渲染，接 executor） | ✅ 已落地 |
+| E-5（`GATE-MAPPING.md` §2） | `delivery/delivery-form.ts`（表头/列类型/行数，接 G8） | ✅ 已落地 |
+| 回归基准（阶段 D） | `bench/quality/cumcm-2026-A/`（golden corpus：能力阈值库 11 条 + 表单契约/清单 + 参考判定归档 + 四类退化负对照） | ✅ 已建 |
+| 未落地 | 探针真跑执行器（E2E 期接 B1–B7）、CE-1/CE-2 独立性断言（V5 扩展）、族契约映射 `capability-map.ts`（N-7）、C-3 的"声明差"独立对象 | ⏳ 待后续轮次 |
+
+**一处已声明的设计修正**：`NumericConfig` 的所有权边按 append-only 拓扑改为
+`NumericConfig.run_ref → RunArtifact`（run 先于 config 入库，`RunArtifact.config_ref`
+无法解析后向引用）——见 `ir/numeric-config.ts` 头注释。**回归基准**：
+`npx vitest run packages/paper/paper-foundation/tests/quality`。
+
+---
+
 ## 一句话
 
 **不要试图判断"建模好不好"——要枚举"这类题最典型的退化方式"，然后为每一种写一个能把它抓出来的机械检查。质量识别 = 退化检测。**

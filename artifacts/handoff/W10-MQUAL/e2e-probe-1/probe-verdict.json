@@ -1,0 +1,75 @@
+{
+  "model": "z-ai/glm-5.3-flash",
+  "usage": {
+    "completion_tokens": 1181,
+    "completion_tokens_details": {
+      "accepted_prediction_tokens": 0,
+      "audio_tokens": 0,
+      "reasoning_tokens": 79,
+      "rejected_prediction_tokens": 0
+    },
+    "prompt_tokens": 1744,
+    "prompt_tokens_details": {
+      "audio_tokens": 0,
+      "cached_tokens": 0
+    },
+    "total_tokens": 2925
+  },
+  "attempts_used": 2,
+  "entries": [
+    {
+      "kind": "SymbolSpec",
+      "id": "S-K"
+    },
+    {
+      "kind": "SymbolSpec",
+      "id": "S-Y0"
+    },
+    {
+      "kind": "SymbolSpec",
+      "id": "S-DT"
+    },
+    {
+      "kind": "SymbolSpec",
+      "id": "S-N"
+    },
+    {
+      "kind": "SymbolSpec",
+      "id": "S-Y"
+    },
+    {
+      "kind": "AssumptionSpec",
+      "id": "A-EULER"
+    },
+    {
+      "kind": "EquationSpec",
+      "id": "E-ODE"
+    },
+    {
+      "kind": "EquationSpec",
+      "id": "E-EULER"
+    },
+    {
+      "kind": "ModelSpec",
+      "id": "M-EULER"
+    }
+  ],
+  "run_outputs": [
+    "file:///runs/RUN-PROBE-W10/result.json",
+    "file:///runs/RUN-PROBE-W10/numeric_config.json"
+  ],
+  "minted_results": [
+    "R-YFINAL"
+  ],
+  "minted_claims": [
+    "C-YFINAL"
+  ],
+  "numeric_configs": 1,
+  "config_consistency_findings": [],
+  "capability_threshold_findings": [],
+  "delivery_decision": {
+    "allowed": true,
+    "failures": []
+  },
+  "grade": "CLEAN"
+}

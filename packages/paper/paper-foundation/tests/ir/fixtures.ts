@@ -322,6 +322,70 @@ export function reviewerFinding(overrides: Record<string, unknown> = {}): Record
   }
 }
 
+// ---------------------------------------------------------------------------
+// M-QUAL (W10) — the three quality-mechanism kind factories (NumericConfig /
+// CapabilitySpec / BoundaryDeclaration).
+// ---------------------------------------------------------------------------
+
+export function numericConfig(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+  return {
+    config_id: 'NC-RUN1',
+    run_ref: 'RUN1',
+    // Deliberately symbol-free: the shared chain fixture must close even in
+    // suites that build it WITHOUT SymbolSpecs (RT-C-02). Configs that pin
+    // real symbol values are constructed by the dedicated suites.
+    discretization: [],
+    physical: [],
+    choices: [{ key: 'time_integrator', value: 'explicit' }],
+    property_set: null,
+    ...overrides,
+  }
+}
+
+export function capabilitySpec(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+  return {
+    capability_id: 'CAP-1',
+    family: 'F1',
+    scope_ref: 'R1',
+    name: 'Thickness result is physically plausible',
+    criterion: 'The delivered mean thickness must be positive and below the declared bound.',
+    judge: 'machine',
+    machine_check: 'CONSTRAINT',
+    falsifiable_thresholds: [
+      {
+        subject_ref: 'Result:RES1',
+        operator: 'GE',
+        threshold: 0.5,
+        tolerance: null,
+        unit: 'm',
+        at_config_ref: null,
+      },
+    ],
+    source_anchor: 'R1',
+    required_output_ref: null,
+    verification_depth: 'SUBSTANTIVE',
+    existence_disclaimer: null,
+    probe_refs: ['P-4'],
+    boundary_refs: [],
+    ...overrides,
+  }
+}
+
+export function boundaryDeclaration(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+  return {
+    declaration_id: 'BD-1',
+    boundary_class: 'L-2',
+    subject_ref: 'ASM-1',
+    object_text: 'Internal T(r,t) / C(r,t) have no independent observations.',
+    slots: [
+      { key: 'self_check_1', number_value: 2.9459e-4, ref_value: null, enum_value: null, unquantified_reason: null },
+      { key: 'self_check_2', number_value: 0.0222, ref_value: null, enum_value: null, unquantified_reason: null },
+    ],
+    must_appear_in: 'appendix:limits',
+    ...overrides,
+  }
+}
+
 /**
  * TASK 3 — the canonical ExecutionRecord for RUN1. Fingerprints are
  * derived with the SAME functions the capture/replay layer uses (D4),
@@ -380,6 +444,10 @@ export function validObjectFor(kind: IrKind): Record<string, unknown> {
     case 'AssumptionSpec': return assumptionSpec()
     case 'EquationSpec': return equationSpec()
     case 'ExperimentSpec': return experimentSpec()
+    // M-QUAL (W10) quality-mechanism kinds.
+    case 'NumericConfig': return numericConfig()
+    case 'CapabilitySpec': return capabilitySpec()
+    case 'BoundaryDeclaration': return boundaryDeclaration()
   }
 }
 
@@ -411,6 +479,14 @@ export function validChain(): ReadonlyArray<{ kind: IrKind; value: Record<string
     { kind: 'VerificationResult', value: verificationResult() },
     { kind: 'FigureSpec', value: figureSpec() },
     { kind: 'ReviewerFinding', value: reviewerFinding() },
+    // M-QUAL (W10) — the three quality-mechanism kinds. Appended after the
+    // kinds every existing `chainThrough(kind)` prefix stops at, and BEFORE
+    // the ExecutionRecord (which stays last), so every historical slice is
+    // byte-stable. Every ref these fixtures carry (RUN1 / SYM-rho / R1 /
+    // RES1 / ASM-1) is already registered above, so `backboneIr()` closes.
+    { kind: 'NumericConfig', value: numericConfig() },
+    { kind: 'CapabilitySpec', value: capabilitySpec() },
+    { kind: 'BoundaryDeclaration', value: boundaryDeclaration() },
     // TASK 3 — appended LAST so every existing `chainThrough(kind)`
     // prefix stays byte-stable while `backboneIr()` (used by the
     // executor-level suites) gains the provenance record.

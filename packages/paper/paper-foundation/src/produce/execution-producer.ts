@@ -30,6 +30,16 @@ import { LocalProcessRunner } from '../execution/runner.ts'
 import { captureExecution, ingestCapturedRecord } from '../execution/capture.ts'
 import { sha256Hex, canonicalJson } from '../ir/index.ts'
 import { executionRecordSchema } from '../ir/schema.ts'
+// M-QUAL (W10) DP-4: the execution-time config capture. The code emits
+// `numeric_config.json` among its declared outputs; after capture verifies
+// the output set, the emission's bytes (already covered by the record's
+// output_hash) are materialized into a canonical NumericConfig whose
+// run_ref closes the ownership edge (append-only topology).
+import {
+  NUMERIC_CONFIG_EMISSION_BASENAME,
+  numericConfigEmissionSchema,
+  numericConfigFromEmission,
+} from '../ir/numeric-config.ts'
 
 export interface RunExecutionInput {
   readonly ir: ModelingIr
@@ -54,12 +64,12 @@ export interface RunExecutionInput {
 
 export type RunExecutionVerdict =
   | {
-      ok: true
-      runArtifactId: string
-      executionId: string
-      /** P1-3: the REAL produced output bytes for interpretation. */
-      outputs: ReadonlyArray<import('./interpretation-producer.ts').OutputBytes>
-    }
+    ok: true
+    runArtifactId: string
+    executionId: string
+    /** P1-3: the REAL produced output bytes for interpretation. */
+    outputs: ReadonlyArray<import('./interpretation-producer.ts').OutputBytes>
+  }
   | { ok: false; code: string; reason: string }
 
 const NO_INPUT_HASH = sha256Hex('no-input-data')
@@ -148,10 +158,80 @@ export async function produceRunExecution(input: RunExecutionInput): Promise<Run
       reason: failure !== undefined ? `${failure.kind}: ${failure.reason}` : 'store refused the captured record',
     }
   }
+  // M-QUAL (W10) DP-4 — execution-time config capture (N19: config objects
+  // enter through "code emit"). When the run declares and produces
+  // `numeric_config.json`, its bytes (covered by the record's output_hash)
+  // are materialized into a canonical NumericConfig. A DECLARED emission
+  // that fails to parse/resolve refuses the chain (the model retries) —
+  // "I said I emit a config" must never silently degrade to "no config".
+  // A run that never declares the emission simply leaves the config
+  // contract inactive (config-consistency.ts documents the phase-in).
+  const emissionFile = captured.outputs.find(o => o.locator.endsWith(NUMERIC_CONFIG_EMISSION_BASENAME))
+  if (emissionFile !== undefined) {
+    const configRefusal = (code: string, reason: string) => ({ ok: false as const, code, reason })
+    let emissionJson: unknown
+    try {
+      emissionJson = JSON.parse(emissionFile.bytes)
+    } catch {
+      return configRefusal('CONFIG_EMISSION_INVALID', `${NUMERIC_CONFIG_EMISSION_BASENAME} is not valid JSON — a declared config emission must be machine-readable, not prose`)
+    }
+    const emission = numericConfigEmissionSchema.safeParse(emissionJson)
+    if (!emission.success) {
+      return configRefusal('CONFIG_EMISSION_INVALID', `${NUMERIC_CONFIG_EMISSION_BASENAME} failed its closed schema: ${emission.error.issues.map(i => `${i.path.join('.')}: ${i.message}`).join('; ')}`)
+    }
+    const scopeRefs = modelProblemScopes(ir, input.modelRef)
+    const symbols = declaredSymbols(ir, scopeRefs)
+    const built = numericConfigFromEmission({
+      configId: `NC-${input.runId}`,
+      runRef: input.runId,
+      scopeRefs,
+      emission: emission.data,
+      symbols,
+    })
+    if (!built.ok) {
+      const failure = built.failures[0]
+      return configRefusal('CONFIG_EMISSION_TOKEN_UNRESOLVED', failure !== undefined ? failure.reason : 'the config emission could not be materialized')
+    }
+    const configAdmitted = ir.put('NumericConfig', built.config)
+    if (!configAdmitted.accepted) {
+      const failure = configAdmitted.failures[0]
+      return configRefusal('CONFIG_EMISSION_REFUSED', failure !== undefined ? `${failure.kind}: ${failure.reason}` : 'store refused the captured NumericConfig')
+    }
+  }
   return {
     ok: true,
     runArtifactId: runId,
     executionId,
     outputs: captured.outputs.map(o => ({ locator: o.locator, bytes: o.bytes })),
   }
+}
+
+/** The problem ids the named model belongs to (the token-resolution scope). */
+function modelProblemScopes(ir: ModelingIr, modelRef: string): ReadonlyArray<string> {
+  const snapshot = ModelingIr.snapshot(ir)
+  if (snapshot === null) return []
+  const model = snapshot.get(modelRef)
+  if (model === undefined || model.kind !== 'ModelSpec') return []
+  return [...(model.value as { problem_refs: ReadonlyArray<string> }).problem_refs]
+}
+
+/** Declared symbols scoped to any of `scopeRefs` (token -> SymbolSpec id). */
+function declaredSymbols(ir: ModelingIr, scopeRefs: ReadonlyArray<string>): ReadonlyArray<{
+  symbol_id: string
+  token: string
+  scope_ref: string
+}> {
+  const out: Array<{ symbol_id: string; token: string; scope_ref: string }> = []
+  if (scopeRefs.length === 0) return out
+  const scopes = new Set(scopeRefs)
+  const snapshot = ModelingIr.snapshot(ir)
+  if (snapshot === null) return out
+  for (const record of snapshot.values()) {
+    if (record.kind !== 'SymbolSpec') continue
+    const symbol = record.value as { symbol_id: string; token: string; scope_ref: string }
+    if (scopes.has(symbol.scope_ref)) {
+      out.push({ symbol_id: symbol.symbol_id, token: symbol.token, scope_ref: symbol.scope_ref })
+    }
+  }
+  return out
 }
