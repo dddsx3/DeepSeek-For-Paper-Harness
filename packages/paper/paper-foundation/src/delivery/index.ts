@@ -106,3 +106,9 @@ export type {
   DeliverablesContract,
   DeliverablesFinding,
 } from './deliverables-contract.ts'
+
+// R2（格式链）—— DOCX 导出前校核（退出码契约 0/1/2）+ text_profile 派生。
+export { DOCX_CHECK_CODES, docxPrecheckVerdict, runDocxPrechecks } from './docx-precheck.ts'
+export type { CheckExitCode, DocxCheckCode, DocxCheckResult, DocxPrecheckInput } from './docx-precheck.ts'
+export { CN_FONT_SIZE_PT, deriveTextProfile } from './text-profile.ts'
+export type { TextProfile } from './text-profile.ts'
