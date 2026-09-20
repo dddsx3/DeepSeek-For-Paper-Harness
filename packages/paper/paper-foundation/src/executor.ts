@@ -1301,6 +1301,13 @@ export class WorkflowExecutor {
     if (!rendered.ok) {
       return { ok: false, code: rendered.code, reason: `report render refused: ${rendered.reason}` }
     }
+    // R1①（交付面固化）: the rendered report references each figure as
+    // `figures/<figureId>.svg` — an INDEPENDENT file. The reference must
+    // not dangle: persist the minted SVG bytes next to the promoted final
+    // output (`<finalOutputRoot>/<runId>/final/figures/<id>.svg`), under
+    // the same sink contract as `persistFinal`. When no sink is mounted
+    // the write is audit-recorded as a no-op, never silently dropped.
+    await this.persistFigures(runId, figureAssets)
     const codeText = container.code ?? ''
     return { ok: true, reportText: rendered.text, loadCode: () => codeText }
   }
@@ -1439,6 +1446,61 @@ export class WorkflowExecutor {
         bytes,
         sha256,
       },
+    })
+  }
+
+  /**
+   * R1① — persist the minted figure SVGs next to the promoted final output.
+   * The rendered report references `figures/<figureId>.svg`; writing those
+   * bytes is what keeps the reference resolvable on disk (the R1① gate).
+   * Same sink contract as `persistFinal`: no sink mounted → audit-only.
+   * A write failure is a failed promotion — a DELIVERABLE artifact whose
+   * figures are missing would fail the figure-link check at the shell.
+   */
+  private async persistFigures(
+    runId: RunId,
+    figures: ReadonlyArray<{ figureId: string; svg: string }>,
+  ): Promise<void> {
+    const root = this.options.finalOutputRoot
+    if (root === undefined || figures.length === 0) {
+      if (figures.length > 0 && root === undefined) {
+        await this.audit({
+          eventType: 'final_output_written',
+          actor: 'paper-executor',
+          runId,
+          detail: {
+            kind: 'figures_persist_skipped',
+            figures: figures.length,
+            reason: 'no final sink mounted (set finalOutputRoot)',
+          },
+        })
+      }
+      return
+    }
+    const dir = join(root, runId, 'final', 'figures')
+    try {
+      await mkdir(dir, { recursive: true })
+      for (const figure of figures) {
+        await writeFile(join(dir, `${figure.figureId}.svg`), figure.svg, 'utf8')
+      }
+    } catch (error) {
+      await this.audit({
+        eventType: 'promotion_failed',
+        actor: 'paper-executor',
+        runId,
+        detail: { kind: 'figures_write_failed', dir, message: String(error) },
+      })
+      await this.engine.transitionRun(runId, 'failed')
+      throw new WorkflowExecutionError(
+        'gate-failed',
+        `run '${runId}' figure write failed at ${dir}: ${String(error).split('\n')[0]}`,
+      )
+    }
+    await this.audit({
+      eventType: 'final_output_written',
+      actor: 'paper-executor',
+      runId,
+      detail: { kind: 'figures_persisted', dir, figures: figures.length },
     })
   }
 

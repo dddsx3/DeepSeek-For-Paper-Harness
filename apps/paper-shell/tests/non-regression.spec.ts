@@ -84,3 +84,40 @@ describe('NR-4 — 交付格式非专有（任意阅读器可开）', () => {
     expect(bytes).toContain('from docx import Document')
   })
 })
+
+// ---------------------------------------------------------------------------
+// R1①/③ — figures join the zip deterministically; figure-manifest covers
+// every shipped figure (no untracked svg). The same cassette must still
+// produce the same zip bytes (G2 重跑同 sha256).
+// ---------------------------------------------------------------------------
+describe('R1①/③ — figures in the deliverable zip', () => {
+  const FIG_DELIVERABLE = {
+    'report.md': '# 报告\n\n![表](figures/F-A.svg)\n',
+    'sha256.txt': 'a'.repeat(64) + '\n',
+    'run-report.json': '{}',
+    'figures/F-B.svg': '<svg id="b"></svg>',
+    'figures/F-A.svg': '<svg id="a"></svg>', // note: deliberately NOT sorted input order
+    'figure-manifest.json': JSON.stringify({ figures: [{ file: 'figures/F-A.svg', sha256: 'h', renderer_version: 'okabe-ito-v1/svg' }] }),
+  }
+
+  it('figures + manifest join the zip alongside the base three entries', () => {
+    const entries = readStoreZip(zipTextFiles(FIG_DELIVERABLE))
+    const names = entries.map(e => e.name)
+    expect(names).toEqual(expect.arrayContaining(['figures/F-A.svg', 'figures/F-B.svg', 'figure-manifest.json']))
+    expect(names).toContain('report.md')
+    expect(names).toContain('sha256.txt')
+  })
+
+  it('same content → same zip bytes (deterministic on re-run, G2)', () => {
+    const first = zipTextFiles(FIG_DELIVERABLE)
+    const second = zipTextFiles(FIG_DELIVERABLE)
+    expect(Buffer.from(first).equals(Buffer.from(second))).toBe(true)
+  })
+
+  it('figure-manifest.json records no timestamp (determinism) and renders as plain text', () => {
+    const entries = readStoreZip(zipTextFiles(FIG_DELIVERABLE))
+    const manifest = entries.find(e => e.name === 'figure-manifest.json')?.text ?? ''
+    expect(manifest).not.toContain('generated_at')
+    expect(manifest).not.toContain('\u0000')
+  })
+})
