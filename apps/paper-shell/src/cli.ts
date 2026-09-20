@@ -37,7 +37,7 @@ import {
   createExploratoryProfile,
 } from '@deepseek-ai/dsh-paper-foundation'
 import { ModelingIr } from '@deepseek-ai/dsh-paper-foundation'
-import { brokenFigureLinks, deliverablesContractFindings, parseDeliverablesContract, type ActualDeliverable } from '@deepseek-ai/dsh-paper-foundation'
+import { brokenFigureLinks, deliverablesContractFindings, docxExportGate, docxPrecheckVerdict, parseDeliverablesContract, runDocxPrechecks, type ActualDeliverable } from '@deepseek-ai/dsh-paper-foundation'
 import { resolveShellRoute, blockMessage, failureFactsOf, fidelityBlockedHuman, lastFailureClassEvent, type ShellRoute } from './invoke.ts'
 import { assembleBundle } from './bundle.ts'
 import { classifyProblem, routeBanner, routeMismatch } from './route.ts'
@@ -249,6 +249,48 @@ async function main(): Promise<number> {
       return 1
     }
     console.log(`DELIVERABLES CONTRACT OK — ${parsed.contract.deliverables.length} items verified${notes.length > 0 ? ` (${notes.length} xlsx content notes: rows/cols not machine-read yet)` : ''} against ${deliverableDir}`)
+    return 0
+  }
+  // R2②/⑥ — paper-shell docx precheck <report.md> <figures-dir> — run the
+  // fifteen closed pre-export checks; 0 致命才允许导出 (exit 0) / fatal
+  // refuses with exit 1. 完成铁律 (增量 4): 没有问题也要写报告 — the
+  // precheck report file is always written next to the input.
+  if (sub === 'docx' && positionals[1] === 'precheck') {
+    const reportPath = positionals[2]
+    const figuresDir = positionals[3]
+    if (reportPath === undefined || figuresDir === undefined) {
+      console.error('usage: paper-shell docx precheck <report.md> <figures-dir>')
+      return 2
+    }
+    const reportMarkdown = await readFile(reportPath, 'utf8')
+    const figureFiles = figuresDir === ''
+      ? []
+      : await readdir(figuresDir).catch(() => [] as string[])
+    const results = runDocxPrechecks({ reportMarkdown, figureFiles })
+    const verdict = docxPrecheckVerdict(results)
+    const gate = docxExportGate(verdict)
+    const lines = results.map((r) => {
+      const mark = r.status === 0 ? '✅' : r.status === 1 ? '❌' : '⚠️'
+      return `${mark} [${r.code}] ${r.detail}`
+    })
+    const reportText = [
+      '# DOCX 导出前校核报告',
+      '',
+      `- 输入: ${reportPath}`,
+      `- figures/: ${figureFiles.length} 个文件`,
+      `- 结论: ${gate.allowed ? '允许导出（0 致命）' : '拒绝导出'} — ${verdict.passed} 通过 / ${verdict.fatalReasons.length} 致命 / ${verdict.notes} 无据可查`,
+      '',
+      ...lines,
+      '',
+    ].join('\n')
+    const reportOut = join(dirname(reportPath), 'docx-precheck-report.md')
+    await writeFile(reportOut, reportText, 'utf8')
+    for (const line of lines) console.log(line)
+    if (!gate.allowed) {
+      console.error(`DOCX PRECHECK REFUSED (${verdict.fatalReasons.length} fatal) — 0 致命才允许导出. 报告: ${reportOut}`)
+      return 1
+    }
+    console.log(`DOCX PRECHECK OK — 允许导出. 报告: ${reportOut}`)
     return 0
   }
   if (sub !== 'run') {

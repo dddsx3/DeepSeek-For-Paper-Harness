@@ -69,3 +69,22 @@
 R2③ 自动修复器（含 N30 逐字比对测试）→ R2④ OMML → R2⑤ 依赖 manifest →
 预检接入 `export-docx.py` 闸门（0 致命才写出）→ 随后 R3 图表链。完整论文产出
 运行（闭合 R1 CLI 判据 + 挡位时长实测 + R2 导出链闸门）等待用户批准。
+---
+
+## 第二批（R2③ 安全格式修复 + R2② 导出闸门 + R2⑤ 依赖 manifest）— ✅ 完成
+
+**R2③ 自动修复器 + N30**（`src/delivery/format-fix.ts` + 5 测试）：
+- `applySafeFormatFixes` 白名单四类演示层变换：CRLF→LF / 行尾空白 / 连续空行折叠（仅正文区）/ 题注独占行拆分；代码块内容逐字保留（fence 感知）。
+- `stripFormat` 去格式：剥 markdown 语法 + 空白、代码逐字；与修复器同款换行归一。
+- N30 判据机械钉死：`stripFormat(fix(doc)) === stripFormat(doc)`，语料含全部预检负例 + 触发全部四类修复的样本 + 代码块内空行/行尾空白的守卫；幂等（再修不再变）。测试按纪律抓到 1 个实现错误（尾部换行再追加破坏幂等）。
+
+**R2② 导出闸门 + CLI**（`docxExportGate` + `paper-shell docx precheck <report.md> <figures-dir>`）：
+- `docxExportGate(verdict)`：`allowed = 非 fatal`——0 致命才允许导出的机械落点。
+- CLI 三态实测：完整稿 exit 0（15 项全 ✅）；悬空图/缺章 exit 1；用法错 exit 2。
+- 完成铁律（增量 4）：无论通过与否都写出 `docx-precheck-report.md`（含 15 行逐项统计）——"没问题也要写报告"。
+
+**R2⑤ 依赖 manifest**（`src/delivery/export-deps.ts` + 3 测试）：闭集 `EXPECTED_EXPORT_DEPS`（python-docx / cairosvg / pandoc，各带 probe 与用途）+ `probeExportDeps`（每依赖 0/1/2，永不抛）+ `exportDepsSummary`（缺一即 notReady）。
+
+**回归**：paper 域 **138 文件 / 1570 测试全绿**（无 flake）；tsc clean；lib 重建 + 守卫 ok。
+
+**仍待下批**：R2④ LaTeX→OMML（走 pandoc 通道）、预检接 `export-docx.py` 真闸（脚本层 gate 调用 `docxExportGate`）、完整 E2E（等批准）。

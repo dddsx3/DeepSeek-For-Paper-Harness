@@ -245,3 +245,16 @@ export function docxPrecheckVerdict(
     notes: results.filter(r => r.status === 2).length,
   }
 }
+
+/**
+ * 导出闸门（R2② 判据的机械落点）：**0 致命才允许导出**。
+ * `allowed === fatal === false`。调用方（导出脚本 / CLI）必须拒绝在
+ * `allowed === false` 时写出 docx——这就是"检查不是装饰"。
+ */
+export function docxExportGate(
+  verdict: ReturnType<typeof docxPrecheckVerdict>,
+): { allowed: boolean; refused: ReadonlyArray<string> } {
+  return verdict.fatal
+    ? { allowed: false, refused: verdict.fatalReasons }
+    : { allowed: true, refused: [] }
+}
