@@ -351,3 +351,23 @@ describe('W9-P2 / O-L1-10 — idempotent re-entry after a partial write', () => 
     if (!second.ok) expect(second.code).toBe('conflicting_id')
   })
 })
+
+// ---------------------------------------------------------------------------
+// W11.5 baseline-2（首次真实产出实测）—— 围栏容错与负对照。
+// 证据：三次尝试里有两次把容器包在 ```json … ``` 里，raw JSON.parse 撞上
+// 反引号直接 parse_failed。
+// ---------------------------------------------------------------------------
+describe('W11.5 baseline-2 — 容器围栏是渲染差异（内容仍须合法）', () => {
+  it('一层 markdown 围栏被剥掉后正常解析', async () => {
+    const { parseModelContainer } = await import('../../src/produce/ir-producer.ts')
+    const inner = JSON.stringify({ __dsh_paper: 'ir-container-v1', entries: [{ kind: 'SymbolSpec', value: { symbol_id: 'SYM-n' } }], code: 'x' })
+    expect(parseModelContainer('```json\n' + inner + '\n```').ok).toBe(true)
+    expect(parseModelContainer('```\n' + inner + '\n```').ok).toBe(true)
+  })
+
+  it('负对照：围栏里不是合法 JSON 仍然拒绝（容错只到围栏为止）', async () => {
+    const { parseModelContainer } = await import('../../src/produce/ir-producer.ts')
+    expect(parseModelContainer('```json\n{ not json }\n```').ok).toBe(false)
+    expect(parseModelContainer('前言 ' + JSON.stringify({ __dsh_paper: 'ir-container-v1' })).ok).toBe(false)
+  })
+})

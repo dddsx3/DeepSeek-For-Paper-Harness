@@ -221,10 +221,15 @@ describe('W11.5-A1 — 数学定界符折叠不放过真改写', () => {
     const bold = '次品率的**线性函数**(因为所属区间)'
     expect(foldForAnchorMatch(bold).includes(foldForAnchorMatch('次品率的**线性**函数(因为所属区间)'))).toBe(true)
     // run-2: LaTeX 转义括号 —— 折叠后与普通括号等价（`\(p_f\)` ↔ `(p_f)`）。
-    // 不覆盖：把括号整个丢掉（`p_f`）是内容差异，折叠不吸收它（见负对照）。
     const escaped = '独立,成品次品率\\(p_f\\)是给定常数'
     expect(foldForAnchorMatch(escaped).includes(foldForAnchorMatch('独立,成品次品率(p_f)是给定常数'))).toBe(true)
-    expect(foldForAnchorMatch(escaped).includes(foldForAnchorMatch('独立,成品次品率p_f是给定常数'))).toBe(false)
+    // W11.5 baseline-1 反转（首次真实产出实测）：原断言把"整个丢掉括号"判为
+    // 内容差异、折叠不吸收——**被真实运行推翻**：E1 `参数为(p)的伯努利分布`
+    // vs E2 span `参数为p的伯努利分布,`，三次尝试全部被 B3 正向拒绝（相似度
+    // 52.8%，首分歧 @28），运行退化为 B-e1-direct。括号是分组，不是内容；
+    // 折叠现在吸收它，内容差异仍由字词/数字/下标负对照守住。
+    expect(foldForAnchorMatch(escaped).includes(foldForAnchorMatch('独立,成品次品率p_f是给定常数'))).toBe(true)
+    expect(foldForAnchorMatch(escaped).includes(foldForAnchorMatch('独立,成品次品率p_g是给定常数'))).toBe(false)
   })
 
   it('W11.5 扩展的负对照：字词/数字改写仍失败', async () => {
@@ -233,5 +238,32 @@ describe('W11.5-A1 — 数学定界符折叠不放过真改写', () => {
     expect(e1.includes(foldForAnchorMatch('只约束p=p0处的接收概率≥95%'))).toBe(false) // 数字改
     expect(e1.includes(foldForAnchorMatch('只约束p=p1处的接收概率≥90%'))).toBe(false) // 下标改
     expect(e1.includes(foldForAnchorMatch('只约束p=p0处的风险≤90%'))).toBe(false) // 词改
+  })
+})
+
+// ---------------------------------------------------------------------------
+// W11.5 baseline-1（首次真实产出实测）—— 折叠缺口：括号 + 半/全角标点。
+// 证据：E1 `品状态服从参数为(p)的伯努利分布` vs E2 span
+// `品状态服从参数为p的伯努利分布,`（括号丢失 + 半角逗号），三次尝试全部被
+// B3 正向拒绝（相似度 52.8%，首分歧 @28），运行退化为 B-e1-direct。
+// ---------------------------------------------------------------------------
+describe('W11.5 baseline-1 — 折叠扩展（括号/标点）与负对照', () => {
+  it('括号围绕短符号是渲染差异：`(p)` 与 `p` 折叠后一致', async () => {
+    const { foldForAnchorMatch } = await import('../../src/produce/e1-e2.ts')
+    const e1 = foldForAnchorMatch('品状态服从参数为(p)的伯努利分布')
+    expect(e1.includes(foldForAnchorMatch('品状态服从参数为p的伯努利分布'))).toBe(true)
+  })
+
+  it('半角/全角逗号是渲染差异（E2 的 `,` 匹配 E1 的 `，`）', async () => {
+    const { foldForAnchorMatch } = await import('../../src/produce/e1-e2.ts')
+    expect(foldForAnchorMatch('伯努利分布,相互独立').includes(foldForAnchorMatch('伯努利分布，相互独立'))).toBe(true)
+  })
+
+  it('负对照：字词/数字改写仍然失败（折叠没有放松内容）', async () => {
+    const { foldForAnchorMatch } = await import('../../src/produce/e1-e2.ts')
+    const e1 = foldForAnchorMatch('品状态服从参数为(p)的伯努利分布')
+    expect(e1.includes(foldForAnchorMatch('品状态服从参数为q的伯努利分布'))).toBe(false) // 符号改
+    expect(e1.includes(foldForAnchorMatch('品状态服从参数为(p)的正态分布'))).toBe(false) // 分布改
+    expect(e1.includes(foldForAnchorMatch('品状态服从参数为(p0)的伯努利分布'))).toBe(false) // 下标加
   })
 })

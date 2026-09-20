@@ -47,12 +47,12 @@ export interface CaptureOutputFile {
 
 export type ExecutionCaptureResult =
   | {
-      readonly ok: true
-      readonly record: ExecutionRecord
-      /** P1-3: the REAL produced output bytes, so a downstream stage can
+    readonly ok: true
+    readonly record: ExecutionRecord
+    /** P1-3: the REAL produced output bytes, so a downstream stage can
        *  turn the run's result file into a canonical Result. */
-      readonly outputs: ReadonlyArray<CaptureOutputFile>
-    }
+    readonly outputs: ReadonlyArray<CaptureOutputFile>
+  }
   | { readonly ok: false; readonly failures: ReadonlyArray<ExecutionCaptureFailure> }
 
 export interface CaptureExecutionInput {
@@ -119,9 +119,18 @@ export async function captureExecution(input: CaptureExecutionInput): Promise<Ex
   // Output set must match the run's declared locators, position-free.
   const produced = outcome.outputFiles.map(f => f.locator)
   if (!sameSet(produced, run.output_refs)) {
+    // W11.5 baseline-2 (首次真实产出实测): the mismatch alone hid the real
+    // cause — the model's code had a SYNTAX ERROR (a bare `S-P1:` object key)
+    // and died at parse time, producing nothing. A non-zero exit is the fact
+    // that tells the next attempt what to fix, so it travels WITH the
+    // mismatch (模型可见 ⟺ 已记录): exit code + the stderr tail.
+    const stderrTail = outcome.stderr.trim().split('\n').slice(-3).join(' | ').slice(0, 300)
+    const crash = outcome.exitStatus !== 0
+      ? `；runner exited ${outcome.exitStatus}${stderrTail === '' ? '' : ` — stderr: ${stderrTail}`}（代码很可能有语法/运行错误：先修代码，再核对声明输出）`
+      : ''
     failures.push({
       kind: 'OUTPUT_SET_MISMATCH',
-      reason: `runner produced [${produced.join(',')}] but RunArtifact.output_refs declares [${run.output_refs.join(',')}]`,
+      reason: `runner produced [${produced.join(',')}] but RunArtifact.output_refs declares [${run.output_refs.join(',')}]${crash}`,
     })
     return { ok: false, failures }
   }
