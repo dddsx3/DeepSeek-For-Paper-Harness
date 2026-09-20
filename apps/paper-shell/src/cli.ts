@@ -37,7 +37,7 @@ import {
   createExploratoryProfile,
 } from '@deepseek-ai/dsh-paper-foundation'
 import { ModelingIr } from '@deepseek-ai/dsh-paper-foundation'
-import { brokenFigureLinks, deliverablesContractFindings, docxExportGate, docxPrecheckVerdict, parseDeliverablesContract, runDocxPrechecks, type ActualDeliverable } from '@deepseek-ai/dsh-paper-foundation'
+import { brokenFigureLinks, deliverablesContractFindings, docxExportGate, docxPrecheckVerdict, exportDepsSummary, parseDeliverablesContract, probeExportDeps, runDocxPrechecks, type ActualDeliverable } from '@deepseek-ai/dsh-paper-foundation'
 import { resolveShellRoute, blockMessage, failureFactsOf, fidelityBlockedHuman, lastFailureClassEvent, type ShellRoute } from './invoke.ts'
 import { assembleBundle } from './bundle.ts'
 import { classifyProblem, routeBanner, routeMismatch } from './route.ts'
@@ -291,6 +291,52 @@ async function main(): Promise<number> {
       return 1
     }
     console.log(`DOCX PRECHECK OK — 允许导出. 报告: ${reportOut}`)
+    return 0
+  }
+  // R2②/R5 — paper-shell docx export <report.md> <figures-dir> <out.docx> —
+  // the REAL export gate: dependency probe → precheck (0 致命才允许) → the
+  // repository's own exporter (scripts/export-docx.py). The gate is not
+  // decoration: a fatal precheck exits 1 BEFORE the exporter runs, and the
+  // produced docx is verified to exist and carry non-trivial bytes.
+  if (sub === 'docx' && positionals[1] === 'export') {
+    const reportPath = positionals[2]
+    const figuresDir = positionals[3]
+    const outDocx = positionals[4]
+    if (reportPath === undefined || figuresDir === undefined || outDocx === undefined) {
+      console.error('usage: paper-shell docx export <report.md> <figures-dir> <out.docx>')
+      return 2
+    }
+    const depStatuses = probeExportDeps()
+    const deps = exportDepsSummary(depStatuses)
+    for (const s of depStatuses) console.log(`  ${s.status === 0 ? '✅' : s.status === 1 ? '❌' : '⚠️'} [dep] ${s.name}: ${s.detail}`)
+    if (!deps.ready) {
+      console.error(`DOCX EXPORT REFUSED — 导出依赖缺失: ${deps.missing.join(', ')}（不假装导出成功）`)
+      return 1
+    }
+    const reportMarkdown = await readFile(reportPath, 'utf8')
+    const figureFiles = await readdir(figuresDir).catch(() => [] as string[])
+    const precheck = runDocxPrechecks({ reportMarkdown, figureFiles })
+    const verdict = docxPrecheckVerdict(precheck)
+    const gate = docxExportGate(verdict)
+    if (!gate.allowed) {
+      console.error(`DOCX EXPORT REFUSED by precheck (${verdict.fatalReasons.length} fatal):`)
+      for (const r of verdict.fatalReasons) console.error(`  ❌ ${r}`)
+      return 1
+    }
+    const exporter = join(here, '..', '..', '..', 'scripts', 'export-docx.py')
+    const { spawnSync } = await import('node:child_process')
+    const run = spawnSync('python', [exporter, reportPath, figuresDir, outDocx], { encoding: 'utf8', timeout: 300_000 })
+    if (run.status !== 0) {
+      console.error(`DOCX EXPORT FAILED (exporter exit ${run.status ?? 'null'}):`)
+      console.error(String(run.stderr ?? '').split('\n').slice(-6).join('\n'))
+      return 1
+    }
+    const stat = await (await import('node:fs/promises')).stat(outDocx).catch(() => null)
+    if (stat === null || stat.size < 1000) {
+      console.error(`DOCX EXPORT FAILED — 导出器退出 0 但产物不存在或过小（${stat?.size ?? 0} bytes）：导出不算成功`)
+      return 1
+    }
+    console.log(`DOCX EXPORT OK — ${outDocx} (${stat.size} bytes, precheck ${verdict.passed} 通过 / 0 致命)`)
     return 0
   }
   if (sub !== 'run') {

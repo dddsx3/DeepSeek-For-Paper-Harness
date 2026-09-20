@@ -1,38 +1,49 @@
 /**
- * PaperSkeleton (DPH-PRD-v2 P0-7, W8) — the 10-section paper structure.
- *
- * PRD §5.1.4: 论文骨架 = 摘要 / 问题重述 / 问题分析 / 模型假设 / 符号
- * 说明 / 模型建立与求解 / 模型检验 / 模型评价 / 参考文献 / 代码附录.
+ * PaperSkeleton (DPH-PRD-v2 P0-7, W8; 路线书 R5①/D3) — the 12-chapter paper
+ * structure, aligned to the reference deliverable (REF-D: 摘要 / 问题重述 /
+ * 问题分析 / 模型假设 / 符号说明 / 模型建立与求解 / 结果对比与校核 / 模型评价与
+ * 推广 / AI 声明 / 参考文献 / 数据附录 / 代码附录).
  *
  * The skeleton is DATA (a closed list of sections with their slots), not
  * a renderer. The renderer (`renderPaperSkeleton`) fills the machine-owned
- * slots (符号表/假设表) from the canonical IR and leaves the prose slots
- * for the model. The 10 titles are the delivery contract: a paper that
- * renders the skeleton has all 10 sections present (M4 骨架完整率 100%).
+ * slots (符号表/假设表/要求表 + 摘要/结果/AI 声明/数据附录) from the canonical
+ * IR and leaves the prose slots for content. The 12 titles are the
+ * delivery contract: a paper that renders the skeleton has all 12 sections
+ * present (路线书 D3: 12 章 + 摘要 + AI 声明 + 参考文献 + 附录，无空槽 —
+ * 机器槽自动填，散文槽由内容提供，缺则渲染占位标注，不再静默缺失).
  */
 
 /** One paper section: a fixed title + which slots it carries. */
 export interface SectionSpec {
   readonly id: string
   readonly title: string
-  /** prose: model-written; symbols: auto from IR SymbolSpecs; assumptions:
-   *  auto from IR AssumptionSpecs; requirements: auto from REQUIRED_OUTPUTs. */
-  readonly kind: 'prose' | 'symbols' | 'assumptions' | 'requirements'
+  /**
+   * prose: 模型/外部内容写入（缺则占位标注，不静默缺失）;
+   * symbols/assumptions/requirements: auto from canonical IR;
+   * abstract/results/ai_disclosure/data_appendix: auto from renderer inputs
+   * (machine-generated content — 摘要数字必须回读 Result).
+   */
+  readonly kind: 'prose' | 'symbols' | 'assumptions' | 'requirements' | 'abstract' | 'results' | 'ai_disclosure' | 'data_appendix'
 }
 
-/** The closed 10-section skeleton (PRD §5.1.4). */
+/** The closed 12-section skeleton (路线书 D3). */
 export const PAPER_SECTIONS: ReadonlyArray<SectionSpec> = [
-  { id: 'abstract', title: '摘要', kind: 'prose' },
+  { id: 'abstract', title: '摘要', kind: 'abstract' },
   { id: 'restatement', title: '问题重述', kind: 'prose' },
   { id: 'analysis', title: '问题分析', kind: 'prose' },
   { id: 'assumptions', title: '模型假设', kind: 'assumptions' },
   { id: 'symbols', title: '符号说明', kind: 'symbols' },
   { id: 'model', title: '模型建立与求解', kind: 'prose' },
-  { id: 'validation', title: '模型检验', kind: 'prose' },
-  { id: 'evaluation', title: '模型评价', kind: 'prose' },
+  { id: 'results', title: '结果对比与校核', kind: 'results' },
+  { id: 'evaluation', title: '模型评价与推广', kind: 'prose' },
+  { id: 'ai_disclosure', title: 'AI 声明', kind: 'ai_disclosure' },
   { id: 'references', title: '参考文献', kind: 'prose' },
+  { id: 'data_appendix', title: '数据附录', kind: 'data_appendix' },
   { id: 'code', title: '代码附录', kind: 'prose' },
 ]
+
+/** The 12 section titles, for skeleton-presence gates (precheck etc). */
+export const PAPER_SECTION_TITLES: ReadonlyArray<string> = PAPER_SECTIONS.map(s => s.title)
 
 /** A single IR-derived row for a machine-owned table. */
 export interface AutoRow {
@@ -59,8 +70,8 @@ export interface PaperSkeletonInput {
 
 /**
  * Render the skeleton to markdown: every section title present, machine
- * slots rendered as tables from the IR, prose slots left as a placeholder
- * line (the model fills them — but the section EXISTS, so M4=100%).
+ * slots rendered from the IR + renderer-provided auto content, prose slots
+ * filled from `slots` or a visible placeholder (the section EXISTS — D3).
  */
 export function renderPaperSkeleton(input: PaperSkeletonInput): string {
   const lines: string[] = []
@@ -74,7 +85,7 @@ export function renderPaperSkeleton(input: PaperSkeletonInput): string {
       lines.push(renderTable(['符号', '含义', '单位'], input.symbols ?? [], '(符号表由规范 IR 自动生成)'))
     } else if (section.kind === 'assumptions') {
       lines.push(renderTable(['假设', '来源', '风险', '可检验'], input.assumptions ?? [], '(假设表由规范 IR 自动生成)'))
-    } else if (section.kind === 'requirements' || (section.id === 'restatement' && (input.requirements?.length ?? 0) > 0)) {
+    } else if (section.id === 'restatement' && (input.requirements?.length ?? 0) > 0) {
       // PRD §5.1.4: 问题重述 — the REQUIRED_OUTPUTs (from IR) render as
       // the "what must be produced" table under this section.
       lines.push(renderTable(['要求', '说明'], input.requirements ?? [], '(问题要求由规范 IR 自动生成)'))
@@ -82,6 +93,10 @@ export function renderPaperSkeleton(input: PaperSkeletonInput): string {
         lines.push('')
         lines.push(slot)
       }
+    } else if (section.kind === 'abstract' || section.kind === 'results' || section.kind === 'ai_disclosure' || section.kind === 'data_appendix') {
+      // machine-generated sections: the renderer SUPPLIES their content;
+      // a missing supply is a visible gap marker, never a silent skip.
+      lines.push(slot !== undefined && slot.trim() !== '' ? slot : '_(本机器槽未生成内容：渲染器未提供)_')
     } else if (slot !== undefined && slot.trim() !== '') {
       lines.push(slot)
     } else {

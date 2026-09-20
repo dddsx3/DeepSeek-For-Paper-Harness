@@ -1,0 +1,9 @@
+{
+  "figures": [
+    {
+      "file": "figures/F-N.svg",
+      "sha256": "ed507c68f86e47bd587400df7d79355a387db8518c906c9a809e65d5c4742ff2",
+      "renderer_version": "okabe-ito-v1/svg"
+    }
+  ]
+}

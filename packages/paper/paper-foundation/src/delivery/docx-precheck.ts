@@ -36,7 +36,8 @@ export const DOCX_CHECK_CODES = [
   'citation_resolution', // 引文号可解析
   'word_count',          // 正文字数
   'body_non_empty',      // 正文非空
-  'skeleton_present',    // 章节骨架齐备（必需 H1）
+  'skeleton_present',    // 章节骨架齐备（必需章节）
+  'no_placeholders',     // 无未填充占位（空槽不得交付）
 ] as const
 export type DocxCheckCode = (typeof DOCX_CHECK_CODES)[number]
 
@@ -58,7 +59,8 @@ export interface DocxPrecheckInput {
   readonly requiredHeadings?: ReadonlyArray<string>
 }
 
-const DEFAULT_HEADINGS = ['摘要', '问题重述', '问题分析', '模型假设', '符号说明', '模型建立与求解', '结果分析', '模型评价与推广']
+import { PAPER_SECTION_TITLES } from '../produce/paper-skeleton.ts'
+const DEFAULT_HEADINGS = PAPER_SECTION_TITLES
 
 /** math spans: $$…$$ then $…$ then \(…\) — longest first so $$ isn't eaten by $. */
 function mathSpanCounts(text: string): { block: number; inline: number; unclosedDollar: number } {
@@ -222,12 +224,22 @@ export function runDocxPrechecks(input: DocxPrecheckInput): ReadonlyArray<DocxCh
   })
 
   // 15 — 章节骨架齐备（每个必需 H1 至少出现一次）
-  const h1s = new Set(headings.filter(h => h.level === 1).map(h => h.title.replace(/\s+/g, '')))
-  const missing = requiredHeadings.filter(h => !h1s.has(h.replace(/\s+/g, '')))
+  // R5: 渲染骨架的章节是 H2（`# 标题` + `## 章节`）——一级与二级标题都算章节存在
+  const present = new Set(headings.filter(h => h.level === 1 || h.level === 2).map(h => h.title.replace(/\s+/g, '')))
+  const missing = requiredHeadings.filter(h => !present.has(h.replace(/\s+/g, '')))
   results.push({
     code: 'skeleton_present',
     status: missing.length === 0 ? 0 : 1,
     detail: missing.length === 0 ? '章节骨架齐备' : `缺少必需章节: ${missing.join(', ')}`,
+  })
+
+  // 16 — 无未填充占位（D3 无空槽的可执行判据）：渲染器留下的可见占位
+  // 说明某个章节没有内容——这种稿子不得导出（不是"检查装饰"）。
+  const placeholderHits = (text.match(/_\((?:模型待写入|本机器槽未生成内容)[^)]*\)_/g) ?? []).length
+  results.push({
+    code: 'no_placeholders',
+    status: placeholderHits === 0 ? 0 : 1,
+    detail: placeholderHits === 0 ? '无未填充占位' : `存在 ${placeholderHits} 处未填充占位（章节空槽不得交付）`,
   })
 
   return results
