@@ -23,6 +23,8 @@ import type { DeliveryDecision, DeliveryPolicy } from './delivery/delivery-polic
 import { makeCandidateArtifact } from './delivery/artifact-states.ts'
 import { promoteCandidateToDeliverable } from './delivery/promoter.ts'
 import { contentExists, gradeDelivery, renderDeliveryAppendix } from './delivery/delivery-grade.ts'
+// W11.5-A3: the digit self-consistency scan (path B's post-hoc digit check).
+import { digitSelfContradictionFindings } from './delivery/digit-check.ts'
 // M-QUAL (W10) DP-8: the boundary appendix renders UNCONDITIONALLY (CLEAN
 // deliveries carry their limits too) — a separate path from the MARKED
 // appendix, exactly as the spec demands.
@@ -182,6 +184,7 @@ export const EXECUTE_PROTOCOL_TEACHING = [
   '    AssumptionSpec value: {"assumption_id","scope_ref":"P1","statement","source_type","justification_refs","risk_level","testable","sensitivity_refs","status"} — source_type GIVEN|DERIVED|MODELING_CHOICE|APPROXIMATION; risk_level HIGH|MEDIUM|LOW; status ACTIVE|OBSOLETE|QUESTIONED. Ref-field shapes: justification_refs is a list of REGISTERED IR ids (or []); sensitivity_refs MUST be [] at declaration time — no Results exist yet (they are minted only after your code runs), and if non-empty they may only name Result/DataArtifact ids. NEVER put SymbolSpec ids (like "S-DT") into justification_refs/sensitivity_refs — that refuses the container.',
   '    EquationSpec value: {"equation_id","scope_ref":"P1","expression","representation","lhs_symbols","rhs_symbols","equation_type","unit","depends_on","source"} — representation SYMPY|LATEX_PRESENTATION; equation_type DEFINITION|CONSTRAINT|OBJECTIVE|DERIVED. lhs_symbols/rhs_symbols are lists of the symbol_id VALUES you declared in your SymbolSpec entries (like ["S-Y"]) — NEVER raw math tokens (like ["y"]): an unregistered name refuses the container. depends_on lists your equation_ids; unit is a non-empty string ("dimensionless" when unitless).',
   '    ModelSpec value: {"model_id","problem_refs":["P1"],"assumption_refs","variable_refs","parameter_refs","equation_refs","constraints","objective","dependencies"} — every field is required; assumption_refs/equation_refs list the ids of AssumptionSpec/EquationSpec entries you declared.',
+  '      NOTE (element shapes — a wrong shape refuses the container): variable_refs/assumption_refs/equation_refs/dependencies are plain id lists; constraints is an ARRAY OF STRINGS (write [] when you have none — NEVER a single string); objective is a string or null; parameter_refs is a list of {"symbol_ref","value"} objects.',
   // W8.11-A1c (repair, found by the second real run): `parameter_refs` was the
   // ONE field in this lecture whose ELEMENT shape was never stated — the line
   // above lists it as a bare name, right next to `variable_refs`, which IS a
@@ -201,11 +204,14 @@ export const EXECUTE_PROTOCOL_TEACHING = [
   // is CODE-emitted (N19) — its keys must be the tokens of the SymbolSpecs
   // the container already declared, so the harness can resolve them into a
   // canonical NumericConfig (fail-closed on unknown tokens).
-  '  Config emission (SHOULD): declare "numeric_config.json" in run.outputBasenames and write it from your code — ONE JSON object {"discretization": {<token>: <number>}, "physical": {<token>: <number>}, "choices": {<key>: <string>}, "property_set": <string or null>} where every discretization/physical key is EXACTLY the token of a SymbolSpec you declared (e.g. the N, dt, h you solve with). This is the mechanical record of what your code actually ran with; the config-consistency gate compares it against your declared parameters and sibling runs. A declared emission that does not parse or resolve refuses the container.',
-  '  interpretations: declaration-based. results: [{ result_id, name, source: { locator: <one outputBasenames entry>, jsonPath: <path to the number inside that file> }, unit }]. The locator must be one of your declared outputs; every Result reads its value via jsonPath — never a literal number. '
+  '  Config emission (SHOULD): declare "numeric_config.json" in run.outputBasenames and write it from your code — ONE JSON object {"discretization": {<symbol>: <number>}, "physical": {<symbol>: <number>}, "choices": {<key>: <string>}, "property_set": <string or null>} where each key names a SymbolSpec you declared (its token OR its symbol_id — both are accepted). Values must be NUMBERS: omit a key you cannot fill rather than writing null. This is the mechanical record of what your code actually ran with; the config-consistency gate compares it against your declared parameters and sibling runs.',
+  '  interpretations: declaration-based. results: [{ result_id, name, source: { locator: <one outputBasenames entry>, jsonPath: <a BARE dotted path to the number inside that file, e.g. "n_fixed" — not "$.n_fixed"; array elements use the index form "oc[2].accept"; it must resolve to a JSON number, so emit ranges as two numeric fields and vectors as one field per entry> }, unit }]. The locator must be one of your declared outputs; every Result reads its value via jsonPath — never a literal number. '
   + 'claims (declare them here): [{ claim_id, text, claim_type: "NUMERIC", criticality: "CRITICAL", result_refs: [<a result_id>], model_refs: [<your model_id>], evidence_refs: [<a result_id>] }] — a CRITICAL NUMERIC claim binds one Result as the number the paper states; without a claim your REQUIRED_OUTPUT stays unpaid and delivery is blocked.',
   '  interpretations.figures (optional): [{ figure_id, chart_type: "line"|"scatter"|"bar"|"table", data_refs: [Result ids], caption? }] — structure only; the harness renders the bytes and computes every hash. caption/x_label/y_label must NOT contain numeric literals (write quantities in words, e.g. "final value" instead of "y(2.0)"): a number in these strings is refused unless it is exactly the value of a referenced Result.',
-  '  narrative: { title, conclusion: { claims: [{ text, quantity_refs: [Result ids], representation? }] } } — a conclusion number must be the bound Result value verbatim, or an explicitly declared rendering: {"kind":"rounded","dp":<0..20>} or {"kind":"with_uncertainty","uncertainty_refs":[...]}.',
+  '  narrative: { title, conclusion: { claims: [{ text, quantity_refs: [Result ids], representation? }] } } — a conclusion number must be the bound Result value verbatim, or an explicitly declared rendering: {"kind":"rounded","dp":<0..20>} or {"kind":"with_uncertainty","uncertainty_refs":[...]}. The check is mechanical: each claim\'s text must CONTAIN the value of every quantity_ref, written into the sentence — text "The unified minimum sample size is 1762." with quantity_refs ["R-N-FIXED"]. A qualitative sentence that names the Result but never states its value is refused (real refusal: "The unified sample size is the maximum of the two case-specific minimum sample sizes.").',
+  '  Re-emission on retry (REQUIRED): a retried container must re-declare every entry it declared before, BYTE-IDENTICAL unless the refusal message asked you to change that entry — the store is append-only and same-id-different-content is a conflict. If you must improve wording, give the entry a NEW id instead of editing the old one.',
+  '  Numeric robustness (REQUIRED): your code\'s output JSON must carry finite numbers for EVERY declared jsonPath. JavaScript Infinity/NaN become null in JSON.stringify, and a null (or any non-number) at a declared path refuses the container. Naive product formulas for binomial coefficients overflow around n≈170 — compute binomial probabilities in log space (sum of Math.log terms) or with a recurrence that cannot overflow; sanity-check that every value you emit is finite before writing the file (real refusal: a binomial CDF at n=2307 returned Infinity, serialized as null, and the container was refused after the code had already run).',
+  '  In-container duplicates (REQUIRED): the same id must not appear twice within ONE container either — including SymbolSpec ids declared for different scopes. Run-11 attempt 1 declared two different S-C entries (case-1 and case-2 critical values); give each distinct quantity a distinct id (S-C1, S-C2).',
   'The container is refused (and the attempt fails) if: you declare kind "ProblemSpec" or "RequirementSpec", or re-declare "DA-RAW"; you write content_hash anywhere; an entry kind is not one of the five above; a number appears outside code/declarations; a jsonPath is missing or does not resolve to a finite number; the run block carries a foreign key; or the conclusion states an undeclared rounding.',
 ].join('\n')
 
@@ -373,6 +379,13 @@ export interface ExecutorOptions {
  */
 const EMPTY_IR = new ModelingIr()
 
+/**
+ * W11.5-A2 — the closed set of delivery paths a manifest may declare.
+ * See `manifestSchema.delivery_path` for the meaning of each value.
+ */
+export const DELIVERY_PATHS = ['A-produce-chain', 'B-e1-direct', 'A-normalized-no-code'] as const
+export type DeliveryPath = (typeof DELIVERY_PATHS)[number]
+
 /** Stable reasons the executor refuses to finish a run. */
 export type ExecutionFailureCode =
   | 'budget-exhausted'
@@ -518,6 +531,14 @@ export class WorkflowExecutor {
    * cache exists to prevent).
    */
   readonly #e2ViolationsByRun: Map<string, PriorViolation[]> = new Map()
+
+  /**
+   * W11.5-A2 — which exit produced each run's deliverable body. Written at
+   * the three real exits of the receive stage (production chain / normalized
+   * no-code / E1-direct fallback) so `buildManifest` states a FACT rather
+   * than reconstructing one from the audit trail.
+   */
+  readonly #deliveryPathByRun: Map<string, DeliveryPath> = new Map()
 
   /**
    * TASK-PW W4: guided-retry budget spent per run and per class (NONE and
@@ -846,8 +867,17 @@ export class WorkflowExecutor {
           kind: 'e2_normalization_failed',
           reason: `${receiveFacts.reason}（未通过的保真检查：${receiveFacts.failedRules.join('、') || '无'}）`,
         }]
+      // W11.5-A3: the digit check runs on the DELIVERED text when the body is
+      // the E1 analysis (path B — the one path with no executable evidence).
+      // Its findings are annotations (fail-soft), never a separate verdict
+      // path: a self-contradicting draft is MARKED with the contradiction
+      // named, not silently delivered and not blocked.
+      const digitFindings: ReadonlyArray<{ kind: string; reason: string }> =
+        this.options.deliveryGradeMode === 'fail-soft' && this.#deliveryPathByRun.get(String(runId)) === 'B-e1-direct'
+          ? digitSelfContradictionFindings(current).map(f => ({ kind: f.kind, reason: f.reason }))
+          : []
       const gradeInput = this.options.deliveryGradeMode === 'fail-soft'
-        ? [...gateFailures, ...reviewFailures, ...vFindings, ...receiveFailures]
+        ? [...gateFailures, ...reviewFailures, ...vFindings, ...receiveFailures, ...digitFindings]
         : [...gateFailures, ...reviewFailures]
       const fatal = {
         emptyContent: !contentExists(current),
@@ -1876,12 +1906,24 @@ export class WorkflowExecutor {
               throw err
             }
             this.#codeLoaders.set(String(runId), chain.loadCode)
+            // W11.5-A2: the code REALLY ran — the strongest delivery path.
+            this.#deliveryPathByRun.set(String(runId), 'A-produce-chain')
             // W8.10-B1: the attempt succeeded — the corrections are spent.
             this.clearE2Violations(runId)
             await this.engine.transitionNode(node.id, 'succeeded')
             return { nodeId: node.id, text: chain.reportText }
           }
         }
+        // W11.5-A2: the container was accepted but carried no executable
+        // code, so no number was minted by a run — a weaker path than the
+        // production chain and a different claim from it.
+        //
+        // `type === 'execute'` is load-bearing (caught by NR-1's first run):
+        // this statement sits on the shared exit of `runNode`, which the
+        // plan/review/revise nodes also take — without the guard the review
+        // node overwrote the fact the fallback had just recorded, and the
+        // manifest claimed a path that never happened.
+        if (type === 'execute') this.#deliveryPathByRun.set(String(runId), 'A-normalized-no-code')
         await this.engine.transitionNode(node.id, 'succeeded')
         return { nodeId: node.id, text }
       } catch (error: unknown) {
@@ -2143,6 +2185,9 @@ export class WorkflowExecutor {
     if (this.options.deliveryGradeMode !== 'fail-soft') return null
     const e1Text = this.#e1ByRun.get(String(runId))
     if (e1Text === undefined || !contentExists(e1Text)) return null
+    // W11.5-A2: this run's body is the E1 analysis — declare it before any
+    // downstream reader can mistake it for a chain-verified delivery.
+    this.#deliveryPathByRun.set(String(runId), 'B-e1-direct')
     const facts = this.#receiveFailures.get(String(runId))
     const draft = renderE1DirectDraft({
       e1Text,
@@ -2377,6 +2422,10 @@ export class WorkflowExecutor {
       // 5.0-R (R1-4): an EXPLORATORY deliverable is informal — it must
       // never be consumed as a formal result.
       informal: run.mode === 'exploratory',
+      // W11.5-A2: the recorded exit — never inferred from prose or audit.
+      // Default 'A-normalized-no-code' is the only exit that needs no
+      // dedicated set-site (it is what a container without code produces).
+      delivery_path: this.#deliveryPathByRun.get(String(run.id)) ?? 'A-normalized-no-code',
       finalArtifactId: artifact.id,
       gates: { review: gatePassed },
       // E4c: fast deliveries with advisory MINOR defects record them so the

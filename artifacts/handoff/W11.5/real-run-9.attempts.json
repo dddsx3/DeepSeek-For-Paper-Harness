@@ -1,0 +1,121 @@
+{
+  "runId": "884f3869-1bd4-4d2a-aec7-6efad5062a8c",
+  "generatedAt": "2026-09-19T20:11:31.941Z",
+  "attempts": [
+    {
+      "attempt": 1,
+      "refusals": [
+        {
+          "code": "result_source_invalid",
+          "attempt": 1,
+          "reason": ""
+        }
+      ],
+      "fidelity": [
+        {
+          "id": "B4 逐问推理覆盖",
+          "ok": true,
+          "detail": "全部 1 个 REQUIRED_OUTPUT 在 E1 中有推理锚点"
+        },
+        {
+          "id": "B5 锚点 id 形态（E1 侧）",
+          "ok": true,
+          "detail": "全部 15 个锚点 id 都是可用名字"
+        },
+        {
+          "id": "B3 反向（E1 假设须被声明）",
+          "ok": true,
+          "detail": "E1 的 11 条假设锚点均有对应 AssumptionSpec"
+        },
+        {
+          "id": "B3 锚点同一性（声明须在 E1 中有同名锚点）",
+          "ok": true,
+          "detail": "11 条假设声明在 E1 中均有同名锚点"
+        },
+        {
+          "id": "B3 正向（声明须逐字锚定 E1）",
+          "ok": true,
+          "detail": "20 条 Assumption/Equation 声明全部逐字锚定 E1"
+        }
+      ],
+      "e2_chars": 24630
+    },
+    {
+      "attempt": 2,
+      "refusals": [
+        {
+          "code": "E1_E2_FIDELITY_VIOLATION",
+          "attempt": 2,
+          "reason": ""
+        }
+      ],
+      "fidelity": [
+        {
+          "id": "B4 逐问推理覆盖",
+          "ok": true,
+          "detail": "全部 1 个 REQUIRED_OUTPUT 在 E1 中有推理锚点"
+        },
+        {
+          "id": "B5 锚点 id 形态（E1 侧）",
+          "ok": true,
+          "detail": "全部 15 个锚点 id 都是可用名字"
+        },
+        {
+          "id": "B3 反向（E1 假设须被声明）",
+          "ok": true,
+          "detail": "E1 的 11 条假设锚点均有对应 AssumptionSpec"
+        },
+        {
+          "id": "B3 锚点同一性（声明须在 E1 中有同名锚点）",
+          "ok": true,
+          "detail": "11 条假设声明在 E1 中均有同名锚点"
+        },
+        {
+          "id": "B3 正向（声明须逐字锚定 E1）",
+          "ok": false,
+          "detail": "E-FIXED-DESIGN: e1_span 在 E1 中找不到逐字匹配（疑似改写）〔相似度 25.0%，首分歧 @14，span「整数临界值c,使P_{p=0.1」vs E1「整数临界值c,使-P_{p=0.」〕；E-SPRT-BOUND: e1_span 在 E1 中找不到逐字匹配（疑似改写）〔相似度 42.9%，首分歧 @23，span「=9.5→拒收;Λ_n≤B=0.」vs E1「=9.5→拒收;-Λ_n≤B=0」〕"
+        }
+      ],
+      "e2_chars": 21856
+    },
+    {
+      "attempt": 3,
+      "refusals": [
+        {
+          "code": "parse_failed",
+          "attempt": 3,
+          "reason": "model output is not JSON: SyntaxError: Expected double-quoted property name in JSON at position 9439 (line 1 column 9440)"
+        },
+        {
+          "code": "parse_failed",
+          "attempt": 3,
+          "reason": ""
+        }
+      ],
+      "fidelity": [],
+      "e2_chars": 19242
+    },
+    {
+      "terminal": "e1_direct_delivery",
+      "failedRules": [
+        "parse_failed"
+      ],
+      "reason": "EXECUTE output refused 3 times",
+      "e1_chars": 8862,
+      "assumptions": 11
+    },
+    {
+      "terminal": "gate_failed",
+      "reason": "execution:BLOCKED:execution gate: 2 finding(s) (config_declared_actual_mismatch: run '884f3869-1bd4-4d2a-aec7-6efad5062a8c' emitted physical 'S-A' = 9.499999999999998 but its model 'M-SAMPLING' declares 9.5 (C-2: the recorded value is not the value that was declared to run — record distortion, D-3))"
+    },
+    {
+      "terminal": "gate_failed",
+      "reason": "ir_canonicalization:BLOCKED:missing IR backbone: Result,Claim; no CRITICAL claim in canonical IR"
+    },
+    {
+      "terminal": "gate_failed",
+      "reason": "requirement_coverage:BLOCKED:requirement coverage: 1 finding(s) (required_output_unpaid: REQUIRED_OUTPUT 'R-OUT' of problem 'P1' is not covered: only 0/1 distinct CRITICAL results reach this problem (A7 v0 fail-closed))"
+    }
+  ],
+  "attemptBodies": {}
+}

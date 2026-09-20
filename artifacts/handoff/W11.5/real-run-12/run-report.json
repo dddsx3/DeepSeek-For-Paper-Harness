@@ -1,0 +1,81 @@
+{
+  "runId": "63b7de27-270d-4479-a8f8-dcd078c99897",
+  "tier": "T1",
+  "mode": "strict",
+  "status": "BLOCKED",
+  "routed_family": "F4",
+  "route_truth": "F3+F4",
+  "route_mismatch": false,
+  "code_provenance": {
+    "checked_at": "2026-09-19T20:24:42.631Z",
+    "ok": true,
+    "targets": [
+      {
+        "name": "@deepseek-ai/dsh-paper-foundation",
+        "ok": true,
+        "detail": "entry lib/index.js is 37883 ms newer than the newest source"
+      },
+      {
+        "name": "@deepseek-ai/dsh-storage",
+        "ok": true,
+        "detail": "entry lib/index.js is 1245156652 ms newer than the newest source"
+      },
+      {
+        "name": "@deepseek-ai/dsh-storage-domain",
+        "ok": true,
+        "detail": "entry lib/index.js is 1245167442 ms newer than the newest source"
+      },
+      {
+        "name": "@deepseek-ai/dsh-storage-json",
+        "ok": true,
+        "detail": "entry lib/index.js is 1245167531 ms newer than the newest source"
+      },
+      {
+        "name": "@deepseek-ai/dsh-llm",
+        "ok": true,
+        "detail": "entry lib/index.js is 1245167712 ms newer than the newest source"
+      },
+      {
+        "name": "@deepseek-ai/cordis",
+        "ok": true,
+        "detail": "entry lib/index.js is 1245156305 ms newer than the newest source"
+      }
+    ]
+  },
+  "minted_ir_count": 51,
+  "classifier": "truncated",
+  "code": "gate-failed",
+  "humanized": "本次运行的输出在中途撞到提供方的输出长度上限被截断（不是题目或模型违规）。",
+  "wall_clock_seconds": 552.6,
+  "usage": {
+    "input_tokens": 10168,
+    "output_tokens": 45679,
+    "cost_usd": 0
+  },
+  "memo": {
+    "passed_gates": [
+      "plan"
+    ],
+    "minted_ir_kinds": [
+      "DataArtifact",
+      "RequirementSpec",
+      "ProblemSpec",
+      "SymbolSpec",
+      "AssumptionSpec",
+      "EquationSpec",
+      "ModelSpec",
+      "RunArtifact",
+      "ExecutionRecord",
+      "NumericConfig",
+      "Result",
+      "Claim"
+    ],
+    "minted_ir_count": 51,
+    "failing_node": {
+      "title": "execute",
+      "attempts": 3,
+      "code": null
+    },
+    "suggested_intervention": "上限不会变，重复提交同一个题目得不到不同结果。这是「输出预算/协议长度不匹配」：请报告给维护者（协议分片或提高预算后才能通过）。"
+  }
+}

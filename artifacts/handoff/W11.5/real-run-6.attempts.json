@@ -1,0 +1,138 @@
+{
+  "runId": "37ed1519-01f7-4377-a11f-dde31b1eed3b",
+  "generatedAt": "2026-09-19T20:11:30.378Z",
+  "attempts": [
+    {
+      "attempt": 1,
+      "refusals": [
+        {
+          "code": "E1_E2_FIDELITY_VIOLATION",
+          "attempt": 1,
+          "reason": ""
+        }
+      ],
+      "fidelity": [
+        {
+          "id": "B4 逐问推理覆盖",
+          "ok": true,
+          "detail": "全部 1 个 REQUIRED_OUTPUT 在 E1 中有推理锚点"
+        },
+        {
+          "id": "B5 锚点 id 形态（E1 侧）",
+          "ok": true,
+          "detail": "全部 10 个锚点 id 都是可用名字"
+        },
+        {
+          "id": "B3 反向（E1 假设须被声明）",
+          "ok": true,
+          "detail": "E1 的 9 条假设锚点均有对应 AssumptionSpec"
+        },
+        {
+          "id": "B3 锚点同一性（声明须在 E1 中有同名锚点）",
+          "ok": true,
+          "detail": "9 条假设声明在 E1 中均有同名锚点"
+        },
+        {
+          "id": "B3 正向（声明须逐字锚定 E1）",
+          "ok": false,
+          "detail": "EQ-FIXED-ACCEPT: e1_span 在 E1 中找不到逐字匹配（疑似改写）〔相似度 9.3%，首分歧 @7，span「固定样本量方案:取接收数c,判」vs E1「固定样本量方案作为对照与工程可」〕"
+        }
+      ],
+      "e2_chars": 30446
+    },
+    {
+      "attempt": 2,
+      "refusals": [
+        {
+          "code": "E1_E2_FIDELITY_VIOLATION",
+          "attempt": 2,
+          "reason": ""
+        }
+      ],
+      "fidelity": [
+        {
+          "id": "B4 逐问推理覆盖",
+          "ok": true,
+          "detail": "全部 1 个 REQUIRED_OUTPUT 在 E1 中有推理锚点"
+        },
+        {
+          "id": "B5 锚点 id 形态（E1 侧）",
+          "ok": true,
+          "detail": "全部 10 个锚点 id 都是可用名字"
+        },
+        {
+          "id": "B3 反向（E1 假设须被声明）",
+          "ok": true,
+          "detail": "E1 的 9 条假设锚点均有对应 AssumptionSpec"
+        },
+        {
+          "id": "B3 锚点同一性（声明须在 E1 中有同名锚点）",
+          "ok": true,
+          "detail": "9 条假设声明在 E1 中均有同名锚点"
+        },
+        {
+          "id": "B3 正向（声明须逐字锚定 E1）",
+          "ok": false,
+          "detail": "EQ-FIXED-ACCEPT: e1_span 在 E1 中找不到逐字匹配（疑似改写）〔相似度 43.8%，首分歧 @7，span「固定样本量方案:取接收数c,判」vs E1「固定样本量方案作为对照与工程可」〕"
+        }
+      ],
+      "e2_chars": 33296
+    },
+    {
+      "attempt": 3,
+      "refusals": [
+        {
+          "code": "schema_violation",
+          "attempt": 3,
+          "reason": "entry 'SymbolSpec' violates its closed IR schema — token: token must not contain control, format, surrogate or separator characters"
+        }
+      ],
+      "fidelity": [
+        {
+          "id": "B4 逐问推理覆盖",
+          "ok": true,
+          "detail": "全部 1 个 REQUIRED_OUTPUT 在 E1 中有推理锚点"
+        },
+        {
+          "id": "B5 锚点 id 形态（E1 侧）",
+          "ok": true,
+          "detail": "全部 10 个锚点 id 都是可用名字"
+        },
+        {
+          "id": "B3 反向（E1 假设须被声明）",
+          "ok": true,
+          "detail": "E1 的 9 条假设锚点均有对应 AssumptionSpec"
+        },
+        {
+          "id": "B3 锚点同一性（声明须在 E1 中有同名锚点）",
+          "ok": true,
+          "detail": "9 条假设声明在 E1 中均有同名锚点"
+        },
+        {
+          "id": "B3 正向（声明须逐字锚定 E1）",
+          "ok": true,
+          "detail": "19 条 Assumption/Equation 声明全部逐字锚定 E1"
+        }
+      ],
+      "e2_chars": 24206
+    },
+    {
+      "terminal": "e1_direct_delivery",
+      "failedRules": [
+        "schema_violation"
+      ],
+      "reason": "DRIFT guidance budget exhausted",
+      "e1_chars": 11726,
+      "assumptions": 9
+    },
+    {
+      "terminal": "gate_failed",
+      "reason": "ir_canonicalization:BLOCKED:missing IR backbone: ModelSpec,RunArtifact,Result,Claim; no CRITICAL claim in canonical IR; minimum Problem Contract not satisfied (RAW_PROBLEM DataArtifact + REQUIRED_OUTPUT RequirementSpec + SymbolSpec)"
+    },
+    {
+      "terminal": "gate_failed",
+      "reason": "requirement_coverage:BLOCKED:requirement coverage: 1 finding(s) (required_output_unpaid: REQUIRED_OUTPUT 'R-OUT' of problem 'P1' is not covered: only 0/1 distinct CRITICAL results reach this problem (A7 v0 fail-closed))"
+    }
+  ],
+  "attemptBodies": {}
+}

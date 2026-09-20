@@ -1,0 +1,4 @@
+attempt 1 (25140 chars) → [container] schema_violation: entry 'ModelSpec' violates its closed IR schema — constraints: Invalid input: expected array, received string
+attempt 2 (22704 chars) → [container] schema_violation: entry 'ModelSpec' violates its closed IR schema — constraints: Invalid input: expected array, received string
+attempt 3 (17356 chars) → [interpretation] result_source_invalid: result 'RES-N1': path 'n_case1' in 'file:///runs/RUN-ATT3/results.json' does not resolve to a finite number (got null)
+   entries: {"SymbolSpec":28,"AssumptionSpec":8,"EquationSpec":6,"ModelSpec":1}

@@ -121,6 +121,21 @@ export const manifestSchema = z.object({
   // never usable as a formal deliverable. Required (not optional) so a
   // manifest cannot forget to declare its status.
   informal: z.boolean(),
+  /**
+   * W11.5-A2 — WHICH path produced the delivered body. Required, not
+   * optional: "MVP-1 达成" and "路径 A 打通" are different claims, and
+   * before this field the only way to tell them apart was reading the audit
+   * trail by hand (not machine-checkable). The three values are the three
+   * real exits of the receive stage:
+   *   - 'A-produce-chain'      — container accepted AND its `code` really ran
+   *                              (capture + interpretation + Result/Claim).
+   *   - 'A-normalized-no-code' — container accepted but carried no executable
+   *                              code, so the delivered text is the model's
+   *                              normalized narrative (no numbers were minted).
+   *   - 'B-e1-direct'          — the E1 analysis became the deliverable
+   *                              (fail-soft fallback; numbers unverified).
+   */
+  delivery_path: z.enum(['A-produce-chain', 'B-e1-direct', 'A-normalized-no-code']),
   finalArtifactId: artifactIdSchema.nullable(),
   gates: z.record(z.string(), z.boolean()),
   // E4c (P2): fast-mode delivery may carry MINOR review defects; when it

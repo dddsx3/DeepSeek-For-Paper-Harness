@@ -1,0 +1,33 @@
+{
+  "persist": "../../../apps/paper-shell/src/paper-shell-persist-7nqJcf",
+  "results": [
+    {
+      "attempt": 1,
+      "chars": 18609,
+      "stage": "fidelity",
+      "code": "E1_E2_FIDELITY_VIOLATION",
+      "reason": "B3 正向（声明须逐字锚定 E1）: A-DESTRUCTIVE-TEST: e1_span 在 E1 中找不到逐字匹配（疑似改写）〔相似度 97.8%，首分歧 @45，span「常规抽样检验处理)」vs E1「常规抽样检验处理.」〕；A-DETECT-PERFECT: e1_span 在 E1 中找不到逐字匹配（疑似改写）〔相似度 96.9%，首分歧 @31，span「,按理想检测处理)」vs E1「,按理想检测处理.」〕"
+    },
+    {
+      "attempt": 2,
+      "chars": 20891,
+      "stage": "fidelity",
+      "code": "E1_E2_FIDELITY_VIOLATION",
+      "reason": "B3 正向（声明须逐字锚定 E1）: E-QI: e1_span 在 E1 中找不到逐字匹配（疑似改写）〔相似度 67.4%，首分歧 @29，span「直接进入装配);若检测(xi=1」vs E1「直接进入装配);-若检测(xi=」〕"
+    },
+    {
+      "attempt": 3,
+      "chars": 17184,
+      "stage": "interpretation",
+      "code": "store_refused",
+      "reason": "Claim 'CL-ACCEPT-N' refused: unresolved_reference: 'RES-ACCEPT-OC' is not registered (expected any registered object)",
+      "kindCounts": {
+        "SymbolSpec": 16,
+        "AssumptionSpec": 16,
+        "EquationSpec": 8,
+        "ModelSpec": 1,
+        "DataArtifact": 2
+      }
+    }
+  ]
+}

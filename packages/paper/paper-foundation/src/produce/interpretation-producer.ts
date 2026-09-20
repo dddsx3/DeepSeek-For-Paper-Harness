@@ -148,12 +148,39 @@ interface ParsedInterpretation {
   }>
 }
 
-/** Resolve a dotted path ('a.b.c') inside a parsed JSON object. */
+/**
+ * Resolve a dotted path ('a.b.c') inside a parsed JSON object.
+ *
+ * W11.5-A1: a leading JSONPath root marker (`$.a.b`, or a bare `$`) is
+ * ACCEPTED as notation, not as a key. Evidence: all three E2 attempts of the
+ * W10-MQUAL real run wrote `$.field` — the standard JSONPath spelling — and
+ * `split('.')` then looked up a key literally named `$`, so a container that
+ * had passed every fidelity check died with `result_source_invalid`. The
+ * marker is a rendering difference of the SAME path (the same rule the
+ * anchor fold applies to `$` math delimiters); accepting it weakens no
+ * check: the value must still resolve to a finite number, at the same
+ * location, from the run's real bytes. A path that names no key still fails.
+ */
 export function resolveJsonPath(root: unknown, path: string): unknown {
   let cursor = root
-  for (const segment of path.split('.')) {
+  const normalized = path === '$' || path === '' ? '' : path.startsWith('$.') ? path.slice(2) : path
+  if (normalized === '') return root
+  for (const rawSegment of normalized.split('.')) {
     if (typeof cursor !== 'object' || cursor === null) return undefined
-    cursor = (cursor as Record<string, unknown>)[segment]
+    // W11.5 (run-9 attempt 1, real run): `oc[2].accept` — a JSONPath index
+    // suffix. The bracket is the same rendering-vs-content split as `$.`:
+    // `cases[0]` and `cases.0` name the same element, so a numeric bracket
+    // suffix is accepted as an array index. (A NON-numeric suffix is NOT
+    // substituted: object keys like `items[total]` name nothing here, and
+    // guessing would turn a locator into a search.)
+    const m = /^(.+?)\[(\d+)\]$/.exec(rawSegment)
+    const index = m !== null ? (m[2] as string) : null
+    const key = m !== null ? (m[1] as string) : rawSegment
+    cursor = (cursor as Record<string, unknown>)[key]
+    if (index !== null) {
+      if (!Array.isArray(cursor)) return undefined
+      cursor = cursor[Number(index)]
+    }
   }
   return cursor
 }

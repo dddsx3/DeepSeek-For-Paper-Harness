@@ -1,0 +1,32 @@
+{
+  "persist": "../../../apps/paper-shell/src/paper-shell-persist-Nqe9qK",
+  "results": [
+    {
+      "attempt": 1,
+      "chars": 25140,
+      "stage": "fidelity",
+      "code": "E1_E2_FIDELITY_VIOLATION",
+      "reason": "B3 正向（声明须逐字锚定 E1）: A-ALPHA-BETA: e1_span 在 E1 中找不到逐字匹配（疑似改写）〔相似度 29.2%，首分歧 @5，span「情形(1)的\"95%信度\"」vs E1「情形(1):在95%信度下」〕；A-INDEPENDENT-DEFECT: e1_span 在 E1 中找不到逐字匹配（疑似改写）〔相似度 36.6%，首分歧 @15，span「独立,成品次品率pf是给定常数(」vs E1「独立,成品次品率(pf)是给定常」〕；A-REPLACEMENT: e1_span 在 E1 中找不到逐字匹配（疑似改写）〔相似度 86.0%，首分歧 @43，span「计入),调换损失r为额外损失.」vs E1「计入),调换损失(r)为额外损」〕；E-BINOM: e1_span 在 E1 中找不到逐字匹配（疑似改写）〔相似度 7.7%，首分歧 @1，span「设X\\sim\\te」vs E1「设计问题本质:给定」〕；E-REJECT: e1_span 在 E1 中找不到逐字匹配（疑似改写）〔相似度 16.7%，首分歧 @6，span「判定规则:若X>c则拒收,其」vs E1「判定规则:若(X>c)则拒收」〕；E-ACCEPT: e1_span 在 E1 中找不到逐字匹配（疑似改写）〔相似度 23.3%，首分歧 @6，span「判定规则:若X\\lec'则接」vs E1「判定规则:若(X>c)则拒收」〕；E-RECUR: e1_span 在 E1 中找不到逐字匹配（疑似改写）〔相似度 36.8%，首分歧 @7，span「递推关系:组件k由若干下级组件」vs E1「递推关系:组件(k)由若干下级」〕；E-POST: e1_span 在 E1 中找不到逐字匹配（疑似改写）〔相似度 10.6%，首分歧 @3，span「若抽样n件,发现x件次」vs E1「若抽样(n)件,发现(」〕"
+    },
+    {
+      "attempt": 2,
+      "chars": 22704,
+      "stage": "container",
+      "code": "schema_violation",
+      "reason": "entry 'ModelSpec' violates its closed IR schema — constraints: Invalid input: expected array, received string"
+    },
+    {
+      "attempt": 3,
+      "chars": 17356,
+      "stage": "interpretation",
+      "code": "result_source_invalid",
+      "reason": "result 'RES-N1': path 'n_case1' in 'file:///runs/RUN-ATT3/results.json' does not resolve to a finite number (got null)",
+      "kindCounts": {
+        "SymbolSpec": 28,
+        "AssumptionSpec": 8,
+        "EquationSpec": 6,
+        "ModelSpec": 1
+      }
+    }
+  ]
+}

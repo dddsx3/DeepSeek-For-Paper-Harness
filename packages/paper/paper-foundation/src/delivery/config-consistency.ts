@@ -224,7 +224,14 @@ export function configConsistencyFindings(
       for (const entry of entries) {
         const declaredValue = declaredParams.get(entry.symbol_ref)
         if (declaredValue === undefined) continue // symbol not bound as a parameter — nothing to compare
-        if (declaredValue !== entry.value) {
+        // Strict `!==` mislabels a JSON parse artifact as record distortion:
+        // the double closest to the decimal `9.5` differs from the double
+        // produced by `0.95*10`-style accumulation (real-run evidence: the
+        // W11.5 A5 loop's run-9 emitted 9.499999999999998 against a declared
+        // 9.5 — the same quantity, one ULP apart). Compare numerically with a
+        // one-relative-ULP tolerance so only a real value change reports.
+        const scale = Math.max(Math.abs(declaredValue), Math.abs(entry.value), 1e-12)
+        if (Math.abs(declaredValue - entry.value) > Number.EPSILON * scale) {
           findings.push({
             kind: 'config_declared_actual_mismatch',
             runId,

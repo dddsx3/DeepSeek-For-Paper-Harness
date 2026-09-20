@@ -571,6 +571,11 @@ async function main(): Promise<number> {
   // absence keeps the historical 'CLEAN' label for strict compositions
   // that never graded (defense in depth: the appendix is the source of
   // truth, this is the index).
+  // W11.5-A2: the delivery path is a DECLARED fact on the manifest (written
+  // at the receive stage's real exit), never reconstructed from the trail.
+  // 'B-e1-direct' means the body is the E1 analysis; 'A-produce-chain' means
+  // the container's code really ran; 'A-normalized-no-code' is in between.
+  const deliveryPath = engine.getManifest(RunId(run.id))?.delivery_path ?? 'unknown'
   const gradedEntries = ctx.paperAudit.list(String(run.id)).filter(e => e.eventType === 'delivery_graded')
   const grade: 'CLEAN' | 'MARKED' = gradedEntries.some(e => String((e as { detail?: { grade?: unknown } }).detail?.grade) === 'MARKED') ? 'MARKED' : 'CLEAN'
   // TASK-Q2: real token accounting from the run record (the real adapter
@@ -602,8 +607,8 @@ async function main(): Promise<number> {
   // to judge the delivery — tier, mode, grade, family, sha256, audit, usage,
   // provenance verdicts — stays.
   const zipProvenance = { ...provenanceRecord, checked_at: '<per-run>' }
-  const runReport = JSON.stringify({ runId: '<redacted-run-id>', tier, mode, status: 'DELIVERED', grade, routed_family: familyVerdict.family, route_truth: truth, route_mismatch: mismatched, code_provenance: zipProvenance, minted_ir_count: mintedIrCount, wall_clock_seconds: '<per-run>', sha256, audit, usage: { input_tokens: usageSummary.input_tokens, output_tokens: usageSummary.output_tokens, cost_usd: usageSummary.cost_usd }, attachments: attachmentLedger }, null, 2)
-  const runReportFull = JSON.stringify({ runId: String(run.id), tier, mode, status: 'DELIVERED', grade, routed_family: familyVerdict.family, route_truth: truth, route_mismatch: mismatched, code_provenance: provenanceRecord, minted_ir_count: mintedIrCount, wall_clock_seconds: wallClockSeconds, sha256, audit, usage: { input_tokens: usageSummary.input_tokens, output_tokens: usageSummary.output_tokens, cost_usd: usageSummary.cost_usd }, attachments: attachmentLedger }, null, 2)
+  const runReport = JSON.stringify({ runId: '<redacted-run-id>', delivery_path: deliveryPath, tier, mode, status: 'DELIVERED', grade, routed_family: familyVerdict.family, route_truth: truth, route_mismatch: mismatched, code_provenance: zipProvenance, minted_ir_count: mintedIrCount, wall_clock_seconds: '<per-run>', sha256, audit, usage: { input_tokens: usageSummary.input_tokens, output_tokens: usageSummary.output_tokens, cost_usd: usageSummary.cost_usd }, attachments: attachmentLedger }, null, 2)
+  const runReportFull = JSON.stringify({ runId: String(run.id), delivery_path: deliveryPath, tier, mode, status: 'DELIVERED', grade, routed_family: familyVerdict.family, route_truth: truth, route_mismatch: mismatched, code_provenance: provenanceRecord, minted_ir_count: mintedIrCount, wall_clock_seconds: wallClockSeconds, sha256, audit, usage: { input_tokens: usageSummary.input_tokens, output_tokens: usageSummary.output_tokens, cost_usd: usageSummary.cost_usd }, attachments: attachmentLedger }, null, 2)
   await mkdir(outDir, { recursive: true })
   await writeFile(join(outDir, 'report.md'), report, 'utf8')
   await writeFile(join(outDir, 'sha256.txt'), sha256, 'utf8')
@@ -622,6 +627,7 @@ async function main(): Promise<number> {
   console.log(`  usage   -> in ${usageSummary.input_tokens} tok / out ${usageSummary.output_tokens} tok / $${usageSummary.cost_usd.toFixed(4)} (TASK-Q2 telemetry)`)
   console.log(`  audit   -> ${audit}`)
   console.log(`  tier    -> ${ctx.paperExecutor.runs.tierOf(RunId(run.id))}`)
+  console.log(`  path    -> ${deliveryPath}`)
   // TASK-E: a real run recorded with --cassette persists its exchanges
   // here — the cassette is the run's evidence, replayable key-less forever.
   if (recorder !== undefined && cassettePath !== undefined) {
