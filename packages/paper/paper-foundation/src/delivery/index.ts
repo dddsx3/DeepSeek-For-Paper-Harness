@@ -91,3 +91,18 @@ export type {
   DeliveryFormManifestEntry,
 } from './delivery-form.ts'
 export { renderBoundaryAppendix, RENDERABLE_BOUNDARY_CLASSES } from './boundary-render.ts'
+
+// R1（交付面固化）—— 图链接可解析守卫 + DELIVERABLES 契约（缺项必红）。
+export { brokenFigureLinks, figureLinksOf } from './figure-links.ts'
+export {
+  DELIVERABLE_KINDS,
+  deliverablesContractFindings,
+  deliverablesContractSchema,
+  parseDeliverablesContract,
+} from './deliverables-contract.ts'
+export type {
+  ActualDeliverable,
+  DeliverableKind,
+  DeliverablesContract,
+  DeliverablesFinding,
+} from './deliverables-contract.ts'

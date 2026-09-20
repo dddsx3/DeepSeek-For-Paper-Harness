@@ -37,6 +37,7 @@ import {
   createExploratoryProfile,
 } from '@deepseek-ai/dsh-paper-foundation'
 import { ModelingIr } from '@deepseek-ai/dsh-paper-foundation'
+import { brokenFigureLinks, deliverablesContractFindings, parseDeliverablesContract, type ActualDeliverable } from '@deepseek-ai/dsh-paper-foundation'
 import { resolveShellRoute, blockMessage, failureFactsOf, fidelityBlockedHuman, lastFailureClassEvent, type ShellRoute } from './invoke.ts'
 import { assembleBundle } from './bundle.ts'
 import { classifyProblem, routeBanner, routeMismatch } from './route.ts'
@@ -192,6 +193,63 @@ async function main(): Promise<number> {
     }
     console.error('This tree is NOT the frozen system image. Study Batch B or restore.')
     return 1
+  }
+  // R1② — paper-shell deliverables verify <contract.json> <dir> — check a
+  // produced out-dir against its DELIVERABLES contract. Missing or
+  // under-sized items exit 1 (the NR-5 floor: deleting a required file
+  // must turn the check red); xlsx rows/cols stay an explicit
+  // "not machine-read yet" note, never a silent pass. The contract schema
+  // mirrors REF-D's DELIVERABLES.json (route book §1.2).
+  if (sub === 'deliverables') {
+    if (positionals[1] !== 'verify') {
+      console.error('usage: paper-shell deliverables verify <contract.json> <dir>')
+      return 2
+    }
+    const contractPath = positionals[2]
+    const deliverableDir = positionals[3]
+    if (contractPath === undefined || deliverableDir === undefined) {
+      console.error('deliverables verify needs a contract file and a directory')
+      return 2
+    }
+    const raw = JSON.parse(await readFile(contractPath, 'utf8'))
+    const parsed = parseDeliverablesContract(raw)
+    if (!parsed.ok) {
+      console.error(`DELIVERABLES CONTRACT INVALID (${parsed.issues.length} issues):`)
+      for (const issue of parsed.issues) console.error(`  - ${issue}`)
+      return 2
+    }
+    const actual = new Map<string, ActualDeliverable>()
+    const { readdir: walkDir, stat } = await import('node:fs/promises')
+    const collect = async (dirPath: string, rel: string): Promise<void> => {
+      const entries = await walkDir(dirPath, { withFileTypes: true })
+      for (const entry of entries) {
+        const childRel = rel === '' ? entry.name : `${rel}/${entry.name}`
+        const childPath = join(dirPath, entry.name)
+        if (entry.isDirectory()) {
+          await collect(childPath, childRel)
+          continue
+        }
+        const info = await stat(childPath)
+        const content = entry.name.endsWith('.md') || entry.name.endsWith('.json') || entry.name.endsWith('.csv')
+          ? (await readFile(childPath, 'utf8')).split('\n').length
+          : undefined
+        actual.set(childRel, { bytes: info.size, ...(content === undefined ? {} : { lines: content }) })
+      }
+    }
+    await collect(deliverableDir, '')
+    const findings = deliverablesContractFindings(parsed.contract, actual)
+    const blocking = findings.filter(f => f.kind === 'deliverable_missing' || f.kind === 'deliverable_too_small')
+    const notes = findings.filter(f => f.kind === 'xlsx_content_unverified')
+    for (const finding of findings) {
+      const prefix = finding.kind === 'deliverable_missing' || finding.kind === 'deliverable_too_small' ? '❌' : '⚠️'
+      console.error(`  ${prefix} [${finding.kind}] ${finding.reason}`)
+    }
+    if (blocking.length > 0) {
+      console.error(`DELIVERABLES CONTRACT FAILED (${blocking.length} blocking finding(s)) — the delivery surface is incomplete.`)
+      return 1
+    }
+    console.log(`DELIVERABLES CONTRACT OK — ${parsed.contract.deliverables.length} items verified${notes.length > 0 ? ` (${notes.length} xlsx content notes: rows/cols not machine-read yet)` : ''} against ${deliverableDir}`)
+    return 0
   }
   if (sub !== 'run') {
     console.error(`unknown subcommand '${sub}'`)
@@ -532,10 +590,11 @@ async function main(): Promise<number> {
     return 1
   }
 
-  // Read the promoted final output.
+  // Read the promoted final output. R1①: `figures/` sits next to the
+  // promoted file — skip the directory when picking the report file.
   const finalDir = join(baseRoot, String(run.id), 'final')
   const files = await readdir(finalDir).catch(() => [] as string[])
-  const firstFile = files[0]
+  const firstFile = files.find(f => f !== 'figures')
   if (files.length === 0 || firstFile === undefined) {
     console.error('[no-deliverable] executor finished but no final output was promoted')
     await dispose()
@@ -561,6 +620,43 @@ async function main(): Promise<number> {
   const report = (await readFile(join(finalDir, firstFile), 'utf8')) + scopeNote
   const sha256 = createHash('sha256').update(report).digest('hex')
   const audit = ctx.paperAudit.list(String(run.id)).map(e => `${e.eventType}`).join(',')
+  // R1① — figures the executor persisted next to the final output
+  // (`final/figures/*.svg`) join the deliverable: copied to the out-dir,
+  // listed in the deterministic zip, and the report's `figures/…` links are
+  // checked against what is actually on disk. A dangling link is recorded
+  // as `figure_links_broken` (machine-readable) and surfaced loudly — the
+  // R1① negative control keeps that assertion red in the test lane.
+  const figureDir = join(finalDir, 'figures')
+  const figureFiles = await readdir(figureDir).catch(() => [] as string[])
+  const figureSvgNames = figureFiles.filter(f => f.endsWith('.svg')).sort()
+  const figurePresent = new Set(figureSvgNames.map(f => `figures/${f}`))
+  const brokenLinks = brokenFigureLinks(report, figurePresent)
+  const figureEntries: Record<string, string> = {}
+  const figureManifest: Array<{ file: string; sha256: string; renderer_version: string }> = []
+  if (figureSvgNames.length > 0) {
+    await mkdir(join(outDir, 'figures'), { recursive: true })
+    for (const name of figureSvgNames) {
+      const svg = await readFile(join(figureDir, name), 'utf8')
+      await writeFile(join(outDir, 'figures', name), svg, 'utf8')
+      figureEntries[`figures/${name}`] = svg
+      figureManifest.push({
+        file: `figures/${name}`,
+        sha256: createHash('sha256').update(svg).digest('hex'),
+        // R1③ — the "generator" of a harness figure IS the fixed renderer +
+        // the recorded data (route book: gen_*.py 或等价; this is the DPH
+        // equivalent — deterministic render, same input → same bytes).
+        renderer_version: 'okabe-ito-v1/svg',
+      })
+    }
+    // R1③ — figure-manifest.json covers every shipped figure (no untracked
+    // svg, every figure attributable to the renderer). Timestamp-free so the
+    // zip stays byte-deterministic on re-run.
+    const figureManifestText = JSON.stringify({ figures: figureManifest }, null, 2)
+    await writeFile(join(outDir, 'figure-manifest.json'), figureManifestText, 'utf8')
+  }
+  if (brokenLinks.length > 0) {
+    console.error(`[figure-links] ${brokenLinks.length} dangling figure reference(s): ${brokenLinks.join(', ')}`)
+  }
   // W8.10-A2: same top-level field as the BLOCKED path, so a reader compares
   // the two reports without knowing which one they are holding.
   const mintedIrCount = (ModelingIr.snapshot(ctx.get('paperModelingIr')) ?? new Map()).size
@@ -607,14 +703,24 @@ async function main(): Promise<number> {
   // to judge the delivery — tier, mode, grade, family, sha256, audit, usage,
   // provenance verdicts — stays.
   const zipProvenance = { ...provenanceRecord, checked_at: '<per-run>' }
-  const runReport = JSON.stringify({ runId: '<redacted-run-id>', delivery_path: deliveryPath, tier, mode, status: 'DELIVERED', grade, routed_family: familyVerdict.family, route_truth: truth, route_mismatch: mismatched, code_provenance: zipProvenance, minted_ir_count: mintedIrCount, wall_clock_seconds: '<per-run>', sha256, audit, usage: { input_tokens: usageSummary.input_tokens, output_tokens: usageSummary.output_tokens, cost_usd: usageSummary.cost_usd }, attachments: attachmentLedger }, null, 2)
-  const runReportFull = JSON.stringify({ runId: String(run.id), delivery_path: deliveryPath, tier, mode, status: 'DELIVERED', grade, routed_family: familyVerdict.family, route_truth: truth, route_mismatch: mismatched, code_provenance: provenanceRecord, minted_ir_count: mintedIrCount, wall_clock_seconds: wallClockSeconds, sha256, audit, usage: { input_tokens: usageSummary.input_tokens, output_tokens: usageSummary.output_tokens, cost_usd: usageSummary.cost_usd }, attachments: attachmentLedger }, null, 2)
+  // R1① — figures + figure-manifest are part of the delivery surface; both
+  // join the run-report and the deterministic zip. Ordering is fixed (sorted
+  // svg names, manifest after figures) so the same cassette still yields the
+  // same zip sha256.
+  const figureFields = {
+    figures: figureSvgNames.length,
+    figure_links_broken: brokenLinks,
+  }
+  const runReport = JSON.stringify({ runId: '<redacted-run-id>', delivery_path: deliveryPath, tier, mode, status: 'DELIVERED', grade, routed_family: familyVerdict.family, route_truth: truth, route_mismatch: mismatched, code_provenance: zipProvenance, minted_ir_count: mintedIrCount, wall_clock_seconds: '<per-run>', sha256, audit, usage: { input_tokens: usageSummary.input_tokens, output_tokens: usageSummary.output_tokens, cost_usd: usageSummary.cost_usd }, attachments: attachmentLedger, ...figureFields }, null, 2)
+  const runReportFull = JSON.stringify({ runId: String(run.id), delivery_path: deliveryPath, tier, mode, status: 'DELIVERED', grade, routed_family: familyVerdict.family, route_truth: truth, route_mismatch: mismatched, code_provenance: provenanceRecord, minted_ir_count: mintedIrCount, wall_clock_seconds: wallClockSeconds, sha256, audit, usage: { input_tokens: usageSummary.input_tokens, output_tokens: usageSummary.output_tokens, cost_usd: usageSummary.cost_usd }, attachments: attachmentLedger, ...figureFields }, null, 2)
   await mkdir(outDir, { recursive: true })
   await writeFile(join(outDir, 'report.md'), report, 'utf8')
   await writeFile(join(outDir, 'sha256.txt'), sha256, 'utf8')
   await writeFile(join(outDir, 'run-report.json'), runReportFull, 'utf8')
   // Deterministic zip of the deliverable + run report (same sha256 on re-run).
-  const zipBytes = zipTextFiles({ 'report.md': report, 'sha256.txt': sha256, 'run-report.json': runReport })
+  // R1①: every shipped figure + the figure-manifest join the zip; figures
+  // are UTF-8 text (SVG), so the text zip is their channel too.
+  const zipBytes = zipTextFiles({ 'report.md': report, 'sha256.txt': sha256, 'run-report.json': runReport, ...figureEntries, ...(figureManifest.length > 0 ? { 'figure-manifest.json': JSON.stringify({ figures: figureManifest }, null, 2) } : {}) })
   const zipPath = join(outDir, 'deliverable.zip')
   await writeFile(zipPath, zipBytes)
   const zipSha = createHash('sha256').update(zipBytes).digest('hex')

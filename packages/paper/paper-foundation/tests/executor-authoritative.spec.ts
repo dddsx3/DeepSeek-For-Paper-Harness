@@ -48,6 +48,7 @@ function polarContainer(overrides: {
   jsonPath?: string
   code?: string
   conclusion?: string
+  figures?: ReadonlyArray<Record<string, unknown>>
 } = {}): string {
   const value = 0.731
   const code = overrides.code ?? [
@@ -78,6 +79,7 @@ function polarContainer(overrides: {
       claims: [
         { claim_id: 'C-OUT', text: `mean ice thickness is ${value} m`, claim_type: 'NUMERIC', criticality: 'CRITICAL', result_refs: ['RES-OUT'], model_refs: ['M1'], evidence_refs: ['RES-OUT'] },
       ],
+      ...(overrides.figures === undefined ? {} : { figures: [...overrides.figures] }),
     },
     narrative: { conclusion: overrides.conclusion ?? 'Mean ice thickness is 0.731 m.', title: 'Polar ice' },
   })
@@ -224,5 +226,30 @@ describe('P2-1 executor-authoritative FORMAL chain', () => {
     expect(outcome.status).toBe('rejected')
     expect(engine.getRun(RunId(runId))?.status).toBe('failed')
     expect(ir.list().filter(r => r.kind === 'Result')).toHaveLength(0)
+  })
+
+  it('R1① — a declared figure is persisted as figures/<id>.svg next to the final output and its link resolves on disk', async () => {
+    const { engine, runId, finalRoot, outcome } = await harness(polarContainer({
+      figures: [
+        { figure_id: 'F-OUT', chart_type: 'table', data_refs: ['RES-OUT'], caption: 'mean thickness table' },
+      ],
+    }))
+    expect(outcome.status, JSON.stringify(outcome)).toBe('resolved')
+    const finalDir = join(finalRoot, String(runId), 'final')
+    const figureDir = join(finalDir, 'figures')
+    const figurePath = join(figureDir, 'F-OUT.svg')
+    const stat = await readFile(figurePath, 'utf8').then(() => true, () => false)
+    expect(stat, 'figures/F-OUT.svg must be persisted next to the final output').toBe(true)
+    const files = await readdir(finalDir)
+    const reportFile = files.find(f => f !== 'figures')
+    expect(reportFile, `a report file should sit next to figures/ (have: ${files.join(',')})`).toBeDefined()
+    const report = await readFile(join(finalDir, reportFile!), 'utf8')
+    // The rendered reference and the on-disk file agree (link resolvable).
+    expect(report).toContain('figures/F-OUT.svg')
+    // R1① negative control: a reference the runner did not write must not pass.
+    const { brokenFigureLinks } = await import('../src/delivery/figure-links.ts')
+    expect(brokenFigureLinks(report, new Set(['figures/F-OUT.svg']))).toEqual([])
+    expect(brokenFigureLinks(report, new Set(['figures/OTHER.svg']))).toEqual(['figures/F-OUT.svg'])
+    expect(engine.getManifest(RunId(runId))?.informal).toBe(false)
   })
 })
