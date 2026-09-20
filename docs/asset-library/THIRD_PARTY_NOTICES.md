@@ -1,16 +1,18 @@
-# Third-Party Notices — Vendored Digital-Asset Library (v2)
+# Third-Party Notices — Vendored Digital-Asset Library (v3)
 
-This branch (`digital-assets`) carries vendored digital assets used by a
-paper-production toolchain. Several asset families are owned by third
+> **v3 现状（2026-09-21）**：本资产库于 2026-09-19 **全量迁移至 `main` 分支的 `docs/asset-library/`**（用户裁决：全量入库、唯一引用点）。本文件即该仓库内树的**许可总索引**。`digital-assets` 分支为 **v2 旧树，已废弃**（内容已并入本目录），不再维护。运行时（paper-foundation）不消费字体/模板/厂商脚本，与资产库解耦。
+
+Several asset families are owned by third
 parties and are subject to their own licences. This file is the central
 index of those obligations; the asset files themselves are not modified
 and their provenance is preserved exactly as the upstream sources ship
 them.
 
-> **Legal status**: a vendored mirror, stored on an independent Git
-> branch (not on `main`) so the runtime, which ships without these
-> assets, remains unaffected. Distribution is at the discretion of the
-> maintainers and is governed by the licences noted below.
+> **Legal status**: a vendored mirror, now stored on `main` under
+> `docs/asset-library/`. Distribution is at the discretion of the
+> maintainers and is governed by the licences noted below; two open
+> items (per-template provenance, competition-brand trademark surfaces)
+> must close before wide distribution.
 
 ---
 
@@ -85,6 +87,6 @@ documentation of provenance, not a licence grant.
 
 ---
 
-*Last verified: 2026-09-05 (v2). This branch is independent of `main`;
-assets here are not consumed by the paper-foundation runtime (which
-ships without fonts, templates, or vendor scripts).*
+*Last verified: 2026-09-21 (v3). The library now lives on `main`
+(`docs/asset-library/`); the `digital-assets` branch is superseded.
+See `docs/asset-provenance.md` for the source ledger.*
