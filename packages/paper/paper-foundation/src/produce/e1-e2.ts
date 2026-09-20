@@ -115,6 +115,16 @@ export function e1AnalysisInstruction(requiredOutputIds: ReadonlyArray<string>):
     'Mark the start of each sub-question\'s reasoning with an inline anchor: [[REQUIREMENT: <id>]], using the requirement ids listed above exactly.',
     'Be concrete about method choices and their justification. Where you must assume something the problem does not give, say so explicitly and mark it.',
     'Do NOT output JSON. Do NOT output a container. Do NOT try to match any schema — that is the next step\'s job.',
+    // W11.5: the checklist goes LAST, right before the model starts writing —
+    // the W8.10-D1 lesson (a requirement stated early in a long prompt is no
+    // longer steering the pen). Evidence: run-8 of W11.5 wrote a solid
+    // analysis but no [[REQUIREMENT: R-OUT]] anchor, so B4 failed three
+    // attempts in a row on an E1-side defect no E2 retry can repair.
+    '',
+    'BEFORE YOU FINISH, CHECK (the next step refuses an analysis that misses these):',
+    ...requiredOutputIds.map(id => `  - the analysis contains the anchor [[REQUIREMENT: ${id}]] exactly once, on its own line, before that sub-question\'s reasoning`),
+    '  - every assumption you state has an [[ASSUMPTION: <short-name>]] anchor on its own line, written BEFORE the sentence it marks',
+    '  - at least one assumption is marked; anchors use real names, never placeholders',
   ].join('\n')
 }
 
@@ -243,11 +253,11 @@ export function e2NormalizationPrompt(e1Text: string, containerTeaching: string)
     // where it is; the checklist goes where the writing starts.
     '',
     '=== BEFORE YOU ANSWER — CHECK EACH OF THESE (the harness refuses the container if any is missing) ===',
-    '  1. EVERY AssumptionSpec and EVERY EquationSpec carries "e1_span": a verbatim substring (>= 10 chars, exact, no ellipsis, no paraphrase) of the analysis above that states it.',
+    '  1. EVERY AssumptionSpec and EVERY EquationSpec carries "e1_span": a verbatim substring (>= 10 chars, exact, no ellipsis, no paraphrase) of the analysis above that states it. Copy it CHARACTER-FOR-CHARACTER, math delimiters included: a sentence the analysis writes as `...服从二项分布 $B(n,p)$` must be quoted WITH the $ marks (the harness also accepts a quote that drops them, but do not rely on it), and never "finish" a sentence — if the analysis says `取$p_1>p_0$`, quoting `取p_1=0.20` is a DIFFERENT sentence and is refused. Equations carry e1_span too: e.g. "e1_span": "序贯概率比检验的停止边界为 $a_m$ 与 $b_m$".',
     '  2. Every assumption you declare has a matching [[ASSUMPTION: <id>]] anchor in the analysis, with the SAME id.',
     '  3. Every requirement id the harness listed has a [[REQUIREMENT: <id>]] anchor in the analysis.',
     '  4. No numbers of your own anywhere outside your `code`.',
-    '  5. Do not re-declare any id the harness registered.',
+    '  5. Do not re-declare any id the harness registered, and do not use the same id TWICE among your own entries — every symbol_id / assumption_id / equation_id / model_id must be unique inside this container (a duplicate refuses the whole container).',
     // W8.11-A1d (repair, found by the third real run): the reference TARGETS
     // were never stated, so the model put a SymbolSpec id (`S-P1`) into
     // `AssumptionSpec.sensitivity_refs` — a field that takes Result/DataArtifact.
@@ -256,7 +266,10 @@ export function e2NormalizationPrompt(e1Text: string, containerTeaching: string)
     // field's legal target is now listed, derived from `IR_REF_FIELDS` (the
     // same table the validator walks) rather than hand-written, so this list
     // cannot drift from what the store enforces.
-    '  6. Every REFERENCE field must point at the kinds listed here — a reference to the wrong kind refuses the whole container:',
+    '  6. interpretations.results[].source.jsonPath is a BARE dotted path into your output file — write "n_fixed", not "$.n_fixed" — and it MUST resolve to a JSON NUMBER. If your code writes a range or a label (e.g. "60-80"), emit it as numeric fields instead (asn_low, asn_high) or the result cannot be bound and the whole chain restarts.',
+    '  7. ModelSpec element shapes: constraints is an ARRAY OF STRINGS (write [] if none — a single string refuses the container); objective is a string or null; every *_refs field is a plain id list.',
+    '  8. Every Result read back through jsonPath must land on a NUMBER. If your code writes null / omits a key for a quantity it did not compute, do NOT declare a Result for it — a null path refuses the whole chain and costs an attempt.',
+    '  9. Every REFERENCE field must point at the kinds listed here — a reference to the wrong kind refuses the whole container:',
     ...declarableRefRules().map(r => `       ${r.kind}.${r.path} -> ${r.target}`),
   ].join('\n')
 }
@@ -303,6 +316,30 @@ export const MIN_E1_SPAN_CHARS = 10
  * 让人多看一眼。负对照见 `tests/executor-e1e2.spec.ts`：把实词替换掉的真改写
  * 在折叠后仍必须 FAIL。
  */
+/**
+ * Unicode sub/superscript glyphs → their ASCII digits/signs. `p₀` and `p0` are
+ * the same symbol in two renderings — the same class as fullwidth parens.
+ * Evidence (W11.5, five real runs): the model quotes E1's `p₀`/`x₃` as
+ * `p0`/`x3` and the anchor check reported similarity 96–98% "疑似改写",
+ * refusing containers over a rendering difference.
+ */
+const SUB_SUPER_TO_ASCII: Readonly<Record<string, string>> = {
+  '₀': '0', '₁': '1', '₂': '2', '₃': '3', '₄': '4',
+  '₅': '5', '₆': '6', '₇': '7', '₈': '8', '₉': '9',
+  '⁰': '0', '¹': '1', '²': '2', '³': '3', '⁴': '4',
+  '⁵': '5', '⁶': '6', '⁷': '7', '⁸': '8', '⁹': '9',
+  '\u208a': '+', '\u208b': '-', '\u207a': '+', '\u207b': '-', '\u208c': '=', '\u207c': '=',
+  // Subscript/superscript LETTERS (`xᵢ` ↔ `xi`, run-1's E-LIKELIHOOD-RATIO span
+  // survived the digit map because ᵢ is in a different Unicode block).
+  '\u1d62': 'i', '\u2090': 'a', '\u2091': 'e', '\u2092': 'o', '\u2093': 'x', '\u2095': 'h',
+  '\u2096': 'k', '\u2097': 'l', '\u2098': 'm', '\u2099': 'n', '\u209a': 'p', '\u209b': 's',
+  '\u209c': 't', '\u1d43': 'a', '\u1d47': 'b', '\u1d9c': 'c', '\u1d48': 'd', '\u1d49': 'e',
+  '\u1d4d': 'g', '\u02b0': 'h', '\u2071': 'i', '\u02b2': 'j', '\u1d4f': 'k', '\u02e1': 'l',
+  '\u1d50': 'm', '\u207f': 'n', '\u1d52': 'o', '\u1d56': 'p', '\u02b3': 'r', '\u02e2': 's',
+  '\u1d57': 't', '\u1d58': 'u', '\u1d5b': 'v', '\u02b7': 'w', '\u02e3': 'x', '\u02b8': 'y',
+  '\u1dbb': 'z',
+}
+
 const FULLWIDTH_TO_ASCII: Readonly<Record<string, string>> = {
   '\uFF08': '(', '\uFF09': ')', '\uFF0C': ',', '\uFF1A': ':', '\uFF1B': ';',
   '\uFF01': '!', '\uFF1F': '?', '\uFF0E': '.', '\uFF02': '"', '\uFF07': "'",
@@ -326,9 +363,27 @@ const FULLWIDTH_TO_ASCII: Readonly<Record<string, string>> = {
  */
 export function foldForAnchorMatch(text: string): string {
   let out = ''
-  for (const ch of text) out += FULLWIDTH_TO_ASCII[ch] ?? ch
+  for (const ch of text) out += (SUB_SUPER_TO_ASCII[ch] ?? FULLWIDTH_TO_ASCII[ch]) ?? ch
   // Display math and inline math are the same content in two delimiters.
-  out = out.replace(/\$\$/g, '$')
+  //
+  // W11.5-A1: the delimiters are now removed ENTIRELY (not just `$$`→`$`).
+  // Evidence: the W10-MQUAL real run's attempt 1 quoted
+  // `品数服从二项分布B(n,p)` for E1's `品数服从二项分布$B(n,p)$` — the words,
+  // the numbers and the order are identical; only the math markers were
+  // dropped. A span that differs from the analysis ONLY in math delimiters is
+  // a quote, not a paraphrase, and this fold cannot let an invented
+  // assumption through: every word and digit must still match exactly (the
+  // negative control in `executor-e1e2.spec.ts` keeps a real rewrite failing).
+  out = out.replace(/\$/g, '')
+  // W11.5: three more rendering-only differences, each with real-run evidence:
+  //   - markdown emphasis markers (`**线性**函数` ↔ `**线性函数**`): the words
+  //     are identical, the emphasis span moved — presentation, not content.
+  //   - LaTeX-escaped parens (`\(p_f\)` ↔ `(p_f)`): the same paren.
+  //   - `_` between alphanumerics (`p_1` ↔ `p1`): subscript notation.
+  // None of these can make a rewritten sentence match: every word and digit
+  // must still agree (the negative controls below keep real rewrites failing).
+  out = out.replace(/\*\*/g, '').replace(/\\([()])/g, '$1').replace(/\*/g, '')
+  out = out.replace(/(?<=[A-Za-z0-9])_(?=[A-Za-z0-9])/g, '')
   // Whitespace is a rendering difference: the model may re-wrap a sentence it
   // copied. Removing it is what lets `附录（1）` match `附录 (1)`.
   return out.replace(/\s+/g, '')

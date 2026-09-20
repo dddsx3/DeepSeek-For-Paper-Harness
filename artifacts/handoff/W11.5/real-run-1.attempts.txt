@@ -1,0 +1,4 @@
+attempt 1 (40163 chars) → [container] conflicting_id: entry 'SymbolSpec' id 'S-A' appears more than once in this container (append-only store; a duplicate id is a conflict, not an update)
+attempt 2 (25458 chars) → [run] CONFIG_EMISSION_TOKEN_UNRESOLVED: physical key 'S_P0' does not resolve to a SymbolSpec declared in scope [P1]
+   entries: {"SymbolSpec":33,"AssumptionSpec":13,"EquationSpec":12,"ModelSpec":1,"DataArtifact":2}
+attempt 3 (29781 chars) → [container] schema_violation: entry 'ModelSpec' violates its closed IR schema — constraints: Invalid input: expected array, received string

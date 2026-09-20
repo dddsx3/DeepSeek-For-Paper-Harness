@@ -209,6 +209,20 @@ describe('config-consistency — D-3 (C-2: declared vs actual)', () => {
     const ir = qualityStore([{ ...DELIVERY, configDt: 0.25 }], [], 0.25)
     expect(configConsistencyFindings(ModelingIr.snapshot(ir))).toHaveLength(0)
   })
+
+  it('a one-ULP parse artifact (9.499999999999998 vs 9.5) is NOT record distortion (run-9 真实回归)', () => {
+    // W11.5 A5 run-9: the model declared S-A = 9.5; the emitted config carried
+    // 9.499999999999998 — the closest-double artifact of how the code derived
+    // the value. Same quantity; the gate must not label it record distortion.
+    const ir = qualityStore([{ ...DELIVERY, configDt: 9.499999999999998 }], [], 9.5)
+    expect(configConsistencyFindings(ModelingIr.snapshot(ir))).toHaveLength(0)
+  })
+
+  it('a real value change beyond one ULP still reports (守卫不松动)', () => {
+    // 0.25 → 0.3 is far beyond a ULP: the D-3 verdict must survive.
+    const ir = qualityStore([{ ...DELIVERY, configDt: 0.3 }], [], 0.25)
+    expect(configConsistencyFindings(ModelingIr.snapshot(ir)).some(f => f.kind === 'config_declared_actual_mismatch')).toBe(true)
+  })
 })
 
 describe('config-consistency — D-4/D-5 (C-3: cross-section config differences)', () => {

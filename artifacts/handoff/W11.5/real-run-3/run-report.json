@@ -1,0 +1,57 @@
+{
+  "runId": "815c2886-2cfa-4ea4-96aa-29566ba54bab",
+  "delivery_path": "B-e1-direct",
+  "tier": "T1",
+  "mode": "strict",
+  "status": "DELIVERED",
+  "grade": "MARKED",
+  "routed_family": "F4",
+  "route_truth": "F3+F4",
+  "route_mismatch": false,
+  "code_provenance": {
+    "checked_at": "2026-09-19T17:39:15.542Z",
+    "ok": true,
+    "targets": [
+      {
+        "name": "@deepseek-ai/dsh-paper-foundation",
+        "ok": true,
+        "detail": "entry lib/index.js is 116695 ms newer than the newest source"
+      },
+      {
+        "name": "@deepseek-ai/dsh-storage",
+        "ok": true,
+        "detail": "entry lib/index.js is 1234128624 ms newer than the newest source"
+      },
+      {
+        "name": "@deepseek-ai/dsh-storage-domain",
+        "ok": true,
+        "detail": "entry lib/index.js is 1234155115 ms newer than the newest source"
+      },
+      {
+        "name": "@deepseek-ai/dsh-storage-json",
+        "ok": true,
+        "detail": "entry lib/index.js is 1234155264 ms newer than the newest source"
+      },
+      {
+        "name": "@deepseek-ai/dsh-llm",
+        "ok": true,
+        "detail": "entry lib/index.js is 1234128935 ms newer than the newest source"
+      },
+      {
+        "name": "@deepseek-ai/cordis",
+        "ok": true,
+        "detail": "entry lib/index.js is 1234128211 ms newer than the newest source"
+      }
+    ]
+  },
+  "minted_ir_count": 3,
+  "wall_clock_seconds": 441.4,
+  "sha256": "e597c79e0ca4cc8b67cb24a47d25a53180dabd09d5d48ae8255b5f8e386be081",
+  "audit": "workflow_started,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,provider_retry,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,provider_retry,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,e1_direct_delivery,gate_failed,gate_failed,delivery_graded,final_output_written,promotion_succeeded,workflow_completed",
+  "usage": {
+    "input_tokens": 59268,
+    "output_tokens": 42567,
+    "cost_usd": 0
+  },
+  "attachments": []
+}

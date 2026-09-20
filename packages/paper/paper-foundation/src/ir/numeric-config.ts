@@ -65,10 +65,13 @@ export const NUMERIC_CONFIG_EMISSION_BASENAME = 'numeric_config.json'
  */
 export const numericConfigEmissionSchema = zod
   .object({
-    /** 离散化参数（键 = 已声明 SymbolSpec 的 token，如 N / dt / dr）。 */
-    discretization: zod.record(zod.string(), zod.number()),
-    /** 物理/算法参数（物性组系数、h/hm、判据阈值、界面取法…）。 */
-    physical: zod.record(zod.string(), zod.number()),
+    /**
+     * 离散化参数。键 = 已声明 SymbolSpec 的 token **或 symbol_id**（两者都唯一
+     * 指向同一符号；`null` 表示"本次未填"——它不携带任何数值，物化时丢弃）。
+     */
+    discretization: zod.record(zod.string(), zod.number().nullable()),
+    /** 物理/算法参数（同上）。 */
+    physical: zod.record(zod.string(), zod.number().nullable()),
     /** 离散/算法选择的**枚举**选择（显式/隐式格式、求解器名）。 */
     choices: zod.record(zod.string(), zod.string()),
     /** 物性组标识（如 'A2'/'A3'/'A4'）。2026-A 的"三套物性混用"正是这个字段。 */
@@ -177,32 +180,57 @@ export function numericConfigFromEmission(
       failures: [{ kind: 'SCOPE_UNRESOLVED', reason: 'the run\u2019s model declares no problem scope; config tokens cannot resolve' }],
     }
   }
+  const inScope = input.symbols.filter(symbol => scopes.has(symbol.scope_ref))
   const byToken = new Map<string, EmissionSymbol>()
-  for (const symbol of input.symbols) {
-    if (!scopes.has(symbol.scope_ref)) continue
+  const byId = new Map<string, EmissionSymbol>()
+  // Normalised spelling map: case and underscore/brace differences are
+  // notation (`p0` vs `P_0`, `T_inf` vs `Tinf`). Ambiguity REFUSES — a key
+  // that normalises onto two different declared symbols is not resolvable,
+  // and guessing would bind the value to the wrong symbol.
+  const byNormalized = new Map<string, EmissionSymbol | 'ambiguous'>()
+  const normalize = (key: string): string => key.toLowerCase().replace(/[_\-{}$]/g, '')
+  for (const symbol of inScope) {
     byToken.set(symbol.token, symbol)
+    byId.set(symbol.symbol_id, symbol)
+    // BOTH spellings of the same symbol enter the normalised map. Evidence:
+    // run-4 of W11.5 emitted key `S_P0` for the declared id `S-P0`
+    // (token `p0`) — an underscore for a hyphen, the same symbol in a
+    // different rendering. Since both aliases name ONE symbol, no ambiguity
+    // is created; a collision between two DIFFERENT symbols still refuses.
+    for (const spelling of [symbol.token, symbol.symbol_id]) {
+      const normalized = normalize(spelling)
+      const prior = byNormalized.get(normalized)
+      const unambiguous = prior === undefined || prior === 'ambiguous'
+        ? prior !== 'ambiguous'
+        : prior.symbol_id === symbol.symbol_id
+      byNormalized.set(normalized, unambiguous ? symbol : 'ambiguous')
+    }
   }
 
-  const resolve = (section: string, token: string): string | null => {
-    const symbol = byToken.get(token)
-    if (symbol === undefined) {
-      failures.push({
-        kind: 'TOKEN_UNRESOLVED',
-        reason: `${section} key '${token}' does not resolve to a SymbolSpec declared in scope [${[...scopes].join(', ')}]`,
-      })
-      return null
-    }
-    return symbol.symbol_id
+  const resolve = (section: string, key: string): string | null => {
+    const exact = byToken.get(key) ?? byId.get(key)
+    if (exact !== undefined) return exact.symbol_id
+    const fuzzy = byNormalized.get(normalize(key))
+    if (fuzzy !== undefined && fuzzy !== 'ambiguous') return fuzzy.symbol_id
+    failures.push({
+      kind: 'TOKEN_UNRESOLVED',
+      reason: fuzzy === 'ambiguous'
+        ? `${section} key '${key}' matches more than one declared SymbolSpec by spelling — rename the key to the exact token or symbol_id (ambiguous keys are refused, never guessed)`
+        : `${section} key '${key}' does not resolve to a SymbolSpec declared in scope [${[...scopes].join(', ')}]`,
+    })
+    return null
   }
 
   const discretization: Array<{ symbol_ref: string; value: number }> = []
   for (const [token, value] of Object.entries(input.emission.discretization)) {
+    if (value === null) continue // "not filled" carries no value to record
     const symbolRef = resolve('discretization', token)
     if (symbolRef === null) continue
     discretization.push({ symbol_ref: symbolRef, value })
   }
   const physical: Array<{ symbol_ref: string; value: number }> = []
   for (const [token, value] of Object.entries(input.emission.physical)) {
+    if (value === null) continue
     const symbolRef = resolve('physical', token)
     if (symbolRef === null) continue
     physical.push({ symbol_ref: symbolRef, value })

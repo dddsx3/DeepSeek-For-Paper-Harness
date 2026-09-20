@@ -1,0 +1,25 @@
+{
+  "persist": "../../../apps/paper-shell/src/paper-shell-persist-CVLaHf",
+  "results": [
+    {
+      "attempt": 2,
+      "chars": 27520,
+      "stage": "PASS",
+      "code": "OK",
+      "reason": "results=R-N1,R-C1,R-N2,R-C2,R-PI,R-X1,R-X2,R-X3,R-X4 claims=C-N1,C-N2,C-PI",
+      "kindCounts": {
+        "SymbolSpec": 31,
+        "AssumptionSpec": 11,
+        "EquationSpec": 6,
+        "ModelSpec": 1
+      }
+    },
+    {
+      "attempt": 3,
+      "chars": 18996,
+      "stage": "container",
+      "code": "store_refused",
+      "reason": "entry 'EquationSpec' could not be admitted: unresolved_reference: 'E-VRECOVER' is not registered (expected EquationSpec) (append-only store; a duplicate id is a conflict, not an update)"
+    }
+  ]
+}

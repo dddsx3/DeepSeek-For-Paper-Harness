@@ -118,3 +118,82 @@ describe('NumericConfig — emission materialization (DP-4 执行期捕获)', ()
     if (!built.ok) expect(built.failures[0]?.kind).toBe('SCOPE_UNRESOLVED')
   })
 })
+
+// ---------------------------------------------------------------------------
+// W11.5-A1b — 配置发射的键解析（记号归一，歧义拒绝）
+// ---------------------------------------------------------------------------
+
+describe('NumericConfig — emission key resolution (W11.5)', () => {
+  const symbols = [
+    { symbol_id: 'SYM-P0', token: 'P_0', scope_ref: 'P1' },
+    { symbol_id: 'SYM-N', token: 'n', scope_ref: 'P1' },
+    { symbol_id: 'SYM-DT', token: 'dt', scope_ref: 'P1' },
+  ] as unknown as EmissionSymbol[]
+  const base = { configId: 'NC-X', runRef: 'RUN1', scopeRefs: ['P1'], symbols }
+
+  it('按 symbol_id 作键也能解析（真实运行里模型自然写成 id）', () => {
+    const built = numericConfigFromEmission({
+      ...base,
+      emission: { discretization: { 'SYM-N': 200 }, physical: {}, choices: {}, property_set: null },
+    })
+    expect(built.ok).toBe(true)
+    if (built.ok) expect(built.config.discretization).toEqual([{ symbol_ref: 'SYM-N', value: 200 }])
+  })
+
+  it('大小写/下划线记号差异可归一（`p0` → `P_0`）', () => {
+    const built = numericConfigFromEmission({
+      ...base,
+      emission: { discretization: { p0: 0.1 }, physical: {}, choices: {}, property_set: null },
+    })
+    expect(built.ok).toBe(true)
+    if (built.ok) expect(built.config.discretization).toEqual([{ symbol_ref: 'SYM-P0', value: 0.1 }])
+  })
+
+  it('null 值 = 未填，条目被丢弃而不是拒绝整条链', () => {
+    const built = numericConfigFromEmission({
+      ...base,
+      emission: { discretization: { n: null, dt: 0.25 }, physical: {}, choices: {}, property_set: null },
+    })
+    expect(built.ok).toBe(true)
+    if (built.ok) expect(built.config.discretization).toEqual([{ symbol_ref: 'SYM-DT', value: 0.25 }])
+  })
+
+  it('归一后歧义 → 拒绝（构造性反例：绝不猜哪个符号）', () => {
+    const ambiguous = [
+      { symbol_id: 'SYM-A', token: 'T_inf', scope_ref: 'P1' },
+      { symbol_id: 'SYM-B', token: 'Tinf', scope_ref: 'P1' },
+    ] as unknown as EmissionSymbol[]
+    const built = numericConfigFromEmission({
+      ...base,
+      symbols: ambiguous,
+      emission: { discretization: { tinf: 1 }, physical: {}, choices: {}, property_set: null },
+    })
+    expect(built.ok).toBe(false)
+    if (!built.ok) expect(built.failures[0]?.reason).toContain('more than one')
+  })
+
+  it('id 的记号变体（`S_P0` ↔ 声明 id `S-P0`）也能解析（run-4 实测形态）', () => {
+    const withId = [
+      { symbol_id: 'S-P0', token: 'p0', scope_ref: 'P1' },
+      { symbol_id: 'S-N', token: 'n', scope_ref: 'P1' },
+    ] as unknown as EmissionSymbol[]
+    const built = numericConfigFromEmission({
+      ...base,
+      symbols: withId,
+      emission: { discretization: { S_P0: 0.1 }, physical: { 'S-N': 200 }, choices: {}, property_set: null },
+    })
+    expect(built.ok).toBe(true)
+    if (built.ok) {
+      expect(built.config.discretization).toEqual([{ symbol_ref: 'S-P0', value: 0.1 }])
+      expect(built.config.physical).toEqual([{ symbol_ref: 'S-N', value: 200 }])
+    }
+  })
+
+  it('完全未知的键仍拒绝（构造性反例）', () => {
+    const built = numericConfigFromEmission({
+      ...base,
+      emission: { discretization: { mystery: 1 }, physical: {}, choices: {}, property_set: null },
+    })
+    expect(built.ok).toBe(false)
+  })
+})

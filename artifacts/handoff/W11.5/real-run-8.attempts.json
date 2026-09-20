@@ -1,0 +1,132 @@
+{
+  "runId": "4e097b4d-4495-480a-b7e4-e6d538d70b16",
+  "generatedAt": "2026-09-19T20:11:31.194Z",
+  "attempts": [
+    {
+      "attempt": 1,
+      "refusals": [
+        {
+          "code": "E1_E2_FIDELITY_VIOLATION",
+          "attempt": 1,
+          "reason": ""
+        }
+      ],
+      "fidelity": [
+        {
+          "id": "B4 逐问推理覆盖",
+          "ok": false,
+          "detail": "E1 缺少 1 个要求的推理段：R-OUT"
+        },
+        {
+          "id": "B5 锚点 id 形态（E1 侧）",
+          "ok": true,
+          "detail": "全部 10 个锚点 id 都是可用名字"
+        },
+        {
+          "id": "B3 反向（E1 假设须被声明）",
+          "ok": true,
+          "detail": "E1 的 10 条假设锚点均有对应 AssumptionSpec"
+        },
+        {
+          "id": "B3 锚点同一性（声明须在 E1 中有同名锚点）",
+          "ok": true,
+          "detail": "10 条假设声明在 E1 中均有同名锚点"
+        },
+        {
+          "id": "B3 正向（声明须逐字锚定 E1）",
+          "ok": true,
+          "detail": "16 条 Assumption/Equation 声明全部逐字锚定 E1"
+        }
+      ],
+      "e2_chars": 15651
+    },
+    {
+      "attempt": 2,
+      "refusals": [
+        {
+          "code": "E1_E2_FIDELITY_VIOLATION",
+          "attempt": 2,
+          "reason": ""
+        }
+      ],
+      "fidelity": [
+        {
+          "id": "B4 逐问推理覆盖",
+          "ok": false,
+          "detail": "E1 缺少 1 个要求的推理段：R-OUT"
+        },
+        {
+          "id": "B5 锚点 id 形态（E1 侧）",
+          "ok": true,
+          "detail": "全部 10 个锚点 id 都是可用名字"
+        },
+        {
+          "id": "B3 反向（E1 假设须被声明）",
+          "ok": true,
+          "detail": "E1 的 10 条假设锚点均有对应 AssumptionSpec"
+        },
+        {
+          "id": "B3 锚点同一性（声明须在 E1 中有同名锚点）",
+          "ok": true,
+          "detail": "10 条假设声明在 E1 中均有同名锚点"
+        },
+        {
+          "id": "B3 正向（声明须逐字锚定 E1）",
+          "ok": true,
+          "detail": "15 条 Assumption/Equation 声明全部逐字锚定 E1"
+        }
+      ],
+      "e2_chars": 23070
+    },
+    {
+      "attempt": 3,
+      "refusals": [],
+      "fidelity": [
+        {
+          "id": "B4 逐问推理覆盖",
+          "ok": false,
+          "detail": "E1 缺少 1 个要求的推理段：R-OUT"
+        },
+        {
+          "id": "B5 锚点 id 形态（E1 侧）",
+          "ok": true,
+          "detail": "全部 10 个锚点 id 都是可用名字"
+        },
+        {
+          "id": "B3 反向（E1 假设须被声明）",
+          "ok": true,
+          "detail": "E1 的 10 条假设锚点均有对应 AssumptionSpec"
+        },
+        {
+          "id": "B3 锚点同一性（声明须在 E1 中有同名锚点）",
+          "ok": true,
+          "detail": "10 条假设声明在 E1 中均有同名锚点"
+        },
+        {
+          "id": "B3 正向（声明须逐字锚定 E1）",
+          "ok": true,
+          "detail": "15 条 Assumption/Equation 声明全部逐字锚定 E1"
+        }
+      ],
+      "e2_chars": 23070
+    },
+    {
+      "terminal": "e1_direct_delivery",
+      "failedRules": [
+        "B4 逐问推理覆盖"
+      ],
+      "reason": "DRIFT guidance budget exhausted",
+      "e1_chars": 4545,
+      "assumptions": 10
+    },
+    {
+      "terminal": "gate_failed",
+      "reason": "ir_canonicalization:BLOCKED:missing IR backbone: ModelSpec,RunArtifact,Result,Claim; no CRITICAL claim in canonical IR; minimum Problem Contract not satisfied (RAW_PROBLEM DataArtifact + REQUIRED_OUTPUT RequirementSpec + SymbolSpec)"
+    },
+    {
+      "terminal": "gate_failed",
+      "reason": "requirement_coverage:BLOCKED:requirement coverage: 1 finding(s) (required_output_unpaid: REQUIRED_OUTPUT 'R-OUT' of problem 'P1' is not covered: only 0/1 distinct CRITICAL results reach this problem (A7 v0 fail-closed))"
+    }
+  ],
+  "attemptBodies": {}
+}

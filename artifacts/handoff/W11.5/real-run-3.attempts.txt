@@ -1,0 +1,5 @@
+attempt 1 (18609 chars) → [PASS] OK: results=RES-N1,RES-C1,RES-ACC1,RES-N2,RES-C2,RES-ACC2 claims=CL-N1,CL-N2
+   entries: {"SymbolSpec":15,"AssumptionSpec":16,"EquationSpec":10,"ModelSpec":4}
+attempt 2 (20891 chars) → [container] schema_violation: entry 'ModelSpec' violates its closed IR schema — constraints: Invalid input: expected array, received string
+attempt 3 (17184 chars) → [interpretation] store_refused: Claim 'CL-ACCEPT-N' refused: unresolved_reference: 'RES-ACCEPT-OC' is not registered (expected any registered object)
+   entries: {"SymbolSpec":16,"AssumptionSpec":16,"EquationSpec":8,"ModelSpec":1,"DataArtifact":2}

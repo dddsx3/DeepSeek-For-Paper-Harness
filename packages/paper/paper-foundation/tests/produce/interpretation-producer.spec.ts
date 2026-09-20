@@ -150,6 +150,18 @@ describe('P1-3 produceInterpretation (values only from executed bytes)', () => {
     expect(resolveJsonPath({ a: { b: 3 } }, 'a.c')).toBeUndefined()
     expect(resolveJsonPath('nope', 'a')).toBeUndefined()
   })
+
+  it('W11.5 run-9: a JSONPath array-index suffix resolves as notation, not as a key', () => {
+    // Real refusal: the model wrote `oc[2].accept` / `cases[0].best_profit`;
+    // split('.') looked up a key literally named `oc[2]` and the container —
+    // otherwise fully legal — died with `result_source_invalid`.
+    const root = { oc: [0.9, 0.95, 0.88], cases: [{ best_profit: 12.5 }] }
+    expect(resolveJsonPath(root, 'oc[2]')).toBe(0.88)
+    expect(resolveJsonPath(root, 'cases[0].best_profit')).toBe(12.5)
+    expect(resolveJsonPath({ a: [1] }, 'a[5]')).toBeUndefined() // out of range still fails
+    expect(resolveJsonPath({ a: 3 }, 'a[0]')).toBeUndefined() // index into a non-array fails
+    expect(resolveJsonPath({ 'a[x]': 1 }, 'a[x]')).toBe(1) // non-numeric suffix treated as a literal key (not an index)
+  })
 })
 
 describe('P1-3 renderV1Report (IR-injected numbers, guarded conclusion)', () => {

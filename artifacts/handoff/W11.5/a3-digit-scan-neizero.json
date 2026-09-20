@@ -1,0 +1,9 @@
+[
+  {
+    "kind": "arithmetic_self_contradiction",
+    "expression": "q_f=0.9^8\\times0.9\\times0.9\\times0.9\\approx0.478",
+    "stated": 0.478,
+    "computed": 0.3138105960900001,
+    "reason": "稿件自相矛盾：表达式「q_f=0.9^8\\times0.9\\times0.9\\times0.9\\approx0.478」按自身操作数求值为 0.3138105960900001，稿内却写 0.478（差 0.164189，超出该写法四舍五入所能解释的 0.0005250000000000001）"
+  }
+]

@@ -1,0 +1,132 @@
+{
+  "e1_chars": 6581,
+  "e1_assumption_anchors": [
+    "A-BINOMIAL-IID",
+    "A-ALPHA-BETA",
+    "A-LINEAR-COST",
+    "A-INDEPENDENT-DEFECT",
+    "A-REPLACEMENT",
+    "A-GROUPING",
+    "A-POSTERIOR-BETA",
+    "A-INDEPENDENT-SAMPLING"
+  ],
+  "e1_requirement_anchors": [
+    "R-OUT"
+  ],
+  "attempts": {
+    "1": {
+      "chars": 25140,
+      "kinds": {
+        "SymbolSpec": 31,
+        "AssumptionSpec": 8,
+        "EquationSpec": 6,
+        "ModelSpec": 1
+      },
+      "has_code": true,
+      "has_interpretations": true,
+      "findings": [
+        {
+          "rule": "B4 逐问推理覆盖",
+          "ok": true,
+          "detail": "全部 1 个 REQUIRED_OUTPUT 在 E1 中有推理锚点"
+        },
+        {
+          "rule": "B5 锚点 id 形态（E1 侧）",
+          "ok": true,
+          "detail": "全部 9 个锚点 id 都是可用名字"
+        },
+        {
+          "rule": "B3 反向（E1 假设须被声明）",
+          "ok": true,
+          "detail": "E1 的 8 条假设锚点均有对应 AssumptionSpec"
+        },
+        {
+          "rule": "B3 锚点同一性（声明须在 E1 中有同名锚点）",
+          "ok": true,
+          "detail": "8 条假设声明在 E1 中均有同名锚点"
+        },
+        {
+          "rule": "B3 正向（声明须逐字锚定 E1）",
+          "ok": false,
+          "detail": "A-ALPHA-BETA: e1_span 在 E1 中找不到逐字匹配（疑似改写）〔相似度 29.2%，首分歧 @21，span「解释为显著性水平α=0.05(误」vs E1「解释为显著性水平\\(\\alpha」〕；A-INDEPENDENT-DEFECT: e1_span 在 E1 中找不到逐字匹配（疑似改写）〔相似度 35.7%，首分歧 @15，span「独立,成品次品率p_f是给定常数」vs E1「独立,成品次品率\\(p_f\\)是」〕；A-REPLACEMENT: e1_span 在 E1 中找不到逐字匹配（疑似改写）〔相似度 86.0%，首分歧 @43，span「计入),调换损失r为额外损失.」vs E1「计入),调换损失\\(r\\)为额」〕；E-BINOM: e1_span 在 E1 中找不到逐字匹配（疑似改写）〔相似度 11.5%，首分歧 @1，span「设X\\sim\\te」vs E1「设\\(V_k\\)为」〕；E-REJECT: e1_span 在 E1 中找不到逐字匹配（疑似改写）〔相似度 18.9%，首分歧 @6，span「判定规则:若X>c则拒收,其」vs E1「判定规则:若\\(X>c\\)则」〕；E-ACCEPT: e1_span 在 E1 中找不到逐字匹配（疑似改写）〔相似度 18.2%，首分歧 @6，span「判定规则:若X\\lec'则接」vs E1「判定规则:若\\(X>c\\)则」〕；E-RECUR: e1_span 在 E1 中找不到逐字匹配（疑似改写）〔相似度 36.8%，首分歧 @7，span「递推关系:组件k由若干下级组件」vs E1「递推关系:组件\\(k\\)由若干」〕；E-POST: e1_span 在 E1 中找不到逐字匹配（疑似改写）〔相似度 8.5%，首分歧 @3，span「若抽样n件,发现x件次」vs E1「若抽样\\(n\\)件,发」〕"
+        }
+      ]
+    },
+    "2": {
+      "chars": 22704,
+      "kinds": {
+        "SymbolSpec": 34,
+        "AssumptionSpec": 8,
+        "EquationSpec": 5,
+        "ModelSpec": 1
+      },
+      "has_code": true,
+      "has_interpretations": true,
+      "findings": [
+        {
+          "rule": "B4 逐问推理覆盖",
+          "ok": true,
+          "detail": "全部 1 个 REQUIRED_OUTPUT 在 E1 中有推理锚点"
+        },
+        {
+          "rule": "B5 锚点 id 形态（E1 侧）",
+          "ok": true,
+          "detail": "全部 9 个锚点 id 都是可用名字"
+        },
+        {
+          "rule": "B3 反向（E1 假设须被声明）",
+          "ok": true,
+          "detail": "E1 的 8 条假设锚点均有对应 AssumptionSpec"
+        },
+        {
+          "rule": "B3 锚点同一性（声明须在 E1 中有同名锚点）",
+          "ok": true,
+          "detail": "8 条假设声明在 E1 中均有同名锚点"
+        },
+        {
+          "rule": "B3 正向（声明须逐字锚定 E1）",
+          "ok": true,
+          "detail": "13 条 Assumption/Equation 声明全部逐字锚定 E1"
+        }
+      ]
+    },
+    "3": {
+      "chars": 17356,
+      "kinds": {
+        "SymbolSpec": 28,
+        "AssumptionSpec": 8,
+        "EquationSpec": 6,
+        "ModelSpec": 1
+      },
+      "has_code": true,
+      "has_interpretations": true,
+      "findings": [
+        {
+          "rule": "B4 逐问推理覆盖",
+          "ok": true,
+          "detail": "全部 1 个 REQUIRED_OUTPUT 在 E1 中有推理锚点"
+        },
+        {
+          "rule": "B5 锚点 id 形态（E1 侧）",
+          "ok": true,
+          "detail": "全部 9 个锚点 id 都是可用名字"
+        },
+        {
+          "rule": "B3 反向（E1 假设须被声明）",
+          "ok": true,
+          "detail": "E1 的 8 条假设锚点均有对应 AssumptionSpec"
+        },
+        {
+          "rule": "B3 锚点同一性（声明须在 E1 中有同名锚点）",
+          "ok": true,
+          "detail": "8 条假设声明在 E1 中均有同名锚点"
+        },
+        {
+          "rule": "B3 正向（声明须逐字锚定 E1）",
+          "ok": true,
+          "detail": "14 条 Assumption/Equation 声明全部逐字锚定 E1"
+        }
+      ]
+    }
+  }
+}

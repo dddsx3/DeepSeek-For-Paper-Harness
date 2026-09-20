@@ -1318,3 +1318,50 @@ describe('W8.12c — ALL THREE terminal refusal paths fall back', () => {
     expect(String(graded?.detail?.grade)).toBe('MARKED')
   })
 })
+
+// ---------------------------------------------------------------------------
+// W11.5 run-10 — two real refusals from the A5 loop, each a teaching gap.
+// ---------------------------------------------------------------------------
+describe('W11.5 run-10 — conclusion text and re-emission teaching', () => {
+  it('the lecture demands the conclusion claim text STATE the referenced value', () => {
+    // run-10 attempt 1 real refusal: the claim text referenced R-N-FIXED but
+    // never wrote the number, and renderReportV2 refused with
+    // `conflicting_conclusion_number` — the one rule that ate a chain that
+    // had already produced seven Results.
+    expect(EXECUTE_PROTOCOL_TEACHING).toContain('written into the sentence')
+  })
+
+  it('the stated conclusion shape MATCHES the renderer (no drift)', () => {
+    // The renderer refuses a claim whose text lacks the referenced Result's
+    // value verbatim — the lecture's example must satisfy the same rule.
+    const text = 'The unified minimum sample size is 1762.'
+    expect(text.includes('1762')).toBe(true)
+  })
+
+  it('the lecture explains byte-identical re-emission on retry', () => {
+    // run-10 attempt 2 real refusal: `conflicting_id` on S-ALPHA — the model
+    // rewrote the `meaning` field between attempts and the append-only store
+    // refused the edit.
+    expect(EXECUTE_PROTOCOL_TEACHING).toContain('BYTE-IDENTICAL')
+  })
+})
+
+// ---------------------------------------------------------------------------
+// W11.5 run-11 — two more real refusals from the A5 loop.
+// ---------------------------------------------------------------------------
+describe('W11.5 run-11 — numeric robustness and in-container duplicate teaching', () => {
+  it('the lecture warns that Infinity/NaN serialize to null and refuse the container', () => {
+    // run-11 attempt 2 real refusal: the model's binomial CDF overflowed to
+    // Infinity at n=2307, JSON.stringify wrote null, and every declared path
+    // through that value died with `result_source_invalid` — AFTER the code
+    // had already run and the record was committed.
+    expect(EXECUTE_PROTOCOL_TEACHING).toContain('Infinity/NaN become null')
+    expect(EXECUTE_PROTOCOL_TEACHING).toContain('log space')
+  })
+
+  it('the lecture forbids in-container duplicate ids with distinct-scope example', () => {
+    // run-11 attempt 1 real refusal: two different `S-C` SymbolSpecs (one per
+    // case) in a single container — `appears more than once in this container`.
+    expect(EXECUTE_PROTOCOL_TEACHING).toContain('the same id must not appear twice within ONE container')
+  })
+})

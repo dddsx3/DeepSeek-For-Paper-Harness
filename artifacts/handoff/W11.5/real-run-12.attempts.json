@@ -1,0 +1,94 @@
+{
+  "runId": "63b7de27-270d-4479-a8f8-dcd078c99897",
+  "generatedAt": "2026-09-20T16:03:53.087Z",
+  "attempts": [
+    {
+      "attempt": 1,
+      "refusals": [
+        {
+          "code": "conflicting_conclusion_number",
+          "attempt": 1,
+          "reason": ""
+        }
+      ],
+      "fidelity": [
+        {
+          "id": "B4 逐问推理覆盖",
+          "ok": true,
+          "detail": "全部 1 个 REQUIRED_OUTPUT 在 E1 中有推理锚点"
+        },
+        {
+          "id": "B5 锚点 id 形态（E1 侧）",
+          "ok": true,
+          "detail": "全部 5 个锚点 id 都是可用名字"
+        },
+        {
+          "id": "B3 反向（E1 假设须被声明）",
+          "ok": true,
+          "detail": "E1 的 4 条假设锚点均有对应 AssumptionSpec"
+        },
+        {
+          "id": "B3 锚点同一性（声明须在 E1 中有同名锚点）",
+          "ok": true,
+          "detail": "4 条假设声明在 E1 中均有同名锚点"
+        },
+        {
+          "id": "B3 正向（声明须逐字锚定 E1）",
+          "ok": true,
+          "detail": "8 条 Assumption/Equation 声明全部逐字锚定 E1"
+        }
+      ],
+      "e2_chars": 12844
+    },
+    {
+      "attempt": 2,
+      "refusals": [
+        {
+          "code": "conflicting_id",
+          "attempt": 2,
+          "reason": "entry 'SymbolSpec' id 'S-N1' is already registered with DIFFERENT content (append-only store; a duplicate id is a conflict, not an update)"
+        },
+        {
+          "code": "conflicting_id",
+          "attempt": 2,
+          "reason": ""
+        }
+      ],
+      "fidelity": [
+        {
+          "id": "B4 逐问推理覆盖",
+          "ok": true,
+          "detail": "全部 1 个 REQUIRED_OUTPUT 在 E1 中有推理锚点"
+        },
+        {
+          "id": "B5 锚点 id 形态（E1 侧）",
+          "ok": true,
+          "detail": "全部 5 个锚点 id 都是可用名字"
+        },
+        {
+          "id": "B3 反向（E1 假设须被声明）",
+          "ok": true,
+          "detail": "E1 的 4 条假设锚点均有对应 AssumptionSpec"
+        },
+        {
+          "id": "B3 锚点同一性（声明须在 E1 中有同名锚点）",
+          "ok": true,
+          "detail": "4 条假设声明在 E1 中均有同名锚点"
+        },
+        {
+          "id": "B3 正向（声明须逐字锚定 E1）",
+          "ok": true,
+          "detail": "8 条 Assumption/Equation 声明全部逐字锚定 E1"
+        }
+      ],
+      "e2_chars": 21061
+    },
+    {
+      "attempt": 3,
+      "refusals": [],
+      "fidelity": [],
+      "e2_chars": 94947
+    }
+  ],
+  "attemptBodies": {}
+}

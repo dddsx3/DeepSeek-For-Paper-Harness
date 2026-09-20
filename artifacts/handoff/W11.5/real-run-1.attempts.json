@@ -1,0 +1,33 @@
+{
+  "persist": "../../../apps/paper-shell/src/paper-shell-persist-DvAPWg",
+  "results": [
+    {
+      "attempt": 1,
+      "chars": 40163,
+      "stage": "fidelity",
+      "code": "E1_E2_FIDELITY_VIOLATION",
+      "reason": "B3 正向（声明须逐字锚定 E1）: E-Q2: e1_span 在 E1 中找不到逐字匹配（疑似改写）〔相似度 41.2%，首分歧 @2，span「若d2=1:q2=1」vs E1「若d1=0:q1=1」〕"
+    },
+    {
+      "attempt": 2,
+      "chars": 25458,
+      "stage": "interpretation",
+      "code": "result_source_invalid",
+      "reason": "result 'R-EVSI': path 'evsi' in 'file:///runs/RUN-ATT2/outputs.json' does not resolve to a finite number (got null)",
+      "kindCounts": {
+        "SymbolSpec": 33,
+        "AssumptionSpec": 13,
+        "EquationSpec": 12,
+        "ModelSpec": 1,
+        "DataArtifact": 2
+      }
+    },
+    {
+      "attempt": 3,
+      "chars": 29781,
+      "stage": "fidelity",
+      "code": "E1_E2_FIDELITY_VIOLATION",
+      "reason": "B3 正向（声明须逐字锚定 E1）: E-Q2: e1_span 在 E1 中找不到逐字匹配（疑似改写）〔相似度 89.3%，首分歧 @2，span「若d2=1:件2经检」vs E1「若d1=1:件1经检」〕"
+    }
+  ]
+}

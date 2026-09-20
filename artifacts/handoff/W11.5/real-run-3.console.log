@@ -1,0 +1,9 @@
+[CODE-FRESH] 代码来源已断言：entry lib/index.js is 116695 ms newer than the newest source; entry lib/index.js is 1234128624 ms newer than the newest source; entry lib/index.js is 1234155115 ms newer than the newest source; entry lib/index.js is 1234155264 ms newer than the newest source; entry lib/index.js is 1234128935 ms newer than the newest source; entry lib/index.js is 1234128211 ms newer than the newest source
+[DELIVERED] sha256=e597c79e0ca4cc8b...
+  run-id  -> 815c2886-2cfa-4ea4-96aa-29566ba54bab
+  report  -> artifacts\handoff\W11.5\real-run-3\report.md
+  zip     -> artifacts\handoff\W11.5\real-run-3\deliverable.zip (zip sha256=a60f940dbe916cea...)
+  usage   -> in 59268 tok / out 42567 tok / $0.0000 (TASK-Q2 telemetry)
+  audit   -> workflow_started,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,provider_retry,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,provider_retry,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,e1_direct_delivery,gate_failed,gate_failed,delivery_graded,final_output_written,promotion_succeeded,workflow_completed
+  tier    -> T1
+  path    -> B-e1-direct

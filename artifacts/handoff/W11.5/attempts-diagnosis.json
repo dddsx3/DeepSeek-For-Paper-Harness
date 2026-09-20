@@ -1,0 +1,26 @@
+{
+  "persist": "../../../apps/paper-shell/src/paper-shell-persist-wjjao8",
+  "results": [
+    {
+      "attempt": 1,
+      "chars": 15651,
+      "stage": "fidelity",
+      "code": "E1_E2_FIDELITY_VIOLATION",
+      "reason": "B4 逐问推理覆盖: E1 缺少 1 个要求的推理段：R-OUT"
+    },
+    {
+      "attempt": 2,
+      "chars": 23070,
+      "stage": "fidelity",
+      "code": "E1_E2_FIDELITY_VIOLATION",
+      "reason": "B4 逐问推理覆盖: E1 缺少 1 个要求的推理段：R-OUT"
+    },
+    {
+      "attempt": 3,
+      "chars": 23070,
+      "stage": "fidelity",
+      "code": "E1_E2_FIDELITY_VIOLATION",
+      "reason": "B4 逐问推理覆盖: E1 缺少 1 个要求的推理段：R-OUT"
+    }
+  ]
+}

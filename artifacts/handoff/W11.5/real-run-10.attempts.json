@@ -1,0 +1,135 @@
+{
+  "runId": "ab0f940c-46aa-442f-9942-847165cbeff8",
+  "generatedAt": "2026-09-19T20:25:02.038Z",
+  "attempts": [
+    {
+      "attempt": 1,
+      "refusals": [
+        {
+          "code": "conflicting_conclusion_number",
+          "attempt": 1,
+          "reason": ""
+        }
+      ],
+      "fidelity": [
+        {
+          "id": "B4 逐问推理覆盖",
+          "ok": true,
+          "detail": "全部 1 个 REQUIRED_OUTPUT 在 E1 中有推理锚点"
+        },
+        {
+          "id": "B5 锚点 id 形态（E1 侧）",
+          "ok": true,
+          "detail": "全部 7 个锚点 id 都是可用名字"
+        },
+        {
+          "id": "B3 反向（E1 假设须被声明）",
+          "ok": true,
+          "detail": "E1 的 6 条假设锚点均有对应 AssumptionSpec"
+        },
+        {
+          "id": "B3 锚点同一性（声明须在 E1 中有同名锚点）",
+          "ok": true,
+          "detail": "6 条假设声明在 E1 中均有同名锚点"
+        },
+        {
+          "id": "B3 正向（声明须逐字锚定 E1）",
+          "ok": true,
+          "detail": "12 条 Assumption/Equation 声明全部逐字锚定 E1"
+        }
+      ],
+      "e2_chars": 23254
+    },
+    {
+      "attempt": 2,
+      "refusals": [
+        {
+          "code": "conflicting_id",
+          "attempt": 2,
+          "reason": "entry 'SymbolSpec' id 'S-ALPHA' is already registered with DIFFERENT content (append-only store; a duplicate id is a conflict, not an update)"
+        },
+        {
+          "code": "conflicting_id",
+          "attempt": 2,
+          "reason": ""
+        }
+      ],
+      "fidelity": [
+        {
+          "id": "B4 逐问推理覆盖",
+          "ok": true,
+          "detail": "全部 1 个 REQUIRED_OUTPUT 在 E1 中有推理锚点"
+        },
+        {
+          "id": "B5 锚点 id 形态（E1 侧）",
+          "ok": true,
+          "detail": "全部 7 个锚点 id 都是可用名字"
+        },
+        {
+          "id": "B3 反向（E1 假设须被声明）",
+          "ok": true,
+          "detail": "E1 的 6 条假设锚点均有对应 AssumptionSpec"
+        },
+        {
+          "id": "B3 锚点同一性（声明须在 E1 中有同名锚点）",
+          "ok": true,
+          "detail": "6 条假设声明在 E1 中均有同名锚点"
+        },
+        {
+          "id": "B3 正向（声明须逐字锚定 E1）",
+          "ok": true,
+          "detail": "13 条 Assumption/Equation 声明全部逐字锚定 E1"
+        }
+      ],
+      "e2_chars": 15719
+    },
+    {
+      "attempt": 3,
+      "refusals": [
+        {
+          "code": "E1_E2_FIDELITY_VIOLATION",
+          "attempt": 3,
+          "reason": ""
+        }
+      ],
+      "fidelity": [
+        {
+          "id": "B4 逐问推理覆盖",
+          "ok": true,
+          "detail": "全部 1 个 REQUIRED_OUTPUT 在 E1 中有推理锚点"
+        },
+        {
+          "id": "B5 锚点 id 形态（E1 侧）",
+          "ok": true,
+          "detail": "全部 7 个锚点 id 都是可用名字"
+        },
+        {
+          "id": "B3 反向（E1 假设须被声明）",
+          "ok": false,
+          "detail": "E1 标记了但 IR 未声明的假设：A-BINOMIAL-SAMPLE、A-ONE-SIDED-TEST、A-PERFECT-TEST、A-INDEPENDENT-DEFECTS、A-NO-REWORK-LIMIT、A-POINT-ESTIMATE"
+        },
+        {
+          "id": "B3 锚点同一性（声明须在 E1 中有同名锚点）",
+          "ok": true,
+          "detail": "0 条假设声明在 E1 中均有同名锚点"
+        },
+        {
+          "id": "B3 正向（声明须逐字锚定 E1）",
+          "ok": true,
+          "detail": "0 条 Assumption/Equation 声明全部逐字锚定 E1"
+        }
+      ],
+      "e2_chars": 524
+    },
+    {
+      "terminal": "e1_direct_delivery",
+      "failedRules": [
+        "B3 反向（E1 假设须被声明）"
+      ],
+      "reason": "EXECUTE output refused 3 times",
+      "e1_chars": 4720,
+      "assumptions": 6
+    }
+  ],
+  "attemptBodies": {}
+}

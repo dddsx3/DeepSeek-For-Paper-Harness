@@ -1,0 +1,26 @@
+{
+  "persist": "../../../apps/paper-shell/src/paper-shell-persist-afJUex",
+  "results": [
+    {
+      "attempt": 1,
+      "chars": 34555,
+      "stage": "container",
+      "code": "schema_violation",
+      "reason": "entry 'SymbolSpec' violates its closed IR schema — token: token must not contain control, format, surrogate or separator characters"
+    },
+    {
+      "attempt": 2,
+      "chars": 37320,
+      "stage": "container",
+      "code": "schema_violation",
+      "reason": "entry 'SymbolSpec' violates its closed IR schema — token: token must not contain control, format, surrogate or separator characters"
+    },
+    {
+      "attempt": 3,
+      "chars": 9765,
+      "stage": "fidelity",
+      "code": "E1_E2_FIDELITY_VIOLATION",
+      "reason": "B3 反向（E1 假设须被声明）: E1 标记了但 IR 未声明的假设：A-EXCHANGE-COST、A-NO-REPEAT、A-DISASSEMBLE-YIELD、A-BETA-PRIOR"
+    }
+  ]
+}
