@@ -1,17 +1,10 @@
-# Third-Party Notices — Vendored Digital-Asset Library (v2)
+# Third-Party Notices — Vendored Digital-Asset Library (v2, SUPERSEDED)
 
-This branch (`digital-assets`) carries vendored digital assets used by a
-paper-production toolchain. Several asset families are owned by third
-parties and are subject to their own licences. This file is the central
-index of those obligations; the asset files themselves are not modified
-and their provenance is preserved exactly as the upstream sources ship
-them.
-
-> **Legal status**: a vendored mirror, stored on an independent Git
-> branch (not on `main`) so the runtime, which ships without these
-> assets, remains unaffected. Distribution is at the discretion of the
-> maintainers and is governed by the licences noted below.
-
+> **DEPRECATED (2026-09-21)**: this branch tree was **migrated wholesale to
+> `main` under `docs/asset-library/`** (full-library migration, unique
+> reference point). This notice remains only for the v2 tree's own history;
+> the live obligations are tracked in `docs/asset-library/THIRD_PARTY_NOTICES.md`
+> (v3) and `docs/asset-provenance.md`. Do not add assets to this branch.
 ---
 
 ## 1. KaTeX
@@ -84,7 +77,3 @@ maintainers ship assets "as-is" and do not relicense them; this file is
 documentation of provenance, not a licence grant.
 
 ---
-
-*Last verified: 2026-09-05 (v2). This branch is independent of `main`;
-assets here are not consumed by the paper-foundation runtime (which
-ships without fonts, templates, or vendor scripts).*
