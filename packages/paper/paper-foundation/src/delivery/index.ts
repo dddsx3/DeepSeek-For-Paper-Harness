@@ -107,8 +107,11 @@ export type {
   DeliverablesFinding,
 } from './deliverables-contract.ts'
 
-// R2（格式链）—— DOCX 导出前校核（退出码契约 0/1/2）+ text_profile 派生。
-export { DOCX_CHECK_CODES, docxPrecheckVerdict, runDocxPrechecks } from './docx-precheck.ts'
+// R2（格式链）—— DOCX 导出前校核（退出码契约 0/1/2）+ 导出闸门 + 安全格式修复（N30）+ text_profile 派生。
+export { DOCX_CHECK_CODES, docxExportGate, docxPrecheckVerdict, runDocxPrechecks } from './docx-precheck.ts'
 export type { CheckExitCode, DocxCheckCode, DocxCheckResult, DocxPrecheckInput } from './docx-precheck.ts'
+export { applySafeFormatFixes, n30Holds, stripFormat } from './format-fix.ts'
 export { CN_FONT_SIZE_PT, deriveTextProfile } from './text-profile.ts'
-export type { TextProfile } from './text-profile.ts'
+export type { HeadingSpec, TextProfile } from './text-profile.ts'
+export { EXPECTED_EXPORT_DEPS, exportDepsSummary, probeExportDeps } from './export-deps.ts'
+export type { ExportDependency, ExportDepStatus } from './export-deps.ts'
