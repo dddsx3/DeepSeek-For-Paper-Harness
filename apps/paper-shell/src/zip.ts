@@ -110,3 +110,19 @@ function concat(parts: ReadonlyArray<Uint8Array>): Uint8Array {
 export function zipTextFiles(files: Record<string, string>): Uint8Array {
   return zipEntries(Object.entries(files).map(([name, text]) => ({ name, bytes: encodeUtf8(text) })))
 }
+
+/**
+ * R5 — build a zip from a mixed map (text or binary bytes). The paper
+ * delivery carries a real `.docx` and PNG rasters alongside the markdown;
+ * STORE accepts arbitrary bytes, so the same deterministic writer covers
+ * both. Insertion order is the caller's (sort before calling for a
+ * reproducible archive).
+ */
+export function zipMixedFiles(files: Record<string, string | Uint8Array>): Uint8Array {
+  return zipEntries(
+    Object.entries(files).map(([name, content]) => ({
+      name,
+      bytes: typeof content === 'string' ? encodeUtf8(content) : content,
+    })),
+  )
+}

@@ -1,0 +1,9 @@
+{
+  "deliverables": [
+    { "file": "report.md", "kind": "md", "min_bytes": 4000, "desc": "论文主稿（12 章骨架 + 机器数字回读）" },
+    { "file": "paper.docx", "kind": "other", "min_bytes": 5000, "desc": "Word 交付（由 scripts/export-docx.py 生成，0 致命预检通过后才写出）" },
+    { "file": "run-report.json", "kind": "json", "min_bytes": 200, "desc": "运行报告（delivery_path / grade / figures / usage）" },
+    { "file": "figure-manifest.json", "kind": "json", "min_bytes": 20, "desc": "图清单（每图 sha256 + 渲染器版本，可追溯）" },
+    { "file": "result.json", "kind": "json", "min_bytes": 10, "desc": "执行输出（code → jsonPath → Result 的原始字节）" }
+  ]
+}

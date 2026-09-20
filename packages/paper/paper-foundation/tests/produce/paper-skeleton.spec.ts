@@ -27,12 +27,12 @@ const INPUT: PaperSkeletonInput = {
 }
 
 describe('PaperSkeleton', () => {
-  it('renders all 10 sections (M4 = 100%)', () => {
+  it('renders all 12 sections (路线书 D3: 12 章无空槽)', () => {
     const text = renderPaperSkeleton(INPUT)
     for (const section of PAPER_SECTIONS) {
       expect(text).toContain(`## ${section.title}`)
     }
-    expect(PAPER_SECTIONS).toHaveLength(10)
+    expect(PAPER_SECTIONS).toHaveLength(12)
   })
 
   it('auto-generates the symbol table from IR rows', () => {

@@ -210,6 +210,7 @@ export const EXECUTE_PROTOCOL_TEACHING = [
   '  interpretations.figures (optional): [{ figure_id, chart_type: "line"|"scatter"|"bar"|"table", data_refs: [Result ids], caption? }] — structure only; the harness renders the bytes and computes every hash. caption/x_label/y_label must NOT contain numeric literals (write quantities in words, e.g. "final value" instead of "y(2.0)"): a number in these strings is refused unless it is exactly the value of a referenced Result.',
   '  narrative: { title, conclusion: { claims: [{ text, quantity_refs: [Result ids], representation? }] } } — a conclusion number must be the bound Result value verbatim, or an explicitly declared rendering: {"kind":"rounded","dp":<0..20>} or {"kind":"with_uncertainty","uncertainty_refs":[...]}. The check is mechanical: each claim\'s text must CONTAIN the value of every quantity_ref, written into the sentence — text "The unified minimum sample size is 1762." with quantity_refs ["R-N-FIXED"]. A qualitative sentence that names the Result but never states its value is refused (real refusal: "The unified sample size is the maximum of the two case-specific minimum sample sizes.").',
   '  Re-emission on retry (REQUIRED): a retried container must re-declare every entry it declared before, BYTE-IDENTICAL unless the refusal message asked you to change that entry — the store is append-only and same-id-different-content is a conflict. If you must improve wording, give the entry a NEW id instead of editing the old one.',
+  '  narrative prose chapters (REQUIRED for a submittable paper): besides `title`/`conclusion`/`methods`, the narrative SHOULD carry the paper\'s prose chapters as strings — `restatement` (问题重述), `analysis` (问题分析), `evaluation` (模型评价与推广), `references` (参考文献条目，形如 "[1] 作者. 题名. 年."), `code` (代码附录说明). Any chapter you leave out renders as a VISIBLE placeholder, and the docx pre-export gate refuses a paper that still carries placeholders (`no_placeholders`) — an empty chapter cannot be delivered.',
   '  Numeric robustness (REQUIRED): your code\'s output JSON must carry finite numbers for EVERY declared jsonPath. JavaScript Infinity/NaN become null in JSON.stringify, and a null (or any non-number) at a declared path refuses the container. Naive product formulas for binomial coefficients overflow around n≈170 — compute binomial probabilities in log space (sum of Math.log terms) or with a recurrence that cannot overflow; sanity-check that every value you emit is finite before writing the file (real refusal: a binomial CDF at n=2307 returned Infinity, serialized as null, and the container was refused after the code had already run).',
   '  In-container duplicates (REQUIRED): the same id must not appear twice within ONE container either — including SymbolSpec ids declared for different scopes. Run-11 attempt 1 declared two different S-C entries (case-1 and case-2 critical values); give each distinct quantity a distinct id (S-C1, S-C2).',
   'The container is refused (and the attempt fails) if: you declare kind "ProblemSpec" or "RequirementSpec", or re-declare "DA-RAW"; you write content_hash anywhere; an entry kind is not one of the five above; a number appears outside code/declarations; a jsonPath is missing or does not resolve to a finite number; the run block carries a foreign key; or the conclusion states an undeclared rounding.',
@@ -1297,6 +1298,11 @@ export class WorkflowExecutor {
           rendererVersion: 'okabe-ito-v1/svg',
         }
       }),
+      // R5: 数据附录 — the executed outputs the code really wrote.
+      dataFiles: executed.outputs.map(o => ({
+        id: basename(o.locator),
+        columns: [basename(o.locator)],
+      })),
     })
     if (!rendered.ok) {
       return { ok: false, code: rendered.code, reason: `report render refused: ${rendered.reason}` }

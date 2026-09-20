@@ -1,0 +1,34 @@
+{
+  "runId": "<dry-run>",
+  "delivery_path": "A-produce-chain",
+  "tier": "T1",
+  "mode": "strict",
+  "status": "DELIVERED",
+  "grade": "CLEAN",
+  "routed_family": "F1",
+  "route_truth": "F1",
+  "route_mismatch": false,
+  "code_provenance": {
+    "ok": true,
+    "checked_at": "<dry-run>",
+    "targets": [
+      {
+        "name": "@deepseek-ai/dsh-paper-foundation",
+        "ok": true,
+        "detail": "dry-run"
+      }
+    ]
+  },
+  "minted_ir_count": 12,
+  "wall_clock_seconds": 0,
+  "sha256": "dry-run",
+  "audit": "workflow_started,ir_entry_written,final_output_written,promotion_succeeded,workflow_completed",
+  "usage": {
+    "input_tokens": 0,
+    "output_tokens": 0,
+    "cost_usd": 0
+  },
+  "attachments": [],
+  "figures": 1,
+  "figure_links_broken": []
+}

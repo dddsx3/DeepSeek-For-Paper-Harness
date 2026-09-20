@@ -22,6 +22,7 @@
  */
 
 import { renderPaperSkeleton } from './paper-skeleton.ts'
+import { synthesizeAbstract } from './synthesize-abstract.ts'
 
 /** One canonical Result row, injected from the IR (never from prose). */
 export interface ResultRow {
@@ -151,6 +152,8 @@ function renderReport(input: {
   readonly narrative: Record<string, unknown>
   readonly figures: ReadonlyArray<FigureAssetRow>
   readonly skeletonRows?: SkeletonRows
+  /** R5: executed output files for the 数据附录 auto table (basename rows). */
+  readonly dataFiles?: ReadonlyArray<{ id: string; columns: ReadonlyArray<string> }>
 }): RenderVerdict {
   const resultById = new Map(input.results.map(r => [r.result_id, r]))
   const allAllowed = new Set<string>()
@@ -267,35 +270,39 @@ function renderReport(input: {
     }
   }
 
-  // ---- W8.5 (B1): the delivery text is the SKELETON (10 sections). The
-  // report's machine content (result table / conclusion / methods /
-  // figures + provenance) becomes the 模型建立与求解 slot; the skeleton
-  // fills 符号说明/模型假设/问题重述 from IR rows. One renderer, one
-  // path — the old 5-title template no longer exists as a separate
-  // delivery surface.
-  const modelLines: string[] = []
-  modelLines.push('### 结果表（由规范 IR 注入；结论区关键数字必须与此表一致）')
-  modelLines.push('')
-  modelLines.push('| 量名 | 数值 | 单位 | 不确定度 | 来源 |')
-  modelLines.push('|---|---|---|---|---|')
+  // ---- W8.5 (B1) + R5: the delivery text is the SKELETON (12 sections).
+  // 模型建立与求解 keeps 方法/图; 结果对比与校核 holds the IR result table +
+  // 结论; 摘要/AI 声明/数据附录 are machine-generated (R5④/R5①/D4).
+  const resultsLines: string[] = []
+  resultsLines.push('### 结果表（由规范 IR 注入；结论区关键数字必须与此表一致）')
+  resultsLines.push('')
+  resultsLines.push('| 量名 | 数值 | 单位 | 不确定度 | 来源 |')
+  resultsLines.push('|---|---|---|---|---|')
   for (const result of input.results) {
     const uncertainty = result.uncertainty === null ? '' : `±${result.uncertainty}`
-    modelLines.push(`| ${result.name} | ${result.value} | ${result.unit} | ${uncertainty} | \`${result.result_id}\` |`)
+    resultsLines.push(`| ${result.name} | ${result.value} | ${result.unit} | ${uncertainty} | \`${result.result_id}\` |`)
   }
-  modelLines.push('')
-  modelLines.push('### 结论')
-  modelLines.push('')
+  resultsLines.push('')
+  resultsLines.push('### 结论')
+  resultsLines.push('')
+  const claimTexts: string[] = []
   if (conclusionRaw !== undefined && typeof conclusionRaw === 'object' && !Array.isArray(conclusionRaw)) {
     const slots = (conclusionRaw as { claims: Array<{ text: string; comparison?: string }> }).claims
     for (const slot of slots) {
-      modelLines.push(`- ${slot.text}${slot.comparison === undefined ? '' : `（${slot.comparison}）`}`)
+      claimTexts.push(slot.text)
+      resultsLines.push(`- ${slot.text}${slot.comparison === undefined ? '' : `（${slot.comparison}）`}`)
     }
   } else {
-    modelLines.push(String(conclusionRaw ?? ''))
+    const raw = String(conclusionRaw ?? '')
+    if (raw.trim() !== '') claimTexts.push(raw)
+    resultsLines.push(raw)
   }
+  resultsLines.push('')
+  resultsLines.push('_校核声明：本表数字由规范 IR Result 记录渲染，结论槽数字经逐字核对；正文数字均回读结果 JSON（D4）。_')
+
+  const modelLines: string[] = []
   const methods = input.narrative['methods']
   if (methods !== undefined) {
-    modelLines.push('')
     modelLines.push('### 方法')
     modelLines.push('')
     modelLines.push(String(methods))
@@ -321,24 +328,76 @@ function renderReport(input: {
       modelLines.push('')
     })
   }
+
+  // ---- R5④: 摘要由结果生成（数字全部回读 Result，D4 守卫在本模块）。 ----
+  const abstractVerdict = synthesizeAbstract({
+    title: input.title,
+    results: input.results.map(r => ({ result_id: r.result_id, value: r.value, uncertainty: r.uncertainty })),
+    claims: claimTexts.map(text => ({ text })),
+    methodsNote: typeof methods === 'string' ? methods : undefined,
+  })
+  const abstractLines = abstractVerdict.ok
+    ? abstractVerdict.abstract
+    : `_摘要自动生成被 D4 守卫拒绝（原因：${abstractVerdict.reason}）。_`
+
+  // ---- AI 声明（机器生成，固定文本，无数字） ----
+  const aiLines = [
+    '本论文由 DeepSeek-For-Paper-Harness 论文生产链辅助生成。',
+    '正文数字由规范 IR Result 记录渲染并经数字回读核对（D4）；结论槽数字经逐字核对；',
+    '图表由固定 harness 渲染器渲染；建模思路与文字内容由模型生成，实质正确性不在 harness 可判定范围内。',
+  ].join(' ')
+
+  // ---- 数据附录（执行输出文件清单，机器表） ----
+  const dataLines: string[] = []
+  // deterministic order: the appendix must not depend on capture order
+  const dataFiles = [...(input.dataFiles ?? [])].sort((a, b) => a.id.localeCompare(b.id))
+  if (dataFiles.length > 0) {
+    dataLines.push('| 文件 | 说明 |')
+    dataLines.push('|---|---|')
+    for (const f of dataFiles) {
+      // 只列文件名与说明：run 作用域的 locator（含 run id）不进论文——
+      // 既是泄漏面，也会破坏跨运行的字节确定性（T1/T2 等价性实测抓到）。
+      dataLines.push(`| ${f.columns.map(c => c.replace(/\|/g, '\\|')).join(' | ')} | 执行输出 |`)
+    }
+  } else {
+    dataLines.push('_(本次运行未声明输出数据文件)_')
+  }
+
+  // R5①: the prose chapters the container may supply (each rendered into its
+  // own section; absent → the skeleton's visible placeholder).
+  const proseSlots: Record<string, string> = {}
+  for (const id of ['restatement', 'analysis', 'evaluation', 'references', 'code'] as const) {
+    const value = input.narrative[id]
+    if (typeof value === 'string' && value.trim() !== '') proseSlots[id] = value
+  }
+
   const text = renderPaperSkeleton({
     title: input.title,
     ...(input.skeletonRows?.symbols === undefined ? {} : { symbols: input.skeletonRows.symbols }),
     ...(input.skeletonRows?.assumptions === undefined ? {} : { assumptions: input.skeletonRows.assumptions }),
     ...(input.skeletonRows?.requirements === undefined ? {} : { requirements: input.skeletonRows.requirements }),
     slots: {
+      abstract: abstractLines,
       model: modelLines.join('\n'),
+      results: resultsLines.join('\n'),
+      ai_disclosure: aiLines,
+      data_appendix: dataLines.join('\n'),
+      // R5①: 散文章节由 narrative 提供（缺则渲染可见占位——预检的
+      // no_placeholders 类会把它当致命拦下，绝不静默交付空槽）。
+      ...proseSlots,
       ...(validationLines.length > 0 ? { validation: validationLines.join('\n') } : {}),
     },
   })
-  const lines: string[] = [text, '', '---', '*机器数字由规范 IR Result 记录渲染；结论数字经槽位或守卫散文注入；图表由固定 harness 渲染器渲染（骨架 v2）。*']
+  const lines: string[] = [text, '', '---', '*机器数字由规范 IR Result 记录渲染；摘要与结论数字经自动回读核对；图表由固定 harness 渲染器渲染（骨架 v3，12 章）。*']
   return { ok: true, text: lines.join('\n') }
 }
 
 /**
  * Render the report (v2): structured conclusion slots + figure embedding.
  * `narrative.conclusion` may be a string (v1 guarded prose) or
- * `{ claims: [...] }` (P2-4 slots).
+ * `{ claims: [...] }` (P2-4 slots). R5 (12 章成型): the machine sections
+ * (摘要/结果对比与校核/AI 声明/数据附录) are auto-filled by the renderer;
+ * the 模型建立与求解 slot keeps 方法/结论/图.
  */
 export function renderReportV2(input: {
   readonly title: string
@@ -347,11 +406,14 @@ export function renderReportV2(input: {
   readonly figures?: ReadonlyArray<FigureAssetRow>
   /** W8.5: IR rows for the skeleton's machine tables (optional). */
   readonly skeletonRows?: SkeletonRows
+  /** R5: executed output files for the 数据附录 auto table (basename rows). */
+  readonly dataFiles?: ReadonlyArray<{ id: string; columns: ReadonlyArray<string> }>
 }): RenderVerdict {
   return renderReport({
     ...input,
     figures: input.figures ?? [],
     ...(input.skeletonRows === undefined ? {} : { skeletonRows: input.skeletonRows }),
+    ...(input.dataFiles === undefined ? {} : { dataFiles: input.dataFiles }),
   })
 }
 
