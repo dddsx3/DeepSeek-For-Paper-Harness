@@ -140,9 +140,17 @@ type ValidatedContainer = ModelContainer & { entries: ReadonlyArray<ModelEntry &
 
 /** Parse raw model text into a container, refusing non-container shapes. */
 export function parseModelContainer(text: string): { ok: true; container: ValidatedContainer } | { ok: false; code: 'parse_failed'; reason: string } {
+  // W11.5 baseline-2 (首次真实产出实测): the model wrapped the container in a
+  // markdown fence (```json … ```) on two of three attempts, and the raw
+  // JSON.parse died on the backtick. The fence is a RENDERING difference —
+  // the JSON inside is the same object — so one surrounding fence is stripped
+  // before parsing (same family as `$.` jsonPath and `$` math delimiters).
+  // Nothing else is relaxed: the inner text must still parse as one JSON
+  // object and pass the closed schema.
+  const unfenced = text.trim().replace(/^```[a-zA-Z]*\s*\n?/, '').replace(/\n?```\s*$/, '')
   let parsed: unknown
   try {
-    parsed = JSON.parse(text)
+    parsed = JSON.parse(unfenced)
   } catch (error) {
     return { ok: false, code: 'parse_failed', reason: `model output is not JSON: ${String(error).split('\n')[0]}` }
   }

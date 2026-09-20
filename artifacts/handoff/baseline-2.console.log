@@ -1,0 +1,9 @@
+[CODE-FRESH] 代码来源已断言：entry lib/index.js is 116550 ms newer than the newest source; entry lib/index.js is 21711764 ms newer than the newest source; entry lib/index.js is 21732804 ms newer than the newest source; entry lib/index.js is 21732914 ms newer than the newest source; entry lib/index.js is 21733031 ms newer than the newest source; entry lib/index.js is 21711579 ms newer than the newest source
+[DELIVERED] sha256=5349f4ddb798d335...
+  run-id  -> 49da1469-08d6-4d78-9f97-9a9b688c80b8
+  report  -> artifacts\handoff\baseline-2\report.md
+  zip     -> artifacts\handoff\baseline-2\deliverable.zip (zip sha256=c54b35928216c42d...)
+  usage   -> in 64065 tok / out 43885 tok / $0.0000 (TASK-Q2 telemetry)
+  audit   -> workflow_started,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,container_refused,provider_retry,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,provider_retry,ir_entry_written,ir_entry_written,ir_entry_written,container_refused,provider_retry,e1_direct_delivery,gate_failed,gate_failed,gate_failed,delivery_graded,final_output_written,promotion_succeeded,workflow_completed
+  tier    -> T1
+  path    -> B-e1-direct

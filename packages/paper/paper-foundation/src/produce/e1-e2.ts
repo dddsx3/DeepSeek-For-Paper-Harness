@@ -323,6 +323,11 @@ export const MIN_E1_SPAN_CHARS = 10
  * `p0`/`x3` and the anchor check reported similarity 96–98% "疑似改写",
  * refusing containers over a rendering difference.
  */
+/** 半角标点 → 全角（同一标点的两种宽度，渲染差异）。 */
+const ASCII_TO_CJK_PUNCT: Readonly<Record<string, string>> = {
+  ',': '，', ';': '；', ':': '：', '?': '？', '!': '！',
+}
+
 const SUB_SUPER_TO_ASCII: Readonly<Record<string, string>> = {
   '₀': '0', '₁': '1', '₂': '2', '₃': '3', '₄': '4',
   '₅': '5', '₆': '6', '₇': '7', '₈': '8', '₉': '9',
@@ -384,6 +389,16 @@ export function foldForAnchorMatch(text: string): string {
   // must still agree (the negative controls below keep real rewrites failing).
   out = out.replace(/\*\*/g, '').replace(/\\([()])/g, '$1').replace(/\*/g, '')
   out = out.replace(/(?<=[A-Za-z0-9])_(?=[A-Za-z0-9])/g, '')
+  // W11.5 baseline-1 (首次真实产出实测): two more rendering-only differences,
+  // each with the real refusal as evidence —
+  //   - halfwidth vs fullwidth punctuation: E2 wrote `伯努利分布,` where E1
+  //     has `伯努利分布，` (same comma, two widths).
+  //   - parentheses around a short symbol: E2 wrote `参数为p的` for E1's
+  //     `参数为(p)的` — the parens are grouping, not content.
+  // Neither can make a rewritten sentence match: every word and digit must
+  // still agree (negative controls keep real rewrites failing).
+  out = out.replace(/[,;:?!]/g, ch => ASCII_TO_CJK_PUNCT[ch] ?? ch)
+  out = out.replace(/[()（）]/g, '')
   // Whitespace is a rendering difference: the model may re-wrap a sentence it
   // copied. Removing it is what lets `附录（1）` match `附录 (1)`.
   return out.replace(/\s+/g, '')
