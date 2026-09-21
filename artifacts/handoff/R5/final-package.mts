@@ -13,7 +13,7 @@ import { zipMixedFiles } from '../../../apps/paper-shell/src/zip.ts'
 const dir = process.argv[2]
 if (dir === undefined) throw new Error('usage: final-package.mts <delivery-dir>')
 const files: Record<string, string | Uint8Array> = {}
-for (const name of ['report.md', 'sha256.txt', 'run-report.json', 'paper.docx', 'docx-precheck-report.md']) {
+for (const name of ['report.md', 'sha256.txt', 'run-report.json', 'paper.docx', 'docx-precheck-report.md', 'audit-trail.json', 'artifact-bodies.json', 'figure-manifest.json']) {
   try {
     const bytes = await readFile(join(dir, name))
     files[name] = name.endsWith('.docx') ? new Uint8Array(bytes) : bytes.toString('utf8')

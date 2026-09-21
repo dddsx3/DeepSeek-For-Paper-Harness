@@ -240,6 +240,9 @@ export interface SkeletonRows {
   readonly symbols?: ReadonlyArray<{ id: string; columns: ReadonlyArray<string> }>
   readonly assumptions?: ReadonlyArray<{ id: string; columns: ReadonlyArray<string> }>
   readonly requirements?: ReadonlyArray<{ id: string; columns: ReadonlyArray<string> }>
+  /** W11.5 baseline-23: the declared equations/models, rendered into 模型建立与求解. */
+  readonly equations?: ReadonlyArray<{ id: string; columns: ReadonlyArray<string> }>
+  readonly models?: ReadonlyArray<{ id: string; columns: ReadonlyArray<string> }>
 }
 
 /** @internal shared assembly; `conclusionKind` routes the guards. */
@@ -505,6 +508,7 @@ function renderReport(input: {
     results: input.results.map(r => ({ result_id: r.result_id, value: r.value, uncertainty: r.uncertainty })),
     claims: claimTexts.map(text => ({ text })),
     methodsNote: typeof methods === 'string' ? methods : undefined,
+    ...(input.givenLiterals === undefined ? {} : { givenLiterals: input.givenLiterals }),
   })
   const abstractLines = abstractVerdict.ok
     ? abstractVerdict.abstract
@@ -546,6 +550,10 @@ function renderReport(input: {
     ...(input.skeletonRows?.symbols === undefined ? {} : { symbols: input.skeletonRows.symbols }),
     ...(input.skeletonRows?.assumptions === undefined ? {} : { assumptions: input.skeletonRows.assumptions }),
     ...(input.skeletonRows?.requirements === undefined ? {} : { requirements: input.skeletonRows.requirements }),
+    // W11.5 baseline-23: the equations/models rows reach the skeleton too —
+    // they are what fills 模型建立与求解 from the IR.
+    ...(input.skeletonRows?.equations === undefined ? {} : { equations: input.skeletonRows.equations }),
+    ...(input.skeletonRows?.models === undefined ? {} : { models: input.skeletonRows.models }),
     slots: {
       abstract: abstractLines,
       model: modelLines.join('\n'),

@@ -345,6 +345,13 @@ export function subProblemsOf(statement: string): ReadonlyArray<{ requirementId:
   })
 }
 
+/** W11.5 baseline-23: the paper-visible label for each requirement type. */
+const REQUIREMENT_TYPE_LABELS: Readonly<Record<string, string>> = {
+  REQUIRED_OUTPUT: '必须给出的结果',
+  CONSTRAINT: '约束条件',
+  ASSUMPTION: '前提条件',
+}
+
 /** W11.5 baseline-4: the section headings a delivery text carries (any level). */
 function headingSetOf(text: string): Set<string> {
   const out = new Set<string>()
@@ -1630,7 +1637,13 @@ export class WorkflowExecutor {
           .filter(r => r.kind === 'RequirementSpec')
           .map((r) => {
             const req = r.value as { requirement_id: string; statement: string; requirement_type: string }
-            return { id: req.requirement_id, columns: [req.statement, req.requirement_type] }
+            return {
+              id: req.requirement_id,
+              // W11.5 baseline-23 (审计 A-1 验收口径): the paper must not print the
+              // harness's own type names — a judge reading 问题重述 should see what the
+              // problem asks for, not `REQUIRED_OUTPUT`.
+              columns: [req.statement, REQUIREMENT_TYPE_LABELS[req.requirement_type] ?? req.requirement_type],
+            }
           }),
         // W11.5 baseline-20 (审计 B-2/B-3): the equations and models the container
         // declared ARE the 模型建立与求解 chapter — rendered from the IR, so the
