@@ -31,6 +31,7 @@ import { digitSelfContradictionFindings } from './delivery/digit-check.ts'
 import { renderBoundaryAppendix } from './delivery/boundary-render.ts'
 import type { BoundaryDeclaration } from './ir/boundary-declaration.ts'
 import { renderE1DirectDraft } from './produce/e1-direct.ts'
+import { chapterTitleOf, frameworkOf, perQuestionChaptersOf, questionOrdinal, questionRequirements } from './produce/per-question.ts'
 import type { DeliveryGrade } from './delivery/delivery-grade.ts'
 import { runVerificationV1V4 } from './verification/v-structure.ts'
 import { ModelingIr } from './ir/store.ts'
@@ -39,7 +40,7 @@ import { resolveRunPolicy } from './policy.ts'
 import { parseModelContainer, produceContainerInto } from './produce/ir-producer.ts'
 import { produceRunExecution } from './produce/execution-producer.ts'
 import { produceInterpretation } from './produce/interpretation-producer.ts'
-import { PROSE_CHAPTERS, numericLiterals, renderReportV2 } from './produce/report-renderer.ts'
+import { PROSE_CHAPTERS, displayNumber, numericLiterals, renderReportV2 } from './produce/report-renderer.ts'
 import { requirementCoverageFindings } from './delivery/requirement-coverage.ts'
 import { arithmeticFindingsOf, deliveredNumberFindings } from './delivery/delivered-numbers.ts'
 import { blankAreaViolations, proseContractViolations } from './delivery/prose-contracts.ts'
@@ -182,11 +183,11 @@ export interface SemanticContext {
 export const EXECUTE_PROTOCOL_TEACHING = [
   'Produce ONE JSON object — the ir-container-v1 — and nothing else. No prose, no markdown fences, no schema of your own.',
   'Shape: {"__dsh_paper":"ir-container-v1","entries":[...],"code":"...","run":{...},"interpretations":{...},"narrative":{...}}.',
-  '  entries: an array of objects, each EXACTLY {"kind": <KIND>, "value": <object>}. The ONLY kinds you may declare are "SymbolSpec", "AssumptionSpec", "EquationSpec", "ModelSpec", and (optionally) "DataArtifact". The harness has ALREADY registered the problem assets for you — DataArtifact "DA-RAW" (the raw problem), RequirementSpec "R-OUT" (the requirement), ProblemSpec "P1" (the binding). NEVER declare those three: reference them by id instead (your ModelSpec sets problem_refs: ["P1"]). Re-declaring a registered id refuses the container.',
+  '  entries: an array of objects, each EXACTLY {"kind": <KIND>, "value": <object>}. The ONLY kinds you may declare are "SymbolSpec", "AssumptionSpec", "EquationSpec", "ModelSpec", and (optionally) "DataArtifact". The harness has ALREADY registered the problem assets for you — DataArtifact "DA-RAW" (the raw problem), RequirementSpec "R-OUT" (the requirement) and one RequirementSpec per sub-problem ("R-Q1"…), and one ProblemSpec per sub-problem ("P1"…; "P1" alone when the problem asks a single question). NEVER declare those: reference them by id instead. Re-declaring a registered id refuses the container.',
   '    SymbolSpec value: {"symbol_id","scope_ref":"P1","token","meaning","unit","role","shape","domain","index_set"} — role is "VARIABLE" for unknowns the solve determines, or "PARAMETER" for quantities whose value you bind in ModelSpec.parameter_refs (k, dt, N...): EVERY symbol you list in parameter_refs must have role "PARAMETER", and a parameter must not be listed in variable_refs. shape is one of SCALAR|VECTOR|MATRIX|TENSOR|INDEXED|UNKNOWN; domain one of REAL|NONNEGATIVE_REAL|INTEGER|NONNEGATIVE_INTEGER|BOOLEAN|PROBABILITY|COMPLEX|UNKNOWN; if you are not sure, answer UNKNOWN honestly instead of inventing one; index_set is an array ([] for a scalar). unit MUST be a NON-EMPTY string — a dimensionless or count-like quantity takes the literal "dimensionless" (an empty "" unit refuses the container).',
   '    AssumptionSpec value: {"assumption_id","scope_ref":"P1","statement","source_type","justification_refs","risk_level","testable","sensitivity_refs","status"} — source_type GIVEN|DERIVED|MODELING_CHOICE|APPROXIMATION; risk_level HIGH|MEDIUM|LOW; status ACTIVE|OBSOLETE|QUESTIONED. Ref-field shapes: justification_refs is a list of REGISTERED IR ids (or []); sensitivity_refs MUST be [] at declaration time — no Results exist yet (they are minted only after your code runs), and if non-empty they may only name Result/DataArtifact ids. NEVER put SymbolSpec ids (like "S-DT") into justification_refs/sensitivity_refs — that refuses the container.',
   '    EquationSpec value: {"equation_id","scope_ref":"P1","expression","representation","lhs_symbols","rhs_symbols","equation_type","unit","depends_on","source"} — representation SYMPY|LATEX_PRESENTATION; equation_type DEFINITION|CONSTRAINT|OBJECTIVE|DERIVED. lhs_symbols/rhs_symbols are lists of the symbol_id VALUES you declared in your SymbolSpec entries (like ["S-Y"]) — NEVER raw math tokens (like ["y"]): an unregistered name refuses the container. depends_on lists your equation_ids; unit is a non-empty string ("dimensionless" when unitless).',
-  '    ModelSpec value: {"model_id","problem_refs":["P1"],"assumption_refs","variable_refs","parameter_refs","equation_refs","constraints","objective","dependencies"} — every field is required; assumption_refs/equation_refs list the ids of AssumptionSpec/EquationSpec entries you declared.',
+  '    ModelSpec value: {"model_id","problem_refs":["P1"],"assumption_refs","variable_refs","parameter_refs","equation_refs","constraints","objective","dependencies"} — every field is required; assumption_refs/equation_refs list the ids of AssumptionSpec/EquationSpec entries you declared. problem_refs names the sub-problem(s) THIS model solves: declare ONE ModelSpec per sub-problem and give it exactly that sub-problem\'s id (["P2"] for 问题2) — the paper renders one chapter per sub-problem and the coverage gate refuses a sub-problem whose model is missing.',
   '      NOTE (element shapes — a wrong shape refuses the container): variable_refs/assumption_refs/equation_refs/dependencies are plain id lists; constraints is an ARRAY OF STRINGS (write [] when you have none — NEVER a single string); objective is a string or null; parameter_refs is a list of {"symbol_ref","value"} objects.',
   // W8.11-A1c (repair, found by the second real run): `parameter_refs` was the
   // ONE field in this lecture whose ELEMENT shape was never stated — the line
@@ -209,7 +210,8 @@ export const EXECUTE_PROTOCOL_TEACHING = [
   // canonical NumericConfig (fail-closed on unknown tokens).
   '  Config emission (SHOULD): declare "numeric_config.json" in run.outputBasenames and write it from your code — ONE JSON object {"discretization": {<symbol>: <number>}, "physical": {<symbol>: <number>}, "choices": {<key>: <string>}, "property_set": <string or null>} where each key names a SymbolSpec you declared (its token OR its symbol_id — both are accepted). Values must be NUMBERS: omit a key you cannot fill rather than writing null. This is the mechanical record of what your code actually ran with; the config-consistency gate compares it against your declared parameters and sibling runs.',
   '  interpretations: declaration-based. results: [{ result_id, name, source: { locator: <one outputBasenames entry>, jsonPath: <a BARE dotted path to the number inside that file, e.g. "n_fixed" — not "$.n_fixed"; array elements use the index form "oc[2].accept"; it must resolve to a JSON number, so emit ranges as two numeric fields and vectors as one field per entry> }, unit }]. The locator must be one of your declared outputs; every Result reads its value via jsonPath — never a literal number. '
-  + 'claims (declare them here): [{ claim_id, text, claim_type: "NUMERIC", criticality: "CRITICAL", result_refs: [<a result_id>], model_refs: [<your model_id>], evidence_refs: [<a result_id>] }] — a CRITICAL NUMERIC claim binds one Result as the number the paper states; without a claim your REQUIRED_OUTPUT stays unpaid and delivery is blocked.',
+  + 'claims (declare them here): [{ claim_id, text, claim_type: "NUMERIC", criticality: "CRITICAL", result_refs: [<a result_id>], model_refs: [<your model_id>], evidence_refs: [<a result_id>] }] — a CRITICAL NUMERIC claim binds one Result as the number the paper states; without a claim your REQUIRED_OUTPUT stays unpaid and delivery is blocked.'
+  + ' ONE CRITICAL claim PER SUB-PROBLEM, and its model_refs must name THAT sub-problem\'s model (the claim about 问题2 lists model_refs: ["M2"], and M2.problem_refs is ["P2"]) — that is how the harness attributes a number to the sub-problem it answers, and how the paper renders each sub-problem\'s own chapter and result table.',
   '  interpretations.figures (REQUIRED — at least ONE figure): a submittable modelling paper shows a chart, and the harness refuses one without any (real refusal: "the paper carries no figure"). Declare the STRUCTURE only — the harness renders the bytes and computes every hash: [{ figure_id, chart_type: "line"|"scatter"|"bar"|"table", data_refs: [Result ids], caption? }]. Pick what your results actually support: an OC/ROC curve for a test design (line over the rejection probability Results), a comparison bar chart across decision scenarios, a sensitivity table, a decision tree as a table. caption/x_label/y_label must NOT contain numeric literals (write quantities in words, e.g. "final value" instead of "y(2.0)"): a number in these strings is refused unless it is exactly the value of a referenced Result.',
   '  narrative: { title, conclusion: { claims: [{ text, quantity_refs: [Result ids], representation? }] } } — a conclusion number must be the bound Result value verbatim, or an explicitly declared rendering: {"kind":"rounded","dp":<0..20>} or {"kind":"with_uncertainty","uncertainty_refs":[...]}. The check is mechanical: each claim\'s text must CONTAIN the value of every quantity_ref, written into the sentence — text "The unified minimum sample size is 1762." with quantity_refs ["R-N-FIXED"]. A qualitative sentence that names the Result but never states its value is refused (real refusal: "The unified sample size is the maximum of the two case-specific minimum sample sizes.").',
   '  Naming a quantity instead of copying it (STRONGLY PREFERRED): you write this narrative BEFORE your code runs, so you cannot know its output. Writing `{<result_id>}` inside the text makes the harness substitute the run\'s value at render time — the digit then comes from the IR by construction. Prefer this over guessing a literal: a literal number you write yourself must equal the Result value exactly, and a wrong guess refuses the whole report. Both of the two most recent real runs died exactly there (the narrative stated one sample size while its own code had computed another), and both had already passed every other check — so a wrong literal costs the entire production chain. Example shape: text "the minimum sample size is {R-N1} and the critical value is {R-C1}", quantity_refs ["R-N1","R-C1"]. A name that is not one of that claim\'s quantity_refs is refused (the braces would otherwise print into the paper).',
@@ -423,76 +425,164 @@ function degenerateResultFindings(
   return out
 }
 
-/**
- * W11.5 round-7（对齐参照物）— 每个子问题一章。
- *
- * 参照物骨架是「6 问题一：预热平衡阶段的常物性耦合场求解」「7 问题一模型的独立校核」
- * 「8 问题二：全变系数耦合模型与阶段划分」——**每问独立成章**。这里用该问的 E1 分析段
- * 作章的正文、题干作标题，所以不额外要求模型写任何东西。
- */
-function perQuestionChaptersOf(
-  e1Text: string,
-  requirements: ReadonlyArray<{ requirementId: string; statement: string }>,
-): ReadonlyArray<{ title: string; body: string }> {
-  const questions = requirements.filter(r => new RegExp('^R-Q\\d+$').test(r.requirementId))
-  if (questions.length === 0 || e1Text.trim() === '') return []
-  const passages = perQuestionSectionsOf(e1Text, requirements)
-  const out: Array<{ title: string; body: string }> = []
-  for (const question of questions) {
-    const ordinal = question.requirementId.replace('R-Q', '')
-    const heading = '### 问题' + ordinal + ' 的分析'
-    const passage = passages.find(p => p.startsWith(heading)) ?? ''
-    const body = passage === '' ? '' : passage.split(String.fromCharCode(10)).slice(1).join(String.fromCharCode(10)).trim()
-    const gist = question.statement.replace(new RegExp('\\s+', 'g'), ' ').slice(0, 40)
-    out.push({ title: '问题' + ordinal + '：' + gist, body })
-  }
-  return out.filter(c => c.body !== '')
+/** One row of a rendered table (id + columns). */
+interface ChapterRow {
+  readonly id: string
+  readonly columns: ReadonlyArray<string>
 }
+
+/**
+ * W11.5 round-7（对齐参照物）— 逐问章的正文来自**规范 IR**，不是 E1 的复述。
+ *
+ * 参照物的逐问章是「问题一：预热平衡阶段的常物性耦合场求解」——**该问的模型 +
+ * 该问的结果**，与「问题分析」章是两回事（分析章说"归到哪类方法、为什么、难点"，
+ * 逐问章给出该问真正的方程与数值）。所以这里不把 E1 的分析段再抄一遍，而是走
+ * 规范 IR 的引用链：
+ *
+ *   ProblemSpec.requirement_refs → R-Qn      （哪一问）
+ *   ModelSpec.problem_refs        → 该问的模型（目标、方程）
+ *   Result.run_ref → RunArtifact.model_ref → ModelSpec.problem_refs （哪些数值属于该问）
+ *
+ * 该问在 IR 里什么都没有时（容器漏了这一问）**退回 E1 的分析段**——宁可给出模型
+ * 写下的分析，也不给一个空章（用户口径：绝不允许空白/极简片段）。
+ */
+/**
+ * One IR field as a string, honestly: an id/expression/unit field is a string (or a
+ * number for a bound parameter), and anything else is NOT silently stringified into
+ * `[object Object]` — it reads as empty so the caller treats it as "not declared".
+ */
+function irText(value: unknown): string {
+  if (typeof value === 'string') return value
+  if (typeof value === 'number' && Number.isFinite(value)) return String(value)
+  return ''
+}
+
+function perProblemChaptersFromIr(
+  store: ReadonlyMap<string, { readonly kind: string; readonly value: Record<string, unknown> }> | null,
+  requirements: ReadonlyArray<{ requirementId: string; statement: string }>,
+  results: ReadonlyArray<{ result_id: string; name: string; value: unknown; unit: string | null }>,
+  e1Text: string,
+): ReadonlyArray<{ readonly title: string; readonly body: string; readonly rows?: ReadonlyArray<ChapterRow> }> {
+  const questions = questionRequirements(requirements)
+  if (questions.length === 0) return []
+  const fallback = perQuestionChaptersOf(e1Text, requirements)
+  const fallbackByOrdinal = new Map<string, string>()
+  for (const chapter of fallback) {
+    const ordinal = /^问题(\d+)：/.exec(chapter.title)?.[1]
+    if (ordinal !== undefined) fallbackByOrdinal.set(ordinal, chapter.body)
+  }
+  if (store === null) return fallback
+
+  const problems: Array<{ problemId: string; requirementIds: ReadonlyArray<string> }> = []
+  const modelsByProblem = new Map<string, Array<{ modelId: string; objective: string; equations: ReadonlyArray<string> }>>()
+  const equationsById = new Map<string, { expression: string; unit: string }>()
+  const modelsById = new Map<string, { problemRefs: ReadonlyArray<string>; objective: string; equationRefs: ReadonlyArray<string> }>()
+  const runModel = new Map<string, string>()
+  const resultProblems = new Map<string, Set<string>>()
+
+  for (const record of store.values()) {
+    const value = record.value
+    if (record.kind === 'EquationSpec') {
+      const id = irText(value['equation_id'])
+      if (id !== '') equationsById.set(id, { expression: irText(value['expression']), unit: irText(value['unit']) })
+    } else if (record.kind === 'ModelSpec') {
+      const id = irText(value['model_id'])
+      const problemRefs = Array.isArray(value['problem_refs']) ? value['problem_refs'].map(String) : []
+      const equationRefs = Array.isArray(value['equation_refs']) ? value['equation_refs'].map(String) : []
+      if (id !== '') modelsById.set(id, { problemRefs, objective: irText(value['objective']), equationRefs })
+    } else if (record.kind === 'ProblemSpec') {
+      problems.push({
+        problemId: irText(value['problem_id']),
+        requirementIds: Array.isArray(value['requirement_refs']) ? value['requirement_refs'].map(String) : [],
+      })
+    } else if (record.kind === 'RunArtifact') {
+      const runId = irText(value['run_id'])
+      const modelRef = irText(value['model_ref'])
+      if (runId !== '') runModel.set(runId, modelRef)
+    }
+  }
+  for (const [modelId, model] of modelsById) {
+    for (const problem of model.problemRefs) {
+      const list = modelsByProblem.get(problem) ?? []
+      list.push({
+        modelId,
+        objective: model.objective,
+        equations: model.equationRefs.map((ref) => {
+          const equation = equationsById.get(ref)
+          return equation === undefined ? ref : `${ref}: ${equation.expression}${equation.unit === '' ? '' : `（${equation.unit}）`}`
+        }),
+      })
+      modelsByProblem.set(problem, list)
+    }
+  }
+  // 结果 → 问题：**先看结论自报的 model_refs**（这条 CRITICAL 结论在回答哪一问），
+  // 只有没有任何结论认领的结果才退回出处链（run → model → problems）。顺序很关键：
+  // 一次容器只有一次运行，出处链把所有结果都算到第一个模型的问题上，逐问章于是每章
+  // 都列全部数值（离线预检实测：问题1 的表里出现了另外三问的成本）。
+  const problemsOfModel = (modelId: string): ReadonlyArray<string> => modelsById.get(modelId)?.problemRefs ?? []
+  const addResultProblem = (resultId: string, problemIds: ReadonlyArray<string>): void => {
+    if (resultId === '' || problemIds.length === 0) return
+    const set = resultProblems.get(resultId) ?? new Set<string>()
+    for (const id of problemIds) set.add(id)
+    resultProblems.set(resultId, set)
+  }
+  for (const record of store.values()) {
+    if (record.kind !== 'Claim') continue
+    const value = record.value
+    if (irText(value['criticality']) !== 'CRITICAL') continue
+    const modelRefs = Array.isArray(value['model_refs']) ? value['model_refs'].map(String) : []
+    const resultRefs = Array.isArray(value['result_refs']) ? value['result_refs'].map(String) : []
+    const claimed = modelRefs.flatMap(ref => problemsOfModel(ref))
+    for (const resultRef of resultRefs) addResultProblem(resultRef, claimed)
+  }
+  for (const record of store.values()) {
+    if (record.kind !== 'Result') continue
+    const resultId = irText(record.value['result_id'])
+    if (resultProblems.has(resultId)) continue
+    addResultProblem(resultId, problemsOfModel(runModel.get(irText(record.value['run_ref'])) ?? ''))
+  }
+
+  const out: Array<{ title: string; body: string; rows?: ReadonlyArray<ChapterRow> }> = []
+  for (const question of questions) {
+    const ordinal = questionOrdinal(question.requirementId)
+    // 归属：ProblemSpec.requirement_refs 明说的优先；容器没明说时按序数约定取 P<n>。
+    const owned = problems.filter(p => p.requirementIds.includes(question.requirementId))
+    const named = owned.length > 0 ? owned : problems.filter(p => p.problemId === `P${ordinal}`)
+    const problemIds = named.map(p => p.problemId)
+    const models = problemIds.flatMap(id => modelsByProblem.get(id) ?? [])
+    const rows: ChapterRow[] = []
+    for (const result of results) {
+      const owner = resultProblems.get(result.result_id)
+      if (owner === undefined || !problemIds.some(p => owner.has(p))) continue
+      rows.push({
+        id: result.result_id,
+        // 三列即可：renderTable 会把 row.id 作为溯源标记跟在行尾（`… | [RES-x]`），
+        // 再放一列 id 就重复了。
+        columns: [result.name, typeof result.value === 'number' ? displayNumber(result.value) : String(result.value), result.unit ?? ''],
+      })
+    }
+    const bodyParts: string[] = []
+    // 该问的分析（E1 的逐问推理段）先写，再接该问的模型与方程——参照物的逐问章
+    // 就是"该问怎么做 + 该问的模型 + 该问的结果"三段，且问题分析章只放统一框架，
+    // 所以这里不构成重复。
+    const passage = fallbackByOrdinal.get(ordinal)
+    if (passage !== undefined && passage !== '') bodyParts.push(passage)
+    for (const model of models) {
+      if (model.objective !== '') bodyParts.push(`**${model.modelId}** 的目标：${model.objective}`)
+      if (model.equations.length > 0) {
+        bodyParts.push(model.equations.map(e => `- $${e}$`).join(NL))
+      }
+    }
+    const body = bodyParts.join(NL + NL)
+    if (body.trim() === '' && rows.length === 0) continue
+    out.push({ title: chapterTitleOf(ordinal, question.statement), body, ...(rows.length === 0 ? {} : { rows }) })
+  }
+  return out
+}
+
 
 /** W11.5 baseline-4: the section headings a delivery text carries (any level). */
 const NL = String.fromCharCode(10)
-
-/**
- * W11.5 round-4 — split E1 into per-question passages.
- *
- * E1 marks each sub-problem's reasoning with a `[[REQUIREMENT: R-Qn]]` anchor (the
- * same anchors B4 reads), and otherwise separates questions with 问题 N headings.
- * Both spellings are accepted. Returns [] when E1 carries no usable structure, so
- * the caller keeps whatever the model wrote rather than inventing prose.
- */
-function perQuestionSectionsOf(
-  e1Text: string,
-  requirements: ReadonlyArray<{ requirementId: string; statement: string }>,
-): ReadonlyArray<string> {
-  const ids = requirements
-    .filter(r => /^R-Q\d+$/.test(r.requirementId))
-    .map(r => r.requirementId)
-  if (ids.length === 0) return []
-  const sections: string[] = []
-  let currentId: string | null = null
-  let buffer: string[] = []
-  const flush = (): void => {
-    const body = buffer.join(NL).trim()
-    if (currentId !== null && body !== '') {
-      const ordinal = currentId.replace('R-Q', '')
-      sections.push(`### 问题${ordinal} 的分析${NL}${NL}${body}`)
-    }
-    buffer = []
-  }
-  for (const line of e1Text.split(NL)) {
-    const anchor = /\[\[REQUIREMENT:\s*(R-Q\d+)\]\]/.exec(line)
-    const heading = /^#{0,6}\s*问题\s*([0-9]+)/.exec(line.trim())
-    const hit = anchor?.[1] ?? (heading === null ? null : `R-Q${heading[1] ?? ''}`)
-    if (hit !== null && ids.includes(hit)) {
-      flush()
-      currentId = hit
-      continue
-    }
-    if (currentId !== null) buffer.push(line)
-  }
-  flush()
-  return sections
-}
 
 function headingSetOf(text: string): Set<string> {
   const out = new Set<string>()
@@ -1457,7 +1547,17 @@ export class WorkflowExecutor {
     taskText: string,
   ): Promise<ReadonlySet<string>> {
     const RESERVED = new Set<string>(['DA-RAW', 'R-OUT', 'P1'])
-    if (ir.get('DA-RAW') !== undefined) return RESERVED
+    // A retry must reserve the SAME id set the first attempt registered, or the
+    // admission would let the model collide with a sub-problem id it never saw.
+    if (ir.get('DA-RAW') !== undefined) {
+      for (const record of ir.list()) {
+        if (record.kind !== 'RequirementSpec' && record.kind !== 'ProblemSpec') continue
+        const value = record.value as { requirement_id?: unknown; problem_id?: unknown }
+        const id = irText(value.requirement_id ?? value.problem_id)
+        if (id !== '') RESERVED.add(id)
+      }
+      return RESERVED
+    }
 
     // W11.5 baseline-18 (审计 A-1): the paper shows THIS text, so it must be the
     // problem statement alone — never the model-facing task (which carries the
@@ -1519,12 +1619,27 @@ export class WorkflowExecutor {
       })
     }
 
-    putOrThrow('ProblemSpec', {
-      problem_id: 'P1',
-      raw_problem_ref: 'DA-RAW',
-      requirement_refs: ['R-OUT', ...subProblems.map(s => s.requirementId)],
-    })
-    await this.audit({ eventType: 'ir_entry_written', actor: 'paper-executor', runId, detail: { kind: 'ProblemSpec', id: 'P1', stage: 'input-registration' } })
+    // W11.5 round-7（对齐参照物）: **一个子问题一个 ProblemSpec**（P<n> ↔ 问题n），
+    // 而不是把所有子问题绑成一个 P1。这是逐问章能带上"该问自己的模型与数值"的前提
+    // ——model_refs/Result 的归属链是 Result.run_ref → RunArtifact.model_ref →
+    // ModelSpec.problem_refs，只有一个聚合 P1 时每问都会拿到同一批模型与结果。
+    // 同时它把 requirement_coverage 变成**逐问**判据：第 n 问必须有自己的 CRITICAL
+    // 结果链（A7 fail-closed），正是"虎头蛇尾"要治的那件事。
+    const problemSpecs = subProblems.length === 0
+      ? [{ problemId: 'P1', requirementRefs: ['R-OUT'] }]
+      : subProblems.map(sub => ({
+        problemId: `P${sub.requirementId.replace('R-Q', '')}`,
+        requirementRefs: [sub.requirementId],
+      }))
+    for (const spec of problemSpecs) {
+      RESERVED.add(spec.problemId)
+      putOrThrow('ProblemSpec', {
+        problem_id: spec.problemId,
+        raw_problem_ref: 'DA-RAW',
+        requirement_refs: spec.requirementRefs,
+      })
+      await this.audit({ eventType: 'ir_entry_written', actor: 'paper-executor', runId, detail: { kind: 'ProblemSpec', id: spec.problemId, stage: 'input-registration' } })
+    }
 
     return RESERVED
   }
@@ -1604,27 +1719,29 @@ export class WorkflowExecutor {
           const req = r.value as { requirement_id: string; statement: string }
           return { requirementId: req.requirement_id, statement: req.statement }
         })
-    // W11.5 round-4 (审计 §2.3 治本): E1 的那份"读得懂题、想得出方法"的分析
-    // （方法族自判、停止边界、策略枚举、状态递推、成本守恒、敏感性）此前只被当作
-    // E2 保真检查的输入，随后**被丢弃**——论文的问题分析章于是由模型另写一段更浅
-    // 的 prose（baseline-23：207 字，参照物每问 270–600 字）。现在把它接进论文：
-    // E1 全文按题锚点切段，作为问题分析的正文；模型自己写的 analysis 若有则接在
-    // 后面。用户口径：交付件不允许"非常简略的片段"，而这份分析本来就已经写好了。
+    // W11.5 round-4 (审计 §2.3 治本) → round-7 调整：E1 的那份"读得懂题、想得出
+    // 方法"的分析此前只被当作 E2 保真检查的输入，随后**被丢弃**；round-4 把它接进
+    // 论文（baseline-23 的模型自写分析只有 207 字，参照物每问 270–600 字）。
+    //
+    // round-7 把它放回**正确的位置**：逐问的分析段现在归**逐问章**（`perProblemChaptersFromIr`，
+    // 与「问题一：…」章一一对应，参照物的分工），问题分析章改为放 E1 的**统一框架段**
+    // （口径、假设、方法族判断）+ 模型自己写的分析 prose。否则同一段 E1 会在"问题分析"
+    // 与"问题N"两处逐字出现——那是填充，不是篇幅。
     const e1FullText = this.#e1ByRun.get(String(runId)) ?? ''
     if (e1FullText.trim() !== '') {
-      const perQuestion = perQuestionSectionsOf(e1FullText, contractRequirements)
-      if (perQuestion.length > 0) {
+      const framework = frameworkOf(e1FullText)
+      if (framework !== '') {
         const modelAnalysis = typeof narrative['analysis'] === 'string' ? String(narrative['analysis']).trim() : ''
         narrative['analysis'] = [
-          perQuestion.join(NL + NL),
-          ...(modelAnalysis === '' ? [] : ['', '### 补充说明', '', modelAnalysis]),
+          framework,
+          ...(modelAnalysis === '' ? [] : ['', '### 逐问归因', '', modelAnalysis]),
         ].join(NL)
       }
     }
     // W11.5 round-7（对齐参照物结构）: 参照物是**每个子问题独立成章**（「6 问题一：…」
-    // 「7 问题一模型的独立校核」「8 问题二：…」）。逐问章的正文用该问的 E1 分析段，
-    // 标题用该问的题干，因此这一结构不额外要求模型多写一个字。
-    const problemChapters = perQuestionChaptersOf(e1FullText, contractRequirements)
+    // 「7 问题一模型的独立校核」「8 问题二：…」）。章的正文在**渲染时**从规范 IR 装配
+    // （`perProblemChaptersFromIr`）——那时该问的 Result 才存在，逐问章才能带上自己的
+    // 数值表；此处不预生成，避免渲染时才发现拿不到结果。
     // 代码附录：把**真实代码**渲染进正文（参照物的附录 B/C/D 就是核心代码）。
     // 模型写的说明只作导语，代码本身由 harness 从容器里取——不增删改一字。
     const appendixCode = container.code ?? ''
@@ -1891,6 +2008,15 @@ export class WorkflowExecutor {
         for (const literal of numericLiterals(statement)) givenLiterals.add(literal)
       }
     }
+    // W11.5 round-7（对齐参照物结构）: 每个子问题独立成章（「问题一：…」「问题二：…」），
+    // 正文来自规范 IR（该问的模型与方程）+ 该问自己的结果表；IR 里没有的那一问退回
+    // E1 的分析段。装配在渲染时做，因为 Result 到这一步才齐全。
+    const problemChapters = perProblemChaptersFromIr(
+      snapshot,
+      contractRequirements,
+      results.map(r => ({ result_id: r.result_id, name: r.name, value: r.value, unit: r.unit })),
+      e1FullText,
+    )
     const rendered = renderReportV2({
       title: String((narrative['title'] as string | undefined) ?? 'Paper deliverable (executor production chain)'),
       givenLiterals: [...givenLiterals],
@@ -3154,12 +3280,25 @@ export class WorkflowExecutor {
     // downstream reader can mistake it for a chain-verified delivery.
     this.#deliveryPathByRun.set(String(runId), 'B-e1-direct')
     const facts = this.#receiveFailures.get(String(runId))
+    // W11.5 round-7: the fallback is assembled into the SAME reference form as
+    // the produce-chain draft (framework + one chapter per sub-problem), so a
+    // fail-soft delivery is not a wall of undifferentiated prose.
+    const fallbackRequirements = this.options.ir === undefined
+      ? []
+      : [...this.options.ir.list()]
+        .filter(r => r.kind === 'RequirementSpec')
+        .map((r) => {
+          const req = r.value as { requirement_id?: unknown; statement?: unknown }
+          return { requirementId: String(req.requirement_id ?? ''), statement: String(req.statement ?? '') }
+        })
+        .filter(r => r.requirementId !== '')
     const draft = renderE1DirectDraft({
       e1Text,
       title: '建模分析稿（E1 直通交付）',
       failureReason: gateReason,
       failedRules: facts?.failedRules ?? [],
       gate: 'ir_producer',
+      requirements: fallbackRequirements,
     })
     await this.audit({
       eventType: 'e1_direct_delivery',

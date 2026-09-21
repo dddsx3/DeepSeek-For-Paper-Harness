@@ -48,6 +48,7 @@ import { checkCodeProvenance, SHELL_PROVENANCE_TARGETS } from './code-provenance
 import { verifyStudyManifest, type StudyManifest } from './study-manifest.ts'
 import { FINGERPRINT_NAMESPACES } from '@deepseek-ai/dsh-paper-foundation'
 import { zipMixedFiles } from './zip.ts'
+import { FAKE_CONTAINER, FAKE_E1, FAKE_T3_FILL } from './fake-fixtures.ts'
 
 const here = dirname(fileURLToPath(import.meta.url))
 
@@ -928,13 +929,46 @@ async function main(): Promise<number> {
   } else {
     console.log(`  pdf     -> ${pdfOut} (${String(statSyncPdf(pdfOut, { throwIfNoEntry: false })?.size ?? 0)} bytes)`)
   }
+  // W11.5 round-7（用户口径：对齐参照物 `main.docx`）：Word 版此前同样只是 CLI
+  // 子命令，一次真实运行不会产出它。这里与 PDF 同口径——先跑 15 类导出前校核
+  // （0 致命才导出），再调 `scripts/export-docx.py`；缺依赖/被校核拒**不静默降级**，
+  // 报错并继续，由交付契约把缺件判为阻断。
+  const docxOut = join(outDir, 'paper.docx')
+  const docxPrecheck = runDocxPrechecks({
+    reportMarkdown: report,
+    figureFiles: await readdir(join(outDir, 'figures')).catch(() => [] as string[]),
+  })
+  const docxVerdict = docxPrecheckVerdict(docxPrecheck)
+  const docxGate = docxExportGate(docxVerdict)
+  if (!docxGate.allowed) {
+    console.error(`[docx] 导出前校核拒绝（${docxVerdict.fatalReasons.length} 致命）——交付包将缺 paper.docx：`)
+    for (const reason of docxVerdict.fatalReasons.slice(0, 5)) console.error(`  ❌ ${reason}`)
+  } else {
+    const docxExporter = join(here, '..', '..', '..', 'scripts', 'export-docx.py')
+    const docxRun = spawnSyncPdf('python', [docxExporter, join(outDir, 'report.md'), join(outDir, 'figures'), docxOut], {
+      encoding: 'utf8',
+      timeout: 300_000,
+    })
+    const docxStat = statSyncPdf(docxOut, { throwIfNoEntry: false })
+    const docxSize = docxStat === undefined ? 0 : docxStat.size
+    if (docxRun.status !== 0 || docxSize < 1000) {
+      console.error(`[docx] Word 导出未成功（exit ${docxRun.status === null ? 'null' : docxRun.status}，产物 ${docxSize} bytes）——交付包将缺 paper.docx：`)
+      const docxErr = typeof docxRun.stderr === 'string' && docxRun.stderr !== '' ? docxRun.stderr : docxRun.stdout
+      console.error(docxErr.split(String.fromCharCode(10)).slice(-3).join(String.fromCharCode(10)))
+    } else {
+      console.log(`  docx    -> ${docxOut} (${docxSize} bytes)`)
+    }
+  }
   // Deterministic zip of the deliverable + run report (same sha256 on re-run).
   // R1①: every shipped figure + the figure-manifest join the zip; figures
   // are UTF-8 text (SVG), so the text zip is their channel too.
   const pdfBytes = statSyncPdf(pdfOut, { throwIfNoEntry: false })?.isFile() === true
     ? await readFile(pdfOut)
     : undefined
-  const zipBytes = zipMixedFiles({ 'report.md': report, 'sha256.txt': sha256, 'run-report.json': runReport, ...(pdfBytes === undefined ? {} : { 'paper.pdf': new Uint8Array(pdfBytes) }), 'audit-trail.json': auditTrailText, 'artifact-bodies.json': bodiesText, ...dataEntries, ...figureEntries, ...(figureManifest.length > 0 ? { 'figure-manifest.json': JSON.stringify({ figures: figureManifest }, null, 2) } : {}) })
+  const docxBytes = statSyncPdf(docxOut, { throwIfNoEntry: false })?.isFile() === true
+    ? await readFile(docxOut)
+    : undefined
+  const zipBytes = zipMixedFiles({ 'report.md': report, 'sha256.txt': sha256, 'run-report.json': runReport, ...(pdfBytes === undefined ? {} : { 'paper.pdf': new Uint8Array(pdfBytes) }), ...(docxBytes === undefined ? {} : { 'paper.docx': new Uint8Array(docxBytes) }), 'audit-trail.json': auditTrailText, 'artifact-bodies.json': bodiesText, ...dataEntries, ...figureEntries, ...(figureManifest.length > 0 ? { 'figure-manifest.json': JSON.stringify({ figures: figureManifest }, null, 2) } : {}) })
   const zipPath = join(outDir, 'deliverable.zip')
   await writeFile(zipPath, zipBytes)
   const zipSha = createHash('sha256').update(zipBytes).digest('hex')
@@ -1085,90 +1119,6 @@ function createReplayProvider(replayer: CassetteReplayer): ProviderFace {
   }
 }
 
-/** The T3 fill-in payload the fake provider serves (deterministic, legal). */
-const FAKE_T3_FILL = JSON.stringify({ symbol_id: 'SYM-q', unit: 'm', output_file: 'result.json', json_path: 'mean_thickness' })
-
-/**
- * W11.5 round-5 — the offline e2e's EXECUTE answer: a REAL container.
- *
- * `--fake` used to answer every non-T3 call with the literal "revised text", so
- * the offline run blocked at the container stage and never reached DELIVERY —
- * which is exactly the stage that killed baselines 25/26 (an ENOENT on the
- * evidence files, found only after ~15 minutes of real compute). Serving a valid
- * container here makes `--fake` a true pre-flight: the whole chain plus the
- * delivery write run offline in seconds, so that class of failure is caught
- * before any model compute is spent.
- */
-/**
- * W11.5 round-5 — the offline e2e's E1 answer.
- *
- * The fidelity layer (B4/B3) reads E1's own structure: one reasoning passage
- * per REQUIRED_OUTPUT, and every declared assumption/equation anchored to a
- * verbatim E1 span. Without this the pre-flight stops at the fidelity gate.
- */
-const FAKE_E1 = [
-  '[[REQUIREMENT: R-OUT]]',
-  '本文估计测线上的平均冰厚：把声呐回波换算成厚度，并在噪声下给出稳健估计。',
-  '[[REQUIREMENT: R-Q1]]',
-  '问题1 归到回归估计：用最小二乘拟合回波与厚度的关系，难点是抑制测线噪声。',
-  '[[REQUIREMENT: R-Q2]]',
-  '问题2 归到期望值决策：在检测与拆解之间权衡成本，难点是构造可复算的期望成本。',
-  '[[REQUIREMENT: R-Q3]]',
-  '问题3 把结论推广到多工序装配结构，难点是树状节点的成本聚合。',
-  '[[REQUIREMENT: R-Q4]]',
-  '问题4 考虑抽样误差，用后验分布替代点估计重算决策。',
-  '沿测线假设介质均匀，因此同一测线上厚度可用单一均值刻画。',
-  '厚度与回波强度之间取线性关系 q = measured，作为定义式。',
-].join(String.fromCharCode(10))
-
-const FAKE_CONTAINER = JSON.stringify({
-  __dsh_paper: 'ir-container-v1',
-  entries: [
-    { kind: 'SymbolSpec', value: { symbol_id: 'SYM-q', scope_ref: 'P1', token: 'q', meaning: 'mean ice thickness', unit: 'm', role: 'VARIABLE', shape: 'SCALAR', domain: 'REAL', index_set: [] } },
-    { kind: 'AssumptionSpec', value: { assumption_id: 'ASM-1', scope_ref: 'P1', statement: '沿测线假设介质均匀', source_type: 'MODELING_CHOICE', justification_refs: ['R-OUT'], risk_level: 'MEDIUM', testable: false, sensitivity_refs: [], status: 'ACTIVE' } },
-    { kind: 'EquationSpec', value: { equation_id: 'EQ-1', scope_ref: 'P1', expression: 'q = measured', representation: 'SYMPY', lhs_symbols: ['SYM-q'], rhs_symbols: [], equation_type: 'DEFINITION', unit: 'm', depends_on: [], source: 'fake-container', e1_span: '厚度与回波强度之间取线性关系 q = measured' } },
-    { kind: 'ModelSpec', value: { model_id: 'M1', problem_refs: ['P1'], assumption_refs: ['ASM-1'], variable_refs: ['SYM-q'], parameter_refs: [], equation_refs: ['EQ-1'], constraints: [], objective: 'estimate mean ice thickness', dependencies: [] } },
-  ],
-  code: [
-    'const fs = require("node:fs");',
-    'fs.writeFileSync("result.json", JSON.stringify({ mean_thickness: 0.731 }));',
-    'console.log("run ok");',
-  ].join(String.fromCharCode(10)),
-  run: { outputBasenames: ['result.json'], seed: 20260903 },
-  interpretations: {
-    results: [
-      { result_id: 'RES-OUT', name: 'mean ice thickness', source: { locator: 'result.json', jsonPath: 'mean_thickness' }, unit: 'm', uncertainty: null },
-    ],
-    claims: [
-      { claim_id: 'C-OUT', text: 'mean ice thickness is 0.731 m', claim_type: 'NUMERIC', criticality: 'CRITICAL', result_refs: ['RES-OUT'], model_refs: ['M1'], evidence_refs: ['RES-OUT'] },
-    ],
-    figures: [
-      { figure_id: 'F-OUT', chart_type: 'table', data_refs: ['RES-OUT'], caption: 'mean thickness table' },
-    ],
-  },
-  narrative: {
-    title: 'Polar ice (offline pre-flight)',
-    conclusion: 'Mean ice thickness is 0.731 m.',
-    methods: 'The regression is fitted by least squares and the mean is read from the fit.',
-    restatement: 'The problem asks for the mean ice thickness along the survey line, estimated from sonar returns.',
-    analysis: [
-      '问题1 归到回归估计：难点是把声呐回波换算成厚度并控制噪声。',
-      '问题2 归到期望值决策：难点是在检测与拆解之间权衡成本。',
-    ].join(String.fromCharCode(10)),
-    evaluation: [
-      '优点：模型简单、每步可复算。',
-      '局限：假设介质均匀，忽略横向变化。',
-      '敏感性：对回波噪声做 ±20% 扰动，结论稳定。',
-      '推广：可移植到同类测线的厚度估计。',
-    ].join(String.fromCharCode(10)),
-    references: [
-      '[1] Wald A. Sequential Analysis. Wiley. 1947.',
-      '[2] 茆诗松, 程依明, 濮晓龙. 概率论与数理统计教程. 高等教育出版社. 2011.',
-      '[3] 姜启源, 谢金星, 叶俊. 数学模型. 高等教育出版社. 2018.',
-    ].join(String.fromCharCode(10)),
-    code: '问题1 与 问题2 的求解都在同一次运行里完成，结果写入 result.json。',
-  },
-})
 
 /** A deterministic fake provider (offline e2e): fills the T3 fill-in prompt,
  *  serves a clean review, and never touches the network. */
@@ -1198,8 +1148,17 @@ function createFakeProvider(route: ShellRoute | undefined): ProviderFace {
       if (joined.includes('T3 template fill-in')) return streamText(FAKE_T3_FILL)
       // The EXECUTE node gets a real container so the offline run reaches
       // DELIVERY (the pre-flight's whole point).
-      if (joined.includes('modeling analysis') || joined.includes('建模分析')) return streamText(FAKE_E1)
-      if (joined.includes('ir-container-v1') || joined.includes('Produce the deliverable')) return streamText(FAKE_CONTAINER)
+      //
+      // ORDER MATTERS (W11.5 round-7): the E2 prompt's own first line reads
+      // "You are NORMALIZING a modeling analysis into a machine-readable
+      // declaration", so the old `includes('modeling analysis')` test matched
+      // the CONTAINER prompt and served the E1 prose to it — every offline
+      // pre-flight then died in `parse_failed` and fell back to B-e1-direct,
+      // which is why the chain path was never exercised offline. Match the
+      // container by its distinctive wording first.
+      if (joined.includes('NORMALIZING a modeling analysis')) return streamText(FAKE_CONTAINER)
+      if (joined.includes('ir-container-v1')) return streamText(FAKE_CONTAINER)
+      if (joined.includes('Write a modeling analysis in prose')) return streamText(FAKE_E1)
       return streamText('revised text')
     },
   }

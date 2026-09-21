@@ -34,6 +34,7 @@
 
 import { renderPaperSkeleton } from './paper-skeleton.ts'
 import { parseE1Anchors } from './e1-e2.ts'
+import { frameworkOf, perQuestionChaptersOf } from './per-question.ts'
 
 /**
  * Why the normalized path failed — verbatim from the audit trail, so the
@@ -50,6 +51,16 @@ export interface E1DirectInput {
   readonly failedRules: ReadonlyArray<string>
   /** The gate that refused (`ir_producer`). */
   readonly gate: string
+  /**
+   * The run's REQUIRED_OUTPUTs, when the caller has them.
+   *
+   * With them, the draft is assembled into the **reference form** — a framework
+   * chapter plus one chapter per sub-problem (see `per-question.ts`), exactly as
+   * the produce-chain path renders it. Without them the draft falls back to the
+   * flat skeleton, because inventing question boundaries would be worse than
+   * delivering one long analysis chapter.
+   */
+  readonly requirements?: ReadonlyArray<{ readonly requirementId: string; readonly statement: string }>
 }
 
 /** The rendered draft plus the counts a caller needs for its audit entry. */
@@ -59,6 +70,8 @@ export interface E1DirectDraft {
   readonly assumptionsCount: number
   /** Whether E1 carries any `[[REQUIREMENT: id]]` anchors at all. */
   readonly requirementAnchors: number
+  /** How many per-problem chapters the draft actually rendered. */
+  readonly problemChapters: number
 }
 
 /**
@@ -87,22 +100,34 @@ export function renderE1DirectDraft(input: E1DirectInput): E1DirectDraft {
     return { id: a.id, columns: [a.id, statement.slice(0, 120) || '（见模型建立与求解节）', '未评定', '未检验'] }
   })
 
+  // 摘要只放**无数字**的说明：引擎原文里的拒绝理由本身带数字（"只有 1076 字"），
+  // 抄进摘要会被数字门当成"结论面出现不属于任何 Result 的数字"。原文逐字引用放在
+  // 交付附录里（那里是标注区，本来就承载门禁原文）。
   const note = [
     '> **交付说明（诚实标注）**：本稿由模型的建模分析（E1）直接生成——',
     '> 结构化规范化（E2）未通过，故**未经规范 IR 验证**：数字、引用、图表',
-    `> 均未逐条溯源。失败原因（引擎原文）：${input.failureReason}`,
-    input.failedRules.length > 0 ? `> 未通过的保真检查：${input.failedRules.join('、')}。` : '',
+    '> 均未逐条溯源。未通过的保真检查与引擎原文见文末「交付标注」附录。',
     '> 请把它当作**素材**而不是成品。',
-  ].filter(l => l.length > 0).join('\n')
+  ].join('\n')
+
+  // W11.5 round-7（对齐参照物）：能拆就拆成"框架章 + 每问一章"，拆不动才退回
+  // 扁平骨架。两条交付路径因此呈现**同一形态**——兜底稿不再是一整章流水账。
+  const requirements = input.requirements ?? []
+  const problemChapters = perQuestionChaptersOf(input.e1Text, requirements)
+  const framework = frameworkOf(input.e1Text)
+  // 拆出逐问章后，"模型建立与求解"节只放**统一框架**（假设、符号、方法），
+  // 否则每问的分析会在正文里出现两遍。没有框架段时退回全文，宁可重复不丢内容。
+  const modelSlot = problemChapters.length > 0 && framework !== '' ? framework : input.e1Text
 
   const markdown = renderPaperSkeleton({
     title: input.title,
     assumptions,
+    problemChapters,
     slots: {
       // 摘要：E1 没有摘要（它是对自己写的分析笔记）。诚实说明 + 指向正文。
       abstract: note,
-      // 模型建立与求解：E1 的全文就是建模分析——原样放入，不加工。
-      model: input.e1Text,
+      // 模型建立与求解：统一框架段（拆章成功时）或 E1 全文（拆不动时）。
+      model: modelSlot,
     },
   })
 
@@ -110,5 +135,6 @@ export function renderE1DirectDraft(input: E1DirectInput): E1DirectDraft {
     markdown,
     assumptionsCount: assumptions.length,
     requirementAnchors: anchors.requirements.length,
+    problemChapters: problemChapters.length,
   }
 }
