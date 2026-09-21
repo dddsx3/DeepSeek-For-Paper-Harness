@@ -267,3 +267,40 @@ describe('W11.5 baseline-1 — 折叠扩展（括号/标点）与负对照', () 
     expect(e1.includes(foldForAnchorMatch('品状态服从参数为(p0)的伯努利分布'))).toBe(false) // 下标加
   })
 })
+
+// ---------------------------------------------------------------------------
+// W11.5 baseline-4（首次真实产出实测）—— 修订不得摧毁稿子。
+// 证据：交付的 report.md 竟是**题目原文**（编辑器拿到 `Task: <题面>` 后把题面
+// 当"corrected text"返回，交付流直接采用）。预检能拒，但交付动作本身就不该
+// promote 非稿子内容 → 结构守卫：章节标题集合必须保留、篇幅不得塌缩过半。
+// ---------------------------------------------------------------------------
+describe('W11.5 baseline-4 — 修订结构守卫（负对照：题面冒充修订）', () => {
+  const DRAFT = [
+    '# 建模分析稿（E1 直通交付）',
+    '## 摘要', '说明…',
+    '## 问题重述', '题面复述…',
+    '## 模型建立与求解', 'E1 全文…',
+    '## 结果对比与校核', '结果…',
+  ].join('\n')
+
+  it('编辑器返回题面（丢章节）→ 拒绝该次修订', async () => {
+    const { revisionDestroysDraft } = await import('../../src/executor.ts')
+    const taskStatement = '# 2024 年高教社杯全国大学生数学建模竞赛题目\n\n## B 题 生产过程中的决策问题\n\n某企业生产…（题面复制）'
+    const verdict = revisionDestroysDraft(DRAFT, taskStatement)
+    expect(verdict.rejected).toBe(true)
+    expect(String(verdict.reason)).toContain('section heading')
+  })
+
+  it('修订塌缩到一半以下 → 拒绝（即使标题侥幸保留）', async () => {
+    const { revisionDestroysDraft } = await import('../../src/executor.ts')
+    const collapsed = DRAFT.split('\n').map(l => (l.startsWith('##') ? l : '')).join('\n')
+    expect(revisionDestroysDraft(DRAFT, collapsed).rejected).toBe(true)
+  })
+
+  it('正常修订（保留章节、篇幅相当）→ 接受', async () => {
+    const { revisionDestroysDraft } = await import('../../src/executor.ts')
+    const improved = DRAFT.replace('说明…', '说明（已按缺陷修订，保留全部章节）……').replace('结果…', '结果（补充了校核说明）……')
+    const verdict = revisionDestroysDraft(DRAFT, improved)
+    expect(verdict.rejected).toBe(false)
+  })
+})

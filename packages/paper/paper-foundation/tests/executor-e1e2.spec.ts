@@ -1365,3 +1365,18 @@ describe('W11.5 run-11 — numeric robustness and in-container duplicate teachin
     expect(EXECUTE_PROTOCOL_TEACHING).toContain('the same id must not appear twice within ONE container')
   })
 })
+
+// ---------------------------------------------------------------------------
+// W11.5 baseline-4（首次真实产出实测）—— 三条链上教学缺口。
+// ---------------------------------------------------------------------------
+describe('W11.5 baseline-4 — 链上教学缺口（版本标记/假设完整性）', () => {
+  it('容器首字段单独强调：输出必须以版本标记开头', () => {
+    expect(EXECUTE_PROTOCOL_TEACHING).toContain('FIRST LINE MATTERS')
+    expect(EXECUTE_PROTOCOL_TEACHING).toContain('{"__dsh_paper":"ir-container-v1"')
+  })
+
+  it('B3 反向规则教学：每条 E1 假设锚点都必须声明（1:1，无例外）', () => {
+    expect(EXECUTE_PROTOCOL_TEACHING).toContain('EVERY `[[ASSUMPTION: id]]` anchor')
+    expect(EXECUTE_PROTOCOL_TEACHING).toContain('under-declared one kills the container')
+  })
+})

@@ -209,7 +209,9 @@ export const EXECUTE_PROTOCOL_TEACHING = [
   + 'claims (declare them here): [{ claim_id, text, claim_type: "NUMERIC", criticality: "CRITICAL", result_refs: [<a result_id>], model_refs: [<your model_id>], evidence_refs: [<a result_id>] }] — a CRITICAL NUMERIC claim binds one Result as the number the paper states; without a claim your REQUIRED_OUTPUT stays unpaid and delivery is blocked.',
   '  interpretations.figures (optional): [{ figure_id, chart_type: "line"|"scatter"|"bar"|"table", data_refs: [Result ids], caption? }] — structure only; the harness renders the bytes and computes every hash. caption/x_label/y_label must NOT contain numeric literals (write quantities in words, e.g. "final value" instead of "y(2.0)"): a number in these strings is refused unless it is exactly the value of a referenced Result.',
   '  narrative: { title, conclusion: { claims: [{ text, quantity_refs: [Result ids], representation? }] } } — a conclusion number must be the bound Result value verbatim, or an explicitly declared rendering: {"kind":"rounded","dp":<0..20>} or {"kind":"with_uncertainty","uncertainty_refs":[...]}. The check is mechanical: each claim\'s text must CONTAIN the value of every quantity_ref, written into the sentence — text "The unified minimum sample size is 1762." with quantity_refs ["R-N-FIXED"]. A qualitative sentence that names the Result but never states its value is refused (real refusal: "The unified sample size is the maximum of the two case-specific minimum sample sizes.").',
+  '  Container shape (REQUIRED, FIRST LINE MATTERS): the output\'s first characters must be `{"__dsh_paper":"ir-container-v1"` — the version marker IS the container\'s identity, and a container missing it is refused before anything else is checked (real refusal: the first real run\'s attempt 1 produced a full, valid container that started with `{"run": …` and was refused on the missing marker alone).',
   '  Re-emission on retry (REQUIRED): a retried container must re-declare every entry it declared before, BYTE-IDENTICAL unless the refusal message asked you to change that entry — the store is append-only and same-id-different-content is a conflict. If you must improve wording, give the entry a NEW id instead of editing the old one.',
+  '  Assumption completeness (REQUIRED, the B3-reverse rule): EVERY `[[ASSUMPTION: id]]` anchor that exists in the analysis MUST have a matching AssumptionSpec entry in `entries` — one anchor, one declaration, same id, no exceptions. A container that declares only "the assumptions I found important" while the analysis marked 15 is REFUSED (real refusal: the first real run marked 15 anchors, the container declared 9, and the fidelity gate refused all three attempts on exactly this gap). When in doubt, declare it — an over-declared assumption is checked, an under-declared one kills the container.',
   '  narrative prose chapters (REQUIRED for a submittable paper): besides `title`/`conclusion`/`methods`, the narrative SHOULD carry the paper\'s prose chapters as strings — `restatement` (问题重述), `analysis` (问题分析), `evaluation` (模型评价与推广), `references` (参考文献条目，形如 "[1] 作者. 题名. 年."), `code` (代码附录说明). Any chapter you leave out renders as a VISIBLE placeholder, and the docx pre-export gate refuses a paper that still carries placeholders (`no_placeholders`) — an empty chapter cannot be delivered.',
   '  Output shape (REQUIRED): return the container as ONE bare JSON object — no markdown fence, no prose around it. (Two of three attempts in the first real run wrapped it in ```json … ``` and were refused as parse_failed.) If you do fence it, one surrounding fence is now stripped, but do not rely on that.',
   '  Code robustness (REQUIRED): your code must PARSE and run. A JavaScript object key that contains `-` must be quoted — `{"S-P1": 0.1}` is legal, `S-P1: 0.1` is a SyntaxError that kills the whole run before any output is written (real refusal: the first real run\'s attempt died on `S-P1: p1,` and the failure surfaced as an output-set mismatch). Prefer your symbols\' plain `token` as the key, or quote every key.',
@@ -217,6 +219,36 @@ export const EXECUTE_PROTOCOL_TEACHING = [
   '  In-container duplicates (REQUIRED): the same id must not appear twice within ONE container either — including SymbolSpec ids declared for different scopes. Run-11 attempt 1 declared two different S-C entries (case-1 and case-2 critical values); give each distinct quantity a distinct id (S-C1, S-C2).',
   'The container is refused (and the attempt fails) if: you declare kind "ProblemSpec" or "RequirementSpec", or re-declare "DA-RAW"; you write content_hash anywhere; an entry kind is not one of the five above; a number appears outside code/declarations; a jsonPath is missing or does not resolve to a finite number; the run block carries a foreign key; or the conclusion states an undeclared rounding.',
 ].join('\n')
+
+
+/**
+ * W11.5 baseline-4: does a revision destroy the draft? A revision must keep
+ * every section heading the draft had and must not collapse to under half
+ * its length — otherwise it is not a revision (the real run's editor returned
+ * the TASK statement, which the flow then delivered as the paper).
+ */
+export function revisionDestroysDraft(draft: string, revised: string): { rejected: boolean; reason: string | null } {
+  const before = headingSetOf(draft)
+  const after = headingSetOf(revised)
+  const lost = [...before].filter(h => !after.has(h))
+  if (revised.length < draft.length * 0.5) {
+    return { rejected: true, reason: `revised text collapsed to ${revised.length} chars (was ${draft.length})` }
+  }
+  if (lost.length > 0) {
+    return { rejected: true, reason: `revised text lost ${lost.length} section heading(s): ${lost.slice(0, 5).join(', ')}` }
+  }
+  return { rejected: false, reason: null }
+}
+
+/** W11.5 baseline-4: the section headings a delivery text carries (any level). */
+function headingSetOf(text: string): Set<string> {
+  const out = new Set<string>()
+  for (const line of text.split('\n')) {
+    const m = /^#{1,6}\s+(.+)$/.exec(line.trim())
+    if (m !== null && m[1] !== undefined) out.add(m[1].trim())
+  }
+  return out
+}
 
 /** Minimal audit sink the executor needs; {@link PaperAuditService} satisfies it. */
 export interface AuditSink {
@@ -786,9 +818,34 @@ export class WorkflowExecutor {
               text: `Defects:\n${[...unresolved.values()].map(defect => `- [${defect.id}] [${defect.severity}] ${defect.description}`).join('\n')}`,
               trimPriority: TRIM_DEFECTS,
             },
-            { name: 'instruction', text: 'Return the corrected text only.', trimPriority: KEEP },
+            {
+              name: 'instruction',
+              text: 'Return the corrected FULL text only — every section heading preserved, same order, no commentary. Never return the task statement.',
+              trimPriority: KEEP,
+            },
           ],
         )
+        // 首次真实产出实测（baseline-4）：修订轮的输出被**直接**当作交付文本，
+        // 而编辑器拿到了 `Task: <题面>`——它把题面当"corrected text"返回，
+        // 于是交付物变成了题面复制（形态 1 假绿：看起来是文档，实际不是稿子）。
+        // 守卫：修订不得摧毁稿子结构——章节标题集合必须被保留，且篇幅不得
+        // 塌缩到一半以下；违反则**拒绝该次修订**（保留上一版）并记账。
+        const guard = revisionDestroysDraft(current, revised.text)
+        if (guard.rejected) {
+          await this.audit({
+            eventType: 'ir_entry_written',
+            actor: 'paper-executor',
+            runId,
+            detail: {
+              kind: 'RevisionRejected',
+              id: `revise#${round + 1}`,
+              nodeId: revised.nodeId,
+              reason: guard.reason ?? 'revision destroyed the draft',
+              kept_chars: current.length,
+            },
+          })
+          continue
+        }
         current = revised.text
       }
 
@@ -2197,7 +2254,11 @@ export class WorkflowExecutor {
           eventType: 'provider_retry',
           actor: 'paper-executor',
           runId,
-          detail: { code: failure.code, role, attempt },
+          // W11.5 baseline-4（首次真实产出实测）：只记 code 不记 reason，
+          // 模型看得到拒绝、事后核不了（"模型可见 ⟺ 已记录"）。message 带
+          // 失败原文（如 CONFIG_EMISSION_TOKEN_UNRESOLVED 具体哪个 token
+          // 没解析到），下轮诊断不再靠猜。
+          detail: { code: failure.code, role, attempt, reason: failure.message.slice(0, 400) },
         })
         await this.engine.transitionNode(node.id, 'ready')
         await delay(backoffDelayMs(attempt, this.options.backoff, failure.providerRetryAfterMs))

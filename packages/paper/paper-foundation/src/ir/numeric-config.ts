@@ -216,7 +216,9 @@ export function numericConfigFromEmission(
       kind: 'TOKEN_UNRESOLVED',
       reason: fuzzy === 'ambiguous'
         ? `${section} key '${key}' matches more than one declared SymbolSpec by spelling — rename the key to the exact token or symbol_id (ambiguous keys are refused, never guessed)`
-        : `${section} key '${key}' does not resolve to a SymbolSpec declared in scope [${[...scopes].join(', ')}]`,
+        // W11.5 baseline-4（首次真实产出实测）：只报"没解析到"逼着下一轮猜；
+        // 把**可用的** token/id 清单直接给出来，模型一步就能改对。
+        : `${section} key '${key}' does not resolve to any declared SymbolSpec (declared tokens/ids: ${inScope.map(s => s.token === s.symbol_id ? s.token : `${s.token} / ${s.symbol_id}`).join(', ') || '(none in scope)'}) — use the exact token or symbol_id`,
     })
     return null
   }

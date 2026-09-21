@@ -1,0 +1,59 @@
+{
+  "runId": "bd31ab88-b14c-4e01-a55e-0f858dd527f3",
+  "delivery_path": "B-e1-direct",
+  "tier": "T1",
+  "mode": "strict",
+  "status": "DELIVERED",
+  "grade": "MARKED",
+  "routed_family": "F4",
+  "route_truth": "F3+F4",
+  "route_mismatch": false,
+  "code_provenance": {
+    "checked_at": "2026-09-21T00:24:11.593Z",
+    "ok": true,
+    "targets": [
+      {
+        "name": "@deepseek-ai/dsh-paper-foundation",
+        "ok": true,
+        "detail": "entry lib/index.js is 106677 ms newer than the newest source"
+      },
+      {
+        "name": "@deepseek-ai/dsh-storage",
+        "ok": true,
+        "detail": "entry lib/index.js is 24407218 ms newer than the newest source"
+      },
+      {
+        "name": "@deepseek-ai/dsh-storage-domain",
+        "ok": true,
+        "detail": "entry lib/index.js is 24426632 ms newer than the newest source"
+      },
+      {
+        "name": "@deepseek-ai/dsh-storage-json",
+        "ok": true,
+        "detail": "entry lib/index.js is 24426700 ms newer than the newest source"
+      },
+      {
+        "name": "@deepseek-ai/dsh-llm",
+        "ok": true,
+        "detail": "entry lib/index.js is 24426820 ms newer than the newest source"
+      },
+      {
+        "name": "@deepseek-ai/cordis",
+        "ok": true,
+        "detail": "entry lib/index.js is 24407031 ms newer than the newest source"
+      }
+    ]
+  },
+  "minted_ir_count": 70,
+  "wall_clock_seconds": 460.7,
+  "sha256": "8d2d028eaea6c12c59ea22fdbfa4e10f29f32f4738c758c446b8ea761003cf59",
+  "audit": "workflow_started,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,provider_retry,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,provider_retry,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,provider_retry,e1_direct_delivery,delivery_graded,final_output_written,promotion_succeeded,workflow_completed",
+  "usage": {
+    "input_tokens": 78419,
+    "output_tokens": 50678,
+    "cost_usd": 0
+  },
+  "attachments": [],
+  "figures": 0,
+  "figure_links_broken": []
+}
