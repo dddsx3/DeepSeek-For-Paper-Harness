@@ -89,6 +89,11 @@ const DRIFT_CODES: ReadonlySet<string> = new Set([
   'conflicting_conclusion_number',
   'figure_declaration_invalid',
   'figure_data_invalid',
+  // W11.5 baseline-9 (首次真实产出实测): a shared token between two SymbolSpecs
+  // is a fixable declaration error, and naming it at admission is what keeps
+  // the correction pointed at the symbol rather than at every key that
+  // references it.
+  'duplicate_symbol_token',
 ])
 
 /** Code-run / capture-environment failures after container admission. */

@@ -28,7 +28,7 @@
 import { z as zod } from 'zod'
 import { ModelingIr } from '../ir/store.ts'
 import { IR_SCHEMAS } from '../ir/schema.ts'
-import { readIrObjectId, canonicalJson, type IrKind } from '../ir/index.ts'
+import { readIrObjectId, canonicalJson, findDuplicateSymbolTokens, type IrKind } from '../ir/index.ts'
 
 /** Protocol marker + version of the model EXECUTE output container. */
 export const MODEL_CONTAINER = '__dsh_paper'
@@ -89,6 +89,7 @@ export type ProduceFailureCode =
   | 'hash_field_forbidden'       // W1: content_hash is the impossible field (F-A) — never model-writable
   | 'registered_id_redeclared'   // W1: the model re-declared a harness-registered id
   | 'conflicting_id'             // duplicate of an id already in the store (append-only semantics)
+  | 'duplicate_symbol_token'     // W11.5 baseline-9: two SymbolSpecs in one scope share a token
   | 'store_refused'              // the store's own admission (incl. 1.5R closure) refused an entry
 
 export type ProduceVerdict =
@@ -326,6 +327,37 @@ export function produceContainerInto(
     }
     seenIds.add(entryId)
     validated.push(entry)
+  }
+
+  // W11.5 baseline-9 (首次真实产出实测): two SymbolSpecs in one scope sharing a
+  // token is a model error, and it must be named HERE — at admission, as a
+  // duplicate TOKEN. The ninth real run declared both `S-P1` and `S-P2_1` with
+  // token `p_1` (a tolerable defect-rate bound and a part's defect rate), and
+  // the first symptom was not this at all: the run's config emission was
+  // refused with "key 'p1' matches more than one declared SymbolSpec by
+  // spelling — rename the key", which points at the CONFIG KEY. The model
+  // obeyed — three attempts spent renaming keys (`p1`, `p1_val`, …) while the
+  // duplicate token that made every spelling ambiguous stayed in place. The
+  // invariant itself is not new: the bridge already reports
+  // `duplicate_symbol_token` and `ir_canonicalization` blocks on it, so such a
+  // container can never deliver — refusing it earlier only makes the
+  // correction land on the actual mistake.
+  const duplicateTokens = findDuplicateSymbolTokens(
+    validated
+      .filter(e => e.kind === 'SymbolSpec')
+      .map(e => e.value as Readonly<Record<string, unknown>>),
+  )
+  const firstDuplicate = duplicateTokens[0]
+  if (firstDuplicate !== undefined) {
+    const first = validated.find(
+      e => e.kind === 'SymbolSpec' && e.value['token'] === firstDuplicate.token && e.value['symbol_id'] !== firstDuplicate.symbol_id,
+    )
+    const firstId = String(first?.value['symbol_id'] ?? '?')
+    return {
+      ok: false,
+      code: 'duplicate_symbol_token',
+      reason: `two SymbolSpecs in scope '${firstDuplicate.scope_ref}' share the token '${firstDuplicate.token}': '${firstId}' and '${firstDuplicate.symbol_id}'. A token is how a quantity is named in config emissions and in the paper, so a shared spelling makes every reference to it ambiguous — give one of them a distinct token (or reference it by symbol_id), and keep one token per meaning.`,
+    }
   }
 
   // Pass 2 — write every validated entry (store admission re-checks schema

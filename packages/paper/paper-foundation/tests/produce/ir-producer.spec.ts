@@ -432,3 +432,57 @@ describe('W11.5 baseline-3 — 同 run 重试：首次声明为准（跨 run/保
     if (!verdict.ok) expect(verdict.reason).toContain('harness-registered asset id')
   })
 })
+
+// ---------------------------------------------------------------------------
+// W11.5 baseline-9 — the duplicate-token mistake must be named AS ITSELF.
+// ---------------------------------------------------------------------------
+describe('W11.5 baseline-9 — 同名 token 在入库处就按"重名 token"拒绝', () => {
+  const sym = (id: string, token: string, meaning: string): Record<string, unknown> => ({
+    symbol_id: id, scope_ref: 'P1', token, meaning, unit: 'dimensionless',
+    role: 'PARAMETER', shape: 'SCALAR', domain: 'PROBABILITY', index_set: [],
+  })
+  const container = (entries: ReadonlyArray<unknown>): string => JSON.stringify({
+    __dsh_paper: 'ir-container-v1', entries,
+    code: 'const fs=require("node:fs");fs.writeFileSync("result.json","{}");',
+    run: { outputBasenames: ['result.json'], seed: 1 },
+  })
+
+  it('两条 SymbolSpec 共用 token → duplicate_symbol_token，理由点出两个 symbol_id 与那个 token', async () => {
+    // 第九次真实运行：S-P1 与 S-P2_1 都叫 p_1（一个"可容忍次品率上界"、一个
+    // "零配件1的次品率"）。第一个症状不是这个——是配置发射被拒："key 'p1'
+    // matches more than one declared SymbolSpec by spelling — rename the key"，
+    // 指向的是**配置的键**。模型照做了：三次尝试都在改键名（p1 / p1_val …），
+    // 而让所有拼写都歧义的那个重名 token 一直没动。不变式本身不新（bridge 早已
+    // 报 duplicate_symbol_token、ir_canonicalization 会拦），把它挪到入库处
+    // 只是让纠错落在真正的错误上。
+    const { ModelingIr } = await import('../../src/ir/store.ts')
+    const { produceContainerInto } = await import('../../src/produce/ir-producer.ts')
+    const ir = new ModelingIr()
+    registerHarnessAssets(ir)
+    const verdict = produceContainerInto(ir, container([
+      { kind: 'SymbolSpec', value: sym('S-P1', 'p_1', '可容忍的次品率上界') },
+      { kind: 'SymbolSpec', value: sym('S-P2_1', 'p_1', '零配件1的次品率') },
+    ]))
+    expect(verdict.ok).toBe(false)
+    if (verdict.ok) return
+    expect(verdict.code).toBe('duplicate_symbol_token')
+    expect(verdict.reason).toContain("'p_1'")
+    expect(verdict.reason).toContain('S-P1')
+    expect(verdict.reason).toContain('S-P2_1')
+    // 拒绝发生在写入之前：一条都没进 store
+    expect(ir.list().filter(r => r.kind === 'SymbolSpec')).toHaveLength(0)
+  })
+
+  it('同名 token 但作用域不同 → 允许（唯一性是同作用域内的）', async () => {
+    const { ModelingIr } = await import('../../src/ir/store.ts')
+    const { produceContainerInto } = await import('../../src/produce/ir-producer.ts')
+    const ir = new ModelingIr()
+    registerHarnessAssets(ir)
+    const other = { ...sym('S-Q1', 'q', '另一个问题的量'), scope_ref: 'P1' }
+    const verdict = produceContainerInto(ir, container([
+      { kind: 'SymbolSpec', value: sym('S-P1', 'p_1', 'x') },
+      { kind: 'SymbolSpec', value: other },
+    ]))
+    expect(verdict.ok, verdict.ok ? '' : verdict.reason).toBe(true)
+  })
+})
