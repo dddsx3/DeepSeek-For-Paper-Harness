@@ -539,13 +539,26 @@ function renderReport(input: {
   // 出现过整段 `_摘要自动生成被 D4 守卫拒绝（原因：claim text carries a number…）_`，
   // 评委打开论文就看到引擎内部报错。改为中性、无数字的兜底摘要，把读者引到结果表；
   // 拒绝这件事本身是机器关注点，留在审计与交付标注里，不进正文。
-  const abstractLines = abstractVerdict.ok
-    ? abstractVerdict.abstract
-    : [
-      `针对《${input.title}》，本文建立数学模型并给出结论。`,
-      '',
-      '正文依次给出问题重述、问题分析、模型建立与求解、结果对比与校核；全部关键数字由运行结果注入「结果对比与校核」一节的结果表，并逐条给出结论与校核声明。',
-    ].join(String.fromCharCode(10))
+  // W11.5 round-8（对齐参照物：摘要 1,374 字是评委最先读的一段）：模型若写了
+  // `narrative.abstract`，就用它——数字仍走零数字通道（写成 `{<result_id>}` 由 harness
+  // 注入），未声明的数字由 delivered-number 门禁拦下。模型没写才退回生成式摘要。
+  const modelAbstract = typeof input.narrative['abstract'] === 'string' ? input.narrative['abstract'].trim() : ''
+  const expandedAbstract = modelAbstract === ''
+    ? null
+    : expandQuantityPlaceholders(modelAbstract, (id) => {
+      const hit = input.results.find(r => r.result_id === id)
+      if (hit === undefined) return null
+      return typeof hit.value === 'number' ? displayNumber(hit.value) : String(hit.value)
+    })
+  const abstractLines = expandedAbstract !== null && expandedAbstract.unknown.length === 0
+    ? expandedAbstract.text
+    : abstractVerdict.ok
+      ? abstractVerdict.abstract
+      : [
+        `针对《${input.title}》，本文建立数学模型并给出结论。`,
+        '',
+        '正文依次给出问题重述、问题分析、模型建立与求解、结果对比与校核；全部关键数字由运行结果注入「结果对比与校核」一节的结果表，并逐条给出结论与校核声明。',
+      ].join(String.fromCharCode(10))
 
   // ---- AI 声明（机器生成，固定文本，无数字） ----
   const aiLines = [
