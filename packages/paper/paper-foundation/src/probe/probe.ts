@@ -115,6 +115,8 @@ const DRIFT_CODES: ReadonlySet<string> = new Set([
   'assumption_structure',
   // W11.5 round-4 (审计 §3.2): element-level prose contract violations.
   'prose_contract',
+  // W11.5 round-5: blank areas / near-empty chapters in the rendered paper.
+  'blank_area',
 ])
 
 /** Code-run / capture-environment failures after container admission. */
