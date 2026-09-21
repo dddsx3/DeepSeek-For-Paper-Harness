@@ -36,6 +36,9 @@ describe('W11.5 round-5 — 门禁 ⇔ 教学 一一对应', () => {
       { gate: 'assumption_structure（引用 + justification）', taught: 'REFERENCED by a ModelSpec.assumption_refs' },
       { gate: '零数字通道（数字可点名）', taught: '{<result_id>}' },
       { gate: '容器形状（首行版本标记）', taught: '__dsh_paper' },
+      { gate: 'E1_E2_FIDELITY_VIOLATION / B4 逐问覆盖', taught: '[[REQUIREMENT: R-Q1]]' },
+      { gate: 'E1_E2_FIDELITY_VIOLATION / B3 正向（逐字 span）', taught: 'copied VERBATIM from the E1 text' },
+      { gate: 'E1_E2_FIDELITY_VIOLATION / B3 反向与锚点同一性', taught: '[[ASSUMPTION: <id>]]' },
     ]
     const missing = gates.filter(g => !EXECUTE_PROTOCOL_TEACHING.includes(g.taught))
     expect(missing.map(m => m.gate), '门禁没有产出前教学：这些规则只能"事后拦"，每次违规烧掉一次尝试').toEqual([])
