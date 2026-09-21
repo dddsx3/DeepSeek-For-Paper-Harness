@@ -225,6 +225,7 @@ export const EXECUTE_PROTOCOL_TEACHING = [
   '  LENGTH REFERENCE (an aim, NOT a gate): this harness is aligned with a reference paper of about 30,000 characters of body text (roughly 30 pages) — 问题分析 about 2,000, each per-problem chapter about 2,500, 模型评价与推广 about 1,400, 参考文献 about 1,500 (6+ real entries), 代码附录 about 1,500, 问题重述 about 1,000. Write to that scale. A chapter that falls BELOW roughly 60% of its reference is sent back for a rewrite (that is the only length rule); there is NO upper bound — a longer, fuller chapter is never penalised and never truncated. The harness renders one chapter PER SUB-PROBLEM (问题1/2/3/4 each its own chapter, like the reference), built from your E1 passages, so give each sub-problem a substantial E1 passage.',
   '  PAPER CONTRACT (REQUIRED — every line below is checked mechanically BEFORE the paper is delivered, so satisfy it in your FIRST emission; a violation costs you a whole attempt):',
   '    · narrative carries EIGHT non-empty strings: title, methods, conclusion, restatement, analysis, evaluation, references, code.',
+  '    · abstract (OPTIONAL but strongly recommended — it is the first thing a judge reads): a real competition abstract, roughly 1,000–1,400 characters: one sentence of background, then one short paragraph PER SUB-PROBLEM (its model and its conclusion), then one sentence of evaluation. Write every number as the placeholder `{<result_id>}` — the harness substitutes the Result value and refuses any number that is not a declared Result (e.g. `问题1 的最小样本量为 {RES-N1} 件`). Without it the harness falls back to a generic generated abstract.',
   `    · analysis — ONE passage per sub-problem (问题1 / 问题2 / …): which method family it uses, why that family, and where the difficulty lies. The reference paper's 问题分析 is about ${String(PAPER_LENGTH_REFERENCE.chapters.analysis?.reference ?? 0)} characters (roughly ${String(Math.round((PAPER_LENGTH_REFERENCE.chapters.analysis?.reference ?? 0) / 4))} per sub-problem); below ${String(PAPER_LENGTH_REFERENCE.chapters.analysis?.rewriteBelow ?? 0)} characters it is sent back for a rewrite. A one-liner like "问题1为二项检验，其余为离散优化" is refused.`,
   `    · evaluation — FOUR passages: 优点 / 局限 / 敏感性 / 推广. The reference is about ${String(PAPER_LENGTH_REFERENCE.chapters.evaluation?.reference ?? 0)} characters; below ${String(PAPER_LENGTH_REFERENCE.chapters.evaluation?.rewriteBelow ?? 0)} it is sent back. "结果可靠、可推广" alone is refused.`,
   `    · references — at least THREE complete entries, shaped "[1] 作者. 题名. 出处. 年." (the reference paper carries about ${String(PAPER_LENGTH_REFERENCE.chapters.references?.reference ?? 0)} characters of bibliography), and at least one must be about a method you actually used (抽样检验 / 序贯 / 贝叶斯 / 决策 / 优化 / 仿真 …); below ${String(PAPER_LENGTH_REFERENCE.chapters.references?.rewriteBelow ?? 0)} characters it is sent back.`,
@@ -425,6 +426,15 @@ function degenerateResultFindings(
   return out
 }
 
+/**
+ * A one-line label for a requirement (round-8): the paper's 问题重述 table is an
+ * INDEX, not a reprint of the problem statement.
+ */
+function gistOf(statement: string): string {
+  const flat = statement.replace(/\s+/g, ' ').trim()
+  return flat.length <= 80 ? flat : `${flat.slice(0, 80)}…`
+}
+
 /** One row of a rendered table (id + columns). */
 interface ChapterRow {
   readonly id: string
@@ -544,9 +554,9 @@ function perProblemChaptersFromIr(
         objective: model.objective,
         equations: model.equationRefs.map((ref) => {
           const equation = equationsById.get(ref)
-          return equation === undefined
-            ? ref
-            : `${ref}：$${equation.expression}$${equation.unit === '' ? '' : `（单位：${equation.unit}）`}`
+          if (equation === undefined) return ref
+          const unit = equation.unit === '' ? '' : `（单位：${equation.unit}）`
+          return `**${ref}**：$${equation.expression}$${unit}`
         }),
       })
       modelsByProblem.set(problem, list)
@@ -609,7 +619,7 @@ function perProblemChaptersFromIr(
       if (model.equations.length > 0) {
         // 方程按"编号 + 行内公式 + 单位"排版：整串塞进 `$…$` 会把编号和单位也当成
         // 数学式（`$EQ-1: P_accept = …（dimensionless）$`），排版器读不懂。
-        bodyParts.push(model.equations.map(e => `- **${e}**`).join(NL))
+        bodyParts.push(model.equations.map(e => `- ${e}`).join(NL))
       }
     }
     const body = bodyParts.length > 0 ? bodyParts.join(NL + NL) : (fallbackByOrdinal.get(ordinal) ?? '')
@@ -2009,7 +2019,12 @@ export class WorkflowExecutor {
               // W11.5 baseline-23 (审计 A-1 验收口径): the paper must not print the
               // harness's own type names — a judge reading 问题重述 should see what the
               // problem asks for, not `REQUIRED_OUTPUT`.
-              columns: [req.statement, REQUIREMENT_TYPE_LABELS[req.requirement_type] ?? req.requirement_type],
+              //
+              // round-8: 这张表是**索引**，不是题面复印件。竞赛题面的一问有几百上千字
+              // （2024-B 的问题 2 含两张表），整段塞进表格单元格会变成一堵字墙，而评委
+              // 本来就知道题面——「问题重述」该给的是模型自己的转述（narrative.restatement，
+              // 就在这张表下面）。这里只留一问一行的短标签，全文仍在 RAW_PROBLEM 里可溯源。
+              columns: [gistOf(req.statement), REQUIREMENT_TYPE_LABELS[req.requirement_type] ?? req.requirement_type],
             }
           }),
         // W11.5 baseline-20 (审计 B-2/B-3): the equations and models the container
