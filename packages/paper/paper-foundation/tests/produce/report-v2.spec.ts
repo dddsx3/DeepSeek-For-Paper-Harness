@@ -81,6 +81,88 @@ describe('P2-4 v1 guard still applies to legacy prose (禁6 fallback layer)', ()
   })
 })
 
+describe('W11.5 baseline-8 — naming a quantity instead of copying it', () => {
+  it('a slot that NAMES its bound quantity renders the run value (the model never had to know it)', () => {
+    // 第七/第八次真实运行都死在同一处：结论里写死的数字不是运行算出来的
+    // （29/6/76/12 vs 2/2/15/1；-25 缺失）。模型在**运行之前**写结论，本来
+    // 就无从知道输出值；`{<result_id>}` 让 harness 把值注入，数字按构造来自 IR。
+    const verdict = renderReportV2({
+      title: 't',
+      results,
+      narrative: {
+        conclusion: { claims: [{ text: 'Mean ice thickness is {RES-ICE} m.', quantity_refs: ['RES-ICE'] }] },
+      },
+    })
+    expect(verdict.ok, verdict.ok ? '' : verdict.reason).toBe(true)
+    if (verdict.ok) {
+      expect(verdict.text).toContain('Mean ice thickness is 0.731 m.')
+      expect(verdict.text).not.toContain('{RES-ICE}')
+    }
+  })
+
+  it('a named quantity honours the declared rounded rendering', () => {
+    const verdict = renderReportV2({
+      title: 't',
+      results,
+      narrative: {
+        conclusion: {
+          claims: [{
+            text: 'Mean ice thickness is {RES-ICE} m.',
+            quantity_refs: ['RES-ICE'],
+            representation: { kind: 'rounded', dp: 2 },
+          }],
+        },
+      },
+    })
+    expect(verdict.ok, verdict.ok ? '' : verdict.reason).toBe(true)
+    if (verdict.ok) expect(verdict.text).toContain('Mean ice thickness is 0.73 m.')
+  })
+
+  it('attack: a name that is not one of the claim quantities is refused (braces never print)', () => {
+    const verdict = renderReportV2({
+      title: 't',
+      results,
+      narrative: {
+        conclusion: { claims: [{ text: 'The value is {RES-POND}.', quantity_refs: ['RES-ICE'] }] },
+      },
+    })
+    expect(verdict.ok).toBe(false)
+    if (!verdict.ok) {
+      expect(verdict.code).toBe('conflicting_conclusion_number')
+      expect(verdict.reason).toContain('RES-POND')
+    }
+  })
+
+  it('a legacy prose conclusion can name a quantity too, and a bad name is refused', () => {
+    const good = renderReportV2({
+      title: 't',
+      results,
+      narrative: { conclusion: 'Mean ice thickness is {RES-ICE} m.' },
+    })
+    expect(good.ok, good.ok ? '' : good.reason).toBe(true)
+    if (good.ok) expect(good.text).toContain('0.731')
+    const bad = renderReportV2({
+      title: 't',
+      results,
+      narrative: { conclusion: 'Mean ice thickness is {RES-NOPE} m.' },
+    })
+    expect(bad.ok).toBe(false)
+    if (!bad.ok) expect(bad.reason).toContain('RES-NOPE')
+  })
+
+  it('naming does not weaken the guard: a stray literal is still refused', () => {
+    const verdict = renderReportV2({
+      title: 't',
+      results,
+      narrative: {
+        conclusion: { claims: [{ text: 'Mean ice thickness is {RES-ICE} m, i.e. 0.9 m.', quantity_refs: ['RES-ICE'] }] },
+      },
+    })
+    expect(verdict.ok).toBe(false)
+    if (!verdict.ok) expect(verdict.reason).toContain('0.9')
+  })
+})
+
 describe('P2-4 figure embedding + provenance appendix', () => {
   const figure = {
     figureId: 'FIG-1',
