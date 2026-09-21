@@ -77,6 +77,20 @@ function referenceEntries(text: string): ReadonlyArray<string> {
 function perQuestion(requirements: ReadonlyArray<ContractRequirement>): ReadonlyArray<ContractRequirement> {
   return requirements.filter(r => /^R-Q\d+$/.test(r.requirementId))
 }
+export const PAPER_LENGTH_REFERENCE = {
+  /** 正文总字符数参考值（给模型的目标；参照物 52,415 的量级）。 */
+  targetChars: 30_000,
+  /** 低于此值才要求重写（约参照物 60%）；高于 targetChars 不阻塞。 */
+  rewriteBelowChars: 18_000,
+  chapters: {
+    analysis: { reference: 2_000, rewriteBelow: 1_200 },
+    evaluation: { reference: 1_400, rewriteBelow: 800 },
+    references: { reference: 1_500, rewriteBelow: 600 },
+    code: { reference: 1_500, rewriteBelow: 600 },
+    restatement: { reference: 1_000, rewriteBelow: 400 },
+  } as Readonly<Record<string, { readonly reference: number; readonly rewriteBelow: number }>>,
+} as const
+
 
 /**
  * The element-level findings for one run's narrative.
@@ -96,25 +110,28 @@ function perQuestion(requirements: ReadonlyArray<ContractRequirement>): Readonly
  * 这是"要素门槛"之外的**下限地板**：要素齐备但只有一句话，仍然是不可读的交付物。
  * 地板按"该章至少要说清什么"定，不按"写得漂亮"定——锁下限，不判上限。
  */
+/** 软下限查询（参照值表可能缺键时回落到默认值）。 */
+const softFloor = (key: string, fallback: number): number => PAPER_LENGTH_REFERENCE.chapters[key]?.rewriteBelow ?? fallback
+
 const SUBSTANCE_FLOOR: Readonly<Record<string, { readonly title: string; readonly min: number; readonly hint: string }>> = {
   analysis: {
     title: '问题分析',
-    min: 600,
+    min: softFloor('analysis', 1_200),
     hint: '逐问写清"归到哪类方法 + 为什么 + 难点在哪"，每问一段（参照物每问 270–600 字）',
   },
   evaluation: {
     title: '模型评价与推广',
-    min: 500,
+    min: softFloor('evaluation', 800),
     hint: '四要素各一段：优点 / 局限 / 敏感性 / 推广，每段至少两三句（参照物 1,474 字）',
   },
   references: {
     title: '参考文献',
-    min: 120,
+    min: softFloor('references', 600),
     hint: '至少 3 条完整条目（作者、题名、出处、年份）',
   },
   code: {
     title: '代码附录',
-    min: 200,
+    min: softFloor('code', 600),
     hint: '说明代码实现了哪几问、关键函数做什么、结果文件怎么产生（正文代码块由 harness 从真实代码渲染）',
   },
   restatement: {
@@ -158,6 +175,19 @@ export function substanceViolations(
  *
  * 只对多问题论文生效（单问题夹具不是竞赛论文）。
  */
+/**
+ * W11.5 round-7（用户口径：对齐参照物；篇幅**给参考值、不设硬门禁**）。
+ *
+ * 参照物 `CUMCM/workspaces/5ba6e7bd5010/paper/main.md` = 52,415 字符（≈30 页量级）：
+ * 问题分析 1,939、模型章 5,875（7 小节）、四问各 2.9–9.6K、评价 1,474、
+ * 参考文献 3,914、附录 A–D 各 1–1.8K。
+ *
+ * 机制（用户明确要求）：**参考值给模型看，重写线才拦人**——
+ * `reference` 是目标（写进提示，让模型知道参照物的量级）；`rewriteBelow` 是软下限，
+ * 低于它才要求重写（DRIFT，带纠错与预算）；**超过参考值永不阻塞、不裁剪**。
+ * 数值由参照物实测字符数按比例定出，集中在此便于对齐，不散落成魔法数。
+ */
+
 export function blankAreaViolations(
   delivered: string,
   requirements: ReadonlyArray<ContractRequirement>,
@@ -169,11 +199,11 @@ export function blankAreaViolations(
   let run = 0
   let worst = 0
   for (const line of lines) {
-    run = line.trim() === "" ? run + 1 : 0
+    run = line.trim() === '' ? run + 1 : 0
     if (run > worst) worst = run
   }
   if (worst >= 4) {
-    out.push({ chapter: "density", title: "版面密度", reason: `正文出现 ${worst} 行连续空行（大片空白）——交付件不允许空白区，请把该处内容补齐` })
+    out.push({ chapter: 'density', title: '版面密度', reason: `正文出现 ${worst} 行连续空行（大片空白）——交付件不允许空白区，请把该处内容补齐` })
   }
   // 2) 逐章正文体量：标题之间去掉表格/代码块后不足下限，即"几乎是空的章节"。
   const MIN_SECTION = 120
@@ -182,17 +212,17 @@ export function blankAreaViolations(
   let inCode = false
   const flush = (): void => {
     if (title !== null && body < MIN_SECTION) {
-      out.push({ chapter: "density", title: "版面密度", reason: `「${title}」正文只有 ${body} 字（低于 ${MIN_SECTION} 字）——这一章几乎是空的` })
+      out.push({ chapter: 'density', title: '版面密度', reason: `「${title}」正文只有 ${body} 字（低于 ${MIN_SECTION} 字）——这一章几乎是空的` })
     }
   }
   for (const line of lines) {
     const trimmed = line.trim()
-    if (trimmed.startsWith("```")) { inCode = !inCode; continue }
+    if (trimmed.startsWith('```')) { inCode = !inCode; continue }
     const heading = /^#{2,3}\s+(.+)$/.exec(trimmed)
     if (heading !== null) { flush(); title = heading[1] ?? null; body = 0; continue }
     if (title === null || inCode) continue
-    if (trimmed.startsWith("|")) continue
-    body += trimmed.replace(/\s+/g, "").length
+    if (trimmed.startsWith('|')) continue
+    body += trimmed.replace(/\s+/g, '').length
   }
   flush()
   return out

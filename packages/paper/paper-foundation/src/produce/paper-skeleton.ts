@@ -65,6 +65,14 @@ export interface PaperSkeletonInput {
   /** The declared models (objective / constraints / refs), same chapter. */
   readonly models?: ReadonlyArray<AutoRow>
   /**
+   * 参照物形态（CUMCM/workspaces/5ba6e7bd5010/paper/main.md）：**每个子问题独立成章**
+   * （「6 问题一：…」「7 问题一模型的独立校核」「8 问题二：…」），而不是把所有
+   * 问题挤进一章。每章正文来自该问的 E1 分析段 + 该问自己的结果表。
+   */
+  readonly problemChapters?: ReadonlyArray<{ readonly title: string; readonly body: string; readonly rows?: ReadonlyArray<AutoRow> }>
+  /** 独立校核章（参照物「7 问题一模型的独立校核」）。 */
+  readonly verification?: string
+  /**
    * W8.5 (B1): real content per section id. A prose section with a slot
    * uses it verbatim; without one it renders the placeholder. This is how
    * the delivery chain fills 结论/方法/图表 into the skeleton — one
@@ -113,6 +121,29 @@ export function renderPaperSkeleton(input: PaperSkeletonInput): string {
         lines.push(slot)
       } else if ((input.equations?.length ?? 0) === 0 && (input.models?.length ?? 0) === 0) {
         lines.push('_(模型待写入)_')
+      }
+      // W11.5 round-7（对齐参照物结构）: 参照物是**每个子问题独立成章**
+      // （「6 问题一：…」「7 问题一模型的独立校核」「8 问题二：…」），而不是把所有
+      // 问题挤进一章。逐问章紧跟模型章，随后是独立校核章。
+      for (const chapter of input.problemChapters ?? []) {
+        lines.push('')
+        lines.push(`## ${chapter.title}`)
+        lines.push('')
+        if (chapter.body.trim() !== '') {
+          lines.push(chapter.body)
+          lines.push('')
+        }
+        if ((chapter.rows?.length ?? 0) > 0) {
+          lines.push(renderTable(['量名', '数值', '单位', '来源'], chapter.rows ?? [], '(该问结果由规范 IR 注入)'))
+          lines.push('')
+        }
+      }
+      if (input.verification !== undefined && input.verification.trim() !== '') {
+        lines.push('')
+        lines.push('## 模型校核')
+        lines.push('')
+        lines.push(input.verification)
+        lines.push('')
       }
     } else if (section.id === 'restatement' && (input.requirements?.length ?? 0) > 0) {
       // PRD §5.1.4: 问题重述 — the REQUIRED_OUTPUTs (from IR) render as
