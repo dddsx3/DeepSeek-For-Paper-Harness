@@ -49,6 +49,8 @@ function polarContainer(overrides: {
   code?: string
   conclusion?: string
   figures?: ReadonlyArray<Record<string, unknown>>
+  analysis?: string
+  codeNote?: string
 } = {}): string {
   const value = 0.731
   const code = overrides.code ?? [
@@ -93,10 +95,13 @@ function polarContainer(overrides: {
       // step later), so a fixture that expects a DELIVERED paper must carry the
       // prose chapters a real container carries.
       methods: 'The regression is fitted by least squares and the mean is read from the fit.', restatement: 'The problem asks for the mean ice thickness along the survey line.',
-      analysis: 'A linear regression on sonar returns estimates the mean thickness.',
-      evaluation: 'The estimate is stable under subsampling; the model transfers to similar shelves.',
-      references: '[1] Polar Survey Group. Sonar returns along line A. 2024.',
-      code: 'The code fits the regression and writes the mean thickness to result.json.',
+      analysis: overrides.analysis ?? 'A linear regression on sonar returns estimates the mean thickness.',
+      evaluation: 'Advantages: the least-squares fit is simple and robust under subsampling. '
+        + 'Limitations: it assumes a homogeneous slab and ignores lateral variation. '
+        + 'Sensitivity: a 20% perturbation of the returns moves the estimate by under 3%. '
+        + 'Generalization: the same regression transfers to other survey lines.',
+      references: '[1] Wald A. Sequential Analysis. 1947. [2] Polar Survey Group. Sonar returns along line A. 2024. [3] Mao S. Probability and Statistics. 2011.',
+      code: overrides.codeNote ?? 'The code fits the regression and writes the mean thickness to result.json.',
     },
   })
 }
@@ -267,7 +272,16 @@ describe('P2-1 executor-authoritative FORMAL chain', () => {
       '问题 3 请推广到 m 道工序 n 个零配件。',
       '问题 4 请考虑抽样误差重新完成。',
     ].join(String.fromCharCode(10))
-    const { ctx, ir, runId, outcome } = await harness(polarContainer(), FOUR_Q)
+    const perQuestionAnalysis = [
+      '问题 1 归到假设检验（抽样检验）：难点是控制两类错误下的最小样本量。',
+      '问题 2 归到期望值决策：难点是拆解循环的期望成本递推。',
+      '问题 3 归到多阶段动态规划：难点是树状装配结构的阶段划分。',
+      '问题 4 归到贝叶斯决策：难点是把后验分布而非点估计代入决策。',
+    ].join(String.fromCharCode(10))
+    const { ctx, ir, runId, outcome } = await harness(polarContainer({
+      analysis: perQuestionAnalysis,
+      codeNote: '问题1 由 solve_q1() 完成；问题2 由 solve_q2() 完成；问题3 由 solve_q3() 完成；问题4 由 solve_q4() 完成。',
+    }), FOUR_Q)
     expect(outcome.status).toBe('rejected')
     // 只声明了 1 个 Result 的容器无法覆盖 R-OUT + R-Q1..R-Q4
     expect(String((outcome as { message?: string }).message)).toContain('required_output_unpaid')

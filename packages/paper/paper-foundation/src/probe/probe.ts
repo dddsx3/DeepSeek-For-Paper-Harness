@@ -113,6 +113,8 @@ const DRIFT_CODES: ReadonlySet<string> = new Set([
   'figure_required',
   // W11.5 round-2 (审计 A-5/A-6): unused assumptions / missing justifications.
   'assumption_structure',
+  // W11.5 round-4 (审计 §3.2): element-level prose contract violations.
+  'prose_contract',
 ])
 
 /** Code-run / capture-environment failures after container admission. */
