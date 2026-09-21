@@ -149,6 +149,55 @@ export function substanceViolations(
   return out
 }
 
+/**
+ * W11.5 round-5 — 空白/密度判据（对齐参照系统 `pdf_page_density_check`）。
+ *
+ * 用户口径：交付件"绝不允许大片空白、非常简略的片段"。实质地板管的是**模型写的
+ * 散文章**，这一条管的是**渲染后的成品**：任何一章正文（去掉表格与代码块）不足
+ * 下限，或出现连续多行空行，都算空白区，一律拒。
+ *
+ * 只对多问题论文生效（单问题夹具不是竞赛论文）。
+ */
+export function blankAreaViolations(
+  delivered: string,
+  requirements: ReadonlyArray<ContractRequirement>,
+): ReadonlyArray<ProseContractViolation> {
+  if (perQuestion(requirements).length === 0) return []
+  const out: ProseContractViolation[] = []
+  const lines = delivered.split(String.fromCharCode(10))
+  // 1) 连续空行：渲染器或模型留下的空白块。
+  let run = 0
+  let worst = 0
+  for (const line of lines) {
+    run = line.trim() === "" ? run + 1 : 0
+    if (run > worst) worst = run
+  }
+  if (worst >= 4) {
+    out.push({ chapter: "density", title: "版面密度", reason: `正文出现 ${worst} 行连续空行（大片空白）——交付件不允许空白区，请把该处内容补齐` })
+  }
+  // 2) 逐章正文体量：标题之间去掉表格/代码块后不足下限，即"几乎是空的章节"。
+  const MIN_SECTION = 120
+  let title: string | null = null
+  let body = 0
+  let inCode = false
+  const flush = (): void => {
+    if (title !== null && body < MIN_SECTION) {
+      out.push({ chapter: "density", title: "版面密度", reason: `「${title}」正文只有 ${body} 字（低于 ${MIN_SECTION} 字）——这一章几乎是空的` })
+    }
+  }
+  for (const line of lines) {
+    const trimmed = line.trim()
+    if (trimmed.startsWith("```")) { inCode = !inCode; continue }
+    const heading = /^#{2,3}\s+(.+)$/.exec(trimmed)
+    if (heading !== null) { flush(); title = heading[1] ?? null; body = 0; continue }
+    if (title === null || inCode) continue
+    if (trimmed.startsWith("|")) continue
+    body += trimmed.replace(/\s+/g, "").length
+  }
+  flush()
+  return out
+}
+
 export function proseContractViolations(
   narrative: Readonly<Record<string, unknown>>,
   requirements: ReadonlyArray<ContractRequirement>,

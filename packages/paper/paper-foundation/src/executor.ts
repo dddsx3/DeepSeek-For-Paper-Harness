@@ -42,7 +42,7 @@ import { produceInterpretation } from './produce/interpretation-producer.ts'
 import { PROSE_CHAPTERS, numericLiterals, renderReportV2 } from './produce/report-renderer.ts'
 import { requirementCoverageFindings } from './delivery/requirement-coverage.ts'
 import { arithmeticFindingsOf, deliveredNumberFindings } from './delivery/delivered-numbers.ts'
-import { proseContractViolations } from './delivery/prose-contracts.ts'
+import { blankAreaViolations, proseContractViolations } from './delivery/prose-contracts.ts'
 import { SHARD_NAMES, shardPrompt, parseShard, mergeShards } from './produce/shard-declare.ts'
 import {
   e2DriftGuidance,
@@ -1884,6 +1884,18 @@ export class WorkflowExecutor {
         reason: `the container's assumptions do not close: ${shown}${more} — every AssumptionSpec must be REFERENCED by a ModelSpec.assumption_refs (an assumption no model uses is "assumed but never used") and must carry justification_refs (MODELING_CHOICE: what in the problem or the analysis justifies it; GIVEN: the DataArtifact it came from). Fix those fields in the container`,
       }
     }
+    // W11.5 round-5 (空白/密度判据，对齐参照系统 pdf_page_density_check):
+    // 渲染后的成品不允许大片空白或几乎空的章节——实质地板管模型写的散文章，
+    // 这一条管**成品**（去掉表格/代码块后逐章计正文体量 + 连续空行）。
+    const blankAreas = blankAreaViolations(rendered.text, contractRequirements)
+    if (blankAreas.length > 0) {
+      return {
+        ok: false,
+        code: 'blank_area',
+        reason: `the rendered paper has blank areas: ${blankAreas.map(v => v.reason).join('；')}`,
+      }
+    }
+
     if (requireProseChapters && figureAssets.length === 0) {
       return {
         ok: false,
