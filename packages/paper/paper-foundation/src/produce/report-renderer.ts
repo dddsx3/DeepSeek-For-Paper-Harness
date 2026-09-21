@@ -320,6 +320,13 @@ function renderReport(input: {
       }
       const claimText = injected.text
       expandedSlots.set(slotIndex, claimText)
+      // W11.5 baseline-11 (首次真实产出实测): report EVERY offender in one
+      // refusal, not the first one. The eleventh real run's conclusion restated
+      // two problem-given constants; the refusal named only the first ('95'),
+      // the model fixed that one and the next attempt died on the second ('10'),
+      // spending a whole guided retry per digit. The list costs nothing and
+      // turns two corrections into one.
+      const unstated: string[] = []
       // 逐字一致: every quantity_ref's value must appear in the claim text
       // (P3-2: on a declared rounded slot, the declared rendering stands in
       // for the raw value — the claim states 0.73, the table stays 0.731).
@@ -330,9 +337,10 @@ function renderReport(input: {
           ? formatRounded(result.value, representation.value.dp)
           : String(result.value)
         if (valueText === null) continue // already refused above
-        if (!claimText.includes(valueText)) {
-          return { ok: false, code: 'conflicting_conclusion_number', reason: `conclusion claim for '${ref}' does not state the Result value ${valueText} verbatim — write the value itself, or name it as '{${ref}}' and the harness will inject it` }
-        }
+        if (!claimText.includes(valueText)) unstated.push(`'${ref}' (value ${valueText})`)
+      }
+      if (unstated.length > 0) {
+        return { ok: false, code: 'conflicting_conclusion_number', reason: `conclusion claim does not state the Result value verbatim for ${unstated.join(', ')} — write the value itself, or name it as '{<result_id>}' and the harness will inject it` }
       }
       if (representation.value.kind === 'with_uncertainty') {
         // The ± companion must also appear in the text — a with_uncertainty
@@ -344,10 +352,9 @@ function renderReport(input: {
           }
         }
       }
-      for (const token of numericLiterals(claimText)) {
-        if (!slotAllowed.has(token)) {
-          return { ok: false, code: 'conflicting_conclusion_number', reason: `conclusion claim contains numeric literal '${token}' outside its declared quantities [${[...slotAllowed].join(', ')}] — key numbers only from the IR (P1-3/P2-4/P3-2)` }
-        }
+      const stray = [...new Set(numericLiterals(claimText).filter(token => !slotAllowed.has(token)))]
+      if (stray.length > 0) {
+        return { ok: false, code: 'conflicting_conclusion_number', reason: `conclusion claim contains numeric literal(s) [${stray.join(', ')}] outside its declared quantities [${[...slotAllowed].join(', ')}] — key numbers only from the IR (P1-3/P2-4/P3-2); a constant the problem GAVE you is not a Result, so write it in words or have your code emit it as a Result` }
       }
     }
   } else if (conclusionRaw !== undefined) {

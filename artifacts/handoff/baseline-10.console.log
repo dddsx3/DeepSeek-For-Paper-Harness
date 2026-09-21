@@ -1,0 +1,9 @@
+[CODE-FRESH] 代码来源已断言：entry lib/index.js is 244576 ms newer than the newest source; entry lib/index.js is 43635494 ms newer than the newest source; entry lib/index.js is 43635597 ms newer than the newest source; entry lib/index.js is 43646802 ms newer than the newest source; entry lib/index.js is 43646925 ms newer than the newest source; entry lib/index.js is 43635313 ms newer than the newest source
+[DELIVERED] sha256=60927eb50081db2c...
+  run-id  -> 9c917d38-ff7a-4a51-a8e6-a7d51cbcd280
+  report  -> artifacts\handoff\baseline-10\report.md
+  zip     -> artifacts\handoff\baseline-10\deliverable.zip (zip sha256=c40a004b9e526282...)
+  usage   -> in 47267 tok / out 18738 tok / $0.0000 (TASK-Q2 telemetry)
+  audit   -> workflow_started,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,gate_failed,delivery_graded,final_output_written,promotion_succeeded,workflow_completed
+  tier    -> T1
+  path    -> A-produce-chain

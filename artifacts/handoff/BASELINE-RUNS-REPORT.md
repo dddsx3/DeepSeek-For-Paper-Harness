@@ -18,6 +18,8 @@
 | baseline-5 | B-e1-direct | 同 ①②③ 量级（链上） | **交付物已恢复正常**：`# 建模分析稿（E1 直通交付）`，19 章，5 处占位 |
 | baseline-7 | B-e1-direct | attempt 3 **跑通全链**（保真全过、代码执行、4 Result + 4 CRITICAL Claim，三闸门转绿）→ 报告渲染拒（结论 29/6/76/12 vs 运行 2/2/15/1） | 见 §7：终结理由入审计 + 内容类拒绝归 DRIFT + 预算按原因 + 重试可再执行 |
 | baseline-8 | B-e1-direct | 同上，收敛中（保真 4 条→1 条→全过），仍卡在结论数字（`R-OPT-COST` 缺 `-25`） | 见 §7⑤：结论可**点名** `{<result_id>}`，由 harness 注入值 |
+| baseline-9 | B-e1-direct | 5 次尝试全死在配置发射：模型声明了两条**共用 token `p_1`** 的 SymbolSpec，而拒绝理由指向配置的键（"rename the key"）→ 三次都在改键名 | 见 §8①：重名 token 在入库处按"重名 token"拒绝 |
+| baseline-10 | **A-produce-chain** | **首次走通生产链**（链上零 provider_retry）：代码真执行、Result/Claim 铸出、报告渲染通过；随后 `execution` 闸门报配置声明与实际不一致（z 值第 7 位），fail-soft 记 MARKED | 见 §8②③：表格单元格换行 + 空章节在链上就拒 |
 | baseline-6 | B-e1-direct | ① EXECUTE attempt 1 **被 runner 超时杀掉**（exit -1 / SIGTERM / 空 stderr / 无产物）② attempt 2 重声明 RunArtifact 撞 `duplicate_id` → 链上死路 | 见 §5：声明后置 + 超时诊断 + 预算可配；20 章、0 占位 |
 
 **进展是真实的**：保真门从"每次全灭"（baseline-1/2）→ "每次全过"（baseline-3/4），
@@ -34,6 +36,7 @@
 | baseline-6 | 20 | 0 | 38,337 |
 | baseline-7 | 20 | 0 | 20,183 |
 | baseline-8 | 21 | 0 | 24,334 |
+| baseline-10 | 15 | 1 | 14,107 |
 
 交付包（report.md / sha256.txt / run-report.json / deliverable.zip）与 attempts 归档：
 `artifacts/handoff/baseline-{1..4}/`、`baseline-{1..4}.console.log`、`baseline-4.attempts.json`。
@@ -226,3 +229,76 @@ RunArtifact+ExecutionRecord，交付文本含真实数字且不含 `-a2`；以�
 拒绝码与那个数字"、"provider_retry 的 code/w4Class/reason 可核"。
 `report-v2.spec` 新增 5 条（点名渲染 / rounded 渲染 / 名字不在声明集 → 拒 /
 散文结论点名 / 点名不放宽字面数字守卫）。全量 1589 条通过。
+
+---
+
+## 8. baseline-9 / baseline-10：从"链上死路"到**首次 A-produce-chain 交付**
+
+### 8.1 baseline-9：重名 token 被说成了"配置键歧义"
+
+5 次尝试全部终结在配置发射上，但真正的错误从来没被说出来。模型声明了**两条共用
+token `p_1` 的 SymbolSpec**（`S-P1`「可容忍次品率上界」与 `S-P2_1`「零配件1的
+次品率」）。第一个症状是配置键歧义：
+
+```
+CONFIG_EMISSION_TOKEN_UNRESOLVED: physical key 'p1' matches more than one
+declared SymbolSpec by spelling — rename the key to the exact token or symbol_id
+```
+
+这句话指向的是**配置的键**。模型照做了：attempt 1 改键、attempt 4 改成语义上更
+错的 `p1_val`（"does not resolve to any declared SymbolSpec"，理由里已带全部可声明
+token 表），三次尝试都在改键名，而让所有拼写都歧义的那个重名 token 一步没动。
+
+不变式本身并不新：`findDuplicateSymbolTokens` 早就在 bridge 里跑，
+`ir_canonicalization`（critical）会因此拦下整篇论文。缺的是**在最早能改的地方用
+正确的说法说出来**——现在容器入库处（写任何一条之前）就拒绝 `duplicate_symbol_token`
+并点名两个 symbol_id 与那个 token。
+
+baseline-9 还第一次证明了两件事：终结理由带上了完整原因
+（`last refusal CONFIG_EMISSION_TOKEN_UNRESOLVED: …`），以及尝试作用域 run id 真的
+在工作（locator 里是 `…-a3`）。
+
+### 8.2 baseline-10：**首次 `A-produce-chain`**
+
+```
+[DELIVERED] sha256=60927eb50081db2c...
+  path    -> A-produce-chain
+  audit   -> workflow_started, ir_entry_written ×38, gate_failed, delivery_graded,
+             final_output_written, promotion_succeeded, workflow_completed
+```
+
+**链上一次 `provider_retry` 都没有**：第一次尝试就产出合法容器 → 代码真执行 →
+Result/Claim 铸出 → 报告渲染通过 → 交付。稿子 15 章、14,107 字节，结果表由规范
+IR 注入（`R-N-FIXED` = 2、`R-C-FIXED` = 2），摘要与结论数字自动回读核对，
+AI 声明与数据附录自动生成，MARKED 附录逐条列出 19 项标注。
+
+唯一未过的关键闸门是 `execution`（配置一致性）：
+
+```
+config_declared_actual_mismatch: run '9c917d38-…' emitted physical 'S-Z95' =
+1.6448534922680635 but its model 'M-SPRT' declares 1.6448536269514722
+```
+
+同一个 z 值（α=0.05）在第 7 位小数上不同——代码用的近似与声明值不一致。闸门
+判得对（"跑的东西 ≠ 声明的东西"正是它要抓的），fail-soft 下记为 MARKED。
+
+**把这份真稿子送进交付链，docx 预检报了两处致命，两处都不是模型的文字问题**：
+
+| # | 检查 | 症状 | 性质 |
+|---|---|---|---|
+| 1 | `table_columns` | 6 张表，1 张列数不一 | **harness 自己注入的表**：问题重述的 requirement statement 对竞赛题就是整篇题面（含换行），原样打印把一行拆成多行 |
+| 2 | `no_placeholders` | 1 处未填充占位（参考文献） | 容器漏写的散文章节渲染成可见占位，而**下一步**的预检据此拒绝导出 |
+
+### 8.3 修法（已落地并测试）
+
+1. **重名 token 在入库处拒绝**（`duplicate_symbol_token`，归 DRIFT）：理由点名两个
+   symbol_id 与那个 token，并说明"token 是配置与论文里给量命名的方式"。
+2. **表格单元格压成单行**：换行→空格、转义 `|`，内容不丢——表还是表。
+3. **空章节在链上就拒**（`placeholder_chapter`，归 DRIFT）：链上有重试预算、模型能
+   补，所以拒绝放在渲染处并点名缺哪几章、对应哪个 narrative 键，而不是留到下一步
+   让稿子"交付了却导不出"。引导面（T2/T3）例外并已用测试钉住：它的容器由小步拼装、
+   没有任何一步承载散文，向它索取表达不出来的内容只会让它永远失败——它的稿子按
+   构造是骨架，下游预检照旧拒绝（诚实判定）。
+
+**无模型干跑链 6/6 全绿**：render（12 章、2052 字符）→ precheck 15 类 0 致命 →
+docx 40,491 字节 → DELIVERABLES 契约 5/5 → zip 51,082 字节（含二进制 docx）。
