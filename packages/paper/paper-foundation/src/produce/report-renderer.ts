@@ -104,6 +104,48 @@ function formatRounded(value: number, dp: number): string | null {
 }
 
 /**
+ * W11.5 baseline-8 — inject a Result's value into the conclusion text.
+ *
+ * WHY THIS EXISTS. Until now the conclusion's numbers had to be written by the
+ * model VERBATIM, which means the model had to predict the output of code it
+ * had not run yet. Two consecutive real runs died on exactly that: baseline-7's
+ * narrative said 29/6/76/12 while its own code computed 2/2/15/1, and
+ * baseline-8's refused because the claim did not state the value `-25`. The
+ * verbatim rule is right (关键数字全集 = Result 数值) but it was being satisfied
+ * by transcription — the very copy the producer already refuses to trust when
+ * it copies `asserted_value` from the Result instead of from prose.
+ *
+ * So a quantity may now be NAMED instead of copied: the text carries
+ * `{<result_id>}` and the harness substitutes the run's value. The digit then
+ * comes from the IR by construction, not from the model's arithmetic. Literal
+ * numbers keep the old rule unchanged (they must be a bound value), and a
+ * placeholder that names nothing resolvable is a REFUSAL — never a silent
+ * `{R-XY}` printed into a paper.
+ *
+ * @param text - the claim text as the model wrote it.
+ * @param resolve - the rendering for one bound id, or null when it is not bound.
+ * @returns the expanded text plus every unresolvable placeholder it found.
+ */
+export function expandQuantityPlaceholders(
+  text: string,
+  resolve: (id: string) => string | null,
+): { readonly text: string; readonly unknown: ReadonlyArray<string> } {
+  const unknown: string[] = []
+  const expanded = text.replace(/\{([^{}\s]+)\}/g, (whole, id: string) => {
+    const value = resolve(id)
+    if (value === null) {
+      unknown.push(id)
+      return whole
+    }
+    return value
+  })
+  return { text: expanded, unknown }
+}
+
+/** Slot key for the legacy prose conclusion (a string, not a claims array). */
+const LEGACY_CONCLUSION_SLOT = -1
+
+/**
  * P3-2: parse and validate a raw `representation` declaration. Returns the
  * normalized declaration or a refusal reason — never upgrades a malformed
  * declaration to verbatim (fail-closed, 攻击 4: negative dp / science form).
@@ -163,13 +205,18 @@ function renderReport(input: {
   }
 
   const conclusionRaw = input.narrative['conclusion']
+  // W11.5 baseline-8: the slot text AFTER placeholder injection. The checks and
+  // the rendered text must be the same string — expanding only at render time
+  // would let an unchecked value reach the paper.
+  const expandedSlots = new Map<number, string>()
   // ---- Structured slot path (P2-4): slot-wise check + text guard. ----
   if (conclusionRaw !== undefined && typeof conclusionRaw === 'object' && !Array.isArray(conclusionRaw)) {
     const slots = (conclusionRaw as { claims?: unknown }).claims
     if (!Array.isArray(slots)) {
       return { ok: false, code: 'conflicting_conclusion_number', reason: "structured conclusion must carry a 'claims' array" }
     }
-    for (const raw of slots) {
+    for (let slotIndex = 0; slotIndex < slots.length; slotIndex += 1) {
+      const raw = slots[slotIndex]
       const slot = raw as Partial<ConclusionSlot>
       if (typeof slot?.text !== 'string') {
         return { ok: false, code: 'conflicting_conclusion_number', reason: 'a conclusion claim lacks a text string' }
@@ -227,6 +274,34 @@ function renderReport(input: {
           slotAllowed.add(String(uncertainty))
         }
       }
+      // W11.5 baseline-8: `{<result_id>}` names a quantity instead of copying
+      // its value — the harness substitutes the run's number, so the claim
+      // cannot be wrong about a value the model never saw. Everything below
+      // checks the EXPANDED text: an injection is a rendering of the bound
+      // Result, not a way around the guard.
+      const injected = expandQuantityPlaceholders(slot.text, (id) => {
+        const bound = slot.quantity_refs?.includes(id) === true
+          || (representation.value.kind === 'with_uncertainty'
+            && representation.value.uncertainty_refs.includes(id))
+        if (!bound) return null
+        const result = resultById.get(id)
+        if (result === undefined) return null
+        if (representation.value.kind === 'with_uncertainty' && representation.value.uncertainty_refs.includes(id)) {
+          return result.uncertainty === null ? null : String(result.uncertainty)
+        }
+        return representation.value.kind === 'rounded'
+          ? formatRounded(result.value, representation.value.dp)
+          : String(result.value)
+      })
+      if (injected.unknown.length > 0) {
+        return {
+          ok: false,
+          code: 'conflicting_conclusion_number',
+          reason: `conclusion claim names ${injected.unknown.map(id => `'{${id}}'`).join(', ')} but a placeholder may only name one of this claim's declared quantity_refs [${(slot.quantity_refs ?? []).join(', ')}] — an unresolvable name would print the braces into the paper`,
+        }
+      }
+      const claimText = injected.text
+      expandedSlots.set(slotIndex, claimText)
       // 逐字一致: every quantity_ref's value must appear in the claim text
       // (P3-2: on a declared rounded slot, the declared rendering stands in
       // for the raw value — the claim states 0.73, the table stays 0.731).
@@ -237,8 +312,8 @@ function renderReport(input: {
           ? formatRounded(result.value, representation.value.dp)
           : String(result.value)
         if (valueText === null) continue // already refused above
-        if (!slot.text.includes(valueText)) {
-          return { ok: false, code: 'conflicting_conclusion_number', reason: `conclusion claim for '${ref}' does not state the Result value ${valueText} verbatim` }
+        if (!claimText.includes(valueText)) {
+          return { ok: false, code: 'conflicting_conclusion_number', reason: `conclusion claim for '${ref}' does not state the Result value ${valueText} verbatim — write the value itself, or name it as '{${ref}}' and the harness will inject it` }
         }
       }
       if (representation.value.kind === 'with_uncertainty') {
@@ -246,12 +321,12 @@ function renderReport(input: {
         // declaration that never states the uncertainty buys nothing.
         for (const ref of representation.value.uncertainty_refs) {
           const uncertainty = resultById.get(ref)?.uncertainty ?? null
-          if (uncertainty === null || !slot.text.includes(String(uncertainty))) {
+          if (uncertainty === null || !claimText.includes(String(uncertainty))) {
             return { ok: false, code: 'conflicting_conclusion_number', reason: `with_uncertainty claim for '${ref}' does not state its recorded ± ${uncertainty} value` }
           }
         }
       }
-      for (const token of numericLiterals(slot.text)) {
+      for (const token of numericLiterals(claimText)) {
         if (!slotAllowed.has(token)) {
           return { ok: false, code: 'conflicting_conclusion_number', reason: `conclusion claim contains numeric literal '${token}' outside its declared quantities [${[...slotAllowed].join(', ')}] — key numbers only from the IR (P1-3/P2-4/P3-2)` }
         }
@@ -259,7 +334,22 @@ function renderReport(input: {
     }
   } else if (conclusionRaw !== undefined) {
     // ---- Legacy prose path (v1): whole-conclusion literal guard. ----
-    for (const token of numericLiterals(String(conclusionRaw))) {
+    // W11.5 baseline-8: a `{<result_id>}` name is resolved against the report
+    // table here too, so a prose conclusion can state a quantity it never
+    // computed.
+    const injected = expandQuantityPlaceholders(String(conclusionRaw), (id) => {
+      const result = resultById.get(id)
+      return result === undefined ? null : String(result.value)
+    })
+    if (injected.unknown.length > 0) {
+      return {
+        ok: false,
+        code: 'conflicting_conclusion_number',
+        reason: `conclusion names ${injected.unknown.map(id => `'{${id}}'`).join(', ')} but no Result in the report table has that id [${[...resultById.keys()].join(', ')}] — an unresolvable name would print the braces into the paper`,
+      }
+    }
+    expandedSlots.set(LEGACY_CONCLUSION_SLOT, injected.text)
+    for (const token of numericLiterals(injected.text)) {
       if (!allAllowed.has(token)) {
         return {
           ok: false,
@@ -288,12 +378,16 @@ function renderReport(input: {
   const claimTexts: string[] = []
   if (conclusionRaw !== undefined && typeof conclusionRaw === 'object' && !Array.isArray(conclusionRaw)) {
     const slots = (conclusionRaw as { claims: Array<{ text: string; comparison?: string }> }).claims
-    for (const slot of slots) {
-      claimTexts.push(slot.text)
-      resultsLines.push(`- ${slot.text}${slot.comparison === undefined ? '' : `（${slot.comparison}）`}`)
+    for (let i = 0; i < slots.length; i += 1) {
+      const slot = slots[i] ?? { text: '' }
+      // The EXPANDED text (W11.5 baseline-8): what the checks judged is what
+      // the paper prints.
+      const text = expandedSlots.get(i) ?? slot.text
+      claimTexts.push(text)
+      resultsLines.push(`- ${text}${slot.comparison === undefined ? '' : `（${slot.comparison}）`}`)
     }
   } else {
-    const raw = String(conclusionRaw ?? '')
+    const raw = expandedSlots.get(LEGACY_CONCLUSION_SLOT) ?? String(conclusionRaw ?? '')
     if (raw.trim() !== '') claimTexts.push(raw)
     resultsLines.push(raw)
   }
