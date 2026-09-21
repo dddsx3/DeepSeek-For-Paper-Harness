@@ -293,6 +293,39 @@ async function main(): Promise<number> {
     console.log(`DOCX PRECHECK OK — 允许导出. 报告: ${reportOut}`)
     return 0
   }
+  // W11.5 round-3 — paper-shell pdf export <report.md> <figures-dir> <out.pdf>
+  // [template-dir] — the TEMPLATE-DRIVEN PDF. The CUMCM template from the digital
+  // assets (docs/asset-library/skills/comp-paper-zh/templates/cumcm) is a REQUIRED
+  // option: scripts/export-pdf.py refuses to run without cumcmthesis.cls, so a
+  // missing template is a hard failure, never a silent template-less PDF.
+  if (sub === 'pdf' && positionals[1] === 'export') {
+    const reportPath = positionals[2]
+    const figuresDir = positionals[3]
+    const outPdf = positionals[4]
+    if (reportPath === undefined || figuresDir === undefined || outPdf === undefined) {
+      console.error('usage: paper-shell pdf export <report.md> <figures-dir> <out.pdf> [template-dir]')
+      return 2
+    }
+    const script = join(here, '..', '..', '..', 'scripts', 'export-pdf.py')
+    const templateArg = positionals[5]
+    const args = [script, reportPath, figuresDir, outPdf, ...(templateArg === undefined ? [] : [templateArg])]
+    const { spawnSync } = await import('node:child_process')
+    const { statSync } = await import('node:fs')
+    const run = spawnSync('python', args, { stdio: 'inherit' })
+    if (run.status !== 0) {
+      console.error('PDF EXPORT REFUSED (exit ' + String(run.status) + ')')
+      return run.status ?? 1
+    }
+    const bytes = statSync(outPdf, { throwIfNoEntry: false })?.size ?? 0
+    if (bytes < 10_000) {
+      console.error('PDF EXPORT REFUSED — produced file is implausibly small (' + String(bytes) + ' bytes)')
+      return 1
+    }
+    console.log('PDF EXPORT OK — ' + outPdf + ' (' + String(bytes) + ' bytes)')
+    return 0
+  }
+
+
   // R2②/R5 — paper-shell docx export <report.md> <figures-dir> <out.docx> —
   // the REAL export gate: dependency probe → precheck (0 致命才允许) → the
   // repository's own exporter (scripts/export-docx.py). The gate is not
