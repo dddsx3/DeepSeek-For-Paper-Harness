@@ -86,6 +86,69 @@ function perQuestion(requirements: ReadonlyArray<ContractRequirement>): Readonly
  *        chapters are held to "one passage per question", which is the mechanical
  *        half of the audit's complaint (207 字的问题分析没覆盖任何一问).
  */
+/**
+ * 每一章的最低实质篇幅（字符数）。
+ *
+ * 参照物：`CUMCM/workspaces/5ba6e7bd5010/paper/main.md`（52,415 字符，问题分析
+ * 1,939 字符、模型评价 1,474、参考文献 3,914）。用户口径：**建模水平可以不那么高，
+ * 但交付文件的质量必须对齐参照物——不允许大片空白、不允许非常简略的片段**。
+ *
+ * 这是"要素门槛"之外的**下限地板**：要素齐备但只有一句话，仍然是不可读的交付物。
+ * 地板按"该章至少要说清什么"定，不按"写得漂亮"定——锁下限，不判上限。
+ */
+const SUBSTANCE_FLOOR: Readonly<Record<string, { readonly title: string; readonly min: number; readonly hint: string }>> = {
+  analysis: {
+    title: '问题分析',
+    min: 600,
+    hint: '逐问写清"归到哪类方法 + 为什么 + 难点在哪"，每问一段（参照物每问 270–600 字）',
+  },
+  evaluation: {
+    title: '模型评价与推广',
+    min: 500,
+    hint: '四要素各一段：优点 / 局限 / 敏感性 / 推广，每段至少两三句（参照物 1,474 字）',
+  },
+  references: {
+    title: '参考文献',
+    min: 120,
+    hint: '至少 3 条完整条目（作者、题名、出处、年份）',
+  },
+  code: {
+    title: '代码附录',
+    min: 200,
+    hint: '说明代码实现了哪几问、关键函数做什么、结果文件怎么产生（正文代码块由 harness 从真实代码渲染）',
+  },
+  restatement: {
+    title: '问题重述',
+    min: 200,
+    hint: '用自己的话重述题目背景与各问要求，不是把题面原文贴一遍',
+  },
+}
+
+/** 要素门槛 + 实质地板：两层的违规一起报，模型一次改到位。 */
+export function substanceViolations(
+  narrative: Readonly<Record<string, unknown>>,
+  requirements: ReadonlyArray<ContractRequirement>,
+): ReadonlyArray<ProseContractViolation> {
+  // The floors are a competition-paper standard: they apply when the statement
+  // actually asks several questions (the case the audit measured). A
+  // single-question problem is not held to a four-chapter word count.
+  if (perQuestion(requirements).length === 0) return []
+  const out: ProseContractViolation[] = []
+  for (const [key, floor] of Object.entries(SUBSTANCE_FLOOR)) {
+    const value = narrative[key]
+    if (typeof value !== 'string' || value.trim() === '') continue // 空章由 placeholder_chapter 报
+    const substantive = value.replace(/\s+/g, '').length
+    if (substantive >= floor.min) continue
+    out.push({
+      chapter: key,
+      title: floor.title,
+      reason: `${floor.title}只有 ${substantive} 字（低于 ${floor.min} 字的下限）——交付件不允许"非常简略的片段"：`
+        + floor.hint,
+    })
+  }
+  return out
+}
+
 export function proseContractViolations(
   narrative: Readonly<Record<string, unknown>>,
   requirements: ReadonlyArray<ContractRequirement>,
@@ -107,9 +170,9 @@ export function proseContractViolations(
     }
   }
 
-  // 模型评价 — four elements, each a real passage.
+  // 模型评价 — four elements, each a real passage (competition-paper standard).
   const evaluation = textOf('evaluation')
-  if (evaluation.trim() !== '') {
+  if (evaluation.trim() !== '' && perQuestion(requirements).length > 0) {
     const evaluationLower = evaluation.toLowerCase()
     const missingElements = EVALUATION_ELEMENTS.filter(
       element => !element.spellings.some(s => evaluationLower.includes(s.toLowerCase())),
@@ -126,7 +189,7 @@ export function proseContractViolations(
 
   // 参考文献 — a real bibliography, at least weakly tied to the methods used.
   const references = textOf('references')
-  if (references.trim() !== '') {
+  if (references.trim() !== '' && perQuestion(requirements).length > 0) {
     const entries = referenceEntries(references)
     if (entries.length < 3) {
       out.push({
@@ -159,5 +222,5 @@ export function proseContractViolations(
     }
   }
 
-  return out
+  return [...out, ...substanceViolations(narrative, requirements)]
 }

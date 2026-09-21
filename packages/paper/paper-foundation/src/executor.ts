@@ -354,6 +354,50 @@ const REQUIREMENT_TYPE_LABELS: Readonly<Record<string, string>> = {
 }
 
 /** W11.5 baseline-4: the section headings a delivery text carries (any level). */
+const NL = String.fromCharCode(10)
+
+/**
+ * W11.5 round-4 — split E1 into per-question passages.
+ *
+ * E1 marks each sub-problem's reasoning with a `[[REQUIREMENT: R-Qn]]` anchor (the
+ * same anchors B4 reads), and otherwise separates questions with 问题 N headings.
+ * Both spellings are accepted. Returns [] when E1 carries no usable structure, so
+ * the caller keeps whatever the model wrote rather than inventing prose.
+ */
+function perQuestionSectionsOf(
+  e1Text: string,
+  requirements: ReadonlyArray<{ requirementId: string; statement: string }>,
+): ReadonlyArray<string> {
+  const ids = requirements
+    .filter(r => /^R-Q\d+$/.test(r.requirementId))
+    .map(r => r.requirementId)
+  if (ids.length === 0) return []
+  const sections: string[] = []
+  let currentId: string | null = null
+  let buffer: string[] = []
+  const flush = (): void => {
+    const body = buffer.join(NL).trim()
+    if (currentId !== null && body !== '') {
+      const ordinal = currentId.replace('R-Q', '')
+      sections.push(`### 问题${ordinal} 的分析${NL}${NL}${body}`)
+    }
+    buffer = []
+  }
+  for (const line of e1Text.split(NL)) {
+    const anchor = /\[\[REQUIREMENT:\s*(R-Q\d+)\]\]/.exec(line)
+    const heading = /^#{0,6}\s*问题\s*([0-9]+)/.exec(line.trim())
+    const hit = anchor?.[1] ?? (heading === null ? null : `R-Q${heading[1] ?? ''}`)
+    if (hit !== null && ids.includes(hit)) {
+      flush()
+      currentId = hit
+      continue
+    }
+    if (currentId !== null) buffer.push(line)
+  }
+  flush()
+  return sections
+}
+
 function headingSetOf(text: string): Set<string> {
   const out = new Set<string>()
   for (const line of text.split('\n')) {
@@ -1448,6 +1492,35 @@ export class WorkflowExecutor {
           const req = r.value as { requirement_id: string; statement: string }
           return { requirementId: req.requirement_id, statement: req.statement }
         })
+    // W11.5 round-4 (审计 §2.3 治本): E1 的那份"读得懂题、想得出方法"的分析
+    // （方法族自判、停止边界、策略枚举、状态递推、成本守恒、敏感性）此前只被当作
+    // E2 保真检查的输入，随后**被丢弃**——论文的问题分析章于是由模型另写一段更浅
+    // 的 prose（baseline-23：207 字，参照物每问 270–600 字）。现在把它接进论文：
+    // E1 全文按题锚点切段，作为问题分析的正文；模型自己写的 analysis 若有则接在
+    // 后面。用户口径：交付件不允许"非常简略的片段"，而这份分析本来就已经写好了。
+    const e1FullText = this.#e1ByRun.get(String(runId)) ?? ''
+    if (e1FullText.trim() !== '') {
+      const perQuestion = perQuestionSectionsOf(e1FullText, contractRequirements)
+      if (perQuestion.length > 0) {
+        const modelAnalysis = typeof narrative['analysis'] === 'string' ? String(narrative['analysis']).trim() : ''
+        narrative['analysis'] = [
+          perQuestion.join(NL + NL),
+          ...(modelAnalysis === '' ? [] : ['', '### 补充说明', '', modelAnalysis]),
+        ].join(NL)
+      }
+    }
+    // 代码附录：把**真实代码**渲染进正文（参照物的附录 B/C/D 就是核心代码）。
+    // 模型写的说明只作导语，代码本身由 harness 从容器里取——不增删改一字。
+    const appendixCode = container.code ?? ''
+    if (appendixCode.trim() !== '') {
+      const note = typeof narrative['code'] === 'string' ? String(narrative['code']).trim() : ''
+      narrative['code'] = [
+        ...(note === '' ? [] : [note, '']),
+        '```javascript',
+        appendixCode.trim(),
+        '```',
+      ].join(NL)
+    }
     // W11.5 baseline-19: the chapter check runs BEFORE the code, not after the
     // render. Its input is the container's narrative, so an execution buys
     // nothing for it — and in the eighteenth baseline two attempts paid a full
