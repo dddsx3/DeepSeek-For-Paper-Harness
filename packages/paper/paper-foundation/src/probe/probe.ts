@@ -96,6 +96,11 @@ const DRIFT_CODES: ReadonlySet<string> = new Set([
   'duplicate_symbol_token',
   // W11.5 baseline-10: an unfilled chapter is content the model can write.
   'placeholder_chapter',
+  // W11.5 baseline-18 (审计 A-3/A-4): an unanswered sub-problem is missing
+  // content the model can write, and the correction names which ones.
+  'required_output_unpaid',
+  // W11.5 baseline-18 (审计 A-7): a figure is structure the model declares.
+  'figure_required',
 ])
 
 /** Code-run / capture-environment failures after container admission. */
@@ -160,11 +165,11 @@ export function initialTier(): Tier {
  * minimal example. The model gets a working container to imitate, never a
  * demand to invent structure (W-B: NONE ≠ 错 — show, don't blame).
  */
-export function noneGuide(): string {
+export function noneGuide(reservedIds: ReadonlyArray<string> = ['DA-RAW', 'R-OUT', 'P1']): string {
   return [
     'RETRY GUIDANCE — your previous output was not an ir-container-v1. This is not a refusal: produce EXACTLY ONE ir-container-v1 JSON object and nothing else (no prose, no markdown fences).',
     'You may declare ONLY these kinds: SymbolSpec, AssumptionSpec, EquationSpec, ModelSpec, DataArtifact (the output-pointer form {"data_id","locator"}).',
-    'Harness-registered ids you must REFERENCE, never declare: DA-RAW, R-OUT, P1.',
+    `Harness-registered ids you must REFERENCE, never declare: ${reservedIds.join(', ')}.`,
     'Minimal example that satisfies the protocol:',
     '{"__dsh_paper":"ir-container-v1","entries":[{"kind":"SymbolSpec","value":{"symbol_id":"SYM-q","scope_ref":"P1","token":"q","meaning":"mean ice thickness","unit":"m","role":"VARIABLE","shape":"SCALAR","domain":"REAL","index_set":[]}},{"kind":"AssumptionSpec","value":{"assumption_id":"ASM-1","scope_ref":"P1","statement":"homogeneous slab","source_type":"MODELING_CHOICE","justification_refs":[],"risk_level":"MEDIUM","testable":false,"sensitivity_refs":[],"status":"ACTIVE"}},{"kind":"EquationSpec","value":{"equation_id":"EQ-1","scope_ref":"P1","expression":"q = measured","representation":"SYMPY","lhs_symbols":["SYM-q"],"rhs_symbols":[],"equation_type":"DEFINITION","unit":"m","depends_on":[],"source":"probe-example"}},{"kind":"ModelSpec","value":{"model_id":"M1","problem_refs":["P1"],"assumption_refs":["ASM-1"],"variable_refs":["SYM-q"],"parameter_refs":[],"equation_refs":["EQ-1"],"constraints":[],"objective":"estimate mean ice thickness","dependencies":[]}}],"code":"const fs=require(\\"node:fs\\");const r={mean_thickness:0.731};fs.writeFileSync(\\"result.json\\",JSON.stringify(r));","run":{"outputBasenames":["result.json"],"seed":20260903},"interpretations":{"results":[{"result_id":"RES-OUT","name":"mean ice thickness","source":{"locator":"result.json","jsonPath":"mean_thickness"},"unit":"m"}],"claims":[{"claim_id":"C-OUT","text":"mean ice thickness is 0.731 m","claim_type":"NUMERIC","criticality":"CRITICAL","result_refs":["RES-OUT"],"model_refs":["M1"],"evidence_refs":["RES-OUT"]}]},"narrative":{"title":"Polar ice","conclusion":"Mean ice thickness is 0.731 m."}}',
   ].join('\n')
@@ -176,13 +181,13 @@ export function noneGuide(): string {
  * path) plus the registered id table. The model fixes that field, not the
  * whole container.
  */
-export function driftCorrection(reason: string): string {
+export function driftCorrection(reason: string, reservedIds: ReadonlyArray<string> = ['DA-RAW', 'R-OUT', 'P1']): string {
   const offending = reason.split('\n')[0]?.slice(0, 280) ?? reason.slice(0, 280)
   return [
     'RETRY GUIDANCE — your container was close but drifted from the declaration domain.',
     `The refusal names exactly the offending part: ${offending}`,
     'Fix ONLY that field. Do not rewrite the rest of the container.',
-    'Harness-registered ids you must REFERENCE, never declare: DA-RAW, R-OUT, P1.',
+    `Harness-registered ids you must REFERENCE, never declare: ${reservedIds.join(', ')}.`,
   ].join('\n')
 }
 
@@ -196,13 +201,13 @@ export function driftCorrection(reason: string): string {
  * itself is unchanged. True attack forms (free_id / free_structure /
  * bypass_container) stay zero-retry ESCAPE.
  */
-export function ledgerCorrection(reason: string): string {
+export function ledgerCorrection(reason: string, reservedIds: ReadonlyArray<string> = ['DA-RAW', 'R-OUT', 'P1']): string {
   const offending = reason.split('\n')[0]?.slice(0, 400) ?? reason.slice(0, 400)
   return [
     'RETRY GUIDANCE — cross-step reference inconsistency (same declaration protocol, corrected).',
     `What was refused: ${offending}`,
     'Fix by referencing ONLY the ids/locators listed above — they come from your own earlier declarations.',
     'Do not invent new file names or result ids; change nothing else.',
-    'Harness-registered ids you must REFERENCE, never declare: DA-RAW, R-OUT, P1.',
+    `Harness-registered ids you must REFERENCE, never declare: ${reservedIds.join(', ')}.`,
   ].join('\n')
 }

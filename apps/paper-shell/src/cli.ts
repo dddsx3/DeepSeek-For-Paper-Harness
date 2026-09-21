@@ -613,7 +613,13 @@ async function main(): Promise<number> {
   const wallClockStart = Date.now()
   const run = await engine.startRun({ mode, harnessVersion: 'paper-shell-v0', configHash: 'sha256:dmshell' })
   try {
-    await ctx.paperExecutor.runs.execute(RunId(run.id), taskText)
+    // W11.5 baseline-18 (审计 A-1，模板污染)：**模型看到的 task 与论文可见的题面
+    // 是两件事**。W5 让方法族契约横幅拼进 taskText（模型该知道），但同一个字符串
+    // 又被 registerInputAssets 注册成 RequirementSpec 的 statement，于是它被渲染进
+    // 论文的「问题重述」——评委打开论文就能看到 harness 的内部提示词（"候选模型集
+    // (封闭,只能从中选择,禁止自创)"）。现在分开传：input 仍是模型可见的完整 task，
+    // 第二个参数是**纯题面**，只用于注册与论文展示。
+    await ctx.paperExecutor.runs.execute(RunId(run.id), taskText, bundle.taskText)
   } catch (error) {
     const err = error as { code?: string; eventType?: string; message?: string }
     // W8.10-A1 (O-L3-06): the thrown WorkflowExecutionError carries only
@@ -781,6 +787,28 @@ async function main(): Promise<number> {
       })
     }
   }
+  // W11.5 baseline-18 (审计 A-8): the delivery surface carries its own evidence
+  // as FILES, not only as a comma-joined string inside run-report.json. A reader
+  // (or a later audit) must be able to open the trail and the raw model bodies
+  // without re-running anything:
+  //   - audit-trail.json   the full event list with actor/seq/detail (D5 evidence)
+  //   - artifact-bodies.json the E1 analysis / container texts, redacted, with digests
+  const auditTrail = ctx.paperAudit.list(String(run.id)).map(e => ({
+    seq: e.seq,
+    ts: e.ts,
+    eventType: e.eventType,
+    actor: e.actor,
+    detail: e.detail,
+  }))
+  const auditTrailText = JSON.stringify({ runId: String(run.id), events: auditTrail }, null, 2)
+  await writeFile(join(outDir, 'audit-trail.json'), auditTrailText, 'utf8')
+  const bodyService = ctx.get('paperArtifactBody') as { list?: (runId?: string) => Array<{ artifactId: string; sha256: string; text: string }> } | undefined
+  const bodies = typeof bodyService?.list === 'function' ? bodyService.list(String(run.id)) : []
+  const bodiesText = JSON.stringify({
+    runId: String(run.id),
+    bodies: bodies.map(b => ({ artifactId: b.artifactId, sha256: b.sha256, chars: b.text.length, text: b.text })),
+  }, null, 2)
+  await writeFile(join(outDir, 'artifact-bodies.json'), bodiesText, 'utf8')
   if (brokenLinks.length > 0) {
     console.error(`[figure-links] ${brokenLinks.length} dangling figure reference(s): ${brokenLinks.join(', ')}`)
   }
@@ -847,7 +875,7 @@ async function main(): Promise<number> {
   // Deterministic zip of the deliverable + run report (same sha256 on re-run).
   // R1①: every shipped figure + the figure-manifest join the zip; figures
   // are UTF-8 text (SVG), so the text zip is their channel too.
-  const zipBytes = zipTextFiles({ 'report.md': report, 'sha256.txt': sha256, 'run-report.json': runReport, ...dataEntries, ...figureEntries, ...(figureManifest.length > 0 ? { 'figure-manifest.json': JSON.stringify({ figures: figureManifest }, null, 2) } : {}) })
+  const zipBytes = zipTextFiles({ 'report.md': report, 'sha256.txt': sha256, 'run-report.json': runReport, 'audit-trail.json': auditTrailText, 'artifact-bodies.json': bodiesText, ...dataEntries, ...figureEntries, ...(figureManifest.length > 0 ? { 'figure-manifest.json': JSON.stringify({ figures: figureManifest }, null, 2) } : {}) })
   const zipPath = join(outDir, 'deliverable.zip')
   await writeFile(zipPath, zipBytes)
   const zipSha = createHash('sha256').update(zipBytes).digest('hex')
