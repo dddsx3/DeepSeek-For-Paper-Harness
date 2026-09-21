@@ -172,21 +172,32 @@ export function v4ModelCoverage(store: StoreInput): ReadonlyArray<VerificationFi
     }
   }
   const reachingByProblem = new Map<string, Set<string>>()
+  const reach = (problemIds: ReadonlyArray<string>, resultRef: string): void => {
+    for (const problemId of problemIds) {
+      const set = reachingByProblem.get(problemId) ?? new Set<string>()
+      set.add(resultRef)
+      reachingByProblem.set(problemId, set)
+    }
+  }
   for (const record of toMap(store).values()) {
     if (record.kind !== 'Claim') continue
-    const claim = record.value as { criticality: string; result_refs: ReadonlyArray<string> }
+    const claim = record.value as {
+      criticality: string
+      result_refs: ReadonlyArray<string>
+      model_refs?: ReadonlyArray<string>
+    }
     if (claim.criticality !== 'CRITICAL') continue
+    // 归属口径同 requirement_coverage：出处链（run→model）+ 结论自报的 model_refs。
+    // 一个容器只有一次运行，只有前者时"每问一个模型"的容器永远只覆盖第一问。
+    const claimedProblems = (claim.model_refs ?? []).flatMap(ref => modelProblems.get(ref) ?? [])
     for (const resultRef of claim.result_refs) {
       const result = toMap(store).get(resultRef)
       if (result?.kind !== 'Result') continue
-      const run = toMap(store).get(String((result.value as { run_ref: string }).run_ref))
+      const run = toMap(store).get((result.value as { run_ref: string }).run_ref)
       if (run?.kind !== 'RunArtifact') continue
-      const modelRef = String((run.value as { model_ref: string }).model_ref)
-      for (const problemId of modelProblems.get(modelRef) ?? []) {
-        const set = reachingByProblem.get(problemId) ?? new Set<string>()
-        set.add(resultRef)
-        reachingByProblem.set(problemId, set)
-      }
+      const modelRef = (run.value as { model_ref: string }).model_ref
+      reach(modelProblems.get(modelRef) ?? [], resultRef)
+      reach(claimedProblems, resultRef)
     }
   }
   for (const record of toMap(store).values()) {

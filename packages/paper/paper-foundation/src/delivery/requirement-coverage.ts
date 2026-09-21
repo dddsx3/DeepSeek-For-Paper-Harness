@@ -33,7 +33,23 @@ export interface CoverageFinding {
   readonly reason: string
 }
 
-/** Distinct CRITICAL results whose run's model references each problem. */
+/**
+ * Distinct CRITICAL results that answer each problem.
+ *
+ * 两条归属路径，任一成立即算该问被兑现：
+ *
+ *   1. `Result.run_ref → RunArtifact.model_ref → ModelSpec.problem_refs`
+ *      —— 数字的**出处**链（零数字通道：数值只能由代码算出并回读）。
+ *   2. `Claim.model_refs → ModelSpec.problem_refs`
+ *      —— 这条 CRITICAL 结论**声称在回答哪一问**。
+ *
+ * 为什么需要第 2 条（W11.5 round-7）：一个容器只有**一次代码运行**，`run` 只能
+ * 指一个 model_ref，所以在"每问一个模型"的容器里四条结果都挂在同一个 run 上，
+ * 出处链永远只到达第一个问题——逐问覆盖因此恒假，逐问章也永远装配不出自己的
+ * 数值表。结论自己声明的 model_refs 是逐问归属**唯一**可用的信号，而且它不放松
+ * 任何数字纪律：数值仍然只能由 `code → jsonPath → Result` 产生，变的只是
+ * "这条结论答的是哪一问"。
+ */
 function reachingResultsByProblem(store: ReadonlyMap<string, IrObjectRecord>): Map<string, Set<string>> {
   const modelProblems = new Map<string, ReadonlyArray<string>>()
   for (const record of store.values()) {
@@ -42,21 +58,30 @@ function reachingResultsByProblem(store: ReadonlyMap<string, IrObjectRecord>): M
     modelProblems.set(model.model_id, model.problem_refs)
   }
   const out = new Map<string, Set<string>>()
+  const reach = (problemIds: ReadonlyArray<string>, resultRef: string): void => {
+    for (const problemId of problemIds) {
+      const set = out.get(problemId) ?? new Set<string>()
+      set.add(resultRef)
+      out.set(problemId, set)
+    }
+  }
   for (const record of store.values()) {
     if (record.kind !== 'Claim') continue
-    const claim = record.value as { criticality: string; result_refs: ReadonlyArray<string> }
+    const claim = record.value as {
+      criticality: string
+      result_refs: ReadonlyArray<string>
+      model_refs?: ReadonlyArray<string>
+    }
     if (claim.criticality !== 'CRITICAL') continue
+    const claimedProblems = (claim.model_refs ?? []).flatMap(ref => modelProblems.get(ref) ?? [])
     for (const resultRef of claim.result_refs) {
       const result = store.get(resultRef)
       if (result === undefined || result.kind !== 'Result') continue
       const run = store.get((result.value as { run_ref: string }).run_ref)
       if (run === undefined || run.kind !== 'RunArtifact') continue
       const modelRef = (run.value as { model_ref: string }).model_ref
-      for (const problemId of modelProblems.get(modelRef) ?? []) {
-        const set = out.get(problemId) ?? new Set<string>()
-        set.add(resultRef)
-        out.set(problemId, set)
-      }
+      reach(modelProblems.get(modelRef) ?? [], resultRef)
+      reach(claimedProblems, resultRef)
     }
   }
   return out

@@ -17,6 +17,7 @@ W11.5 round-3 — PDF 导出：**数字资产自带的 CUMCM 论文格式模板�
 用法：
   python scripts/export-pdf.py <report.md> <figures-dir> <out.pdf> [template-dir]
 """
+import os
 import re
 import shutil
 import subprocess
@@ -139,9 +140,41 @@ def prefer_png_figures(md: str, figure_dir: Path) -> str:
     return re.sub(r"\]\(([^)\s]+\.svg)\)", swap, md)
 
 
+def find_tool(name: str, extra_dirs: tuple[str, ...] = ()) -> str | None:
+    """Locate a tool the way a user's machine actually has it.
+
+    `shutil.which` only sees PATH, and the winget user-scope installs
+    (pandoc, MiKTeX) are frequently absent from the PATH a harness process
+    inherits — the PDF step then refuses and the delivery ships without
+    paper.pdf (observed in the offline pre-flight: pandoc WAS installed, at
+    LOCALAPPDATA/Pandoc/pandoc.exe, and `which` still returned None).
+    So: PATH first, then the well-known per-user and machine locations.
+    """
+    found = shutil.which(name)
+    if found is not None:
+        return found
+    local = os.environ.get("LOCALAPPDATA", "")
+    roots = [
+        Path(local) / "Microsoft" / "WinGet" / "Links",
+        Path(local) / "Pandoc",
+        Path(local) / "Programs" / "MiKTeX" / "miktex" / "bin" / "x64",
+        Path("C:/Program Files/Pandoc"),
+        Path("C:/Program Files/MiKTeX/miktex/bin/x64"),
+        *[Path(d) for d in extra_dirs],
+    ]
+    for root in roots:
+        candidate = root / f"{name}.exe"
+        if candidate.exists():
+            return str(candidate)
+        candidate = root / name
+        if candidate.exists():
+            return str(candidate)
+    return None
+
+
 def markdown_to_latex_body(md: str, figure_dir: Path) -> str:
     """pandoc does the conversion; this function only guards its presence."""
-    pandoc = shutil.which("pandoc")
+    pandoc = find_tool("pandoc")
     if pandoc is None:
         die("pandoc is required for the markdown→LaTeX step (winget install JohnMacFarlane.Pandoc)")
     prepared = prefer_png_figures(flatten_note_markers(fold_math_alphanumerics(md)), figure_dir)
@@ -156,8 +189,13 @@ def markdown_to_latex_body(md: str, figure_dir: Path) -> str:
         # `-longtable`: pandoc's longtable output uses \LTcaptype (a caption-package
         # feature this MiKTeX's longtable does not provide) and dies with
         # "No counter 'none' defined". Plain tabular compiles everywhere.
+        # `--no-highlight`: pandoc's default code highlighting wraps every code
+        # block in egin{Shaded}, which needs the `framed`/`fvextra` packages the
+        # CUMCM template does not load — xelatex then dies with "Environment
+        # Shaded undefined" (real failure: the whole PDF, including the code
+        # appendix, was lost). Plain verbatim compiles everywhere.
         [pandoc, src, "-f", "markdown-yaml_metadata_block", "-t", "latex",
-         "--top-level-division=section"],
+         "--top-level-division=section", "--no-highlight"],
         capture_output=True, text=True, encoding="utf-8",
     )
     Path(src).unlink(missing_ok=True)
@@ -210,7 +248,7 @@ def build_tex(title: str, abstract: str, keywords: str, body_tex: str, figure_di
 
 
 def compile_pdf(tex: str, workdir: Path) -> Path:
-    xelatex = shutil.which("xelatex")
+    xelatex = find_tool("xelatex")
     if xelatex is None:
         die("xelatex is required (install MiKTeX/TeX Live); the CUMCM template needs it for Chinese")
     (workdir / "paper.tex").write_text(tex, encoding="utf-8")

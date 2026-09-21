@@ -134,7 +134,7 @@ export function renderPaperSkeleton(input: PaperSkeletonInput): string {
           lines.push('')
         }
         if ((chapter.rows?.length ?? 0) > 0) {
-          lines.push(renderTable(['量名', '数值', '单位', '来源'], chapter.rows ?? [], '(该问结果由规范 IR 注入)'))
+          lines.push(renderTable(['量名', '数值', '单位'], chapter.rows ?? [], '(该问结果由规范 IR 注入)'))
           lines.push('')
         }
       }

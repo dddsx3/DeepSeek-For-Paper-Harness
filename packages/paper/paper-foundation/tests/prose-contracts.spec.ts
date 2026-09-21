@@ -17,7 +17,7 @@
  */
 
 import { describe, expect, it } from 'vitest'
-import { proseContractViolations } from '../src/delivery/prose-contracts.ts'
+import { blankAreaViolations, proseContractViolations } from '../src/delivery/prose-contracts.ts'
 
 /** 把一段实质文字重复到超过某章的地板（夹具只需满足契约，篇幅是附带的）。 */
 function pad(base: string, min: number): string {
@@ -131,4 +131,56 @@ describe('W11.5 round-4 — 要素级写作契约', () => {
     }
     expect(proseContractViolations(tiny, single)).toEqual([])
   })
+
+  describe('blank_area — 表格算内容，章边界只认 `##`（round-7 修正）', () => {
+    it('以表格为正文的章不算空白（假设表/符号表/方程表/模型表/结果表）', () => {
+      const delivered = [
+        '## 模型假设',
+        '',
+        '| 假设 | 来源 | 风险 | 可检验 |',
+        '|---|---|---|---|',
+        '| 批次内次品率恒定 | MODELING_CHOICE | MEDIUM | 是 | [ASM-1]',
+        '',
+        '## 符号说明',
+        '',
+        '| 符号 | 含义 | 单位 |',
+        '|---|---|---|',
+        '| n | 样本量 | 件 | [S-N1]',
+        '| c | 拒收临界值 | 件 | [S-C1]',
+        '| p | 次品率 | dimensionless | [S-P]',
+        '| E_C | 期望成本 | 元 | [S-C2]',
+        '| q | 厚度 | m | [S-Q]',
+        '| a | 截距 | m | [S-A]',
+      ].join(String.fromCharCode(10))
+      expect(blankAreaViolations(delivered, FOUR_Q)).toEqual([])
+    })
+
+    it('父章正文在小节里（### 方程）不算空白', () => {
+      const delivered = [
+        '## 模型建立与求解',
+        '',
+        '### 方程',
+        '',
+        '| 方程 | 表达式 | 类型 | 单位 |',
+        '|---|---|---|---|',
+        '| EQ-1 | P_accept = B(c; n, p0) | DEFINITION | dimensionless | [EQ-1]',
+        '| EQ-2 | E_C = C_test * n + p * C_disassemble | OBJECTIVE | 元 | [EQ-2]',
+      ].join(String.fromCharCode(10))
+      expect(blankAreaViolations(delivered, FOUR_Q)).toEqual([])
+    })
+
+    it('既没有正文、也没有任何表格的章仍然是空白（判据没有被放松）', () => {
+      const delivered = ['## 模型假设', '', '待写入', '', '## 符号说明', ''].join(String.fromCharCode(10))
+      const reasons = blankAreaViolations(delivered, FOUR_Q).map(f => f.reason).join(' ')
+      expect(reasons).toContain('模型假设')
+      expect(reasons).toContain('符号说明')
+    })
+
+    it('连续空行仍然是空白区', () => {
+      const delivered = ['## 问题分析', '', '一段分析。', '', '', '', '', '## 模型假设', ''].join(String.fromCharCode(10))
+      const reasons = blankAreaViolations(delivered, FOUR_Q).map(f => f.reason).join(' ')
+      expect(reasons).toContain('连续空行')
+    })
+  })
+
 })

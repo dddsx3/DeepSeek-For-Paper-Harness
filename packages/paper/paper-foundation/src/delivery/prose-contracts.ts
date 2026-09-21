@@ -205,23 +205,40 @@ export function blankAreaViolations(
   if (worst >= 4) {
     out.push({ chapter: 'density', title: '版面密度', reason: `正文出现 ${worst} 行连续空行（大片空白）——交付件不允许空白区，请把该处内容补齐` })
   }
-  // 2) 逐章正文体量：标题之间去掉表格/代码块后不足下限，即"几乎是空的章节"。
+  // 2) 逐章正文体量：标题之间不足下限即"几乎是空的章节"。
+  //
+  // 两条修正（W11.5 round-7，离线预检实测抓到的假阳性）：
+  //   a) **表格算内容**。假设表、符号表、方程表、模型表、结果表本来就是这些章的正文
+  //      ——harness 从规范 IR 生成它们，模型一个字都不用写。旧写法把表格行整行跳过，
+  //      于是"模型假设/符号说明/方程/模型/结果表"这些以表格为正文的章全部被判成
+  //      "0 字，几乎是空的"，链条在交付前被自己的门拒掉。
+  //   b) **章边界只认 `##`**。`### 方程` 是「模型建立与求解」的小节，旧写法把它当新章，
+  //      父章于是变成 0 字。
+  // 判据因此是：既没有 120 字正文、又**一行表格都没有**，才算空白章——"非常简略的
+  // 片段"针对的是散文，不是 harness 从 IR 生成的表。
   const MIN_SECTION = 120
   let title: string | null = null
   let body = 0
+  let tableRows = 0
   let inCode = false
   const flush = (): void => {
-    if (title !== null && body < MIN_SECTION) {
-      out.push({ chapter: 'density', title: '版面密度', reason: `「${title}」正文只有 ${body} 字（低于 ${MIN_SECTION} 字）——这一章几乎是空的` })
+    if (title !== null && body < MIN_SECTION && tableRows === 0) {
+      out.push({ chapter: 'density', title: '版面密度', reason: `「${title}」正文只有 ${body} 字、没有任何表格（低于 ${MIN_SECTION} 字）——这一章几乎是空的` })
     }
   }
   for (const line of lines) {
     const trimmed = line.trim()
     if (trimmed.startsWith('```')) { inCode = !inCode; continue }
-    const heading = /^#{2,3}\s+(.+)$/.exec(trimmed)
-    if (heading !== null) { flush(); title = heading[1] ?? null; body = 0; continue }
+    const heading = /^##\s+(.+)$/.exec(trimmed)
+    if (heading !== null) { flush(); title = heading[1] ?? null; body = 0; tableRows = 0; continue }
     if (title === null || inCode) continue
-    if (trimmed.startsWith('|')) continue
+    if (trimmed.startsWith('|')) {
+      // 表格行：分隔行（|---|）不算行，其余按单元格里的实质字符计入正文。
+      const cells = trimmed.replace(/[|\s]/g, '')
+      if (!/^-+$/.test(cells) && cells !== '') tableRows += 1
+      body += cells.replace(/-/g, '').length
+      continue
+    }
     body += trimmed.replace(/\s+/g, '').length
   }
   flush()
