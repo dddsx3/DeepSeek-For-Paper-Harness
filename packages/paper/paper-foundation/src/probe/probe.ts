@@ -111,6 +111,8 @@ const DRIFT_CODES: ReadonlySet<string> = new Set([
   'required_output_unpaid',
   // W11.5 baseline-18 (审计 A-7): a figure is structure the model declares.
   'figure_required',
+  // W11.5 round-2 (审计 A-5/A-6): unused assumptions / missing justifications.
+  'assumption_structure',
 ])
 
 /** Code-run / capture-environment failures after container admission. */
