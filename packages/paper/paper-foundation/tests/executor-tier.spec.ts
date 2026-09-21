@@ -269,8 +269,11 @@ describe('W4 failure classes — unit mapping', () => {
     expect(correction).toContain('DA-RAW')
   })
 
-  it('grants the W-B NONE budget (2 guided retries)', () => {
-    expect(NONE_RETRY_BUDGET).toBe(2)
+  it('grants the W-B NONE budget (round-2: 4 guided retries)', () => {
+    // W11.5 round-2 raised 2 → 4: the per-sub-problem contract made containers
+    // much larger (16+ assumptions, each needing a verbatim E1 span) and the
+    // model converges a few spans per attempt.
+    expect(NONE_RETRY_BUDGET).toBe(4)
   })
 })
 
@@ -289,18 +292,20 @@ describe('W4 red-team leaves on the producing EXECUTE path', () => {
     expect(ir.list().filter(r => r.kind === 'ModelSpec')).toHaveLength(0)
   })
 
-  it('attack 2: NONE forever spends the budget (3 attempts) then fails and degrades T1→T2', async () => {
+  it('attack 2: NONE forever spends the budget (5 attempts) then fails and degrades T1→T2', async () => {
     const { ctx, engine, runId, outcome } = await harness([
       'I will reason carefully about the ice.', // prose = NONE
       'The mean thickness is 0.731 m.',         // prose = NONE
       'Still thinking…',                        // prose = NONE
+      'Nothing to declare yet.',                // prose = NONE
+      'Prose again.',                           // prose = NONE
       polarContainer(),                          // never reached
     ])
     expect(outcome.status).toBe('rejected')
     const engineRef = engine as { getRun(id: unknown): { status: string } | undefined }
     expect(engineRef.getRun(RunId(runId))?.status).toBe('failed')
     const audit = ctx.paperAudit.list(runId).map((e: { eventType: string }) => e.eventType)
-    expect(audit.filter(t => t === 'provider_retry')).toHaveLength(2)
+    expect(audit.filter(t => t === 'provider_retry')).toHaveLength(4)
     expect(audit).toContain('tier_degraded')
     expect(audit).toContain('gate_failed')
     const degraded = ctx.paperAudit.list(runId).find((e: { eventType: string }) => e.eventType === 'tier_degraded')

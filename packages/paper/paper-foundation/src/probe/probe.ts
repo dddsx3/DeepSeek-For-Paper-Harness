@@ -33,8 +33,18 @@
 /** The five W4 failure classes. */
 export type FailureClass = 'NONE' | 'DRIFT' | 'ESCAPE' | 'RUN' | 'TRANSPORT'
 
-/** NONE is not a refusal — it gets this many guided retries (W-B). */
-export const NONE_RETRY_BUDGET = 2
+/**
+ * NONE is not a refusal — it gets this many guided retries (W-B).
+ *
+ * W11.5 round-2 (baselines 18–22): raised 2 → 4. The per-sub-problem contract made
+ * a container much larger (16+ assumptions, each needing its own verbatim E1
+ * span), and the observed convergence is a few spans per attempt (baseline-8:
+ * 4 spans → 1 span). Two rounds exhausted the budget while the model was still
+ * closing in — baseline-22 stopped at attempt 2 with the 7-attempt ceiling
+ * unused. The same-cause circuit breaker still stops a stuck loop, so a larger
+ * budget buys convergence without buying a spin.
+ */
+export const NONE_RETRY_BUDGET = 4
 /** ESCAPE is a hard refusal: no retry budget exists (W-B). */
 export const ESCAPE_RETRY_BUDGET = 0
 
