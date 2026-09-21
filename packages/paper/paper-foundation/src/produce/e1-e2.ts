@@ -34,6 +34,7 @@
  * @module @deepseek-ai/dsh-paper-foundation/src/produce/e1-e2
  */
 
+
 import { isIrId } from '../ir/schema.ts'
 // W8.11-A1d: the reference-target list is DERIVED from the validator's own
 // table, not restated here — a hand-written copy is how the teaching and the
@@ -594,6 +595,11 @@ export function checkE1E2Fidelity(input: {
     // evidence as a byte-identical copy, and a reader must be able to tell.
     if (input.e1Text.includes(span.trim())) continue
     if (foldedE1.includes(foldForAnchorMatch(span))) continue
+    // W11.5 round-6 — 撤回一次过宽的放宽（负对照当场抓到）：曾试过"模型只要在 E1 里
+    // 锚了这个 id 就接受"，但那样**真改写也会通过**（实词被替换 accepted）——而"改写
+    // 的内容进论文"比误报危险得多。逐字契约保持不变；模型抄不准这件事，下一轮改用
+    // **按序号引用**（harness 把 E1 的句子编号给模型，模型只报 index）来根治，
+    // 而不是放宽校验。
     // W8.10-D5: the verdict carries its own evidence, so the audit trail
     // (which truncates to 400 chars) is enough to tell a near-match from a
     // real rewrite WITHOUT re-running the model.
