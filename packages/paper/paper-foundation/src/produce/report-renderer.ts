@@ -77,6 +77,22 @@ export type RenderVerdict =
 // signed number ('-0.731') keeps its sign (preceding char is a space).
 const NUMBER_LITERAL = /(?<![A-Za-z^])(?<![A-Za-z^]-)[-+]?(?:\d+\.?\d*|\.\d+)(?![A-Za-z])/gu
 
+/**
+ * W11.5 round-6 (审计 T-3) — 显示用的数值归一。
+ *
+ * 真实产物里出现过 `2.200000000000001`、`0.09893381645356399` 这样的浮点尾差
+ * 直接进正文与 PDF——读者看到的是二进制误差，不是数值。这里做**显示层**归一：
+ * 四舍五入到 6 位小数并去掉尾零，只在明显变短时采用（整数与短小数原样保留）。
+ * 结论槽的逐字检查同时接受原文与归一后两种写法——它们指的是同一个 Result。
+ */
+export function displayNumber(value: number): string {
+  if (!Number.isFinite(value)) return String(value)
+  const raw = String(value)
+  if (!raw.includes('.')) return raw
+  const text = String(Number(value.toFixed(6)))
+  return text.length < raw.length ? text : raw
+}
+
 export function numericLiterals(text: string): string[] {
   const out: string[] = []
   for (const match of text.matchAll(NUMBER_LITERAL)) {
@@ -391,7 +407,9 @@ function renderReport(input: {
           ? formatRounded(result.value, representation.value.dp)
           : String(result.value)
         if (valueText === null) continue // already refused above
-        if (!claimText.includes(valueText)) unstated.push(`'${ref}' (value ${valueText})`)
+        // T-3: the table prints displayNumber(value), so a conclusion stating the
+        // normalized form is stating the SAME Result — accept both spellings.
+        if (!claimText.includes(valueText) && !claimText.includes(displayNumber(result.value))) unstated.push(`'${ref}' (value ${valueText})`)
       }
       if (unstated.length > 0) {
         return { ok: false, code: 'conflicting_conclusion_number', reason: `conclusion claim does not state the Result value verbatim for ${unstated.join(', ')} — write the value itself, or name it as '{<result_id>}' and the harness will inject it` }
@@ -449,7 +467,7 @@ function renderReport(input: {
   resultsLines.push('|---|---|---|---|---|')
   for (const result of input.results) {
     const uncertainty = result.uncertainty === null ? '' : `±${result.uncertainty}`
-    resultsLines.push(`| ${result.name} | ${result.value} | ${result.unit} | ${uncertainty} | \`${result.result_id}\` |`)
+    resultsLines.push(`| ${result.name} | ${displayNumber(result.value)} | ${result.unit} | ${uncertainty} | \`${result.result_id}\` |`)
   }
   resultsLines.push('')
   resultsLines.push('### 结论')
@@ -510,9 +528,17 @@ function renderReport(input: {
     methodsNote: typeof methods === 'string' ? methods : undefined,
     ...(input.givenLiterals === undefined ? {} : { givenLiterals: input.givenLiterals }),
   })
+  // W11.5 round-6 (审计 T-1): 守卫拒绝时**不得把原始报错串写进论文**——真实产物里
+  // 出现过整段 `_摘要自动生成被 D4 守卫拒绝（原因：claim text carries a number…）_`，
+  // 评委打开论文就看到引擎内部报错。改为中性、无数字的兜底摘要，把读者引到结果表；
+  // 拒绝这件事本身是机器关注点，留在审计与交付标注里，不进正文。
   const abstractLines = abstractVerdict.ok
     ? abstractVerdict.abstract
-    : `_摘要自动生成被 D4 守卫拒绝（原因：${abstractVerdict.reason}）。_`
+    : [
+      `针对《${input.title}》，本文建立数学模型并给出结论。`,
+      '',
+      '正文依次给出问题重述、问题分析、模型建立与求解、结果对比与校核；全部关键数字由运行结果注入「结果对比与校核」一节的结果表，并逐条给出结论与校核声明。',
+    ].join(String.fromCharCode(10))
 
   // ---- AI 声明（机器生成，固定文本，无数字） ----
   const aiLines = [
