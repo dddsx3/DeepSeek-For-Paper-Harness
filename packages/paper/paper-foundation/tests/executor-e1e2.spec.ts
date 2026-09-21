@@ -1299,10 +1299,16 @@ describe('W8.12c — ALL THREE terminal refusal paths fall back', () => {
     //
     // 这条测试用**三个不同的失败容器**（指纹互异 → 不熔断），逼运行走
     // 「预算耗尽」那条路径：DRIFT 预算 = 2，第 3 次尝试时才耗尽。
+    // W11.5 round-2: the per-cause budget is 4 now, so the fixture needs five
+    // distinct failing containers to reach the budget-exhausted path (three would
+    // stop at the circuit breaker instead — the other, still-covered terminal
+    // path).
     const DIFFERENT_FAILURES = [
       INVENTED_ASSUMPTION_CONTAINER.replace('A-ONESIDED', 'A-VARIANT-1'),
       INVENTED_ASSUMPTION_CONTAINER.replace('A-ONESIDED', 'A-VARIANT-2'),
       INVENTED_ASSUMPTION_CONTAINER.replace('A-ONESIDED', 'A-VARIANT-3'),
+      INVENTED_ASSUMPTION_CONTAINER.replace('A-ONESIDED', 'A-VARIANT-4'),
+      INVENTED_ASSUMPTION_CONTAINER.replace('A-ONESIDED', 'A-VARIANT-5'),
     ]
     const { ctx, runId, outcome } = await harness(
       [E1_SAMPLE, ...DIFFERENT_FAILURES],
