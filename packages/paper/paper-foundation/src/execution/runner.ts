@@ -41,6 +41,17 @@ export interface ExecutionOutputFile {
 /** What the runner observed. Every field is measured, never declared. */
 export interface ExecutionOutcome {
   readonly exitStatus: number
+  /**
+   * The signal that terminated the child, or `null` when it exited on its own.
+   *
+   * W11.5 baseline-6 (首次真实产出实测): `exitStatus` alone cannot tell "the
+   * code crashed" from "the runner killed the child" — both arrive as -1, and
+   * the refusal message then GUESSED a syntax error, sending the next attempt
+   * to fix code that was never wrong. The production runner's only
+   * termination path is its wall-clock budget, so the signal is the fact that
+   * separates the two.
+   */
+  readonly signal: string | null
   readonly stdout: string
   readonly stderr: string
   readonly outputFiles: ReadonlyArray<ExecutionOutputFile>
@@ -85,6 +96,12 @@ export interface LocalProcessRunnerConfig {
  * the child exits; the directory is removed best-effort either way.
  */
 export class LocalProcessRunner implements ExecutionRunner {
+  /** The command split once, so `run` never indexes the array. */
+  private readonly executable: string
+  private readonly execArgs: readonly string[]
+  /** basenames paired with their locators, so `run` never indexes two arrays. */
+  private readonly outputs: ReadonlyArray<{ basename: string; locator: string }>
+
   constructor(private readonly config: LocalProcessRunnerConfig) {
     if (!(config.timeoutMs > 0)) {
       throw new Error('LocalProcessRunner requires a positive timeoutMs')
@@ -92,6 +109,16 @@ export class LocalProcessRunner implements ExecutionRunner {
     if (config.outputBasenames.length !== config.outputLocators.length) {
       throw new Error('outputBasenames and outputLocators must be aligned')
     }
+    const executable = config.command[0]
+    if (executable === undefined || executable === '') {
+      throw new Error('LocalProcessRunner requires a non-empty command')
+    }
+    this.executable = executable
+    this.execArgs = config.command.slice(1)
+    this.outputs = config.outputBasenames.map((basename, i) => ({
+      basename,
+      locator: config.outputLocators[i] as string,
+    }))
   }
 
   async run(request: ExecutionRequest): Promise<ExecutionOutcome> {
@@ -102,7 +129,7 @@ export class LocalProcessRunner implements ExecutionRunner {
       trace(`runner: cwd=${cwd}`)
       await writeFile(join(cwd, this.config.entryFile), request.code, 'utf8')
       trace('runner: entry file written')
-      const child = spawn(this.config.command[0]!, this.config.command.slice(1), {
+      const child = spawn(this.executable, [...this.execArgs], {
         cwd,
         stdio: ['ignore', 'pipe', 'pipe'],
         timeout: this.config.timeoutMs,
@@ -118,37 +145,38 @@ export class LocalProcessRunner implements ExecutionRunner {
       // also drains both pipes so a chatty child cannot deadlock.
       const stdoutRead = streamToText(child.stdout)
       const stderrRead = streamToText(child.stderr)
-      const exitStatusPromise = new Promise<number>((resolve) => {
-        child.on('exit', (code, signal) => resolve(code ?? (signal === null ? -1 : -1)))
-        child.on('error', () => resolve(-1))
+      const exitStatusPromise = new Promise<{ code: number | null; signal: string | null }>((resolve) => {
+        child.on('exit', (code, signal) => resolve({ code, signal }))
+        child.on('error', () => resolve({ code: -1, signal: null }))
       })
       const stdout = await stdoutRead
       trace('runner: stdout stream ended')
       const stderr = await stderrRead
       trace('runner: stderr stream ended')
-      const exitStatus = await exitStatusPromise
-      trace(`runner: child exited exitStatus=${exitStatus}`)
+      const exited = await exitStatusPromise
+      const exitStatus = exited.code ?? -1
+      trace(`runner: child exited exitStatus=${exitStatus} signal=${String(exited.signal)}`)
       const runtimeFacts = await this.collectRuntimeFacts()
       trace('runner: runtime facts collected')
       const outputFiles: ExecutionOutputFile[] = []
-      for (let i = 0; i < this.config.outputBasenames.length; i += 1) {
-        const basename = this.config.outputBasenames[i]!
+      for (const output of this.outputs) {
         try {
-          const bytes = await readFile(join(cwd, basename), 'utf8')
-          outputFiles.push({ locator: this.config.outputLocators[i]!, bytes })
+          const bytes = await readFile(join(cwd, output.basename), 'utf8')
+          outputFiles.push({ locator: output.locator, bytes })
         } catch {
           // P1-2: a missing output file is ABSENT, not an empty-file impostor.
           // Pushing a zero-byte stand-in would let capture's output-set check
           // treat 'the run produced nothing' as 'the run produced the file'
           // (a model could claim outputs it never wrote). Skip the entry so
           // capture's sameSet / the replay's output-hash check report it.
-          trace(`runner: declared output '${basename}' was not produced`)
+          trace(`runner: declared output '${output.basename}' was not produced`)
         }
       }
       trace('runner: outputs collected')
       const finishedAt = new Date().toISOString()
       return {
         exitStatus,
+        signal: exited.signal,
         stdout,
         stderr,
         outputFiles,
@@ -167,7 +195,9 @@ export class LocalProcessRunner implements ExecutionRunner {
     const facts: Record<string, string> = {}
     for (const command of this.config.environmentFactsCommands ?? []) {
       const key = command.join(' ')
-      const child = spawn(command[0]!, command.slice(1), {
+      const factExecutable = command[0]
+      if (factExecutable === undefined) continue
+      const child = spawn(factExecutable, command.slice(1), {
         stdio: ['ignore', 'pipe', 'pipe'],
         timeout: this.config.timeoutMs,
       })

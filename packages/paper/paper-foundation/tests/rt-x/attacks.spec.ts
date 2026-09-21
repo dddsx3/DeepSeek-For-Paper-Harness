@@ -38,6 +38,7 @@ function fakeRunner(overrides: Partial<ExecutionOutcome> = {}): ExecutionRunner 
   return {
     run: async () => ({
       exitStatus: 0,
+      signal: null,
       stdout: 'execution ok\n',
       stderr: '',
       outputFiles: [{ locator: 'file:///runs/RUN1/result.json', bytes: OUTPUT_JSON }],

@@ -373,6 +373,18 @@ async function main(): Promise<number> {
   const failSoft = parsed['fail-soft'] === true || parsed['fail-soft'] === 'true'
   // W8.6-P4: PAPER_MAX_OUTPUT_TOKENS_PER_RUN (0/absent = unbounded).
   const maxOutputTokensPerRun = Number(process.env.PAPER_MAX_OUTPUT_TOKENS_PER_RUN ?? '0') || 0
+  // W11.5 baseline-6 (首次真实产出实测): the code-run wall-clock budget was
+  // hard-coded at 60s, and the sixth real run's EXECUTE attempt 1 was killed
+  // by it (measured: exit -1 / signal SIGTERM / empty stderr / no output
+  // files — reproduced locally against the runner). A competition-modeling
+  // program (sampling design, strategy enumeration, multi-stage recursion)
+  // legitimately needs minutes, and a killed run produces no Result at all,
+  // so the whole production chain degrades to the E1-direct fallback. The
+  // budget is now deployment-visible and env-set; the default is raised to
+  // 5 minutes, which is still a bounded sandbox.
+  const codeRunTimeoutMs = Number(process.env.PAPER_CODE_RUN_TIMEOUT_MS ?? '') > 0
+    ? Number(process.env.PAPER_CODE_RUN_TIMEOUT_MS)
+    : 300_000
   // W8.9-A4: sharded EXECUTE declaration is the DEFAULT path. The flag is
   // inverted from W9-P2's opt-in: `--no-shard-declare` restores the
   // single-shot declaration (A/B comparison, regression). `--shard-declare`
@@ -470,7 +482,7 @@ async function main(): Promise<number> {
     await ctx.plugin(PaperExecutorService, {
       produceFromExecute: true,
       finalOutputRoot: baseRoot,
-      produceRun: { command: ['node', 'main.js'], entryFile: 'main.js', environment: 'paper-shell v0 (node 24)', timeoutMs: 60_000 },
+      produceRun: { command: ['node', 'main.js'], entryFile: 'main.js', environment: 'paper-shell v0 (node 24)', timeoutMs: codeRunTimeoutMs },
       backoffBaseMs: 1_000,
       backoffCapMs: 10_000,
       initialTier: tier,
@@ -799,8 +811,8 @@ async function main(): Promise<number> {
     figures: figureSvgNames.length,
     figure_links_broken: brokenLinks,
   }
-  const runReport = JSON.stringify({ runId: '<redacted-run-id>', delivery_path: deliveryPath, tier, mode, status: 'DELIVERED', grade, routed_family: familyVerdict.family, route_truth: truth, route_mismatch: mismatched, code_provenance: zipProvenance, minted_ir_count: mintedIrCount, wall_clock_seconds: '<per-run>', sha256, audit, usage: { input_tokens: usageSummary.input_tokens, output_tokens: usageSummary.output_tokens, cost_usd: usageSummary.cost_usd }, attachments: attachmentLedger, ...figureFields }, null, 2)
-  const runReportFull = JSON.stringify({ runId: String(run.id), delivery_path: deliveryPath, tier, mode, status: 'DELIVERED', grade, routed_family: familyVerdict.family, route_truth: truth, route_mismatch: mismatched, code_provenance: provenanceRecord, minted_ir_count: mintedIrCount, wall_clock_seconds: wallClockSeconds, sha256, audit, usage: { input_tokens: usageSummary.input_tokens, output_tokens: usageSummary.output_tokens, cost_usd: usageSummary.cost_usd }, attachments: attachmentLedger, ...figureFields }, null, 2)
+  const runReport = JSON.stringify({ runId: '<redacted-run-id>', delivery_path: deliveryPath, tier, mode, code_run_timeout_ms: codeRunTimeoutMs, status: 'DELIVERED', grade, routed_family: familyVerdict.family, route_truth: truth, route_mismatch: mismatched, code_provenance: zipProvenance, minted_ir_count: mintedIrCount, wall_clock_seconds: '<per-run>', sha256, audit, usage: { input_tokens: usageSummary.input_tokens, output_tokens: usageSummary.output_tokens, cost_usd: usageSummary.cost_usd }, attachments: attachmentLedger, ...figureFields }, null, 2)
+  const runReportFull = JSON.stringify({ runId: String(run.id), delivery_path: deliveryPath, tier, mode, code_run_timeout_ms: codeRunTimeoutMs, status: 'DELIVERED', grade, routed_family: familyVerdict.family, route_truth: truth, route_mismatch: mismatched, code_provenance: provenanceRecord, minted_ir_count: mintedIrCount, wall_clock_seconds: wallClockSeconds, sha256, audit, usage: { input_tokens: usageSummary.input_tokens, output_tokens: usageSummary.output_tokens, cost_usd: usageSummary.cost_usd }, attachments: attachmentLedger, ...figureFields }, null, 2)
   await mkdir(outDir, { recursive: true })
   await writeFile(join(outDir, 'report.md'), report, 'utf8')
   await writeFile(join(outDir, 'sha256.txt'), sha256, 'utf8')
