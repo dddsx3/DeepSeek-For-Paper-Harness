@@ -754,6 +754,29 @@ async function main(): Promise<number> {
     const figureManifestText = JSON.stringify({ figures: figureManifest }, null, 2)
     await writeFile(join(outDir, 'figure-manifest.json'), figureManifestText, 'utf8')
   }
+  // W11.5 baseline-13 (首次 A-produce-chain 交付跑完交付链): the run's
+  // executed output files join the deliverable. The report's 数据附录 names
+  // them and every Result value was read out of their bytes (D4), so the
+  // delivered package must carry the evidence — before this the paper
+  // referenced files that no longer existed anywhere (the runner's cwd is
+  // removed with the run).
+  const dataDir = join(finalDir, 'data')
+  const dataFileNames = (await readdir(dataDir).catch(() => [] as string[])).sort()
+  const dataEntries: Record<string, string> = {}
+  const dataLedger: Array<{ file: string; sha256: string; bytes: number }> = []
+  if (dataFileNames.length > 0) {
+    await mkdir(join(outDir, 'data'), { recursive: true })
+    for (const name of dataFileNames) {
+      const bytes = await readFile(join(dataDir, name), 'utf8')
+      await writeFile(join(outDir, 'data', name), bytes, 'utf8')
+      dataEntries[`data/${name}`] = bytes
+      dataLedger.push({
+        file: `data/${name}`,
+        sha256: createHash('sha256').update(bytes).digest('hex'),
+        bytes: Buffer.byteLength(bytes),
+      })
+    }
+  }
   if (brokenLinks.length > 0) {
     console.error(`[figure-links] ${brokenLinks.length} dangling figure reference(s): ${brokenLinks.join(', ')}`)
   }
@@ -811,8 +834,8 @@ async function main(): Promise<number> {
     figures: figureSvgNames.length,
     figure_links_broken: brokenLinks,
   }
-  const runReport = JSON.stringify({ runId: '<redacted-run-id>', delivery_path: deliveryPath, tier, mode, code_run_timeout_ms: codeRunTimeoutMs, status: 'DELIVERED', grade, routed_family: familyVerdict.family, route_truth: truth, route_mismatch: mismatched, code_provenance: zipProvenance, minted_ir_count: mintedIrCount, wall_clock_seconds: '<per-run>', sha256, audit, usage: { input_tokens: usageSummary.input_tokens, output_tokens: usageSummary.output_tokens, cost_usd: usageSummary.cost_usd }, attachments: attachmentLedger, ...figureFields }, null, 2)
-  const runReportFull = JSON.stringify({ runId: String(run.id), delivery_path: deliveryPath, tier, mode, code_run_timeout_ms: codeRunTimeoutMs, status: 'DELIVERED', grade, routed_family: familyVerdict.family, route_truth: truth, route_mismatch: mismatched, code_provenance: provenanceRecord, minted_ir_count: mintedIrCount, wall_clock_seconds: wallClockSeconds, sha256, audit, usage: { input_tokens: usageSummary.input_tokens, output_tokens: usageSummary.output_tokens, cost_usd: usageSummary.cost_usd }, attachments: attachmentLedger, ...figureFields }, null, 2)
+  const runReport = JSON.stringify({ runId: '<redacted-run-id>', delivery_path: deliveryPath, tier, mode, code_run_timeout_ms: codeRunTimeoutMs, status: 'DELIVERED', grade, routed_family: familyVerdict.family, route_truth: truth, route_mismatch: mismatched, code_provenance: zipProvenance, minted_ir_count: mintedIrCount, wall_clock_seconds: '<per-run>', sha256, audit, usage: { input_tokens: usageSummary.input_tokens, output_tokens: usageSummary.output_tokens, cost_usd: usageSummary.cost_usd }, attachments: attachmentLedger, data_files: dataLedger, ...figureFields }, null, 2)
+  const runReportFull = JSON.stringify({ runId: String(run.id), delivery_path: deliveryPath, tier, mode, code_run_timeout_ms: codeRunTimeoutMs, status: 'DELIVERED', grade, routed_family: familyVerdict.family, route_truth: truth, route_mismatch: mismatched, code_provenance: provenanceRecord, minted_ir_count: mintedIrCount, wall_clock_seconds: wallClockSeconds, sha256, audit, usage: { input_tokens: usageSummary.input_tokens, output_tokens: usageSummary.output_tokens, cost_usd: usageSummary.cost_usd }, attachments: attachmentLedger, data_files: dataLedger, ...figureFields }, null, 2)
   await mkdir(outDir, { recursive: true })
   await writeFile(join(outDir, 'report.md'), report, 'utf8')
   await writeFile(join(outDir, 'sha256.txt'), sha256, 'utf8')
@@ -820,7 +843,7 @@ async function main(): Promise<number> {
   // Deterministic zip of the deliverable + run report (same sha256 on re-run).
   // R1①: every shipped figure + the figure-manifest join the zip; figures
   // are UTF-8 text (SVG), so the text zip is their channel too.
-  const zipBytes = zipTextFiles({ 'report.md': report, 'sha256.txt': sha256, 'run-report.json': runReport, ...figureEntries, ...(figureManifest.length > 0 ? { 'figure-manifest.json': JSON.stringify({ figures: figureManifest }, null, 2) } : {}) })
+  const zipBytes = zipTextFiles({ 'report.md': report, 'sha256.txt': sha256, 'run-report.json': runReport, ...dataEntries, ...figureEntries, ...(figureManifest.length > 0 ? { 'figure-manifest.json': JSON.stringify({ figures: figureManifest }, null, 2) } : {}) })
   const zipPath = join(outDir, 'deliverable.zip')
   await writeFile(zipPath, zipBytes)
   const zipSha = createHash('sha256').update(zipBytes).digest('hex')

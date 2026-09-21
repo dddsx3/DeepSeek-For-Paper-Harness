@@ -216,8 +216,10 @@ async function tierHarness(tier: 'T1' | 'T2' | 'T3', outputs: string[]): Promise
 async function finalReport(result: HarnessResult): Promise<string> {
   const finalDir = join(result.finalRoot, result.runId, 'final')
   const files = await readdir(finalDir)
-  if (files.length === 0) throw new Error(`no promoted file under ${finalDir}`)
-  return readFile(join(finalDir, files[0] ?? ''), 'utf8')
+  // W11.5 baseline-13: final/data/ (the executed outputs) sits next to the report.
+  const reportName = files.find(f => f !== 'data' && f !== 'figures')
+  if (reportName === undefined) throw new Error(`no promoted file under ${finalDir}`)
+  return readFile(join(finalDir, reportName), 'utf8')
 }
 
 describe('T2 guided steps — executor end to end', () => {

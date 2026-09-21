@@ -213,7 +213,12 @@ describe('P2-1 executor-authoritative FORMAL chain', () => {
     const finalDir = join(finalRoot, String(runId), 'final')
     const files = await readdir(finalDir)
     expect(files.length).toBeGreaterThan(0)
-    const text = await readFile(join(finalDir, files[0]!), 'utf8')
+    // W11.5 baseline-13: the executed output files now ship next to the
+    // report (final/data/), so the promoted report is the first
+    // NON-directory entry.
+    const reportName = files.find(f => f !== 'data' && f !== 'figures')
+    expect(reportName, `a report file should sit next to data/ (have: ${files.join(',')})`).toBeDefined()
+    const text = await readFile(join(finalDir, reportName!), 'utf8')
     expect(text).toContain('0.731')
     const manifest = engine.getManifest(RunId(runId))
     expect(manifest).toBeDefined()
@@ -265,7 +270,9 @@ describe('P2-1 executor-authoritative FORMAL chain', () => {
     expect(ir.list().filter(r => r.kind === 'ExecutionRecord')).toHaveLength(2)
     const finalDir = join(finalRoot, String(runId), 'final')
     const files = await readdir(finalDir)
-    const text = await readFile(join(finalDir, files[0]!), 'utf8')
+    const reportName = files.find(f => f !== 'data' && f !== 'figures')
+    expect(reportName).toBeDefined()
+    const text = await readFile(join(finalDir, reportName!), 'utf8')
     expect(text).toContain('0.731')
     // 尝试后缀是 store 内部的事，绝不进论文（结果表的 id 用模型自己写的名字）
     expect(text).not.toContain('-a2')
@@ -326,7 +333,7 @@ describe('P2-1 executor-authoritative FORMAL chain', () => {
     const stat = await readFile(figurePath, 'utf8').then(() => true, () => false)
     expect(stat, 'figures/F-OUT.svg must be persisted next to the final output').toBe(true)
     const files = await readdir(finalDir)
-    const reportFile = files.find(f => f !== 'figures')
+    const reportFile = files.find(f => f !== 'figures' && f !== 'data')
     expect(reportFile, `a report file should sit next to figures/ (have: ${files.join(',')})`).toBeDefined()
     const report = await readFile(join(finalDir, reportFile!), 'utf8')
     // The rendered reference and the on-disk file agree (link resolvable).
