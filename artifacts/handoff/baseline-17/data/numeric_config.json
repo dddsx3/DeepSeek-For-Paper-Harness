@@ -1,0 +1,23 @@
+{
+  "discretization": {},
+  "physical": {
+    "S_P0": 0.1,
+    "S_P1": 0.12,
+    "S_ALPHA": 0.1,
+    "S_BETA": 0.05,
+    "S_N_MIN": 20,
+    "S_C1_BUY": 4,
+    "S_C2_BUY": 18,
+    "S_C1_TEST": 2,
+    "S_C2_TEST": 3,
+    "S_C_ASSEMBLE": 6,
+    "S_C_F_TEST": 3,
+    "S_P_SELL": 56,
+    "S_C_DISASSEMBLE": 5,
+    "S_P1_DEFECT": 0.1,
+    "S_P2_DEFECT": 0.1,
+    "S_PF": 0.1
+  },
+  "choices": {},
+  "property_set": null
+}
