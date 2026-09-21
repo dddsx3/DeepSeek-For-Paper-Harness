@@ -79,7 +79,11 @@ function polarContainer(overrides: {
       claims: [
         { claim_id: 'C-OUT', text: `mean ice thickness is ${value} m`, claim_type: 'NUMERIC', criticality: 'CRITICAL', result_refs: ['RES-OUT'], model_refs: ['M1'], evidence_refs: ['RES-OUT'] },
       ],
-      ...(overrides.figures === undefined ? {} : { figures: [...overrides.figures] }),
+      // W11.5 baseline-18: a submittable paper declares at least one figure
+      // (审计 A-7), so a fixture that expects a DELIVERED paper carries one.
+      figures: overrides.figures ?? [
+        { figure_id: 'F-OUT', chart_type: 'table', data_refs: ['RES-OUT'], caption: 'mean thickness table' },
+      ],
     },
     narrative: {
       conclusion: overrides.conclusion ?? 'Mean ice thickness is 0.731 m.',
@@ -110,7 +114,7 @@ async function* stream(text: string) {
   yield { type: 'finish', index: 0, reason: { kind: 'stop' } }
 }
 
-async function harness(executeText: string | ReadonlyArray<string>) {
+async function harness(executeText: string | ReadonlyArray<string>, taskText = 'estimate ice thickness') {
   // W11.5 baseline-7: an array scripts one container per EXECUTE attempt, so a
   // test can drive the retry loop (attempt 1 refused, attempt 2 fixed).
   const attempts = typeof executeText === 'string' ? [executeText] : [...executeText]
@@ -179,7 +183,7 @@ async function harness(executeText: string | ReadonlyArray<string>) {
   })
   const engine = ctx.paperWorkflow.runs
   const run = await engine.startRun({ mode: 'strict', harnessVersion: 'test', configHash: 'sha256:p21' })
-  const outcome = await ctx.paperExecutor.runs.execute(RunId(run.id), 'estimate ice thickness')
+  const outcome = await ctx.paperExecutor.runs.execute(RunId(run.id), taskText)
     .then(() => ({ status: 'resolved' as const }))
     .catch((error: unknown) => ({ status: 'rejected' as const, code: (error as { code?: string }).code, message: (error as { message: string }).message }))
   return { ctx, ir, engine, runId: run.id, finalRoot, outcome }
@@ -251,6 +255,30 @@ describe('P2-1 executor-authoritative FORMAL chain', () => {
     expect(outcome.status).toBe('rejected')
     expect(engine.getRun(RunId(runId))?.status).toBe('failed')
     expect(ir.list().filter(r => r.kind === 'Result')).toHaveLength(0)
+  })
+
+  it('W11.5 baseline-18 — 逐问覆盖：题面四问而只答一问的稿子被链上拒绝（审计 A-3/A-4）', async () => {
+    // 第十七次基线的论文只答了问题1：harness 只为整篇注册了一个 REQUIRED_OUTPUT，
+    // 覆盖闸门没有可要求的对象。现在每一问都是自己的 REQUIRED_OUTPUT，而链上
+    // 在渲染后立刻核对覆盖——**趁模型还能补写的时候**，而不是等交付评审事后标注。
+    const FOUR_Q = [
+      '问题 1 请设计抽样检测方案。',
+      '问题 2 请对生产各阶段作出决策。',
+      '问题 3 请推广到 m 道工序 n 个零配件。',
+      '问题 4 请考虑抽样误差重新完成。',
+    ].join(String.fromCharCode(10))
+    const { ctx, ir, runId, outcome } = await harness(polarContainer(), FOUR_Q)
+    expect(outcome.status).toBe('rejected')
+    // 只声明了 1 个 Result 的容器无法覆盖 R-OUT + R-Q1..R-Q4
+    expect(String((outcome as { message?: string }).message)).toContain('required_output_unpaid')
+    expect(String((outcome as { message?: string }).message)).toContain('R-Q2')
+    // 四问都注册进了 IR（题面自己说的，不是模型编的）
+    const requirementIds = ir.list().filter(r => r.kind === 'RequirementSpec')
+      .map(r => (r.value as { requirement_id: string }).requirement_id).sort()
+    expect(requirementIds).toEqual(['R-OUT', 'R-Q1', 'R-Q2', 'R-Q3', 'R-Q4'])
+    const retries = ctx.paperAudit.list(runId).filter((e: { eventType: string }) => e.eventType === 'provider_retry')
+    expect(retries.length).toBeGreaterThan(0)
+    expect(String(retries[0]?.detail?.w4Class)).toBe('DRIFT')
   })
 
   it('W11.5 baseline-7 — a retry after a real execution converges instead of dying on its own run id', async () => {

@@ -93,6 +93,7 @@ function t1Container(): string {
       claims: [
         { claim_id: 'C-OUT', text: 'mean ice thickness is 0.731 m', claim_type: 'NUMERIC', criticality: 'CRITICAL', result_refs: ['RES-OUT'], model_refs: ['M1'], evidence_refs: ['RES-OUT'] },
       ],
+      figures: [{ figure_id: 'F-OUT', chart_type: 'table', data_refs: ['RES-OUT'], caption: 'result table' }],
     },
     narrative: { title: 'estimate ice thickness', conclusion: 'mean ice thickness is 0.731 m', methods: 'The regression is fitted by least squares and the mean is read from the fit.', restatement: 'The problem asks for the mean ice thickness along the survey line.', analysis: 'A linear regression on sonar returns estimates the mean thickness.', evaluation: 'The estimate is stable under the survey-line subsampling; the model is transferable to similar shelves.', references: '[1] Polar Survey Group. Sonar returns along line A. 2024.', code: 'The code fits the regression and writes the mean thickness to result.json.' },
   })
@@ -243,6 +244,10 @@ describe('T2 guided steps — executor end to end', () => {
     // T1 有散文，T2 该处是可见占位（不是静默空槽）
     expect(t1Report).toContain('A linear regression on sonar returns estimates the mean thickness.')
     expect(t2Report).toContain('_(模型待写入)_')
+    // 同一条限制也覆盖图：T1 的容器声明了一张图（审计 A-7 之后基线论文必须有图），
+    // 而引导面的小步里没有任何一步声明图——差异仅此而已。
+    expect(t1Report).toContain('figures/F-OUT.svg')
+    expect(t2Report).not.toContain('figures/')
   })
 
   it('attack 1: a full container smuggled into a step is ESCAPE — zero budget, run failed, no IR written', async () => {
@@ -350,11 +355,12 @@ describe('T3 template fill — executor end to end', () => {
         claims: [
           { claim_id: 'C-OUT', text: 'mean_thickness is 0.731 m', claim_type: 'NUMERIC', criticality: 'CRITICAL', result_refs: ['RES-OUT'], model_refs: ['M1'], evidence_refs: ['RES-OUT'] },
         ],
+        figures: [{ figure_id: 'F-OUT', chart_type: 'table', data_refs: ['RES-OUT'], caption: 'result table' }],
       },
       narrative: { title: 'estimate ice thickness', conclusion: 'mean_thickness is 0.731 m', methods: 'The regression is fitted by least squares and the mean is read from the fit.', restatement: 'The problem asks for the mean ice thickness along the survey line.', analysis: 'A linear regression on sonar returns estimates the mean thickness.', evaluation: 'The estimate is stable under the survey-line subsampling; the model is transferable to similar shelves.', references: '[1] Polar Survey Group. Sonar returns along line A. 2024.', code: 'The code fits the regression and writes the mean thickness to result.json.' },
     })
-  }
 
+  }
   it('happy path: one fill-in delivers the SAME report sha256 as the T1 container path', async () => {
     const t1 = await tierHarness('T1', [t3T1Container()])
     expect(t1.outcome.status, 'T1 ' + (t1.outcome as { message?: string }).message).toBe('resolved')

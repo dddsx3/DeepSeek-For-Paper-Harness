@@ -40,6 +40,8 @@ import { parseModelContainer, produceContainerInto } from './produce/ir-producer
 import { produceRunExecution } from './produce/execution-producer.ts'
 import { produceInterpretation } from './produce/interpretation-producer.ts'
 import { PROSE_CHAPTERS, numericLiterals, renderReportV2 } from './produce/report-renderer.ts'
+import { requirementCoverageFindings } from './delivery/requirement-coverage.ts'
+import { arithmeticFindingsOf, deliveredNumberFindings } from './delivery/delivered-numbers.ts'
 import { SHARD_NAMES, shardPrompt, parseShard, mergeShards } from './produce/shard-declare.ts'
 import {
   e2DriftGuidance,
@@ -211,6 +213,7 @@ export const EXECUTE_PROTOCOL_TEACHING = [
   '  narrative: { title, conclusion: { claims: [{ text, quantity_refs: [Result ids], representation? }] } } — a conclusion number must be the bound Result value verbatim, or an explicitly declared rendering: {"kind":"rounded","dp":<0..20>} or {"kind":"with_uncertainty","uncertainty_refs":[...]}. The check is mechanical: each claim\'s text must CONTAIN the value of every quantity_ref, written into the sentence — text "The unified minimum sample size is 1762." with quantity_refs ["R-N-FIXED"]. A qualitative sentence that names the Result but never states its value is refused (real refusal: "The unified sample size is the maximum of the two case-specific minimum sample sizes.").',
   '  Naming a quantity instead of copying it (STRONGLY PREFERRED): you write this narrative BEFORE your code runs, so you cannot know its output. Writing `{<result_id>}` inside the text makes the harness substitute the run\'s value at render time — the digit then comes from the IR by construction. Prefer this over guessing a literal: a literal number you write yourself must equal the Result value exactly, and a wrong guess refuses the whole report. Both of the two most recent real runs died exactly there (the narrative stated one sample size while its own code had computed another), and both had already passed every other check — so a wrong literal costs the entire production chain. Example shape: text "the minimum sample size is {R-N1} and the critical value is {R-C1}", quantity_refs ["R-N1","R-C1"]. A name that is not one of that claim\'s quantity_refs is refused (the braces would otherwise print into the paper).',
   '  Every literal in the conclusion must be a number the RUN produced (REQUIRED): a constant the problem GAVE you is not a Result, so writing it as a digit in the conclusion is refused (real refusal: "conclusion claim contains numeric literal \'95\' outside its declared quantities [2, 22, 0]" — the model restated the confidence level). Either write the given quantity in words ("at the stated confidence level"), or make your code emit it as a Result and name it `{<result_id>}`. The refusal lists the allowed set — read it before rewriting.',
+  '  ANSWER EVERY SUB-PROBLEM (REQUIRED, and the most common way a paper fails review): the statement asks several questions (问题1/2/3/4…), and EACH ONE is a separate REQUIRED_OUTPUT the harness registers on its own. A sub-problem with no Result of its own reads as unanswered — the paper is refused before delivery and the correction names which ones are missing (real refusal: "the paper does not answer every sub-problem the statement asks: R-Q2…R-Q4"). So: build the model for every sub-problem, run the code that computes its numbers, and declare a Result AND a CRITICAL Claim for each. One aggregate number for the whole paper is not an answer to four questions, and a methods sentence that promises "we enumerate the combinations" while the results table holds a single scenario is exactly what a reviewer marks as unfulfilled.',
   '  Container shape (REQUIRED, FIRST LINE MATTERS): the output\'s first characters must be `{"__dsh_paper":"ir-container-v1"` — the version marker IS the container\'s identity, and a container missing it is refused before anything else is checked (real refusal: the first real run\'s attempt 1 produced a full, valid container that started with `{"run": …` and was refused on the missing marker alone).',
   '  Re-emission on retry (REQUIRED): a retried container must re-declare every entry it declared before, BYTE-IDENTICAL unless the refusal message asked you to change that entry — the store is append-only and same-id-different-content is a conflict. If you must improve wording, give the entry a NEW id instead of editing the old one.',
   '  Assumption completeness (REQUIRED, the B3-reverse rule): EVERY `[[ASSUMPTION: id]]` anchor that exists in the analysis MUST have a matching AssumptionSpec entry in `entries` — one anchor, one declaration, same id, no exceptions. A container that declares only "the assumptions I found important" while the analysis marked 15 is REFUSED (real refusal: the first real run marked 15 anchors, the container declared 9, and the fidelity gate refused all three attempts on exactly this gap). When in doubt, declare it — an over-declared assumption is checked, an under-declared one kills the container.',
@@ -310,6 +313,36 @@ function scopeInterpretationIds(block: Readonly<Record<string, unknown>>, attemp
       })),
     }),
   }
+}
+
+/**
+ * W11.5 baseline-18 — the sub-problems a competition statement asks.
+ *
+ * Read out of the statement's own markers ("问题 1", "问题 2", …; also the
+ * common "问题一"/"第1问" spellings). Harness-side extraction, so the model can
+ * neither invent nor omit a sub-problem: whatever the statement asks becomes a
+ * REQUIRED_OUTPUT, and the coverage gate holds the paper to it.
+ *
+ * Returns [] when the statement carries fewer than two markers (a single-question
+ * problem keeps exactly the whole-paper R-OUT it always had).
+ */
+export function subProblemsOf(statement: string): ReadonlyArray<{ requirementId: string; statement: string }> {
+  const CJK_DIGITS: Readonly<Record<string, string>> = { 一: '1', 二: '2', 三: '3', 四: '4', 五: '5', 六: '6', 七: '7', 八: '8', 九: '9' }
+  const markers: Array<{ index: number; number: string }> = []
+  const pattern = /问题\s*([0-9]{1,2}|[一二三四五六七八九])\s*(?:问)?/g
+  for (const match of statement.matchAll(pattern)) {
+    if (match.index === undefined) continue
+    const raw = match[1] ?? ''
+    const number = CJK_DIGITS[raw] ?? raw
+    if (number === '' || markers.some(m => m.number === number)) continue
+    markers.push({ index: match.index, number })
+  }
+  if (markers.length < 2) return []
+  return markers.map((marker, i) => {
+    const end = markers[i + 1]?.index ?? statement.length
+    const text = statement.slice(marker.index, Math.min(end, marker.index + 900)).trim()
+    return { requirementId: `R-Q${marker.number}`, statement: text.slice(0, 900) }
+  })
 }
 
 /** W11.5 baseline-4: the section headings a delivery text carries (any level). */
@@ -637,6 +670,19 @@ export class WorkflowExecutor {
   readonly #e1ByRun: Map<string, string> = new Map()
 
   /**
+   * W11.5 baseline-18 (审计 A-1，模板污染): the PAPER-VISIBLE problem statement
+   * per run, when the caller can name it separately from the model-facing task.
+   *
+   * `execute(runId, input)` takes the text the MODEL reads, and the CLI appends
+   * the method-family banner to it (W5 — the model should know the family). But
+   * the same string was registered as the RequirementSpec statement and rendered
+   * into the paper's 问题重述, so the seventeenth baseline's paper showed the
+   * harness's own routing prompt ("候选模型集(封闭,只能从中选择,禁止自创)") to the
+   * reader. Two audiences, two strings.
+   */
+  readonly #problemStatementByRun: Map<string, string> = new Map()
+
+  /**
    * W8.12 — the receive layer's terminal failure facts per run, stashed when
    * the container path falls back to E1 direct delivery. The grader reads
    * them so the MARKED appendix names the real cause (which fidelity rules
@@ -810,7 +856,15 @@ export class WorkflowExecutor {
    * @param input - User task text.
    * @returns the final run record and its manifest.
    */
-  async execute(runId: RunId, input: string): Promise<ExecutionOutcome> {
+  async execute(
+    runId: RunId,
+    input: string,
+    /** W11.5 baseline-18: the paper-visible problem statement, when it
+     *  differs from the model-facing task text (the CLI appends the
+     *  method-family banner to the latter). Absent = `input` is both. */
+    problemStatement?: string,
+  ): Promise<ExecutionOutcome> {
+    if (problemStatement !== undefined) this.#problemStatementByRun.set(String(runId), problemStatement)
     const initial = this.runOf(runId)
     // TASK -1 rewire: refuse to start a run unless the runtime guard is
     // readied and the run mode matches the active profile. This is the
@@ -868,6 +922,17 @@ export class WorkflowExecutor {
           delivered: current,
         })
         for (const id of report.resolved) unresolved.delete(id)
+        // W11.5 baseline-18 (审计 A-2): MECHANICAL defects join the same ledger
+        // as the reviewer's. The D4 guard used to run only at render time, and
+        // the revise rounds rewrite the text afterwards — so a refused section
+        // could come back as edited prose whose numbers no guard ever saw (the
+        // seventeenth baseline's ledger names exactly that, three times). A
+        // mechanical finding cannot be argued away: the editor must fix it, and
+        // an unfixed one stays on the ledger to the end (critical never expires
+        // without a resolved record).
+        for (const defect of this.mechanicalDefects(current)) {
+          if (!unresolved.has(defect.id)) unresolved.set(defect.id, defect)
+        }
         for (const defect of report.defects) {
           const prior = unresolved.get(defect.id)
           if (prior !== undefined && prior.severity === 'critical' && defect.severity !== 'critical') {
@@ -1019,8 +1084,12 @@ export class WorkflowExecutor {
       // Its findings are annotations (fail-soft), never a separate verdict
       // path: a self-contradicting draft is MARKED with the contradiction
       // named, not silently delivered and not blocked.
+      // W11.5 baseline-18: EVERY fail-soft path, not only the E1-direct one. The
+      // scan is zero-false-positive (a correct draft never contradicts itself),
+      // and on the chain path it is the only thing that looks at the text AFTER
+      // the revise rounds rewrote it.
       const digitFindings: ReadonlyArray<{ kind: string; reason: string }> =
-        this.options.deliveryGradeMode === 'fail-soft' && this.#deliveryPathByRun.get(String(runId)) === 'B-e1-direct'
+        this.options.deliveryGradeMode === 'fail-soft'
           ? digitSelfContradictionFindings(current).map(f => ({ kind: f.kind, reason: f.reason }))
           : []
       const gradeInput = this.options.deliveryGradeMode === 'fail-soft'
@@ -1197,7 +1266,10 @@ export class WorkflowExecutor {
     const RESERVED = new Set<string>(['DA-RAW', 'R-OUT', 'P1'])
     if (ir.get('DA-RAW') !== undefined) return RESERVED
 
-    const problemBytes = taskText
+    // W11.5 baseline-18 (审计 A-1): the paper shows THIS text, so it must be the
+    // problem statement alone — never the model-facing task (which carries the
+    // method-family banner).
+    const problemBytes = this.#problemStatementByRun.get(String(runId)) ?? taskText
     const problemHash = `sha256:${sha256Hex(problemBytes)}`
     const problemLocator = `file:///problems/${String(runId)}/task.md`
 
@@ -1216,7 +1288,7 @@ export class WorkflowExecutor {
       locator: problemLocator,
       content_hash: problemHash,
       media_type: 'text/markdown',
-      description: taskText.slice(0, 512),
+      description: problemBytes.slice(0, 512),
     })
     void daRaw
     await this.audit({ eventType: 'ir_entry_written', actor: 'paper-executor', runId, detail: { kind: 'DataArtifact', id: 'DA-RAW', stage: 'input-registration' } })
@@ -1225,14 +1297,39 @@ export class WorkflowExecutor {
       requirement_id: 'R-OUT',
       source_data_ref: 'DA-RAW',
       requirement_type: 'REQUIRED_OUTPUT',
-      statement: taskText.slice(0, 2048),
+      statement: problemBytes.slice(0, 2048),
     })
     await this.audit({ eventType: 'ir_entry_written', actor: 'paper-executor', runId, detail: { kind: 'RequirementSpec', id: 'R-OUT', stage: 'input-registration' } })
+
+    // W11.5 baseline-18 (审计 A-3/A-4/B-2/B-3/B-4，虎头蛇尾): a competition paper
+    // asks SEVERAL sub-problems, and the seventeenth baseline answered only the
+    // first — the model declared one aggregate requirement (R-OUT) and the
+    // coverage gate therefore had nothing to demand. The sub-problems are read
+    // out of the problem statement itself (harness-side, never model-written) and
+    // each becomes its own REQUIRED_OUTPUT; `requirement_coverage` (a CRITICAL
+    // gate) then requires a distinct CRITICAL result per sub-problem, and the
+    // production chain refuses + guides BEFORE delivery when one is unpaid.
+    const subProblems = subProblemsOf(problemBytes)
+    for (const sub of subProblems) {
+      RESERVED.add(sub.requirementId)
+      putOrThrow('RequirementSpec', {
+        requirement_id: sub.requirementId,
+        source_data_ref: 'DA-RAW',
+        requirement_type: 'REQUIRED_OUTPUT',
+        statement: sub.statement,
+      })
+      await this.audit({
+        eventType: 'ir_entry_written',
+        actor: 'paper-executor',
+        runId,
+        detail: { kind: 'RequirementSpec', id: sub.requirementId, stage: 'input-registration' },
+      })
+    }
 
     putOrThrow('ProblemSpec', {
       problem_id: 'P1',
       raw_problem_ref: 'DA-RAW',
-      requirement_refs: ['R-OUT'],
+      requirement_refs: ['R-OUT', ...subProblems.map(s => s.requirementId)],
     })
     await this.audit({ eventType: 'ir_entry_written', actor: 'paper-executor', runId, detail: { kind: 'ProblemSpec', id: 'P1', stage: 'input-registration' } })
 
@@ -1524,6 +1621,25 @@ export class WorkflowExecutor {
     if (!rendered.ok) {
       return { ok: false, code: rendered.code, reason: `report render refused: ${rendered.reason}` }
     }
+    // W11.5 baseline-18 (审计 A-3/A-4/B-2/B-3/B-4，虎头蛇尾 —— 本轮最重要的一处):
+    // the chain must not hand out a paper that leaves sub-problems unanswered.
+    // The seventeenth baseline delivered a MARKED paper whose OWN review ledger
+    // said "问题2至问题4的决策方案、指标结果和依据完全缺失" — the judgement existed
+    // and was recorded, but it arrived after the production chain had closed, so
+    // the model never got to act on it. `requirement_coverage` is a CRITICAL
+    // delivery gate that would refuse such a paper anyway; checking it HERE, with
+    // the per-sub-problem requirements registered, turns "annotated at the end"
+    // into "corrected while the model can still write the missing work".
+    const uncovered = requirementCoverageFindings(ModelingIr.snapshot(ir))
+    if (uncovered.length > 0) {
+      const named = uncovered.map(f => `${f.requirementId}（${f.reason.split(' is not covered')[0]}）`)
+      return {
+        ok: false,
+        code: 'required_output_unpaid',
+        reason: `the paper does not answer every sub-problem the statement asks: ${named.join('；')} — declare a Result AND a CRITICAL Claim over it for EACH required output (a sub-problem with no result of its own reads as unanswered to any reviewer), then re-emit the container`,
+      }
+    }
+
     // W11.5 baseline-10 (首次 A-produce-chain 交付): a chapter the container left
     // out renders as a VISIBLE placeholder, and the docx pre-export gate refuses
     // such a paper (`no_placeholders`) — so the very next step after delivery
@@ -1549,6 +1665,21 @@ export class WorkflowExecutor {
         reason: `the rendered paper still carries unfilled chapters: ${emptyChapters.map(c => `${c.title}（narrative.${c.id}）`).join('、')} — a paper with an empty chapter cannot be exported (docx precheck: no_placeholders), so write those narrative strings in the container`,
       }
     }
+    // W11.5 baseline-18 (审计 A-7): a competition paper carries figures — an OC
+    // curve, a decision tree, a sensitivity chart. The seventeenth baseline had
+    // ZERO, and nothing asked for one: figures are declared by the container, so
+    // a model that declares none simply ships none. This is the same class as the
+    // empty chapter (a chapter the model did not write) and gets the same
+    // treatment: refuse in the chain, name the fix, let the guided retry add it.
+    // The harness renders the bytes (never the model), so the ask is "declare the
+    // structure", which is cheap for the model and checkable by the harness.
+    if (requireProseChapters && figureAssets.length === 0) {
+      return {
+        ok: false,
+        code: 'figure_required',
+        reason: 'the paper carries no figure — a submittable modelling paper shows at least one (an OC/ROC curve, a decision tree, a sensitivity or comparison chart). Declare one in the container: interpretations.figures: [{ figure_id, chart_type: "line"|"scatter"|"bar"|"table", data_refs: [Result ids], caption }] — the harness renders the SVG from the Results you declared, you never draw it yourself.',
+      }
+    }
     // R1①（交付面固化）: the rendered report references each figure as
     // `figures/<figureId>.svg` — an INDEPENDENT file. The reference must
     // not dangle: persist the minted SVG bytes next to the promoted final
@@ -1565,6 +1696,39 @@ export class WorkflowExecutor {
     await this.persistDataFiles(runId, executed.outputs.map(o => ({ basename: basename(o.locator), bytes: o.bytes })))
     const codeText = container.code ?? ''
     return { ok: true, reportText: rendered.text, loadCode: () => codeText }
+  }
+
+  /**
+   * W11.5 baseline-18 — the defects a MACHINE can prove, as review defects.
+   *
+   * Two checks, both closed over the canonical store and zero-false-positive by
+   * construction:
+   *   1. the delivered text's 摘要/结论 numbers must be Result values,
+   *      uncertainties, or the registered problem's own numbers (审计 A-2);
+   *   2. the delivered text must not contradict its own arithmetic (W11.5-A3,
+   *      previously an annotation on the E1-direct path only).
+   */
+  private mechanicalDefects(delivered: string): ReadonlyArray<ReviewDefect> {
+    const ir = this.options.ir
+    const snapshot = ir === undefined ? null : ModelingIr.snapshot(ir)
+    if (snapshot === null) return []
+    const allowed: string[] = []
+    for (const record of snapshot.values()) {
+      if (record.kind === 'Result') {
+        const result = record.value as { value?: unknown; uncertainty?: unknown }
+        if (typeof result.value === 'number') allowed.push(String(result.value))
+        if (typeof result.uncertainty === 'number') allowed.push(String(result.uncertainty))
+      }
+      // Problem-given constants are input data (the registered statement).
+      if (record.kind === 'RequirementSpec') {
+        const statement = (record.value as { statement?: unknown }).statement
+        if (typeof statement === 'string') allowed.push(...numericLiterals(statement))
+      }
+    }
+    return [
+      ...deliveredNumberFindings(delivered, allowed),
+      ...arithmeticFindingsOf(digitSelfContradictionFindings(delivered)),
+    ]
   }
 
   /**
@@ -2502,11 +2666,20 @@ export class WorkflowExecutor {
             // hands back the registered id table (W4). D1: a cross-step
             // reference inconsistency gets the ledger-specific correction —
             // the refusal reason names the allowed set, echo it whole.
+            // W11.5 baseline-18: the id table in the correction is the LIVE
+            // registered set (DA-RAW / R-OUT / P1 / R-Q1…), not the historical
+            // three — a model told "never declare these" must be told which
+            // ones those are, including the per-sub-problem requirements.
+            const reservedNow = [...(this.options.ir === undefined
+              ? []
+              : [...(ModelingIr.snapshot(this.options.ir)?.keys() ?? [])])
+              .filter(id => id === 'DA-RAW' || id === 'R-OUT' || id === 'P1' || id.startsWith('R-Q'))]
+            const reservedIds = reservedNow.length === 0 ? ['DA-RAW', 'R-OUT', 'P1'] : reservedNow.sort()
             const guide = w4Class === 'NONE'
-              ? noneGuide()
+              ? noneGuide(reservedIds)
               : failure.code === 'unledgered_reference'
-                ? ledgerCorrection(failure.message)
-                : driftCorrection(failure.message)
+                ? ledgerCorrection(failure.message, reservedIds)
+                : driftCorrection(failure.message, reservedIds)
             // TASK-PW W2: on the T2 wizard path the correction must reach the
             // NEXT STEP prompt, not the (skipped) one-shot EXECUTE prompt —
             // stash it for runGuidedExecute to append.
