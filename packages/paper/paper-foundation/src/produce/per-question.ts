@@ -86,6 +86,10 @@ export function questionHeadingOf(line: string): string | null {
 export function stripHarnessAnchors(text: string): string {
   return text
     .replace(/\[\[(?:REQUIREMENT|ASSUMPTION|EVIDENCE|CLAIM|RESULT):[^\]]*\]\]/g, '')
+    // E1 是模型的"工作笔记"，自带 `# B题 建模工作笔记` `## 总体思路` 这类标题。
+    // 原样注入正文会把它们变成论文的章/节（真实运行实测：模型章里冒出 `# B题 …`
+    // 与 `## 总体思路`，逐问章的序号因此错位）。降级为加粗行——信息保留，结构不受影响。
+    .replace(/^#{1,6}\s+(.+)$/gm, '**$1**')
     .replace(/\n{3,}/g, NL + NL)
     .trim()
 }
