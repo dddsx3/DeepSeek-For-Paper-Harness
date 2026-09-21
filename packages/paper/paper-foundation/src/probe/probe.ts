@@ -94,6 +94,8 @@ const DRIFT_CODES: ReadonlySet<string> = new Set([
   // the correction pointed at the symbol rather than at every key that
   // references it.
   'duplicate_symbol_token',
+  // W11.5 baseline-10: an unfilled chapter is content the model can write.
+  'placeholder_chapter',
 ])
 
 /** Code-run / capture-environment failures after container admission. */

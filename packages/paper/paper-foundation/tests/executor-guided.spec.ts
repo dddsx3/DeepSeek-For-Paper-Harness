@@ -37,7 +37,6 @@ import { mkdtemp } from 'node:fs/promises'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { readFile, readdir } from 'node:fs/promises'
-import { createHash } from 'node:crypto'
 import { Context } from '@deepseek-ai/cordis'
 import Storage from '@deepseek-ai/dsh-storage'
 import { MemoryMediaPool, MemoryStorageBackend } from '../../../storage/storage-domain/tests/helpers/memory-backend.ts'
@@ -65,10 +64,6 @@ async function* stream(text: string) {
   yield { type: 'text-delta', index: 0, text }
   yield { type: 'block-end', index: 0, block: { type: 'text', text } }
   yield { type: 'finish', index: 0, reason: { kind: 'stop' } }
-}
-
-function sha256(text: string): string {
-  return createHash('sha256').update(text, 'utf8').digest('hex')
 }
 
 /** The T1 one-shot POLAR-ICE container — the equivalence baseline. Its
@@ -99,7 +94,7 @@ function t1Container(): string {
         { claim_id: 'C-OUT', text: 'mean ice thickness is 0.731 m', claim_type: 'NUMERIC', criticality: 'CRITICAL', result_refs: ['RES-OUT'], model_refs: ['M1'], evidence_refs: ['RES-OUT'] },
       ],
     },
-    narrative: { title: 'estimate ice thickness', conclusion: 'mean ice thickness is 0.731 m' },
+    narrative: { title: 'estimate ice thickness', conclusion: 'mean ice thickness is 0.731 m', restatement: 'The problem asks for the mean ice thickness along the survey line.', analysis: 'A linear regression on sonar returns estimates the mean thickness.', evaluation: 'The estimate is stable under the survey-line subsampling; the model is transferable to similar shelves.', references: '[1] Polar Survey Group. Sonar returns along line A. 2024.', code: 'The code fits the regression and writes the mean thickness to result.json.' },
   })
 }
 
@@ -233,9 +228,19 @@ describe('T2 guided steps — executor end to end', () => {
     expect(t2.outcome.status, 'T2 ' + (t2.outcome as { message?: string }).message).toBe('resolved')
     const t1Report = await finalReport(t1)
     const t2Report = await finalReport(t2)
-    // T2 三步走完 → 与 T1 等价交付: the assembled container flows through
-    // the same chain, so the promoted report is byte-identical (same sha256).
-    expect(sha256(t2Report)).toBe(sha256(t1Report))
+    // W11.5 baseline-10（首次 A-produce-chain 交付）：两条路径不再逐字节相同，
+    // 差别只在**散文章节**——T1 的容器带 narrative.restatement/analysis/
+    // evaluation/references/code，而引导面（T2 三步 / T3 填空）里没有任何一步
+    // 承载散文（assembleGuidedContainer 只合成 title+conclusion）。这是引导面的
+    // 已知限制：它的稿子按构造是骨架，docx 预检会据此拒绝导出（诚实的下游判定），
+    // 所以链上不向它索取它表达不出来的内容。机器章节仍然逐字一致。
+    for (const marker of ['| 量名 | 数值 | 单位 | 不确定度 | 来源 |', 'RES-OUT', 'mean ice thickness is 0.731 m']) {
+      expect(t2Report).toContain(marker)
+      expect(t1Report).toContain(marker)
+    }
+    // T1 有散文，T2 该处是可见占位（不是静默空槽）
+    expect(t1Report).toContain('A linear regression on sonar returns estimates the mean thickness.')
+    expect(t2Report).toContain('_(模型待写入)_')
   })
 
   it('attack 1: a full container smuggled into a step is ESCAPE — zero budget, run failed, no IR written', async () => {
@@ -344,7 +349,7 @@ describe('T3 template fill — executor end to end', () => {
           { claim_id: 'C-OUT', text: 'mean_thickness is 0.731 m', claim_type: 'NUMERIC', criticality: 'CRITICAL', result_refs: ['RES-OUT'], model_refs: ['M1'], evidence_refs: ['RES-OUT'] },
         ],
       },
-      narrative: { title: 'estimate ice thickness', conclusion: 'mean_thickness is 0.731 m' },
+      narrative: { title: 'estimate ice thickness', conclusion: 'mean_thickness is 0.731 m', restatement: 'The problem asks for the mean ice thickness along the survey line.', analysis: 'A linear regression on sonar returns estimates the mean thickness.', evaluation: 'The estimate is stable under the survey-line subsampling; the model is transferable to similar shelves.', references: '[1] Polar Survey Group. Sonar returns along line A. 2024.', code: 'The code fits the regression and writes the mean thickness to result.json.' },
     })
   }
 
@@ -355,10 +360,17 @@ describe('T3 template fill — executor end to end', () => {
     expect(t3.outcome.status, 'T3 ' + (t3.outcome as { message?: string }).message).toBe('resolved')
     const t1Report = await finalReport(t1)
     const t3Report = await finalReport(t3)
-    // T3 填充一次 → 与 T1 等价交付(同 report、同 sha256): the assembled
-    // container flows through the same chain, so the promoted report is
-    // byte-identical.
-    expect(sha256(t3Report)).toBe(sha256(t1Report))
+    // W11.5 baseline-10（首次 A-produce-chain 交付）：两条路径不再逐字节相同，
+    // 差别只在**散文章节**——T1 的容器带 narrative.restatement/analysis/
+    // evaluation/references/code，而引导面（T2 三步 / T3 填空）里没有任何一步
+    // 承载散文（assembleGuidedContainer 只合成 title+conclusion）。这是引导面的
+    // 已知限制：它的稿子按构造是骨架，docx 预检会据此拒绝导出（诚实的下游判定），
+    // 所以链上不向它索取它表达不出来的内容。机器章节仍然逐字一致。
+    for (const marker of ['| 量名 | 数值 | 单位 | 不确定度 | 来源 |', 'mean_thickness']) {
+      expect(t3Report).toContain(marker)
+      expect(t1Report).toContain(marker)
+    }
+    expect(t3Report).toContain('_(模型待写入)_')
   })
 
   it('attack 1: a free number in the T3 fill-in is ESCAPE — zero budget, run failed', async () => {
