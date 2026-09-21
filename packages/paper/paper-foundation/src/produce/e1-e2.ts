@@ -254,7 +254,10 @@ export function e2NormalizationPrompt(e1Text: string, containerTeaching: string)
     '',
     '=== BEFORE YOU ANSWER — CHECK EACH OF THESE (the harness refuses the container if any is missing) ===',
     '  1. EVERY AssumptionSpec and EVERY EquationSpec carries "e1_span": a verbatim substring (>= 10 chars, exact, no ellipsis, no paraphrase) of the analysis above that states it. Copy it CHARACTER-FOR-CHARACTER, math delimiters included: a sentence the analysis writes as `...服从二项分布 $B(n,p)$` must be quoted WITH the $ marks (the harness also accepts a quote that drops them, but do not rely on it), and never "finish" a sentence — if the analysis says `取$p_1>p_0$`, quoting `取p_1=0.20` is a DIFFERENT sentence and is refused. Equations carry e1_span too: e.g. "e1_span": "序贯概率比检验的停止边界为 $a_m$ 与 $b_m$".',
-    '  2. Every assumption you declare has a matching [[ASSUMPTION: <id>]] anchor in the analysis, with the SAME id.',
+    // W11.5 baseline-4（首次真实产出实测）：E1 标了 15 条假设、容器只声明 9 条
+    // → B3 反向拒绝，三次全灭。双向 1:1 是规则，不是"挑重要的"。
+    '  2. ASSUMPTIONS ARE 1:1: every [[ASSUMPTION: <id>]] anchor in the analysis gets a matching AssumptionSpec (same id), AND every AssumptionSpec you declare has a matching anchor — count them, the harness does. Declaring "the important ones" while the analysis marked more is REFUSED.',
+    '  2b. The output STARTS with {"__dsh_paper":"ir-container-v1" — no prose, no markdown fence before it (a container without the version marker is refused before any other check).',
     '  3. Every requirement id the harness listed has a [[REQUIREMENT: <id>]] anchor in the analysis.',
     '  4. No numbers of your own anywhere outside your `code`.',
     '  5. Do not re-declare any id the harness registered, and do not use the same id TWICE among your own entries — every symbol_id / assumption_id / equation_id / model_id must be unique inside this container (a duplicate refuses the whole container).',

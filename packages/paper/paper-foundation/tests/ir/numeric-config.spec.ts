@@ -197,3 +197,34 @@ describe('NumericConfig — emission key resolution (W11.5)', () => {
     expect(built.ok).toBe(false)
   })
 })
+
+// ---------------------------------------------------------------------------
+// W11.5 baseline-4（首次真实产出实测）—— 未解析 token 的拒绝理由必须携带
+// **可用的** token/id 清单（只报"没解析到"逼着下一轮猜）。
+// ---------------------------------------------------------------------------
+describe('W11.5 baseline-4 — TOKEN_UNRESOLVED 理由携带可用清单', () => {
+  it('拒绝理由列出全部已声明 token/id（模型一步改对）', async () => {
+    const { numericConfigFromEmission } = await import('../../src/ir/numeric-config.ts')
+    const built = numericConfigFromEmission({
+      configId: 'NC-X', runRef: 'RUN-X', scopeRefs: ['P1'],
+      emission: {
+        discretization: { unknown_token: 1 },
+        physical: {},
+        choices: {},
+        property_set: null,
+      },
+      symbols: [
+        { symbol_id: 'S-P0', scope_ref: 'P1', token: 'p0' },
+        { symbol_id: 'S-N', scope_ref: 'P1', token: 'n' },
+      ],
+    } as never)
+    expect(built.ok).toBe(false)
+    if (!built.ok) {
+      const reason = built.failures[0]?.reason ?? ''
+      expect(reason).toContain('declared tokens/ids')
+      expect(reason).toContain('p0')
+      expect(reason).toContain('S-P0')
+      expect(reason).toContain('n')
+    }
+  })
+})
