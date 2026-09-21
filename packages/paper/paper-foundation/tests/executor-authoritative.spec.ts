@@ -81,7 +81,19 @@ function polarContainer(overrides: {
       ],
       ...(overrides.figures === undefined ? {} : { figures: [...overrides.figures] }),
     },
-    narrative: { conclusion: overrides.conclusion ?? 'Mean ice thickness is 0.731 m.', title: 'Polar ice' },
+    narrative: {
+      conclusion: overrides.conclusion ?? 'Mean ice thickness is 0.731 m.',
+      title: 'Polar ice',
+      // W11.5 baseline-10: the production chain refuses a paper whose chapter is
+      // still an unfilled placeholder (the docx pre-export gate refuses it one
+      // step later), so a fixture that expects a DELIVERED paper must carry the
+      // prose chapters a real container carries.
+      restatement: 'The problem asks for the mean ice thickness along the survey line.',
+      analysis: 'A linear regression on sonar returns estimates the mean thickness.',
+      evaluation: 'The estimate is stable under subsampling; the model transfers to similar shelves.',
+      references: '[1] Polar Survey Group. Sonar returns along line A. 2024.',
+      code: 'The code fits the regression and writes the mean thickness to result.json.',
+    },
   })
 }
 

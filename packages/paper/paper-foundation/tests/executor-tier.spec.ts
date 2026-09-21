@@ -92,7 +92,7 @@ function polarContainer(): string {
         { claim_id: 'C-OUT', text: 'mean ice thickness is 0.731 m', claim_type: 'NUMERIC', criticality: 'CRITICAL', result_refs: ['RES-OUT'], model_refs: ['M1'], evidence_refs: ['RES-OUT'] },
       ],
     },
-    narrative: { conclusion: 'Mean ice thickness is 0.731 m.', title: 'Polar ice' },
+    narrative: { conclusion: 'Mean ice thickness is 0.731 m.', title: 'Polar ice', restatement: 'The problem asks for the mean ice thickness along the survey line.', analysis: 'A linear regression on sonar returns estimates the mean thickness.', evaluation: 'The estimate is stable under the survey-line subsampling; the model is transferable to similar shelves.', references: '[1] Polar Survey Group. Sonar returns along line A. 2024.', code: 'The code fits the regression and writes the mean thickness to result.json.' },
   })
 }
 
@@ -116,7 +116,7 @@ function escapeContainer(): string {
     interpretations: {
       results: [{ result_id: 'RES-OUT', name: 'mean ice thickness', source: { locator: 'result.json', jsonPath: 'mean_thickness' }, unit: 'm' }],
     },
-    narrative: { conclusion: 'Mean ice thickness is 0.731 m.', title: 'Polar ice' },
+    narrative: { conclusion: 'Mean ice thickness is 0.731 m.', title: 'Polar ice', restatement: 'The problem asks for the mean ice thickness along the survey line.', analysis: 'A linear regression on sonar returns estimates the mean thickness.', evaluation: 'The estimate is stable under the survey-line subsampling; the model is transferable to similar shelves.', references: '[1] Polar Survey Group. Sonar returns along line A. 2024.', code: 'The code fits the regression and writes the mean thickness to result.json.' },
   })
 }
 
@@ -137,7 +137,7 @@ function driftContainer(): string {
     interpretations: {
       results: [{ result_id: 'RES-OUT', name: 'mean ice thickness', source: { locator: 'result.json', jsonPath: 'mean_thickness' }, unit: 'm' }],
     },
-    narrative: { conclusion: 'Mean ice thickness is 0.731 m.', title: 'Polar ice' },
+    narrative: { conclusion: 'Mean ice thickness is 0.731 m.', title: 'Polar ice', restatement: 'The problem asks for the mean ice thickness along the survey line.', analysis: 'A linear regression on sonar returns estimates the mean thickness.', evaluation: 'The estimate is stable under the survey-line subsampling; the model is transferable to similar shelves.', references: '[1] Polar Survey Group. Sonar returns along line A. 2024.', code: 'The code fits the regression and writes the mean thickness to result.json.' },
   })
 }
 

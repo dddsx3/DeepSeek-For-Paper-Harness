@@ -146,6 +146,24 @@ export function expandQuantityPlaceholders(
 const LEGACY_CONCLUSION_SLOT = -1
 
 /**
+ * R5①: the prose chapters a container may supply, with the section title each
+ * one lands in.
+ *
+ * Exported so the production chain can refuse a report whose chapter is still
+ * an unfilled placeholder BEFORE it becomes the deliverable: a paper the docx
+ * pre-export gate will reject must not be handed out as if it were finished
+ * (W11.5 baseline-10 — the first real A-produce-chain delivery carried an empty
+ * 参考文献 chapter and the precheck refused it one step later).
+ */
+export const PROSE_CHAPTERS: ReadonlyArray<{ readonly id: string; readonly title: string }> = [
+  { id: 'restatement', title: '问题重述' },
+  { id: 'analysis', title: '问题分析' },
+  { id: 'evaluation', title: '模型评价与推广' },
+  { id: 'references', title: '参考文献' },
+  { id: 'code', title: '代码附录' },
+]
+
+/**
  * P3-2: parse and validate a raw `representation` declaration. Returns the
  * normalized declaration or a refusal reason — never upgrades a malformed
  * declaration to verbatim (fail-closed, 攻击 4: negative dp / science form).
@@ -460,9 +478,9 @@ function renderReport(input: {
   // R5①: the prose chapters the container may supply (each rendered into its
   // own section; absent → the skeleton's visible placeholder).
   const proseSlots: Record<string, string> = {}
-  for (const id of ['restatement', 'analysis', 'evaluation', 'references', 'code'] as const) {
-    const value = input.narrative[id]
-    if (typeof value === 'string' && value.trim() !== '') proseSlots[id] = value
+  for (const chapter of PROSE_CHAPTERS) {
+    const value = input.narrative[chapter.id]
+    if (typeof value === 'string' && value.trim() !== '') proseSlots[chapter.id] = value
   }
 
   const text = renderPaperSkeleton({

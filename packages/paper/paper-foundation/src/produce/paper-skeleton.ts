@@ -114,7 +114,25 @@ function renderTable(headers: ReadonlyArray<string>, rows: ReadonlyArray<AutoRow
   lines.push(`| ${headers.join(' | ')} |`)
   lines.push(`|${headers.map(() => '---').join('|')}|`)
   for (const row of rows) {
-    lines.push(`| ${row.columns.map(c => c.replace(/\|/g, '\\|')).join(' | ')} | [${row.id}]`)
+    lines.push(`| ${row.columns.map(cellText).join(' | ')} | [${row.id}]`)
   }
   return lines.join('\n')
+}
+
+/**
+ * One table cell as a SINGLE markdown line.
+ *
+ * W11.5 baseline-10 (首次 A-produce-chain 交付): the 问题重述 table injects the
+ * requirement's `statement` verbatim, and for a competition problem that
+ * statement IS the whole problem text — hundreds of characters with embedded
+ * newlines. Printed as-is it split one row across many physical lines and the
+ * table stopped being a table: the docx pre-export gate refused the first real
+ * chain-delivered paper with `table_columns` ("6 张表，1 张列数不一") — a defect
+ * in the harness's own injection, not in the model's text.
+ *
+ * Newlines collapse to a space and pipes are escaped; nothing is dropped, so
+ * the statement stays readable and the row stays one row.
+ */
+function cellText(value: string): string {
+  return value.replace(/\r?\n+/g, ' ').replace(/\s+/g, ' ').trim().replace(/\|/g, '\\|')
 }

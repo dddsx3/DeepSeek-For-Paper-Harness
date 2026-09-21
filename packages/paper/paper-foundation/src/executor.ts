@@ -39,7 +39,7 @@ import { resolveRunPolicy } from './policy.ts'
 import { parseModelContainer, produceContainerInto } from './produce/ir-producer.ts'
 import { produceRunExecution } from './produce/execution-producer.ts'
 import { produceInterpretation } from './produce/interpretation-producer.ts'
-import { renderReportV2 } from './produce/report-renderer.ts'
+import { PROSE_CHAPTERS, renderReportV2 } from './produce/report-renderer.ts'
 import { SHARD_NAMES, shardPrompt, parseShard, mergeShards } from './produce/shard-declare.ts'
 import {
   e2DriftGuidance,
@@ -1266,6 +1266,13 @@ export class WorkflowExecutor {
     },
     pendingOutputArtifacts: ReadonlyArray<{ data_id: string; locator: string }> = [],
     attempt = 1,
+    /** W11.5 baseline-10: refuse a report whose chapter is still an unfilled
+     *  placeholder. True on the single-shot face, where the model writes the
+     *  whole container; false on the T2/T3 guided faces, whose container is
+     *  assembled from tiny steps and has no prose step at all (demanding
+     *  chapters there would make those faces unsatisfiable — their report is a
+     *  skeleton by construction, and the docx gate says so). */
+    requireProseChapters = true,
   ): Promise<
     { ok: true; reportText: string; loadCode: (ref: string) => string }
     | { ok: false; code: string; reason: string }
@@ -1500,6 +1507,24 @@ export class WorkflowExecutor {
     })
     if (!rendered.ok) {
       return { ok: false, code: rendered.code, reason: `report render refused: ${rendered.reason}` }
+    }
+    // W11.5 baseline-10 (首次 A-produce-chain 交付): a chapter the container left
+    // out renders as a VISIBLE placeholder, and the docx pre-export gate refuses
+    // such a paper (`no_placeholders`) — so the very next step after delivery
+    // rejected the first real chain-delivered paper (its 参考文献 was empty).
+    // The chain has a retry budget and the model can fill the chapter, so the
+    // refusal belongs HERE, naming the empty chapters and the narrative keys
+    // that fill them, instead of one step downstream where nobody can act.
+    const emptyChapters = requireProseChapters ? PROSE_CHAPTERS.filter((chapter) => {
+      const value = container.narrative?.[chapter.id]
+      return typeof value !== 'string' || value.trim() === ''
+    }) : []
+    if (emptyChapters.length > 0) {
+      return {
+        ok: false,
+        code: 'placeholder_chapter',
+        reason: `the rendered paper still carries unfilled chapters: ${emptyChapters.map(c => `${c.title}（narrative.${c.id}）`).join('、')} — a paper with an empty chapter cannot be exported (docx precheck: no_placeholders), so write those narrative strings in the container`,
+      }
     }
     // R1①（交付面固化）: the rendered report references each figure as
     // `figures/<figureId>.svg` — an INDEPENDENT file. The reference must
@@ -2209,7 +2234,9 @@ export class WorkflowExecutor {
           // longer the only way to a FORMAL delivery.
           const container = parseModelContainer(text)
           if (container.ok && (container.container.code?.length ?? 0) > 0) {
-            const chain = await this.runProductionChain(runId, ir, container.container, verdict.pendingOutputArtifacts, attempt)
+            const chain = await this.runProductionChain(
+              runId, ir, container.container, verdict.pendingOutputArtifacts, attempt, !isGuidedTier,
+            )
             if (!chain.ok) {
               // W11.5 baseline-7 (首次真实产出实测): a refusal from the chain
               // (code run / interpretation / report render) is the cause that
