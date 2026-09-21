@@ -114,6 +114,7 @@ export function e1AnalysisInstruction(requiredOutputIds: ReadonlyArray<string>):
     '  Good: [[ASSUMPTION: A-EXACT-TEST]] · [[ASSUMPTION: A_BATCH_2]]. Bad: [[ASSUMPTION: ...]] (a placeholder names nothing and cannot be referenced), [[ASSUMPTION: A B]] (contains a space).',
     '  Use the same short-id if you restate the same assumption.',
     'Mark the start of each sub-question\'s reasoning with an inline anchor: [[REQUIREMENT: <id>]], using the requirement ids listed above exactly.',
+    'Put a SHORT chapter title on that same line: `[[REQUIREMENT: R-Q1]] 问题1：<不超过 20 字的短标题>` (e.g. `问题1：最小样本量与拒收临界值`). The harness uses that title as the paper chapter heading for this sub-problem; without it the heading falls back to a slice of the problem statement, which reads like a paragraph instead of a title.',
     'Be concrete about method choices and their justification. Where you must assume something the problem does not give, say so explicitly and mark it.',
     'Do NOT output JSON. Do NOT output a container. Do NOT try to match any schema — that is the next step\'s job.',
     // W11.5: the checklist goes LAST, right before the model starts writing —

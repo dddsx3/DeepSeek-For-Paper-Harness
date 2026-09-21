@@ -271,7 +271,11 @@ function renderReport(input: {
    *  contains — input data, added to every allowed set. */
   readonly givenLiterals?: ReadonlyArray<string>
   /** W11.5 round-7（对齐参照物）: 每个子问题独立成章 + 独立校核章。 */
-  readonly problemChapters?: ReadonlyArray<{ readonly title: string; readonly body: string; readonly rows?: ReadonlyArray<{ readonly id: string; readonly columns: ReadonlyArray<string> }> }>
+  readonly problemChapters?: ReadonlyArray<{
+    readonly title: string
+    readonly body: string
+    readonly rows?: ReadonlyArray<{ readonly id: string; readonly columns: ReadonlyArray<string> }>
+  }>
   readonly verification?: string
   readonly skeletonRows?: SkeletonRows
   /** R5: executed output files for the 数据附录 auto table (basename rows). */
@@ -516,7 +520,7 @@ function renderReport(input: {
     input.figures.forEach((figure, fi) => {
       const fileName = `figures/${figure.figureId}.svg`
       const caption = figure.caption ?? figure.figureId
-      modelLines.push(`![${caption}](${fileName})`)
+      modelLines.push(`![图 ${fi + 1}：${caption}](${fileName})`)
       modelLines.push('')
       modelLines.push(`图 ${fi + 1}：${caption}`)
       modelLines.push('')

@@ -29,8 +29,10 @@ const INPUT: PaperSkeletonInput = {
 describe('PaperSkeleton', () => {
   it('renders all 12 sections (路线书 D3: 12 章无空槽)', () => {
     const text = renderPaperSkeleton(INPUT)
+    // round-8: 编号章写成 `## N <title>`，所以按行"包含"断言（摘要/参考文献/附录不编号）。
+    const headings = text.split(String.fromCharCode(10)).filter(line => line.startsWith('## '))
     for (const section of PAPER_SECTIONS) {
-      expect(text).toContain(`## ${section.title}`)
+      expect(headings.some(line => line.includes(section.title)), `缺章：${section.title}`).toBe(true)
     }
     expect(PAPER_SECTIONS).toHaveLength(12)
   })
@@ -68,7 +70,8 @@ describe('PaperSkeleton', () => {
     const text = renderPaperSkeleton({ title: '空壳' })
     expect(text).toContain('符号表由规范 IR 自动生成')
     expect(text).toContain('假设表由规范 IR 自动生成')
-    for (const section of PAPER_SECTIONS) expect(text).toContain(`## ${section.title}`)
+    const headings = text.split(String.fromCharCode(10)).filter(line => line.startsWith('## '))
+    for (const section of PAPER_SECTIONS) expect(headings.some(line => line.includes(section.title)), `缺章：${section.title}`).toBe(true)
   })
 
   it('machine rows escape markdown pipes (no broken tables)', () => {
@@ -95,9 +98,31 @@ describe('W11.5 round-7 — 逐问章与校核章（参照物结构）', () => {
       verification: '校核：与解析解逐位比对，偏差在 1e-3 内。'.repeat(10),
       slots: { restatement: 'x', analysis: 'y', evaluation: 'z', references: 'w', code: 'v', model: 'u' },
     })
-    const order = ['## 模型建立与求解', '## 问题1：设计抽样检测方案', '## 问题2：给出各阶段决策', '## 模型校核', '## 结果对比与校核']
+    // round-8: 章标题带序号（参照物形态），逐问章接在模型章（5）之后，校核章跟在
+    // **第一问**之后——参照物的「7 问题一模型的独立校核」就在 6 与 8 之间。
+    const order = ['## 5 模型建立与求解', '## 6 问题1：设计抽样检测方案', '## 7 问题1模型的独立校核', '## 8 问题2：给出各阶段决策', '## 9 结果对比与校核']
     const positions = order.map(h => text.indexOf(h))
     expect(positions.every(p => p >= 0), `缺章：${order.filter((_h, i) => (positions[i] ?? -1) < 0).join(', ')}`).toBe(true)
     expect([...positions].sort((a, b) => a - b)).toEqual(positions)
+  })
+
+  it('章与小节都带序号，摘要/参考文献/附录不带（参照物口径）', async () => {
+    const { renderPaperSkeleton } = await import('../../src/produce/paper-skeleton.ts')
+    const text = renderPaperSkeleton({
+      title: 't',
+      equations: [{ id: 'EQ-1', columns: ['EQ-1', 'q = a + b', 'DEFINITION', 'm'] }],
+      slots: { model: '### 方法\n\n方法正文。', code: '代码说明。' },
+    })
+    expect(text).toContain('## 摘要')
+    expect(text).toContain('## 1 问题重述')
+    expect(text).toContain('## 2 问题分析')
+    expect(text).toContain('## 5 模型建立与求解')
+    expect(text).toContain('## 参考文献')
+    expect(text).toContain('## 附录 A 数据与输出文件')
+    expect(text).toContain('## 附录 B 核心代码')
+    // 表号与题注（参照物：`**表 N：题注**` 独占一行）
+    expect(text).toContain('**表 1：方程清单**')
+    // 槽内容里的小节由渲染器统一编号，接在章号后
+    expect(text).toContain('### 5.1 方法')
   })
 })
