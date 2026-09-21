@@ -163,6 +163,55 @@ describe('W11.5 baseline-8 — naming a quantity instead of copying it', () => {
   })
 })
 
+describe('W11.5 baseline-12 — 序号不是数字（标签位）', () => {
+  it('情形(1)/问题2 这类序号不再被当成越界数字', () => {
+    // 第十二次真实运行：结论已经学会**点名**每个量（{R-N1}、{R-N2}），却因为
+    // 「情形(1)」「情形(2)」里的 1、2 被判为"越界数字"，两次尝试都耗在这个
+    // 假阳性上。契约是"关键数字只能来自 IR"，而情形序号不是模型的数字。
+    const verdict = renderReportV2({
+      title: 't',
+      results,
+      narrative: {
+        conclusion: {
+          claims: [{
+            text: '情形(1)平均冰厚为 {RES-ICE} m，情形(2)的池化比例为 {RES-POND}。',
+            quantity_refs: ['RES-ICE', 'RES-POND'],
+          }],
+        },
+      },
+    })
+    expect(verdict.ok, verdict.ok ? '' : verdict.reason).toBe(true)
+    if (verdict.ok) expect(verdict.text).toContain('情形(1)平均冰厚为 0.731 m')
+  })
+
+  it('问题1/第2种 这类标签位同样放行，括号里的数值仍按数字查', () => {
+    const labels = renderReportV2({
+      title: 't',
+      results,
+      narrative: { conclusion: { claims: [{ text: '问题1 的最小样本量为 {RES-POND}。', quantity_refs: ['RES-POND'] }] } },
+    })
+    expect(labels.ok, labels.ok ? '' : labels.reason).toBe(true)
+    // 括号里的带小数数值不是序号：0.95 仍须是声明过的量
+    const value = renderReportV2({
+      title: 't',
+      results,
+      narrative: { conclusion: { claims: [{ text: '在(0.95)的信度下最小样本量为 {RES-POND}。', quantity_refs: ['RES-POND'] }] } },
+    })
+    expect(value.ok).toBe(false)
+    if (!value.ok) expect(value.reason).toContain('0.95')
+  })
+
+  it('越界数字仍然拒（标签位不放宽真实数字）', () => {
+    const verdict = renderReportV2({
+      title: 't',
+      results,
+      narrative: { conclusion: { claims: [{ text: '情形(1)的最小样本量为 29，情形(2)为 {RES-POND}。', quantity_refs: ['RES-POND'] }] } },
+    })
+    expect(verdict.ok).toBe(false)
+    if (!verdict.ok) expect(verdict.reason).toContain('29')
+  })
+})
+
 describe('P2-4 figure embedding + provenance appendix', () => {
   const figure = {
     figureId: 'FIG-1',
