@@ -1,0 +1,163 @@
+/**
+ * W11.5 round-4 — 要素级写作契约（审计 §3.2 第 1+2 步）。
+ *
+ * 审计的实证：baseline-23 的「问题分析」207 字符、「模型评价」185 字符、参考文献
+ * 1 篇、问题3/4 的利润为 0 且无过程——**全部机械放行**。根因在 `executor.ts` 的
+ * 章节检查只问一句"是不是非空字符串"：
+ *
+ *     return typeof value !== 'string' || value.trim() === ''
+ *
+ * 于是模板只锁住了"有哪些章"，没锁住"每章要装什么"。本模块把五个散文章从
+ * "自由发挥"改成"要素化契约"：**要素在不在、逐问覆盖到没到**（机械可判），
+ * 而不是"写得好不好"（实质正确性，W8.9-C2 明确保留给模型）。
+ *
+ * 刻意不做的事：**不设字数下限**。审计明确要求"设要素门槛而非字门槛，避免模型
+ * 灌水"——一段 200 字但逐问归因、四要素齐备的分析是合格的下限。
+ *
+ * @module @deepseek-ai/dsh-paper-foundation/src/delivery/prose-contracts
+ */
+
+export interface ProseContractViolation {
+  /** The narrative key the chapter is written in (e.g. `analysis`). */
+  readonly chapter: string
+  /** Chinese title, for the refusal message the model reads. */
+  readonly title: string
+  readonly reason: string
+}
+
+/** One required output, as the contract needs to see it. */
+export interface ContractRequirement {
+  readonly requirementId: string
+  readonly statement: string
+}
+
+/**
+ * The ordinals a requirement can be named by: `R-Q2` is 问题2, and a paper may
+ * spell it 问题 2 / 第2问 / (2). All spellings of the same question count.
+ */
+function ordinalsOf(requirementId: string): ReadonlyArray<string> {
+  const match = /^R-Q(\d+)$/.exec(requirementId)
+  if (match === null) return [requirementId]
+  const n = match[1] ?? ''
+  return [`问题${n}`, `问题 ${n}`, `第${n}问`, `第 ${n}问`, `(${n})`, `（${n}）`, requirementId]
+}
+
+/** Whether the text names this requirement in any accepted spelling. */
+function namesRequirement(text: string, requirementId: string): boolean {
+  return ordinalsOf(requirementId).some(spelling => text.includes(spelling))
+}
+
+/** Closed element sets: each element is satisfied by any of its spellings. */
+const EVALUATION_ELEMENTS: ReadonlyArray<{ readonly name: string; readonly spellings: ReadonlyArray<string> }> = [
+  { name: '优点', spellings: ['优点', '优势', '长处', 'advantage', 'strength'] },
+  { name: '局限', spellings: ['局限', '不足', '缺点', '适用范围', 'limitation', 'weakness', 'caveat'] },
+  { name: '敏感性', spellings: ['敏感性', '灵敏度', '稳健', '鲁棒', 'sensitiv', 'robust'] },
+  { name: '推广', spellings: ['推广', '拓展', '可移植', 'generaliz', 'extend', 'transferab'] },
+]
+
+/** Method-family keywords a reference must touch at least one of (weak association). */
+const METHOD_KEYWORDS: ReadonlyArray<string> = [
+  '抽样', '检验', '序贯', '贝叶斯', '决策', '优化', '动态规划', '仿真', '模拟', '回归',
+  'binomial', 'sequential', 'bayes', 'decision', 'optimiz', 'sampling', 'simulation',
+  'regression', 'statistic', 'hypothesis', 'monte',
+]
+
+/** Reference entries: every `[N]` marker starts one (line-per-entry or inline). */
+function referenceEntries(text: string): ReadonlyArray<string> {
+  return (text.match(/\[\d+\][^[]*/g) ?? []).map(s => s.trim())
+}
+
+/**
+ * The requirements the per-question chapters are held to.
+ *
+ * `R-OUT` is the whole-paper output (its statement is the entire problem), so it
+ * is not a "question" a per-question passage can be missing: only `R-Q<n>` ids
+ * take part in the per-question coverage checks.
+ */
+function perQuestion(requirements: ReadonlyArray<ContractRequirement>): ReadonlyArray<ContractRequirement> {
+  return requirements.filter(r => /^R-Q\d+$/.test(r.requirementId))
+}
+
+/**
+ * The element-level findings for one run's narrative.
+ *
+ * @param narrative - the container's narrative block (already merged across attempts).
+ * @param requirements - every REQUIRED_OUTPUT registered for this run; the prose
+ *        chapters are held to "one passage per question", which is the mechanical
+ *        half of the audit's complaint (207 字的问题分析没覆盖任何一问).
+ */
+export function proseContractViolations(
+  narrative: Readonly<Record<string, unknown>>,
+  requirements: ReadonlyArray<ContractRequirement>,
+): ReadonlyArray<ProseContractViolation> {
+  const out: ProseContractViolation[] = []
+  const textOf = (key: string): string => (typeof narrative[key] === 'string' ? String(narrative[key]) : '')
+
+  // 问题分析 — every sub-problem must be attributed (which family/method, why).
+  const analysis = textOf('analysis')
+  if (analysis.trim() !== '') {
+    const missing = perQuestion(requirements).filter(r => !namesRequirement(analysis, r.requirementId))
+    if (missing.length > 0) {
+      out.push({
+        chapter: 'analysis',
+        title: '问题分析',
+        reason: `问题分析没有逐问归因：缺 ${missing.map(r => `${r.requirementId}（${r.statement.slice(0, 24)}…）`).join('、')}`
+          + '。每问至少写清"归到哪类方法 + 为什么 + 难点在哪"一段——审稿人按问读，缺一问就是没分析。',
+      })
+    }
+  }
+
+  // 模型评价 — four elements, each a real passage.
+  const evaluation = textOf('evaluation')
+  if (evaluation.trim() !== '') {
+    const evaluationLower = evaluation.toLowerCase()
+    const missingElements = EVALUATION_ELEMENTS.filter(
+      element => !element.spellings.some(s => evaluationLower.includes(s.toLowerCase())),
+    )
+    if (missingElements.length > 0) {
+      out.push({
+        chapter: 'evaluation',
+        title: '模型评价与推广',
+        reason: `模型评价缺要素：${missingElements.map(e => e.name).join('、')}`
+          + '。这一章固定四要素——优点 / 局限 / 敏感性 / 推广，每项一段（"结果可靠、可推广"这类一句话不算）。',
+      })
+    }
+  }
+
+  // 参考文献 — a real bibliography, at least weakly tied to the methods used.
+  const references = textOf('references')
+  if (references.trim() !== '') {
+    const entries = referenceEntries(references)
+    if (entries.length < 3) {
+      out.push({
+        chapter: 'references',
+        title: '参考文献',
+        reason: `参考文献只有 ${entries.length} 条（少于 3 条）：建模论文要给出方法与数据来源的出处，`
+          + '每条形如 "[1] 作者. 题名. 出处. 年."，并用正文引用它。',
+      })
+    } else if (!METHOD_KEYWORDS.some(k => references.toLowerCase().includes(k.toLowerCase()))) {
+      out.push({
+        chapter: 'references',
+        title: '参考文献',
+        reason: '参考文献与本文所用方法没有可辨的关联：至少一条要指向你实际用的方法'
+          + '（抽样检验 / 序贯 / 贝叶斯 / 决策 / 优化 / 仿真 …）。',
+      })
+    }
+  }
+
+  // 代码附录 — must say which questions the code solves.
+  const code = textOf('code')
+  if (code.trim() !== '' && perQuestion(requirements).length > 0) {
+    const missing = perQuestion(requirements).filter(r => !namesRequirement(code, r.requirementId))
+    if (missing.length > 0) {
+      out.push({
+        chapter: 'code',
+        title: '代码附录',
+        reason: `代码附录没有说明实现了哪几问：缺 ${missing.map(r => r.requirementId).join('、')}`
+          + '。逐问点名（"问题2 的 16 组合枚举由 solve_q2() 完成"），读者才知道结果从哪段代码来。',
+      })
+    }
+  }
+
+  return out
+}

@@ -42,6 +42,7 @@ import { produceInterpretation } from './produce/interpretation-producer.ts'
 import { PROSE_CHAPTERS, numericLiterals, renderReportV2 } from './produce/report-renderer.ts'
 import { requirementCoverageFindings } from './delivery/requirement-coverage.ts'
 import { arithmeticFindingsOf, deliveredNumberFindings } from './delivery/delivered-numbers.ts'
+import { proseContractViolations } from './delivery/prose-contracts.ts'
 import { SHARD_NAMES, shardPrompt, parseShard, mergeShards } from './produce/shard-declare.ts'
 import {
   e2DriftGuidance,
@@ -1438,6 +1439,15 @@ export class WorkflowExecutor {
       this.#narrativeByRun.set(runIdText, carried)
     }
     const narrative: Record<string, unknown> = { ...carried }
+    // The prose contracts are held to the run's REQUIRED_OUTPUTs (one passage
+    // per question), read from the store — the same set the coverage gate uses.
+    const contractRequirements: ReadonlyArray<{ requirementId: string; statement: string }> =
+      [...ir.list()]
+        .filter(r => r.kind === 'RequirementSpec')
+        .map((r) => {
+          const req = r.value as { requirement_id: string; statement: string }
+          return { requirementId: req.requirement_id, statement: req.statement }
+        })
     // W11.5 baseline-19: the chapter check runs BEFORE the code, not after the
     // render. Its input is the container's narrative, so an execution buys
     // nothing for it — and in the eighteenth baseline two attempts paid a full
@@ -1736,6 +1746,20 @@ export class WorkflowExecutor {
         ok: false,
         code: 'required_output_unpaid',
         reason: `the paper does not answer every sub-problem the statement asks: ${named.join('；')} — declare a Result AND a CRITICAL Claim over it for EACH required output (a sub-problem with no result of its own reads as unanswered to any reviewer), then re-emit the container`,
+      }
+    }
+
+    // W11.5 round-4 (审计 §3.2 第 2 步): "非空" 曾是这一维唯一的门槛，而它放行了
+    // 207 字的问题分析、185 字的模型评价、1 篇参考文献、利润=0 且无过程的问题。
+    // 现在每章按**要素**判：逐问归因、四要素齐备、文献 ≥3 且与所用方法有关联、
+    // 代码附录点名实现了哪几问。要素门槛锁的是下限（不空洞、逐问覆盖），不判
+    // "写得好不好"——实质正确性仍由模型负责（W8.9-C2 保留）。
+    const proseViolations = proseContractViolations(narrative, contractRequirements)
+    if (proseViolations.length > 0) {
+      return {
+        ok: false,
+        code: 'prose_contract',
+        reason: `the paper's prose chapters do not meet the element contract: ${proseViolations.map(v => `${v.title}——${v.reason}`).join('；')}`,
       }
     }
 

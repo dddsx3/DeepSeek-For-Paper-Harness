@@ -95,7 +95,7 @@ function t1Container(): string {
       ],
       figures: [{ figure_id: 'F-OUT', chart_type: 'table', data_refs: ['RES-OUT'], caption: 'result table' }],
     },
-    narrative: { title: 'estimate ice thickness', conclusion: 'mean ice thickness is 0.731 m', methods: 'The regression is fitted by least squares and the mean is read from the fit.', restatement: 'The problem asks for the mean ice thickness along the survey line.', analysis: 'A linear regression on sonar returns estimates the mean thickness.', evaluation: 'The estimate is stable under the survey-line subsampling; the model is transferable to similar shelves.', references: '[1] Polar Survey Group. Sonar returns along line A. 2024.', code: 'The code fits the regression and writes the mean thickness to result.json.' },
+    narrative: { title: 'estimate ice thickness', conclusion: 'mean ice thickness is 0.731 m', methods: 'The regression is fitted by least squares and the mean is read from the fit.', restatement: 'The problem asks for the mean ice thickness along the survey line.', analysis: 'A linear regression on sonar returns estimates the mean thickness.', evaluation: 'Advantages: the least-squares fit is simple and its sensitivity to subsampling is small (robust). Limitations: it assumes a homogeneous slab and ignores lateral variation. Sensitivity: a 20% perturbation of the sonar returns moves the estimate by under 3%. Generalization: the same regression transfers to other survey lines.', references: '[1] Wald A. Sequential Analysis. 1947. [2] Polar Survey Group. Sonar returns along line A. 2024. [3] Mao S. Probability and Statistics. 2011.', code: 'The code fits the regression and writes the mean thickness to result.json.' },
   })
 }
 
@@ -357,7 +357,7 @@ describe('T3 template fill — executor end to end', () => {
         ],
         figures: [{ figure_id: 'F-OUT', chart_type: 'table', data_refs: ['RES-OUT'], caption: 'result table' }],
       },
-      narrative: { title: 'estimate ice thickness', conclusion: 'mean_thickness is 0.731 m', methods: 'The regression is fitted by least squares and the mean is read from the fit.', restatement: 'The problem asks for the mean ice thickness along the survey line.', analysis: 'A linear regression on sonar returns estimates the mean thickness.', evaluation: 'The estimate is stable under the survey-line subsampling; the model is transferable to similar shelves.', references: '[1] Polar Survey Group. Sonar returns along line A. 2024.', code: 'The code fits the regression and writes the mean thickness to result.json.' },
+      narrative: { title: 'estimate ice thickness', conclusion: 'mean_thickness is 0.731 m', methods: 'The regression is fitted by least squares and the mean is read from the fit.', restatement: 'The problem asks for the mean ice thickness along the survey line.', analysis: 'A linear regression on sonar returns estimates the mean thickness.', evaluation: 'Advantages: the least-squares fit is simple and its sensitivity to subsampling is small (robust). Limitations: it assumes a homogeneous slab and ignores lateral variation. Sensitivity: a 20% perturbation of the sonar returns moves the estimate by under 3%. Generalization: the same regression transfers to other survey lines.', references: '[1] Wald A. Sequential Analysis. 1947. [2] Polar Survey Group. Sonar returns along line A. 2024. [3] Mao S. Probability and Statistics. 2011.', code: 'The code fits the regression and writes the mean thickness to result.json.' },
     })
 
   }
