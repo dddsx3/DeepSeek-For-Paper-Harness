@@ -402,6 +402,20 @@ export function foldForAnchorMatch(text: string): string {
   // still agree (negative controls keep real rewrites failing).
   out = out.replace(/[,;:?!]/g, ch => ASCII_TO_CJK_PUNCT[ch] ?? ch)
   out = out.replace(/[()（）]/g, '')
+  // W11.5 round-5 (baseline-30 实测：4/4 次尝试撞在同一条): the model is not
+  // rewriting content — it is RE-RENDERING LaTeX notation. It wrote `Preject`
+  // where its own E1 said `P\text{reject}`, and `X>=9` where E1 said `X\ge9`.
+  // Character-for-character comparison therefore failed on text that agrees
+  // word for word. Same class as the punctuation fold above (baseline-1): the
+  // fold normalises NOTATION; every word and digit must still match, so a real
+  // rewrite still fails (the negative controls keep that pinned).
+  out = out.replace(/\\(?:text|mathrm|mathit|mathbf|operatorname)\{([^{}]*)\}/g, '$1')
+  out = out.replace(/\\(?:ge|geq)(?![A-Za-z])/g, '>=')
+  out = out.replace(/\\(?:le|leq)(?![A-Za-z])/g, '<=')
+  out = out.replace(/\\mid(?![A-Za-z])/g, '|')
+  out = out.replace(/\\(?:times|cdot)(?![A-Za-z])/g, 'x')
+  out = out.replace(/\\(?:left|right)(?![A-Za-z])/g, '')
+  out = out.replace(/\\([A-Za-z]+)/g, '$1')
   // Whitespace is a rendering difference: the model may re-wrap a sentence it
   // copied. Removing it is what lets `附录（1）` match `附录 (1)`.
   return out.replace(/\s+/g, '')
