@@ -96,6 +96,12 @@ export type ProduceVerdict =
     ok: true
     entries: ReadonlyArray<{ kind: IrKind; id: string }>
     /**
+     * W11.5 baseline-3: ids already registered by an EARLIER attempt of this
+     * same run whose re-declaration was skipped (first declaration wins).
+     * Reported, never silent — the audit trail shows what was superseded.
+     */
+    superseded: ReadonlyArray<{ kind: IrKind; id: string }>
+    /**
        * W1: model-declared output artifacts, carried out of admission
        * UNWRITTEN — the harness mints their full IR records after the run,
        * with sha256 computed over the real captured bytes (the impossible
@@ -334,6 +340,7 @@ export function produceContainerInto(
   // this container" and skipped; an id whose content DIFFERS stays a
   // conflict (the append-only guarantee is unchanged).
   const written: { kind: IrKind; id: string }[] = []
+  const superseded: { kind: IrKind; id: string }[] = []
   for (const entry of validated) {
     const kind = entry.kind as IrKind
     const id = readIrObjectId(kind, entry.value)
@@ -344,11 +351,29 @@ export function produceContainerInto(
         onEntry?.(kind, id)
         continue
       }
-      return {
-        ok: false,
-        code: 'conflicting_id',
-        reason: `entry '${kind}' id '${id}' is already registered with DIFFERENT content (append-only store; a duplicate id is a conflict, not an update)`,
+      // W11.5 baseline-3 (首次真实产出实测): a RETRY re-declares the whole
+      // container and the model's second pass differs in RENDERING-LEVEL
+      // ways — 27 of 42 shared ids differed between attempt 1 and 2, mostly
+      // `token: p_1` → `p1` (subscript spelling) plus a few judgment edits.
+      // Refusing every such id made the retry loop unwinnable: attempt 1's
+      // entries were already admitted, so attempts 2-3 died on
+      // `conflicting_id` forever. The store here is PER RUN, so "already
+      // registered" always means "declared by an earlier attempt of this
+      // same run" — and that attempt was REFUSED, so its state is not
+      // authoritative. First declaration wins; the repeat is SKIPPED and
+      // reported (never silent), so the audit trail shows both.
+      //
+      // The harness-owned input assets keep the hard refusal: re-declaring
+      // DA-RAW/P1/R-* with different content is a real error, not a retry.
+      if (reserved?.has(id) === true) {
+        return {
+          ok: false,
+          code: 'conflicting_id',
+          reason: `entry '${kind}' id '${id}' is a HARNESS-OWNED input asset already registered with different content — it must never be re-declared`,
+        }
       }
+      superseded.push({ kind, id })
+      continue
     }
     const verdict = ir.put(kind, entry.value)
     if (!verdict.accepted) {
@@ -364,5 +389,5 @@ export function produceContainerInto(
     written.push({ kind, id })
     onEntry?.(kind, id)
   }
-  return { ok: true, entries: written, pendingOutputArtifacts }
+  return { ok: true, entries: written, superseded, pendingOutputArtifacts }
 }

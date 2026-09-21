@@ -1959,6 +1959,18 @@ export class WorkflowExecutor {
               detail: { kind: entry.kind, id: entry.id, nodeId: node.id },
             })
           }
+          // W11.5 baseline-3: a retry re-declares the whole container; ids the
+          // FIRST attempt already registered keep their first content (the
+          // refused attempt is not authoritative). The skip is audited — a
+          // silent supersede would hide a real content change from the trail.
+          for (const entry of verdict.superseded) {
+            await this.audit({
+              eventType: 'ir_entry_written',
+              actor: 'paper-executor',
+              runId,
+              detail: { kind: entry.kind, id: entry.id, nodeId: node.id, stage: 'superseded-by-first-declaration', attempt },
+            })
+          }
           // P2-1 (D7 obligation): when the container carries executable code
           // the EXECUTE stage runs the FULL production chain — code-run
           // (deployment-owned runnerCommand, model can never choose one),

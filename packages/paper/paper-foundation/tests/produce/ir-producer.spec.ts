@@ -371,3 +371,64 @@ describe('W11.5 baseline-2 — 容器围栏是渲染差异（内容仍须合法�
     expect(parseModelContainer('前言 ' + JSON.stringify({ __dsh_paper: 'ir-container-v1' })).ok).toBe(false)
   })
 })
+
+// ---------------------------------------------------------------------------
+// W11.5 baseline-3（首次真实产出实测）—— 重试容错：首次声明为准。
+// 证据：attempt 1 的条目已入 store，attempt 2 重发整容器时有 27/42 条同 id
+// 内容不同（多为 `token: p_1` → `p1` 这类写法差异 + 少量判断变化），
+// append-only 冲突使重试循环**永远赢不了**（attempt 2/3 全部 conflicting_id）。
+// ---------------------------------------------------------------------------
+describe('W11.5 baseline-3 — 同 run 重试：首次声明为准（跨 run/保留 id 守卫不动）', () => {
+  const sym = (id: string, token: string): Record<string, unknown> => ({
+    symbol_id: id, scope_ref: 'P1', token, meaning: 'x', unit: 'dimensionless',
+    role: 'PARAMETER', shape: 'SCALAR', domain: 'PROBABILITY', index_set: [],
+  })
+  const container = (entries: ReadonlyArray<unknown>): string => JSON.stringify({
+    __dsh_paper: 'ir-container-v1', entries, code: 'console.log(1)',
+    run: { outputBasenames: [], seed: 1 },
+  })
+
+  const registerInputs = async (ir: import('../../src/ir/store.ts').ModelingIr): Promise<void> => {
+    // harness-style input assets (the reference closure needs P1)
+    const entries: Array<[string, Record<string, unknown>]> = [
+      ['DataArtifact', { data_id: 'DA-RAW', role: 'RAW_PROBLEM', locator: 'file:///p.md', content_hash: 'sha256:' + 'a'.repeat(64), media_type: 'text/markdown', description: 'x' }],
+      ['RequirementSpec', { requirement_id: 'R-OUT', source_data_ref: 'DA-RAW', requirement_type: 'REQUIRED_OUTPUT', statement: 'x' }],
+      ['ProblemSpec', { problem_id: 'P1', raw_problem_ref: 'DA-RAW', requirement_refs: ['R-OUT'] }],
+    ]
+    for (const [kind, value] of entries) {
+      const v = ir.put(kind as never, value)
+      if (!v.accepted) throw new Error(String(v.failures[0]?.reason))
+    }
+  }
+
+  it('重试改写了已注册条目的内容 → 跳过（不冲突），首次内容保留', async () => {
+    const { ModelingIr } = await import('../../src/ir/store.ts')
+    const { produceContainerInto } = await import('../../src/produce/ir-producer.ts')
+    const ir = new ModelingIr()
+    await registerInputs(ir)
+    const first = produceContainerInto(ir, container([{ kind: 'SymbolSpec', value: sym('S-P1', 'p_1') }]))
+    expect(first.ok).toBe(true)
+    // retry re-declares with a different token spelling
+    const retry = produceContainerInto(ir, container([{ kind: 'SymbolSpec', value: sym('S-P1', 'p1') }]))
+    expect(retry.ok).toBe(true)
+    if (retry.ok) {
+      expect(retry.superseded.map(s => s.id)).toEqual(['S-P1'])
+      expect(retry.entries).toHaveLength(0)
+    }
+    // first declaration wins — the store still carries p_1
+    expect((ir.get('S-P1')?.value as { token: string }).token).toBe('p_1')
+  })
+
+  it('harness 保留 id 被改写 → 仍然硬拒（那不是重试，是错误）', async () => {
+    const { ModelingIr } = await import('../../src/ir/store.ts')
+    const { produceContainerInto } = await import('../../src/produce/ir-producer.ts')
+    const ir = new ModelingIr()
+    const reserved = new Set(['DA-RAW'])
+    const okFirst = ir.put('DataArtifact', { data_id: 'DA-RAW', role: 'RAW_PROBLEM', locator: 'file:///p.md', content_hash: 'sha256:' + 'a'.repeat(64), media_type: 'text/markdown', description: 'x' })
+    expect(okFirst.accepted).toBe(true)
+    const verdict = produceContainerInto(ir, container([{ kind: 'DataArtifact', value: { data_id: 'DA-RAW', role: 'RAW_PROBLEM', locator: 'file:///other.md' } }]), undefined, { reservedIds: reserved })
+    expect(verdict.ok).toBe(false)
+    // Pass 1 的保留 id 守卫先命中（更早、更准确）；Pass 2 的分支是纵深防御
+    if (!verdict.ok) expect(verdict.reason).toContain('harness-registered asset id')
+  })
+})
