@@ -145,6 +145,37 @@ export interface ModelContainer {
 /** A container with every entry's schema already checked (dry pass). */
 type ValidatedContainer = ModelContainer & { entries: ReadonlyArray<ModelEntry & { kind: IrKind }> }
 
+/**
+ * The index just past the FIRST complete top-level JSON object in `text`.
+ *
+ * 逐字符扫描、跟踪字符串与转义——不能用正则：容器里有大量 `{}` 出现在字符串值
+ * （代码、LaTeX、narrative）里，正则会在第一个 `}` 处收错。
+ */
+const BACKSLASH = String.fromCharCode(92)
+
+function firstJsonObjectEnd(text: string): number | null {
+  let depth = 0
+  let inString = false
+  let escaped = false
+  for (let i = 0; i < text.length; i += 1) {
+    const ch = text[i]
+    if (inString) {
+      if (escaped) { escaped = false; continue }
+      if (ch === BACKSLASH) { escaped = true; continue }
+      if (ch === '"') inString = false
+      continue
+    }
+    if (ch === '"') { inString = true; continue }
+    if (ch === '{') { depth += 1; continue }
+    if (ch === '}') {
+      depth -= 1
+      if (depth === 0) return i + 1
+      if (depth < 0) return null
+    }
+  }
+  return null
+}
+
 /** Parse raw model text into a container, refusing non-container shapes. */
 export function parseModelContainer(text: string): { ok: true; container: ValidatedContainer } | { ok: false; code: 'parse_failed'; reason: string } {
   // W11.5 baseline-2 (首次真实产出实测): the model wrapped the container in a
@@ -159,7 +190,43 @@ export function parseModelContainer(text: string): { ok: true; container: Valida
   try {
     parsed = JSON.parse(unfenced)
   } catch (error) {
-    return { ok: false, code: 'parse_failed', reason: `model output is not JSON: ${String(error).split('\n')[0]}` }
+    // W11.5 baseline-r9（真实运行实测，两次尝试各自的形态都抓到了）:
+    //
+    //   attempt 1: 容器**完整**，末尾多一个 `}`（"Extra data: line 1 column 14170"）
+    //   attempt 2: 容器**完整**，后面跟了一段写给自己的批注
+    //              （"Note: claim criticality must be the st…"）
+    //
+    // 两者都是**信封噪声**，不是内容违规：对象本身合法、可解析，缺的只是"输出里
+    // 只能有这一个对象"。这与已确立的 markdown 围栏同族（"the fence is a RENDERING
+    // difference — the JSON inside is the same object"）：取第一个**完整**的顶层对象，
+    // 丢掉尾随文本，**内容检查一条都不放宽**。
+    //
+    // 唯一必须守住的边界：尾随文本里**不得再出现容器标记**——那意味着模型写了第二个
+    // 容器（可能是修正版），此时取第一个会静默用旧的那份，必须照旧拒绝让模型重来。
+    const end = firstJsonObjectEnd(unfenced)
+    const head = end === null ? '' : unfenced.slice(0, end)
+    const tail = end === null ? '' : unfenced.slice(end)
+    const markerOnly = /^\{\s*"__dsh_paper"\s*:\s*"ir-container-v1"\s*\}\s*/.exec(unfenced)
+    if (markerOnly !== null) {
+      // 标记被写成独立对象、真正的容器跟在后面：把标记并进后面那个对象。
+      const rest = unfenced.slice(markerOnly[0].length).replace(/^[,\s]+/, '')
+      if (!rest.startsWith('{')) {
+        return { ok: false, code: 'parse_failed', reason: `model output is not JSON: ${String(error).split('\n')[0]}` }
+      }
+      try {
+        parsed = JSON.parse(`{"__dsh_paper":"${MODEL_CONTAINER_VERSION}",${rest.slice(1)}`)
+      } catch (second) {
+        return { ok: false, code: 'parse_failed', reason: `model output is not JSON: ${String(second).split('\n')[0]}` }
+      }
+    } else if (head.startsWith('{') && !tail.includes(`"${MODEL_CONTAINER}"`)) {
+      try {
+        parsed = JSON.parse(head)
+      } catch (second) {
+        return { ok: false, code: 'parse_failed', reason: `model output is not JSON: ${String(second).split('\n')[0]}` }
+      }
+    } else {
+      return { ok: false, code: 'parse_failed', reason: `model output is not JSON: ${String(error).split('\n')[0]}` }
+    }
   }
   if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
     return { ok: false, code: 'parse_failed', reason: 'model output is not a JSON object' }

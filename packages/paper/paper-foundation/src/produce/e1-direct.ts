@@ -119,6 +119,15 @@ export function renderE1DirectDraft(input: E1DirectInput): E1DirectDraft {
   // 否则每问的分析会在正文里出现两遍。没有框架段时退回全文，宁可重复不丢内容。
   const modelSlot = problemChapters.length > 0 && framework !== '' ? framework : input.e1Text
 
+  // W11.5 baseline-r9（真实运行实测）: 兜底稿的"空章"此前渲染成机器占位
+  // `_(模型待写入)_`——Word 导出的 no_placeholders 门因此拒绝导出（6 处占位），
+  // PDF 里则是六段机器占位符。占位符不是内容，**说明为什么缺**才是。所以每个
+  // 没产出的章都写一句如实的说明（这一章由谁产出、为什么没有、读者该注意什么），
+  // 并且不假装它是论文的一部分。
+  const absent = (what: string): string =>
+    `本稿没有${what}：这一章由结构化规范化（E2）产出的容器提供，本次规范化未通过，`
+    + '因此没有可交付内容。本稿只是模型的建模分析（E1）本身，其中的数字、引用与结论'
+    + '均未经运行验证，请勿直接引用；失败原因与未通过的保真检查见文末「交付标注」附录。'
   const markdown = renderPaperSkeleton({
     title: input.title,
     assumptions,
@@ -128,6 +137,16 @@ export function renderE1DirectDraft(input: E1DirectInput): E1DirectDraft {
       abstract: note,
       // 模型建立与求解：统一框架段（拆章成功时）或 E1 全文（拆不动时）。
       model: modelSlot,
+      // 问题分析：逐问分析已经逐问成章（见下文各「问题N」章），本节不重复。
+      analysis: problemChapters.length > 0
+        ? '逐问分析已按子问题逐章给出（见下文各「问题N」章）：每一章给出该问的建模思路、方法族判断与难点。'
+        : absent('问题分析'),
+      // 问题重述：E1 是对自己写的工作笔记，没有"重述"这一节；把题面要求如实指出来。
+      restatement: '本稿的问题重述由模型在结构化产出中给出，本次未产出；请对照题目原文阅读下文各「问题N」章的分析。',
+      results: absent('结果对比与校核'),
+      evaluation: absent('模型评价与推广'),
+      references: absent('参考文献'),
+      code: absent('代码附录'),
     },
   })
 

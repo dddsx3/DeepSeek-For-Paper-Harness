@@ -235,7 +235,7 @@ export const EXECUTE_PROTOCOL_TEACHING = [
   '    · at least ONE figure in interpretations.figures.',
   '    · EVERY sub-problem needs its own Result AND a CRITICAL claim over it; one aggregate number for four questions is refused.',
   '    · every AssumptionSpec must be REFERENCED by a ModelSpec.assumption_refs and carry justification_refs (MODELING_CHOICE: what in the problem or your analysis justifies it; GIVEN: the DataArtifact it came from). An assumption no model uses, or one with no justification, is refused.',
-  '  Container shape (REQUIRED, FIRST LINE MATTERS): the output\'s first characters must be `{"__dsh_paper":"ir-container-v1"` — the version marker IS the container\'s identity, and a container missing it is refused before anything else is checked (real refusal: the first real run\'s attempt 1 produced a full, valid container that started with `{"run": …` and was refused on the missing marker alone).',
+  '  Container shape (REQUIRED, FIRST LINE MATTERS): the output\'s first characters must be `{"__dsh_paper":"ir-container-v1"` — the version marker IS the container\'s identity, and a container missing it is refused before anything else is checked (real refusal: the first real run\'s attempt 1 produced a full, valid container that started with `{"run": …` and was refused on the missing marker alone — and that marker must be the FIRST KEY of ONE single JSON object: do NOT write the marker as its own object or its own line and then a second object (a real run did exactly that and was refused with "Unexpected non-whitespace character after JSON at position 32")).',
   '  Re-emission on retry (REQUIRED): a retried container must re-declare every entry it declared before, BYTE-IDENTICAL unless the refusal message asked you to change that entry — the store is append-only and same-id-different-content is a conflict. If you must improve wording, give the entry a NEW id instead of editing the old one.',
   '  Assumption completeness (REQUIRED, the B3-reverse rule): EVERY `[[ASSUMPTION: id]]` anchor that exists in the analysis MUST have a matching AssumptionSpec entry in `entries` — one anchor, one declaration, same id, no exceptions. A container that declares only "the assumptions I found important" while the analysis marked 15 is REFUSED (real refusal: the first real run marked 15 anchors, the container declared 9, and the fidelity gate refused all three attempts on exactly this gap). When in doubt, declare it — an over-declared assumption is checked, an under-declared one kills the container.',
   '  narrative fields (REQUIRED — the paper cannot be delivered without them): the narrative object must carry EIGHT non-empty strings: `title`, `methods` (模型建立与求解 — the model/derivation text, NOT a one-line summary: state the equations or recursions you actually solve), `conclusion`, `restatement` (问题重述), `analysis` (问题分析), `evaluation` (模型评价与推广), `references` (参考文献条目，形如 "[1] 作者. 题名. 年."), `code` (代码附录说明). A missing one renders as a VISIBLE placeholder and the harness refuses the paper before delivery with the exact key named (real refusals: "the paper still lacks chapters the container must supply: 模型建立与求解（方法）（narrative.methods）" — the model wrote the other six and kept omitting `methods`; and "代码附录（narrative.code）"). A retry must keep the chapters it already wrote: re-emit them all in the same container.',
@@ -3086,13 +3086,23 @@ export class WorkflowExecutor {
         // repeats). Audit names the class so the trail says "truncated",
         // never "refused".
         if (failure.code === 'EXECUTE_OUTPUT_TRUNCATED') {
-          await this.engine.transitionRun(runId, 'failed')
+          // W11.5 baseline-r9（真实运行实测）: 截断是**传输事实**（提供方输出上限），
+          // 模型这一轮写下的 E1 分析是真的、也已经落盘——fail-soft 口径下没有理由
+          // 因此交付零内容。所以先走 E1 直通兜底（标注交付），兜底不适用才终结。
+          // 零重试不变：天花板不会因为重试而移动。
           await this.audit({
             eventType: 'truncated',
             actor: 'paper-executor',
             runId,
             detail: { code: failure.code, role, attempt, class: 'truncated' },
           })
+          const truncatedDirect = await this.e1DirectFallback(
+            runId,
+            node,
+            `provider output ceiling hit mid-generation (attempt ${attempt}): ${failure.message.slice(0, 300)}`,
+          )
+          if (truncatedDirect !== null) return truncatedDirect
+          await this.engine.transitionRun(runId, 'failed')
           throw new WorkflowExecutionError(
             'gate-failed',
             `node '${node.id}' TRUNCATED: ${failure.message} (zero retry — the provider ceiling will not move)`,

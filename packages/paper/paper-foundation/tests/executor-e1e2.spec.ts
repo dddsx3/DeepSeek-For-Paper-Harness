@@ -512,6 +512,8 @@ interface HarnessOpts {
   noBodyStore?: boolean
   /** W8.12: fail-soft grading (the mass-tier default the shell sets via --fail-soft). */
   failSoft?: boolean
+  /** W11.5 baseline-r9: the output index that reports `max-tokens` (a real truncation). */
+  truncatedAt?: number
 }
 
 async function harness(outputs: ReadonlyArray<string>, opts?: HarnessOpts) {
@@ -539,6 +541,7 @@ async function harness(outputs: ReadonlyArray<string>, opts?: HarnessOpts) {
 ${joined}`
       prompts.push(seen)
       let text = ''
+      let truncate = false
       if (system.includes('reviewer')) {
         text = '{"defects":[]}'
       } else if (seen.includes('numbered execution plan')) {
@@ -546,6 +549,7 @@ ${joined}`
       } else {
         // E1 then E2 — the order the receive layer issues them.
         text = outputs[Math.min(index, outputs.length - 1)] ?? ''
+        truncate = opts?.truncatedAt === index
         index += 1
       }
       return (async function* () {
@@ -553,7 +557,7 @@ ${joined}`
         yield { type: 'text-delta', index: 0, text }
         yield { type: 'block-end', index: 0, block: { type: 'text', text } }
         yield { type: 'usage', usage: { inputTokens: 10, outputTokens: 10 } }
-        yield { type: 'finish', index: 0, reason: { kind: 'stop' as const } }
+        yield { type: 'finish', index: 0, reason: truncate ? { kind: 'max-tokens' as const } : { kind: 'stop' as const } }
       })()
     },
   } as never)
@@ -1247,6 +1251,18 @@ describe('W8.12 — E1 direct delivery (fail-soft, E2 exhausted)', () => {
     // and the refusal is on the trail verbatim
     const retries = ctx.paperAudit.list(runId).filter((e: { eventType: string; detail?: { code?: string } }) => e.eventType === 'provider_retry')
     expect(retries.some((e: { detail?: { code?: string } }) => e.detail?.code === 'E1_E2_FIDELITY_VIOLATION')).toBe(true)
+  })
+
+  it('E2 被提供方截断（传输事实）→ fail-soft 下仍然交付 E1 直通稿，不是零内容', async () => {
+    // W11.5 baseline-r9（真实运行实测）：E1 成功（3955 字符）、E2 在提供方输出上限处
+    // 被截断，运行直接 BLOCKED——用户拿到零。截断是**传输事实**（天花板不会因重试移动，
+    // 所以零重试不变），但模型写下的 E1 是真的、也已经落盘，fail-soft 口径下没有理由
+    // 因此不交付。这里钉住：走 e1_direct_delivery 标注交付。
+    const { ctx, runId, outcome } = await harness([E1_SAMPLE, INVENTED_ASSUMPTION_CONTAINER], { failSoft: true, truncatedAt: 1 })
+    expect(outcome.status, outcome.message).toBe('resolved')
+    const kinds = ctx.paperAudit.list(runId).map((e: { eventType: string }) => e.eventType)
+    expect(kinds).toContain('truncated')
+    expect(kinds).toContain('e1_direct_delivery')
   })
 
   it('E1 EMPTY (or absent) → still BLOCKED (the true zero-content case)', async () => {
