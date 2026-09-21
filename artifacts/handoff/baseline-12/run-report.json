@@ -1,0 +1,77 @@
+{
+  "runId": "9aff9e66-3761-411f-8f5a-d35f864b9b55",
+  "tier": "T1",
+  "mode": "strict",
+  "status": "BLOCKED",
+  "routed_family": "F4",
+  "route_truth": "F3+F4",
+  "route_mismatch": false,
+  "code_provenance": {
+    "checked_at": "2026-09-21T06:12:15.143Z",
+    "ok": true,
+    "targets": [
+      {
+        "name": "@deepseek-ai/dsh-paper-foundation",
+        "ok": true,
+        "detail": "entry lib/index.js is 31908 ms newer than the newest source"
+      },
+      {
+        "name": "@deepseek-ai/dsh-storage",
+        "ok": true,
+        "detail": "entry lib/index.js is 45205924 ms newer than the newest source"
+      },
+      {
+        "name": "@deepseek-ai/dsh-storage-domain",
+        "ok": true,
+        "detail": "entry lib/index.js is 45216962 ms newer than the newest source"
+      },
+      {
+        "name": "@deepseek-ai/dsh-storage-json",
+        "ok": true,
+        "detail": "entry lib/index.js is 45216989 ms newer than the newest source"
+      },
+      {
+        "name": "@deepseek-ai/dsh-llm",
+        "ok": true,
+        "detail": "entry lib/index.js is 45217136 ms newer than the newest source"
+      },
+      {
+        "name": "@deepseek-ai/cordis",
+        "ok": true,
+        "detail": "entry lib/index.js is 45205702 ms newer than the newest source"
+      }
+    ]
+  },
+  "minted_ir_count": 80,
+  "classifier": "budget",
+  "code": "budget-exhausted",
+  "humanized": "本次运行触发了预算门（本次运行 / 当日额度），已被主动暂停——不是题目或模型的问题。",
+  "wall_clock_seconds": 5302.8,
+  "usage": {
+    "input_tokens": 42340,
+    "output_tokens": 1077533,
+    "cost_usd": 0
+  },
+  "memo": {
+    "passed_gates": [
+      "plan"
+    ],
+    "minted_ir_kinds": [
+      "DataArtifact",
+      "RequirementSpec",
+      "ProblemSpec",
+      "SymbolSpec",
+      "AssumptionSpec",
+      "EquationSpec",
+      "ModelSpec",
+      "RunArtifact",
+      "ExecutionRecord",
+      "NumericConfig",
+      "Result",
+      "Claim"
+    ],
+    "minted_ir_count": 80,
+    "failing_node": null,
+    "suggested_intervention": "提高本次运行或当日的额度后重新提交；额度是为保护你的账户而设的。"
+  }
+}
