@@ -220,6 +220,7 @@ export const EXECUTE_PROTOCOL_TEACHING = [
   '    · every AssumptionSpec and EquationSpec you declare MUST carry `e1_span`: a substring copied VERBATIM from the E1 text you wrote (B3 正向 checks it character for character — a paraphrase, a dropped LaTeX delimiter or a reworded sentence is refused). Copy the sentence; do not retype it.',  '    · every AssumptionSpec and EquationSpec you declare MUST carry `e1_span`: a substring copied VERBATIM from the E1 text you wrote (B3 正向 checks it character for character — a paraphrase, a dropped LaTeX delimiter or a reworded sentence is refused). Copy the sentence; do not retype it.',
   '    · CHOOSE THE SPAN FROM PLAIN PROSE: pick a sentence with no formula, no `\` command and no digits (e.g. "本文假设各零部件的次品事件相互独立") — a span containing math is where retyping always shows up, and the gate compares character for character (real refusal: the model wrote `=0.10\ge0.95` where its own E1 said `=0.10\ge1-\alpha`). If the only sentence you have is a formula, write a plain-prose sentence INTO E1 first, then anchor to that.',
   '    · if E1 marks an assumption anchor `[[ASSUMPTION: <id>]]`, that id must be declared as an AssumptionSpec (B3 反向), and an AssumptionSpec id must exist as an anchor in E1 (B3 锚点同一性). Do not invent assumptions in the container that E1 never marked.',
+  '  LENGTH REFERENCE (an aim, NOT a gate): this harness is aligned with a reference paper of about 30,000 characters of body text (roughly 30 pages) — 问题分析 about 2,000, each per-problem chapter about 2,500, 模型评价与推广 about 1,400, 参考文献 about 1,500 (6+ real entries), 代码附录 about 1,500, 问题重述 about 1,000. Write to that scale. A chapter that falls BELOW roughly 60% of its reference is sent back for a rewrite (that is the only length rule); there is NO upper bound — a longer, fuller chapter is never penalised and never truncated. The harness renders one chapter PER SUB-PROBLEM (问题1/2/3/4 each its own chapter, like the reference), built from your E1 passages, so give each sub-problem a substantial E1 passage.',
   '  PAPER CONTRACT (REQUIRED — every line below is checked mechanically BEFORE the paper is delivered, so satisfy it in your FIRST emission; a violation costs you a whole attempt):',
   '    · narrative carries EIGHT non-empty strings: title, methods, conclusion, restatement, analysis, evaluation, references, code.',
   '    · analysis — ONE passage per sub-problem (问题1 / 问题2 / …): which method family it uses, why that family, and where the difficulty lies. At least 600 characters in total. A one-liner like "问题1为二项检验，其余为离散优化" is refused.',
@@ -420,6 +421,32 @@ function degenerateResultFindings(
     })
   }
   return out
+}
+
+/**
+ * W11.5 round-7（对齐参照物）— 每个子问题一章。
+ *
+ * 参照物骨架是「6 问题一：预热平衡阶段的常物性耦合场求解」「7 问题一模型的独立校核」
+ * 「8 问题二：全变系数耦合模型与阶段划分」——**每问独立成章**。这里用该问的 E1 分析段
+ * 作章的正文、题干作标题，所以不额外要求模型写任何东西。
+ */
+function perQuestionChaptersOf(
+  e1Text: string,
+  requirements: ReadonlyArray<{ requirementId: string; statement: string }>,
+): ReadonlyArray<{ title: string; body: string }> {
+  const questions = requirements.filter(r => new RegExp('^R-Q\\d+$').test(r.requirementId))
+  if (questions.length === 0 || e1Text.trim() === '') return []
+  const passages = perQuestionSectionsOf(e1Text, requirements)
+  const out: Array<{ title: string; body: string }> = []
+  for (const question of questions) {
+    const ordinal = question.requirementId.replace('R-Q', '')
+    const heading = '### 问题' + ordinal + ' 的分析'
+    const passage = passages.find(p => p.startsWith(heading)) ?? ''
+    const body = passage === '' ? '' : passage.split(String.fromCharCode(10)).slice(1).join(String.fromCharCode(10)).trim()
+    const gist = question.statement.replace(new RegExp('\\s+', 'g'), ' ').slice(0, 40)
+    out.push({ title: '问题' + ordinal + '：' + gist, body })
+  }
+  return out.filter(c => c.body !== '')
 }
 
 /** W11.5 baseline-4: the section headings a delivery text carries (any level). */
@@ -1594,6 +1621,10 @@ export class WorkflowExecutor {
         ].join(NL)
       }
     }
+    // W11.5 round-7（对齐参照物结构）: 参照物是**每个子问题独立成章**（「6 问题一：…」
+    // 「7 问题一模型的独立校核」「8 问题二：…」）。逐问章的正文用该问的 E1 分析段，
+    // 标题用该问的题干，因此这一结构不额外要求模型多写一个字。
+    const problemChapters = perQuestionChaptersOf(e1FullText, contractRequirements)
     // 代码附录：把**真实代码**渲染进正文（参照物的附录 B/C/D 就是核心代码）。
     // 模型写的说明只作导语，代码本身由 harness 从容器里取——不增删改一字。
     const appendixCode = container.code ?? ''
@@ -1872,6 +1903,7 @@ export class WorkflowExecutor {
       })),
       narrative,
       ...(skeletonRows === undefined ? {} : { skeletonRows }),
+      ...(problemChapters.length === 0 ? {} : { problemChapters }),
       // The figure's DISPLAY id is the file name the paper references, so the
       // persisted bytes and the link agree (the attempt suffix never reaches
       // the deliverable).

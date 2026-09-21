@@ -69,11 +69,11 @@ const LONG_RESTATEMENT = [
 ].join('\n')
 
 const GOOD = {
-  analysis: pad(LONG_ANALYSIS, 700),
-  evaluation: pad(LONG_EVAL, 600),
-  references: pad(LONG_REFS, 200),
-  code: pad(LONG_CODE, 300),
-  restatement: pad(LONG_RESTATEMENT, 300),
+  analysis: pad(LONG_ANALYSIS, 1_400),
+  evaluation: pad(LONG_EVAL, 900),
+  references: pad(LONG_REFS, 700),
+  code: pad(LONG_CODE, 700),
+  restatement: pad(LONG_RESTATEMENT, 500),
 }
 
 describe('W11.5 round-4 — 要素级写作契约', () => {

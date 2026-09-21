@@ -270,6 +270,9 @@ function renderReport(input: {
   /** W11.5 baseline-14: numbers the harness-registered problem statement
    *  contains — input data, added to every allowed set. */
   readonly givenLiterals?: ReadonlyArray<string>
+  /** W11.5 round-7（对齐参照物）: 每个子问题独立成章 + 独立校核章。 */
+  readonly problemChapters?: ReadonlyArray<{ readonly title: string; readonly body: string; readonly rows?: ReadonlyArray<{ readonly id: string; readonly columns: ReadonlyArray<string> }> }>
+  readonly verification?: string
   readonly skeletonRows?: SkeletonRows
   /** R5: executed output files for the 数据附录 auto table (basename rows). */
   readonly dataFiles?: ReadonlyArray<{ id: string; columns: ReadonlyArray<string> }>
@@ -583,6 +586,9 @@ function renderReport(input: {
     // they are what fills 模型建立与求解 from the IR.
     ...(input.skeletonRows?.equations === undefined ? {} : { equations: input.skeletonRows.equations }),
     ...(input.skeletonRows?.models === undefined ? {} : { models: input.skeletonRows.models }),
+    // W11.5 round-7: 逐问章与校核章直达骨架（参照物结构）。
+    ...(input.problemChapters === undefined ? {} : { problemChapters: input.problemChapters }),
+    ...(input.verification === undefined ? {} : { verification: input.verification }),
     slots: {
       abstract: abstractLines,
       model: modelLines.join('\n'),

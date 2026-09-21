@@ -79,3 +79,25 @@ describe('PaperSkeleton', () => {
     expect(text).toContain('含\\|管道')
   })
 })
+
+// ---------------------------------------------------------------------------
+// W11.5 round-7 — 对齐参照物：每个子问题独立成章 + 独立校核章
+// ---------------------------------------------------------------------------
+describe('W11.5 round-7 — 逐问章与校核章（参照物结构）', () => {
+  it('problemChapters 渲染成独立章节，且插在模型章之后、结果章之前', async () => {
+    const { renderPaperSkeleton } = await import('../../src/produce/paper-skeleton.ts')
+    const text = renderPaperSkeleton({
+      title: 't',
+      problemChapters: [
+        { title: '问题1：设计抽样检测方案', body: '问题1 归到假设检验，难点是最小样本量。'.repeat(20) },
+        { title: '问题2：给出各阶段决策', body: '问题2 归到期望值决策，难点是拆解循环。'.repeat(20) },
+      ],
+      verification: '校核：与解析解逐位比对，偏差在 1e-3 内。'.repeat(10),
+      slots: { restatement: 'x', analysis: 'y', evaluation: 'z', references: 'w', code: 'v', model: 'u' },
+    })
+    const order = ['## 模型建立与求解', '## 问题1：设计抽样检测方案', '## 问题2：给出各阶段决策', '## 模型校核', '## 结果对比与校核']
+    const positions = order.map(h => text.indexOf(h))
+    expect(positions.every(p => p >= 0), `缺章：${order.filter((_h, i) => (positions[i] ?? -1) < 0).join(', ')}`).toBe(true)
+    expect([...positions].sort((a, b) => a - b)).toEqual(positions)
+  })
+})
