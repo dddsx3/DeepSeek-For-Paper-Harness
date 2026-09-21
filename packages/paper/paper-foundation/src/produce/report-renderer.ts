@@ -79,8 +79,45 @@ const NUMBER_LITERAL = /(?<![A-Za-z^])(?<![A-Za-z^]-)[-+]?(?:\d+\.?\d*|\.\d+)(?!
 
 function numericLiterals(text: string): string[] {
   const out: string[] = []
-  for (const match of text.matchAll(NUMBER_LITERAL)) out.push(match[0])
+  for (const match of text.matchAll(NUMBER_LITERAL)) {
+    if (match.index === undefined) continue
+    if (isLabelIndex(text, match.index, match[0])) continue
+    out.push(match[0])
+  }
   return out
+}
+
+/**
+ * Label words whose trailing digit is an ORDINAL, not a quantity.
+ *
+ * W11.5 baseline-12 (首次真实产出实测): the twelfth real run's conclusion read
+ * 「情形(1)平均检测次数为 {R-N1}，情形(2)平均检测次数为 {R-N2}」 — it had
+ * learned to NAME every quantity, and was then refused for the literals `[1, 2]`,
+ * which are the CASE LABELS. Two attempts were spent on that false positive.
+ * The guard's contract is "no key NUMBER enters the paper except from the IR";
+ * the index of a case is not one of the model's numbers, so it must not be read
+ * as one. The set is closed and named: a digit directly after one of these words
+ * (optionally through an opening parenthesis) is a label.
+ */
+const LABEL_WORDS = ['情形', '问题', '步骤', '阶段', '部分', '方案', '情况', '表', '图', '式', '例', '种', '类', '第']
+
+/**
+ * Whether the literal at `start` is an ordinal label rather than a quantity.
+ *
+ * Two unambiguous forms, both closed:
+ *   - a BARE INTEGER wrapped in parentheses — `情形(1)`, `(2)`; a parenthesized
+ *     value carries a decimal point (`(0.95)`) and stays a number;
+ *   - a digit run directly after a {@link LABEL_WORDS} word — `问题1`, `第2种`.
+ */
+function isLabelIndex(text: string, start: number, literal: string): boolean {
+  if (!/^\d+$/.test(literal)) return false
+  const before = text.slice(0, start)
+  if (/[（(]\s*$/u.test(before)) {
+    const closer = text[start + literal.length]
+    if (closer === ')' || closer === '）') return true
+  }
+  const labelPattern = new RegExp(`(?:${LABEL_WORDS.join('|')})\\s*[（(]?\\s*$`, 'u')
+  return labelPattern.test(before)
 }
 
 /**
