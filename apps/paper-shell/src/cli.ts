@@ -690,11 +690,15 @@ async function main(): Promise<number> {
     return 1
   }
 
-  // Read the promoted final output. R1①: `figures/` sits next to the
-  // promoted file — skip the directory when picking the report file.
+  // Read the promoted final output. R1①: `figures/` sits next to the promoted
+  // file, and W11.5 baseline-13 added `data/` (the run's executed outputs) —
+  // BOTH are directories, and picking one as the report file crashed the CLI
+  // with EISDIR after a successful run (baseline-15). Skip both by name; the
+  // promotion contract writes the report at the top level.
   const finalDir = join(baseRoot, String(run.id), 'final')
   const files = await readdir(finalDir).catch(() => [] as string[])
-  const firstFile = files.find(f => f !== 'figures')
+  const SIDECAR_DIRS = new Set(['figures', 'data'])
+  const firstFile = files.find(f => !SIDECAR_DIRS.has(f))
   if (files.length === 0 || firstFile === undefined) {
     console.error('[no-deliverable] executor finished but no final output was promoted')
     await dispose()
