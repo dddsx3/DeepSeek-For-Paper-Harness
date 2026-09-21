@@ -834,6 +834,10 @@ async function main(): Promise<number> {
     detail: e.detail,
   }))
   const auditTrailText = JSON.stringify({ runId: String(run.id), events: auditTrail }, null, 2)
+  // baseline-25/26 crashed here: the delivery directory is created further down
+  // (with report.md), so writing the evidence files first hit ENOENT and took the
+  // whole delivery down AFTER the chain had succeeded. mkdir is idempotent.
+  await mkdir(outDir, { recursive: true })
   await writeFile(join(outDir, 'audit-trail.json'), auditTrailText, 'utf8')
   const bodyService = ctx.get('paperArtifactBody') as { list?: (runId?: string) => Array<{ artifactId: string; sha256: string; text: string }> } | undefined
   const bodies = typeof bodyService?.list === 'function' ? bodyService.list(String(run.id)) : []
