@@ -168,7 +168,7 @@ export function expandQuantityPlaceholders(
   resolve: (id: string) => string | null,
 ): { readonly text: string; readonly unknown: ReadonlyArray<string> } {
   const unknown: string[] = []
-  const expanded = text.replace(/\{([^{}\s]+)\}/g, (whole, id: string) => {
+  const expanded = String(text ?? '').replace(/\{([^{}\s]+)\}/g, (whole, id: string) => {
     const value = resolve(id)
     if (value === null) {
       unknown.push(id)
@@ -531,7 +531,10 @@ function renderReport(input: {
     for (const f of dataFiles) {
       // 只列文件名与说明：run 作用域的 locator（含 run id）不进论文——
       // 既是泄漏面，也会破坏跨运行的字节确定性（T1/T2 等价性实测抓到）。
-      dataLines.push(`| ${f.columns.map(c => c.replace(/\|/g, '\\|')).join(' | ')} | 执行输出 |`)
+      // Defensive (baseline-25/26 crashed here with `Cannot read properties of
+      // null`): a column that arrives null renders an empty cell instead of
+      // taking the whole production chain down after the figures are minted.
+      dataLines.push(`| ${f.columns.map(c => String(c ?? '').replace(/\|/g, '\\|')).join(' | ')} | 执行输出 |`)
     }
   } else {
     dataLines.push('_(本次运行未声明输出数据文件)_')
