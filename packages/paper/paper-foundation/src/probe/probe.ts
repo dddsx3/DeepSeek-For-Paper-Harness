@@ -78,6 +78,17 @@ const DRIFT_CODES: ReadonlySet<string> = new Set([
   'claim_binding_unknown',
   'result_source_invalid',
   'result_source_missing',
+  // W11.5 baseline-7 (首次真实产出实测): the report-render refusals are
+  // CONTENT refusals — the container's narrative stated numbers the run did
+  // not produce, so the renderer refused to print them (D4 numeric closure).
+  // Unlisted, they fell through to TRANSPORT, which is the class for
+  // network-ish failures: no guidance, no budget, and the model never heard
+  // which number was wrong. They are DRIFT by definition — container-shaped
+  // output whose content contradicts the IR — and `driftCorrection` carries
+  // the renderer's own message, which names the offending Result and value.
+  'conflicting_conclusion_number',
+  'figure_declaration_invalid',
+  'figure_data_invalid',
 ])
 
 /** Code-run / capture-environment failures after container admission. */

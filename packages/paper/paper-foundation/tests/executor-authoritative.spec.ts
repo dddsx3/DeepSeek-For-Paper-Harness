@@ -98,7 +98,11 @@ async function* stream(text: string) {
   yield { type: 'finish', index: 0, reason: { kind: 'stop' } }
 }
 
-async function harness(executeText: string) {
+async function harness(executeText: string | ReadonlyArray<string>) {
+  // W11.5 baseline-7: an array scripts one container per EXECUTE attempt, so a
+  // test can drive the retry loop (attempt 1 refused, attempt 2 fixed).
+  const attempts = typeof executeText === 'string' ? [executeText] : [...executeText]
+  let executeCalls = 0
   const ctx = new Context()
   await ctx.plugin(Storage)
   ctx.storage.backend.register('memory', new MemoryStorageBackend(new MemoryMediaPool()))
@@ -127,7 +131,11 @@ async function harness(executeText: string) {
       // P3-3: on the producing path the EXECUTE instruction carries the
       // ir-container-v1 protocol teaching segment — route on it (the old
       // plain 'Produce the deliverable' text is the non-producing path).
-      if (joined.includes('Produce the deliverable') || joined.includes('ir-container-v1')) return stream(executeText)
+      if (joined.includes('Produce the deliverable') || joined.includes('ir-container-v1')) {
+        const text = attempts[Math.min(executeCalls, attempts.length - 1)] ?? ''
+        executeCalls += 1
+        return stream(text)
+      }
       return stream('revised text')
     },
   } as never)
@@ -226,6 +234,71 @@ describe('P2-1 executor-authoritative FORMAL chain', () => {
     expect(outcome.status).toBe('rejected')
     expect(engine.getRun(RunId(runId))?.status).toBe('failed')
     expect(ir.list().filter(r => r.kind === 'Result')).toHaveLength(0)
+  })
+
+  it('W11.5 baseline-7 — a retry after a real execution converges instead of dying on its own run id', async () => {
+    // 这条是第七次真实运行缺的那一步：attempt 1 真的跑了代码、铸了 Result，
+    // 然后在渲染处被拒；attempt 2 必须能**再执行一次**。此前 store 的
+    // RunArtifact 用同一个 run id，重试的声明直接撞 duplicate_id —— 于是
+    // 「跑通了但结论写错」这种情况永远无法纠正，只能退到 E1 直通。
+    const { ir, engine, runId, finalRoot, outcome } = await harness([
+      polarContainer({ conclusion: 'Mean ice thickness is 0.999 m.' }),
+      polarContainer(),
+    ])
+    expect(outcome.status, JSON.stringify(outcome)).toBe('resolved')
+    expect(engine.getRun(RunId(runId))?.status).toBe('completed')
+    // 两次真实执行，各自一份 RunArtifact + ExecutionRecord（append-only 记录
+    // 真实发生过的事），而交付文本来自第二次。
+    expect(ir.list().filter(r => r.kind === 'RunArtifact')).toHaveLength(2)
+    expect(ir.list().filter(r => r.kind === 'ExecutionRecord')).toHaveLength(2)
+    const finalDir = join(finalRoot, String(runId), 'final')
+    const files = await readdir(finalDir)
+    const text = await readFile(join(finalDir, files[0]!), 'utf8')
+    expect(text).toContain('0.731')
+    // 尝试后缀是 store 内部的事，绝不进论文（结果表的 id 用模型自己写的名字）
+    expect(text).not.toContain('-a2')
+  })
+
+  it('W11.5 baseline-7 — a conclusion number the run did not produce is refused, and the terminal reason names it', async () => {
+    // 第七次真实运行：attempt 3 通过了全部保真检查、真的跑通了生产链、铸出 4 个
+    // Result 和 4 条 CRITICAL Claim，随后在报告渲染处被拒——结论里写的数字
+    // （29/6/76/12）不是运行算出来的（2/2/15/1）。D4 数字闭环正确拒绝，但终结
+    // 理由只记了 "refused 3 times"，真正的原因（哪个 Result、哪个值）永久丢失，
+    // 而且这条内容类拒绝没被归类为 DRIFT（落到 TRANSPORT），模型既拿不到针对性
+    // 纠错、也没有预算。这条测试钉住：拒绝码是 conflicting_conclusion_number，
+    // 且终结理由带渲染器原文（含那个不该出现的数字）。
+    const { ctx, engine, runId, outcome } = await harness(polarContainer({
+      conclusion: 'Mean ice thickness is 0.999 m.',
+    }))
+    expect(outcome.status).toBe('rejected')
+    expect(engine.getRun(RunId(runId))?.status).toBe('failed')
+    // `outcome` is a union: only the rejected branch carries the message.
+    const refusedMessage = 'message' in outcome ? outcome.message : ''
+    expect(refusedMessage).toContain('conflicting_conclusion_number')
+    expect(refusedMessage).toContain('0.999')
+    const terminal = ctx.paperAudit.list(runId).filter(
+      (e: { eventType: string }) => e.eventType === 'gate_failed',
+    )
+    expect(terminal.length).toBeGreaterThan(0)
+    expect(String(terminal[terminal.length - 1]?.detail?.reason)).toContain('0.999')
+  })
+
+  it('W11.5 baseline-7 — the chain refusal is classified DRIFT, so the model gets the renderer correction', async () => {
+    // 同一次拒绝的**分类**侧：内容类拒绝必须是 DRIFT（容器形状正确、内容与 IR
+    // 矛盾），否则它落进 TRANSPORT —— 既没有纠错提示也没有预算，模型永远听不到
+    // "哪个数字不对"。审计的 provider_retry 事件是这条分类的可核证据。
+    const { ctx, runId, outcome } = await harness(polarContainer({
+      conclusion: 'Mean ice thickness is 0.999 m.',
+    }))
+    expect(outcome.status).toBe('rejected')
+    const retries = ctx.paperAudit.list(runId).filter(
+      (e: { eventType: string }) => e.eventType === 'provider_retry',
+    )
+    expect(retries.length).toBeGreaterThan(0)
+    expect(String(retries[0]?.detail?.code)).toBe('conflicting_conclusion_number')
+    expect(String(retries[0]?.detail?.w4Class)).toBe('DRIFT')
+    // 模型可见 ⟺ 已记录：理由原文（含那个数字）在审计里
+    expect(String(retries[0]?.detail?.reason)).toContain('0.999')
   })
 
   it('R1① — a declared figure is persisted as figures/<id>.svg next to the final output and its link resolves on disk', async () => {
