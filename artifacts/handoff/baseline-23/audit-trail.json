@@ -1,0 +1,1004 @@
+{
+  "runId": "61e0b19e-25eb-4385-ad6d-5db32036006d",
+  "events": [
+    {
+      "seq": 2,
+      "ts": "2026-09-21T11:24:23.086Z",
+      "eventType": "workflow_started",
+      "actor": "paper-executor",
+      "detail": {
+        "mode": "strict"
+      }
+    },
+    {
+      "seq": 3,
+      "ts": "2026-09-21T11:24:26.168Z",
+      "eventType": "ir_entry_written",
+      "actor": "paper-executor",
+      "detail": {
+        "kind": "DataArtifact",
+        "id": "DA-RAW",
+        "stage": "input-registration"
+      }
+    },
+    {
+      "seq": 4,
+      "ts": "2026-09-21T11:24:26.174Z",
+      "eventType": "ir_entry_written",
+      "actor": "paper-executor",
+      "detail": {
+        "kind": "RequirementSpec",
+        "id": "R-OUT",
+        "stage": "input-registration"
+      }
+    },
+    {
+      "seq": 5,
+      "ts": "2026-09-21T11:24:26.180Z",
+      "eventType": "ir_entry_written",
+      "actor": "paper-executor",
+      "detail": {
+        "kind": "RequirementSpec",
+        "id": "R-Q1",
+        "stage": "input-registration"
+      }
+    },
+    {
+      "seq": 6,
+      "ts": "2026-09-21T11:24:26.183Z",
+      "eventType": "ir_entry_written",
+      "actor": "paper-executor",
+      "detail": {
+        "kind": "RequirementSpec",
+        "id": "R-Q2",
+        "stage": "input-registration"
+      }
+    },
+    {
+      "seq": 7,
+      "ts": "2026-09-21T11:24:26.187Z",
+      "eventType": "ir_entry_written",
+      "actor": "paper-executor",
+      "detail": {
+        "kind": "RequirementSpec",
+        "id": "R-Q3",
+        "stage": "input-registration"
+      }
+    },
+    {
+      "seq": 8,
+      "ts": "2026-09-21T11:24:26.191Z",
+      "eventType": "ir_entry_written",
+      "actor": "paper-executor",
+      "detail": {
+        "kind": "RequirementSpec",
+        "id": "R-Q4",
+        "stage": "input-registration"
+      }
+    },
+    {
+      "seq": 9,
+      "ts": "2026-09-21T11:24:26.196Z",
+      "eventType": "ir_entry_written",
+      "actor": "paper-executor",
+      "detail": {
+        "kind": "ProblemSpec",
+        "id": "P1",
+        "stage": "input-registration"
+      }
+    },
+    {
+      "seq": 10,
+      "ts": "2026-09-21T11:29:26.717Z",
+      "eventType": "provider_retry",
+      "actor": "paper-executor",
+      "detail": {
+        "code": "EMPTY_STREAM",
+        "role": "executor",
+        "attempt": 1,
+        "reason": "provider returned HTTP 200 with an empty stream: no content chunk and no finish_reason (no choices at all)"
+      }
+    },
+    {
+      "seq": 11,
+      "ts": "2026-09-21T11:30:09.416Z",
+      "eventType": "ir_entry_written",
+      "actor": "paper-executor",
+      "detail": {
+        "kind": "E1Analysis",
+        "id": "e1",
+        "nodeId": "757d6f97-4267-4bb0-9658-e4e520fae64d",
+        "stage": "receive",
+        "chars": 7058
+      }
+    },
+    {
+      "seq": 12,
+      "ts": "2026-09-21T11:30:09.421Z",
+      "eventType": "ir_entry_written",
+      "actor": "paper-executor",
+      "detail": {
+        "kind": "E2DriftGuidance",
+        "id": "e2-guidance",
+        "nodeId": "757d6f97-4267-4bb0-9658-e4e520fae64d",
+        "stage": "receive",
+        "applied": true,
+        "guidance_chars": 1383
+      }
+    },
+    {
+      "seq": 13,
+      "ts": "2026-09-21T11:32:45.584Z",
+      "eventType": "ir_entry_written",
+      "actor": "paper-executor",
+      "detail": {
+        "kind": "E2Normalization",
+        "id": "e2",
+        "nodeId": "757d6f97-4267-4bb0-9658-e4e520fae64d",
+        "stage": "receive",
+        "chars": 25004,
+        "e1_chars": 7058
+      }
+    },
+    {
+      "seq": 14,
+      "ts": "2026-09-21T11:32:45.590Z",
+      "eventType": "ir_entry_written",
+      "actor": "paper-executor",
+      "detail": {
+        "kind": "FidelityFinding",
+        "id": "B4 逐问推理覆盖",
+        "nodeId": "757d6f97-4267-4bb0-9658-e4e520fae64d",
+        "ok": true,
+        "detail": "全部 5 个 REQUIRED_OUTPUT 在 E1 中有推理锚点"
+      }
+    },
+    {
+      "seq": 15,
+      "ts": "2026-09-21T11:32:45.594Z",
+      "eventType": "ir_entry_written",
+      "actor": "paper-executor",
+      "detail": {
+        "kind": "FidelityFinding",
+        "id": "B5 锚点 id 形态（E1 侧）",
+        "nodeId": "757d6f97-4267-4bb0-9658-e4e520fae64d",
+        "ok": true,
+        "detail": "全部 13 个锚点 id 都是可用名字"
+      }
+    },
+    {
+      "seq": 16,
+      "ts": "2026-09-21T11:32:45.598Z",
+      "eventType": "ir_entry_written",
+      "actor": "paper-executor",
+      "detail": {
+        "kind": "FidelityFinding",
+        "id": "B3 反向（E1 假设须被声明）",
+        "nodeId": "757d6f97-4267-4bb0-9658-e4e520fae64d",
+        "ok": true,
+        "detail": "E1 的 8 条假设锚点均有对应 AssumptionSpec"
+      }
+    },
+    {
+      "seq": 17,
+      "ts": "2026-09-21T11:32:45.601Z",
+      "eventType": "ir_entry_written",
+      "actor": "paper-executor",
+      "detail": {
+        "kind": "FidelityFinding",
+        "id": "B3 锚点同一性（声明须在 E1 中有同名锚点）",
+        "nodeId": "757d6f97-4267-4bb0-9658-e4e520fae64d",
+        "ok": true,
+        "detail": "8 条假设声明在 E1 中均有同名锚点"
+      }
+    },
+    {
+      "seq": 18,
+      "ts": "2026-09-21T11:32:45.604Z",
+      "eventType": "ir_entry_written",
+      "actor": "paper-executor",
+      "detail": {
+        "kind": "FidelityFinding",
+        "id": "B3 正向（声明须逐字锚定 E1）",
+        "nodeId": "757d6f97-4267-4bb0-9658-e4e520fae64d",
+        "ok": true,
+        "detail": "11 条 Assumption/Equation 声明全部逐字锚定 E1"
+      }
+    },
+    {
+      "seq": 19,
+      "ts": "2026-09-21T11:32:45.612Z",
+      "eventType": "ir_entry_written",
+      "actor": "paper-executor",
+      "detail": {
+        "kind": "SymbolSpec",
+        "id": "S-P0",
+        "nodeId": "757d6f97-4267-4bb0-9658-e4e520fae64d"
+      }
+    },
+    {
+      "seq": 20,
+      "ts": "2026-09-21T11:32:45.616Z",
+      "eventType": "ir_entry_written",
+      "actor": "paper-executor",
+      "detail": {
+        "kind": "SymbolSpec",
+        "id": "S-P1",
+        "nodeId": "757d6f97-4267-4bb0-9658-e4e520fae64d"
+      }
+    },
+    {
+      "seq": 21,
+      "ts": "2026-09-21T11:32:45.620Z",
+      "eventType": "ir_entry_written",
+      "actor": "paper-executor",
+      "detail": {
+        "kind": "SymbolSpec",
+        "id": "S-ALPHA",
+        "nodeId": "757d6f97-4267-4bb0-9658-e4e520fae64d"
+      }
+    },
+    {
+      "seq": 22,
+      "ts": "2026-09-21T11:32:45.624Z",
+      "eventType": "ir_entry_written",
+      "actor": "paper-executor",
+      "detail": {
+        "kind": "SymbolSpec",
+        "id": "S-BETA",
+        "nodeId": "757d6f97-4267-4bb0-9658-e4e520fae64d"
+      }
+    },
+    {
+      "seq": 23,
+      "ts": "2026-09-21T11:32:45.628Z",
+      "eventType": "ir_entry_written",
+      "actor": "paper-executor",
+      "detail": {
+        "kind": "SymbolSpec",
+        "id": "S-N",
+        "nodeId": "757d6f97-4267-4bb0-9658-e4e520fae64d"
+      }
+    },
+    {
+      "seq": 24,
+      "ts": "2026-09-21T11:32:45.631Z",
+      "eventType": "ir_entry_written",
+      "actor": "paper-executor",
+      "detail": {
+        "kind": "SymbolSpec",
+        "id": "S-C",
+        "nodeId": "757d6f97-4267-4bb0-9658-e4e520fae64d"
+      }
+    },
+    {
+      "seq": 25,
+      "ts": "2026-09-21T11:32:45.635Z",
+      "eventType": "ir_entry_written",
+      "actor": "paper-executor",
+      "detail": {
+        "kind": "SymbolSpec",
+        "id": "S-PROD_RISK",
+        "nodeId": "757d6f97-4267-4bb0-9658-e4e520fae64d"
+      }
+    },
+    {
+      "seq": 26,
+      "ts": "2026-09-21T11:32:45.639Z",
+      "eventType": "ir_entry_written",
+      "actor": "paper-executor",
+      "detail": {
+        "kind": "SymbolSpec",
+        "id": "S-CONS_RISK",
+        "nodeId": "757d6f97-4267-4bb0-9658-e4e520fae64d"
+      }
+    },
+    {
+      "seq": 27,
+      "ts": "2026-09-21T11:32:45.643Z",
+      "eventType": "ir_entry_written",
+      "actor": "paper-executor",
+      "detail": {
+        "kind": "SymbolSpec",
+        "id": "S-P1_1",
+        "nodeId": "757d6f97-4267-4bb0-9658-e4e520fae64d"
+      }
+    },
+    {
+      "seq": 28,
+      "ts": "2026-09-21T11:32:45.647Z",
+      "eventType": "ir_entry_written",
+      "actor": "paper-executor",
+      "detail": {
+        "kind": "SymbolSpec",
+        "id": "S-P1_2",
+        "nodeId": "757d6f97-4267-4bb0-9658-e4e520fae64d"
+      }
+    },
+    {
+      "seq": 29,
+      "ts": "2026-09-21T11:32:45.651Z",
+      "eventType": "ir_entry_written",
+      "actor": "paper-executor",
+      "detail": {
+        "kind": "SymbolSpec",
+        "id": "S-PF_1",
+        "nodeId": "757d6f97-4267-4bb0-9658-e4e520fae64d"
+      }
+    },
+    {
+      "seq": 30,
+      "ts": "2026-09-21T11:32:45.654Z",
+      "eventType": "ir_entry_written",
+      "actor": "paper-executor",
+      "detail": {
+        "kind": "SymbolSpec",
+        "id": "S-C1_1",
+        "nodeId": "757d6f97-4267-4bb0-9658-e4e520fae64d"
+      }
+    },
+    {
+      "seq": 31,
+      "ts": "2026-09-21T11:32:45.658Z",
+      "eventType": "ir_entry_written",
+      "actor": "paper-executor",
+      "detail": {
+        "kind": "SymbolSpec",
+        "id": "S-C2_1",
+        "nodeId": "757d6f97-4267-4bb0-9658-e4e520fae64d"
+      }
+    },
+    {
+      "seq": 32,
+      "ts": "2026-09-21T11:32:45.661Z",
+      "eventType": "ir_entry_written",
+      "actor": "paper-executor",
+      "detail": {
+        "kind": "SymbolSpec",
+        "id": "S-T1_1",
+        "nodeId": "757d6f97-4267-4bb0-9658-e4e520fae64d"
+      }
+    },
+    {
+      "seq": 33,
+      "ts": "2026-09-21T11:32:45.665Z",
+      "eventType": "ir_entry_written",
+      "actor": "paper-executor",
+      "detail": {
+        "kind": "SymbolSpec",
+        "id": "S-T2_1",
+        "nodeId": "757d6f97-4267-4bb0-9658-e4e520fae64d"
+      }
+    },
+    {
+      "seq": 34,
+      "ts": "2026-09-21T11:32:45.668Z",
+      "eventType": "ir_entry_written",
+      "actor": "paper-executor",
+      "detail": {
+        "kind": "SymbolSpec",
+        "id": "S-CA_1",
+        "nodeId": "757d6f97-4267-4bb0-9658-e4e520fae64d"
+      }
+    },
+    {
+      "seq": 35,
+      "ts": "2026-09-21T11:32:45.671Z",
+      "eventType": "ir_entry_written",
+      "actor": "paper-executor",
+      "detail": {
+        "kind": "SymbolSpec",
+        "id": "S-TF_1",
+        "nodeId": "757d6f97-4267-4bb0-9658-e4e520fae64d"
+      }
+    },
+    {
+      "seq": 36,
+      "ts": "2026-09-21T11:32:45.676Z",
+      "eventType": "ir_entry_written",
+      "actor": "paper-executor",
+      "detail": {
+        "kind": "SymbolSpec",
+        "id": "S-S_1",
+        "nodeId": "757d6f97-4267-4bb0-9658-e4e520fae64d"
+      }
+    },
+    {
+      "seq": 37,
+      "ts": "2026-09-21T11:32:45.680Z",
+      "eventType": "ir_entry_written",
+      "actor": "paper-executor",
+      "detail": {
+        "kind": "SymbolSpec",
+        "id": "S-L_1",
+        "nodeId": "757d6f97-4267-4bb0-9658-e4e520fae64d"
+      }
+    },
+    {
+      "seq": 38,
+      "ts": "2026-09-21T11:32:45.684Z",
+      "eventType": "ir_entry_written",
+      "actor": "paper-executor",
+      "detail": {
+        "kind": "SymbolSpec",
+        "id": "S-CD_1",
+        "nodeId": "757d6f97-4267-4bb0-9658-e4e520fae64d"
+      }
+    },
+    {
+      "seq": 39,
+      "ts": "2026-09-21T11:32:45.688Z",
+      "eventType": "ir_entry_written",
+      "actor": "paper-executor",
+      "detail": {
+        "kind": "SymbolSpec",
+        "id": "S-PROFIT_Q2",
+        "nodeId": "757d6f97-4267-4bb0-9658-e4e520fae64d"
+      }
+    },
+    {
+      "seq": 40,
+      "ts": "2026-09-21T11:32:45.692Z",
+      "eventType": "ir_entry_written",
+      "actor": "paper-executor",
+      "detail": {
+        "kind": "SymbolSpec",
+        "id": "S-D1",
+        "nodeId": "757d6f97-4267-4bb0-9658-e4e520fae64d"
+      }
+    },
+    {
+      "seq": 41,
+      "ts": "2026-09-21T11:32:45.695Z",
+      "eventType": "ir_entry_written",
+      "actor": "paper-executor",
+      "detail": {
+        "kind": "SymbolSpec",
+        "id": "S-D2",
+        "nodeId": "757d6f97-4267-4bb0-9658-e4e520fae64d"
+      }
+    },
+    {
+      "seq": 42,
+      "ts": "2026-09-21T11:32:45.698Z",
+      "eventType": "ir_entry_written",
+      "actor": "paper-executor",
+      "detail": {
+        "kind": "SymbolSpec",
+        "id": "S-DF",
+        "nodeId": "757d6f97-4267-4bb0-9658-e4e520fae64d"
+      }
+    },
+    {
+      "seq": 43,
+      "ts": "2026-09-21T11:32:45.702Z",
+      "eventType": "ir_entry_written",
+      "actor": "paper-executor",
+      "detail": {
+        "kind": "SymbolSpec",
+        "id": "S-DR",
+        "nodeId": "757d6f97-4267-4bb0-9658-e4e520fae64d"
+      }
+    },
+    {
+      "seq": 44,
+      "ts": "2026-09-21T11:32:45.704Z",
+      "eventType": "ir_entry_written",
+      "actor": "paper-executor",
+      "detail": {
+        "kind": "SymbolSpec",
+        "id": "S-PROFIT_Q3",
+        "nodeId": "757d6f97-4267-4bb0-9658-e4e520fae64d"
+      }
+    },
+    {
+      "seq": 45,
+      "ts": "2026-09-21T11:32:45.708Z",
+      "eventType": "ir_entry_written",
+      "actor": "paper-executor",
+      "detail": {
+        "kind": "SymbolSpec",
+        "id": "S-PROFIT_Q4",
+        "nodeId": "757d6f97-4267-4bb0-9658-e4e520fae64d"
+      }
+    },
+    {
+      "seq": 46,
+      "ts": "2026-09-21T11:32:45.712Z",
+      "eventType": "ir_entry_written",
+      "actor": "paper-executor",
+      "detail": {
+        "kind": "AssumptionSpec",
+        "id": "A-P1-ALT",
+        "nodeId": "757d6f97-4267-4bb0-9658-e4e520fae64d"
+      }
+    },
+    {
+      "seq": 47,
+      "ts": "2026-09-21T11:32:45.715Z",
+      "eventType": "ir_entry_written",
+      "actor": "paper-executor",
+      "detail": {
+        "kind": "AssumptionSpec",
+        "id": "A-P1-BINOMIAL",
+        "nodeId": "757d6f97-4267-4bb0-9658-e4e520fae64d"
+      }
+    },
+    {
+      "seq": 48,
+      "ts": "2026-09-21T11:32:45.718Z",
+      "eventType": "ir_entry_written",
+      "actor": "paper-executor",
+      "detail": {
+        "kind": "AssumptionSpec",
+        "id": "A-P2-RECYCLE",
+        "nodeId": "757d6f97-4267-4bb0-9658-e4e520fae64d"
+      }
+    },
+    {
+      "seq": 49,
+      "ts": "2026-09-21T11:32:45.721Z",
+      "eventType": "ir_entry_written",
+      "actor": "paper-executor",
+      "detail": {
+        "kind": "AssumptionSpec",
+        "id": "A-P2-INDEP",
+        "nodeId": "757d6f97-4267-4bb0-9658-e4e520fae64d"
+      }
+    },
+    {
+      "seq": 50,
+      "ts": "2026-09-21T11:32:45.725Z",
+      "eventType": "ir_entry_written",
+      "actor": "paper-executor",
+      "detail": {
+        "kind": "AssumptionSpec",
+        "id": "A-P3-TREE",
+        "nodeId": "757d6f97-4267-4bb0-9658-e4e520fae64d"
+      }
+    },
+    {
+      "seq": 51,
+      "ts": "2026-09-21T11:32:45.728Z",
+      "eventType": "ir_entry_written",
+      "actor": "paper-executor",
+      "detail": {
+        "kind": "AssumptionSpec",
+        "id": "A-P3-INDEP",
+        "nodeId": "757d6f97-4267-4bb0-9658-e4e520fae64d"
+      }
+    },
+    {
+      "seq": 52,
+      "ts": "2026-09-21T11:32:45.732Z",
+      "eventType": "ir_entry_written",
+      "actor": "paper-executor",
+      "detail": {
+        "kind": "AssumptionSpec",
+        "id": "A-P4-BAYES",
+        "nodeId": "757d6f97-4267-4bb0-9658-e4e520fae64d"
+      }
+    },
+    {
+      "seq": 53,
+      "ts": "2026-09-21T11:32:45.735Z",
+      "eventType": "ir_entry_written",
+      "actor": "paper-executor",
+      "detail": {
+        "kind": "AssumptionSpec",
+        "id": "A-P4-SAMPLE",
+        "nodeId": "757d6f97-4267-4bb0-9658-e4e520fae64d"
+      }
+    },
+    {
+      "seq": 54,
+      "ts": "2026-09-21T11:32:45.738Z",
+      "eventType": "ir_entry_written",
+      "actor": "paper-executor",
+      "detail": {
+        "kind": "EquationSpec",
+        "id": "EQ-PROD_RISK",
+        "nodeId": "757d6f97-4267-4bb0-9658-e4e520fae64d"
+      }
+    },
+    {
+      "seq": 55,
+      "ts": "2026-09-21T11:32:45.742Z",
+      "eventType": "ir_entry_written",
+      "actor": "paper-executor",
+      "detail": {
+        "kind": "EquationSpec",
+        "id": "EQ-CONS_RISK",
+        "nodeId": "757d6f97-4267-4bb0-9658-e4e520fae64d"
+      }
+    },
+    {
+      "seq": 56,
+      "ts": "2026-09-21T11:32:45.746Z",
+      "eventType": "ir_entry_written",
+      "actor": "paper-executor",
+      "detail": {
+        "kind": "EquationSpec",
+        "id": "EQ-PROFIT_Q2",
+        "nodeId": "757d6f97-4267-4bb0-9658-e4e520fae64d"
+      }
+    },
+    {
+      "seq": 57,
+      "ts": "2026-09-21T11:32:45.749Z",
+      "eventType": "ir_entry_written",
+      "actor": "paper-executor",
+      "detail": {
+        "kind": "ModelSpec",
+        "id": "M-Q1",
+        "nodeId": "757d6f97-4267-4bb0-9658-e4e520fae64d"
+      }
+    },
+    {
+      "seq": 58,
+      "ts": "2026-09-21T11:32:45.752Z",
+      "eventType": "ir_entry_written",
+      "actor": "paper-executor",
+      "detail": {
+        "kind": "ModelSpec",
+        "id": "M-Q2",
+        "nodeId": "757d6f97-4267-4bb0-9658-e4e520fae64d"
+      }
+    },
+    {
+      "seq": 59,
+      "ts": "2026-09-21T11:32:45.755Z",
+      "eventType": "ir_entry_written",
+      "actor": "paper-executor",
+      "detail": {
+        "kind": "ModelSpec",
+        "id": "M-Q3",
+        "nodeId": "757d6f97-4267-4bb0-9658-e4e520fae64d"
+      }
+    },
+    {
+      "seq": 60,
+      "ts": "2026-09-21T11:32:45.758Z",
+      "eventType": "ir_entry_written",
+      "actor": "paper-executor",
+      "detail": {
+        "kind": "ModelSpec",
+        "id": "M-Q4",
+        "nodeId": "757d6f97-4267-4bb0-9658-e4e520fae64d"
+      }
+    },
+    {
+      "seq": 61,
+      "ts": "2026-09-21T11:33:34.616Z",
+      "eventType": "ir_entry_written",
+      "actor": "paper-executor",
+      "detail": {
+        "kind": "RunArtifact",
+        "id": "61e0b19e-25eb-4385-ad6d-5db32036006d-a2",
+        "nodeId": "execute",
+        "stage": "code-run"
+      }
+    },
+    {
+      "seq": 62,
+      "ts": "2026-09-21T11:33:34.620Z",
+      "eventType": "ir_entry_written",
+      "actor": "paper-executor",
+      "detail": {
+        "kind": "ExecutionRecord",
+        "id": "EXEC-61e0b19e-25eb-4385-ad6d-5db32036006d-a2",
+        "nodeId": "execute",
+        "stage": "code-run"
+      }
+    },
+    {
+      "seq": 63,
+      "ts": "2026-09-21T11:33:34.627Z",
+      "eventType": "ir_entry_written",
+      "actor": "paper-executor",
+      "detail": {
+        "kind": "Result",
+        "id": "R-N-a2",
+        "nodeId": "execute",
+        "stage": "interpretation"
+      }
+    },
+    {
+      "seq": 64,
+      "ts": "2026-09-21T11:33:34.631Z",
+      "eventType": "ir_entry_written",
+      "actor": "paper-executor",
+      "detail": {
+        "kind": "Result",
+        "id": "R-C-a2",
+        "nodeId": "execute",
+        "stage": "interpretation"
+      }
+    },
+    {
+      "seq": 65,
+      "ts": "2026-09-21T11:33:34.635Z",
+      "eventType": "ir_entry_written",
+      "actor": "paper-executor",
+      "detail": {
+        "kind": "Result",
+        "id": "R-PROD_RISK-a2",
+        "nodeId": "execute",
+        "stage": "interpretation"
+      }
+    },
+    {
+      "seq": 66,
+      "ts": "2026-09-21T11:33:34.638Z",
+      "eventType": "ir_entry_written",
+      "actor": "paper-executor",
+      "detail": {
+        "kind": "Result",
+        "id": "R-CONS_RISK-a2",
+        "nodeId": "execute",
+        "stage": "interpretation"
+      }
+    },
+    {
+      "seq": 67,
+      "ts": "2026-09-21T11:33:34.642Z",
+      "eventType": "ir_entry_written",
+      "actor": "paper-executor",
+      "detail": {
+        "kind": "Result",
+        "id": "R-PROFIT_Q2-a2",
+        "nodeId": "execute",
+        "stage": "interpretation"
+      }
+    },
+    {
+      "seq": 68,
+      "ts": "2026-09-21T11:33:34.646Z",
+      "eventType": "ir_entry_written",
+      "actor": "paper-executor",
+      "detail": {
+        "kind": "Result",
+        "id": "R-D1-a2",
+        "nodeId": "execute",
+        "stage": "interpretation"
+      }
+    },
+    {
+      "seq": 69,
+      "ts": "2026-09-21T11:33:34.649Z",
+      "eventType": "ir_entry_written",
+      "actor": "paper-executor",
+      "detail": {
+        "kind": "Result",
+        "id": "R-D2-a2",
+        "nodeId": "execute",
+        "stage": "interpretation"
+      }
+    },
+    {
+      "seq": 70,
+      "ts": "2026-09-21T11:33:34.652Z",
+      "eventType": "ir_entry_written",
+      "actor": "paper-executor",
+      "detail": {
+        "kind": "Result",
+        "id": "R-DF-a2",
+        "nodeId": "execute",
+        "stage": "interpretation"
+      }
+    },
+    {
+      "seq": 71,
+      "ts": "2026-09-21T11:33:34.656Z",
+      "eventType": "ir_entry_written",
+      "actor": "paper-executor",
+      "detail": {
+        "kind": "Result",
+        "id": "R-DR-a2",
+        "nodeId": "execute",
+        "stage": "interpretation"
+      }
+    },
+    {
+      "seq": 72,
+      "ts": "2026-09-21T11:33:34.761Z",
+      "eventType": "ir_entry_written",
+      "actor": "paper-executor",
+      "detail": {
+        "kind": "Result",
+        "id": "R-PROFIT_Q3-a2",
+        "nodeId": "execute",
+        "stage": "interpretation"
+      }
+    },
+    {
+      "seq": 73,
+      "ts": "2026-09-21T11:33:34.768Z",
+      "eventType": "ir_entry_written",
+      "actor": "paper-executor",
+      "detail": {
+        "kind": "Result",
+        "id": "R-PROFIT_Q4-a2",
+        "nodeId": "execute",
+        "stage": "interpretation"
+      }
+    },
+    {
+      "seq": 74,
+      "ts": "2026-09-21T11:33:34.771Z",
+      "eventType": "ir_entry_written",
+      "actor": "paper-executor",
+      "detail": {
+        "kind": "Claim",
+        "id": "C-N-a2",
+        "nodeId": "execute",
+        "stage": "interpretation"
+      }
+    },
+    {
+      "seq": 75,
+      "ts": "2026-09-21T11:33:34.774Z",
+      "eventType": "ir_entry_written",
+      "actor": "paper-executor",
+      "detail": {
+        "kind": "Claim",
+        "id": "C-Q2-a2",
+        "nodeId": "execute",
+        "stage": "interpretation"
+      }
+    },
+    {
+      "seq": 76,
+      "ts": "2026-09-21T11:33:34.777Z",
+      "eventType": "ir_entry_written",
+      "actor": "paper-executor",
+      "detail": {
+        "kind": "Claim",
+        "id": "C-Q3-a2",
+        "nodeId": "execute",
+        "stage": "interpretation"
+      }
+    },
+    {
+      "seq": 77,
+      "ts": "2026-09-21T11:33:34.781Z",
+      "eventType": "ir_entry_written",
+      "actor": "paper-executor",
+      "detail": {
+        "kind": "Claim",
+        "id": "C-Q4-a2",
+        "nodeId": "execute",
+        "stage": "interpretation"
+      }
+    },
+    {
+      "seq": 78,
+      "ts": "2026-09-21T11:33:34.784Z",
+      "eventType": "ir_entry_written",
+      "actor": "paper-executor",
+      "detail": {
+        "kind": "FigureSpec",
+        "id": "F-OC-a2",
+        "nodeId": "execute",
+        "stage": "interpretation"
+      }
+    },
+    {
+      "seq": 79,
+      "ts": "2026-09-21T11:33:34.797Z",
+      "eventType": "final_output_written",
+      "actor": "paper-executor",
+      "detail": {
+        "kind": "figures_persisted",
+        "dir": "D:\\deepseek modex\\deepseek-harness\\apps\\paper-shell\\src\\paper-shell-persist-TutCAw\\61e0b19e-25eb-4385-ad6d-5db32036006d\\final\\figures",
+        "figures": 1
+      }
+    },
+    {
+      "seq": 80,
+      "ts": "2026-09-21T11:33:34.803Z",
+      "eventType": "final_output_written",
+      "actor": "paper-executor",
+      "detail": {
+        "kind": "data_persisted",
+        "dir": "D:\\deepseek modex\\deepseek-harness\\apps\\paper-shell\\src\\paper-shell-persist-TutCAw\\61e0b19e-25eb-4385-ad6d-5db32036006d\\final\\data",
+        "files": [
+          "q1_results.json",
+          "q2_results.json",
+          "q3_results.json",
+          "q4_results.json",
+          "numeric_config.json"
+        ]
+      }
+    },
+    {
+      "seq": 81,
+      "ts": "2026-09-21T11:34:22.998Z",
+      "eventType": "ir_entry_written",
+      "actor": "paper-executor",
+      "detail": {
+        "kind": "RevisionRejected",
+        "id": "revise#1",
+        "nodeId": "1f34e7c5-456c-41ff-bf71-c8b300e8879e",
+        "reason": "revised text lost 1 section heading(s): 方法",
+        "kept_chars": 7424
+      }
+    },
+    {
+      "seq": 82,
+      "ts": "2026-09-21T11:35:15.873Z",
+      "eventType": "ir_entry_written",
+      "actor": "paper-executor",
+      "detail": {
+        "kind": "RevisionRejected",
+        "id": "revise#2",
+        "nodeId": "20b147b0-f750-4689-9091-a92e8e51cdf8",
+        "reason": "revised text lost 2 section heading(s): 方法, 图",
+        "kept_chars": 7424
+      }
+    },
+    {
+      "seq": 83,
+      "ts": "2026-09-21T11:36:05.146Z",
+      "eventType": "ir_entry_written",
+      "actor": "paper-executor",
+      "detail": {
+        "kind": "RevisionRejected",
+        "id": "revise#3",
+        "nodeId": "746ec444-9427-44b7-ae9f-fe31d27ae8e0",
+        "reason": "revised text lost 1 section heading(s): 方法",
+        "kept_chars": 7424
+      }
+    },
+    {
+      "seq": 84,
+      "ts": "2026-09-21T11:36:19.108Z",
+      "eventType": "delivery_graded",
+      "actor": "paper-executor",
+      "detail": {
+        "grade": "MARKED",
+        "mode": "fail-soft",
+        "annotations": 14,
+        "fatal": {
+          "emptyContent": false,
+          "executionFailed": false,
+          "referenceCatastrophe": false
+        }
+      }
+    },
+    {
+      "seq": 85,
+      "ts": "2026-09-21T11:36:19.151Z",
+      "eventType": "final_output_written",
+      "actor": "paper-executor",
+      "detail": {
+        "path": "D:\\deepseek modex\\deepseek-harness\\apps\\paper-shell\\src\\paper-shell-persist-TutCAw\\61e0b19e-25eb-4385-ad6d-5db32036006d\\final\\final",
+        "bytes": 16939,
+        "sha256": "1711ca092fd9f480b6f8f4bf103268395563168a79f3d8892a751b35dabf88fe"
+      }
+    },
+    {
+      "seq": 86,
+      "ts": "2026-09-21T11:36:19.155Z",
+      "eventType": "promotion_succeeded",
+      "actor": "paper-executor",
+      "detail": {
+        "type": "promotion_succeeded",
+        "at": "2026-09-21T11:36:19.150Z",
+        "artifactId": "4573327d-02c5-4f48-a93e-4c7fdb433e37",
+        "finalOutputPath": "/var/paper-harness/final",
+        "mode": "strict"
+      }
+    },
+    {
+      "seq": 87,
+      "ts": "2026-09-21T11:36:19.167Z",
+      "eventType": "workflow_completed",
+      "actor": "paper-executor",
+      "detail": {
+        "gatePassed": false,
+        "costUsd": 0
+      }
+    }
+  ]
+}

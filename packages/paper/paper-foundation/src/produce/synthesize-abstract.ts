@@ -30,6 +30,9 @@ export interface AbstractInput {
   readonly claims: ReadonlyArray<AbstractClaim>
   /** Optional method note; dropped wholesale if it carries a foreign number. */
   readonly methodsNote: string | undefined
+  /** W11.5 baseline-23: numbers the registered problem statement contains —
+   *  input data, not claims (the same allowance the conclusion guard makes). */
+  readonly givenLiterals?: ReadonlyArray<string>
 }
 
 export type AbstractVerdict =
@@ -51,6 +54,7 @@ export function synthesizeAbstract(input: AbstractInput): AbstractVerdict {
     allowed.add(String(r.value))
     if (r.uncertainty !== null) allowed.add(String(r.uncertainty))
   }
+  for (const literal of input.givenLiterals ?? []) allowed.add(literal)
   if (allowed.size === 0 && input.results.length > 0) {
     return { ok: false, reason: 'no distinguishable Result values to anchor the abstract' }
   }

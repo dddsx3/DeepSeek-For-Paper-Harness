@@ -235,7 +235,11 @@ export function runDocxPrechecks(input: DocxPrecheckInput): ReadonlyArray<DocxCh
 
   // 16 — 无未填充占位（D3 无空槽的可执行判据）：渲染器留下的可见占位
   // 说明某个章节没有内容——这种稿子不得导出（不是"检查装饰"）。
-  const placeholderHits = (text.match(/_\((?:模型待写入|本机器槽未生成内容)[^)]*\)_/g) ?? []).length
+  // W11.5 baseline-23: the D4-refusal note is a placeholder as well — the
+  // twenty-third baseline delivered one (`_摘要自动生成被 D4 守卫拒绝（原因：…）_`)
+  // and this check called the paper clean, so a chapter that says "I refused to
+  // write this" reached the export gate as if it were content.
+  const placeholderHits = (text.match(/_\((?:模型待写入|本机器槽未生成内容)[^)]*\)_|_摘要自动生成被[^_]*守卫拒绝[^_]*_/g) ?? []).length
   results.push({
     code: 'no_placeholders',
     status: placeholderHits === 0 ? 0 : 1,
