@@ -217,7 +217,7 @@ export const EXECUTE_PROTOCOL_TEACHING = [
   '  Container shape (REQUIRED, FIRST LINE MATTERS): the output\'s first characters must be `{"__dsh_paper":"ir-container-v1"` — the version marker IS the container\'s identity, and a container missing it is refused before anything else is checked (real refusal: the first real run\'s attempt 1 produced a full, valid container that started with `{"run": …` and was refused on the missing marker alone).',
   '  Re-emission on retry (REQUIRED): a retried container must re-declare every entry it declared before, BYTE-IDENTICAL unless the refusal message asked you to change that entry — the store is append-only and same-id-different-content is a conflict. If you must improve wording, give the entry a NEW id instead of editing the old one.',
   '  Assumption completeness (REQUIRED, the B3-reverse rule): EVERY `[[ASSUMPTION: id]]` anchor that exists in the analysis MUST have a matching AssumptionSpec entry in `entries` — one anchor, one declaration, same id, no exceptions. A container that declares only "the assumptions I found important" while the analysis marked 15 is REFUSED (real refusal: the first real run marked 15 anchors, the container declared 9, and the fidelity gate refused all three attempts on exactly this gap). When in doubt, declare it — an over-declared assumption is checked, an under-declared one kills the container.',
-  '  narrative prose chapters (REQUIRED for a submittable paper): besides `title`/`conclusion`/`methods`, the narrative SHOULD carry the paper\'s prose chapters as strings — `restatement` (问题重述), `analysis` (问题分析), `evaluation` (模型评价与推广), `references` (参考文献条目，形如 "[1] 作者. 题名. 年."), `code` (代码附录说明). Any chapter you leave out renders as a VISIBLE placeholder, and the docx pre-export gate refuses a paper that still carries placeholders (`no_placeholders`) — an empty chapter cannot be delivered.',
+  '  narrative fields (REQUIRED — the paper cannot be delivered without them): the narrative object must carry EIGHT non-empty strings: `title`, `methods` (模型建立与求解 — the model/derivation text, NOT a one-line summary: state the equations or recursions you actually solve), `conclusion`, `restatement` (问题重述), `analysis` (问题分析), `evaluation` (模型评价与推广), `references` (参考文献条目，形如 "[1] 作者. 题名. 年."), `code` (代码附录说明). A missing one renders as a VISIBLE placeholder and the harness refuses the paper before delivery with the exact key named (real refusals: "the paper still lacks chapters the container must supply: 模型建立与求解（方法）（narrative.methods）" — the model wrote the other six and kept omitting `methods`; and "代码附录（narrative.code）"). A retry must keep the chapters it already wrote: re-emit them all in the same container.',
   '  Output shape (REQUIRED): return the container as ONE bare JSON object — no markdown fence, no prose around it. (Two of three attempts in the first real run wrapped it in ```json … ``` and were refused as parse_failed.) If you do fence it, one surrounding fence is now stripped, but do not rely on that.',
   '  Code robustness (REQUIRED): your code must PARSE and run. A JavaScript object key that contains `-` must be quoted — `{"S-P1": 0.1}` is legal, `S-P1: 0.1` is a SyntaxError that kills the whole run before any output is written (real refusal: the first real run\'s attempt died on `S-P1: p1,` and the failure surfaced as an output-set mismatch). Prefer your symbols\' plain `token` as the key, or quote every key.',
   '  Code must FINISH in the runner\'s wall-clock budget (REQUIRED): the deployment gives the child process a fixed budget (minutes, not hours) and kills it when it runs out — a killed run writes no output file, so every Result is lost and the whole paper falls back to the unverified path. Keep the computation small enough to finish (bound every loop: cap Monte-Carlo draws, grid sizes and iteration counts; prefer closed-form and exact enumeration over simulation) and WRITE THE OUTPUT FILE EARLY — before the expensive part, then rewrite it with the final numbers — so a late kill still leaves a readable result.',
@@ -582,6 +582,17 @@ const KEEP = Infinity
 const EXECUTE_PRODUCE_ATTEMPTS = 5
 
 /**
+ * W11.5 baseline-16/18 — the narrative chapters a container MUST supply.
+ *
+ * `methods` is the model-supplied content of 模型建立与求解 (same class as the
+ * prose chapters: absent → a visible placeholder → the pre-export gate refuses).
+ */
+const REQUIRED_NARRATIVE: ReadonlyArray<{ id: string; title: string }> = [
+  { id: 'methods', title: '模型建立与求解（方法）' },
+  ...PROSE_CHAPTERS,
+]
+
+/**
  * TASK 5.0.5 / INV-014: the single sink the promoter writes a
  * deliverable to. Declared once, at module scope, so that "the final
  * output has exactly one write path" is checkable by inspection — a
@@ -681,6 +692,22 @@ export class WorkflowExecutor {
    * reader. Two audiences, two strings.
    */
   readonly #problemStatementByRun: Map<string, string> = new Map()
+
+  /**
+   * W11.5 baseline-19 — the narrative a run has accumulated across attempts,
+   * keyed by chapter.
+   *
+   * The eighteenth baseline's attempts 1 and 5 died on the LAST gate with only a
+   * narrative chapter missing (代码附录, then methods + 问题重述): the model
+   * re-emits the whole container on every retry and silently drops chapters it
+   * had already written — the refusal names what is missing, the model adds it,
+   * and loses another one. A retry's intent is to FIX what was refused, so a
+   * chapter the current attempt does not mention keeps its best-known text; a
+   * chapter the attempt DOES write replaces it (the model's latest word wins per
+   * key). Same spirit as the container store's first-declaration policy, applied
+   * to the one part of the container that is not an entry.
+   */
+  readonly #narrativeByRun: Map<string, Record<string, unknown>> = new Map()
 
   /**
    * W8.12 — the receive layer's terminal failure facts per run, stashed when
@@ -1387,6 +1414,39 @@ export class WorkflowExecutor {
     // every archived artifact — is byte-identical; the suffix appears only on
     // a retry, and `displayIdOf` strips it before anything reaches the paper.
     const runNs = scopeAttemptId(runIdText, attempt)
+    // W11.5 baseline-19: carry every chapter this run has already written into
+    // this attempt's narrative (the attempt's own text wins per key). Without
+    // this, a retry that fixes one chapter drops another and the run cannot
+    // converge — observed twice in the eighteenth baseline.
+    const carried = this.#narrativeByRun.get(runIdText) ?? {}
+    if (container.narrative !== undefined) {
+      for (const [key, value] of Object.entries(container.narrative)) {
+        // An empty string from this attempt must not erase a chapter an earlier
+        // attempt wrote; anything else is the model's latest word for that key.
+        if (typeof value === 'string' && value.trim() === '' && key in carried) continue
+        carried[key] = value
+      }
+      this.#narrativeByRun.set(runIdText, carried)
+    }
+    const narrative: Record<string, unknown> = { ...carried }
+    // W11.5 baseline-19: the chapter check runs BEFORE the code, not after the
+    // render. Its input is the container's narrative, so an execution buys
+    // nothing for it — and in the eighteenth baseline two attempts paid a full
+    // run (and its tokens) only to be refused for a chapter the harness could
+    // see was missing on arrival. A cheap refusal is also a faster retry loop.
+    if (requireProseChapters) {
+      const emptyChapters = REQUIRED_NARRATIVE.filter((chapter) => {
+        const value = narrative[chapter.id]
+        return typeof value !== 'string' || value.trim() === ''
+      })
+      if (emptyChapters.length > 0) {
+        return {
+          ok: false,
+          code: 'placeholder_chapter',
+          reason: `the paper still lacks chapters the container must supply: ${emptyChapters.map(c => `${c.title}（narrative.${c.id}）`).join('、')} — a paper with an empty chapter cannot be exported (docx precheck: no_placeholders). Write those narrative strings in the SAME container as the code (a retry must keep the chapters it already wrote, not trade one for another)`,
+        }
+      }
+    }
     const scope = (id: string): string => scopeAttemptId(id, attempt)
     const runDecl = container.run ?? {}
     const allowedRunKeys = new Set(['outputBasenames', 'seed'])
@@ -1586,7 +1646,7 @@ export class WorkflowExecutor {
       }
     }
     const rendered = renderReportV2({
-      title: String((container.narrative?.['title'] as string | undefined) ?? 'Paper deliverable (executor production chain)'),
+      title: String((narrative['title'] as string | undefined) ?? 'Paper deliverable (executor production chain)'),
       givenLiterals: [...givenLiterals],
       results: results.map(r => ({
         result_id: r.result_id,
@@ -1595,7 +1655,7 @@ export class WorkflowExecutor {
         unit: r.unit,
         uncertainty: r.uncertainty,
       })),
-      narrative: container.narrative ?? {},
+      narrative,
       ...(skeletonRows === undefined ? {} : { skeletonRows }),
       // The figure's DISPLAY id is the file name the paper references, so the
       // persisted bytes and the link agree (the attempt suffix never reaches
@@ -1650,22 +1710,6 @@ export class WorkflowExecutor {
     // `methods` is the model-supplied content of 模型建立与求解 — same class as
     // the prose chapters (W11.5 baseline-16: the model omitted it and the
     // chapter rendered as a placeholder, which the pre-export gate refuses).
-    const REQUIRED_NARRATIVE: ReadonlyArray<{ id: string; title: string }> = [
-      { id: 'methods', title: '模型建立与求解（方法）' },
-      ...PROSE_CHAPTERS,
-    ]
-    const emptyChapters = requireProseChapters ? REQUIRED_NARRATIVE.filter((chapter) => {
-      const value = container.narrative?.[chapter.id]
-      return typeof value !== 'string' || value.trim() === ''
-    }) : []
-    if (emptyChapters.length > 0) {
-      return {
-        ok: false,
-        code: 'placeholder_chapter',
-        reason: `the rendered paper still carries unfilled chapters: ${emptyChapters.map(c => `${c.title}（narrative.${c.id}）`).join('、')} — a paper with an empty chapter cannot be exported (docx precheck: no_placeholders), so write those narrative strings in the container`,
-      }
-    }
-    // W11.5 baseline-18 (审计 A-7): a competition paper carries figures — an OC
     // curve, a decision tree, a sensitivity chart. The seventeenth baseline had
     // ZERO, and nothing asked for one: figures are declared by the container, so
     // a model that declares none simply ships none. This is the same class as the
