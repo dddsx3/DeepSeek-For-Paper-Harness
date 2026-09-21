@@ -163,5 +163,9 @@ function renderTable(headers: ReadonlyArray<string>, rows: ReadonlyArray<AutoRow
  * the statement stays readable and the row stays one row.
  */
 function cellText(value: string): string {
-  return value.replace(/\r?\n+/g, ' ').replace(/\s+/g, ' ').trim().replace(/\|/g, '\\|')
+  // Defensive: a row builder that hands over `null` (an absent ModelSpec
+  // objective, say) must render an empty cell, not crash the whole chain —
+  // baseline-25 died on exactly that (`Cannot read properties of null`).
+  const text = value === null || value === undefined ? '' : String(value)
+  return text.replace(/\r?\n+/g, ' ').replace(/\s+/g, ' ').trim().replace(/\|/g, '\\|')
 }
