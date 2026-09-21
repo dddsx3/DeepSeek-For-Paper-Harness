@@ -1531,7 +1531,14 @@ export class WorkflowExecutor {
     // The chain has a retry budget and the model can fill the chapter, so the
     // refusal belongs HERE, naming the empty chapters and the narrative keys
     // that fill them, instead of one step downstream where nobody can act.
-    const emptyChapters = requireProseChapters ? PROSE_CHAPTERS.filter((chapter) => {
+    // `methods` is the model-supplied content of 模型建立与求解 — same class as
+    // the prose chapters (W11.5 baseline-16: the model omitted it and the
+    // chapter rendered as a placeholder, which the pre-export gate refuses).
+    const REQUIRED_NARRATIVE: ReadonlyArray<{ id: string; title: string }> = [
+      { id: 'methods', title: '模型建立与求解（方法）' },
+      ...PROSE_CHAPTERS,
+    ]
+    const emptyChapters = requireProseChapters ? REQUIRED_NARRATIVE.filter((chapter) => {
       const value = container.narrative?.[chapter.id]
       return typeof value !== 'string' || value.trim() === ''
     }) : []

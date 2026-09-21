@@ -94,7 +94,7 @@ function t1Container(): string {
         { claim_id: 'C-OUT', text: 'mean ice thickness is 0.731 m', claim_type: 'NUMERIC', criticality: 'CRITICAL', result_refs: ['RES-OUT'], model_refs: ['M1'], evidence_refs: ['RES-OUT'] },
       ],
     },
-    narrative: { title: 'estimate ice thickness', conclusion: 'mean ice thickness is 0.731 m', restatement: 'The problem asks for the mean ice thickness along the survey line.', analysis: 'A linear regression on sonar returns estimates the mean thickness.', evaluation: 'The estimate is stable under the survey-line subsampling; the model is transferable to similar shelves.', references: '[1] Polar Survey Group. Sonar returns along line A. 2024.', code: 'The code fits the regression and writes the mean thickness to result.json.' },
+    narrative: { title: 'estimate ice thickness', conclusion: 'mean ice thickness is 0.731 m', methods: 'The regression is fitted by least squares and the mean is read from the fit.', restatement: 'The problem asks for the mean ice thickness along the survey line.', analysis: 'A linear regression on sonar returns estimates the mean thickness.', evaluation: 'The estimate is stable under the survey-line subsampling; the model is transferable to similar shelves.', references: '[1] Polar Survey Group. Sonar returns along line A. 2024.', code: 'The code fits the regression and writes the mean thickness to result.json.' },
   })
 }
 
@@ -351,7 +351,7 @@ describe('T3 template fill — executor end to end', () => {
           { claim_id: 'C-OUT', text: 'mean_thickness is 0.731 m', claim_type: 'NUMERIC', criticality: 'CRITICAL', result_refs: ['RES-OUT'], model_refs: ['M1'], evidence_refs: ['RES-OUT'] },
         ],
       },
-      narrative: { title: 'estimate ice thickness', conclusion: 'mean_thickness is 0.731 m', restatement: 'The problem asks for the mean ice thickness along the survey line.', analysis: 'A linear regression on sonar returns estimates the mean thickness.', evaluation: 'The estimate is stable under the survey-line subsampling; the model is transferable to similar shelves.', references: '[1] Polar Survey Group. Sonar returns along line A. 2024.', code: 'The code fits the regression and writes the mean thickness to result.json.' },
+      narrative: { title: 'estimate ice thickness', conclusion: 'mean_thickness is 0.731 m', methods: 'The regression is fitted by least squares and the mean is read from the fit.', restatement: 'The problem asks for the mean ice thickness along the survey line.', analysis: 'A linear regression on sonar returns estimates the mean thickness.', evaluation: 'The estimate is stable under the survey-line subsampling; the model is transferable to similar shelves.', references: '[1] Polar Survey Group. Sonar returns along line A. 2024.', code: 'The code fits the regression and writes the mean thickness to result.json.' },
     })
   }
 

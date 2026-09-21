@@ -1,0 +1,8 @@
+[CODE-FRESH] 代码来源已断言：entry lib/index.js is 71974 ms newer than the newest source; entry lib/index.js is 52324318 ms newer than the newest source; entry lib/index.js is 52335012 ms newer than the newest source; entry lib/index.js is 52335082 ms newer than the newest source; entry lib/index.js is 52335237 ms newer than the newest source; entry lib/index.js is 52324089 ms newer than the newest source
+paper-shell crashed: Error: EISDIR: illegal operation on a directory, read
+    at async readFileHandle (node:internal/fs/promises:553:24)
+    at async main (D:\deepseek modex\deepseek-harness\apps\paper-shell\src\cli.ts:720:19) {
+  errno: -4068,
+  code: 'EISDIR',
+  syscall: 'read'
+}

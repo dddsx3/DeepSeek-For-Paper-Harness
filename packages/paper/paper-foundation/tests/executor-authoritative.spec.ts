@@ -88,7 +88,7 @@ function polarContainer(overrides: {
       // still an unfilled placeholder (the docx pre-export gate refuses it one
       // step later), so a fixture that expects a DELIVERED paper must carry the
       // prose chapters a real container carries.
-      restatement: 'The problem asks for the mean ice thickness along the survey line.',
+      methods: 'The regression is fitted by least squares and the mean is read from the fit.', restatement: 'The problem asks for the mean ice thickness along the survey line.',
       analysis: 'A linear regression on sonar returns estimates the mean thickness.',
       evaluation: 'The estimate is stable under subsampling; the model transfers to similar shelves.',
       references: '[1] Polar Survey Group. Sonar returns along line A. 2024.',
