@@ -389,3 +389,52 @@ attempt 1 就产出合法容器 → 代码真执行 → Result/Claim 铸出 → 
 写进 zip、并把 `data_files`（含 sha256/bytes）记进 run-report.json。
 
 **这样交付包 = 论文 + 证据**：结果表里的每个数字都能回到它来自的那份 JSON。
+
+---
+
+## 12. baseline-17：**基线论文**（A-produce-chain → 可导出 → 证据随稿）
+
+这是路线书要的那一份：**真实链条产出的论文，交付链全程走通，且证据随稿交付**。
+
+```
+[DELIVERED] path -> A-produce-chain   grade MARKED
+13 章 / 0 占位 / 16,314 字节    wall_clock 346.7s    minted_ir 75
+data/  -> numeric_config.json + sprt_results.json（含 sha256/bytes 记进 run-report）
+```
+
+交付链三步全绿（每一步的退出码就是契约里的 0）：
+
+| 步骤 | 结果 | 退出码 |
+|---|---|---|
+| `docx precheck` | 16 类检查 **0 致命**（`table_columns` 对齐、`no_placeholders` 干净） | 0 |
+| `docx export` | `paper.docx` 43,428 字节（python-docx + cairosvg；pandoc 缺 → OMML 跳过） | 0 |
+| `deliverables verify` | 契约 3 项固定件全部在盘 | 0 |
+
+`deliverable-final.zip` 65,906 字节，成员：report.md / sha256.txt / run-report.json /
+paper.docx / docx-precheck-report.md / data/numeric_config.json /
+data/sprt_results.json —— **论文与它的证据在同一个包里**。
+
+论文形态（12 章骨架）：摘要与结论数字由 harness 回读 IR 注入（结论里每个量都以
+`{R-…}` 点名，渲染时替换成运行算出的值），结果表 11 行全部标着来源 Result id，
+问题重述表由注册的 requirement 注入，参考文献由模型写（2 条真实文献），
+AI 声明与数据附录自动生成，MARKED 附录逐条列出未通过项。
+
+### 12.1 这一版之前修掉的三处（都是真稿暴露的，不是猜的）
+
+1. **`data/` 被当成报告文件**（baseline-15）：运行成功、CLI 在 `readFile` 上崩
+   `EISDIR`——`firstFile` 只跳过了 `figures/`。两个 sidecar 目录现在都按名字跳过。
+2. **模型建立与求解章的空占位**（baseline-16）：该章由 `narrative.methods` 供给，
+   而空章节检查只覆盖散文五章 → 预检会在下一步拒绝。`methods` 并入必填。
+3. **题面数字白名单**（baseline-11/12/14 三次同因）：结论复述题面的置信度/标称值
+   被判"越界数字"。题面是 harness 注册的输入资产，其数字进允许集合；而"每个声明
+   量的值必须逐字出现"那条检查仍然拦住编造结果（已用测试钉住边界）。
+
+### 12.2 当前仍开放的项（诚实清单）
+
+- `execution` 闸门的 `config_declared_actual_mismatch`：代码算出的参数值与声明值
+  在小数第 7 位上不同（模型侧精度选择），fail-soft 下记 MARKED。
+- 引导面（T2/T3）的稿子按构造是骨架（无散文步），docx 预检会拒绝导出——已用测试
+  显式钉住，未在链上向它索取表达不出来的内容。
+- `pandoc` 未安装 → OMML 公式链跳过（R2④ 的已知环境缺口）。
+- 单次运行的真实量级：干净收敛约 2.4 万输出 token / 6 分钟；最坏（5 次尝试、
+  每次重发 180+ 条容器）曾达 108 万 token，因此本次运行的输出上限设为 2.5M。
