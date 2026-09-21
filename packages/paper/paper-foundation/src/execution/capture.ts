@@ -55,6 +55,36 @@ export type ExecutionCaptureResult =
   }
   | { readonly ok: false; readonly failures: ReadonlyArray<ExecutionCaptureFailure> }
 
+/**
+ * The declaration fields capture attests a run against.
+ *
+ * W11.5 baseline-6 (首次真实产出实测): capture originally read these off the
+ * RunArtifact already in the store, which forced the caller to commit the
+ * declaration BEFORE the code ran. A run that then failed left that
+ * declaration behind as a phantom — `RunArtifact` with no `ExecutionRecord`
+ * — and `deriveDirectStale` reads exactly that as a permanent
+ * `EXECUTION_MISMATCH` ("no ExecutionRecord for this run"), so the next
+ * attempt could neither re-declare the id (duplicate_id) nor clear the stale
+ * gate. The declaration is now an INPUT: the caller builds it, capture
+ * attests against it, and the store is written only once the run really
+ * happened.
+ */
+export interface RunDeclaration {
+  readonly code_ref: string
+  readonly code_hash: string
+  readonly model_ref: string
+  readonly input_data_refs: ReadonlyArray<string>
+  readonly output_refs: ReadonlyArray<string>
+  readonly seed: string | number | null
+  /**
+   * Fingerprinted into the record's `environment_hash` and re-derived from the
+   * store by the stale engine — it must be the exact value the committed
+   * RunArtifact carries, or `deriveDirectStale` reads a different fingerprint
+   * and flags EXECUTION_MISMATCH on a run that was in fact fine.
+   */
+  readonly environment: string
+}
+
 export interface CaptureExecutionInput {
   readonly ir: ModelingIr
   /** The RunArtifact whose code should run. */
@@ -65,6 +95,18 @@ export interface CaptureExecutionInput {
    *  filesystem; the composition owns the loader (tests inject a stub). */
   readonly loadCode: (codeRef: string) => Promise<string>
   readonly timeoutMs: number
+  /**
+   * Attest against this declaration instead of the store's RunArtifact.
+   *
+   * The checks are IDENTICAL — code bytes must hash to `code_hash`, the
+   * produced output set must equal `output_refs`, the model must resolve —
+   * only their source moves. Nothing is weakened: the model never supplies
+   * any of these fields (the producer builds them from the deployment-owned
+   * runner command and the container's declared basenames), and a fabricated
+   * record still cannot enter the store except through
+   * `ingestCapturedRecord`'s producer-only door.
+   */
+  readonly runDeclaration?: RunDeclaration
 }
 
 /**
@@ -82,23 +124,25 @@ export async function captureExecution(input: CaptureExecutionInput): Promise<Ex
     }
   }
 
-  const runRecord = store.get(input.runRef)
-  if (runRecord === undefined || runRecord.kind !== 'RunArtifact') {
-    return {
-      ok: false,
-      failures: [{
-        kind: 'RUN_MISSING',
-        reason: `run '${input.runRef}' is not a registered RunArtifact`,
-      }],
+  // The declaration comes from the caller when it has not committed the
+  // RunArtifact yet (the production chain's normal path: declare AFTER the
+  // run), and from the store otherwise (every pre-existing caller, and the
+  // RUN_MISSING attack).
+  let run: RunDeclaration
+  if (input.runDeclaration !== undefined) {
+    run = input.runDeclaration
+  } else {
+    const runRecord = store.get(input.runRef)
+    if (runRecord === undefined || runRecord.kind !== 'RunArtifact') {
+      return {
+        ok: false,
+        failures: [{
+          kind: 'RUN_MISSING',
+          reason: `run '${input.runRef}' is not a registered RunArtifact`,
+        }],
+      }
     }
-  }
-  const run = runRecord.value as {
-    code_ref: string
-    code_hash: string
-    model_ref: string
-    input_data_refs: string[]
-    output_refs: string[]
-    seed: string | number | null
+    run = runRecord.value as RunDeclaration
   }
 
   const code = await input.loadCode(run.code_ref)
@@ -124,10 +168,23 @@ export async function captureExecution(input: CaptureExecutionInput): Promise<Ex
     // and died at parse time, producing nothing. A non-zero exit is the fact
     // that tells the next attempt what to fix, so it travels WITH the
     // mismatch (模型可见 ⟺ 已记录): exit code + the stderr tail.
+    //
+    // W11.5 baseline-6 (首次真实产出实测): the same reasoning cut the other
+    // way — the message then blamed "语法/运行错误" for a child that was
+    // KILLED (exit -1, empty stderr, no output files: the sixth real run's
+    // attempt 1). A terminated child and a crashing child are different
+    // diagnoses and lead to different corrections, so the signal decides
+    // which one is reported.
     const stderrTail = outcome.stderr.trim().split('\n').slice(-3).join(' | ').slice(0, 300)
-    const crash = outcome.exitStatus !== 0
-      ? `；runner exited ${outcome.exitStatus}${stderrTail === '' ? '' : ` — stderr: ${stderrTail}`}（代码很可能有语法/运行错误：先修代码，再核对声明输出）`
-      : ''
+    // `typeof === 'string'` rather than `!== null`: a runner that omits the
+    // field (an untyped implementation) must read as "exited on its own", the
+    // pre-signal behaviour, never as a kill by an unnamed signal.
+    const killedBy = typeof outcome.signal === 'string' ? outcome.signal : null
+    const crash = killedBy !== null
+      ? `；runner KILLED the child with ${killedBy} after ${elapsedMs(outcome)}ms (no exit code) — the production runner's only termination path is its wall-clock budget (${input.timeoutMs}ms), so the code did not finish in time. Make the computation cheaper (fewer samples/steps, smaller grids) and write the output file EARLY, before the expensive part（超时被杀，不是语法错误）`
+      : outcome.exitStatus !== 0
+        ? `；runner exited ${outcome.exitStatus}${stderrTail === '' ? '' : ` — stderr: ${stderrTail}`}（代码很可能有语法/运行错误：先修代码，再核对声明输出）`
+        : ''
     failures.push({
       kind: 'OUTPUT_SET_MISMATCH',
       reason: `runner produced [${produced.join(',')}] but RunArtifact.output_refs declares [${run.output_refs.join(',')}]${crash}`,
@@ -139,6 +196,10 @@ export async function captureExecution(input: CaptureExecutionInput): Promise<Ex
   const model = modelRecord !== undefined && modelRecord.kind === 'ModelSpec'
     ? modelRecord.value as Record<string, unknown>
     : undefined
+  // The fingerprint helpers read the declaration's own fields, so they take it
+  // as an open record; `RunDeclaration` is a closed interface and needs the
+  // widening here (it has no index signature by design).
+  const runFields = { ...run } as Record<string, unknown>
 
   const outputHashMap: Record<string, string> = {}
   for (const file of outcome.outputFiles) {
@@ -149,9 +210,9 @@ export async function captureExecution(input: CaptureExecutionInput): Promise<Ex
     execution_id: input.executionId,
     run_ref: input.runRef,
     code_hash: run.code_hash,
-    environment_hash: declaredEnvironmentFingerprint(run),
+    environment_hash: declaredEnvironmentFingerprint(runFields),
     runtime_fingerprint_hash: sha256Hex(canonicalJson(outcome.runtimeFacts)),
-    dependency_lock_hash: declaredDependencyLockFingerprint(run, model),
+    dependency_lock_hash: declaredDependencyLockFingerprint(runFields, model),
     input_data_refs: [...run.input_data_refs],
     output_refs: [...run.output_refs],
     output_hash: sha256Hex(canonicalJson(outputHashMap)),
@@ -191,6 +252,14 @@ function sameSet(a: ReadonlyArray<string>, b: ReadonlyArray<string>): boolean {
   const sortedA = [...a].sort()
   const sortedB = [...b].sort()
   return sortedA.every((value, i) => value === sortedB[i])
+}
+
+/** Measured wall-clock of one outcome, rounded to whole milliseconds. */
+function elapsedMs(outcome: { startedAt: string; finishedAt: string }): number {
+  const started = Date.parse(outcome.startedAt)
+  const finished = Date.parse(outcome.finishedAt)
+  if (!Number.isFinite(started) || !Number.isFinite(finished)) return 0
+  return Math.max(0, Math.round(finished - started))
 }
 
 /**

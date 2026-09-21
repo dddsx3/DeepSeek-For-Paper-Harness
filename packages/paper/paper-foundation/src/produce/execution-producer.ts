@@ -29,7 +29,8 @@ import { ModelingIr } from '../ir/store.ts'
 import { LocalProcessRunner } from '../execution/runner.ts'
 import { captureExecution, ingestCapturedRecord } from '../execution/capture.ts'
 import { sha256Hex, canonicalJson } from '../ir/index.ts'
-import { executionRecordSchema } from '../ir/schema.ts'
+import { IR_SCHEMAS, executionRecordSchema } from '../ir/schema.ts'
+import { validateRefFields } from '../ir/refs.ts'
 // M-QUAL (W10) DP-4: the execution-time config capture. The code emits
 // `numeric_config.json` among its declared outputs; after capture verifies
 // the output set, the emission's bytes (already covered by the record's
@@ -108,22 +109,34 @@ export async function produceRunExecution(input: RunExecutionInput): Promise<Run
     output_hash: outputHash,
   }
 
-  const admitted = ir.put('RunArtifact', runArtifact)
-  if (!admitted.accepted) {
-    const failure = admitted.failures[0]
-    return {
-      ok: false,
-      code: 'run_declaration_refused',
-      reason: failure !== undefined ? `${failure.kind}: ${failure.reason}` : 'store refused the RunArtifact declaration',
-    }
+  // W11.5 baseline-6 (首次真实产出实测): the declaration is pre-validated but
+  // NOT committed here. Committing it up front made a failed run permanent:
+  // attempt 1 of the sixth real run declared this RunArtifact, its code then
+  // crashed (runner exited -1, produced no output), and the store was left
+  // holding a RunArtifact that claims a successful execution with two outputs
+  // that do not exist. Two consequences, both real: the retry's re-declaration
+  // was refused as `duplicate_id` (a false failure — the refused attempt's
+  // state is not authoritative), and `stale_detection` read the phantom as a
+  // permanent `EXECUTION_MISMATCH` ("no ExecutionRecord for this run"), so the
+  // run could never be graded CLEAN again. The order is now: validate the
+  // declaration, run, and only then declare + commit the record.
+  const preFlight = preValidateRunDeclaration(ir, runArtifact)
+  if (preFlight !== null) {
+    return { ok: false, code: 'run_declaration_refused', reason: preFlight }
   }
 
+  // The runner's phase trace (spawned? entry file written? killed?) is the
+  // only evidence that separates "the child never started" from "the child
+  // ran and died" — keep the tail of it and attach it to a refusal, so the
+  // next real run is diagnosable from the audit instead of inferred.
+  const runnerTrace: string[] = []
   const runner = new LocalProcessRunner({
     command: [...input.runnerCommand],
     entryFile: input.runnerEntryFile,
     outputBasenames: [...input.outputBasenames],
     outputLocators: [...input.outputLocators],
     timeoutMs: input.timeoutMs,
+    trace: (message: string) => { runnerTrace.push(message) },
     ...(input.environmentFactsCommands === undefined
       ? {}
       : { environmentFactsCommands: input.environmentFactsCommands.map(c => [...c]) }),
@@ -137,17 +150,43 @@ export async function produceRunExecution(input: RunExecutionInput): Promise<Run
     runner,
     loadCode: async () => input.codeText,
     timeoutMs: input.timeoutMs,
+    runDeclaration: {
+      code_ref: codeRef,
+      code_hash: codeHash,
+      model_ref: input.modelRef,
+      input_data_refs: [],
+      output_refs: [...input.outputLocators],
+      seed: input.seed ?? null,
+      environment: input.environment,
+    },
   })
   if (!captured.ok) {
     const failure = captured.failures[0]
     return {
       ok: false,
       code: failure?.kind ?? 'capture_failed',
-      reason: failure !== undefined ? failure.reason : 'capture failed',
+      reason: `${failure !== undefined ? failure.reason : 'capture failed'}${traceTail(runnerTrace)}`,
     }
   }
   if (executionRecordSchema.safeParse(captured.record).success !== true) {
     return { ok: false, code: 'RECORD_INVALID', reason: 'captured record failed its schema' }
+  }
+
+  // The run really happened — only now does the declaration become a
+  // statement about the world, and only now is it written. Its `output_hash`
+  // is the record's measured one unless the caller predicted the bytes (a
+  // deterministic code's forecast, which then stands as declared).
+  const declared = input.declaredOutputBytes === undefined
+    ? { ...runArtifact, output_hash: captured.record.output_hash }
+    : runArtifact
+  const admitted = ir.put('RunArtifact', declared)
+  if (!admitted.accepted) {
+    const failure = admitted.failures[0]
+    return {
+      ok: false,
+      code: 'run_declaration_refused',
+      reason: failure !== undefined ? `${failure.kind}: ${failure.reason}` : 'store refused the RunArtifact declaration',
+    }
   }
   const committed = ingestCapturedRecord(ir, captured.record)
   if (!committed.accepted) {
@@ -204,6 +243,60 @@ export async function produceRunExecution(input: RunExecutionInput): Promise<Run
     executionId,
     outputs: captured.outputs.map(o => ({ locator: o.locator, bytes: o.bytes })),
   }
+}
+
+/**
+ * The last few runner phase lines, formatted for a refusal reason.
+ *
+ * Bounded on purpose: the refusal travels to the model AND to the audit, and
+ * the audit already keeps a 400-character excerpt of the reason.
+ */
+function traceTail(trace: ReadonlyArray<string>): string {
+  if (trace.length === 0) return ''
+  return ` [runner: ${trace.slice(-4).join(' / ').slice(0, 300)}]`
+}
+
+/**
+ * Validate the RunArtifact declaration WITHOUT committing it, so a
+ * declaration the store would refuse is refused before any code runs.
+ *
+ * Why this exists at all: `produceRunExecution` no longer commits the
+ * declaration up front (W11.5 baseline-6 — see the call site), but the
+ * "nothing runs for a declaration that cannot be admitted" property must
+ * survive the reordering. The checks are the store's own: the closed schema
+ * plus the declared reference fields (a `model_ref` that resolves to no
+ * ModelSpec is the case the acceptance test pins). They are re-run by the
+ * store at commit time, so a rule added there and missed here can only make
+ * the chain run code it then refuses — fail-closed, never fail-open.
+ *
+ * @returns a `<kind>: <reason>` string in the store's refusal shape, or
+ *          `null` when the declaration is admissible.
+ */
+function preValidateRunDeclaration(ir: ModelingIr, declaration: Record<string, unknown>): string | null {
+  const parsed = IR_SCHEMAS.RunArtifact.safeParse(declaration)
+  if (!parsed.success) {
+    const issue = parsed.error.issues[0]
+    const at = issue !== undefined && issue.path.length > 0 ? `${issue.path.join('.')}: ` : ''
+    return `schema_violation: ${at}${issue?.message ?? 'invalid'}`
+  }
+  const id = String(declaration['run_id'] ?? '')
+  if (ir.kindOf(id) !== undefined) {
+    // With the declaration moved after the run, an id already in the store
+    // means an EARLIER attempt of this run got as far as executing: its
+    // declaration is committed and the store is append-only, so this
+    // attempt's declaration cannot land. Refuse here rather than after
+    // spending another execution on it.
+    return `duplicate_id: id '${id}' is already registered as ${String(ir.kindOf(id))} — an earlier attempt of this run already executed and its declaration is committed (the store is append-only; a run id names one execution)`
+  }
+  const problems = validateRefFields('RunArtifact', parsed.data, ref => ir.kindOf(ref))
+  const first = problems[0]
+  if (first !== undefined) {
+    const expected = first.target === 'ANY' ? 'any registered object' : String(first.target)
+    return first.resolution === 'missing'
+      ? `unresolved_reference: ${first.path}: '${first.ref}' is not registered (expected ${expected})`
+      : `reference_kind_mismatch: ${first.path}: '${first.ref}' resolves to ${String(first.actual)}, expected ${expected}`
+  }
+  return null
 }
 
 /** The problem ids the named model belongs to (the token-resolution scope). */

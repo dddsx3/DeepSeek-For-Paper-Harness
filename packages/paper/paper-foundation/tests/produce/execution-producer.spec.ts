@@ -113,6 +113,7 @@ describe('P1-2 execution producer — attacks', () => {
   it('refuses a code whose real output set disagrees with the declaration', async () => {
     const ir = new ModelingIr()
     seedContract(ir)
+    const before = ir.size
     const verdict = await produceRunExecution({
       ir, ...runArgs(),
       codeText: 'console.log("no output file at all")',
@@ -122,6 +123,79 @@ describe('P1-2 execution producer — attacks', () => {
     if (verdict.ok) return
     expect(verdict.code).toBe('OUTPUT_SET_MISMATCH')
     expect(ir.list().filter(r => r.kind === 'ExecutionRecord')).toHaveLength(0)
+    // W11.5 baseline-6 (首次真实产出实测): a refused run must leave the store
+    // EXACTLY as it found it. Declaring the RunArtifact before the code ran
+    // left a phantom that claimed a successful execution with outputs that do
+    // not exist; the next attempt's re-declaration was then refused as
+    // `duplicate_id` (a false failure) and `stale_detection` read the phantom
+    // as a permanent EXECUTION_MISMATCH.
+    expect(ir.size).toBe(before)
+    expect(ir.list().filter(r => r.kind === 'RunArtifact')).toHaveLength(0)
+    expect(computeStaleReport(ModelingIr.snapshot(ir)!).stale.filter(s => s.kind === 'RunArtifact')).toHaveLength(0)
+  }, 60_000)
+
+  it('a crashed attempt leaves no trace, so the retry with fixed code really runs', async () => {
+    // The exact baseline-6 shape: attempt 1's code has a syntax error and
+    // exits non-zero having written nothing; the model then fixes the code.
+    const ir = new ModelingIr()
+    seedContract(ir)
+    const first = await produceRunExecution({
+      ir, ...runArgs(),
+      codeText: 'const broken = { S-P1: 1 }\n',
+      declaredOutputBytes: undefined as unknown as Map<string, string>,
+    })
+    expect(first.ok).toBe(false)
+    if (first.ok) return
+    expect(first.code).toBe('OUTPUT_SET_MISMATCH')
+    expect(first.reason).toContain('runner exited')
+
+    const second = await produceRunExecution({ ir, ...runArgs() })
+    expect(second.ok, second.ok ? '' : second.reason).toBe(true)
+    if (!second.ok) return
+    expect(second.runArtifactId).toBe(RUN_ID)
+    expect(ir.list().filter(r => r.kind === 'RunArtifact')).toHaveLength(1)
+    expect(ir.list().filter(r => r.kind === 'ExecutionRecord')).toHaveLength(1)
+    expect(computeStaleReport(ModelingIr.snapshot(ir)!).stale.filter(s => s.kind === 'RunArtifact')).toHaveLength(0)
+  }, 60_000)
+
+  it('names the wall-clock kill, not a syntax error, when the runner terminates the child', async () => {
+    // W11.5 baseline-6 (首次真实产出实测): the sixth real run's attempt 1
+    // reported exit -1 with empty stderr and no output files, and the refusal
+    // said "代码很可能有语法/运行错误" — a guess. A real killed child is
+    // measured here (SIGTERM from the runner's own budget) so the diagnosis is
+    // the fact, and the model is told what actually to fix.
+    const ir = new ModelingIr()
+    seedContract(ir)
+    const verdict = await produceRunExecution({
+      ir, ...runArgs(),
+      timeoutMs: 400,
+      codeText: 'setTimeout(() => {}, 5000)\n',
+      declaredOutputBytes: undefined as unknown as Map<string, string>,
+    })
+    expect(verdict.ok).toBe(false)
+    if (verdict.ok) return
+    expect(verdict.code).toBe('OUTPUT_SET_MISMATCH')
+    expect(verdict.reason).toContain('KILLED the child with SIGTERM')
+    expect(verdict.reason).toContain('wall-clock budget (400ms)')
+    expect(verdict.reason).not.toContain('语法/运行错误')
+    // And the failed attempt still left nothing behind.
+    expect(ir.list().filter(r => r.kind === 'RunArtifact' || r.kind === 'ExecutionRecord')).toHaveLength(0)
+  }, 60_000)
+
+  it('refuses a run declaration that is already committed (one run id, one execution)', async () => {
+    const ir = new ModelingIr()
+    seedContract(ir)
+    const first = await produceRunExecution({ ir, ...runArgs() })
+    expect(first.ok).toBe(true)
+    const again = await produceRunExecution({ ir, ...runArgs() })
+    expect(again.ok).toBe(false)
+    if (again.ok) return
+    // Refused BEFORE the code runs (the pre-flight sees the committed id),
+    // with the reason naming the real cause instead of a bare duplicate_id.
+    expect(again.code).toBe('run_declaration_refused')
+    expect(again.reason).toContain('already registered as RunArtifact')
+    expect(ir.list().filter(r => r.kind === 'RunArtifact')).toHaveLength(1)
+    expect(ir.list().filter(r => r.kind === 'ExecutionRecord')).toHaveLength(1)
   }, 60_000)
 })
 

@@ -35,6 +35,7 @@ function fakeRunner(overrides: Partial<ExecutionOutcome> = {}, tracker?: { calls
       if (tracker) tracker.calls += 1
       return {
         exitStatus: 0,
+        signal: null,
         stdout: 'execution ok\n',
         stderr: '',
         outputFiles: [{ locator: 'file:///runs/RUN1/result.json', bytes: OUTPUT_JSON }],
