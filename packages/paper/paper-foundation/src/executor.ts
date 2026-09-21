@@ -210,7 +210,6 @@ export const EXECUTE_PROTOCOL_TEACHING = [
   '  interpretations: declaration-based. results: [{ result_id, name, source: { locator: <one outputBasenames entry>, jsonPath: <a BARE dotted path to the number inside that file, e.g. "n_fixed" — not "$.n_fixed"; array elements use the index form "oc[2].accept"; it must resolve to a JSON number, so emit ranges as two numeric fields and vectors as one field per entry> }, unit }]. The locator must be one of your declared outputs; every Result reads its value via jsonPath — never a literal number. '
   + 'claims (declare them here): [{ claim_id, text, claim_type: "NUMERIC", criticality: "CRITICAL", result_refs: [<a result_id>], model_refs: [<your model_id>], evidence_refs: [<a result_id>] }] — a CRITICAL NUMERIC claim binds one Result as the number the paper states; without a claim your REQUIRED_OUTPUT stays unpaid and delivery is blocked.',
   '  interpretations.figures (REQUIRED — at least ONE figure): a submittable modelling paper shows a chart, and the harness refuses one without any (real refusal: "the paper carries no figure"). Declare the STRUCTURE only — the harness renders the bytes and computes every hash: [{ figure_id, chart_type: "line"|"scatter"|"bar"|"table", data_refs: [Result ids], caption? }]. Pick what your results actually support: an OC/ROC curve for a test design (line over the rejection probability Results), a comparison bar chart across decision scenarios, a sensitivity table, a decision tree as a table. caption/x_label/y_label must NOT contain numeric literals (write quantities in words, e.g. "final value" instead of "y(2.0)"): a number in these strings is refused unless it is exactly the value of a referenced Result.',
-  '  interpretations.figures (REQUIRED — at least ONE figure): a submittable modelling paper shows a chart, and the harness refuses one without any (real refusal: "the paper carries no figure"). Declare the STRUCTURE only — the harness renders the bytes and computes every hash: [{ figure_id, chart_type: "line"|"scatter"|"bar"|"table", data_refs: [Result ids], caption? }]. Pick what your results actually support: an OC/ROC curve for a test design (line over the rejection-probability Results), a comparison bar chart across decision scenarios, a sensitivity table, or a decision tree as a table. caption/x_label/y_label must NOT contain numeric literals (write quantities in words, e.g. "final value" instead of "y(2.0)"): a number in these strings is refused unless it is exactly the value of a referenced Result.',
   '  narrative: { title, conclusion: { claims: [{ text, quantity_refs: [Result ids], representation? }] } } — a conclusion number must be the bound Result value verbatim, or an explicitly declared rendering: {"kind":"rounded","dp":<0..20>} or {"kind":"with_uncertainty","uncertainty_refs":[...]}. The check is mechanical: each claim\'s text must CONTAIN the value of every quantity_ref, written into the sentence — text "The unified minimum sample size is 1762." with quantity_refs ["R-N-FIXED"]. A qualitative sentence that names the Result but never states its value is refused (real refusal: "The unified sample size is the maximum of the two case-specific minimum sample sizes.").',
   '  Naming a quantity instead of copying it (STRONGLY PREFERRED): you write this narrative BEFORE your code runs, so you cannot know its output. Writing `{<result_id>}` inside the text makes the harness substitute the run\'s value at render time — the digit then comes from the IR by construction. Prefer this over guessing a literal: a literal number you write yourself must equal the Result value exactly, and a wrong guess refuses the whole report. Both of the two most recent real runs died exactly there (the narrative stated one sample size while its own code had computed another), and both had already passed every other check — so a wrong literal costs the entire production chain. Example shape: text "the minimum sample size is {R-N1} and the critical value is {R-C1}", quantity_refs ["R-N1","R-C1"]. A name that is not one of that claim\'s quantity_refs is refused (the braces would otherwise print into the paper).',
   '  Every literal in the conclusion must be a number the RUN produced (REQUIRED): a constant the problem GAVE you is not a Result, so writing it as a digit in the conclusion is refused (real refusal: "conclusion claim contains numeric literal \'95\' outside its declared quantities [2, 22, 0]" — the model restated the confidence level). Either write the given quantity in words ("at the stated confidence level"), or make your code emit it as a Result and name it `{<result_id>}`. The refusal lists the allowed set — read it before rewriting.',
@@ -1744,6 +1743,29 @@ export class WorkflowExecutor {
     // treatment: refuse in the chain, name the fix, let the guided retry add it.
     // The harness renders the bytes (never the model), so the ask is "declare the
     // structure", which is cheap for the model and checkable by the harness.
+    // W11.5 round-2 (审计 A-5/A-6): the V1/V2 structure checks already existed —
+    // the seventeenth baseline's appendix listed 13 of their findings — but they
+    // only ever ran at DELIVERY time, as annotations. An assumption no model
+    // references ("assumed but never used") or a MODELING_CHOICE with no
+    // justification is a CONTAINER defect: the model can fix it in the very next
+    // attempt, whereas an appendix line fixes nothing. Same "judgement exists,
+    // never reaches the model" shape as the placeholder and coverage holes, and
+    // the same fix — check it in the chain and name the offending fields.
+    const structural = snapshot === null ? [] : runVerificationV1V4(snapshot)
+      .filter(f => !f.ok && (f.rule.startsWith('V1') || f.rule.startsWith('V2')))
+    // Scope: the single-shot face, where the model writes the container (the
+    // T2/T3 guided faces assemble theirs from tiny steps that carry no
+    // assumptions — demanding fields those steps cannot express would make the
+    // guided faces unsatisfiable, exactly as with the prose chapters).
+    if (requireProseChapters && structural.length > 0) {
+      const shown = structural.slice(0, 4).map(f => f.detail).join('；')
+      const more = structural.length > 4 ? `；…(+${structural.length - 4})` : ''
+      return {
+        ok: false,
+        code: 'assumption_structure',
+        reason: `the container's assumptions do not close: ${shown}${more} — every AssumptionSpec must be REFERENCED by a ModelSpec.assumption_refs (an assumption no model uses is "assumed but never used") and must carry justification_refs (MODELING_CHOICE: what in the problem or the analysis justifies it; GIVEN: the DataArtifact it came from). Fix those fields in the container`,
+      }
+    }
     if (requireProseChapters && figureAssets.length === 0) {
       return {
         ok: false,

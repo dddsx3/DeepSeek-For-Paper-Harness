@@ -42,7 +42,7 @@ const routes = {
 const SHARD_DEFS = JSON.stringify({
   entries: [
     { kind: 'SymbolSpec', value: { symbol_id: 'SYM-q', scope_ref: 'P1', token: 'q', meaning: 'thickness', unit: 'm', role: 'VARIABLE', shape: 'SCALAR', domain: 'REAL', index_set: [] } },
-    { kind: 'AssumptionSpec', value: { assumption_id: 'ASM-1', scope_ref: 'P1', statement: 'uniform slab', source_type: 'MODELING_CHOICE', justification_refs: [], risk_level: 'MEDIUM', testable: false, sensitivity_refs: [], status: 'ACTIVE' } },
+    { kind: 'AssumptionSpec', value: { assumption_id: 'ASM-1', scope_ref: 'P1', statement: 'uniform slab', source_type: 'MODELING_CHOICE', justification_refs: ['R-OUT'], risk_level: 'MEDIUM', testable: false, sensitivity_refs: [], status: 'ACTIVE' } },
   ],
 })
 const SHARD_MODELS = JSON.stringify({
