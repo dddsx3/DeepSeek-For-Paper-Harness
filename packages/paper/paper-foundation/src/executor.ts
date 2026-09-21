@@ -1736,20 +1736,28 @@ export class WorkflowExecutor {
           .filter(r => r.kind === 'EquationSpec')
           .map((r) => {
             const eq = r.value as { equation_id: string; expression: string; equation_type: string; unit: string }
-            return { id: eq.equation_id, columns: [eq.equation_id, eq.expression, eq.equation_type, eq.unit] }
+            return {
+              id: String(eq.equation_id ?? ''),
+              columns: [String(eq.equation_id ?? ''), String(eq.expression ?? ''), String(eq.equation_type ?? ''), String(eq.unit ?? '')],
+            }
           }),
         models: [...snapshot.values()]
           .filter(r => r.kind === 'ModelSpec')
           .map((r) => {
             const m = r.value as {
               model_id: string
-              objective: string
-              constraints: ReadonlyArray<string>
-              problem_refs: ReadonlyArray<string>
+              objective: string | null
+              constraints: ReadonlyArray<string> | null
+              problem_refs: ReadonlyArray<string> | null
             }
             return {
-              id: m.model_id,
-              columns: [m.model_id, m.objective, (m.constraints ?? []).join('；') || '—', (m.problem_refs ?? []).join(', ')],
+              id: String(m.model_id ?? ''),
+              columns: [
+                String(m.model_id ?? ''),
+                String(m.objective ?? '（未声明目标）'),
+                (m.constraints ?? []).join('；') || '—',
+                (m.problem_refs ?? []).join(', '),
+              ],
             }
           }),
       }
