@@ -59,6 +59,11 @@ export interface PaperSkeletonInput {
   readonly assumptions?: ReadonlyArray<AutoRow>
   /** Auto rows for a REQUIRED_OUTPUTs table in 问题重述. */
   readonly requirements?: ReadonlyArray<AutoRow>
+  /** W11.5 baseline-20 (审计 B-2/B-3): the declared equations, rendered into
+   *  模型建立与求解 — the chapter is IR-backed, not model prose. */
+  readonly equations?: ReadonlyArray<AutoRow>
+  /** The declared models (objective / constraints / refs), same chapter. */
+  readonly models?: ReadonlyArray<AutoRow>
   /**
    * W8.5 (B1): real content per section id. A prose section with a slot
    * uses it verbatim; without one it renders the placeholder. This is how
@@ -85,6 +90,30 @@ export function renderPaperSkeleton(input: PaperSkeletonInput): string {
       lines.push(renderTable(['符号', '含义', '单位'], input.symbols ?? [], '(符号表由规范 IR 自动生成)'))
     } else if (section.kind === 'assumptions') {
       lines.push(renderTable(['假设', '来源', '风险', '可检验'], input.assumptions ?? [], '(假设表由规范 IR 自动生成)'))
+    } else if (section.id === 'model') {
+      // W11.5 baseline-20 (审计 B-2/B-3「虎头蛇尾」): the 模型建立与求解 chapter is
+      // filled from the canonical IR — every EquationSpec the container declared
+      // (expression + unit) and every ModelSpec (objective, constraints) — so the
+      // chapter carries the ACTUAL model rather than a one-line summary, and it
+      // cannot be missing while the model exists in the IR. The model's own
+      // `methods` prose, when present, stays underneath.
+      if ((input.equations?.length ?? 0) > 0) {
+        lines.push('### 方程')
+        lines.push('')
+        lines.push(renderTable(['方程', '表达式', '类型', '单位'], input.equations ?? [], '(方程表由规范 IR 自动生成)'))
+        lines.push('')
+      }
+      if ((input.models?.length ?? 0) > 0) {
+        lines.push('### 模型')
+        lines.push('')
+        lines.push(renderTable(['模型', '目标', '约束', '引用'], input.models ?? [], '(模型表由规范 IR 自动生成)'))
+        lines.push('')
+      }
+      if (slot !== undefined && slot.trim() !== '') {
+        lines.push(slot)
+      } else if ((input.equations?.length ?? 0) === 0 && (input.models?.length ?? 0) === 0) {
+        lines.push('_(模型待写入)_')
+      }
     } else if (section.id === 'restatement' && (input.requirements?.length ?? 0) > 0) {
       // PRD §5.1.4: 问题重述 — the REQUIRED_OUTPUTs (from IR) render as
       // the "what must be produced" table under this section.

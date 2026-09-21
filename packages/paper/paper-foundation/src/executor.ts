@@ -587,10 +587,7 @@ const EXECUTE_PRODUCE_ATTEMPTS = 5
  * `methods` is the model-supplied content of 模型建立与求解 (same class as the
  * prose chapters: absent → a visible placeholder → the pre-export gate refuses).
  */
-const REQUIRED_NARRATIVE: ReadonlyArray<{ id: string; title: string }> = [
-  { id: 'methods', title: '模型建立与求解（方法）' },
-  ...PROSE_CHAPTERS,
-]
+const REQUIRED_NARRATIVE: ReadonlyArray<{ id: string; title: string }> = [...PROSE_CHAPTERS]
 
 /**
  * TASK 5.0.5 / INV-014: the single sink the promoter writes a
@@ -1629,6 +1626,30 @@ export class WorkflowExecutor {
           .map((r) => {
             const req = r.value as { requirement_id: string; statement: string; requirement_type: string }
             return { id: req.requirement_id, columns: [req.statement, req.requirement_type] }
+          }),
+        // W11.5 baseline-20 (审计 B-2/B-3): the equations and models the container
+        // declared ARE the 模型建立与求解 chapter — rendered from the IR, so the
+        // chapter states the model that was actually built instead of a summary
+        // sentence, and cannot be empty while the model exists.
+        equations: [...snapshot.values()]
+          .filter(r => r.kind === 'EquationSpec')
+          .map((r) => {
+            const eq = r.value as { equation_id: string; expression: string; equation_type: string; unit: string }
+            return { id: eq.equation_id, columns: [eq.equation_id, eq.expression, eq.equation_type, eq.unit] }
+          }),
+        models: [...snapshot.values()]
+          .filter(r => r.kind === 'ModelSpec')
+          .map((r) => {
+            const m = r.value as {
+              model_id: string
+              objective: string
+              constraints: ReadonlyArray<string>
+              problem_refs: ReadonlyArray<string>
+            }
+            return {
+              id: m.model_id,
+              columns: [m.model_id, m.objective, (m.constraints ?? []).join('；') || '—', (m.problem_refs ?? []).join(', ')],
+            }
           }),
       }
     // W11.5 baseline-14 (首次真实产出实测): the numbers of the registered
