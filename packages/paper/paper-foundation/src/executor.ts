@@ -43,7 +43,7 @@ import { produceInterpretation } from './produce/interpretation-producer.ts'
 import { PROSE_CHAPTERS, displayNumber, numericLiterals, renderReportV2 } from './produce/report-renderer.ts'
 import { requirementCoverageFindings } from './delivery/requirement-coverage.ts'
 import { arithmeticFindingsOf, deliveredNumberFindings } from './delivery/delivered-numbers.ts'
-import { blankAreaViolations, proseContractViolations } from './delivery/prose-contracts.ts'
+import { PAPER_LENGTH_REFERENCE, blankAreaViolations, proseContractViolations } from './delivery/prose-contracts.ts'
 import { SHARD_NAMES, shardPrompt, parseShard, mergeShards } from './produce/shard-declare.ts'
 import {
   e2DriftGuidance,
@@ -225,11 +225,11 @@ export const EXECUTE_PROTOCOL_TEACHING = [
   '  LENGTH REFERENCE (an aim, NOT a gate): this harness is aligned with a reference paper of about 30,000 characters of body text (roughly 30 pages) — 问题分析 about 2,000, each per-problem chapter about 2,500, 模型评价与推广 about 1,400, 参考文献 about 1,500 (6+ real entries), 代码附录 about 1,500, 问题重述 about 1,000. Write to that scale. A chapter that falls BELOW roughly 60% of its reference is sent back for a rewrite (that is the only length rule); there is NO upper bound — a longer, fuller chapter is never penalised and never truncated. The harness renders one chapter PER SUB-PROBLEM (问题1/2/3/4 each its own chapter, like the reference), built from your E1 passages, so give each sub-problem a substantial E1 passage.',
   '  PAPER CONTRACT (REQUIRED — every line below is checked mechanically BEFORE the paper is delivered, so satisfy it in your FIRST emission; a violation costs you a whole attempt):',
   '    · narrative carries EIGHT non-empty strings: title, methods, conclusion, restatement, analysis, evaluation, references, code.',
-  '    · analysis — ONE passage per sub-problem (问题1 / 问题2 / …): which method family it uses, why that family, and where the difficulty lies. At least 600 characters in total. A one-liner like "问题1为二项检验，其余为离散优化" is refused.',
-  '    · evaluation — FOUR passages: 优点 / 局限 / 敏感性 / 推广, at least 500 characters in total. "结果可靠、可推广" alone is refused.',
-  '    · references — at least THREE complete entries, shaped "[1] 作者. 题名. 出处. 年.", and at least one must be about a method you actually used (抽样检验 / 序贯 / 贝叶斯 / 决策 / 优化 / 仿真 …).',
-  '    · code — say which sub-problems the code solves ("问题1 由 solve_q1() 完成 …"), at least 200 characters; the harness appends your REAL code underneath it.',
-  '    · restatement — your own words, at least 200 characters. Do not paste the problem statement.',
+  `    · analysis — ONE passage per sub-problem (问题1 / 问题2 / …): which method family it uses, why that family, and where the difficulty lies. The reference paper's 问题分析 is about ${String(PAPER_LENGTH_REFERENCE.chapters.analysis?.reference ?? 0)} characters (roughly ${String(Math.round((PAPER_LENGTH_REFERENCE.chapters.analysis?.reference ?? 0) / 4))} per sub-problem); below ${String(PAPER_LENGTH_REFERENCE.chapters.analysis?.rewriteBelow ?? 0)} characters it is sent back for a rewrite. A one-liner like "问题1为二项检验，其余为离散优化" is refused.`,
+  `    · evaluation — FOUR passages: 优点 / 局限 / 敏感性 / 推广. The reference is about ${String(PAPER_LENGTH_REFERENCE.chapters.evaluation?.reference ?? 0)} characters; below ${String(PAPER_LENGTH_REFERENCE.chapters.evaluation?.rewriteBelow ?? 0)} it is sent back. "结果可靠、可推广" alone is refused.`,
+  `    · references — at least THREE complete entries, shaped "[1] 作者. 题名. 出处. 年." (the reference paper carries about ${String(PAPER_LENGTH_REFERENCE.chapters.references?.reference ?? 0)} characters of bibliography), and at least one must be about a method you actually used (抽样检验 / 序贯 / 贝叶斯 / 决策 / 优化 / 仿真 …); below ${String(PAPER_LENGTH_REFERENCE.chapters.references?.rewriteBelow ?? 0)} characters it is sent back.`,
+  `    · code — say which sub-problems the code solves ("问题1 由 solve_q1() 完成 …"), at least ${String(PAPER_LENGTH_REFERENCE.chapters.code?.rewriteBelow ?? 0)} characters (reference about ${String(PAPER_LENGTH_REFERENCE.chapters.code?.reference ?? 0)}); the harness appends your REAL code underneath it.`,
+  `    · restatement — your own words, at least ${String(PAPER_LENGTH_REFERENCE.chapters.restatement?.rewriteBelow ?? 0)} characters (reference about ${String(PAPER_LENGTH_REFERENCE.chapters.restatement?.reference ?? 0)}). Do not paste the problem statement.`,
   '    · density — no run of blank lines, and no chapter whose body (tables and code excluded) is under 120 characters: blank areas are refused.',
   '    · at least ONE figure in interpretations.figures.',
   '    · EVERY sub-problem needs its own Result AND a CRITICAL claim over it; one aggregate number for four questions is refused.',

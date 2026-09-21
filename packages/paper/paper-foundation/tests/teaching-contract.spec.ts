@@ -13,6 +13,7 @@
 
 import { describe, expect, it } from 'vitest'
 import { EXECUTE_PROTOCOL_TEACHING } from '../src/executor.ts'
+import { PAPER_LENGTH_REFERENCE } from '../src/delivery/prose-contracts.ts'
 
 describe('W11.5 round-5 — 门禁 ⇔ 教学 一一对应', () => {
   it('教学是一段非空文本，且带 PAPER CONTRACT 清单', () => {
@@ -24,12 +25,12 @@ describe('W11.5 round-5 — 门禁 ⇔ 教学 一一对应', () => {
     const gates: ReadonlyArray<{ readonly gate: string; readonly taught: string }> = [
       { gate: 'placeholder_chapter（八键必填）', taught: 'EIGHT non-empty strings' },
       { gate: 'prose_contract/analysis（逐问归因）', taught: 'ONE passage per sub-problem' },
-      { gate: '实质地板 analysis 600', taught: '600 characters' },
+      { gate: '实质地板 analysis（软重写线）', taught: 'sent back for a rewrite' },
       { gate: 'prose_contract/evaluation（四要素）', taught: '优点 / 局限 / 敏感性 / 推广' },
-      { gate: '实质地板 evaluation 500', taught: '500 characters' },
+      { gate: '实质地板 evaluation（软重写线）', taught: 'it is sent back' },
       { gate: 'prose_contract/references（≥3 且方法相关）', taught: 'at least THREE complete entries' },
       { gate: 'prose_contract/code（点名哪几问）', taught: 'which sub-problems the code solves' },
-      { gate: '实质地板 restatement 200', taught: 'at least 200 characters' },
+      { gate: '实质地板 restatement（软重写线）', taught: 'your own words, at least' },
       { gate: 'blank_area（空白/密度）', taught: 'no run of blank lines' },
       { gate: 'figure_required', taught: 'at least ONE figure' },
       { gate: 'required_output_unpaid（逐问覆盖）', taught: 'EVERY sub-problem needs its own Result' },
@@ -42,5 +43,20 @@ describe('W11.5 round-5 — 门禁 ⇔ 教学 一一对应', () => {
     ]
     const missing = gates.filter(g => !EXECUTE_PROTOCOL_TEACHING.includes(g.taught))
     expect(missing.map(m => m.gate), '门禁没有产出前教学：这些规则只能"事后拦"，每次违规烧掉一次尝试').toEqual([])
+  })
+
+  it('教学里的篇幅数字与门禁的软重写线**同源**（round-8 抓到的漂移）', () => {
+    // 此前教学说"analysis 至少 600 字"，门禁却在 1200 字才放行——模型按教学写、
+    // 按门禁被拒，一次尝试白烧。数字现在单点取自 PAPER_LENGTH_REFERENCE，
+    // 这条测试钉住"教学里出现的每一个重写线都是参照值表里的那个数"。
+    for (const key of ['analysis', 'evaluation', 'references', 'code', 'restatement'] as const) {
+      const chapter = PAPER_LENGTH_REFERENCE.chapters[key]
+      expect(chapter, `参照值表缺 ${key}`).toBeDefined()
+      if (chapter === undefined) continue
+      expect(
+        EXECUTE_PROTOCOL_TEACHING.includes(String(chapter.rewriteBelow)),
+        `教学没有写出 ${key} 的软重写线 ${String(chapter.rewriteBelow)}`,
+      ).toBe(true)
+    }
   })
 })
