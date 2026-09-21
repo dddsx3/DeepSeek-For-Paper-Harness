@@ -77,7 +77,7 @@ export type RenderVerdict =
 // signed number ('-0.731') keeps its sign (preceding char is a space).
 const NUMBER_LITERAL = /(?<![A-Za-z^])(?<![A-Za-z^]-)[-+]?(?:\d+\.?\d*|\.\d+)(?![A-Za-z])/gu
 
-function numericLiterals(text: string): string[] {
+export function numericLiterals(text: string): string[] {
   const out: string[] = []
   for (const match of text.matchAll(NUMBER_LITERAL)) {
     if (match.index === undefined) continue
@@ -248,6 +248,9 @@ function renderReport(input: {
   readonly results: ReadonlyArray<ResultRow>
   readonly narrative: Record<string, unknown>
   readonly figures: ReadonlyArray<FigureAssetRow>
+  /** W11.5 baseline-14: numbers the harness-registered problem statement
+   *  contains — input data, added to every allowed set. */
+  readonly givenLiterals?: ReadonlyArray<string>
   readonly skeletonRows?: SkeletonRows
   /** R5: executed output files for the 数据附录 auto table (basename rows). */
   readonly dataFiles?: ReadonlyArray<{ id: string; columns: ReadonlyArray<string> }>
@@ -258,6 +261,16 @@ function renderReport(input: {
     allAllowed.add(String(result.value))
     if (result.uncertainty !== null) allAllowed.add(String(result.uncertainty))
   }
+  // W11.5 baseline-14 (首次真实产出实测): a number the PROBLEM states is not a
+  // claim of the model's — it is harness-registered input, and a conclusion that
+  // restates it ("at the stated confidence level" reads naturally as its digit)
+  // was refused three separate real runs (baseline-11/12/14, every time on the
+  // problem's own confidence level or nominal rate). The literal set therefore
+  // includes the numbers of the registered problem statement: still IR-traceable,
+  // and it opens no hole — the per-slot verbatim check (each declared quantity's
+  // value MUST be stated) is what stops a fabricated result, and a statement
+  // number cannot satisfy it.
+  for (const literal of input.givenLiterals ?? []) allAllowed.add(literal)
 
   const conclusionRaw = input.narrative['conclusion']
   // W11.5 baseline-8: the slot text AFTER placeholder injection. The checks and
@@ -286,6 +299,7 @@ function renderReport(input: {
         return { ok: false, code: 'conflicting_conclusion_number', reason: `conclusion claim representation declaration is invalid: ${representation.reason}` }
       }
       const slotAllowed = new Set<string>()
+      for (const literal of input.givenLiterals ?? []) slotAllowed.add(literal)
       for (const ref of slot.quantity_refs) {
         const result = resultById.get(ref)
         if (result === undefined) {
@@ -560,6 +574,9 @@ export function renderReportV2(input: {
   readonly results: ReadonlyArray<ResultRow>
   readonly narrative: Record<string, unknown>
   readonly figures?: ReadonlyArray<FigureAssetRow>
+  /** W11.5 baseline-14: numbers the harness-registered problem statement
+   *  contains. They are input data, not claims — see the allowed-set comment. */
+  readonly givenLiterals?: ReadonlyArray<string>
   /** W8.5: IR rows for the skeleton's machine tables (optional). */
   readonly skeletonRows?: SkeletonRows
   /** R5: executed output files for the 数据附录 auto table (basename rows). */
@@ -570,6 +587,7 @@ export function renderReportV2(input: {
     figures: input.figures ?? [],
     ...(input.skeletonRows === undefined ? {} : { skeletonRows: input.skeletonRows }),
     ...(input.dataFiles === undefined ? {} : { dataFiles: input.dataFiles }),
+    ...(input.givenLiterals === undefined ? {} : { givenLiterals: input.givenLiterals }),
   })
 }
 

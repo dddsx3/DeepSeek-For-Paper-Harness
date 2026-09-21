@@ -302,3 +302,90 @@ config_declared_actual_mismatch: run '9c917d38-…' emitted physical 'S-Z95' =
 
 **无模型干跑链 6/6 全绿**：render（12 章、2052 字符）→ precheck 15 类 0 致命 →
 docx 40,491 字节 → DELIVERABLES 契约 5/5 → zip 51,082 字节（含二进制 docx）。
+
+---
+
+## 9. baseline-11 / baseline-12：模型侧的"每改一处撞下一处"与两处假阳性
+
+### 9.1 baseline-11：结论里复述题给常数
+
+attempt 1 与 attempt 3 死在同一个原因上，但每次只报**一个**越界数字：
+
+```
+attempt 1: conclusion claim contains numeric literal '95' outside its declared quantities [2, 22, 0]
+attempt 3: conclusion claim contains numeric literal '10' outside its declared quantities [2, 22, 0]
+```
+
+'95' 是置信度、'10' 是标称次品率——**题面给定的常数**，不是运行算出来的数。
+模型每改一个就撞下一个，一次引导重试只换来一位数字。修法两条：拒绝一次报全
+（收集全部违规再拒），教学补一条同名规则（"题给常数不是 Result，写成文字或让你的
+代码把它作为 Result 输出"），把这条契约在第一次尝试前就说清楚。
+
+### 9.2 baseline-12：序号不是数字
+
+attempt 3/5 被同一句挡住，而那句话是：
+
+```
+情形(1)平均检测次数为 {R-N1}，情形(2)平均检测次数为 {R-N2}，
+固定样本量方案所需样本量为 {R-N-FIXED}。
+```
+
+模型**已经学会点名每个量**（`{R-N1}` 全部正确展开），被判越界的 `[1, 2]` 是
+**情形序号**。契约是"关键数字只能来自 IR"，情形序号不是模型的数字——把它读成
+数字是假阳性，两次尝试都耗在这里。修法：数字提取加一个封闭的"标签位"判定
+（紧跟在 情形/问题/步骤/…/第 之后的整数、以及括号里的裸整数不算数字；括号里带
+小数点的值仍算）。
+
+### 9.3 一次运行被"每次运行输出 token 上限"暂停（操作事实，不是缺陷）
+
+baseline-12 的 5 次尝试把本次运行的输出预算花到 1,077,533 token（上限 150,000），
+运行按设计**主动暂停**等人处理，审计写明：
+
+```
+budget_exceeded { kind: output_tokens_per_run, ceiling: 150000, spent: 1077533 }
+workflow_failed  run '…' is paused: output-token ceiling 150000 exceeded
+```
+
+两个可操作结论：① 5 次尝试 × 每次重发整份容器（该次容器有 180+ 条 entries）
+≈ 1M token，是单次运行的真实量级；② 上限必须按"最坏尝试数"设，否则跑到一半
+就停。下一次运行把 `PAPER_MAX_OUTPUT_TOKENS_PER_RUN` 提到 2.5M。
+
+---
+
+## 10. baseline-13：**首份可导出的 A-produce-chain 论文**（交付链全程走通）
+
+```
+[DELIVERED] path -> A-produce-chain   grade MARKED   13 章 / 0 占位 / 16,923 字节
+wall_clock 125.9s   usage in 21,563 / out 14,291 tok   链上零 provider_retry
+```
+
+attempt 1 就产出合法容器 → 代码真执行 → Result/Claim 铸出 → 报告渲染通过 →
+交付。然后把它送进交付链：
+
+| 步骤 | 结果 |
+|---|---|
+| `docx precheck` | **16 类检查 0 致命**（`table_columns` 已对齐、`no_placeholders` 干净）→ 允许导出 |
+| `docx export` | `paper.docx` 42,919 字节（python-docx + cairosvg 就位；pandoc 缺 → OMML 跳过） |
+| `deliverables verify` | 见 §11 的契约调整 |
+
+这是路线书 R5「论文成型」第一次在**真实链条产出的稿子**上全程走通，而不是在
+干跑件上。
+
+## 11. 交付面补一处缺口：执行输出必须随论文交付
+
+把 baseline-13 的稿子送进交付链时发现两件事：
+
+1. **契约要求的 `result.json` / `figure-manifest.json` 在真稿上不存在**——真稿的
+   执行输出是模型代码自己起的名字（该次是 `sprt_results.json` 等），而无图运行时
+   本来就没有图清单。契约于是按真实交付面重写为三项固定件（report.md /
+   paper.docx / run-report.json），可变成"缺件即红"的负对照仍然成立（NR-5）。
+2. **更严重的是：执行输出的字节根本没随论文交付**。论文的「数据附录」写着
+   `sprt_results.json`、`numeric_config.json`，而每个 Result 的值都是从这些字节里
+   读出来的（D4）——但那些字节活在 runner 的临时工作目录里，运行结束就被删了。
+   交付包里引用的是**已经不存在**的证据。
+
+修法：`persistDataFiles` 把执行输出写到 `<finalOutputRoot>/<runId>/final/data/`
+（与图同一套 sink 契约，无 sink 时审计记 no-op），CLI 把它们复制进交付目录、
+写进 zip、并把 `data_files`（含 sha256/bytes）记进 run-report.json。
+
+**这样交付包 = 论文 + 证据**：结果表里的每个数字都能回到它来自的那份 JSON。

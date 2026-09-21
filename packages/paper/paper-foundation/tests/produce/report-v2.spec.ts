@@ -212,6 +212,45 @@ describe('W11.5 baseline-12 — 序号不是数字（标签位）', () => {
   })
 })
 
+describe('W11.5 baseline-14 — 题面里的数字是输入数据，不是模型的数字', () => {
+  it('结论可以复述题面给定的常数（置信度/标称值）', () => {
+    // 第十一/十二/十四次真实运行都死在同一个地方：结论复述了题面的置信度或标称
+    // 次品率（95 / 10 / 90），被判"越界数字"。题面是 harness 注册的输入资产，
+    // 这些数字本来就来自 IR；而"每个声明量的值必须逐字出现"这条检查才是拦住
+    // 编造结果的机制——题面数字满足不了它。
+    const verdict = renderReportV2({
+      title: 't',
+      results,
+      narrative: {
+        conclusion: {
+          claims: [{ text: '在 95% 的信度下，平均冰厚为 {RES-ICE} m。', quantity_refs: ['RES-ICE'] }],
+        },
+      },
+      givenLiterals: ['95'],
+    })
+    expect(verdict.ok, verdict.ok ? '' : verdict.reason).toBe(true)
+    if (verdict.ok) expect(verdict.text).toContain('在 95% 的信度下，平均冰厚为 0.731 m')
+  })
+
+  it('没有登记过的数字仍然拒（题面白名单不放宽任意数字）', () => {
+    const verdict = renderReportV2({
+      title: 't',
+      results,
+      narrative: {
+        conclusion: {
+          claims: [{ text: '在 95% 的信度下，平均冰厚为 {RES-ICE} m，样本量 29。', quantity_refs: ['RES-ICE'] }],
+        },
+      },
+      givenLiterals: ['95'],
+    })
+    expect(verdict.ok).toBe(false)
+    if (!verdict.ok) {
+      expect(verdict.reason).toContain('29')
+      expect(verdict.reason).not.toContain("'95'")
+    }
+  })
+})
+
 describe('P2-4 figure embedding + provenance appendix', () => {
   const figure = {
     figureId: 'FIG-1',

@@ -39,7 +39,7 @@ import { resolveRunPolicy } from './policy.ts'
 import { parseModelContainer, produceContainerInto } from './produce/ir-producer.ts'
 import { produceRunExecution } from './produce/execution-producer.ts'
 import { produceInterpretation } from './produce/interpretation-producer.ts'
-import { PROSE_CHAPTERS, renderReportV2 } from './produce/report-renderer.ts'
+import { PROSE_CHAPTERS, numericLiterals, renderReportV2 } from './produce/report-renderer.ts'
 import { SHARD_NAMES, shardPrompt, parseShard, mergeShards } from './produce/shard-declare.ts'
 import {
   e2DriftGuidance,
@@ -1474,8 +1474,23 @@ export class WorkflowExecutor {
             return { id: req.requirement_id, columns: [req.statement, req.requirement_type] }
           }),
       }
+    // W11.5 baseline-14 (首次真实产出实测): the numbers of the registered
+    // problem statement are INPUT DATA, not claims — a conclusion that restates
+    // the problem's own confidence level or nominal rate must not be refused as
+    // an unsourced key number. Collected from the RequirementSpec statements the
+    // harness registered (never from anything the model wrote).
+    const givenLiterals = new Set<string>()
+    if (snapshot !== null) {
+      for (const record of snapshot.values()) {
+        if (record.kind !== 'RequirementSpec') continue
+        const statement = (record.value as { statement?: unknown }).statement
+        if (typeof statement !== 'string') continue
+        for (const literal of numericLiterals(statement)) givenLiterals.add(literal)
+      }
+    }
     const rendered = renderReportV2({
       title: String((container.narrative?.['title'] as string | undefined) ?? 'Paper deliverable (executor production chain)'),
+      givenLiterals: [...givenLiterals],
       results: results.map(r => ({
         result_id: r.result_id,
         name: r.name,
@@ -1534,6 +1549,13 @@ export class WorkflowExecutor {
     // the same sink contract as `persistFinal`. When no sink is mounted
     // the write is audit-recorded as a no-op, never silently dropped.
     await this.persistFigures(runId, figureAssets.map(a => ({ figureId: displayIdOf(a.figureId, attempt), svg: a.svg })))
+    // W11.5 baseline-13 (首次 A-produce-chain 交付跑完交付链): the executed
+    // output files ship with the paper. The report's 数据附录 names them and
+    // every Result value was read out of their bytes — but the bytes lived in
+    // the runner's throwaway cwd and were deleted with it, so the delivered
+    // paper referenced evidence that no longer existed anywhere. Persist them
+    // next to the figures under the same sink contract.
+    await this.persistDataFiles(runId, executed.outputs.map(o => ({ basename: basename(o.locator), bytes: o.bytes })))
     const codeText = container.code ?? ''
     return { ok: true, reportText: rendered.text, loadCode: () => codeText }
   }
@@ -1727,6 +1749,56 @@ export class WorkflowExecutor {
       actor: 'paper-executor',
       runId,
       detail: { kind: 'figures_persisted', dir, figures: figures.length },
+    })
+  }
+
+  /**
+   * W11.5 baseline-13 — write the run's executed output files next to the
+   * final output (`<finalOutputRoot>/<runId>/final/data/<basename>`).
+   *
+   * The same sink contract as {@link persistFigures}: with no sink mounted the
+   * write is audit-recorded as a no-op, never silently dropped.
+   */
+  private async persistDataFiles(
+    runId: RunId,
+    files: ReadonlyArray<{ basename: string; bytes: string }>,
+  ): Promise<void> {
+    const root = this.options.finalOutputRoot
+    if (root === undefined || files.length === 0) {
+      if (files.length > 0 && root === undefined) {
+        await this.audit({
+          eventType: 'final_output_written',
+          actor: 'paper-executor',
+          runId,
+          detail: { kind: 'data_persist_skipped', files: files.length, reason: 'no final sink mounted (set finalOutputRoot)' },
+        })
+      }
+      return
+    }
+    const dir = join(root, runId, 'final', 'data')
+    try {
+      await mkdir(dir, { recursive: true })
+      for (const file of files) {
+        await writeFile(join(dir, file.basename), file.bytes, 'utf8')
+      }
+    } catch (error) {
+      await this.audit({
+        eventType: 'promotion_failed',
+        actor: 'paper-executor',
+        runId,
+        detail: { kind: 'data_write_failed', dir, message: String(error) },
+      })
+      await this.engine.transitionRun(runId, 'failed')
+      throw new WorkflowExecutionError(
+        'gate-failed',
+        `run '${runId}' data write failed at ${dir}: ${String(error).split(String.fromCharCode(10))[0]}`,
+      )
+    }
+    await this.audit({
+      eventType: 'final_output_written',
+      actor: 'paper-executor',
+      runId,
+      detail: { kind: 'data_persisted', dir, files: files.map(f => f.basename) },
     })
   }
 
