@@ -47,7 +47,7 @@ import { CassetteRecorder, CassetteReplayer } from './cassette.ts'
 import { checkCodeProvenance, SHELL_PROVENANCE_TARGETS } from './code-provenance.ts'
 import { verifyStudyManifest, type StudyManifest } from './study-manifest.ts'
 import { FINGERPRINT_NAMESPACES } from '@deepseek-ai/dsh-paper-foundation'
-import { zipTextFiles } from './zip.ts'
+import { zipMixedFiles } from './zip.ts'
 
 const here = dirname(fileURLToPath(import.meta.url))
 
@@ -909,10 +909,32 @@ async function main(): Promise<number> {
   await writeFile(join(outDir, 'report.md'), report, 'utf8')
   await writeFile(join(outDir, 'sha256.txt'), sha256, 'utf8')
   await writeFile(join(outDir, 'run-report.json'), runReportFull, 'utf8')
+
+  // W11.5 round-6（用户口径：交付物是 PDF 版论文，CUMCM 模板为必选项）：
+  // PDF 此前只是 CLI 子命令，**一次真实运行不会产出它**——契约里列了 paper.pdf
+  // 却没人生产。现在交付段直接调用模板导出器（数字资产 cumcm 模板 + xelatex）。
+  // 缺 xelatex/模板时**不静默降级**：报错并继续，由契约校验把缺件判为阻断。
+  const { spawnSync: spawnSyncPdf } = await import('node:child_process')
+  const { statSync: statSyncPdf } = await import('node:fs')
+  const pdfExporter = join(here, '..', '..', '..', 'scripts', 'export-pdf.py')
+  const pdfOut = join(outDir, 'paper.pdf')
+  const pdfRun = spawnSyncPdf('python', [pdfExporter, join(outDir, 'report.md'), join(outDir, 'figures'), pdfOut], {
+    encoding: 'utf8',
+    timeout: 600_000,
+  })
+  if (pdfRun.status !== 0) {
+    console.error(`[pdf] 模板化 PDF 导出未成功（exit ${String(pdfRun.status)}）——交付包将缺 paper.pdf：`)
+    console.error(String(pdfRun.stderr ?? pdfRun.stdout ?? '').split(String.fromCharCode(10)).slice(-3).join(String.fromCharCode(10)))
+  } else {
+    console.log(`  pdf     -> ${pdfOut} (${String(statSyncPdf(pdfOut, { throwIfNoEntry: false })?.size ?? 0)} bytes)`)
+  }
   // Deterministic zip of the deliverable + run report (same sha256 on re-run).
   // R1①: every shipped figure + the figure-manifest join the zip; figures
   // are UTF-8 text (SVG), so the text zip is their channel too.
-  const zipBytes = zipTextFiles({ 'report.md': report, 'sha256.txt': sha256, 'run-report.json': runReport, 'audit-trail.json': auditTrailText, 'artifact-bodies.json': bodiesText, ...dataEntries, ...figureEntries, ...(figureManifest.length > 0 ? { 'figure-manifest.json': JSON.stringify({ figures: figureManifest }, null, 2) } : {}) })
+  const pdfBytes = statSyncPdf(pdfOut, { throwIfNoEntry: false })?.isFile() === true
+    ? await readFile(pdfOut)
+    : undefined
+  const zipBytes = zipMixedFiles({ 'report.md': report, 'sha256.txt': sha256, 'run-report.json': runReport, ...(pdfBytes === undefined ? {} : { 'paper.pdf': new Uint8Array(pdfBytes) }), 'audit-trail.json': auditTrailText, 'artifact-bodies.json': bodiesText, ...dataEntries, ...figureEntries, ...(figureManifest.length > 0 ? { 'figure-manifest.json': JSON.stringify({ figures: figureManifest }, null, 2) } : {}) })
   const zipPath = join(outDir, 'deliverable.zip')
   await writeFile(zipPath, zipBytes)
   const zipSha = createHash('sha256').update(zipBytes).digest('hex')

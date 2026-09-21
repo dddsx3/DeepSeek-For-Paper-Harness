@@ -93,6 +93,23 @@ def flatten_note_markers(md: str) -> str:
     """
     md = re.sub(r"(?m)^_([^_" + chr(10) + r"]+)_$", r"\1", md)
     md = re.sub(r"_\(([^)]*)\)_", r"(\1)", md)
+    # W11.5 round-6: an identifier inside prose (`parse_failed`, `output_refs`) puts an
+    # underscore into LaTeX text mode, which dies with "Missing $ inserted" — the
+    # pre-flight's E1-direct draft carries an engine code exactly like that. Escaping
+    # the word-internal underscore keeps the identifier readable and the compile alive.
+    out_lines = []
+    in_code = False
+    for line in md.split(chr(10)):
+        stripped = line.strip()
+        if stripped.startswith("```"):
+            in_code = not in_code
+            out_lines.append(line)
+            continue
+        if in_code or stripped.startswith("|"):
+            out_lines.append(line)
+            continue
+        out_lines.append(re.sub(r"(?<=\w)_(?=\w)", r"\_", line))
+    md = chr(10).join(out_lines)
     return md
 
 

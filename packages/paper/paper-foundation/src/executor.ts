@@ -369,6 +369,59 @@ const REQUIREMENT_TYPE_LABELS: Readonly<Record<string, string>> = {
   ASSUMPTION: '前提条件',
 }
 
+/**
+ * W11.5 round-6 (审计 T-2) — 退化产出：某一问只产出一个常量。
+ *
+ * 真实产物里问题3/问题4 的"期望利润"是**孤零零一个 0**，没有任何决策结构或过程
+ * ——那不是答案。harness 判不了实质正确性，但"这一问只对应一个常量 0"是机械事实，
+ * 可以作为 MAJOR 标注（不阻断交付），让读者与评审一眼看到哪一问没算。
+ */
+function degenerateResultFindings(
+  store: ReadonlyMap<string, { readonly kind: string; readonly value: Record<string, unknown> }> | null,
+): ReadonlyArray<ReviewDefect> {
+  if (store === null) return []
+  const runsByModel = new Map<string, ReadonlyArray<string>>()
+  for (const record of store.values()) {
+    if (record.kind !== 'ModelSpec') continue
+    const model = record.value as { model_id?: unknown; problem_refs?: unknown }
+    runsByModel.set(String(model.model_id ?? ''), Array.isArray(model.problem_refs) ? model.problem_refs.map(String) : [])
+  }
+  const runsByProblem = new Map<string, Set<string>>()
+  for (const record of store.values()) {
+    if (record.kind !== 'RunArtifact') continue
+    const run = record.value as { run_id?: unknown; model_ref?: unknown }
+    for (const problem of runsByModel.get(String(run.model_ref ?? '')) ?? []) {
+      const set = runsByProblem.get(problem) ?? new Set<string>()
+      set.add(String(run.run_id ?? ''))
+      runsByProblem.set(problem, set)
+    }
+  }
+  const valuesByProblem = new Map<string, Set<string>>()
+  for (const record of store.values()) {
+    if (record.kind !== 'Result') continue
+    const result = record.value as { run_ref?: unknown; value?: unknown }
+    for (const [problem, runs] of runsByProblem) {
+      if (!runs.has(String(result.run_ref ?? ''))) continue
+      const set = valuesByProblem.get(problem) ?? new Set<string>()
+      set.add(String(result.value))
+      valuesByProblem.set(problem, set)
+    }
+  }
+  const out: ReviewDefect[] = []
+  for (const [problem, values] of valuesByProblem) {
+    if (values.size !== 1) continue
+    const only = [...values][0]
+    if (only !== '0') continue
+    out.push({
+      id: `MECH-DEGENERATE-${problem}`,
+      severity: 'major',
+      description: `问题 ${problem} 只产出一个常量结果 0，没有任何决策结构或计算过程——` +
+        ' 这一问看起来没有真正求解（harness 不判实质正确性，但这是机械可见的退化产出），请补上该问的求解与指标。',
+    })
+  }
+  return out
+}
+
 /** W11.5 baseline-4: the section headings a delivery text carries (any level). */
 const NL = String.fromCharCode(10)
 
@@ -1189,8 +1242,24 @@ export class WorkflowExecutor {
         this.options.deliveryGradeMode === 'fail-soft'
           ? digitSelfContradictionFindings(current).map(f => ({ kind: f.kind, reason: f.reason }))
           : []
+      // W11.5 round-6（审计 T-5）: E1 直通稿**绕过链上全部门禁**，实测出现过 4 个章节
+      // 只有 19–22 字符（baseline-29）。直通的意义是"总得交出点东西"，所以这里按
+      // **标注**处理而不是拒绝：把空白/近空章节逐条写进 MARKED 附录，让读者知道
+      // 哪些章节是空的。
+      const blankFindings: ReadonlyArray<{ kind: string; reason: string }> =
+        this.options.deliveryGradeMode === 'fail-soft' && this.options.ir !== undefined
+          ? blankAreaViolations(
+            current,
+            [...this.options.ir.list()]
+              .filter(r => r.kind === 'RequirementSpec')
+              .map((r) => {
+                const req = r.value as { requirement_id?: unknown; statement?: unknown }
+                return { requirementId: String(req.requirement_id ?? ''), statement: String(req.statement ?? '') }
+              }),
+          ).map(v => ({ kind: 'blank_area', reason: v.reason }))
+          : []
       const gradeInput = this.options.deliveryGradeMode === 'fail-soft'
-        ? [...gateFailures, ...reviewFailures, ...vFindings, ...receiveFailures, ...digitFindings]
+        ? [...gateFailures, ...reviewFailures, ...vFindings, ...receiveFailures, ...digitFindings, ...blankFindings]
         : [...gateFailures, ...reviewFailures]
       const fatal = {
         emptyContent: !contentExists(current),
@@ -1967,6 +2036,7 @@ export class WorkflowExecutor {
     return [
       ...deliveredNumberFindings(delivered, allowed),
       ...arithmeticFindingsOf(digitSelfContradictionFindings(delivered)),
+      ...degenerateResultFindings(snapshot),
     ]
   }
 

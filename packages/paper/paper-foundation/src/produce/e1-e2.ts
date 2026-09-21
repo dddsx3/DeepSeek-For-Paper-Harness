@@ -233,7 +233,38 @@ export function isLineStartMarker(text: string, at: number): boolean {
  * @param containerTeaching - the schema lecture (same text the single-shot
  *        path uses, so the two paths can never drift apart).
  */
+/**
+ * W11.5 round-6 — E1's sentences, numbered for the model to POINT at.
+ *
+ * 六次以上真实运行证明模型**抄不对** `e1_span`：它把 `P\text{reject}` 重渲染成
+ * `Preject`、把 `\ge` 写成 `>=`、把散文改写成自己的话、甚至现编一个公式形状的
+ * 片段。而"放宽校验"这条路被负对照当场否决（真改写会通过）。
+ *
+ * 所以换任务而不是降标准：**harness 把 E1 的句子编号给出，模型只报 `#<n>`**，
+ * 由 harness 把第 n 句原文取出来当 span。span 仍是 E1 原文（逐字性质完好），
+ * 而模型要做的从"逐字复制"变成"选一个编号"——机械、可核对、不会抄错。
+ */
+export function e1SentenceList(e1Text: string): ReadonlyArray<string> {
+  return e1Text
+    .split(/[。；;\n]/)
+    .map(s => s.trim())
+    .filter(s => s.length >= 10)
+}
+
+/** Resolve a `#<n>` span reference against the numbered E1 sentences. */
+function resolveSpanReference(span: string, e1Text: string): string | null {
+  const m = /^#\s*(\d{1,3})\s*$/.exec(span.trim())
+  if (m === null) return null
+  const n = Number(m[1])
+  const sentences = e1SentenceList(e1Text)
+  return Number.isInteger(n) && n >= 1 && n <= sentences.length ? sentences[n - 1] ?? null : null
+}
+
 export function e2NormalizationPrompt(e1Text: string, containerTeaching: string): string {
+  // The numbered E1 sentences the model may point at with `e1_span: "#12"`.
+  const numbered = e1SentenceList(e1Text)
+    .map((sentence, i) => `  #${i + 1}: ${sentence}`)
+    .join(String.fromCharCode(10))
   return [
     'You are NORMALIZING a modeling analysis into a machine-readable declaration. The analysis below was already written; your job is ONLY to map it into the required JSON shape.',
     'Do NOT re-derive, improve, or extend the analysis. Do NOT invent anything it does not say. If the analysis is silent on something the schema wants, use the schema\'s honest-unknown values (UNKNOWN / empty array) rather than inventing content.',
@@ -242,6 +273,11 @@ export function e2NormalizationPrompt(e1Text: string, containerTeaching: string)
     '--- BEGIN ANALYSIS (this is the source of truth for content) ---',
     e1Text,
     '--- END ANALYSIS ---',
+    '',
+    '--- THE SAME ANALYSIS, SENTENCE BY SENTENCE (for `e1_span`) ---',
+    numbered,
+    '--- END NUMBERED SENTENCES ---',
+    'For every AssumptionSpec / EquationSpec you may write `"e1_span": "#<n>"` — the number of the sentence above that states it. The harness substitutes that sentence verbatim. This is the RELIABLE way to anchor: you never copy text, you point at it. (A verbatim copy is still accepted, but pointing is preferred because copying has repeatedly failed in real runs.)',
     '',
     containerTeaching,
     // W8.10-D1 (repair, found by the first real run on the target model):
@@ -593,6 +629,11 @@ export function checkE1E2Fidelity(input: {
     // The message distinguishes the two so the audit trail says which one
     // happened — a folded match is still a match, but it is NOT the same
     // evidence as a byte-identical copy, and a reader must be able to tell.
+    // W11.5 round-6: a `#<n>` span points at the n-th numbered E1 sentence (the list
+    // travels in the E2 prompt); the harness takes that sentence as the span. This is
+    // the copy-free path — the span is still E1's own text.
+    const referenced = resolveSpanReference(span, input.e1Text)
+    if (referenced !== null) continue
     if (input.e1Text.includes(span.trim())) continue
     if (foldedE1.includes(foldForAnchorMatch(span))) continue
     // W11.5 round-6 — 撤回一次过宽的放宽（负对照当场抓到）：曾试过"模型只要在 E1 里
