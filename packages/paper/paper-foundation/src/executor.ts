@@ -579,8 +579,13 @@ const KEEP = Infinity
  * run did not produce). Every other node keeps `policy.maxNodeAttempts`; this
  * node is the one with staged causes, and the per-cause budgets plus the
  * same-cause breaker still bound the spend.
+ *
+ * W11.5 round-2 (baselines 18–21): the per-sub-problem contract made each
+ * emission a much bigger job, and the observed loop is one stage per attempt
+ * (章节 → 代码 → 保真 → 图 → …). Five attempts was one short of the stages; the
+ * ceiling is raised to give each stage its correction round.
  */
-const EXECUTE_PRODUCE_ATTEMPTS = 5
+const EXECUTE_PRODUCE_ATTEMPTS = 7
 
 /**
  * W11.5 baseline-16/18 — the narrative chapters a container MUST supply.

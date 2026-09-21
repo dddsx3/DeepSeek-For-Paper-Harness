@@ -384,7 +384,7 @@ async function main(): Promise<number> {
   // 5 minutes, which is still a bounded sandbox.
   const codeRunTimeoutMs = Number(process.env.PAPER_CODE_RUN_TIMEOUT_MS ?? '') > 0
     ? Number(process.env.PAPER_CODE_RUN_TIMEOUT_MS)
-    : 300_000
+    : 600_000
   // W8.9-A4: sharded EXECUTE declaration is the DEFAULT path. The flag is
   // inverted from W9-P2's opt-in: `--no-shard-declare` restores the
   // single-shot declaration (A/B comparison, regression). `--shard-declare`
