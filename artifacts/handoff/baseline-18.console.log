@@ -1,0 +1,10 @@
+[CODE-FRESH] 代码来源已断言：entry lib/index.js is 43820 ms newer than the newest source; entry lib/index.js is 58287957 ms newer than the newest source; entry lib/index.js is 58299577 ms newer than the newest source; entry lib/index.js is 58299637 ms newer than the newest source; entry lib/index.js is 58299801 ms newer than the newest source; entry lib/index.js is 58287774 ms newer than the newest source
+paper-shell crashed: Error: ENOENT: no such file or directory, open 'D:\deepseek modex\deepseek-harness\artifacts\handoff\baseline-18\audit-trail.json'
+    at async open (node:internal/fs/promises:637:25)
+    at async writeFile (node:internal/fs/promises:1239:14)
+    at async main (D:\deepseek modex\deepseek-harness\apps\paper-shell\src\cli.ts:804:3) {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'D:\\deepseek modex\\deepseek-harness\\artifacts\\handoff\\baseline-18\\audit-trail.json'
+}
