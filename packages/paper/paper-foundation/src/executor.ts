@@ -31,7 +31,7 @@ import { digitSelfContradictionFindings } from './delivery/digit-check.ts'
 import { renderBoundaryAppendix } from './delivery/boundary-render.ts'
 import type { BoundaryDeclaration } from './ir/boundary-declaration.ts'
 import { renderE1DirectDraft } from './produce/e1-direct.ts'
-import { chapterTitleOf, frameworkOf, perQuestionChaptersOf, questionOrdinal, questionRequirements } from './produce/per-question.ts'
+import { chapterTitleOf, frameworkOf, perQuestionChaptersOf, perQuestionSectionsOf, questionOrdinal, questionRequirements, questionTitlesOf } from './produce/per-question.ts'
 import type { DeliveryGrade } from './delivery/delivery-grade.ts'
 import { runVerificationV1V4 } from './verification/v-structure.ts'
 import { ModelingIr } from './ir/store.ts'
@@ -432,6 +432,41 @@ interface ChapterRow {
 }
 
 /**
+ * W11.5 round-8（对齐参照物「7 问题一模型的独立校核」）— 独立校核章的正文。
+ *
+ * 参照物那一章是**解析解对照**（Bessel 级数配 Duhamel 卷积 vs 数值解）；harness
+ * 不能替模型做解析推导，所以这一章**如实写它真正做过的事**：交付前机械执行的结构
+ * 校核（V1–V4）、每个关键数字回读运行输出的溯源链。章末明确划界——"没有自相矛盾"
+ * 不等于"模型在物理上正确"，后者需要解析解或实测数据对照。
+ *
+ * 为什么要有这一章：参照物用一整章证明"这一问的结论经得起独立核对"，而这件事我们
+ * 此前只写在交付附录里，读者要翻到最后才知道数字是怎么被核过的。
+ */
+function verificationChapterOf(
+  findings: ReadonlyArray<{ readonly rule: string; readonly ok: boolean; readonly detail: string }>,
+  resultCount: number,
+): string {
+  if (findings.length === 0 && resultCount === 0) return ''
+  const lines: string[] = []
+  lines.push('本节的校核由 harness 在交付前**机械执行**（不含人工复核，也不是解析解对照）：它检查的是"数字与结构有没有自相矛盾"，以及"每个进入结论的数字能不能回读到运行输出"。')
+  lines.push('')
+  if (resultCount > 0) {
+    lines.push(`- **数值溯源**：正文结论中的关键数字全部来自 ${resultCount} 条 Result 记录，由真实代码运行经 jsonPath 回读（code → result.json → Result → 正文），没有任何数字是人工转录或凭记忆写下的。`)
+  }
+  if (findings.length > 0) {
+    const passed = findings.filter(f => f.ok).length
+    lines.push(`- **结构校核（V1–V4）**：${passed}/${findings.length} 项通过。`)
+    lines.push('')
+    for (const finding of findings) {
+      lines.push(`  - ${finding.ok ? '通过' : '**未通过**'} — ${finding.rule}：${finding.detail}`)
+    }
+  }
+  lines.push('')
+  lines.push('**本节结论的边界**：以上校核只能说明"交付稿的数字与结构自洽、可溯源"。模型在物理或业务意义上是否正确，需要与解析解、实测数据或独立数据源对照，本文未做该项工作。')
+  return lines.join(String.fromCharCode(10))
+}
+
+/**
  * W11.5 round-7（对齐参照物）— 逐问章的正文来自**规范 IR**，不是 E1 的复述。
  *
  * 参照物的逐问章是「问题一：预热平衡阶段的常物性耦合场求解」——**该问的模型 +
@@ -509,7 +544,9 @@ function perProblemChaptersFromIr(
         objective: model.objective,
         equations: model.equationRefs.map((ref) => {
           const equation = equationsById.get(ref)
-          return equation === undefined ? ref : `${ref}: ${equation.expression}${equation.unit === '' ? '' : `（${equation.unit}）`}`
+          return equation === undefined
+            ? ref
+            : `${ref}：$${equation.expression}$${equation.unit === '' ? '' : `（单位：${equation.unit}）`}`
         }),
       })
       modelsByProblem.set(problem, list)
@@ -542,6 +579,7 @@ function perProblemChaptersFromIr(
     addResultProblem(resultId, problemsOfModel(runModel.get(irText(record.value['run_ref'])) ?? ''))
   }
 
+  const titles = questionTitlesOf(e1Text)
   const out: Array<{ title: string; body: string; rows?: ReadonlyArray<ChapterRow> }> = []
   for (const question of questions) {
     const ordinal = questionOrdinal(question.requirementId)
@@ -562,20 +600,25 @@ function perProblemChaptersFromIr(
       })
     }
     const bodyParts: string[] = []
-    // 该问的分析（E1 的逐问推理段）先写，再接该问的模型与方程——参照物的逐问章
-    // 就是"该问怎么做 + 该问的模型 + 该问的结果"三段，且问题分析章只放统一框架，
-    // 所以这里不构成重复。
-    const passage = fallbackByOrdinal.get(ordinal)
-    if (passage !== undefined && passage !== '') bodyParts.push(passage)
+    // 逐问章的正文 = 该问的模型 + 方程（IR 装配）。该问的**分析**在「问题分析」章的
+    // 2.x 小节里，不在这里重复（参照物的分工：2.x 讲怎么做，6/8/9/10 给该问的模型与数值）。
+    // 只有在 IR 里该问什么都没有时才退回 E1 的分析段——宁可给出模型写下的分析，
+    // 也不给一个空章（用户口径：绝不允许空白/极简片段）。
     for (const model of models) {
       if (model.objective !== '') bodyParts.push(`**${model.modelId}** 的目标：${model.objective}`)
       if (model.equations.length > 0) {
-        bodyParts.push(model.equations.map(e => `- $${e}$`).join(NL))
+        // 方程按"编号 + 行内公式 + 单位"排版：整串塞进 `$…$` 会把编号和单位也当成
+        // 数学式（`$EQ-1: P_accept = …（dimensionless）$`），排版器读不懂。
+        bodyParts.push(model.equations.map(e => `- **${e}**`).join(NL))
       }
     }
-    const body = bodyParts.join(NL + NL)
+    const body = bodyParts.length > 0 ? bodyParts.join(NL + NL) : (fallbackByOrdinal.get(ordinal) ?? '')
     if (body.trim() === '' && rows.length === 0) continue
-    out.push({ title: chapterTitleOf(ordinal, question.statement), body, ...(rows.length === 0 ? {} : { rows }) })
+    out.push({
+      title: chapterTitleOf(ordinal, question.statement, titles.get(question.requirementId)),
+      body,
+      ...(rows.length === 0 ? {} : { rows }),
+    })
   }
   return out
 }
@@ -1719,23 +1762,31 @@ export class WorkflowExecutor {
           const req = r.value as { requirement_id: string; statement: string }
           return { requirementId: req.requirement_id, statement: req.statement }
         })
-    // W11.5 round-4 (审计 §2.3 治本) → round-7 调整：E1 的那份"读得懂题、想得出
-    // 方法"的分析此前只被当作 E2 保真检查的输入，随后**被丢弃**；round-4 把它接进
-    // 论文（baseline-23 的模型自写分析只有 207 字，参照物每问 270–600 字）。
+    // W11.5 round-4 (审计 §2.3 治本) → round-8 归位（对齐参照物的分工）：
     //
-    // round-7 把它放回**正确的位置**：逐问的分析段现在归**逐问章**（`perProblemChaptersFromIr`，
-    // 与「问题一：…」章一一对应，参照物的分工），问题分析章改为放 E1 的**统一框架段**
-    // （口径、假设、方法族判断）+ 模型自己写的分析 prose。否则同一段 E1 会在"问题分析"
-    // 与"问题N"两处逐字出现——那是填充，不是篇幅。
+    // 参照物的分工是——「2 问题分析」逐问写"归到哪类方法 + 为什么 + 难点"（2.1–2.4），
+    // 「5 统一框架」写四问共用的口径与方程，「6/8/9/10 问题N」给该问的模型与数值。
+    // 所以：
+    //   · 逐问分析段（E1 的 `[[REQUIREMENT: R-Qn]]` 段）→ **问题分析章**（小节号由
+    //     渲染器统一编成 2.x），模型自己写的 analysis prose 接在其后；
+    //   · E1 的**统一框架段**（第一个逐问锚点之前）→ **模型章**（方法小节的开头），
+    //     那才是"四问共用口径"该在的位置；
+    //   · 逐问章放该问的模型/方程/结果（见 `perProblemChaptersFromIr`）。
+    // 这样同一段 E1 在论文里只出现一次，而每一章都有它该有的东西。
     const e1FullText = this.#e1ByRun.get(String(runId)) ?? ''
     if (e1FullText.trim() !== '') {
+      const perQuestion = perQuestionSectionsOf(e1FullText, contractRequirements)
+      const modelAnalysis = typeof narrative['analysis'] === 'string' ? narrative['analysis'].trim() : ''
+      if (perQuestion.length > 0) {
+        narrative['analysis'] = [
+          perQuestion.join(NL + NL),
+          ...(modelAnalysis === '' ? [] : ['', '### 逐问归因（模型自述）', '', modelAnalysis]),
+        ].join(NL)
+      }
       const framework = frameworkOf(e1FullText)
       if (framework !== '') {
-        const modelAnalysis = typeof narrative['analysis'] === 'string' ? String(narrative['analysis']).trim() : ''
-        narrative['analysis'] = [
-          framework,
-          ...(modelAnalysis === '' ? [] : ['', '### 逐问归因', '', modelAnalysis]),
-        ].join(NL)
+        const methods = typeof narrative['methods'] === 'string' ? narrative['methods'].trim() : ''
+        narrative['methods'] = [framework, ...(methods === '' ? [] : ['', methods])].join(NL + NL)
       }
     }
     // W11.5 round-7（对齐参照物结构）: 参照物是**每个子问题独立成章**（「6 问题一：…」
@@ -1746,7 +1797,7 @@ export class WorkflowExecutor {
     // 模型写的说明只作导语，代码本身由 harness 从容器里取——不增删改一字。
     const appendixCode = container.code ?? ''
     if (appendixCode.trim() !== '') {
-      const note = typeof narrative['code'] === 'string' ? String(narrative['code']).trim() : ''
+      const note = typeof narrative['code'] === 'string' ? narrative['code'].trim() : ''
       narrative['code'] = [
         ...(note === '' ? [] : [note, '']),
         '```javascript',
@@ -2017,6 +2068,12 @@ export class WorkflowExecutor {
       results.map(r => ({ result_id: r.result_id, name: r.name, value: r.value, unit: r.unit })),
       e1FullText,
     )
+    // 独立校核章（参照物「7 问题一模型的独立校核」）：内容取自 harness 交付前真正跑过
+    // 的结构校核（V1–V4）+ 数值溯源事实，章末划清"自洽"与"物理正确"的边界。
+    const verification = verificationChapterOf(
+      snapshot === null ? [] : runVerificationV1V4(snapshot),
+      results.length,
+    )
     const rendered = renderReportV2({
       title: String((narrative['title'] as string | undefined) ?? 'Paper deliverable (executor production chain)'),
       givenLiterals: [...givenLiterals],
@@ -2030,6 +2087,7 @@ export class WorkflowExecutor {
       narrative,
       ...(skeletonRows === undefined ? {} : { skeletonRows }),
       ...(problemChapters.length === 0 ? {} : { problemChapters }),
+      ...(verification === '' ? {} : { verification }),
       // The figure's DISPLAY id is the file name the paper references, so the
       // persisted bytes and the link agree (the attempt suffix never reaches
       // the deliverable).

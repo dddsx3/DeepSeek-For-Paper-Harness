@@ -135,8 +135,10 @@ describe('E1 直通兜底稿也按参照物形态渲染', () => {
   it('给出 requirements 时渲染逐问章，且框架段与逐问段不重复', () => {
     const draft = renderE1DirectDraft({ ...base, requirements: REQUIREMENTS })
     expect(draft.problemChapters).toBe(2)
-    expect(draft.markdown).toContain('## 问题1：')
-    expect(draft.markdown).toContain('## 问题2：')
+    // round-8: 章标题带序号（参照物形态），所以按行"包含"断言。
+    const headings = draft.markdown.split(String.fromCharCode(10))
+    expect(headings.some(line => line.includes('问题1：'))).toBe(true)
+    expect(headings.some(line => line.includes('问题2：'))).toBe(true)
     // 正文里每问的分析只出现一次（模型章放框架段，不放全文）。
     expect(draft.markdown.split('有限差分法').length - 1).toBe(1)
   })
@@ -144,7 +146,7 @@ describe('E1 直通兜底稿也按参照物形态渲染', () => {
   it('拿不到 requirements 时退回扁平骨架，不猜问题边界', () => {
     const draft = renderE1DirectDraft(base)
     expect(draft.problemChapters).toBe(0)
-    expect(draft.markdown).not.toContain('## 问题1：')
+    expect(draft.markdown.split(String.fromCharCode(10)).some(line => line.startsWith('## ') && line.includes('问题1：'))).toBe(false)
     // 全文仍在（宁可退化成一大章，也不丢模型写下的内容）。
     expect(draft.markdown).toContain('有限差分法')
   })

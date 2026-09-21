@@ -158,8 +158,32 @@ export function frameworkOf(e1Text: string): string {
   return stripHarnessAnchors(e1Text)
 }
 
-/** A one-line gist of a requirement's statement, for use as a chapter title. */
-export function chapterTitleOf(ordinal: string, statement: string): string {
+/**
+ * The short chapter titles E1 wrote on its own anchor lines.
+ *
+ * 教学要求锚点行形如 `[[REQUIREMENT: R-Q1]] 问题1：最小样本量与拒收临界值`——
+ * 参照物的章标题是「问题一：预热平衡阶段的常物性耦合场求解」这种短题目，而题干
+ * 本身是整段背景（2024-B 的第一句有 30 字，读起来是段落不是标题）。所以标题优先
+ * 用模型写的那一个，模型没写才退回题干切片。
+ */
+export function questionTitlesOf(e1Text: string): ReadonlyMap<string, string> {
+  const out = new Map<string, string>()
+  for (const line of e1Text.split(NL)) {
+    const match = /\[\[REQUIREMENT:\s*(R-Q\d+)\]\]\s*(.+)$/.exec(line)
+    if (match === null) continue
+    const id = match[1] ?? ''
+    const raw = (match[2] ?? '').replace(/^问题\s*\d+\s*[:：、.．]?\s*/, '').trim()
+    if (id !== '' && raw !== '' && raw.length <= 40) out.set(id, raw)
+  }
+  return out
+}
+
+/**
+ * A chapter title for one sub-problem: the model's own short title when E1 wrote
+ * one, else a one-line gist of the requirement statement.
+ */
+export function chapterTitleOf(ordinal: string, statement: string, e1Title?: string): string {
+  if (e1Title !== undefined && e1Title.trim() !== '') return `问题${ordinal}：${e1Title.trim().slice(0, 40)}`
   const flat = statement.replace(/\s+/g, ' ').replace(/^问题\s*\d+\s*[:：、.．]?\s*/, '').trim()
   const cut = flat.search(/[。；，：]/)
   const head = cut > 0 && cut <= 40 ? flat.slice(0, cut) : flat
@@ -180,6 +204,7 @@ export function perQuestionChaptersOf(
   const questions = questionRequirements(requirements)
   if (questions.length === 0 || e1Text.trim() === '') return []
   const passages = perQuestionSectionsOf(e1Text, requirements)
+  const titles = questionTitlesOf(e1Text)
   const out: Array<{ title: string; body: string }> = []
   for (const question of questions) {
     const ordinal = questionOrdinal(question.requirementId)
@@ -187,7 +212,7 @@ export function perQuestionChaptersOf(
     const passage = passages.find(p => p.startsWith(heading)) ?? ''
     const body = passage === '' ? '' : passage.split(NL).slice(1).join(NL).trim()
     if (body === '') continue
-    out.push({ title: chapterTitleOf(ordinal, question.statement), body })
+    out.push({ title: chapterTitleOf(ordinal, question.statement, titles.get(question.requirementId)), body })
   }
   return out
 }

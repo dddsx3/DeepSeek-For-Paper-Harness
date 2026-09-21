@@ -65,6 +65,7 @@ function reachingResultsByProblem(store: ReadonlyMap<string, IrObjectRecord>): M
       out.set(problemId, set)
     }
   }
+  const claimed = new Set<string>()
   for (const record of store.values()) {
     if (record.kind !== 'Claim') continue
     const claim = record.value as {
@@ -75,14 +76,20 @@ function reachingResultsByProblem(store: ReadonlyMap<string, IrObjectRecord>): M
     if (claim.criticality !== 'CRITICAL') continue
     const claimedProblems = (claim.model_refs ?? []).flatMap(ref => modelProblems.get(ref) ?? [])
     for (const resultRef of claim.result_refs) {
-      const result = store.get(resultRef)
-      if (result === undefined || result.kind !== 'Result') continue
-      const run = store.get((result.value as { run_ref: string }).run_ref)
-      if (run === undefined || run.kind !== 'RunArtifact') continue
-      const modelRef = (run.value as { model_ref: string }).model_ref
-      reach(modelProblems.get(modelRef) ?? [], resultRef)
+      if (store.get(resultRef)?.kind !== 'Result') continue
       reach(claimedProblems, resultRef)
+      claimed.add(resultRef)
     }
+  }
+  // 出处链只兜底**没有任何结论认领**的结果：一次容器只有一次运行，把所有结果都
+  // 按 run→model 算一遍会把它们全算到第一个模型的问题上（逐问判据因此形同虚设）。
+  for (const record of store.values()) {
+    if (record.kind !== 'Result') continue
+    const resultRef = String(record.value['result_id'] ?? '')
+    if (resultRef === '' || claimed.has(resultRef)) continue
+    const run = store.get(String(record.value['run_ref'] ?? ''))
+    if (run === undefined || run.kind !== 'RunArtifact') continue
+    reach(modelProblems.get((run.value as { model_ref: string }).model_ref) ?? [], resultRef)
   }
   return out
 }

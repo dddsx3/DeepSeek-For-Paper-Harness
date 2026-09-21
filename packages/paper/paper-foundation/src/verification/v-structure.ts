@@ -172,6 +172,7 @@ export function v4ModelCoverage(store: StoreInput): ReadonlyArray<VerificationFi
     }
   }
   const reachingByProblem = new Map<string, Set<string>>()
+  const claimedResults = new Set<string>()
   const reach = (problemIds: ReadonlyArray<string>, resultRef: string): void => {
     for (const problemId of problemIds) {
       const set = reachingByProblem.get(problemId) ?? new Set<string>()
@@ -187,18 +188,22 @@ export function v4ModelCoverage(store: StoreInput): ReadonlyArray<VerificationFi
       model_refs?: ReadonlyArray<string>
     }
     if (claim.criticality !== 'CRITICAL') continue
-    // 归属口径同 requirement_coverage：出处链（run→model）+ 结论自报的 model_refs。
-    // 一个容器只有一次运行，只有前者时"每问一个模型"的容器永远只覆盖第一问。
+    // 归属口径同 requirement_coverage：**结论自报的 model_refs 优先**，出处链只兜底
+    // 没有任何结论认领的结果（一次容器只有一次运行，否则所有结果都算到第一问）。
     const claimedProblems = (claim.model_refs ?? []).flatMap(ref => modelProblems.get(ref) ?? [])
     for (const resultRef of claim.result_refs) {
-      const result = toMap(store).get(resultRef)
-      if (result?.kind !== 'Result') continue
-      const run = toMap(store).get((result.value as { run_ref: string }).run_ref)
-      if (run?.kind !== 'RunArtifact') continue
-      const modelRef = (run.value as { model_ref: string }).model_ref
-      reach(modelProblems.get(modelRef) ?? [], resultRef)
+      if (toMap(store).get(resultRef)?.kind !== 'Result') continue
       reach(claimedProblems, resultRef)
+      claimedResults.add(resultRef)
     }
+  }
+  for (const record of toMap(store).values()) {
+    if (record.kind !== 'Result') continue
+    const resultRef = String(record.value['result_id'] ?? '')
+    if (resultRef === '' || claimedResults.has(resultRef)) continue
+    const run = toMap(store).get(String(record.value['run_ref'] ?? ''))
+    if (run?.kind !== 'RunArtifact') continue
+    reach(modelProblems.get((run.value as { model_ref: string }).model_ref) ?? [], resultRef)
   }
   for (const record of toMap(store).values()) {
     if (record.kind !== 'RequirementSpec') continue

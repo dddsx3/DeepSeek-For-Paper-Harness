@@ -225,8 +225,15 @@ export function runDocxPrechecks(input: DocxPrecheckInput): ReadonlyArray<DocxCh
 
   // 15 — 章节骨架齐备（每个必需 H1 至少出现一次）
   // R5: 渲染骨架的章节是 H2（`# 标题` + `## 章节`）——一级与二级标题都算章节存在
-  const present = new Set(headings.filter(h => h.level === 1 || h.level === 2).map(h => h.title.replace(/\s+/g, '')))
-  const missing = requiredHeadings.filter(h => !present.has(h.replace(/\s+/g, '')))
+  // 章节标题带序号（参照物形态：`## 1 问题重述`），所以按**包含**匹配而不是相等
+  // ——否则编号一加上，这条检查会把 12 章全判成缺失（round-8 对齐参照物时实测）。
+  const present = headings
+    .filter(h => h.level === 1 || h.level === 2)
+    .map(h => h.title.replace(/\s+/g, ''))
+  const missing = requiredHeadings.filter((h) => {
+    const required = h.replace(/\s+/g, '')
+    return !present.some(title => title.includes(required))
+  })
   results.push({
     code: 'skeleton_present',
     status: missing.length === 0 ? 0 : 1,
