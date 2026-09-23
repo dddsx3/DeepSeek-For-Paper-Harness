@@ -83,6 +83,10 @@ describe('L6 复验 — 指纹必须来自重跑真检查器', () => {
     expect(ids).toEqual([
       'assumption_structure', 'blank_area', 'delivered_numbers',
       'digit_check', 'model_structure', 'prose_contract', 'required_output_unpaid',
+      // W12-B1：正文里未经代码通道验证的数字字面量个数（只在兜底路径上报）。
+      // 复验判据是"降到 0 才算修好"——用"数量下降"当判据会让"改掉一个错数字、
+      // 又写下另一个"混过去。
+      'unverified_numbers',
     ])
   })
 

@@ -51,6 +51,7 @@ import { checkCodeProvenance, SHELL_PROVENANCE_TARGETS } from './code-provenance
 import { verifyStudyManifest, type StudyManifest } from './study-manifest.ts'
 import { FINGERPRINT_NAMESPACES } from '@deepseek-ai/dsh-paper-foundation'
 import { zipMixedFiles } from './zip.ts'
+import { honestyGuard } from './deliverable-guard.ts'
 import { FAKE_CONTAINER, FAKE_E1, FAKE_T3_FILL } from './fake-fixtures.ts'
 
 const here = dirname(fileURLToPath(import.meta.url))
@@ -992,6 +993,22 @@ ${String(result.unverifiable.length)} / ${String(result.claims.length)} 条断�
   const deliveryPath = engine.getManifest(RunId(run.id))?.delivery_path ?? 'unknown'
   const gradedEntries = ctx.paperAudit.list(String(run.id)).filter(e => e.eventType === 'delivery_graded')
   const grade: 'CLEAN' | 'MARKED' = gradedEntries.some(e => String((e as { detail?: { grade?: unknown } }).detail?.grade) === 'MARKED') ? 'MARKED' : 'CLEAN'
+  // 档位（CLEAN/MARKED/DEGRADED/ESCALATE）取自 `delivery_graded` 事件——它是
+  // 交付档位的权威来源（`grade` 只是它的二值投影，缺了 DEGRADED/ESCALATE）。
+  const tierOfDelivery = String(
+    (gradedEntries.at(-1) as { detail?: { tier?: unknown } } | undefined)?.detail?.tier ?? 'CLEAN',
+  ) as 'CLEAN' | 'MARKED' | 'DEGRADED' | 'ESCALATE'
+  // ── 交付前的防伪守卫 ────────────────────────────────────────────────
+  // 非 CLEAN 的稿子必须带着它自己的标注（档位抬头 + E1 直通的"未经规范 IR 验证"
+  // 说明）。实测（strict-11）：这样的稿子里出现过**伪造的验证结论**——结果章写
+  // "第一类错误为 0.0473，满足不超过 5% 的要求"，而真值是 0.0637。
+  // **抬头一旦被剥掉，它就是一份看起来经过验证、实际数字有错的论文。**
+  // 所以这里拒绝交付，而不是导出一份没有标记的成品。
+  const honesty = honestyGuard(report, deliveryPath, tierOfDelivery)
+  if (!honesty.allowed) {
+    console.error(`DELIVERY REFUSED — ${honesty.reason}`)
+    return 1
+  }
   // TASK-Q2: real token accounting from the run record (the real adapter
   // requests include_usage; the executor accumulates every call). Fake and
   // replay runs legitimately report zeros.

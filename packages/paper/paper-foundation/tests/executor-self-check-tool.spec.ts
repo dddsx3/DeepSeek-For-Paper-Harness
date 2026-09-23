@@ -143,6 +143,8 @@ interface HarnessResult {
   readonly auditKinds: ReadonlyArray<string>
   /** 每次自检调用记下的结论（审计里 `E2SelfCheckCall` 的 detail）。 */
   readonly selfCheckDetails: ReadonlyArray<{ admissible?: unknown; problem_count?: unknown; problems?: unknown }>
+  /** 所有 `provider_retry` 事件的拒绝原因（按发生顺序）。 */
+  readonly retryReasons: ReadonlyArray<string>
   readonly irKinds: ReadonlyArray<string>
 }
 
@@ -162,6 +164,15 @@ async function runWithScript(script: ReadonlyArray<Script>): Promise<HarnessResu
   let e2Calls = 0
   let maxToolDepth = 0
   let finalRounds = 0
+  /**
+   * 本回合内第几次 E2 调用（从 0 起）。
+   *
+   * 判据是"这一轮是不是**续轮**"：带 tool-result、带工具批准的收口指令、或带
+   * "那是散文不是容器"的纠正，都算续轮；都没有就是一次新的节点尝试，下标归零。
+   * 只按 tool-result 深度计数是不够的——散文纠正那一轮没有工具结果，
+   * 下标会停在原地，剧本永远读到同一项（第一版测试正是这样空转的）。
+   */
+  let attemptCallIndex = 0
 
   ctx.provide('paperProvider', {
     resolveRole: () => Promise.resolve({
@@ -217,7 +228,13 @@ async function runWithScript(script: ReadonlyArray<Script>): Promise<HarnessResu
       } else if (isE2) {
         e2Calls += 1
         if (sawFinalInstruction) finalRounds += 1
-        const step = script[Math.min(toolResultsInRequest, script.length - 1)]
+        const isContinuation = toolResultsInRequest > 0
+          || seen.includes('was PROSE, not the container')
+          || seen.includes('is ADMISSIBLE')
+          || seen.includes('which is the limit')
+        if (!isContinuation) attemptCallIndex = 0
+        const step = script[Math.min(attemptCallIndex, script.length - 1)]
+        attemptCallIndex += 1
         if (step !== undefined && step.kind === 'tool') {
           // 一次纯工具调用：**没有文本块**，finish 必须是 `stop`
           // （`max-tokens` 会让 assembler 丢掉工具调用）。
@@ -278,6 +295,9 @@ async function runWithScript(script: ReadonlyArray<Script>): Promise<HarnessResu
     maxToolDepth,
     finalRounds,
     auditKinds,
+    retryReasons: ctx.paperAudit.list(runId)
+      .filter((e: { eventType?: string }) => e.eventType === 'provider_retry')
+      .map((e: { detail?: { reason?: unknown } }) => String(e.detail?.reason ?? '')),
     selfCheckDetails: ctx.paperAudit.list(runId)
       .filter((e: { detail?: { kind?: string } }) => e.detail?.kind === 'E2SelfCheckCall')
       .map((e: { detail?: unknown }) => e.detail as { admissible?: unknown; problem_count?: unknown; problems?: unknown }),
@@ -693,5 +713,50 @@ describe('W12-A1i — 批准即收口', () => {
     const result = await runWithScript(always)
     expect(result.maxToolDepth).toBe(SELF_CHECK_MAX_ROUNDS)
     expect(result.finalRounds, 'the forced-final round must still happen').toBeGreaterThan(0)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// ⑧ 到顶轮只收结构化输出（strict-12/13 实测的"放弃式输出"）
+// ---------------------------------------------------------------------------
+
+describe('W12-A1k — 到顶轮只收结构化输出', () => {
+  it('交回散文 → **不收**，明确再要一次结构化输出', async () => {
+    // 落盘证据（strict-12 attempt 6 / strict-10 attempt 7）：
+    //   parse_failed: Unexpected token 'T', "The contai"... is not valid JSON
+    //   parse_failed: Unexpected token 'I', "I need to "... is not valid JSON
+    // 旧代码在到顶那一轮**无条件收下**这句散文，于是整次尝试被判 parse_failed 并
+    // 重跑一整个节点——一次完整的 E2 调用就为了一句"我做不到"。
+    const result = await runWithScript([
+      { kind: 'text', text: 'I need to think about this more carefully before writing the container.' },
+      { kind: 'text', text: GOOD_CONTAINER },
+    ])
+    // ① 散文那一轮没有被当作最终答案：E2 被调了两次。
+    expect(result.e2Calls).toBe(2)
+    // ② 纠正措辞点明"那是散文，不是提交"。
+    expect(result.prompts.some(p => p.includes('was PROSE, not the container'))).toBe(true)
+    // ③ 第二次给了容器 → 正常走完。
+    expect(result.outcome.status, result.outcome.message).toBe('resolved')
+    expect(result.irKinds).toContain('ModelSpec')
+  })
+
+  it('两次都给散文 → 以**精确的理由**拒绝，而不是 JSON 语法错误', async () => {
+    // 病因是"模型放弃了结构化输出"，不是"JSON 有个逗号写错了"。旧行为的报错指向
+    // 症状，于是回灌也治不对地方。
+    const result = await runWithScript([
+      { kind: 'text', text: 'I need to think about this more carefully.' },
+      { kind: 'text', text: 'Sorry, I cannot produce that.' },
+    ])
+    // 判据取**审计里的拒绝原因**，而不是运行的最终状态：这类拒绝是 NONE 类、
+    // 可重试，预算用尽后会走 E1 直通兜底（fail-soft 下以 DEGRADED 交付），
+    // 所以"最终 resolved"是设计如此，不能拿来当判据。
+    expect(result.retryReasons.some(r => r.includes('PROSE instead of a container'))).toBe(true)
+    expect(result.retryReasons.some(r => r.includes('is not valid JSON'))).toBe(false)
+  })
+
+  it('反向守卫：正常交出容器时**不多问**（纠正只在散文时触发）', async () => {
+    const result = await runWithScript([{ kind: 'text', text: GOOD_CONTAINER }])
+    expect(result.e2Calls).toBe(1)
+    expect(result.prompts.some(p => p.includes('was PROSE, not the container'))).toBe(false)
   })
 })
