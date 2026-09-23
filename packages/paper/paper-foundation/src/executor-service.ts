@@ -82,6 +82,8 @@ export interface ExecutorConfig {
   readonly slicesRoot?: string
   /** 与 `allowExecutable` 同形：schema 产出 `string[]`，接口照抄以免可选性不匹配。 */
   readonly stagePause?: string[]
+  /** W12-C2：热重启播种（analyze=E1 全文，container=准入通过的容器全文）。 */
+  readonly resumeFrom?: { readonly analyze?: string; readonly container?: string }
   /**
    * L2 探索—择优—深挖。缺省按 run mode 决定（`strict` 开启，其余关闭）。
    * 开启后 EXECUTE 之前会跑两个 plan 型节点（explore / select）。
@@ -167,6 +169,7 @@ export function resolveExecutorOptions(
     // 本轮的端到端测试正是这样抓到它自己的：`--pause-after` 传了却不生效。
     ...(config.slicesRoot === undefined ? {} : { slicesRoot: config.slicesRoot }),
     ...(config.stagePause === undefined ? {} : { stagePause: config.stagePause }),
+    ...(config.resumeFrom === undefined ? {} : { resumeFrom: config.resumeFrom }),
     // 上限解放架构的其余三个开关，同样**只在显式声明时前传**：`undefined` 必须
     // 到达 executor，由它的单一读者决定默认（档位相关），避免默认值在两层各写一份。
     //
@@ -238,6 +241,11 @@ export class PaperExecutorService extends Service {
     // W12-C1：切片根目录与"完成即停"的阶段清单。
     slicesRoot: s.string(),
     stagePause: s.array(s.string()),
+    // W12-C2：播种载荷（两个可选的长字符串）。
+    resumeFrom: s.object({
+      analyze: s.string(),
+      container: s.string(),
+    }),
     // L2 / L5 / L6 的开关同样**不设 schema 默认**：`undefined` 到达 executor 后
     // 由档位决定默认值。schema 里再写一份默认就会变成"两处默认"，而两处默认
     // 迟早会漂移——那时"strict 档为什么没跑三视角"会变成一个查不出来的问题。

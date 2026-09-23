@@ -43,7 +43,8 @@
  */
 
 import { createHash } from 'node:crypto'
-import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises'
+import { existsSync } from 'node:fs'
+import { mkdir, readFile, readdir, rename, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 
 /** 阶段 id（顺序即流水线顺序）。 */
@@ -163,6 +164,13 @@ export async function writeSlice(
   },
 ): Promise<{ readonly dir: string; readonly manifest: SliceManifest }> {
   const dir = join(root, sliceDirName(input.index, input.stage))
+  // 同一阶段重跑（修完问题后从上一个检查点重启）时，**旧切片必须留下**：
+  // 它是"修之前长什么样"的唯一证据。所以把它整体改名移开，而不是覆盖。
+  if (existsSync(dir)) {
+    let n = 1
+    while (existsSync(`${dir}.superseded-${String(n)}`)) n += 1
+    await rename(dir, `${dir}.superseded-${String(n)}`)
+  }
   await mkdir(dir, { recursive: true })
   const payloadName = 'payload.txt'
   await writeFile(join(dir, payloadName), input.payload, 'utf8')
@@ -182,10 +190,16 @@ export async function writeSlice(
 }
 
 /** 列出已完成的切片（按 index 升序）。清单缺失或载荷哈希不符的目录**不算切片**。 */
+/** 规范切片目录名：`NN-stage`。被移走的旧切片（`….superseded-N`）不匹配。 */
+const SLICE_DIR = /^[0-9]{2}-[a-z]+$/
+
 export async function listSlices(root: string): Promise<ReadonlyArray<SliceManifest>> {
   const names = await readdir(root).catch(() => [] as string[])
   const out: SliceManifest[] = []
   for (const name of names.sort()) {
+    // 只认规范目录名：**被移到一边的旧切片仍在磁盘上**（用户要求"每一轮切片都保留"），
+    // 但不再参与续跑判定——否则同一阶段的两个轮次会被当成"序号重复"而截断续跑链。
+    if (!SLICE_DIR.test(name)) continue
     const manifest = await readManifest(join(root, name))
     if (manifest === null) continue
     out.push(manifest)

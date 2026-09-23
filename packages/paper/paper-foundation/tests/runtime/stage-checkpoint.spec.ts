@@ -197,3 +197,43 @@ describe('切片 — 阶段表本身', () => {
     }
   })
 })
+
+describe('切片 — 重跑同一阶段时**旧切片必须留下**', () => {
+  it('重写同一 (index, stage) → 旧的被移到 .superseded-N，新的照常可读', async () => {
+    // 用户口径："每一轮切片都保留"。修完问题从上一个检查点重启时，**旧切片是
+    // "修之前长什么样"的唯一证据**——覆盖掉它，事后就无法证明修复真的改变了什么。
+    const root = await tmp()
+    await writeSlice(root, { stage: 'analyze', index: 1, runId: 'r1', payload: '修复前的 E1', facts: {} })
+    await writeSlice(root, { stage: 'analyze', index: 1, runId: 'r2', payload: '修复后的 E1', facts: {} })
+    // 参与续跑判定的只有新的那一片
+    const slices = await listSlices(root)
+    expect(slices).toHaveLength(1)
+    expect(await readSlicePayload(join(root, sliceDirName(1, 'analyze')))).toBe('修复后的 E1')
+    // 旧的仍在磁盘上，且载荷可读
+    const kept = join(root, `${sliceDirName(1, 'analyze')}.superseded-1`)
+    expect(await readSlicePayload(kept)).toBe('修复前的 E1')
+  })
+
+  it('重跑两次 → 两个历史轮次都在（.superseded-1 / .superseded-2）', async () => {
+    const root = await tmp()
+    for (const [i, text] of ['第一轮', '第二轮', '第三轮'].entries()) {
+      await writeSlice(root, { stage: 'analyze', index: 1, runId: `r${String(i)}`, payload: text, facts: {} })
+    }
+    expect(await readSlicePayload(join(root, '01-analyze.superseded-1'))).toBe('第一轮')
+    expect(await readSlicePayload(join(root, '01-analyze.superseded-2'))).toBe('第二轮')
+    expect(await readSlicePayload(join(root, '01-analyze'))).toBe('第三轮')
+  })
+
+  it('被移开的旧切片**不参与**续跑判定（否则序号会重复、续跑链被截断）', async () => {
+    const root = await tmp()
+    await writeSlice(root, { stage: 'analyze', index: 1, runId: 'r1', payload: 'A', facts: {} })
+    await writeSlice(root, { stage: 'analyze', index: 1, runId: 'r2', payload: 'A2', facts: {} })
+    await writeSlice(root, { stage: 'declare', index: 2, runId: 'r2', payload: 'B', facts: {} })
+    const slices = await listSlices(root)
+    expect(slices.map(s => s.index)).toEqual([1, 2])
+    // 两片都检查通过 → 续跑点是第 2 片（序号连续，没有被历史轮次打断）
+    await recordReview(join(root, '01-analyze'), { verdict: 'passed', note: 'ok', at: 'x' })
+    await recordReview(join(root, '02-declare'), { verdict: 'passed', note: 'ok', at: 'x' })
+    expect(resumePointOf(await listSlices(root))?.index).toBe(2)
+  })
+})
