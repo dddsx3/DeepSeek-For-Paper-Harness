@@ -1,0 +1,19 @@
+{
+  "sliceVersion": 1,
+  "stage": "declare",
+  "index": 4,
+  "completedAt": "2026-09-23T19:12:11.652Z",
+  "runId": "50a58c3f-4346-4f1b-a9d9-70ee16634d0a",
+  "payload": "payload.txt",
+  "payloadSha256": "cfcc4a7cf1ab784e63ca5d69569606d159380eb29e74e92fee24dae150bfd4b4",
+  "review": {
+    "verdict": "failed",
+    "note": "第三轮（点名两章与地板数字）：evaluation 778/800（差 22）、references 272/600（更差）。三轮提示层教学到平台期。参照物实测：参考文献 3350 字/20 条、模型的评价 1458 字——地板 600/800 相对参照物偏宽松，判据标定没问题。结论：这是 round-5 同一条教训的复现——模型不会因为被告知就照做；下一步应把正文契约做成自检工具可查项（与容器级失败清零同一条路径）。",
+    "at": "2026-09-23T19:19:45.879Z"
+  },
+  "facts": {
+    "note": "容器已通过准入——检查它的声明是否自洽、锚点是否对得上 E1",
+    "container_chars": 33384,
+    "admitted": true
+  }
+}

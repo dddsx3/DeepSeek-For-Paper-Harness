@@ -1,0 +1,10 @@
+[RESUME] 从 analyze（第 1 片）之后续跑；播种：analyze
+[CODE-FRESH] 代码来源已断言：entry lib/index.js is 507800 ms newer than the newest source; entry lib/index.js is 258837719 ms newer than the newest source; entry lib/index.js is 258879764 ms newer than the newest source; entry lib/index.js is 258879938 ms newer than the newest source; entry lib/index.js is 258880060 ms newer than the newest source; entry lib/index.js is 258837557 ms newer than the newest source
+── 已停在检查点（热重启） ──
+  最后一个检查通过的切片：01-analyze（analyze）
+  该切片的载荷：artifacts\upper-bound\2024B-hot-1\slices\01-analyze\payload.txt
+  ⏸ 待检查：02-declare（declare）—— 容器已通过准入——检查它的声明是否自洽、锚点是否对得上 E1
+  下一阶段：declare（容器声明与准入（E2））—— 产出：容器全文 + 准入结论
+
+  检查通过后继续：
+    paper-shell run bench/problems/2024-B/problem-faithful.md --resume artifacts\upper-bound\2024B-hot-1\slices --run-id 88423d71-3ea3-4aa6-927e-5c68f91d95eb

@@ -106,6 +106,8 @@ export const AUDIT_EVENT_TYPES = [
   'structure_fingerprint',
   // W12-C1：分阶段切片落盘（热重启的检查点）。
   'stage_checkpoint',
+  // W12-C2：热重启播种（已检查通过的切片回灌）。
+  'resume_seeded',
 ] as const
 
 /** One audited operation kind. */

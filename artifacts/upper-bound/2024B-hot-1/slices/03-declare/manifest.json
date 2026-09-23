@@ -1,0 +1,19 @@
+{
+  "sliceVersion": 1,
+  "stage": "declare",
+  "index": 3,
+  "completedAt": "2026-09-23T18:38:46.858Z",
+  "runId": "d8aeacd4-aa0c-4e7e-b6df-f89878864357",
+  "payload": "payload.txt",
+  "payloadSha256": "165118f8e3e21cb36247268b4c1bce8684beaa3d437988a537e7c1c6c15d21a2",
+  "review": {
+    "verdict": "failed",
+    "note": "第二轮（E2 加 produce 简报）：stub 章大幅改善——analysis 72→853、evaluation 49→724 且四要素齐全、references 3→5 条且方法关键词规则已通过。但合并后仍有两章不达地板：evaluation 724/800、references 359/600——正是 E1 不注入的两章。",
+    "at": "2026-09-23T19:19:44.523Z"
+  },
+  "facts": {
+    "note": "容器已通过准入——检查它的声明是否自洽、锚点是否对得上 E1",
+    "container_chars": 30643,
+    "admitted": true
+  }
+}

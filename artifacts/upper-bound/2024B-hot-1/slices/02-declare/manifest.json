@@ -1,0 +1,19 @@
+{
+  "sliceVersion": 1,
+  "stage": "declare",
+  "index": 2,
+  "completedAt": "2026-09-23T17:52:41.930Z",
+  "runId": "88423d71-3ea3-4aa6-927e-5c68f91d95eb",
+  "payload": "payload.txt",
+  "payloadSha256": "6ce985895425607a2ae712d85ad2a53bae8ca63f42ecede75325e2194ce8da24",
+  "review": {
+    "verdict": "failed",
+    "note": "容器结构完好、准入通过（39 条、23 假设与 E1 逐字 1:1、4 个模型、1 张图、图注无数字）。但 narrative 八章大面积不达正文契约（analysis 72/1200、evaluation 49/800 且缺优点局限、references 124/600 且无方法关键词、code 96/600、restatement 32/200）。根因不是模型：正文契约只在 produce 简报里，E1 显式剥掉、E2 从未拿到——写正文的那通调用没被告知正文会被怎样检查。已修：E2 prompt 拼上 produce 简报 + 4 条接线回归测试；另修 writeSlice 覆盖旧切片的缺陷。",
+    "at": "2026-09-23T18:06:03.547Z"
+  },
+  "facts": {
+    "note": "容器已通过准入——检查它的声明是否自洽、锚点是否对得上 E1",
+    "container_chars": 19376,
+    "admitted": true
+  }
+}

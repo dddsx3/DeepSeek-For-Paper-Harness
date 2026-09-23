@@ -53,7 +53,7 @@ import { FINGERPRINT_NAMESPACES } from '@deepseek-ai/dsh-paper-foundation'
 import { zipMixedFiles } from './zip.ts'
 import { honestyGuard } from './deliverable-guard.ts'
 import { StagePauseSignal } from '@deepseek-ai/dsh-paper-foundation'
-import { listSlices, renderResumeInstruction } from '@deepseek-ai/dsh-paper-foundation'
+import { listSlices, readSlicePayload, renderResumeInstruction, resumePointOf, sliceDirName } from '@deepseek-ai/dsh-paper-foundation'
 import { FAKE_CONTAINER, FAKE_E1, FAKE_T3_FILL } from './fake-fixtures.ts'
 
 const here = dirname(fileURLToPath(import.meta.url))
@@ -495,6 +495,36 @@ ${String(result.unverifiable.length)} / ${String(result.claims.length)} 条断�
   const outDir = parsed.out !== undefined ? String(parsed.out) : join(here, 'out')
   // W12-C1：切片根目录（与 execute 的调用点同一作用域，暂停时要读它）。
   const slicesRoot = join(outDir, 'slices')
+  // ── 热重启：`--resume <slicesRoot>` ────────────────────────────────
+  // 只播种**已检查通过**的阶段产出（`resumePointOf` 的判据），并把它们的载荷读回来。
+  // 于是续跑不重发 E1 与 E2 两次最贵的模型调用，而你审过的切片与续跑的那一轮
+  // **对得上**——这是热重启成立的前提（否则重跑会产出不同的 E1，检查就白做了）。
+  const resumeArg = typeof parsed.resume === 'string' ? String(parsed.resume) : undefined
+  let resumeFrom: { analyze?: string; container?: string } | undefined
+  if (resumeArg !== undefined) {
+    const prior = await listSlices(resumeArg)
+    const point = resumePointOf(prior)
+    if (point === null) {
+      // 这里还没到 `dispose` 的作用域（它在 provider 挂载之后才定义），
+      // 而这条路径**还没挂载任何东西**，所以直接返回即可，不需要清理。
+      console.error(`--resume ${resumeArg}：没有"检查通过"的切片，无法续跑。`
+        + '请先对切片写回检查结论（recordReview），或去掉 --resume 从头跑。')
+      return 2
+    }
+    const payloadOf = async (stage: string): Promise<string | undefined> => {
+      const s = prior.find(x => x.stage === stage && x.review?.verdict === 'passed')
+      if (s === undefined) return undefined
+      return readSlicePayload(join(resumeArg, sliceDirName(s.index, s.stage)))
+    }
+    const seedAnalyze = await payloadOf('analyze')
+    const seedContainer = await payloadOf('declare')
+    resumeFrom = {
+      ...(seedAnalyze === undefined ? {} : { analyze: seedAnalyze }),
+      ...(seedContainer === undefined ? {} : { container: seedContainer }),
+    }
+    console.log(`[RESUME] 从 ${point.stage}（第 ${String(point.index)} 片）之后续跑；`
+      + `播种：${Object.keys(resumeFrom).join('、') || '（无）'}`)
+  }
   const fake = parsed.fake === true || parsed.fake === 'true'
   // 交付档位。**默认 fail-soft**（见下方 `deliveryGradeMode` 的注释）：
   //   --fail-soft（默认）  检出但未返修的 finding 走"显式接受"，交付带已知缺陷表的完整包
@@ -633,6 +663,7 @@ ${String(result.unverifiable.length)} / ${String(result.claims.length)} 条断�
       produceFromExecute: true,
       finalOutputRoot: baseRoot,
       ...(pauseAfter.length === 0 ? {} : { slicesRoot, stagePause: pauseAfter }),
+      ...(resumeFrom === undefined ? {} : { resumeFrom }),
       produceRun: { command: ['node', 'main.js'], entryFile: 'main.js', environment: 'paper-shell v0 (node 24)', timeoutMs: codeRunTimeoutMs },
       backoffBaseMs: 1_000,
       backoffCapMs: 10_000,

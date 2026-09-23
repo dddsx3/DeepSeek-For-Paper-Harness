@@ -799,6 +799,18 @@ export interface ExecutorOptions {
   readonly slicesRoot?: string
   readonly stagePause?: ReadonlyArray<string>
   /**
+   * 热重启：把已检查通过的阶段产出**播种**回来，续跑不重发那两次最贵的模型调用。
+   *
+   * 只播种 `analyze`（E1 全文）与 `container`（准入通过的容器全文）。
+   * **为什么不播种 `produce` 的报告**：产出链是容器的**纯函数**——同一容器、
+   * 同一 seed，代码输出与渲染结果相同，所以重派生出来的报告与你审过的那一份一致。
+   * 播种报告反而要伪造一个节点 id（`draft.nodeId` 被引擎后续使用），得不偿失。
+   *
+   * 这个"纯函数"的前提是 `run.seed` 固定；容器没写 seed 时产出可能不同，
+   * 此时续跑会重新产出（并覆盖同名切片），检查者需要重看——这是已知边界。
+   */
+  readonly resumeFrom?: { readonly analyze?: string; readonly container?: string }
+  /**
    * W8.9-B3/B4 — enforce the E1→E2 fidelity checks. When true (default),
    * a container whose Assumption/Equation declarations are not verbatim-
    * anchored in E1, or whose E1 text lacks a required-output reasoning
@@ -1037,6 +1049,14 @@ export class WorkflowExecutor {
    * "E1 ran once" a fact of the code rather than a promise.
    */
   readonly #e1ByRun: Map<string, string> = new Map()
+  /**
+   * 热重启播种的容器全文（按 run 键）。
+   *
+   * 有它时 E1/E2 两段**都不跑**：E1 由 `#e1ByRun` 播种、容器由这里播种，
+   * 于是直接进准入与产出链。审计里记 `ContainerSeeded`，所以"这次没重新声明"
+   * 是一个可核验的事实，而不是看不见的捷径。
+   */
+  readonly #seededContainerByRun: Map<string, string> = new Map()
 
   /**
    * W11.5 baseline-18 (审计 A-1，模板污染): the PAPER-VISIBLE problem statement
@@ -1295,6 +1315,35 @@ export class WorkflowExecutor {
         runId,
         detail: { tier: capability.tier, rationale: capability.rationale, preloadKnowledge: capability.teaching.preloadKnowledge },
       })
+      // 热重启：把已检查通过的切片**播种**回来。
+      // 播种是显式的、可审计的——审计里记 `resume_seeded`，所以"这一轮跳过了哪些
+      // 阶段"是一个事实，而不是看不见的捷径。
+      // 判据必须是"**真的播了东西**"，不能是 `resumeFrom !== undefined`：
+      // schema 会把声明过的可选对象物化成 `{ analyze: undefined, container: undefined }`，
+      // 于是 `!== undefined` 为真而什么都没播——审计里因此多出一条 `resume_seeded`，
+      // 一批断言"审计序列逐字相等"的用例当场变红。**空播种不是播种。**
+      const seedE1 = this.options.resumeFrom?.analyze
+      const seedContainerCandidate = this.options.resumeFrom?.container
+      if ((seedE1 !== undefined && contentExists(seedE1))
+        || (seedContainerCandidate !== undefined && contentExists(seedContainerCandidate))) {
+        if (seedE1 !== undefined && contentExists(seedE1)) {
+          this.#e1ByRun.set(String(runId), seedE1)
+        }
+        const seedContainer = seedContainerCandidate
+        if (seedContainer !== undefined && contentExists(seedContainer)) {
+          this.#seededContainerByRun.set(String(runId), seedContainer)
+        }
+        await this.audit({
+          eventType: 'resume_seeded',
+          actor: 'paper-executor',
+          runId,
+          detail: {
+            analyze: seedE1 === undefined ? 'not-seeded' : `${String(seedE1.length)} chars`,
+            container: seedContainer === undefined ? 'not-seeded' : `${String(seedContainer.length)} chars`,
+            note: '热重启：E1 与容器来自已检查通过的切片，本轮不重发这两次模型调用',
+          },
+        })
+      }
       // L6 门禁状态机：本次运行的门禁强度账本。快照进审计轨迹，因此
       // "这次运行被收紧到什么程度"永远是可核验的，不是事后回忆。
       const gateState = new GateStateMachine(capability.tier)
@@ -3230,7 +3279,25 @@ ${microTeaching.map((m, i) => `${String(i + 1)}. ${m}`).join(String.fromCharCode
           && this.options.produceFromExecute === true
           && (tier === 'T2' || tier === 'T3')
         let text: string
-        if (tier === 'T2' && type === 'execute' && this.options.produceFromExecute === true) {
+        // 热重启：容器已播种 → 跳过 E1 与 E2 两段，直接进准入。
+        // 放在分支链**最前面**：播种的意义就是不走任何声明路径。
+        const seededContainer = this.#seededContainerByRun.get(String(runId))
+        if (seededContainer !== undefined && type === 'execute') {
+          text = seededContainer
+          await this.audit({
+            eventType: 'ir_entry_written',
+            actor: 'paper-executor',
+            runId,
+            detail: {
+              kind: 'ContainerSeeded',
+              id: 'seeded-container',
+              nodeId: node.id,
+              stage: 'receive',
+              chars: seededContainer.length,
+              note: '热重启：容器由已检查通过的 declare 切片播种，本轮未重新声明',
+            },
+          })
+        } else if (tier === 'T2' && type === 'execute' && this.options.produceFromExecute === true) {
           text = await this.runGuidedExecute(runId, role, taskText ?? '')
         } else if (tier === 'T3' && type === 'execute' && this.options.produceFromExecute === true) {
           const stepPrompt = templateFillPrompt(defaultTemplateCandidates())
@@ -3349,7 +3416,28 @@ ${microTeaching.map((m, i) => `${String(i + 1)}. ${m}`).join(String.fromCharCode
               detail: { kind: 'E1Reused', id: 'e1', nodeId: node.id, stage: 'receive', chars: e1Text.length },
             })
           }
+          // ── W12-C3：E2 必须拿到**正文契约** ────────────────────────────
+          //
+          // 检查点实测（`artifacts/upper-bound/2024B-hot-1/CHECKPOINT-02-declare.md`）：
+          // 模型是在**这一通调用里**写 `narrative` 的——那八章**就是论文的正文**。
+          // 而 E2 的 prompt 此前只有「宪法 + E1」：宪法要求"八章非空字符串"，
+          // 却**没有**篇幅地板、没有"参考文献 ≥3 条且至少一条含方法关键词"、
+          // 没有"评价章四要素"。那三条只写在 `paper-contract` 里，而它由
+          // `produce` 步骤简报内联——那份简报**只挂在单发路径的 EXECUTE prompt 上，
+          // E2 从来拿不到**。
+          //
+          // 后果就是历轮反复出现的 `prose_contract` 拒绝：模型写了一章 49 字的
+          // "模型评价与推广"、一份没有方法关键词的参考文献表，然后被产出链拒掉。
+          // **那不是模型的缺陷，是交付链路的缺陷**——要求写在 A 处、执行在 B 处。
+          const proseContractBriefing = this.briefingOf('produce', {
+            target: '容器的 `narrative` 八章——**这八章就是论文正文**，不是摘要也不是笔记',
+            upstream: 'E1 的建模分析已在上文；代码与数字尚未产生（正文里的数字写 `{<result_id>}` 占位符）。',
+            done: '八章各自达到篇幅地板、逐问点名、参考文献 ≥3 条且至少一条指向你实际用过的方法、'
+              + '评价章写全四要素（优点 / 局限 / 敏感性 / 推广）。**这些是产出链会逐条机械检查的判据**。',
+          })
           const baseE2Prompt = e2NormalizationPrompt(e1Text, constitutionText())
+            + String.fromCharCode(10) + String.fromCharCode(10) + proseContractBriefing
+            + String.fromCharCode(10) + String.fromCharCode(10) + E2_SELF_WRITTEN_CHAPTERS
           // W8.10-B1: the drift guidance. Empty on the first attempt (the
           // prompt is then byte-identical to W8.9's — the backfill is confined
           // to retries, which is also what keeps the cassette corpus valid for
@@ -4836,7 +4924,32 @@ function isStructuredAnswer(text: string): boolean {
   return text.indexOf('}', open) > open
 }
 
-/** 到顶/批准之后交回散文时，再要一次结构化输出的措辞。 */
+/**
+ * E2 必须**自己写足**的那两章。
+ *
+ * ## 为什么单独点名（检查点实测）
+ *
+ * `runProductionChain` 的合并会把 E1 的内容注入三章：逐问段 → `analysis`、
+ * 框架段 → `methods`、真实代码块 → `code`。实测（`2024B-hot-1` 的 `03-declare`）：
+ * 注入后 `analysis` 5,895 字、`code` 2,963 字、`restatement` 450 字，**都过地板**。
+ *
+ * 而 `evaluation`（800）与 `references`（600）**没有任何注入**——它们完全由 E2 写。
+ * 实测那两章是 724 与 359 字，**恰好是唯一不达标的两章**。也就是说：不达标不是因为
+ * "写得不好"，而是因为**模型不知道这两章没人帮它兜底**。
+ *
+ * 所以这一段不是加判据，而是把"哪两章完全靠你"讲清楚——这是模型无法从 E1 的
+ * 存在推断出来的信息（E1 在别处确实帮了大忙）。
+ */
+const E2_SELF_WRITTEN_CHAPTERS = [
+  'TWO CHAPTERS ARE ENTIRELY YOURS — nobody else writes them:',
+  '- `narrative.evaluation` (模型评价与推广): floor is 800 characters. Four labelled passages: 优点 / 局限 / 敏感性 / 推广.',
+  '- `narrative.references` (参考文献): floor is 600 characters, at least 3 complete entries (author, title, venue, year),',
+  '  and at least one entry must name a method you actually used in THIS paper.',
+  'Every other chapter gets help: your E1 analysis is merged into `analysis` and `methods`, and your real code is appended to `code`.',
+  'These two get none — if you leave them short, the paper is refused for exactly that reason.',
+].join(String.fromCharCode(10))
+
+/** 到顶/批准之后交回散文时，再要一次结构化输出的措辞。 *//** 到顶/批准之后交回散文时，再要一次结构化输出的措辞。 */
 const STRUCTURED_ONLY_CORRECTION = [
   'That answer was PROSE, not the container. The harness can only accept the structured container object —',
   'a sentence like "I need to ..." is not a submission and would be refused as unparseable.',

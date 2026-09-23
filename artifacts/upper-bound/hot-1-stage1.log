@@ -1,0 +1,8 @@
+[CODE-FRESH] 代码来源已断言：entry lib/index.js is 507800 ms newer than the newest source; entry lib/index.js is 258837719 ms newer than the newest source; entry lib/index.js is 258879764 ms newer than the newest source; entry lib/index.js is 258879938 ms newer than the newest source; entry lib/index.js is 258880060 ms newer than the newest source; entry lib/index.js is 258837557 ms newer than the newest source
+── 已停在检查点（热重启） ──
+  尚无"检查通过"的切片：下一阶段是第 1 阶段。
+  ⏸ 待检查：01-analyze（analyze）—— E1 全文已就绪——检查建模分析的推理质量与逐问覆盖
+  下一阶段：analyze（建模分析（E1））—— 产出：E1 全文（自由散文）
+
+  检查通过后继续：
+    paper-shell run bench/problems/2024-B/problem-faithful.md --resume artifacts\upper-bound\2024B-hot-1\slices --run-id 3ffcb661-7b9c-49c6-8db2-bd663a508b0c

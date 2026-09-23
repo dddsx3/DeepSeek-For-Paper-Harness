@@ -1,0 +1,30 @@
+import { readFileSync } from 'node:fs'
+import { proseContractViolations, substanceViolations, numericClaimCensus } from '../packages/paper/paper-foundation/src/delivery/prose-contracts.ts'
+const parsed = JSON.parse(readFileSync(process.argv[2] as string, 'utf8'))
+const reqs = ['R-Q1','R-Q2','R-Q3','R-Q4'].map(id => ({ requirementId: id, statement: '（略）' }))
+console.log('=== 图声明（strict-13 的头号阻断：图注里的中文序数）===')
+for (const f of parsed.interpretations?.figures ?? []) {
+  console.log('  figure_id:', f.figure_id, '| chart_type:', f.chart_type, '| data_refs:', JSON.stringify(f.data_refs))
+  console.log('  caption:', JSON.stringify(f.caption ?? null))
+  console.log('  x_label:', JSON.stringify(f.x_label ?? null), '| y_label:', JSON.stringify(f.y_label ?? null))
+}
+console.log()
+console.log('=== 正文契约（narrative）===')
+const v = [...proseContractViolations(parsed.narrative ?? {}, reqs), ...substanceViolations(parsed.narrative ?? {}, reqs)]
+if (v.length === 0) console.log('  零违规')
+for (const x of v) console.log(`  [${x.chapter}] ${x.title}: ${x.reason}`)
+console.log()
+console.log('=== 参考文献章（round-5 的头号阻断）===')
+const refs = String(parsed.narrative?.references ?? '')
+console.log('  字符数:', refs.length, '| [N] 条目数:', (refs.match(/^\[\d+\]/gm) ?? []).length)
+console.log('  含方法关键词:', /抽样|序贯|贝叶斯|决策|优化|仿真|检验|二项|动态规划/.test(refs))
+console.log('  开头:', JSON.stringify(refs.slice(0, 150)))
+console.log()
+console.log('=== 评价章四要素 ===')
+const ev = String(parsed.narrative?.evaluation ?? '')
+console.log('  字符数:', ev.length, '| 优点/局限/敏感性/推广:', ['优点','局限','敏感性','推广'].map(k => ev.includes(k)))
+console.log()
+console.log('=== code 是否写出声明的输出 ===')
+const code = String(parsed.code ?? '')
+for (const b of parsed.run?.outputBasenames ?? []) console.log(`  ${b}: ${code.includes(b) ? 'code 里提到' : 'code 里没提到'}`)
+console.log('  code 里的数字字面量:', numericClaimCensus(code), '（代码里的数字是源码，不是结论）')
