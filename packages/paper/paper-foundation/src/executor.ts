@@ -65,7 +65,7 @@ import { arithmeticFindingsOf, deliveredNumberFindings } from './delivery/delive
 // L1: 篇幅参照（`PAPER_LENGTH_REFERENCE`）已不再注入 prompt——它随写作规范一起
 // 外置到 `skills/writing-norms.md`，由 `knowledge/skills/*` 同源渲染。这里只需要
 // 两个检查器本身。
-import { blankAreaViolations, proseContractViolations } from './delivery/prose-contracts.ts'
+import { blankAreaViolations, numericClaimCensus, proseContractViolations, proseContractViolationsOfText } from './delivery/prose-contracts.ts'
 import { EXPLORE_INSTRUCTION, SELECT_INSTRUCTION, reviewDecisionRecord } from './produce/explore-deepen.ts'
 import { SELF_CHECK_TOOL_NAME, checkCandidateContainer, runSelfCheckSafely, selfCheckCategorySentence, type SelfCheckVerdict } from './produce/self-check.ts'
 import { renderSymbolicEvidence, runEquationConsistency } from './verification/symbolic-channel.ts'
@@ -235,6 +235,8 @@ export const EXECUTE_PROTOCOL_TEACHING = constitutionText()
 function severityOfKind(kind: string): ClosureSeverity {
   if (kind.includes('empty') || kind === 'PRODUCE_CHAIN_NO_MODEL' || kind === 'fabricated_reference') return 'fatal'
   if (kind.startsWith('review_defect_critical') || kind === 'numeric_channel' || kind === 'numeric_consistency' || kind === 'required_output_unpaid') return 'major'
+  // 数字未经验证是**读者会据此下结论**的那一类，比格式问题重。
+  if (kind === 'unverified_numbers') return 'major'
   return 'minor'
 }
 
@@ -245,7 +247,9 @@ function severityOfKind(kind: string): ClosureSeverity {
  * 改文字比重跑代码便宜。分派规则必须是代码，否则架构总会选便宜那条。
  */
 function scopeOfKind(kind: string): ReadonlyArray<string> {
-  if (kind.startsWith('review_defect') || kind === 'prose_contract' || kind === 'blank_area') return ['paper/']
+  // `unverified_numbers` 是**正文**层面的标注（数字在正文里、风险在读者那一侧），
+  // 所以分派到 paper/：它要改的是稿子，不是代码或结果。
+  if (kind.startsWith('review_defect') || kind === 'prose_contract' || kind === 'blank_area' || kind === 'unverified_numbers') return ['paper/']
   if (kind === 'config_consistency' || kind === 'execution' || kind === 'PROVENANCE') return ['code/']
   if (kind === 'figure_data_consistency' || kind === 'figure_required') return ['figures/']
   if (kind === 'stale_detection') return ['results/']
@@ -1703,10 +1707,50 @@ ${microTeaching.map((m, i) => `${String(i + 1)}. ${m}`).join(String.fromCharCode
               }),
           ).map(v => ({ kind: 'blank_area', reason: v.reason }))
           : []
+      const deliveryPathEarly: DeliveryPath = this.#deliveryPathByRun.get(String(runId)) ?? 'A-produce-chain'
+      const contractRequirements: ReadonlyArray<ContractRequirement> = this.options.ir === undefined
+        ? []
+        : [...this.options.ir.list()]
+          .filter(r => r.kind === 'RequirementSpec')
+          .map((r) => {
+            const req = r.value as { requirement_id?: unknown; statement?: unknown }
+            return { requirementId: String(req.requirement_id ?? ''), statement: String(req.statement ?? '') }
+          })
+      // W12-B1 — **按渲染后的最终正文**重跑正文契约与数字普查。
+      //
+      // 上面那条 `blankFindings` 是同一个形态的先例（对 `current` 做文本检查、
+      // 按标注处理）。这一条补的是另一件事：`proseContractViolations` 读的是
+      // `narrative`，于是**兜底路径根本不进它的判据**（兜底稿没有 narrative）。
+      // 而兜底稿之后还要过修订轮——实测（strict-11）修订轮把兜底稿里"本稿没有
+      // 模型评价与推广…"的如实说明，整章改写成了 1,193 字的真内容，那两章
+      // **从未被任何契约检查过**。
+      //
+      // 这里不拒绝任何东西（兜底的意义是"总得交出点东西"），只把违规逐条报出来，
+      // 让它们落进交付附录的已知缺陷表。判据与产线链同一套函数。
+      const finalTextFindings: ReadonlyArray<{ kind: string; reason: string }> =
+        this.options.deliveryGradeMode === 'fail-soft'
+          ? [
+            ...proseContractViolationsOfText(current, contractRequirements)
+              .map(v => ({ kind: 'prose_contract', reason: `${v.title}：${v.reason}` })),
+            // 数字暴露量：只在**数字没有代码通道**的路径上报。
+            // 产线链的数字来自 Result，逐条可溯源，报它反而是噪声。
+            ...(deliveryPathEarly === 'B-e1-direct'
+              ? ((): ReadonlyArray<{ kind: string; reason: string }> => {
+                const n = numericClaimCensus(current)
+                return n === 0 ? [] : [{
+                  kind: 'unverified_numbers',
+                  reason: `本稿正文含 ${String(n)} 处数字字面量，**全部未经代码通道验证**：`
+                    + '它们来自模型的自由分析（E1），不是运行产物。稿中若有"经…验证""满足…要求"这类句子，'
+                    + '那是模型的自述，不是校验结果——本轮的独立复算已证实这类自述出现过错误。',
+                }]
+              })()
+              : []),
+          ]
+          : []
       const gradeInput = this.options.deliveryGradeMode === 'strict-tolerance'
         ? [...gateFailures, ...reviewFailures]
-        : [...gateFailures, ...reviewFailures, ...vFindings, ...receiveFailures, ...digitFindings, ...blankFindings]
-      const deliveryPath: DeliveryPath = this.#deliveryPathByRun.get(String(runId)) ?? 'A-produce-chain'
+        : [...gateFailures, ...reviewFailures, ...vFindings, ...receiveFailures, ...digitFindings, ...blankFindings, ...finalTextFindings]
+      const deliveryPath: DeliveryPath = deliveryPathEarly
       // ── 致命条件接上**真实判定**（D4 的修法）────────────────────────
       // 旧代码把 `executionFailed` 与 `referenceCatastrophe` 写死为 false，
       // 于是文档承诺的三个致命条件实际只有"空内容"可达——"退化为 MARKED 的
@@ -1751,14 +1795,6 @@ ${microTeaching.map((m, i) => `${String(i + 1)}. ${m}`).join(String.fromCharCode
       // 它走"显式接受"并写进交付物附录的已知缺陷表，让读者看得见。
       // 复验的输入：被检查产物的**当前状态**。指纹由真检查器给出（见
       // `delivery/recheck.ts`）——绝不由文本长度派生，那是假复验。
-      const contractRequirements: ReadonlyArray<ContractRequirement> = this.options.ir === undefined
-        ? []
-        : [...this.options.ir.list()]
-          .filter(r => r.kind === 'RequirementSpec')
-          .map((r) => {
-            const req = r.value as { requirement_id?: unknown; statement?: unknown }
-            return { requirementId: String(req.requirement_id ?? ''), statement: String(req.statement ?? '') }
-          })
       const narrativeOf = (): Readonly<Record<string, unknown>> => {
         const snap = this.#narrativeByRun.get(String(runId))
         return (snap ?? {}) as Readonly<Record<string, unknown>>
@@ -3328,8 +3364,19 @@ ${microTeaching.map((m, i) => `${String(i + 1)}. ${m}`).join(String.fromCharCode
               e1Text,
               requiredOutputIds: (this.semanticContextOf()?.requiredOutputs ?? []).map(o => o.requirement_id),
             }),
+            true,
             info => selfCheckTrace.push(info),
           )
+          // 到顶轮交了散文（放弃式输出）：**不静默接受**，给出精确的拒绝理由。
+          // 旧行为是收下 `"I need to "...`，然后在下游变成一条 JSON 语法错误——
+          // 那条错误指向的是症状（解析失败），不是病因（模型放弃了结构化输出）。
+          if (e2.notStructured) {
+            const err = new Error('E2 normalization produced PROSE instead of a container, even after the structured-only correction: the model abandoned structured output on its final round')
+            ;(err as { code?: string }).code = 'E2_PROSE_NOT_CONTAINER'
+            ;(err as { w4Class?: FailureClass }).w4Class = 'NONE'
+            ;(err as { outputFingerprint?: string }).outputFingerprint = sha256Hex(e2.text)
+            throw err
+          }
           // 自检最后告诉它的那一条，喂给**下一次尝试**的回灌。
           //
           // 这是 strict-9 实测出来的缺口：模型把 3 次工具额度用满，然后照样提交了
@@ -4203,6 +4250,15 @@ ${microTeaching.map((m, i) => `${String(i + 1)}. ${m}`).join(String.fromCharCode
     prompt: string,
     selfCheck: (containerText: string) => SelfCheckVerdict,
     /**
+     * 是否要求这一轮的回答**必须是结构化输出**（默认是）。
+     *
+     * 依据是 strict-12/13 的实测：模型在到顶那一轮放弃了结构化输出，交出
+     * `"I need to "...` 这样的散文，而旧代码**无条件接受**它，于是整次尝试被
+     * 判成 `parse_failed` 并重跑一整个节点（一次完整的 E2 调用）。
+     * 到顶轮的正确答案是"再要一次结构化输出"，而不是收下一句放弃声明。
+     */
+    requireStructured = true,
+    /**
      * 每次**调用工具**时回调一次（在跑判据之前）。
      *
      * 存在的理由是一个观测缺口：strict-8 真实运行里，工具通道刚打开就撞上端点
@@ -4211,7 +4267,7 @@ ${microTeaching.map((m, i) => `${String(i + 1)}. ${m}`).join(String.fromCharCode
      * "模型不爱用工具"与"工具根本没送到"分不出来。观测点必须在**崩溃点之前**。
      */
     onToolCall?: (info: SelfCheckCallInfo) => void,
-  ): Promise<{ text: string; usage: TokenUsage | undefined; truncated: boolean; toolCalls: number }> {
+  ): Promise<{ text: string; usage: TokenUsage | undefined; truncated: boolean; toolCalls: number; notStructured: boolean }> {
     const route = this.settings.snapshot()[role]
     const tools = [{
       name: SELF_CHECK_TOOL_NAME,
@@ -4266,8 +4322,15 @@ ${microTeaching.map((m, i) => `${String(i + 1)}. ${m}`).join(String.fromCharCode
      * **循环的终止条件**——一个自然的目标状态，而不是新的约束。
      */
     let approved = false
+    /**
+     * 到顶/批准之后，若模型交回散文，只再要**一次**结构化输出。
+     *
+     * 只再要一次：第二次仍不给，说明它这一轮确实产不出结构化输出，此时如实交回
+     * 并让调用方给出精确的拒绝理由（"到顶轮给了散文"），比无限重问或静默接受都诚实。
+     */
+    let structuredReasked = false
 
-    for (let round = 0; round < SELF_CHECK_MAX_ROUNDS + 2; round += 1) {
+    for (let round = 0; round < SELF_CHECK_MAX_ROUNDS + 3; round += 1) {
       const assembler = new BlockAssembler()
       // 三种轮次各自用**正确的消息类型**：工具结果走 `createToolResultMessage`
       // （role=user + source.kind=tool + toolCallId），而不是伪装成一条用户消息——
@@ -4296,21 +4359,22 @@ ${microTeaching.map((m, i) => `${String(i + 1)}. ${m}`).join(String.fromCharCode
       const text = assembler.blocks().filter(b => b.type === 'text').map(b => b.text).join(String.fromCharCode(10))
       const calls = assembler.blocks().filter(b => b.type === 'tool-call')
 
-      // 没有工具调用 = 这就是最终答案。
-      if (calls.length === 0) {
-        return { text, usage: totalUsage, truncated, toolCalls }
-      }
-
-      // 上一轮工具已批准：这一轮的文字就是最终答案（指令已要求逐字给出）。
-      if (approved) {
-        return { text, usage: totalUsage, truncated, toolCalls }
-      }
-
-      // 到顶后仍调用工具：**不再无限循环**，就用这一轮的文本作为最终答案。
-      // 工具是帮忙的，不是新的门——到顶不得把整次尝试判失败（那会让"模型
-      // 太爱自检"变成一个比"不自检"更差的结果）。
-      if (askedForFinal) {
-        return { text, usage: totalUsage, truncated, toolCalls }
+      // 三种"该收下这一轮"的情形：模型没调工具、工具已批准、或已经到顶。
+      // 工具是帮忙的，不是新的门——到顶不得把整次尝试判失败（那会让"模型太爱
+      // 自检"变成一个比"不自检"更差的结果）。
+      const shouldReturn = calls.length === 0 || approved || askedForFinal
+      if (shouldReturn) {
+        const structured = !requireStructured || isStructuredAnswer(text)
+        if (structured || structuredReasked) {
+          return { text, usage: totalUsage, truncated, toolCalls, notStructured: !structured }
+        }
+        // 散文（放弃式输出）：**不收**。明确回一句，再取一次。
+        // strict-12/13 实测：旧代码在这里无条件收下 `"I need to "...`，
+        // 于是整次尝试被判 parse_failed 并重跑一整个节点。
+        structuredReasked = true
+        turns.push({ role: 'assistant', content: text })
+        turns.push({ role: 'user', content: STRUCTURED_ONLY_CORRECTION })
+        continue
       }
 
       // 额度用满：明确要求给最终答案，这一轮的调用**不执行**。
@@ -4371,7 +4435,7 @@ ${microTeaching.map((m, i) => `${String(i + 1)}. ${m}`).join(String.fromCharCode
     }
     // 不可达：`askedForFinal` 最迟在第 MAX 轮被置位，下一轮必然 return。
     // 留一个**有文本的**兜底而不是抛错——抛错会把一次本可交付的尝试零掉。
-    return { text: '', usage: totalUsage, truncated, toolCalls }
+    return { text: '', usage: totalUsage, truncated, toolCalls, notStructured: true }
   }
 
   private async call(role: PaperRole, prompt: string): Promise<{ text: string; usage: TokenUsage | undefined; truncated: boolean }> {
@@ -4656,6 +4720,33 @@ export const SELF_CHECK_MAX_ROUNDS = 6
  * 与"工具根本没报"——strict-8 那次崩溃之后这两者无法区分，正是因为审计里只有
  * 一个调用计数。
  */
+/**
+ * 一段回答是否**结构化**（至少含一个 JSON 对象）。
+ *
+ * 判据故意宽松到"有没有 JSON 对象"这一层：精确的 schema 判定由下游的
+ * `parseModelContainer` 负责，这里要拦的是**散文**——模型在到顶那一轮放弃结构化
+ * 输出时交回的是 `"I need to ..."` 这类句子，里面连一个 `{` 都没有。
+ *
+ * 宽松是有意的：若在这里做严格判定，一个"JSON 但 schema 差一点"的回答会被当成
+ * 散文重问，而它本该走正常的 DRIFT 回灌（那条路会告诉模型具体错在哪）。
+ *
+ * @param text - 模型这一轮的文字。
+ * @returns 含 JSON 对象则为真。
+ */
+function isStructuredAnswer(text: string): boolean {
+  const open = text.indexOf('{')
+  if (open === -1) return false
+  return text.indexOf('}', open) > open
+}
+
+/** 到顶/批准之后交回散文时，再要一次结构化输出的措辞。 */
+const STRUCTURED_ONLY_CORRECTION = [
+  'That answer was PROSE, not the container. The harness can only accept the structured container object —',
+  'a sentence like "I need to ..." is not a submission and would be refused as unparseable.',
+  'Emit the JSON object now: it must start with { and contain the container keys. No preamble, no explanation, no apology.',
+  'If you believe you cannot produce it, say so in one short line and stop — but do not write the container in prose.',
+].join(' ')
+
 interface SelfCheckCallInfo {
   readonly round: number
   readonly callIndex: number

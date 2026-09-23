@@ -320,3 +320,127 @@ export function proseContractViolations(
 
   return [...out, ...substanceViolations(narrative, requirements)]
 }
+
+// ---------------------------------------------------------------------------
+// W12-B1 — 按**渲染后的正文**重跑同一套契约
+// ---------------------------------------------------------------------------
+//
+// ## 为什么需要它（strict-11 实测出来的洞）
+//
+// `proseContractViolations` 读的是 `narrative`——容器里的那个字段。于是它只覆盖
+// **产线链**（A-produce-chain）：兜底路径（B-e1-direct）根本没有 narrative，检查
+// 静默变成空转。
+//
+// 而兜底稿不是终点：它之后还要过**修订轮**（review→revise）。修订轮的输入输出都是
+// 自由文本，唯一守卫是 `revisionDestroysDraft`（标题集合 + 长度 ≥50%）。实测
+// （strict-11）：兜底稿里写着"本稿没有模型评价与推广：这一章由 E2 产出的容器提供…"
+// 的**如实说明**，被修订轮整章改写成了 1,193 字的真内容；参考文献章同样从说明变成
+// 425 字的条目表。也就是说——**交付出去的那两章，是一次从未被任何契约检查过的
+// 自由文本改写**。
+//
+// 更糟的是它改出了**伪造的验证结论**：strict-11 的结果章写
+// "情形(1)在 n=29, c₁=6 时第一类错误为 0.0473，满足不超过 5% 的要求"。
+// 独立复算：P(X≥6 | 29, 0.1) = **0.0637**（不满足）；0.0473 对应的是 (27,6)。
+// 一个声称"通过精确二项分布验证"的数字，本身是错的。
+//
+// ## 这一层的定位
+//
+// 它**不拒绝**任何东西（兜底的意义是"总得交出点东西"）。它把最终正文里的违规
+// 逐条报出来，让它们落进交付附录的**已知缺陷表**——读者看得见，而不是被蒙在鼓里。
+// 判据与产线链**同一套函数**（不另写一份），只是输入换成渲染后的正文。
+
+/** 渲染后正文里，章标题 → 契约键的对应。 */
+const CHAPTER_KEY_OF_TITLE: ReadonlyArray<{ readonly title: string; readonly key: string }> = [
+  { title: '问题重述', key: 'restatement' },
+  { title: '问题分析', key: 'analysis' },
+  { title: '结果对比与校核', key: 'results' },
+  { title: '模型评价与推广', key: 'evaluation' },
+  { title: '参考文献', key: 'references' },
+  { title: '核心代码', key: 'code' },
+  { title: '代码附录', key: 'code' },
+]
+
+/**
+ * 把渲染后的论文正文按 `## ` 章标题切开，映射成契约读得懂的伪 narrative。
+ *
+ * 标题形态是 `## 6 问题1：最小样本量与拒收临界值` 这类（序号前缀 + 自由标题），
+ * 所以先剥掉 `## `、序号与空白，再按**前缀**匹配已知章名。逐问章（`问题1：…`）
+ * 不进映射——它们由 `perQuestion` 的逐问覆盖判据负责，那一条读的是 analysis。
+ *
+ * @param markdown - 渲染后的论文正文。
+ * @returns 章键 → 该章正文（未出现的章不出现）。
+ */
+export function chaptersOfPaper(markdown: string): Record<string, string> {
+  const out: Record<string, string> = {}
+  const lines = markdown.split('\n')
+  let currentKey: string | null = null
+  let buffer: string[] = []
+  const flush = (): void => {
+    if (currentKey === null) return
+    // 同一章名出现两次时**追加**而不是覆盖：取并集才不会因为拆章形态变化而漏判。
+    out[currentKey] = (out[currentKey] === undefined ? '' : `${out[currentKey]}\n`) + buffer.join('\n')
+  }
+  for (const line of lines) {
+    const heading = /^##\s+(.*)$/.exec(line)
+    if (heading !== null) {
+      flush()
+      buffer = []
+      const stripped = (heading[1] ?? '').replace(/^[0-9]+[.、\s]*/, '').trim()
+      const hit = CHAPTER_KEY_OF_TITLE.find(c => stripped.startsWith(c.title))
+      currentKey = hit === undefined ? null : hit.key
+      continue
+    }
+    if (currentKey !== null) buffer.push(line)
+  }
+  flush()
+  return out
+}
+
+/**
+ * 对**渲染后的正文**跑同一套正文契约。
+ *
+ * 与 `proseContractViolations` 共用规则实现（先拆章成伪 narrative，再委托），
+ * 因此两条路径的判据不可能漂移。
+ *
+ * @param markdown - 渲染后的论文正文。
+ * @param requirements - 题面的 REQUIRED_OUTPUT 清单。
+ * @returns 违规清单（章键、标题、原因）。
+ */
+export function proseContractViolationsOfText(
+  markdown: string,
+  requirements: ReadonlyArray<ContractRequirement>,
+): ReadonlyArray<ProseContractViolation> {
+  const narrative = chaptersOfPaper(markdown)
+  return [...proseContractViolations(narrative, requirements), ...substanceViolations(narrative, requirements)]
+}
+
+/**
+ * 正文里的数字字面量普查（**不含**代码块与 `{<result_id>}` 占位符）。
+ *
+ * ## 它存在的理由：区分"看起来验证过"与"真的验证过"
+ *
+ * 兜底路径（B-e1-direct）的数字来自模型的自由分析，**没有一次代码通道验证**。
+ * 但交付稿会写"通过精确二项分布验证"这种句子——strict-11 就是这么写的，而且
+ * 那个"验证结果"本身是错的。DEGRADED 横幅是稿子级标注，读者滑到第 7 章时早就
+ * 忘了它；这一层给出**逐稿的数字暴露量**，落进已知缺陷表，让"本稿有 N 个数字、
+ * 一个都没验证"成为一条可读的事实，而不是一句抬头。
+ *
+ * 代码块要排除：那是模型写的程序，里面的数字是**源码**，不是结论。
+ * `{<result_id>}` 占位符要排除：那是零数字通道的合法形态，不是数字。
+ *
+ * @param markdown - 渲染后的论文正文。
+ * @returns 数字字面量个数（仅正文，不含代码块与占位符）。
+ */
+export function numericClaimCensus(markdown: string): number {
+  let inFence = false
+  let total = 0
+  for (const line of markdown.split('\n')) {
+    if (/^\s*```/.test(line)) { inFence = !inFence; continue }
+    if (inFence) continue
+    // 去掉 `{...}` 占位符（零数字通道的合法形态）后再数。
+    const withoutPlaceholders = line.replace(/\{[^{}]*\}/g, ' ')
+    const matches = withoutPlaceholders.match(/(?<![A-Za-z^])[-+]?(?:\d+\.?\d*|\.\d+)(?![A-Za-z])/g)
+    if (matches !== null) total += matches.length
+  }
+  return total
+}

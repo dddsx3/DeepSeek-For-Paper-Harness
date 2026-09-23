@@ -23,7 +23,7 @@
  */
 
 import type { IrObjectRecord } from '../ir/store.ts'
-import { blankAreaViolations, proseContractViolations, type ContractRequirement } from './prose-contracts.ts'
+import { blankAreaViolations, numericClaimCensus, proseContractViolations, proseContractViolationsOfText, type ContractRequirement } from './prose-contracts.ts'
 import { requirementCoverageFindings } from './requirement-coverage.ts'
 import { digitSelfContradictionFindings } from './digit-check.ts'
 import { deliveredNumberFindings } from './delivered-numbers.ts'
@@ -106,9 +106,17 @@ const UNREGISTERED: Rechecker = input => ({
  * 有就登记；没有就不登记（落 `checker_failed`）。
  */
 export const RECHECKERS: ReadonlyMap<string, Rechecker> = new Map<string, Rechecker>([
-  // 散文契约：逐章要素与实质地板。读 narrative + 子问题要求。
+  // 散文契约：逐章要素与实质地板。
+  //
+  // **输入必须与报告该 finding 的那一次相同**，否则复验检查的不是同一个东西——
+  // 那是另一种假复验。产线链的 finding 来自 `proseContractViolations(narrative)`；
+  // 兜底路径没有 narrative（键为空），它的 finding 来自按渲染正文重跑的那一支。
+  // 判据因此是"narrative 是否为空"，而不是"哪条路径"——它直接对上了两个来源。
   ['prose_contract', input => fromViolations(
-    proseContractViolations(input.narrative, input.requirements).map(v => ({
+    (Object.keys(input.narrative).length === 0
+      ? proseContractViolationsOfText(input.text, input.requirements)
+      : proseContractViolations(input.narrative, input.requirements)
+    ).map(v => ({
       chapter: v.chapter, title: v.title, reason: v.reason,
     })),
   )],
@@ -142,6 +150,15 @@ export const RECHECKERS: ReadonlyMap<string, Rechecker> = new Map<string, Rechec
   ['digit_check', input => fromViolations(
     digitSelfContradictionFindings(input.text).map(f => ({ kind: f.kind, reason: f.reason })),
   )],
+  // 数字暴露量：正文里**未经代码通道验证**的数字字面量个数。
+  //
+  // 只在兜底路径（B-e1-direct）会报这条，所以复验的含义很直接：**数字降到 0
+  // 才算修好**——那意味着这一稿的数字全部换成了代码产出的 Result（或占位符）。
+  // 用"数量下降"当判据是错的：改掉一个错数字、又写下另一个，数量没变而问题还在。
+  ['unverified_numbers', (input) => {
+    const count = numericClaimCensus(input.text)
+    return count === 0 ? fromViolations([]) : fromViolations([{ unverified_numbers: count }])
+  }],
   // 数字可回溯：正文数字能否在产物里找到同值。
   // `deliveredNumberFindings` 收的是"允许的数字串"清单，因此这里必须按
   // executor 的同一条口径重建它（Result 值 + 不确定度 + 题面给定常数），
