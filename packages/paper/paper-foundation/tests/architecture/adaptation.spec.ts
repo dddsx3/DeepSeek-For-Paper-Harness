@@ -11,7 +11,7 @@ import { ADAPTATIONS, missingAdaptations, stagesWithoutAdaptationRows } from '..
 
 describe('适配台账 —— 没有"删掉"这个选项', () => {
   it('**每一项都有适配方式**，四种之一，且 `detail` 写明怎么适配的', () => {
-    const allowed = new Set(['inlined', 'ported', 'harness-side', 'missing'])
+    const allowed = new Set(['inlined', 'ported', 'harness-side', 'tool-fetchable', 'missing'])
     for (const a of ADAPTATIONS) {
       expect(allowed.has(a.mode), `${a.stage}/${a.assetClass} 的 mode '${a.mode}' 不在允许集`).toBe(true)
       expect(a.detail.length, `${a.stage}/${a.assetClass} 没写明怎么适配`).toBeGreaterThan(20)
@@ -29,7 +29,8 @@ describe('适配台账 —— 没有"删掉"这个选项', () => {
   it('`missing` 的项数**必须被显式记录**（不允许悄悄增长）', () => {
     // 这不是"通过"的断言，是把当前缺口**钉成一个数字**：缺口变化时测试会红，
     // 逼作者在提交里说明为什么多了/少了一项。
-    expect(missingAdaptations().length).toBe(8)
+    // 规则语料三项已从 `missing` 转为 `tool-fetchable`（语料已恢复、工具待接线）→ 8 → 5
+    expect(missingAdaptations().length).toBe(5)
   })
 })
 
@@ -41,12 +42,13 @@ describe('适配台账 —— 覆盖了参考的全部依赖类别', () => {
     }
   })
 
-  it('**规则语料这一类必须是 missing** —— 它是当前最大的缺口（只放了摘要）', () => {
+  it('**规则语料已恢复 → `tool-fetchable`**（不再是"只放了摘要"）', () => {
     const corpus = ADAPTATIONS.filter(a => a.assetClass === 'rule_corpus')
     expect(corpus.length).toBeGreaterThanOrEqual(3) // 论文写作 / 图表配方 / 代码检查清单
     for (const a of corpus) {
-      expect(a.mode, `${a.stage} 的规则语料不该标成已适配`).toBe('missing')
-      expect(String(a.option)).toContain('skill-docs') // 补齐方案要指向具体落点
+      expect(a.mode, `${a.stage} 的规则语料状态不对`).toBe('tool-fetchable')
+      expect(a.detail, `${a.stage} 没写明语料已恢复`).toContain('已恢复')
+      expect(String(a.option), `${a.stage} 没写明取用方式`).toContain('read_skill_doc')
     }
   })
 
@@ -77,5 +79,7 @@ describe('适配台账 —— 阶段覆盖', () => {
     expect(stages).toContain('diagram')       // HTML 模板
     expect(stages).toContain('format-profile') // 国赛样式档与封面档
     expect(stages).toContain('docx-export')    // 导出引擎
+    // 规则语料**不在** missing 里了 —— 它已恢复
+    expect(stages).not.toContain('paper')
   })
 })
