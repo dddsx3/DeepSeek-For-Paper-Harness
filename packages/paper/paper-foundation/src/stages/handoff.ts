@@ -1,0 +1,249 @@
+/**
+ * 阶段交接：`PASSED` 哨兵（JSON）+ `inputDigest` 失效判定 + 回滚作废。
+ *
+ * ## 为什么用文件而不是内存
+ *
+ * 参考工作流的规则是"读取工作区中已有的文件，在前步骤的基础上继续工作"——阶段之间
+ * 靠**文件**交接，而不是靠一个长会话。本 harness 沿用这条，但**读写由 harness 承担**
+ * （本管线的模型调用没有通用文件工具，"让模型自己 Write"是一条无法被遵守的指令）。
+ *
+ * 哨兵是 **JSON**：可 diff、可哈希、可人工检查（见 `interchange.ts` 的模块注释）。
+ *
+ * ## 三条准入规则（都是代码，不是约定）
+ *
+ * 1. **门禁全过才发哨兵**：`passportFor` 在 `gate.code !== 0` 时**抛错**，拒绝签发。
+ *    `code === 2`（无法判定）同样不算通过——参考脚本有这个语义，折成"通过"就是自欺。
+ * 2. **上游必须就绪**：`stageReady` 校验上游哨兵存在、非 stale、且摘要一致。
+ * 3. **回滚作废下游**：`markStaleFrom` 把序号更大的哨兵标 `stale`（**不删除**，证据保留）。
+ *
+ * 第 3 条是评估指出的缺口——"回滚到阶段 2 后，阶段 3/4/5 的 PASSED 其输入已经变了，
+ * 但它们仍带着旧的 sha256 躺在磁盘上"，会产出"半新半旧"的不一致包。
+ *
+ * @module @deepseek-ai/dsh-paper-foundation/stages/handoff
+ */
+
+import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises'
+import { join } from 'node:path'
+import { digestOf, inputDigestOf } from './interchange.ts'
+import { STAGES, stageDirName, type StageId, type StageSpec } from './registry.ts'
+
+/** 门禁结论。0 = 通过；1 = 硬失败；2 = **无法判定**（不算通过）。 */
+export interface GateVerdict {
+  readonly code: 0 | 1 | 2
+  readonly items: ReadonlyArray<{ readonly id: string; readonly ok: boolean; readonly detail: string }>
+}
+
+/** 一个阶段的通行证（`PASSED` 文件的内容）。 */
+export interface StagePassport {
+  readonly passportVersion: 1
+  readonly stage: StageId
+  readonly index: number
+  readonly at: string
+  readonly status: 'passed' | 'stale'
+  /** 上游摘要 + 技能版本 + 门禁版本 的合成摘要。上游一变，本证失效。 */
+  readonly inputDigest: string
+  /** 产物名 → sha256（目录型产物记 `dir:<文件数>`）。 */
+  readonly artifacts: Readonly<Record<string, string>>
+  readonly gate: GateVerdict
+  /** 被标 stale 时写明原因（谁回滚了、何时）。 */
+  readonly staleReason?: string
+}
+
+const PASSPORT_FILE = 'PASSED'
+
+/**
+ * 签发通行证。
+ *
+ * **门禁不过就拒绝签发**——这是"默认准入 = 门禁全过"在代码里的落点。`code === 2`
+ * 也拒绝：无法判定不是通过。
+ *
+ * @param spec - 阶段。
+ * @param input - 上游摘要、技能/门禁版本、产物哈希、门禁结论。
+ * @returns 通行证。
+ */
+export function passportFor(
+  spec: StageSpec,
+  input: {
+    readonly upstreamDigests: ReadonlyArray<string>
+    readonly skillVersion: string
+    readonly gateVersion: string
+    readonly artifacts: Readonly<Record<string, string>>
+    readonly gate: GateVerdict
+    readonly now?: string
+  },
+): StagePassport {
+  if (input.gate.code !== 0) {
+    throw new Error(
+      `refusing to issue PASSED for stage '${spec.id}': gate code ${String(input.gate.code)}`
+      + (input.gate.code === 2 ? '（2 = 无法判定，不算通过）' : '')
+      + ` — ${input.gate.items.filter(i => !i.ok).map(i => i.id).join('、') || '(no failing item listed)'}`,
+    )
+  }
+  return {
+    passportVersion: 1,
+    stage: spec.id,
+    index: spec.index,
+    at: input.now ?? new Date().toISOString(),
+    status: 'passed',
+    inputDigest: inputDigestOf({
+      upstreamDigests: input.upstreamDigests,
+      skillVersion: input.skillVersion,
+      gateVersion: input.gateVersion,
+    }),
+    artifacts: input.artifacts,
+    gate: input.gate,
+  }
+}
+
+/** 写通行证（覆盖同名文件；`stale` 状态同样写在这里，不另开文件）。 */
+export async function writePassport(stagesRoot: string, passport: StagePassport): Promise<string> {
+  const spec = STAGES.find(s => s.id === passport.stage)
+  if (spec === undefined) throw new Error(`unknown stage in passport: ${passport.stage}`)
+  const dir = join(stagesRoot, stageDirName(spec))
+  await mkdir(dir, { recursive: true })
+  const file = join(dir, PASSPORT_FILE)
+  await writeFile(file, `${JSON.stringify(passport, null, 2)}\n`, 'utf8')
+  return file
+}
+
+/** 读通行证；不存在或损坏返回 null（**不猜**）。 */
+export async function readPassport(stagesRoot: string, spec: StageSpec): Promise<StagePassport | null> {
+  const raw = await readFile(join(stagesRoot, stageDirName(spec), PASSPORT_FILE), 'utf8').catch(() => null)
+  if (raw === null) return null
+  try {
+    const parsed = JSON.parse(raw) as StagePassport
+    return parsed.passportVersion === 1 ? parsed : null
+  } catch {
+    return null
+  }
+}
+
+/** 一个阶段的全部上游通行证摘要（按上游阶段序号排序；缺失的记空串以便发现缺口）。 */
+export async function upstreamDigestsOf(
+  stagesRoot: string,
+  spec: StageSpec,
+): Promise<ReadonlyArray<string>> {
+  const upstream = STAGES.filter(s => s.index < spec.index)
+  const out: string[] = []
+  for (const up of upstream) {
+    const passport = await readPassport(stagesRoot, up)
+    out.push(passport === null ? '' : passport.inputDigest)
+  }
+  return out
+}
+
+/**
+ * 本阶段能否启动。
+ *
+ * 三查：上游哨兵**存在**、**非 stale**、且**摘要与本次一致**。任一不满足都拒绝启动
+ * 并说明是哪一环失效——而不是"跑起来再说"。
+ *
+ * @param stagesRoot - `stages/` 根目录。
+ * @param spec - 本阶段。
+ * @param skillVersion - 本阶段技能的版本（进摘要）。
+ * @param gateVersion - 本阶段门禁的版本（进摘要）。
+ * @returns 就绪判定；不就绪时给出可读原因。
+ */
+export async function stageReady(
+  stagesRoot: string,
+  spec: StageSpec,
+  skillVersion: string,
+  gateVersion: string,
+): Promise<{ readonly ok: boolean; readonly reason: string; readonly inputDigest: string }> {
+  const upstream = STAGES.filter(s => s.index < spec.index)
+  for (const up of upstream) {
+    const passport = await readPassport(stagesRoot, up)
+    if (passport === null) {
+      return { ok: false, reason: `上游阶段 '${up.id}' 没有 PASSED —— 本阶段不能启动`, inputDigest: '' }
+    }
+    if (passport.status !== 'passed') {
+      return {
+        ok: false,
+        reason: `上游阶段 '${up.id}' 的 PASSED 已作废（stale：${passport.staleReason ?? '未注明'}）—— 需先重跑它`,
+        inputDigest: '',
+      }
+    }
+  }
+  const digests = await upstreamDigestsOf(stagesRoot, spec)
+  const digest = inputDigestOf({ upstreamDigests: digests, skillVersion, gateVersion })
+  return { ok: true, reason: '', inputDigest: digest }
+}
+
+/**
+ * 校验一个已存在的通行证是否仍与当前上游一致。
+ *
+ * 用途：从磁盘恢复一次运行时，确认"这一片还算数"。摘要不一致 → 作废。
+ *
+ * @param stagesRoot - `stages/` 根目录。
+ * @param spec - 阶段。
+ * @param skillVersion - 当前技能版本。
+ * @param gateVersion - 当前门禁版本。
+ * @returns 是否仍有效。
+ */
+export async function passportStillValid(
+  stagesRoot: string,
+  spec: StageSpec,
+  skillVersion: string,
+  gateVersion: string,
+): Promise<boolean> {
+  const passport = await readPassport(stagesRoot, spec)
+  if (passport === null || passport.status !== 'passed') return false
+  const digests = await upstreamDigestsOf(stagesRoot, spec)
+  return passport.inputDigest === inputDigestOf({ upstreamDigests: digests, skillVersion, gateVersion })
+}
+
+/**
+ * 回滚：把**序号大于 `toStage` 的**全部哨兵标 `stale`。
+ *
+ * **不删除**——旧哨兵是"修之前长什么样"的唯一证据（与切片 `.superseded-N` 同一条纪律）。
+ *
+ * @param stagesRoot - `stages/` 根目录。
+ * @param toStage - 回滚目标阶段（它自己保持有效）。
+ * @param reason - 作废原因（写进每个被作废的哨兵，便于事后追溯是谁触发的）。
+ * @returns 被作废的阶段 id。
+ */
+export async function markStaleFrom(
+  stagesRoot: string,
+  toStage: StageId,
+  reason: string,
+): Promise<ReadonlyArray<StageId>> {
+  const target = STAGES.find(s => s.id === toStage)
+  if (target === undefined) throw new Error(`unknown rollback target: ${toStage}`)
+  const stale: StageId[] = []
+  for (const spec of STAGES) {
+    if (spec.index <= target.index) continue
+    const passport = await readPassport(stagesRoot, spec)
+    if (passport === null) continue
+    await writePassport(stagesRoot, { ...passport, status: 'stale', staleReason: reason })
+    stale.push(spec.id)
+  }
+  return stale
+}
+
+/**
+ * 产物的哈希表（进通行证）。
+ *
+ * 目录型产物记 `dir:<文件数>` —— 对目录取哈希要先定义遍历顺序与是否含子目录，
+ * 那是把不确定性藏进一个看起来确定的值里；文件数 + 目录内每个文件的哈希另记在
+ * 阶段自己的清单里。
+ *
+ * @param dir - 阶段目录。
+ * @param specs - 该阶段的产出清单。
+ * @returns 产物名 → 摘要。
+ */
+export async function artifactDigests(
+  dir: string,
+  specs: StageSpec['produces'],
+): Promise<Readonly<Record<string, string>>> {
+  const out: Record<string, string> = {}
+  for (const spec of specs) {
+    if (spec.kind === 'dir') {
+      const entries = await readdir(join(dir, spec.file)).catch(() => [] as string[])
+      out[spec.file] = `dir:${String(entries.length)}`
+      continue
+    }
+    const text = await readFile(join(dir, spec.file), 'utf8').catch(() => null)
+    out[spec.file] = text === null ? 'MISSING' : digestOf(text)
+  }
+  return out
+}
