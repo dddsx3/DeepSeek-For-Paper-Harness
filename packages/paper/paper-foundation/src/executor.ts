@@ -4497,6 +4497,24 @@ ${microTeaching.map((m, i) => `${String(i + 1)}. ${m}`).join(String.fromCharCode
      * 并让调用方给出精确的拒绝理由（"到顶轮给了散文"），比无限重问或静默接受都诚实。
      */
     let structuredReasked = false
+    /**
+     * 工具**批准过**的那份容器文本。
+     *
+     * ## 为什么必须记住它（第四轮 declare 实测）
+     *
+     * 模型调了 3 次工具，工具在第 3 次判"可准入"（`admissible: true`），循环随即收口
+     * 并要求"把那份文本**原样**给出"。**但模型交回的是一份改过的文本**——工具批准的是
+     * evaluation ≥800 的容器，提交的那份是 671。
+     *
+     * 于是"工具批准过"变成了一种**虚假的安心**：批准针对的是 A，提交的是 B，
+     * 而 B 从未被检查过。这与 round-5 修的"批准后又改"是同一形态，只是那次改在收口
+     * **之前**、这次改在收口**之后**。
+     *
+     * 修法不是再写一句更强的措辞（"原样给出"已经写过了，模型没照做——这正是本项目
+     * 反复学到的：**模型不会因为被告知就照做**），而是**在返回处验一次**：
+     * 交回的文本若与批准的那份不同，批准对它**不适用**，必须重新过一遍判据。
+     */
+    let approvedText: string | null = null
 
     for (let round = 0; round < SELF_CHECK_MAX_ROUNDS + 3; round += 1) {
       const assembler = new BlockAssembler()
@@ -4533,6 +4551,34 @@ ${microTeaching.map((m, i) => `${String(i + 1)}. ${m}`).join(String.fromCharCode
       const shouldReturn = calls.length === 0 || approved || askedForFinal
       if (shouldReturn) {
         const structured = !requireStructured || isStructuredAnswer(text)
+        // **批准只对它当时看到的那份文本成立**。交回的是另一份 → 批准作废，
+        // 对新文本重跑一遍判据；不过就把问题回灌给它继续改。
+        // （措辞层面的"请原样给出"已经写过且无效——判据必须落在**行为**上。）
+        if (approved && approvedText !== null && text.trim() !== approvedText.trim() && structured) {
+          const fresh = runSelfCheckSafely(selfCheck, text)
+          onToolCall?.({
+            round,
+            callIndex: toolCalls + 1,
+            containerChars: text.length,
+            admissible: fresh.admissible,
+            problems: fresh.problems,
+          })
+          if (!fresh.admissible) {
+            approved = false
+            approvedText = null
+            turns.push({ role: 'assistant', content: text })
+            turns.push({
+              role: 'user',
+              content: [
+                'You changed the container AFTER the self-check approved it, so that approval does NOT apply to what you just submitted.',
+                'The harness re-ran the same checks on your new text and it FAILED:',
+                ...fresh.problems.slice(0, 6).map(p => `  - ${p}`),
+                'Either submit the approved text verbatim, or fix these and submit the fixed text.',
+              ].join(String.fromCharCode(10)),
+            })
+            continue
+          }
+        }
         if (structured || structuredReasked) {
           return { text, usage: totalUsage, truncated, toolCalls, notStructured: !structured }
         }
@@ -4580,7 +4626,10 @@ ${microTeaching.map((m, i) => `${String(i + 1)}. ${m}`).join(String.fromCharCode
           admissible: verdict.admissible,
           problems: verdict.problems,
         })
-        if (verdict.admissible) approved = true
+        if (verdict.admissible) {
+          approved = true
+          approvedText = containerText
+        }
         turns.push({
           role: 'tool',
           callId: String(call.id),

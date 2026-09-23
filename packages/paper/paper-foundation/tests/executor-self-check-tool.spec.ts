@@ -821,3 +821,130 @@ describe('W12-C1 — 分阶段切片进主线（端到端）', () => {
     expect(result.auditKinds).not.toContain('stage_checkpoint:')
   })
 })
+
+// ---------------------------------------------------------------------------
+// ⑩ 正文契约进工具（检查点实测出来的那一块）
+// ---------------------------------------------------------------------------
+
+describe('W12-C4 — check_container 也查正文契约', () => {
+  const E1_WITH_QUESTIONS = [
+    '[[REQUIREMENT: R-Q1]] 问题1：设计抽样方案，归到统计检验，难点是样本量与临界值。',
+    '[[REQUIREMENT: R-Q2]] 问题2：生产决策，归到期望成本递推，难点是拆解回流的不动点。',
+  ].join(String.fromCharCode(10))
+
+  /** 一份准入没问题、但 narrative 两章极短的容器。 */
+  function stubNarrativeContainer(): string {
+    const base = JSON.parse(GOOD_CONTAINER) as { entries: unknown[]; narrative?: Record<string, unknown> }
+    base.narrative = {
+      title: '测试稿',
+      analysis: '很短。',
+      evaluation: '优点：可复算。',
+      references: '[1] 某书. 某社. 2020.',
+      code: '说明。',
+      restatement: '重述。',
+    }
+    return JSON.stringify(base)
+  }
+
+  it('**narrative 章节不达地板 → 工具报出来**（模型提交前就能看见）', () => {
+    // 检查点实测：容器级判据做成工具后失败清零；正文契约不是工具，三轮真实重跑
+    // 都停在"接近但不到"（evaluation 778/800、references 272/600）。
+    // 这一条把正文契约也变成"可执行检查"。
+    const v = checkCandidateContainer(stubNarrativeContainer(), {
+      scopeRefs: ['P1'],
+      e1Text: E1_WITH_QUESTIONS,
+      requiredOutputIds: ['R-Q1', 'R-Q2'],
+    })
+    expect(v.admissible).toBe(false)
+    const prose = v.problems.filter(p => p.includes('[正文契约·'))
+    expect(prose.length, JSON.stringify(v.problems)).toBeGreaterThan(0)
+    // 报的必须是**章名 + 数字**，模型才知道改哪里、差多少
+    expect(prose.some(p => p.includes('evaluation'))).toBe(true)
+    expect(prose.some(p => p.includes('references'))).toBe(true)
+    expect(prose.some(p => /[0-9]+\s*字/.test(p))).toBe(true)
+  })
+
+  it('**复现产出链的合并**：analysis 拿到 E1 逐问段后不再报地板', () => {
+    // 不复现合并，工具就会报出产出链根本不认的"违规"——我自己的核查脚本正是
+    // 这样假红过一次（见 CHECKPOINT-02-CORRECTION.md）。
+    // 真实形态是**锚点独占一行、正文在后续行**（我第一版把内容写在锚点同一行，
+    // 于是 `perQuestionSectionsOf` 取到的段落是空的、注入没发生，测试假红）。
+    const NLc = String.fromCharCode(10)
+    const longE1 = [
+      '[[REQUIREMENT: R-Q1]]',
+      '问题1的分析：归到统计检验，理由是题面给了信度与判据，难点在离散分布下精确满足信度。'.repeat(40),
+      '[[REQUIREMENT: R-Q2]]',
+      '问题2的分析：归到期望成本递推，理由是决策变量是二值的，难点在拆解回流的不动点。'.repeat(40),
+    ].join(NLc)
+    const v = checkCandidateContainer(stubNarrativeContainer(), {
+      scopeRefs: ['P1'],
+      e1Text: longE1,
+      requiredOutputIds: ['R-Q1', 'R-Q2'],
+    })
+    const prose = v.problems.filter(p => p.includes('[正文契约·'))
+    // analysis 已被 E1 注入撑到地板之上 → 不该报 analysis
+    expect(prose.some(p => p.includes('[正文契约·analysis]')), JSON.stringify(prose)).toBe(false)
+    // 而没有注入的 evaluation 仍然该报
+    expect(prose.some(p => p.includes('[正文契约·evaluation]'))).toBe(true)
+  })
+
+  it('拿不到 E1 全文 → **明说跳过**，不猜也不假装通过', () => {
+    const v = checkCandidateContainer(stubNarrativeContainer(), { scopeRefs: ['P1'] })
+    expect(v.notChecked.some(n => n.includes('正文契约'))).toBe(true)
+  })
+
+  it('反向守卫：合规的 narrative 不报正文契约', () => {
+    const base = JSON.parse(GOOD_CONTAINER) as { entries: unknown[]; narrative?: Record<string, unknown> }
+    const long = (s: string, n: number): string => s.repeat(Math.ceil(n / s.length))
+    base.narrative = {
+      title: '测试稿',
+      analysis: long('问题1归到统计检验，问题2归到决策优化，逐问给出理由与难点。', 1300),
+      evaluation: long('优点：可复算。局限：参数当已知。敏感性：对次品率敏感。推广：可用于多工序。', 900),
+      references: [
+        '[1] 茆诗松. 概率论与数理统计教程. 高等教育出版社. 2011.',
+        '[2] Wald A. Sequential Analysis. Wiley. 1947.',
+        '[3] Montgomery D C. Introduction to Statistical Quality Control. Wiley. 2019.',
+        long('抽样检验与序贯决策方法综述。', 620),
+      ].join(String.fromCharCode(10)),
+      code: long('问题1由 solve_q1 完成，问题2由 solve_q2 完成，结果写入 results.json。', 640),
+      restatement: long('题面要求设计抽样方案并对生产阶段决策。', 220),
+    }
+    const v = checkCandidateContainer(JSON.stringify(base), {
+      scopeRefs: ['P1'],
+      e1Text: E1_WITH_QUESTIONS,
+      requiredOutputIds: ['R-Q1', 'R-Q2'],
+    })
+    expect(v.problems.filter(p => p.includes('[正文契约·')), JSON.stringify(v.problems)).toEqual([])
+  })
+})
+
+describe('W12-C5 — 批准只对**它当时看到的那份文本**成立', () => {
+  it('工具批准 A、模型交回改过的 B → 批准作废，对新文本重跑判据并回灌', async () => {
+    // 第四轮 declare 实测：模型调了 3 次工具，第 3 次判"可准入"，循环收口并要求
+    // "原样给出"——**但模型交回的是一份改过的文本**（工具批准的是 evaluation ≥800
+    // 的容器，提交的那份是 671）。于是"工具批准过"成了一种**虚假的安心**。
+    //
+    // 措辞层面的"请原样给出"已经写过且无效。判据必须落在**行为**上：交回的文本
+    // 与批准的那份不同 → 批准对它不适用 → 重跑判据。
+    const result = await runWithScript([
+      { kind: 'tool', containerJson: GOOD_CONTAINER },   // 批准 A
+      { kind: 'text', text: DUPLICATE_ID_CONTAINER },    // 交回改过的 B（有毛病）
+      { kind: 'text', text: GOOD_CONTAINER },            // 改回来
+    ])
+    // ① 审计里留下了"对新文本重跑判据"的痕迹（callIndex 超过了工具轮数）
+    expect(result.selfCheckDetails.length).toBeGreaterThanOrEqual(2)
+    // ② 回灌里点明"批准不适用于你刚交的那份"
+    expect(result.prompts.some(p => p.includes('does NOT apply to what you just submitted'))).toBe(true)
+    // ③ 最终交回的是干净的那份 → 进 IR
+    expect(result.irKinds).toContain('ModelSpec')
+  })
+
+  it('反向守卫：交回与批准**逐字相同**的文本时不多问（不误报）', async () => {
+    const result = await runWithScript([
+      { kind: 'tool', containerJson: GOOD_CONTAINER },
+      { kind: 'text', text: GOOD_CONTAINER },
+    ])
+    expect(result.prompts.some(p => p.includes('does NOT apply to what you just submitted'))).toBe(false)
+    expect(result.irKinds).toContain('ModelSpec')
+  })
+})

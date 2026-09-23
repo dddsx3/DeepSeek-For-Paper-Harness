@@ -1,0 +1,3 @@
+[RESUME] 从 analyze（第 1 片）之后续跑；播种：analyze
+[CODE-FRESH] 代码来源已断言：entry lib/index.js is 66607 ms newer than the newest source; entry lib/index.js is 267124870 ms newer than the newest source; entry lib/index.js is 267136075 ms newer than the newest source; entry lib/index.js is 267136129 ms newer than the newest source; entry lib/index.js is 267136284 ms newer than the newest source; entry lib/index.js is 267124666 ms newer than the newest source
+DELIVERY REFUSED — 档位 DEGRADED（路径 B-e1-direct）的交付稿缺少防伪标注：unverified_note。这些标注是这份稿子**唯一**的可信度标记——被剥掉之后它看起来就是一篇经过验证的论文（实测出现过伪造的验证结论）。拒绝交付，而不是导出一份没有标记的成品。

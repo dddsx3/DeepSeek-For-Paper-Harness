@@ -43,6 +43,11 @@ import { parseModelContainer } from './ir-producer.ts'
 import { checkE1E2Fidelity } from './e1-e2.ts'
 import { validateScopeOwnership } from '../ir/refs.ts'
 import { IR_SCHEMAS, IR_KINDS, type IrKind } from '../ir/schema.ts'
+import { proseContractViolations, substanceViolations } from '../delivery/prose-contracts.ts'
+import { frameworkOf, perQuestionSectionsOf } from './per-question.ts'
+
+/** 换行常量（本文件多处拼装多行文本；避免在模板串里嵌真换行）。 */
+const NL = String.fromCharCode(10)
 
 /** 自检工具的名字（模型看到的函数名）。 */
 export const SELF_CHECK_TOOL_NAME = 'check_container'
@@ -257,6 +262,45 @@ export function checkCandidateContainer(containerText: string, ctx: SelfCheckCon
       notChecked.push('B4 逐问推理覆盖（未拿到 REQUIRED_OUTPUT 清单）。')
     }
   }
+  // ⑧ **正文契约**——这是 `check_container` 长期缺的一块，也是检查点实测出来的那一块。
+  //
+  //    背景（`artifacts/upper-bound/2024B-hot-1/CHECKPOINT-03-declare.md`）：容器级的
+  //    判据做成工具之后，容器级失败**清零**了；而正文契约不是工具，模型只能靠自觉，
+  //    三轮真实重跑都停在"接近但不到"（evaluation 778/800、references 272/600）。
+  //    同一件事在 round-5 已经演过一次——**模型不会因为被告知就照做**。
+  //
+  //    判据与产出链**同一套函数**，且**复现同样的合并**：产出链在跑契约之前会把 E1 的
+  //    逐问段注入 `analysis`、框架段注入 `methods`、真实代码注入 `code`。不复现合并，
+  //    工具就会报出产出链根本不认的"违规"（我自己的核查脚本正是这样假红过一次）。
+  //
+  //    没有 E1 全文时不猜：如实进 `notChecked`。
+  if (ctx.e1Text === undefined) {
+    notChecked.push('正文契约（未拿到 E1 全文，无法复现"E1 注入后"的章节字数）。')
+  } else {
+    const narrative: Record<string, unknown> = {
+      ...((parsed.container as { narrative?: Record<string, unknown> }).narrative ?? {}),
+    }
+    const reqs = (ctx.requiredOutputIds ?? []).map(id => ({ requirementId: id, statement: '' }))
+    const perQuestion = perQuestionSectionsOf(ctx.e1Text, reqs)
+    if (perQuestion.length > 0) {
+      const own = typeof narrative['analysis'] === 'string' ? String(narrative['analysis']).trim() : ''
+      narrative['analysis'] = [perQuestion.join(NL + NL), ...(own === '' ? [] : ['', '### 逐问归因（模型自述）', '', own])].join(NL)
+    }
+    const framework = frameworkOf(ctx.e1Text)
+    if (framework !== '') {
+      const own = typeof narrative['methods'] === 'string' ? String(narrative['methods']).trim() : ''
+      narrative['methods'] = [framework, ...(own === '' ? [] : ['', own])].join(NL + NL)
+    }
+    const containerCode = (parsed.container as { code?: unknown }).code
+    if (typeof containerCode === 'string' && containerCode.trim() !== '') {
+      const own = typeof narrative['code'] === 'string' ? String(narrative['code']).trim() : ''
+      narrative['code'] = [...(own === '' ? [] : [own, '']), '```javascript', containerCode.trim(), '```'].join(NL)
+    }
+    for (const v of [...proseContractViolations(narrative, reqs), ...substanceViolations(narrative, reqs)]) {
+      problems.push(`[正文契约·${v.chapter}] ${v.reason}`)
+    }
+  }
+
   const admissible = problems.length === 0
   return {
     admissible,
