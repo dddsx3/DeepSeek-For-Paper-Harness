@@ -3,7 +3,7 @@
 // same expression on a different drive root and observe what nc7() would hit.
 import { sha256File } from '../../../../bench/metrics/compute-metrics.mjs'
 
-const asWritten = 'bench/problems/2024-B/problem.pdf'.replace('bench/', 'D:/deepseek modex/deepseek-harness/bench/')
+const asWritten = 'bench/problems/2024-B/problem.pdf'.replace('bench/', '<repo>/bench/')
 console.log('as written in run-all.mjs  :', asWritten)
 
 const otherCheckout = 'bench/problems/2024-B/problem.pdf'.replace('bench/', '/home/ci/paper-harness/bench/')

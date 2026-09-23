@@ -34,8 +34,8 @@
 
 ## 偏差声明（D-PW.x，随实现逐条登记）
 
-- D-PW.1（如需要）：数字资产轨与本批的并行关系按任务书文件一 §10.5——
-  skills 数字资产并入在 §8（P4 候选），不阻塞 TASK-PW 主轨。
+- D-PW.1（如需要）：知识库轨与本批的并行关系按任务书文件一 §10.5——
+  知识库并入在 §8（P4 候选），不阻塞 TASK-PW 主轨。
 
 ## 实现登记（W1..W6 落地后追加）
 
@@ -50,7 +50,7 @@
 
 ## 偏差声明（D-PW.x，随实现逐条登记）
 
-- D-PW.1：数字资产轨与本批并行（§10.5 P4 候选），不阻塞主轨。
+- D-PW.1：知识库轨与本批并行（§10.5 P4 候选），不阻塞主轨。
 - D-PW.2（probe v3 real 未跑）：GMI/MiniMax key 不在环境 → 按禁 7 显式
   SKIPPED（probe-v3/output/summary.json status=SKIPPED，永不静默 PASS）；
   key 就绪后 `pnpm run test:pw:probe` 归档，按 adherence 实况登记各层

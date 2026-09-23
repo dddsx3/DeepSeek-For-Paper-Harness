@@ -1,0 +1,13 @@
+[CODE-FRESH] 代码来源已断言：entry lib/index.js is 910917 ms newer than the newest source; entry lib/index.js is 181042808 ms newer than the newest source; entry lib/index.js is 181083934 ms newer than the newest source; entry lib/index.js is 181084132 ms newer than the newest source; entry lib/index.js is 181084321 ms newer than the newest source; entry lib/index.js is 181042549 ms newer than the newest source
+  pdf     -> artifacts\upper-bound\2024B-strict-8\paper.pdf (578213 bytes)
+[docx] 导出前校核拒绝（2 致命）——交付包将缺 paper.docx：
+  ❌ [table_columns] 6 张表，3 张列数不一
+  ❌ [no_placeholders] 存在 8 处未填充占位（章节空槽不得交付）
+[DELIVERED] sha256=90a350529ac293f4...
+  run-id  -> f876bccf-b0fe-4e8a-afca-be43c4982715
+  report  -> artifacts\upper-bound\2024B-strict-8\report.md
+  zip     -> artifacts\upper-bound\2024B-strict-8\deliverable.zip (zip sha256=9399b2b46cbf201b...)
+  usage   -> in 204189 tok / out 94375 tok / $0.0000 (TASK-Q2 telemetry)
+  audit   -> workflow_started,capability_check,skill_library_materialized,gate_state_changed,gate_state_changed,gate_state_changed,gate_state_changed,gate_state_changed,explore_select_completed,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,provider_retry,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,container_refused,provider_retry,ir_entry_written,ir_entry_written,provider_retry,ir_entry_written,ir_entry_written,provider_retry,ir_entry_written,ir_entry_written,provider_retry,ir_entry_written,ir_entry_written,provider_retry,ir_entry_written,ir_entry_written,e1_direct_delivery,gate_state_changed,gate_state_changed,gate_state_changed,gate_state_changed,gate_state_changed,gate_state_changed,gate_state_changed,gate_state_changed,ir_entry_written,gate_state_changed,gate_failed,gate_failed,closure_closed,gate_state_changed,delivery_graded,final_output_written,promotion_succeeded,workflow_completed
+  tier    -> T1
+  path    -> B-e1-direct

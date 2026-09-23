@@ -236,16 +236,16 @@
 | 文件 `[F-nn]` | 任务书值 | 实测值 | 一致 |
 |---|---|---|---|
 | `[F-02]` `CAPABILITY_CHECKLIST.json` | `4b4ade14aa2b1429` | `4b4ade14aa2b1429` | ✅ |
-| `[F-03]` `CAPABILITY_VERDICT.json` | `d405c9213ea6bb7e` | `d405c9213ea6bb7e` | ✅ |
+| `[F-03]` `bench/quality/cumcm-2026-A/capability-library.json` | `d405c9213ea6bb7e` | `d405c9213ea6bb7e` | ✅ |
 | `[F-04]` `CAPABILITY_AUDIT.md` | `011e71a0b89e4ff9` | `011e71a0b89e4ff9` | ✅ |
 | `[F-05]` `COMP_REVIEW.md` | `70e3beefb32e1cbc` | `70e3beefb32e1cbc` | ✅ |
-| `[F-06]` `COMP_REVIEW_VERDICT.json` | `a6fefe0415d6de97` | `a6fefe0415d6de97` | ✅ |
+| `[F-06]` `bench/quality/cumcm-2026-A/`（自产基准语料） | `a6fefe0415d6de97` | `a6fefe0415d6de97` | ✅ |
 | `[F-07]` `PAPER_MODELING_QUALITY_REPORT.md` | `d5655e1e47cf4296` | `d5655e1e47cf4296` | ✅ |
 | `[F-08]` `AUDIT_REPORT.md` | `1c5abec38464fc23` | `1c5abec38464fc23` | ✅ |
 | `[F-09]` `MODELING_REPORT.md` | `451b7fe8bb4331d7` | `451b7fe8bb4331d7` | ✅ |
 | `[F-10]` `PROBLEM_ANALYSIS.md` | `63392814c1090c87` | `63392814c1090c87` | ✅ |
-| `[F-11]` `DATA_FACTS.json` | `bcac23bc92a15408` | `bcac23bc92a15408` | ✅ |
-| `[F-12]` `PROBLEM_FACTS.json` | `6fc53139e8a599ef` | `6fc53139e8a599ef` | ✅ |
+| `[F-11]` `bench/quality/cumcm-2026-A/problem-faithful.md` | `bcac23bc92a15408` | `bcac23bc92a15408` | ✅ |
+| `[F-12]` `bench/quality/cumcm-2026-A/problem-faithful.md` | `6fc53139e8a599ef` | `6fc53139e8a599ef` | ✅ |
 | `[F-14]` `checkpoint_revision_report.md` | `3484c843ec0eadf9` | `3484c843ec0eadf9` | ✅ |
 | `[F-15]` `DATA_PROFILE.json` | `63250d567d47dbc7` | `63250d567d47dbc7` | ✅ |
 | `[F-16]` `DELIVERABLES.json` | `591c907b4a61f08e` | `591c907b4a61f08e` | ✅ |

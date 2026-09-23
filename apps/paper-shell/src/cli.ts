@@ -17,6 +17,7 @@
  */
 
 import { mkdtemp, readFile, writeFile, readdir, mkdir } from 'node:fs/promises'
+import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { createHash } from 'node:crypto'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -43,6 +44,8 @@ import { assembleBundle } from './bundle.ts'
 import { classifyProblem, routeBanner, routeMismatch } from './route.ts'
 import { contractBanner } from './contracts/index.ts'
 import { streamCompletion } from './real-provider.ts'
+import type { ToolSchema } from '@deepseek-ai/dsh-llm'
+import { renderSymbolicEvidence, runCapabilityProbes, runSymbolicChannel } from '@deepseek-ai/dsh-paper-foundation'
 import { CassetteRecorder, CassetteReplayer } from './cassette.ts'
 import { checkCodeProvenance, SHELL_PROVENANCE_TARGETS } from './code-provenance.ts'
 import { verifyStudyManifest, type StudyManifest } from './study-manifest.ts'
@@ -145,7 +148,9 @@ async function main(): Promise<number> {
   const parsed = parseArgs(process.argv.slice(2))
   const positionals = parsed.positionals
   if (positionals.length === 0 && parsed.version === undefined && parsed.help === undefined) {
-    console.error('usage: paper-shell run <problem-file> [--tier T1|T2|T3] [--mode fast|strict|exploratory] [--fail-soft] [--out <dir>] [--zip]')
+    console.error('usage: paper-shell run <problem-file> [--tier T1|T2|T3] [--mode fast|strict|exploratory] [--fail-soft|--closed-loop|--strict-tolerance] [--capability-tier S|A|B] [--out <dir>] [--zip]')
+    console.error('       paper-shell probe [--json]            # L0 能力探针：跑三个可机械判定的任务，产出档位 S/A/B')
+    console.error('       paper-shell claims <workspace> [--json]   # L3 符号证据：跑 claims/*.py 并标注证据级别')
     return 2
   }
   if (parsed.version !== undefined) {
@@ -256,6 +261,89 @@ async function main(): Promise<number> {
   // fifteen closed pre-export checks; 0 致命才允许导出 (exit 0) / fatal
   // refuses with exit 1. 完成铁律 (增量 4): 没有问题也要写报告 — the
   // precheck report file is always written next to the input.
+  // ── L3 符号证据：离线复核一份工作区的解析断言 ──────────────────────────
+  //
+  // 交付链会自动跑**harness 侧驱动**的方程形式检查（见 `runEquationConsistency`）。
+  // 这一条是**模型自写断言脚本**的路径：工作区里 `claims/*.py` 的每个脚本跑一遍，
+  // 按脚本实际用了什么标注证据级别，并核对"措辞是否与级别匹配"。
+  //
+  // 它离线可用，因此可以拿来复核一份**已经交付**的论文——"这些解析结论真的被
+  // 验证过吗"是一个可以事后回答的问题，不该只能靠重跑。
+  if (sub === 'claims') {
+    const dir = positionals[1]
+    if (dir === undefined) {
+      console.error('usage: paper-shell claims <workspace-dir> [--json]')
+      return 2
+    }
+    const claimsDir = join(dir, 'claims')
+    if (!existsSync(claimsDir)) {
+      console.error(`no claims/ directory under ${dir} — nothing to verify`)
+      return 1
+    }
+    const scripts = readdirSync(claimsDir).filter(f => f.endsWith('.py')).sort()
+    if (scripts.length === 0) {
+      console.error(`claims/ exists but holds no .py script under ${dir}`)
+      return 1
+    }
+    const registered = scripts.map((file) => {
+      const source = readFileSync(join(claimsDir, file), 'utf8')
+      const id = file.replace(/\.py$/, '')
+      const statement = /^\s*#\s*(.+)$/m.exec(source)?.[1]?.trim() ?? `claims/${file}`
+      return { claim_id: id, script: `claims/${file}`, statement }
+    })
+    const result = runSymbolicChannel(dir, registered)
+    if (parsed['json'] === true) {
+      console.log(JSON.stringify(result, null, 2))
+    } else {
+      console.log(renderSymbolicEvidence(result.claims))
+      if (result.unverifiable.length > 0) {
+        console.error(`
+${String(result.unverifiable.length)} / ${String(result.claims.length)} 条断言未通过或未执行 —— 未执行与未通过同级（C3）`)
+        return 1
+      }
+    }
+    return 0
+  }
+
+  // ── L0 能力探针 ────────────────────────────────────────────────────────
+  //
+  // 跑三个**可机械判定**的任务（容器合规 / 代码真跑 / 解析解正确），产出档位
+  // S/A/B。档位决定门禁初始强度与教学前置量——**一套代码两种行为，不加分支**。
+  //
+  // 判据是机器判的，所以探针本身可回归：同一份回答必然得到同一个档位。
+  if (sub === 'probe') {
+    const probeRoute = resolveShellRoute(process.env)
+    if (probeRoute === undefined || probeRoute.baseURL === '') {
+      console.error('probe requires a provider route (set the shell env: base URL / model / key)')
+      return 1
+    }
+    if (parsed['json'] !== true) console.log(`probe → ${probeRoute.provider}/${probeRoute.model}`)
+    const call = async (prompt: string): Promise<string> => {
+      let text = ''
+      for await (const chunk of streamCompletion(probeRoute, { messages: [{ content: prompt }] })) {
+        if (chunk.type === 'text-delta') text += chunk.text
+        if (chunk.type === 'finish' && chunk.reason.kind === 'error') {
+          throw new Error(`provider error: ${chunk.reason.failure.code}`)
+        }
+      }
+      return text
+    }
+    const profile = await runCapabilityProbes(call)
+    if (parsed['json'] === true) {
+      console.log(JSON.stringify(profile, null, 2))
+    } else {
+      for (const o of profile.observations) {
+        console.log(`  ${o.passed ? '✅' : '❌'} [${o.kind}] ${o.detail}（${String(o.elapsedMs)}ms）`)
+      }
+      console.log(`
+档位：${profile.tier}　${profile.rationale}`)
+      console.log(`门禁策略：${profile.teaching.gatePolicy}`)
+      console.log(`
+用法：paper-shell run <problem> --capability-tier ${profile.tier}`)
+    }
+    return 0
+  }
+
   if (sub === 'docx' && positionals[1] === 'precheck') {
     const reportPath = positionals[2]
     const figuresDir = positionals[3]
@@ -295,10 +383,10 @@ async function main(): Promise<number> {
     return 0
   }
   // W11.5 round-3 — paper-shell pdf export <report.md> <figures-dir> <out.pdf>
-  // [template-dir] — the TEMPLATE-DRIVEN PDF. The CUMCM template from the digital
-  // assets (docs/asset-library/skills/comp-paper-zh/templates/cumcm) is a REQUIRED
-  // option: scripts/export-pdf.py refuses to run without cumcmthesis.cls, so a
-  // missing template is a hard failure, never a silent template-less PDF.
+  // [template-dir] — the TEMPLATE-DRIVEN PDF. The repository's own template class
+  // (templates/paper-zh/dphpaper.cls) is a REQUIRED option: scripts/export-pdf.py
+  // refuses to run without it, so a missing template is a hard failure, never a
+  // silent template-less PDF.
   if (sub === 'pdf' && positionals[1] === 'export') {
     const reportPath = positionals[2]
     const figuresDir = positionals[3]
@@ -403,8 +491,25 @@ async function main(): Promise<number> {
   }
   const outDir = parsed.out !== undefined ? String(parsed.out) : join(here, 'out')
   const fake = parsed.fake === true || parsed.fake === 'true'
-  // P0-3: --fail-soft = MARKED fail-soft delivery threshold (mass tier).
+  // 交付档位。**默认 fail-soft**（见下方 `deliveryGradeMode` 的注释）：
+  //   --fail-soft（默认）  检出但未返修的 finding 走"显式接受"，交付带已知缺陷表的完整包
+  //   --closed-loop        走闭环返修 + 复验；预算内未消解则 ESCALATE（交出未完成包）
+  //   --strict-tolerance   历史行为：任何未通过即拒绝，零产物
+  // `--fail-soft` 现在是默认值：显式传入等价于不传（保留以便旧脚本逐字不变）。
   const failSoft = parsed['fail-soft'] === true || parsed['fail-soft'] === 'true'
+  const closedLoop = parsed['closed-loop'] === true || parsed['closed-loop'] === 'true'
+  const strictTolerance = parsed['strict-tolerance'] === true || parsed['strict-tolerance'] === 'true'
+  if (strictTolerance && failSoft) {
+    // 两个互斥档位同时给出：说清楚按哪个走，不静默取其一。
+    console.error('⚠️ --strict-tolerance 与 --fail-soft 同时给出：按 --strict-tolerance 处理（它会关闭标注交付）')
+  }
+  // L0 档位来源（优先级从高到低）：CLI flag → 环境变量 → 不声明（executor 取保守默认 A）。
+  // 环境变量这一档是为了让 `paper-shell probe` 的结果可以**一次测、多次用**：
+  //   export PAPER_CAPABILITY_TIER=$(paper-shell probe --json | jq -r .tier)
+  const envTier = process.env.PAPER_CAPABILITY_TIER
+  const capabilityTier = typeof parsed['capability-tier'] === 'string' && ['S', 'A', 'B'].includes(parsed['capability-tier'])
+    ? (parsed['capability-tier'] as 'S' | 'A' | 'B')
+    : (envTier === 'S' || envTier === 'A' || envTier === 'B' ? envTier : undefined)
   // W8.6-P4: PAPER_MAX_OUTPUT_TOKENS_PER_RUN (0/absent = unbounded).
   const maxOutputTokensPerRun = Number(process.env.PAPER_MAX_OUTPUT_TOKENS_PER_RUN ?? '0') || 0
   // W11.5 baseline-6 (首次真实产出实测): the code-run wall-clock budget was
@@ -499,7 +604,7 @@ async function main(): Promise<number> {
       await dispose()
       return 1
     }
-    const adapter = (r: ShellRoute, req: { system?: string; messages: Array<{ content: string }> }) => streamCompletion(r, req)
+    const adapter: SeamAdapter = (r, req) => streamCompletion(r, req)
     ctx.provide('paperProvider', createRealProvider(route, adapter, recorder))
   }
   // Plugin executor AFTER provider is mounted.
@@ -520,10 +625,13 @@ async function main(): Promise<number> {
       backoffBaseMs: 1_000,
       backoffCapMs: 10_000,
       initialTier: tier,
-      // P0-3 (PRD v2 §3.3): --fail-soft switches the delivery threshold to
-      // MARKED fail-soft (mass tier default). Without it the run keeps the
-      // historical strict-tolerance (CLEAN or BLOCKED, never MARKED).
-      deliveryGradeMode: failSoft ? 'fail-soft' : 'strict-tolerance',
+      // 交付档位。**默认 fail-soft**，这是本次架构改造的方向性决定：
+      // `strict-tolerance`（任何 finding 即 BLOCKED、零产物）是一条**从未在
+      // 任何真实产出中被验证过**的路径——四份真实交付全部来自"报告 + 放行"
+      // 那条路径。阻断路径缺乏实证基础，而放行路径的缺陷（无归宿）已由本架构
+      // 的 L6 闭环补上。因此默认值反转，strict 需显式开启。
+      deliveryGradeMode: strictTolerance ? 'strict-tolerance' : (closedLoop ? 'closed-loop' : 'fail-soft'),
+      ...(capabilityTier === undefined ? {} : { capabilityTier }),
       // W8.6-P4 (O-L5-03): the per-run output-token ceiling protects a
       // real key even when pricing is unconfigured. Env-set, recorded in
       // the run report; 0/absent = unbounded.
@@ -605,12 +713,29 @@ async function main(): Promise<number> {
   if (tier === 'T3') {
     console.error('[T3] 固定填充面（回归用）：跳过方法族路由——该路径按设计不读题面。')
   }
+  // 上限解放架构 L1/L2：域外题型**不再零 token 拒绝**。
+  //
+  // 原文是 `return 3`（未发起任何模型调用）。那在拓展 MCM / 期刊论文时会封死整条
+  // 产线——而"放开范围"是本架构的既定目标之一。现在降级为 `F5-other`（域外）+
+  // 标注：照常跑，只在报告与横幅里如实写明"题型不在既有族内，先验为空"。
+  //
+  // **被保护的不变量没有变**：路由判定仍然**先于**任何模型调用发生，结果仍然进
+  // run-report；变的只是"不匹配"的后果（从拒绝变成标注）。
   if (!familyVerdict.ok) {
-    await dispose()
-    console.error(`[REFUSED] ${familyVerdict.reason}`)
-    console.error('  → 未发起任何模型调用(零 token)。')
-    return 3
+    console.error(`[ROUTE-DEGRADED] ${familyVerdict.reason}`)
+    console.error('  → 按 F5-other（域外）继续：先验为空，方法选择完全交给模型。')
   }
+  // 域外题型归一化成"先验为空"的形态，让下游只有一条路径。
+  // `F5-other` 不是新族，是"没有先验"的显式名字——它必须能被 run-report 记录下来，
+  // 否则"这次运行有没有方法先验"会变成查不出来的事。
+  const familyPrior = familyVerdict.ok
+    ? familyVerdict
+    : {
+      ok: true as const,
+      family: 'F5' as const,
+      note: `域外题型（${familyVerdict.reason}）——先验为空`,
+      components: [] as ReadonlyArray<{ readonly family: string; readonly hits: number }>,
+    }
   // W8.6-C2: for a bench problem, flag when the router's decision differs
   // from the preregistered truth label — marked, never auto-corrected.
   // E3's discovery (2024-C routed F4 vs preregistered F3, later revised
@@ -621,9 +746,9 @@ async function main(): Promise<number> {
   // primary family ("F4") — string equality marked every legal mixed problem
   // as a mismatch (2024-B contradicted RUNNABLE-PROBLEMS.md). A mismatch now
   // means "the routed component set does not COVER the truth components".
-  const mismatched = routeMismatch(truth, familyVerdict)
+  const mismatched = familyVerdict.ok ? routeMismatch(truth, familyVerdict) : false
   if (mismatched) {
-    const routedText = familyVerdict.components.map(c => `${c.family}×${c.hits}`).join('，')
+    const routedText = familyPrior.components.map((c: { readonly family: string; readonly hits: number }) => `${c.family}×${String(c.hits)}`).join('，')
     console.error(`[ROUTE-MISMATCH] 路由组件 ${routedText} 未覆盖预注册真值 ${String(truth)}（仅标记，不自动纠正）`)
   }
   // W5 (P0-8): the family contract banner joins the taskText — the model
@@ -639,7 +764,7 @@ async function main(): Promise<number> {
   // (expert plan §14) still true.
   const taskText = tier === 'T3'
     ? bundle.taskText
-    : `${bundle.taskText}${routeBanner(familyVerdict)}${contractBanner(familyVerdict.family)}`
+    : `${bundle.taskText}${routeBanner(familyPrior)}${contractBanner(familyPrior.family)}`
   // W8.5 (B2): M3b — the shell stamps the wall-clock window it owns
   // (submit → terminal). Recorded in run-report.json as
   // wall_clock_seconds so the bench metrics can read it (they cannot
@@ -705,7 +830,7 @@ async function main(): Promise<number> {
       tier,
       mode,
       status: 'BLOCKED',
-      routed_family: familyVerdict.family,
+      routed_family: familyPrior.family,
       route_truth: truth,
       route_mismatch: mismatched,
       code_provenance: provenanceRecord,
@@ -904,8 +1029,8 @@ async function main(): Promise<number> {
     figures: figureSvgNames.length,
     figure_links_broken: brokenLinks,
   }
-  const runReport = JSON.stringify({ runId: '<redacted-run-id>', delivery_path: deliveryPath, tier, mode, code_run_timeout_ms: codeRunTimeoutMs, status: 'DELIVERED', grade, routed_family: familyVerdict.family, route_truth: truth, route_mismatch: mismatched, code_provenance: zipProvenance, minted_ir_count: mintedIrCount, wall_clock_seconds: '<per-run>', sha256, audit, usage: { input_tokens: usageSummary.input_tokens, output_tokens: usageSummary.output_tokens, cost_usd: usageSummary.cost_usd }, attachments: attachmentLedger, data_files: dataLedger, ...figureFields }, null, 2)
-  const runReportFull = JSON.stringify({ runId: String(run.id), delivery_path: deliveryPath, tier, mode, code_run_timeout_ms: codeRunTimeoutMs, status: 'DELIVERED', grade, routed_family: familyVerdict.family, route_truth: truth, route_mismatch: mismatched, code_provenance: provenanceRecord, minted_ir_count: mintedIrCount, wall_clock_seconds: wallClockSeconds, sha256, audit, usage: { input_tokens: usageSummary.input_tokens, output_tokens: usageSummary.output_tokens, cost_usd: usageSummary.cost_usd }, attachments: attachmentLedger, data_files: dataLedger, ...figureFields }, null, 2)
+  const runReport = JSON.stringify({ runId: '<redacted-run-id>', delivery_path: deliveryPath, tier, mode, code_run_timeout_ms: codeRunTimeoutMs, status: 'DELIVERED', grade, routed_family: familyPrior.family, route_truth: truth, route_mismatch: mismatched, code_provenance: zipProvenance, minted_ir_count: mintedIrCount, wall_clock_seconds: '<per-run>', sha256, audit, usage: { input_tokens: usageSummary.input_tokens, output_tokens: usageSummary.output_tokens, cost_usd: usageSummary.cost_usd }, attachments: attachmentLedger, data_files: dataLedger, ...figureFields }, null, 2)
+  const runReportFull = JSON.stringify({ runId: String(run.id), delivery_path: deliveryPath, tier, mode, code_run_timeout_ms: codeRunTimeoutMs, status: 'DELIVERED', grade, routed_family: familyPrior.family, route_truth: truth, route_mismatch: mismatched, code_provenance: provenanceRecord, minted_ir_count: mintedIrCount, wall_clock_seconds: wallClockSeconds, sha256, audit, usage: { input_tokens: usageSummary.input_tokens, output_tokens: usageSummary.output_tokens, cost_usd: usageSummary.cost_usd }, attachments: attachmentLedger, data_files: dataLedger, ...figureFields }, null, 2)
   await mkdir(outDir, { recursive: true })
   await writeFile(join(outDir, 'report.md'), report, 'utf8')
   await writeFile(join(outDir, 'sha256.txt'), sha256, 'utf8')
@@ -913,7 +1038,7 @@ async function main(): Promise<number> {
 
   // W11.5 round-6（用户口径：交付物是 PDF 版论文，CUMCM 模板为必选项）：
   // PDF 此前只是 CLI 子命令，**一次真实运行不会产出它**——契约里列了 paper.pdf
-  // 却没人生产。现在交付段直接调用模板导出器（数字资产 cumcm 模板 + xelatex）。
+  // 却没人生产。现在交付段直接调用模板导出器（仓库自研模板 dphpaper.cls + xelatex）。
   // 缺 xelatex/模板时**不静默降级**：报错并继续，由契约校验把缺件判为阻断。
   const { spawnSync: spawnSyncPdf } = await import('node:child_process')
   const { statSync: statSyncPdf } = await import('node:fs')
@@ -1002,7 +1127,7 @@ type ProviderFace = {
  *  is recorded into the cassette (TASK-E). */
 function createRealProvider(
   route: ShellRoute,
-  adapter: (r: ShellRoute, req: { system?: string; messages: Array<{ content: string }> }) => AsyncIterable<unknown>,
+  adapter: SeamAdapter,
   recorder?: CassetteRecorder,
 ): ProviderFace {
   return {
@@ -1014,29 +1139,86 @@ function createRealProvider(
   }
 }
 
+/**
+ * One seam request as the adapter receives it.
+ *
+ * `tools` is part of the contract, not an extra: the executor offers the
+ * read-only self-check tool on the E2 call, and an adapter signature that
+ * cannot carry it would **silently** disable the tool (the request still
+ * succeeds, the model simply never calls anything). That is the exact shape of
+ * failure this type exists to prevent.
+ */
+type SeamAdapter = (
+  r: ShellRoute,
+  req: {
+    system?: string
+    messages: Array<{ content: string }>
+    tools?: ReadonlyArray<ToolSchema>
+  },
+) => AsyncIterable<unknown>
+
 /** Adapter stream for one seam request (no recording — recording wraps it). */
 async function* adapterStream(
   route: ShellRoute,
-  adapter: (r: ShellRoute, req: { system?: string; messages: Array<{ content: string }> }) => AsyncIterable<unknown>,
-  options: { provider: string; model: string; system?: string; messages: Array<{ content?: unknown }> },
+  adapter: SeamAdapter,
+  options: { provider: string; model: string; system?: string; messages: Array<{ content?: unknown }>; tools?: ReadonlyArray<ToolSchema> },
 ): AsyncGenerator<unknown> {
   yield* adapter(route, {
     ...(options.system === undefined ? {} : { system: options.system }),
-    messages: (options.messages ?? []).map((m) => {
-      const c = (m as { content?: unknown }).content
-      if (typeof c === 'string') return { content: c }
-      if (Array.isArray(c)) {
-        const parts = c as Array<{ type?: string; text?: string }>
-        return { content: parts.map(p => (p?.type === 'text' ? p.text ?? '' : '')).join('') }
-      }
-      return { content: '' }
-    }),
+    ...(options.tools === undefined || options.tools.length === 0 ? {} : { tools: options.tools }),
+    messages: (options.messages ?? []).map(m => ({ content: seamTextOf(m) })),
   })
+}
+
+/**
+ * 一条 harness 消息 → wire 上的文本。
+ *
+ * 三种内容块都要**显式**处理，因为漏掉一种的后果是静默的：
+ *   - `text`：原样。
+ *   - `tool-result`：**不能丢**。丢掉它，工具回路就变成"调用一次工具、然后
+ *     在同一个问题上再问一遍"——模型永远看不到判据，而审计里照样记着
+ *     `E2SelfCheck`（假证据）。OpenAI 的 `role:'tool'` 需要配对的
+ *     assistant `tool_calls`，而 harness 的 assistant 消息只带文本、不带
+ *     调用 id，所以这里用**带标签的用户消息**承载结果：这是在不伪造协议
+ *     字段的前提下，模型能可靠区分"这是工具输出"的唯一合法形态。
+ *   - 其它块（reasoning 等）：不进 wire。
+ */
+function seamTextOf(message: { content?: unknown }): string {
+  const c = message.content
+  if (typeof c === 'string') return c
+  if (!Array.isArray(c)) return ''
+  const parts = c as Array<{ type?: string; text?: string; toolCallId?: unknown; content?: unknown }>
+  const chunks: string[] = []
+  for (const part of parts) {
+    if (part?.type === 'text') chunks.push(part.text ?? '')
+    else if (part?.type === 'tool-result') {
+      const inner = part.content
+      const body = typeof inner === 'string'
+        ? inner
+        : Array.isArray(inner)
+          ? (inner as Array<{ text?: string }>).map(p => p?.text ?? '').join('')
+          : ''
+      chunks.push(`[tool result ${String(part.toolCallId ?? '')}]
+${body}`)
+    }
+  }
+  return chunks.join('')
 }
 
 /** Wrap one stream: pass chunks through, record the assembled exchange
  *  (text AND usage — TASK-Q2) into the cassette. */
-type StreamRequest = { provider: string; model: string; system?: string; messages: Array<{ content?: unknown }> }
+type StreamRequest = {
+  provider: string
+  model: string
+  system?: string
+  messages: Array<{ content?: unknown }>
+  /**
+   * 记录里必须带上工具定义：**带工具与不带工具是不同的请求**（模型能做
+   * 什么不一样）。漏掉它，一份"没工具"的 cassette 会被当成"带工具"的请求
+   * 的回放来源——那是假回放。
+   */
+  tools?: ReadonlyArray<ToolSchema>
+}
 
 function recordOrPassthrough(
   recorder: CassetteRecorder | undefined,
@@ -1075,12 +1257,14 @@ function assembledRequest(options: StreamRequest): {
   model: string
   system?: string | undefined
   messages: ReadonlyArray<{ content?: unknown }>
+  tools?: ReadonlyArray<ToolSchema> | undefined
 } {
   return {
     provider: options.provider,
     model: options.model,
     ...(options.system === undefined ? {} : { system: options.system }),
     messages: options.messages ?? [],
+    ...(options.tools === undefined || options.tools.length === 0 ? {} : { tools: options.tools }),
   }
 }
 

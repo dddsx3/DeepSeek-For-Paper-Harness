@@ -83,6 +83,27 @@ export const AUDIT_EVENT_TYPES = [
   // indistinguishable from a CLEAN one in the evidence (no silent
   // downgrade, §7 诚实标注).
   'delivery_graded',
+  // 上限解放架构 L6：门禁状态机的每一次转移（DORMANT → WARN → ENFORCE）。
+  // 它必须可审计，因为"这次运行被收紧到什么程度"是解释交付结果的必要证据——
+  // 一份被反复 WARN 的稿子与一份一次通过的稿子，可信度不是一回事。
+  'gate_state_changed',
+  // 上限解放架构 L6：闭环收口。携带每条 finding 的终态与复验记录。
+  // **未消解必须可见**：一条留在 open 的 finding 会让终局变成 ESCALATE，
+  // 而 ESCALATE 与 MARKED 的区别正是"有没有归宿"。
+  'closure_closed',
+  // 上限解放架构 L1：技能库落盘（外置知识的"可读性"前提——索引里写着一个
+  // 读不到的路径等于没写）。记录文件数与目录，便于核验。
+  'skill_library_materialized',
+  // 上限解放架构 L2：探索—择优完成（或 fail-soft 失败）。它必须可审计，因为
+  // "这次运行的方案是比出来的还是第一个想到的"是解释论文质量的关键证据。
+  'explore_select_completed',
+  // 上限解放架构 L3：符号证据通道跑完（harness 侧驱动的形式一致性检查）。
+  // 记录通过数与失败 claim id，因此"这次交付的解析结论被独立检查过吗"可回答。
+  'symbolic_channel_run',
+  // 上限解放架构 L4：交付模型的**结构指纹**（方程+假设+方法+参数+符号表）。
+  // 它让"模型结构在两次尝试之间变了没有"可回答——换方法/增删方程/调假设这三类
+  // 语义修复，数值指纹完全无感，只有结构指纹看得见。
+  'structure_fingerprint',
 ] as const
 
 /** One audited operation kind. */

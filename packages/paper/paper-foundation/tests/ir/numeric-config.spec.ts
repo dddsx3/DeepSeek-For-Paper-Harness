@@ -87,10 +87,14 @@ describe('NumericConfig — emission materialization (DP-4 执行期捕获)', ()
       emission: { ...emission, discretization: { N: 200, dt: 0.25, dX: 0.1 } },
       symbols,
     })
-    expect(built.ok).toBe(false)
-    if (!built.ok) {
+    // 部分准入（四轮实测的修法）：能锚定的键照常成 config，锚不了的作为缺口上报。
+    // **不变量仍在**：缺口必须被**记录**（failures 非空），绝不静默丢掉。
+    expect(built.ok).toBe('partial')
+    if (built.ok === 'partial') {
       expect(built.failures[0]?.kind).toBe('TOKEN_UNRESOLVED')
       expect(built.failures[0]?.reason).toContain('dX')
+      // 能锚定的那两个照常进去了。
+      expect(built.config.discretization.map(d => d.symbol_ref).sort()).toEqual(['SYM-N', 'SYM-dt'])
     }
   })
 
@@ -103,9 +107,12 @@ describe('NumericConfig — emission materialization (DP-4 执行期捕获)', ()
       emission,
       symbols: [foreign],
     })
-    expect(built.ok).toBe(false)
+    expect(built.ok).toBe('partial')
   })
 
+  // 这一条**仍然硬拒**，与"部分准入"不矛盾：模型连作用域都没声明时，任何键都不可能
+  // 锚定——整份配置没有意义，那不是"缺了几个键"。（部分准入针对的是"能锚定的锚上、
+  // 锚不了的记下来"，不是"什么都不行也放行"。）
   it('fails closed when the run\u2019s model declares no problem scope', () => {
     const built = numericConfigFromEmission({
       configId: 'NC-RUN1',
@@ -168,8 +175,9 @@ describe('NumericConfig — emission key resolution (W11.5)', () => {
       symbols: ambiguous,
       emission: { discretization: { tinf: 1 }, physical: {}, choices: {}, property_set: null },
     })
-    expect(built.ok).toBe(false)
-    if (!built.ok) expect(built.failures[0]?.reason).toContain('more than one')
+    // 歧义**仍然拒绝解析那个键**（绝不猜）——后果同样是"缺口被记录"。
+    expect(built.ok).toBe('partial')
+    if (built.ok === 'partial') expect(built.failures[0]?.reason).toContain('more than one')
   })
 
   it('id 的记号变体（`S_P0` ↔ 声明 id `S-P0`）也能解析（run-4 实测形态）', () => {
@@ -189,12 +197,12 @@ describe('NumericConfig — emission key resolution (W11.5)', () => {
     }
   })
 
-  it('完全未知的键仍拒绝（构造性反例）', () => {
+  it('完全未知的键：**不解析它，但也不拒整份配置**（缺口上报）', () => {
     const built = numericConfigFromEmission({
       ...base,
       emission: { discretization: { mystery: 1 }, physical: {}, choices: {}, property_set: null },
     })
-    expect(built.ok).toBe(false)
+    expect(built.ok).toBe('partial')
   })
 })
 
@@ -218,7 +226,7 @@ describe('W11.5 baseline-4 — TOKEN_UNRESOLVED 理由携带可用清单', () =>
         { symbol_id: 'S-N', scope_ref: 'P1', token: 'n' },
       ],
     } as never)
-    expect(built.ok).toBe(false)
+    expect(built.ok).toBe('partial')
     if (!built.ok) {
       const reason = built.failures[0]?.reason ?? ''
       expect(reason).toContain('declared tokens/ids')

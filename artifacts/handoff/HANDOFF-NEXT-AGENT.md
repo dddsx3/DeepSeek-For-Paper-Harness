@@ -78,7 +78,7 @@ overlay 模式(`consentOverlay`/`appealOverlay`,class="overlay">.modal)加
 ### 3.4 重建 exe 并自测
 
 ```bash
-cd "D:\deepseek modex\deepseek-harness"
+cd "<repo>"
 node --experimental-sea-config sea-config.json   # sea-config.json 需重建(上批已删,内容:{"main":"apps/cockpit/launcher.cjs","output":"sea-prep.blob","disableExperimentalSEAWarning":true})
 taskkill //F //IM paper-cockpit.exe               # 必须,句柄占用会 Couldn't write
 cp "$(which node)" paper-cockpit.exe
@@ -90,7 +90,7 @@ npx postject paper-cockpit.exe NODE_SEA_BLOB sea-prep.blob --sentinel-fuse NODE_
 
 派 general-purpose 子代理,**不许给它本 handoff 与任何任务书**,只给:
 
-> "你是大学生,拿到一个双击就能用的程序(路径 D:\deepseek modex\deepseek-harness\paper-cockpit.exe)。
+> "你是大学生,拿到一个双击就能用的程序(路径 <repo>\paper-cockpit.exe)。
 > 你的任务:不问任何人、不看文档,自己把它跑起来,并完成'导入一道题并生成论文初稿'
 > (可用页面上的演示功能)。记录每一步:你点了什么、哪里卡住、哪句话看不懂、
 > 哪个按钮你不敢点。最后列出让你困惑或无法继续的 Top 5。你可以用浏览器访问
@@ -127,7 +127,7 @@ npx postject paper-cockpit.exe NODE_SEA_BLOB sea-prep.blob --sentinel-fuse NODE_
 ## 5. 验证命令(接手 5 分钟自检)
 
 ```bash
-cd "D:\deepseek modex\deepseek-harness"
+cd "<repo>"
 npx vitest run --project=thread-safe packages/paper/paper-foundation  # 1112/1112
 npm run test:m1:shell                                                  # 27/27
 
@@ -142,7 +142,7 @@ curl -s http://127.0.0.1:3081/api/runs/active     # runId 应已映射
 # 双开场景:再起一个 server → 应打印"端口 3081 已被占用…已在运行"并 exit 1,不崩
 ```
 
-真 key 在 `D:\deepseek modex\deepseek-harness\.env.local`(y-api 中转:
+真 key 在 `<repo>\.env.local`(y-api 中转:
 endpoint https://api.y-api.bestvirtualgoods.com/v1,模型 z-ai/glm-5.3-flash /
 deepseek/deepseek-v4-pro;旧 tokenrouter 中转已弃用但 cassette 语料仍有效)。
 **.env.local 与 cockpit-settings.json 永不入库。**

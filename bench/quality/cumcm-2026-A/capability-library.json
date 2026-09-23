@@ -5,8 +5,8 @@
     "family": "F1",
     "purpose": "M-QUAL 阶段 B/D：把参考工作流 2026-A 的能力清单（CAPABILITY_CHECKLIST/VERDICT 23 条中的 machine 子集）蒸馏为 DPH CapabilitySpec 形态的结构化阈值库。每条 threshold 的 subject_ref 指向**代码发射的聚合标量 Result**（如 state_len / max_C / analytic_max_dev_degC）——系列判据由代码在数据所在处聚合，IR 钉阈值，引擎比较标量（见 capability-thresholds.ts 的诚实边界）。",
     "provenance": {
-      "capability_source": "reference-verdicts/CAPABILITY_VERDICT.json（sha256 d405c9213ea6bb7e…，与 QUALITY-MECHANISM-SPEC §5 对账值逐位一致）",
-      "facts_source": "reference-verdicts/PROBLEM_FACTS.json（sha256 6fc53139e8a599ef…）",
+      "capability_source": "DPH 自产提取物：从 2026-A 参考实测的 11 条 machine 能力阈值逐条结构化（见 docs/quality/QUALITY-MECHANISM-SPEC.md §5）",
+      "facts_source": "problem-faithful.md（题面机械事实摘录，本目录内）",
       "degradation_map": "docs/quality/FAMILY-DEGRADATION-LISTS.md §1（F1-1..F1-11）"
     },
     "scope_note": "本库只收录 machine 通道的能力（semantic 项不进门）。subject_ref 的 Result id 是**实例化占位**——golden 测试把它们绑定到构造 store 的 Result 上；E2E 期由生产链的 jsonPath 声明产生同名 Result。"

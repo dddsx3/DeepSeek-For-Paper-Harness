@@ -63,3 +63,26 @@ apps/paper-shell/cockpit-out/
 # Python bytecode (W8.9: q1-c2-checks.py is the first tracked .py helper)
 __pycache__/
 *.pyc
+
+# —— 本地运行证据里带机器绝对路径的文件（不入库）——
+# 审计轨迹、交付包与部分终端日志会把**运行时的绝对工作区路径**写进去
+# （`D:\...\<工作区目录名>\...`），那是机器本地信息，公开仓库不适合带上它；
+# 而它们是可复现的运行证据，不是源码。
+# 论文产物（report.md / paper.pdf / paper.docx）与报告（ROUND-*.md）保留，便于评审。
+# run-report.json 也在此列：它的诊断字段会带上失败调用的绝对路径
+# （strict-6 实测：一条 ENOENT 诊断把工作区绝对路径写了进去）。
+artifacts/upper-bound/*/audit-trail.json
+artifacts/upper-bound/*/deliverable.zip
+artifacts/upper-bound/*/run-report.json
+artifacts/atomic/*/audit-trail.json
+artifacts/atomic/*/deliverable.zip
+artifacts/atomic/*/run-report.json
+artifacts/handoff/baseline-*/audit-trail.json
+artifacts/handoff/baseline-*/deliverable.zip
+artifacts/handoff/baseline-*/run-report.json
+artifacts/upper-bound/strict-1.console.log
+artifacts/upper-bound/strict-6.console.log
+artifacts/handoff/baseline-22.console.log
+artifacts/handoff/baseline-24.console.log
+artifacts/handoff/baseline-25.console.log
+artifacts/handoff/baseline-26.console.log

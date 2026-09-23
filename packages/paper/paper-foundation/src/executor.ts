@@ -9,7 +9,7 @@
 import { createHash } from 'node:crypto'
 import { mkdir, writeFile } from 'node:fs/promises'
 import { basename, dirname, join } from 'node:path'
-import { BlockAssembler, createUserMessage } from '@deepseek-ai/dsh-llm'
+import { BlockAssembler, createAssistantMessage, createToolResultMessage, createUserMessage } from '@deepseek-ai/dsh-llm'
 import type { LlmFailure, TokenUsage } from '@deepseek-ai/dsh-llm'
 import type { AuditEntryInput, AuditEventType } from './audit.ts'
 import { compactPrompt, renderSections } from './context.ts'
@@ -23,6 +23,25 @@ import type { DeliveryDecision, DeliveryPolicy } from './delivery/delivery-polic
 import { makeCandidateArtifact } from './delivery/artifact-states.ts'
 import { promoteCandidateToDeliverable } from './delivery/promoter.ts'
 import { contentExists, gradeDelivery, renderDeliveryAppendix } from './delivery/delivery-grade.ts'
+// ── 上限解放架构（L0/L1/L3/L4/L5/L6）───────────────────────────────────
+// 最小宪法 + 可查询知识库（L1）：知识从 prompt 外置，prompt 只留索引。
+import { PAPER_CONSTITUTION } from './knowledge/constitution.ts'
+import { materializeSkillLibrary, skillIndexBlock, stepBriefing, SKILL_LIBRARY_DIR, type BriefingStep } from './knowledge/skill-library.ts'
+// L0 能力画像：档位决定门禁初始强度与教学前置量。
+import { defaultProfile, profileForTier, type CapabilityProfile, type ModelTier } from './probe/capability-profile.ts'
+// L6 门禁状态机：DORMANT → WARN（微教学）→ ENFORCE（硬拦截）。
+import { GateStateMachine } from './delivery/gate-state.ts'
+// L6 闭环：分派 → 修复 → 复验（指纹）→ 消解；预算耗尽 = ESCALATE。
+import { DEFAULT_CLOSURE_BUDGET, ClosureSession, type ClosureBudget } from './delivery/closure.ts'
+// L6 四档交付语义：CLEAN / MARKED / DEGRADED / ESCALATE。
+import { gradeLadder, renderTierBanner, type DeliveryTier } from './delivery/delivery-ladder.ts'
+// L5 三视角对抗评审：persona 定义与短码（缺陷 id 按视角加前缀，避免并行评审撞 id）。
+import { PERSONA_SHORT, PERSONA_SPEC, REVIEW_PERSONAS, type ReviewPersona } from './verification/adversarial-review.ts'
+import type { NodeId, RunMode } from './spec.ts'
+import { attemptAutoRepair } from './delivery/auto-repair.ts'
+import { initialFingerprint, modelStructureOf, recheckFinding, type RecheckInput } from './delivery/recheck.ts'
+import { structHashOf } from './verification/semantic-fingerprint.ts'
+import { makeFinding, type Finding, type ClosureSeverity } from './delivery/finding.ts'
 // W11.5-A3: the digit self-consistency scan (path B's post-hoc digit check).
 import { digitSelfContradictionFindings } from './delivery/digit-check.ts'
 // M-QUAL (W10) DP-8: the boundary appendix renders UNCONDITIONALLY (CLEAN
@@ -43,7 +62,14 @@ import { produceInterpretation } from './produce/interpretation-producer.ts'
 import { PROSE_CHAPTERS, displayNumber, numericLiterals, renderReportV2 } from './produce/report-renderer.ts'
 import { requirementCoverageFindings } from './delivery/requirement-coverage.ts'
 import { arithmeticFindingsOf, deliveredNumberFindings } from './delivery/delivered-numbers.ts'
-import { PAPER_LENGTH_REFERENCE, blankAreaViolations, proseContractViolations } from './delivery/prose-contracts.ts'
+// L1: 篇幅参照（`PAPER_LENGTH_REFERENCE`）已不再注入 prompt——它随写作规范一起
+// 外置到 `skills/writing-norms.md`，由 `knowledge/skills/*` 同源渲染。这里只需要
+// 两个检查器本身。
+import { blankAreaViolations, proseContractViolations } from './delivery/prose-contracts.ts'
+import { EXPLORE_INSTRUCTION, SELECT_INSTRUCTION, reviewDecisionRecord } from './produce/explore-deepen.ts'
+import { SELF_CHECK_TOOL_NAME, checkCandidateContainer, runSelfCheckSafely, selfCheckCategorySentence, type SelfCheckVerdict } from './produce/self-check.ts'
+import { renderSymbolicEvidence, runEquationConsistency } from './verification/symbolic-channel.ts'
+import type { ContractRequirement } from './delivery/prose-contracts.ts'
 import { SHARD_NAMES, shardPrompt, parseShard, mergeShards } from './produce/shard-declare.ts'
 import {
   e2DriftGuidance,
@@ -146,7 +172,7 @@ export interface ReviewDefect {
    *  never be resolved and never expires. */
   readonly id: string
   /** How much the finding matters. E4b: three-value vocabulary aligned
-   *  with FINDING_SEVERITIES (critical | major | minor); an unknown
+   *  with CLOSURE_SEVERITIES (critical | major | minor); an unknown
    *  severity is fail-closed (parsed as critical), never downgraded.
    *  A semantic finding's severity is fixed by its kind (P3-1). */
   readonly severity: 'critical' | 'major' | 'minor'
@@ -172,80 +198,65 @@ export interface SemanticContext {
 }
 
 /**
- * P3-3 (teaching segment v0): the ir-container-v1 protocol lecture carried
- * by the EXECUTE instruction whenever `produceFromExecute` is on. It names
- * ONLY schema-native structure — the run block's closed fields, the
- * declaration-based interpretations/figures, and jsonPath as the single
- * number channel — and never requires or demonstrates any free-form format
- * outside the container schema (禁10). Kept adjacent to the executor so
- * the probe (probe v2) and the instruction can never drift apart.
+ * L1 — 注入 prompt 的**全部**教学内容 = 最小宪法 + 技能库索引。
+ *
+ * 这里曾经是一个把"接口"与"知识"混在一起的单一常量。分开的理由是可测量的：
+ * **每修一个漏洞，prompt 就长一截，模型的建模预算就少一点**；而"门禁 ⇔ 教学
+ * 一一对应"的同步测试把这种膨胀锁死成纪律，于是所有约束永远以最高成本的形式
+ * 存在——即使模型早就会了。
+ *
+ * 现在：
+ *   - **接口**（容器形状、必填字段、什么被拒）留在 `PAPER_CONSTITUTION`——
+ *     模型不看到它就产不出合法容器，这是**必须**在场的；
+ *   - **知识**（篇幅规范、章节要素、方法族、评分口径、证据纪律）外置到
+ *     `skills/`，prompt 只给**索引**（id + 什么时候读它），模型按需 `read_file`。
+ *
+ * 两者都必须与门禁同步，但**按成本分流**：分流表在 `gate-state.ts` 的
+ * `GATE_ACTIVATIONS`（每条登记一个 `home`），由 `constitution-contract` 测试
+ * 逐条核对，所以"漏教"仍然不可能发生。
+ *
+ * 返回值必须是**确定性**的：调用点用字符串相等来把这段教学从 E1 的 prompt 里
+ * 过滤掉（E1 不该看到容器教学——它会与"写散文"的指令打架）。
  */
-export const EXECUTE_PROTOCOL_TEACHING = [
-  'Produce ONE JSON object — the ir-container-v1 — and nothing else. No prose, no markdown fences, no schema of your own.',
-  'Shape: {"__dsh_paper":"ir-container-v1","entries":[...],"code":"...","run":{...},"interpretations":{...},"narrative":{...}}.',
-  '  entries: an array of objects, each EXACTLY {"kind": <KIND>, "value": <object>}. The ONLY kinds you may declare are "SymbolSpec", "AssumptionSpec", "EquationSpec", "ModelSpec", and (optionally) "DataArtifact". The harness has ALREADY registered the problem assets for you — DataArtifact "DA-RAW" (the raw problem), RequirementSpec "R-OUT" (the requirement) and one RequirementSpec per sub-problem ("R-Q1"…), and one ProblemSpec per sub-problem ("P1"…; "P1" alone when the problem asks a single question). NEVER declare those: reference them by id instead. Re-declaring a registered id refuses the container.',
-  '    SymbolSpec value: {"symbol_id","scope_ref":"P1","token","meaning","unit","role","shape","domain","index_set"} — role is "VARIABLE" for unknowns the solve determines, or "PARAMETER" for quantities whose value you bind in ModelSpec.parameter_refs (k, dt, N...): EVERY symbol you list in parameter_refs must have role "PARAMETER", and a parameter must not be listed in variable_refs. shape is one of SCALAR|VECTOR|MATRIX|TENSOR|INDEXED|UNKNOWN; domain one of REAL|NONNEGATIVE_REAL|INTEGER|NONNEGATIVE_INTEGER|BOOLEAN|PROBABILITY|COMPLEX|UNKNOWN; if you are not sure, answer UNKNOWN honestly instead of inventing one; index_set is an array ([] for a scalar). unit MUST be a NON-EMPTY string — a dimensionless or count-like quantity takes the literal "dimensionless" (an empty "" unit refuses the container).',
-  '    AssumptionSpec value: {"assumption_id","scope_ref":"P1","statement","source_type","justification_refs","risk_level","testable","sensitivity_refs","status"} — source_type GIVEN|DERIVED|MODELING_CHOICE|APPROXIMATION; risk_level HIGH|MEDIUM|LOW; status ACTIVE|OBSOLETE|QUESTIONED. Ref-field shapes: justification_refs is a list of REGISTERED IR ids (or []); sensitivity_refs MUST be [] at declaration time — no Results exist yet (they are minted only after your code runs), and if non-empty they may only name Result/DataArtifact ids. NEVER put SymbolSpec ids (like "S-DT") into justification_refs/sensitivity_refs — that refuses the container.',
-  '    EquationSpec value: {"equation_id","scope_ref":"P1","expression","representation","lhs_symbols","rhs_symbols","equation_type","unit","depends_on","source"} — representation SYMPY|LATEX_PRESENTATION; equation_type DEFINITION|CONSTRAINT|OBJECTIVE|DERIVED. lhs_symbols/rhs_symbols are lists of the symbol_id VALUES you declared in your SymbolSpec entries (like ["S-Y"]) — NEVER raw math tokens (like ["y"]): an unregistered name refuses the container. depends_on lists your equation_ids; unit is a non-empty string ("dimensionless" when unitless).',
-  '    ModelSpec value: {"model_id","problem_refs":["P1"],"assumption_refs","variable_refs","parameter_refs","equation_refs","constraints","objective","dependencies"} — every field is required; assumption_refs/equation_refs list the ids of AssumptionSpec/EquationSpec entries you declared. problem_refs names the sub-problem(s) THIS model solves: declare ONE ModelSpec per sub-problem and give it exactly that sub-problem\'s id (["P2"] for 问题2) — the paper renders one chapter per sub-problem and the coverage gate refuses a sub-problem whose model is missing.',
-  '      NOTE (element shapes — a wrong shape refuses the container): variable_refs/assumption_refs/equation_refs/dependencies are plain id lists; constraints is an ARRAY OF STRINGS (write [] when you have none — NEVER a single string); objective is a string or null; parameter_refs is a list of {"symbol_ref","value"} objects.',
-  // W8.11-A1c (repair, found by the second real run): `parameter_refs` was the
-  // ONE field in this lecture whose ELEMENT shape was never stated — the line
-  // above lists it as a bare name, right next to `variable_refs`, which IS a
-  // plain id list. The model reasonably inferred the same shape and wrote
-  // ["S-P0", "S-P1"], and the closed schema refused it:
-  //   parameter_refs.0: Invalid input: expected object, received string
-  // That refusal cost the run its third attempt and ended it. The field needs
-  // an object because a PARAMETER carries a bound value (the whole point of
-  // the zero-number channel); saying so is the fix. This is 信息不足, not a
-  // model defect — the same class W8.10-B existed to eliminate.
-  '      NOTE: parameter_refs is NOT a list of ids — each entry is an OBJECT {"symbol_ref": <a SymbolSpec id>, "value": <a number>}. variable_refs/equation_refs/assumption_refs ARE plain id lists; parameter_refs is the exception, because a parameter carries a bound value.',
-  '      Example: "parameter_refs": [{"symbol_ref": "S-P0", "value": 0.1}]  — NOT ["S-P0"].',
-  '    DataArtifact (optional, output-pointer form) value: {"data_id","locator"} — locator is one of YOUR outputBasenames. NEVER write content_hash anywhere: every sha256 is computed by the harness over real bytes (declaring one refuses the container — the hash of bytes that do not exist yet cannot be known).',
-  '  code: executable Node JavaScript that WRITES the measured numbers to the declared output files. All arithmetic happens here; never state a computed number anywhere else.',
-  '  run: the ONLY fields are "outputBasenames" (the file names your code writes) and "seed" (an integer). No other key is accepted.',
-  // M-QUAL (W10) DP-4: teach the execution-time config emission. The config
-  // is CODE-emitted (N19) — its keys must be the tokens of the SymbolSpecs
-  // the container already declared, so the harness can resolve them into a
-  // canonical NumericConfig (fail-closed on unknown tokens).
-  '  Config emission (SHOULD): declare "numeric_config.json" in run.outputBasenames and write it from your code — ONE JSON object {"discretization": {<symbol>: <number>}, "physical": {<symbol>: <number>}, "choices": {<key>: <string>}, "property_set": <string or null>} where each key names a SymbolSpec you declared (its token OR its symbol_id — both are accepted). Values must be NUMBERS: omit a key you cannot fill rather than writing null. This is the mechanical record of what your code actually ran with; the config-consistency gate compares it against your declared parameters and sibling runs.',
-  '  interpretations: declaration-based. results: [{ result_id, name, source: { locator: <one outputBasenames entry>, jsonPath: <a BARE dotted path to the number inside that file, e.g. "n_fixed" — not "$.n_fixed"; array elements use the index form "oc[2].accept"; it must resolve to a JSON number, so emit ranges as two numeric fields and vectors as one field per entry> }, unit }]. The locator must be one of your declared outputs; every Result reads its value via jsonPath — never a literal number. '
-  + 'claims (declare them here): [{ claim_id, text, claim_type: "NUMERIC", criticality: "CRITICAL", result_refs: [<a result_id>], model_refs: [<your model_id>], evidence_refs: [<a result_id>] }] — a CRITICAL NUMERIC claim binds one Result as the number the paper states; without a claim your REQUIRED_OUTPUT stays unpaid and delivery is blocked.'
-  + ' ONE CRITICAL claim PER SUB-PROBLEM, and its model_refs must name THAT sub-problem\'s model (the claim about 问题2 lists model_refs: ["M2"], and M2.problem_refs is ["P2"]) — that is how the harness attributes a number to the sub-problem it answers, and how the paper renders each sub-problem\'s own chapter and result table.',
-  '  interpretations.figures (REQUIRED — at least ONE figure): a submittable modelling paper shows a chart, and the harness refuses one without any (real refusal: "the paper carries no figure"). Declare the STRUCTURE only — the harness renders the bytes and computes every hash: [{ figure_id, chart_type: "line"|"scatter"|"bar"|"table", data_refs: [Result ids], caption? }]. Pick what your results actually support: an OC/ROC curve for a test design (line over the rejection probability Results), a comparison bar chart across decision scenarios, a sensitivity table, a decision tree as a table. caption/x_label/y_label must NOT contain numeric literals (write quantities in words, e.g. "final value" instead of "y(2.0)"): a number in these strings is refused unless it is exactly the value of a referenced Result.',
-  '  narrative: { title, conclusion: { claims: [{ text, quantity_refs: [Result ids], representation? }] } } — a conclusion number must be the bound Result value verbatim, or an explicitly declared rendering: {"kind":"rounded","dp":<0..20>} or {"kind":"with_uncertainty","uncertainty_refs":[...]}. The check is mechanical: each claim\'s text must CONTAIN the value of every quantity_ref, written into the sentence — text "The unified minimum sample size is 1762." with quantity_refs ["R-N-FIXED"]. A qualitative sentence that names the Result but never states its value is refused (real refusal: "The unified sample size is the maximum of the two case-specific minimum sample sizes.").',
-  '  Naming a quantity instead of copying it (STRONGLY PREFERRED): you write this narrative BEFORE your code runs, so you cannot know its output. Writing `{<result_id>}` inside the text makes the harness substitute the run\'s value at render time — the digit then comes from the IR by construction. Prefer this over guessing a literal: a literal number you write yourself must equal the Result value exactly, and a wrong guess refuses the whole report. Both of the two most recent real runs died exactly there (the narrative stated one sample size while its own code had computed another), and both had already passed every other check — so a wrong literal costs the entire production chain. Example shape: text "the minimum sample size is {R-N1} and the critical value is {R-C1}", quantity_refs ["R-N1","R-C1"]. A name that is not one of that claim\'s quantity_refs is refused (the braces would otherwise print into the paper).',
-  '  Every literal in the conclusion must be a number the RUN produced (REQUIRED): a constant the problem GAVE you is not a Result, so writing it as a digit in the conclusion is refused (real refusal: "conclusion claim contains numeric literal \'95\' outside its declared quantities [2, 22, 0]" — the model restated the confidence level). Either write the given quantity in words ("at the stated confidence level"), or make your code emit it as a Result and name it `{<result_id>}`. The refusal lists the allowed set — read it before rewriting.',
-  '  ANSWER EVERY SUB-PROBLEM (REQUIRED, and the most common way a paper fails review): the statement asks several questions (问题1/2/3/4…), and EACH ONE is a separate REQUIRED_OUTPUT the harness registers on its own. A sub-problem with no Result of its own reads as unanswered — the paper is refused before delivery and the correction names which ones are missing (real refusal: "the paper does not answer every sub-problem the statement asks: R-Q2…R-Q4"). So: build the model for every sub-problem, run the code that computes its numbers, and declare a Result AND a CRITICAL Claim for each. One aggregate number for the whole paper is not an answer to four questions, and a methods sentence that promises "we enumerate the combinations" while the results table holds a single scenario is exactly what a reviewer marks as unfulfilled.',
-  '  E1 STRUCTURE (REQUIRED — the fidelity gate reads E1 itself, and a violation is the most common refusal in real runs):',
-  '    · E1 must carry one anchor line before EACH sub-problem\'s reasoning passage: `[[REQUIREMENT: R-OUT]]`, then `[[REQUIREMENT: R-Q1]]`, `[[REQUIREMENT: R-Q2]]`, … in order. A sub-problem with no anchored passage is refused (B4 逐问推理覆盖).',
-  '    · every AssumptionSpec and EquationSpec you declare MUST carry `e1_span`: a substring copied VERBATIM from the E1 text you wrote (B3 正向 checks it character for character — a paraphrase, a dropped LaTeX delimiter or a reworded sentence is refused). Copy the sentence; do not retype it.',  '    · every AssumptionSpec and EquationSpec you declare MUST carry `e1_span`: a substring copied VERBATIM from the E1 text you wrote (B3 正向 checks it character for character — a paraphrase, a dropped LaTeX delimiter or a reworded sentence is refused). Copy the sentence; do not retype it.',
-  '    · CHOOSE THE SPAN FROM PLAIN PROSE: pick a sentence with no formula, no `\` command and no digits (e.g. "本文假设各零部件的次品事件相互独立") — a span containing math is where retyping always shows up, and the gate compares character for character (real refusal: the model wrote `=0.10\ge0.95` where its own E1 said `=0.10\ge1-\alpha`). If the only sentence you have is a formula, write a plain-prose sentence INTO E1 first, then anchor to that.',
-  '    · if E1 marks an assumption anchor `[[ASSUMPTION: <id>]]`, that id must be declared as an AssumptionSpec (B3 反向), and an AssumptionSpec id must exist as an anchor in E1 (B3 锚点同一性). Do not invent assumptions in the container that E1 never marked.',
-  '  LENGTH REFERENCE (an aim, NOT a gate): this harness is aligned with a reference paper of about 30,000 characters of body text (roughly 30 pages) — 问题分析 about 2,000, each per-problem chapter about 2,500, 模型评价与推广 about 1,400, 参考文献 about 1,500 (6+ real entries), 代码附录 about 1,500, 问题重述 about 1,000. Write to that scale. A chapter that falls BELOW roughly 60% of its reference is sent back for a rewrite (that is the only length rule); there is NO upper bound — a longer, fuller chapter is never penalised and never truncated. The harness renders one chapter PER SUB-PROBLEM (问题1/2/3/4 each its own chapter, like the reference), built from your E1 passages, so give each sub-problem a substantial E1 passage.',
-  '  PAPER CONTRACT (REQUIRED — every line below is checked mechanically BEFORE the paper is delivered, so satisfy it in your FIRST emission; a violation costs you a whole attempt):',
-  '    · narrative carries EIGHT non-empty strings: title, methods, conclusion, restatement, analysis, evaluation, references, code.',
-  '    · abstract (OPTIONAL but strongly recommended — it is the first thing a judge reads): a real competition abstract, roughly 1,000–1,400 characters: one sentence of background, then one short paragraph PER SUB-PROBLEM (its model and its conclusion), then one sentence of evaluation. Write every number as the placeholder `{<result_id>}` — the harness substitutes the Result value and refuses any number that is not a declared Result (e.g. `问题1 的最小样本量为 {RES-N1} 件`). Without it the harness falls back to a generic generated abstract.',
-  `    · analysis — ONE passage per sub-problem (问题1 / 问题2 / …): which method family it uses, why that family, and where the difficulty lies. The reference paper's 问题分析 is about ${String(PAPER_LENGTH_REFERENCE.chapters.analysis?.reference ?? 0)} characters (roughly ${String(Math.round((PAPER_LENGTH_REFERENCE.chapters.analysis?.reference ?? 0) / 4))} per sub-problem); below ${String(PAPER_LENGTH_REFERENCE.chapters.analysis?.rewriteBelow ?? 0)} characters it is sent back for a rewrite. A one-liner like "问题1为二项检验，其余为离散优化" is refused.`,
-  `    · evaluation — FOUR passages: 优点 / 局限 / 敏感性 / 推广. The reference is about ${String(PAPER_LENGTH_REFERENCE.chapters.evaluation?.reference ?? 0)} characters; below ${String(PAPER_LENGTH_REFERENCE.chapters.evaluation?.rewriteBelow ?? 0)} it is sent back. "结果可靠、可推广" alone is refused.`,
-  `    · references — at least THREE complete entries, shaped "[1] 作者. 题名. 出处. 年." (the reference paper carries about ${String(PAPER_LENGTH_REFERENCE.chapters.references?.reference ?? 0)} characters of bibliography), and at least one must be about a method you actually used (抽样检验 / 序贯 / 贝叶斯 / 决策 / 优化 / 仿真 …); below ${String(PAPER_LENGTH_REFERENCE.chapters.references?.rewriteBelow ?? 0)} characters it is sent back.`,
-  `    · code — say which sub-problems the code solves ("问题1 由 solve_q1() 完成 …"), at least ${String(PAPER_LENGTH_REFERENCE.chapters.code?.rewriteBelow ?? 0)} characters (reference about ${String(PAPER_LENGTH_REFERENCE.chapters.code?.reference ?? 0)}); the harness appends your REAL code underneath it.`,
-  `    · restatement — your own words, at least ${String(PAPER_LENGTH_REFERENCE.chapters.restatement?.rewriteBelow ?? 0)} characters (reference about ${String(PAPER_LENGTH_REFERENCE.chapters.restatement?.reference ?? 0)}). Do not paste the problem statement.`,
-  '    · density — no run of blank lines, and no chapter whose body (tables and code excluded) is under 120 characters: blank areas are refused.',
-  '    · at least ONE figure in interpretations.figures.',
-  '    · EVERY sub-problem needs its own Result AND a CRITICAL claim over it; one aggregate number for four questions is refused.',
-  '    · every AssumptionSpec must be REFERENCED by a ModelSpec.assumption_refs and carry justification_refs (MODELING_CHOICE: what in the problem or your analysis justifies it; GIVEN: the DataArtifact it came from). An assumption no model uses, or one with no justification, is refused.',
-  '  Container shape (REQUIRED, FIRST LINE MATTERS): the output\'s first characters must be `{"__dsh_paper":"ir-container-v1"` — the version marker IS the container\'s identity, and a container missing it is refused before anything else is checked (real refusal: the first real run\'s attempt 1 produced a full, valid container that started with `{"run": …` and was refused on the missing marker alone — and that marker must be the FIRST KEY of ONE single JSON object: do NOT write the marker as its own object or its own line and then a second object (a real run did exactly that and was refused with "Unexpected non-whitespace character after JSON at position 32")).',
-  '  Re-emission on retry (REQUIRED): a retried container must re-declare every entry it declared before, BYTE-IDENTICAL unless the refusal message asked you to change that entry — the store is append-only and same-id-different-content is a conflict. If you must improve wording, give the entry a NEW id instead of editing the old one.',
-  '  Assumption completeness (REQUIRED, the B3-reverse rule): EVERY `[[ASSUMPTION: id]]` anchor that exists in the analysis MUST have a matching AssumptionSpec entry in `entries` — one anchor, one declaration, same id, no exceptions. A container that declares only "the assumptions I found important" while the analysis marked 15 is REFUSED (real refusal: the first real run marked 15 anchors, the container declared 9, and the fidelity gate refused all three attempts on exactly this gap). When in doubt, declare it — an over-declared assumption is checked, an under-declared one kills the container.',
-  '  narrative fields (REQUIRED — the paper cannot be delivered without them): the narrative object must carry EIGHT non-empty strings: `title`, `methods` (模型建立与求解 — the model/derivation text, NOT a one-line summary: state the equations or recursions you actually solve), `conclusion`, `restatement` (问题重述), `analysis` (问题分析), `evaluation` (模型评价与推广), `references` (参考文献条目，形如 "[1] 作者. 题名. 年."), `code` (代码附录说明). A missing one renders as a VISIBLE placeholder and the harness refuses the paper before delivery with the exact key named (real refusals: "the paper still lacks chapters the container must supply: 模型建立与求解（方法）（narrative.methods）" — the model wrote the other six and kept omitting `methods`; and "代码附录（narrative.code）"). A retry must keep the chapters it already wrote: re-emit them all in the same container.',
-  '  Output shape (REQUIRED): return the container as ONE bare JSON object — no markdown fence, no prose around it. (Two of three attempts in the first real run wrapped it in ```json … ``` and were refused as parse_failed.) If you do fence it, one surrounding fence is now stripped, but do not rely on that.',
-  '  Code robustness (REQUIRED): your code must PARSE and run. A JavaScript object key that contains `-` must be quoted — `{"S-P1": 0.1}` is legal, `S-P1: 0.1` is a SyntaxError that kills the whole run before any output is written (real refusal: the first real run\'s attempt died on `S-P1: p1,` and the failure surfaced as an output-set mismatch). Prefer your symbols\' plain `token` as the key, or quote every key.',
-  '  Code must FINISH in the runner\'s wall-clock budget (REQUIRED): the deployment gives the child process a fixed budget (minutes, not hours) and kills it when it runs out — a killed run writes no output file, so every Result is lost and the whole paper falls back to the unverified path. Keep the computation small enough to finish (bound every loop: cap Monte-Carlo draws, grid sizes and iteration counts; prefer closed-form and exact enumeration over simulation) and WRITE THE OUTPUT FILE EARLY — before the expensive part, then rewrite it with the final numbers — so a late kill still leaves a readable result.',
-  '  Numeric robustness (REQUIRED): your code\'s output JSON must carry finite numbers for EVERY declared jsonPath. JavaScript Infinity/NaN become null in JSON.stringify, and a null (or any non-number) at a declared path refuses the container. Naive product formulas for binomial coefficients overflow around n≈170 — compute binomial probabilities in log space (sum of Math.log terms) or with a recurrence that cannot overflow; sanity-check that every value you emit is finite before writing the file (real refusal: a binomial CDF at n=2307 returned Infinity, serialized as null, and the container was refused after the code had already run).',
-  '  In-container duplicates (REQUIRED): the same id must not appear twice within ONE container either — including SymbolSpec ids declared for different scopes. Run-11 attempt 1 declared two different S-C entries (case-1 and case-2 critical values); give each distinct quantity a distinct id (S-C1, S-C2).',
-  'The container is refused (and the attempt fails) if: you declare kind "ProblemSpec" or "RequirementSpec", or re-declare "DA-RAW"; you write content_hash anywhere; an entry kind is not one of the five above; a number appears outside code/declarations; a jsonPath is missing or does not resolve to a finite number; the run block carries a foreign key; or the conclusion states an undeclared rounding.',
-].join('\n')
+function constitutionText(): string {
+  return `${PAPER_CONSTITUTION}\n\n${skillIndexBlock()}`
+}
+
+/** 向后兼容的别名：旧代码/测试按这个名字引用这段教学文本。 */
+export const EXECUTE_PROTOCOL_TEACHING = constitutionText()
+
+/**
+ * finding 的严重度归类。
+ *
+ * 判据只有一条：**它是否让论文的核心主张失去支撑**。`fatal` 留给"没有它这篇
+ * 论文就不成立"的情形（无正文、无模型、编造引用）；其余一律 `major`/`minor`，
+ * 因为它们都能进"已知缺陷表"如实披露，而不是拦下整条产线。
+ */
+function severityOfKind(kind: string): ClosureSeverity {
+  if (kind.includes('empty') || kind === 'PRODUCE_CHAIN_NO_MODEL' || kind === 'fabricated_reference') return 'fatal'
+  if (kind.startsWith('review_defect_critical') || kind === 'numeric_channel' || kind === 'numeric_consistency' || kind === 'required_output_unpaid') return 'major'
+  return 'minor'
+}
+
+/**
+ * finding 的产物范围——**闭环分派的依据**。
+ *
+ * 这张映射是"对抗成本不对称"的落点：一次真实修复之所以只碰论文正文，正是因为
+ * 改文字比重跑代码便宜。分派规则必须是代码，否则架构总会选便宜那条。
+ */
+function scopeOfKind(kind: string): ReadonlyArray<string> {
+  if (kind.startsWith('review_defect') || kind === 'prose_contract' || kind === 'blank_area') return ['paper/']
+  if (kind === 'config_consistency' || kind === 'execution' || kind === 'PROVENANCE') return ['code/']
+  if (kind === 'figure_data_consistency' || kind === 'figure_required') return ['figures/']
+  if (kind === 'stale_detection') return ['results/']
+  if (kind === 'reference_validation') return ['paper/']
+  return ['DELIVERABLES.json']
+}
+
+// 复验指纹的定义搬到了 `delivery/recheck.ts`。这里**不再**保留任何"给文本算
+// 哈希"的替代实现：第一版曾用 `sha256(category::evidence::文本长度)`，那是一个
+// 假复验——模型改一个字符就能让指纹变化、被判"已修复"，而没有任何检查器跑过。
+// 指纹现在只有一个来源：重跑该类别登记的检查器，取它的违规集合。
 
 
 /**
@@ -782,17 +793,50 @@ export interface ExecutorOptions {
    */
   readonly initialTier?: Tier
   /**
-   * P0-3 (PRD v2 §3.3): delivery grade threshold. 'strict-tolerance'
-   * (default) keeps the historical fail-closed behavior — any unpassed
-   * gate refuses delivery. 'fail-soft' turns unpassed gates into MARKED
-   * annotations: content delivers with an honest appendix, and only the
-   * three closed fatal conditions (empty content / execution failure /
-   * reference catastrophe) still BLOCK. The option exists so the mass
-   * tier can adopt fail-soft without mutating strict-tier compositions;
-   * the grade itself is always computed by `gradeDelivery` (one verdict
-   * path, no parallel judgement).
+   * 交付档位。
+   *
+   * - `fail-soft`（**默认**）——检出但未返修的 finding 以"显式接受"消解，
+   *   交付一份带**已知缺陷表**的完整包。下限不为零。
+   * - `closed-loop`——finding 走闭环返修 + 复验；预算内未消解则 `ESCALATE`
+   *   （交出"未完成包" + 缺口清单）。**这是目标形态**，需要返修执行者接上。
+   * - `strict-tolerance`——历史行为：任何未通过即拒绝交付，零产物。
+   *   保留给需要 fail-closed 的组合，但**不再是默认**：它是一条从未在任何
+   *   真实产出中被验证过的路径，而放行路径的缺陷已被反复实证。
+   *
+   * 三档都由 `gradeLadder` 做唯一判定，不存在第二条判定路径。
    */
-  readonly deliveryGradeMode?: 'strict-tolerance' | 'fail-soft'
+  readonly deliveryGradeMode?: 'strict-tolerance' | 'fail-soft' | 'closed-loop'
+  /**
+   * L0 能力画像的档位。缺省时按 `defaultProfile('未跑探针')` 取 **A** 档——
+   * 保守默认不是"更严"，而是"该给脚手架就给"：在零证据下假定模型不需要帮助，
+   * 会让弱模型直接卡在容器层（零产物），那比多给一点帮助贵得多。
+   */
+  readonly capabilityTier?: ModelTier
+  /**
+   * L2 探索—择优—深挖。
+   *
+   * 开启后，EXECUTE 之前会先跑两个 plan 型节点：**探索**（每个子问题 2–3 个
+   * 方案草图）与**择优**（四维打分 + 选择理由 + 落选理由），其产物作为决策记录
+   * 注入 EXECUTE 的 prompt。缺省 `strict` 档开启，其余档位关闭（探索段约占总预算
+   * 15%，它是质量档买到的东西）。
+   *
+   * **失败是 fail-soft 的**：探索/择优任一失败只记审计并继续，绝不因此拒绝运行——
+   * 它是"想得更好"的机制，不是"必须通过"的门。
+   */
+  readonly exploreDeepen?: boolean
+  /**
+   * L5 对抗评审的视角数。
+   *
+   * 缺省按 run mode 决定：`strict` 跑 **3** 个视角，`fast` / `exploratory` 跑 **1** 个。
+   * 三个视角各自独立上下文、各自盲评，缺陷合并进同一本 ledger；id 按视角加前缀，
+   * 因此并行评审的缺陷**不会互相覆盖**。详见 `reviewPersonasOf`。
+   */
+  readonly reviewPersonas?: 1 | 3
+  /**
+   * L6 闭环预算。缺省 {@link DEFAULT_CLOSURE_BUDGET}。
+   * **预算耗尽的语义一定是 `ESCALATE`**，不可配置成 CLEAN（C2）。
+   */
+  readonly closureBudget?: ClosureBudget
   /**
    * W8.6-P4 (O-L5-03): per-RUN output-token ceiling, independent of the
    * USD daily budget. The USD gate cannot fire when pricing is
@@ -1089,6 +1133,11 @@ export class WorkflowExecutor {
           admission.code === 'unledgered_reference'
             ? 'DRIFT'
             : 'ESCAPE'
+        // 同一个不变量：这条路径**也可能是 DRIFT**（上面三种 code），所以它也必须
+        // 带输出指纹——否则熔断键退化成与输出无关，第 2 次尝试必然跳闸。
+        // 由 `tests/executor-fingerprint-sites.spec.ts` 静态核对：每一个可能取到
+        // DRIFT 的 w4Class 赋值点，都必须在 throw 之前设 outputFingerprint。
+        ;(err as { outputFingerprint?: string }).outputFingerprint = sha256Hex(text)
         throw err
       }
       session = admission.session
@@ -1164,6 +1213,22 @@ export class WorkflowExecutor {
     return [...snapshot.keys()].sort()
   }
 
+  /**
+   * 已注册的子问题 id（`P1`…）。
+   *
+   * 自检工具的"每个子问题都要有自己的 ModelSpec"这条判据需要它——判据是
+   * **逐问**的，没有子问题清单就只能退化成"至少有一个模型"，那正是它要治的缺陷。
+   */
+  private problemScopesOf(): ReadonlyArray<string> {
+    const ir = this.options.ir
+    if (ir === undefined) return []
+    return [...ir.list()]
+      .filter(r => r.kind === 'ProblemSpec')
+      .map(r => String((r.value as { problem_id?: unknown }).problem_id ?? ''))
+      .filter(id => id.length > 0)
+      .sort()
+  }
+
   /** W8.10-B1: drop the pending corrections once an attempt succeeds. */
   private clearE2Violations(runId: RunId): void {
     this.#e2ViolationsByRun.delete(String(runId))
@@ -1197,13 +1262,129 @@ export class WorkflowExecutor {
     await this.audit({ eventType: 'workflow_started', actor: 'paper-executor', runId, detail: { mode: initial.mode } })
 
     try {
+      // ── L0 能力画像 ────────────────────────────────────────────────
+      // 档位决定两件事：门禁的**初始强度**（强模型跑一程可能一个门禁都没感知到）
+      // 与**教学前置量**。代码里没有第二套流程——只多一个自适应参数。
+      const capability: CapabilityProfile = this.options.capabilityTier === undefined
+        ? defaultProfile('本次运行未声明档位，探针执行器尚未接线')
+        : profileForTier(this.options.capabilityTier, `调用方声明档位 ${this.options.capabilityTier}`)
+      await this.audit({
+        eventType: 'capability_check',
+        actor: 'paper-executor',
+        runId,
+        detail: { tier: capability.tier, rationale: capability.rationale, preloadKnowledge: capability.teaching.preloadKnowledge },
+      })
+      // L6 门禁状态机：本次运行的门禁强度账本。快照进审计轨迹，因此
+      // "这次运行被收紧到什么程度"永远是可核验的，不是事后回忆。
+      const gateState = new GateStateMachine(capability.tier)
+
+      // ── L1 知识外置：把技能库写进工作区 ─────────────────────────────
+      // 索引里写着一个读不到的路径，等于没写。运行开始就落盘，模型才能真的
+      // read_file 到它们。没有 finalOutputRoot 时不落盘（审计里如实说明）。
+      const runWorkspace = this.options.finalOutputRoot === undefined
+        ? null
+        : join(this.options.finalOutputRoot, String(runId))
+      const skillsWritten = runWorkspace === null ? [] : materializeSkillLibrary(runWorkspace)
+      await this.audit({
+        eventType: 'skill_library_materialized',
+        actor: 'paper-executor',
+        runId,
+        detail: runWorkspace === null
+          ? { files: 0, reason: 'no finalOutputRoot mounted — 技能库未落盘，索引中的路径不可读' }
+          : { files: skillsWritten.length, dir: SKILL_LIBRARY_DIR, root: runWorkspace },
+      })
+
       const task: PromptSection = { name: 'task', text: `Task: ${input}`, trimPriority: TRIM_TASK }
       const plan = await this.runNode(runId, 'plan', 'plan', 'executor', [
         task,
         { name: 'instruction', text: 'Produce a short numbered execution plan.', trimPriority: KEEP },
       ])
-      const draft = await this.runNode(runId, 'execute', 'execute', 'executor', [
-        task,
+      // ── L2 探索—择优：动笔之前先比较 ────────────────────────────────
+      //
+      // 建模论文的质量差距**大半在"选了什么方法"**。线性流程把选择权交给运气：
+      // 模型一旦开始写代码，探索就结束了，而它此时还没比较过任何替代方案。
+      // 这两个节点把"方法选择"从一次性赌注变成可复核的决策。
+      //
+      // **fail-soft**：任一节点失败只记审计并继续。探索是"想得更好"的机制，
+      // 不是"必须通过"的门——把它做成硬门会让它变成新的零产物来源。
+      const exploreEnabled = this.options.exploreDeepen ?? (initial.mode === 'strict')
+      let decisionRecord = ''
+      if (exploreEnabled && this.options.produceFromExecute === true) {
+        try {
+          const explored = await this.runNode(runId, 'plan', 'explore', 'executor', [
+            task,
+            { name: 'instruction', text: EXPLORE_INSTRUCTION, trimPriority: KEEP },
+            // 本步骤简报**放最后**（最后 = 最高优先级）：它指名这一步必读的文件、
+            // 说明里面有什么、给出负面清单与可机械核验的完成标志。
+            { name: 'this-step', text: this.briefingOf('explore', {
+              target: '每个子问题 2–3 个方案草图（方法名 + 核心思路 + 需要什么 + 主要风险 + 预期深度）',
+              upstream: '题面与已注册的子问题清单已在上文；尚无任何方案。',
+              done: '每个子问题都有 2–3 个候选被逐行引入（"方案一：…"），且没有写任何代码。',
+            }), trimPriority: KEEP },
+          ])
+          const selected = await this.runNode(runId, 'plan', 'select', 'executor', [
+            task,
+            { name: 'sketches', text: `Candidate sketches:
+${explored.text}`, trimPriority: TRIM_PLAN },
+            { name: 'instruction', text: SELECT_INSTRUCTION, trimPriority: KEEP },
+            { name: 'this-step', text: this.briefingOf('select', {
+              target: '一份择优记录：每个子问题一张打分表 + 选定者 + 每个落选者各自的落选理由',
+              upstream: '候选草图已在上文（sketches）。',
+              done: '每个子问题都有 ≥2 个候选、一次明确的选择、以及每个落选者的理由。',
+            }), trimPriority: KEEP },
+          ])
+          decisionRecord = selected.text
+          // **机械检查择优记录**——把"有没有真的比较"从 prompt 约定变成可检出的事实。
+          // 缺陷进 L6 门禁状态机（`explore_deepen` 门禁）：首次违规注入针对性微教学。
+          // 探索是"想得更好"的机制，所以这里是**检出**而不是拒绝。
+          const recordFindings = reviewDecisionRecord(
+            decisionRecord,
+            this.options.ir === undefined
+              ? []
+              : [...this.options.ir.list()].filter(r => r.kind === 'ProblemSpec').map((r) => {
+                const ps = r.value as { problem_id?: unknown }
+                return String(ps.problem_id ?? '')
+              }).filter(id => id.length > 0),
+          )
+          const taught: string[] = []
+          for (const finding of recordFindings) {
+            const disposition = gateState.recordViolation('explore_deepen')
+            if (disposition.microTeaching !== null) taught.push(disposition.microTeaching)
+            await this.audit({
+              eventType: 'gate_state_changed',
+              actor: 'paper-executor',
+              runId,
+              detail: {
+                gate: 'explore_deepen',
+                to: disposition.mode,
+                taught: disposition.microTeaching !== null,
+                defect: finding.id,
+              },
+            })
+          }
+          await this.audit({
+            eventType: 'explore_select_completed',
+            actor: 'paper-executor',
+            runId,
+            detail: {
+              sketches: explored.text.length,
+              decision: selected.text.length,
+              defects: recordFindings.map(f => `${f.id}:${f.description}`),
+              taught: taught.length,
+            },
+          })
+        } catch (error) {
+          // 如实记录，不吞掉、也不因此拒绝运行。
+          await this.audit({
+            eventType: 'explore_select_completed',
+            actor: 'paper-executor',
+            runId,
+            detail: { failed: true, message: String(error).split(String.fromCharCode(10))[0] },
+          })
+        }
+      }
+
+      const draft = await this.runNode(runId, 'execute', 'execute', 'executor', [        task,
         { name: 'plan', text: `Plan:\n${plan.text}`, trimPriority: TRIM_PLAN },
         {
           name: 'instruction',
@@ -1215,10 +1396,30 @@ export class WorkflowExecutor {
           // format is required or demonstrated); the plain prose
           // instruction stays for non-producing runs.
           text: this.options.produceFromExecute === true
-            ? EXECUTE_PROTOCOL_TEACHING
+            ? constitutionText()
             : 'Produce the deliverable text for the task.',
           trimPriority: KEEP,
         },
+        // L2：择优结论注入 EXECUTE——模型按**已经比较过**的方案深挖，
+        // 而不是从零开始想。空串时不产生 section（历史交付逐字节不变）。
+        ...(decisionRecord.length === 0
+          ? []
+          : [{ name: 'decision', text: `Method decision record (explore → select; follow the chosen candidate unless it provably fails):
+${decisionRecord}`, trimPriority: TRIM_PLAN }]),
+        // L1 本步骤简报**放最后**：指名这一步必读的四份技能文档（含里面有什么、
+        // 为什么这一步需要它）、负面清单、以及可机械核验的完成标志。
+        // 它同时进 E1 与 E2 的 prompt（E1 只过滤掉宪法那一段）。
+        ...(this.options.produceFromExecute === true
+          ? [{
+            name: 'this-step',
+            text: this.briefingOf('produce', {
+              target: '一个 ir-container-v1 容器：条目声明 + 可运行的 code + 从 code 输出读回的 results/claims/figures + 八章 narrative',
+              upstream: `题面与已注册的子问题（${String(this.options.ir === undefined ? 0 : [...this.options.ir.list()].filter(r => r.kind === 'ProblemSpec').length)} 个）已在上文；数字尚未产生。${decisionRecord.length === 0 ? '' : '方案决策记录已在上文（decision）——按选定的候选深挖。'}`,
+              done: '容器被准入（首键为版本标记、entries 非空、引用全部解析）；每个子问题都有自己的一条 CRITICAL 结论；正文里的每个数字要么是 {<result_id>} 占位符，要么等于某个 Result 的值。',
+            }),
+            trimPriority: KEEP,
+          }]
+          : []),
       ], input)
 
       let current = draft.text
@@ -1233,14 +1434,46 @@ export class WorkflowExecutor {
       let advisoryDefects: ReviewDefect[] = []
       let gatePassed = false
       for (let round = 0; round <= policy.maxReviseRounds; round += 1) {
-        const review = await this.runNode(
-          runId, 'review', round === 0 ? 'review' : `review #${round + 1}`, 'reviewer',
-          reviewSections(task, current, [...unresolved.values()], this.semanticContextOf()),
-        )
-        const report = parseReviewReport(review.text, [...unresolved.keys()], {
-          context: this.semanticContextOf(),
-          delivered: current,
-        })
+        // L5：一轮评审 = 每个视角一次独立调用（fast 档只跑 1 个视角，成本随档位走）。
+        // 三个 persona 各自独立上下文，缺陷合并进同一本 ledger——**任一视角提出的
+        // 缺陷都不会因为"另一个视角没提"而消失**。
+        const personas = this.reviewPersonasOf(initial.mode)
+        const merged: { defects: ReviewDefect[]; resolved: string[]; nodeId: NodeId | null } = { defects: [], resolved: [], nodeId: null }
+        const multiPersona = personas.length > 1
+        for (const persona of personas) {
+          const review = await this.runNode(
+            runId, 'review',
+            multiPersona ? `review ${PERSONA_SHORT[persona]} #${round + 1}` : (round === 0 ? 'review' : `review #${round + 1}`),
+            'reviewer',
+            [
+              ...reviewSections(task, current, [...unresolved.values()], this.semanticContextOf(), multiPersona ? persona : null),
+              {
+                name: 'this-step',
+                text: this.briefingOf('review', {
+                  target: `一份缺陷清单（JSON）：只含你这一视角（${multiPersona ? PERSONA_SPEC[persona].name : '综合'}）内的缺陷，每条带可指到具体文字或结果的证据`,
+                  upstream: `待评审的正文已在上文（draft）。${multiPersona ? '本轮共 3 个视角并行评审，你的缺陷 id 会被自动加前缀，不必自己编号。' : ''}`,
+                  done: '返回的 JSON 能被解析，且每条缺陷都有证据。零缺陷也是合法结果——但不要为了"有输出"而报没有证据的缺陷。',
+                }),
+                trimPriority: KEEP,
+              },
+            ],
+          )
+          merged.nodeId = merged.nodeId ?? review.nodeId
+          const part = parseReviewReport(review.text, [...unresolved.keys()], {
+            context: this.semanticContextOf(),
+            delivered: current,
+          })
+          // **前缀由 harness 加，不靠 prompt 约定**。
+          //
+          // 三个视角各自从 `D1` 开始编号；若只让模型"记得加前缀"，两个视角写出
+          // 同一个 id 时后一条会覆盖前一条——**缺陷静默消失**，而这是最难发现的
+          // 那类失败（ledger 看起来正常，只是少了一条）。前缀因此在合并处机械施加，
+          // 与模型是否听话无关。单视角时保持原 id（历史归档逐字节不变）。
+          const prefix = multiPersona ? `${PERSONA_SHORT[persona]}-` : ''
+          merged.defects.push(...part.defects.map(d => prefix === '' ? d : { ...d, id: `${prefix}${d.id}` }))
+          merged.resolved.push(...part.resolved.map(id => `${prefix}${id}`))
+        }
+        const report = merged
         for (const id of report.resolved) unresolved.delete(id)
         // W11.5 baseline-18 (审计 A-2): MECHANICAL defects join the same ledger
         // as the reviewer's. The D4 guard used to run only at render time, and
@@ -1263,8 +1496,38 @@ export class WorkflowExecutor {
             unresolved.set(defect.id, defect)
           }
         }
+        // ── L6 门禁状态机：把本轮检出的缺陷记进状态机 ──────────────────
+        //
+        // 这是"约束按需提供"的落点：DORMANT 起步的门禁在**首次**违规时吐出一条
+        // **针对性微教学**（只讲被违反的那一条），由下一轮修订的 prompt 带给模型；
+        // 同维度再次违规则收紧为 ENFORCE。
+        //
+        // 状态机的违规计数不是装饰——它同时是"这次运行被收紧到什么程度"的证据，
+        // 以及下次运行档位的负反馈来源。
+        const microTeaching: string[] = []
         for (const defect of unresolved.values()) {
-          await this.engine.appendPublic(runId, review.nodeId, 'defect', {
+          const gateId = gateIdOfDefect(defect)
+          if (gateId === null) continue
+          const disposition = gateState.recordViolation(gateId)
+          if (disposition.microTeaching !== null) {
+            microTeaching.push(disposition.microTeaching)
+            await this.audit({
+              eventType: 'gate_state_changed',
+              actor: 'paper-executor',
+              runId,
+              detail: { gate: gateId, to: disposition.mode, taught: true, round },
+            })
+          } else if (disposition.enforcing && gateState.violationsOf(gateId) === 2) {
+            await this.audit({
+              eventType: 'gate_state_changed',
+              actor: 'paper-executor',
+              runId,
+              detail: { gate: gateId, to: disposition.mode, taught: false, round },
+            })
+          }
+        }
+        for (const defect of unresolved.values()) {
+          await this.engine.appendPublic(runId, report.nodeId, 'defect', {
             severity: defect.severity,
             description: defect.description,
             defectId: defect.id,
@@ -1295,6 +1558,18 @@ export class WorkflowExecutor {
               text: 'Return the corrected FULL text only — every section heading preserved, same order, no commentary. Never return the task statement.',
               trimPriority: KEEP,
             },
+            // L6：**针对性微教学**——只讲这一轮被违反的那几条规则，几百字，
+            // 不是整本手册。这是"约束按需提供"的机械落点：强模型永远看不到它，
+            // 弱模型在它被证明踩过的维度上精确地拿到帮助。
+            ...(microTeaching.length === 0
+              ? []
+              : [{ name: 'targeted-teaching', text: `Targeted corrections (each one addresses a rule you just violated — read them, they are short):
+${microTeaching.map((m, i) => `${String(i + 1)}. ${m}`).join(String.fromCharCode(10))}`, trimPriority: KEEP }]),
+            { name: 'this-step', text: this.briefingOf('revise', {
+              target: '修订后的**完整正文**（章节标题与顺序全部保留，无评论、无题面复制）',
+              upstream: `当前正文与缺陷清单已在上文（draft / defects）。${microTeaching.length > 0 ? `另有 ${String(microTeaching.length)} 条针对性微教学（targeted-teaching）——它们针对的正是你刚违反的规则。` : ''}`,
+              done: '返回的正文保留了原稿的全部章节标题、未变短到一半以下、且缺陷清单里的每一条都被真正改掉（不是改文字迎合旧数字）。',
+            }), trimPriority: KEEP },
           ],
         )
         // 首次真实产出实测（baseline-4）：修订轮的输出被**直接**当作交付文本，
@@ -1428,38 +1703,190 @@ export class WorkflowExecutor {
               }),
           ).map(v => ({ kind: 'blank_area', reason: v.reason }))
           : []
-      const gradeInput = this.options.deliveryGradeMode === 'fail-soft'
-        ? [...gateFailures, ...reviewFailures, ...vFindings, ...receiveFailures, ...digitFindings, ...blankFindings]
-        : [...gateFailures, ...reviewFailures]
+      const gradeInput = this.options.deliveryGradeMode === 'strict-tolerance'
+        ? [...gateFailures, ...reviewFailures]
+        : [...gateFailures, ...reviewFailures, ...vFindings, ...receiveFailures, ...digitFindings, ...blankFindings]
+      const deliveryPath: DeliveryPath = this.#deliveryPathByRun.get(String(runId)) ?? 'A-produce-chain'
+      // ── 致命条件接上**真实判定**（D4 的修法）────────────────────────
+      // 旧代码把 `executionFailed` 与 `referenceCatastrophe` 写死为 false，
+      // 于是文档承诺的三个致命条件实际只有"空内容"可达——"退化为 MARKED 的
+      // 保护伞有三根伞骨是画上去的"。现在它们各有真实来源。
+      const irRecords = this.options.ir === undefined ? [] : [...this.options.ir.list()]
+      const resultIds = new Set(irRecords.filter(r => r.kind === 'Result').map((r) => {
+        const v = r.value as { result_id?: unknown }
+        return String(v.result_id ?? '')
+      }))
+      // 悬空引用：IR 里**有** claim 声称绑定了 Result，但那些 Result 一个都不存在。
+      // 这才是"正文数字声称有支撑而实际上没有"——与"根本没证据"是两件事。
+      const danglingClaims = irRecords
+        .filter(r => r.kind === 'Claim')
+        .filter((r) => {
+          const v = r.value as { result_refs?: unknown }
+          const refs = Array.isArray(v.result_refs) ? v.result_refs.map(String) : []
+          return refs.length > 0 && refs.every(ref => !resultIds.has(ref))
+        })
+      // 没有可执行证据：未挂载 IR，或一个 Result 都没铸出来。**兜底直通路径除外**
+      // ——它按定义就是那条路，由 DEGRADED 档如实标注（F1：下限不为零）。
+      const unverified = deliveryPath !== 'B-e1-direct' && resultIds.size === 0
       const fatal = {
         emptyContent: !contentExists(current),
-        executionFailed: false,
-        referenceCatastrophe: false,
+        // 致命条件 2 接上真实判定（旧代码写死 false，见 D4）：链路上声明了执行，
+        // 却一个 Result 都没铸出来。它现在是 DEGRADED 的证据，不是硬拒绝——
+        // "代码没跑成"应当交出一份标注清楚的草稿，而不是零产物。
+        executionFailed: deliveryPath === 'A-produce-chain' && resultIds.size === 0,
+        // 致命条件 3：引用灾难（悬空引用）——这才是该拒绝的形态。
+        referenceCatastrophe: danglingClaims.length > 0,
       }
       const graded = gradeDelivery(gradeInput, fatal, {
         ...Object.fromEntries(gradeInput.map(f => [f.kind, f.kind.startsWith('review_defect') ? 'review ledger' : (f.kind.startsWith('V') ? 'verification' : 'delivery')])),
       })
-      // Strict-tolerance keeps the historical fail-closed verdict byte-for-
-      // byte: any failure blocks, none is annotation, and the fatal probe is
-      // not consulted (P0-3 changes fail-soft compositions only).
-      const grade: DeliveryGrade = this.options.deliveryGradeMode === 'fail-soft'
-        ? graded.grade
-        : (gradeInput.length === 0 ? 'CLEAN' : 'BLOCKED')
+
+      // ── L6 闭环：每条 finding 必须有归宿 ─────────────────────────────
+      //
+      // 这是全案唯一真正新增的一层，也是两侧都缺的那一半：一边是"检测到但
+      // 无消费方"，另一边是"findings 一律 BLOCKED → 零产物"。本层的目标不是
+      // 二选一，而是让 findings **有终止状态**：已修 / 显式接受 / 明确驳回。
+      //
+      // 便宜那层（格式）真的自动修 + 复验；贵那层（建模）不假装修过——
+      // 它走"显式接受"并写进交付物附录的已知缺陷表，让读者看得见。
+      // 复验的输入：被检查产物的**当前状态**。指纹由真检查器给出（见
+      // `delivery/recheck.ts`）——绝不由文本长度派生，那是假复验。
+      const contractRequirements: ReadonlyArray<ContractRequirement> = this.options.ir === undefined
+        ? []
+        : [...this.options.ir.list()]
+          .filter(r => r.kind === 'RequirementSpec')
+          .map((r) => {
+            const req = r.value as { requirement_id?: unknown; statement?: unknown }
+            return { requirementId: String(req.requirement_id ?? ''), statement: String(req.statement ?? '') }
+          })
+      const narrativeOf = (): Readonly<Record<string, unknown>> => {
+        const snap = this.#narrativeByRun.get(String(runId))
+        return (snap ?? {}) as Readonly<Record<string, unknown>>
+      }
+      const recheckInput = (text: string): RecheckInput => ({
+        text,
+        narrative: narrativeOf(),
+        requirements: contractRequirements,
+        store: this.options.ir === undefined ? null : new Map([...this.options.ir.list()].map(r => [String((r.value as { [k: string]: unknown }).id ?? Object.values(r.value)[0] ?? ''), r])),
+      })
+
+      // 同一门禁可以对不同产物各报一条、指纹还相同——按出现次序去重 id，
+      // 否则闭环按 id 消解时会反复命中第一条，重复项永远留在 open。
+      const occurrenceOf = new Map<string, number>()
+      const findings: Finding[] = gradeInput.map((f) => {
+        const fingerprint = initialFingerprint(f.kind, recheckInput(current))
+        const key = `${f.kind}::${fingerprint}`
+        const occurrence = occurrenceOf.get(key) ?? 0
+        occurrenceOf.set(key, occurrence + 1)
+        return makeFinding({
+          category: f.kind,
+          severity: severityOfKind(f.kind),
+          checker: f.kind,
+          files: ['paper/main.md'],
+          artifactScope: scopeOfKind(f.kind),
+          evidence: f.reason,
+          // 初始指纹由**与复验同一个函数**给出——两个算法算出的值没法比。
+          fingerprint,
+          fixHint: '见交付附录；格式类由自动返修处理，其余按 artifact_scope 分派。',
+          occurrence,
+        })
+      })
+      const closure = new ClosureSession(findings, this.options.closureBudget ?? DEFAULT_CLOSURE_BUDGET)
+      // 自动返修只做**确定性**那一层，且每一项都必须通过 N30 不变量。
+      // 判定权在"重跑同一 checker 后比对指纹"，不在修复函数自称（C1）。
+      let repairedText = current
+      for (const finding of findings) {
+        const attempt = attemptAutoRepair(finding, repairedText)
+        if (attempt.produced && attempt.semanticsPreserved) {
+          repairedText = attempt.text
+          // 复验：**重跑同一类别的检查器**，指纹变化才算修复。
+          closure.recheck(finding.id, recheckFinding(finding.category, recheckInput(repairedText)))
+        } else if (attempt.semanticsPreserved === false) {
+          // 修复被 N30 拒绝 → 如实记为"无法复验"（与未通过同级），不是"没检出问题"。
+          closure.recheck(finding.id, { kind: 'checker_failed', reason: attempt.detail })
+        }
+        // **状态从闭环读**，不是从我手里那份副本读——闭环持有的是可变视图，
+        // 副本永远显示 open，拿它判断会重复消解（并掩盖 id 撞车）。
+        const live = closure.findings.find(f => f.id === finding.id)
+        if (live !== undefined && live.state === 'open' && this.options.deliveryGradeMode !== 'closed-loop') {
+          // fail-soft：未返修的 finding 走**显式接受**——这是一等公民，不是失败。
+          // 附注如实写明"本轮未跑返修轮次"，所以读者不会把它误读成"修过且复验通过"。
+          closure.resolve(
+            finding.id,
+            'accepted',
+            '本轮未启用闭环返修（fail-soft 档）：如实披露，不阻断交付。复验指纹未重算。',
+          )
+        }
+      }
+      if (repairedText !== current) current = repairedText
+      const closureReport = closure.close()
+      await this.audit({
+        eventType: 'closure_closed',
+        actor: 'paper-executor',
+        runId,
+        detail: {
+          outcome: closureReport.outcome,
+          findings: closureReport.findings.length,
+          unresolved: closureReport.unresolved.length,
+          roundsUsed: closureReport.roundsUsed,
+          rechecks: closureReport.rechecks.length,
+          states: Object.fromEntries(closureReport.findings.map(f => [f.category, f.state])),
+        },
+      })
+      // 门禁状态机快照：本次运行被收紧到什么程度。
+      await this.audit({
+        eventType: 'gate_state_changed',
+        actor: 'paper-executor',
+        runId,
+        detail: {
+          tier: capability.tier,
+          modes: gateState.snapshot().modes,
+          violations: gateState.snapshot().violations,
+          tightened: gateState.tightenedGates(),
+        },
+      })
+
+      // ── L6 四档交付语义 ─────────────────────────────────────────────
+      // 旧形态是布尔的（`gradeInput.length === 0 ? 'CLEAN' : 'BLOCKED'`，且注释
+      // 明写 never MARKED），于是输出分布是双峰的：要么核验通过，要么零产物，
+      // 没有"平庸但可用"这一档——而中间档恰恰是优质论文实际诞生的地方。
+      const ladder = this.options.deliveryGradeMode === 'strict-tolerance'
+        ? null
+        : gradeLadder({
+          grade: graded.grade,
+          annotations: graded.annotations,
+          fatal,
+          closure: closureReport,
+          deliveryPath,
+          unverified,
+          findings: closureReport.findings,
+        })
+      // 四档里**只有硬拒绝**不交付。`DEGRADED` 与 `ESCALATE` 都产出交付物
+      // （前者是"结构完整但未规范核验"，后者是"未完成包 + 缺口清单"），
+      // 因此它们对下游的 legacy grade 都表现为 MARKED——**交付，但带标注**。
+      // 把它们映射成 BLOCKED 会让新阶梯退化成旧的双峰分布，而那正是本次改造
+      // 要消灭的形态。
+      const tier: DeliveryTier | 'STRICT' = ladder === null
+        ? (gradeInput.length === 0 ? 'CLEAN' : 'ESCALATE')
+        : ladder.tier
+      const blocked = (ladder !== null && ladder.hardRefused) || (ladder === null && gradeInput.length > 0)
+      const grade: DeliveryGrade = blocked ? 'BLOCKED' : (tier === 'CLEAN' ? 'CLEAN' : 'MARKED')
       await this.audit({
         eventType: 'delivery_graded',
         actor: 'paper-executor',
         runId,
         detail: {
           grade,
-          mode: this.options.deliveryGradeMode ?? 'strict-tolerance',
+          tier,
+          mode: this.options.deliveryGradeMode ?? 'fail-soft',
+          headline: ladder?.headline ?? '',
           annotations: graded.annotations.length,
           fatal,
         },
       })
-      if (grade === 'BLOCKED') {
-        // TASK 4.2 history: the reviewer gate is part of the same fail-closed
-        // policy. Under strict-tolerance any unpassed gate refuses; under
-        // fail-soft only the three fatal conditions land here.
+      if (blocked) {
+        // 唯一真正的硬拒绝：连"未完成包"都产不出，或命中编造引用。
+        // **ESCALATE 不在这里**——它要产出"未完成包"，不是拒绝交付。
         await this.engine.transitionRun(runId, 'failed')
         await this.audit({
           eventType: 'gate_failed',
@@ -1469,11 +1896,14 @@ export class WorkflowExecutor {
             gate: gradeInput.length === 0 ? 'fatal-content-probe' : 'review',
             defects: outstandingList.length,
             reviews: policy.maxReviseRounds + 1,
+            refusalReason: ladder?.refusalReason ?? null,
           },
         })
         throw new WorkflowExecutionError(
           'gate-failed',
-          `run '${runId}' blocked at delivery grade ${grade}${gradeInput.length === 0 ? ' (fatal content probe)' : ` after ${policy.maxReviseRounds + 1} reviews`}`,
+          ladder?.refusalReason === null || ladder?.refusalReason === undefined
+            ? `run '${runId}' blocked at delivery grade ${grade}${gradeInput.length === 0 ? ' (fatal content probe)' : ` after ${policy.maxReviseRounds + 1} reviews`}`
+            : `run '${runId}' blocked at delivery grade ${grade}: ${ladder.refusalReason}`,
         )
       }
 
@@ -1498,9 +1928,18 @@ export class WorkflowExecutor {
           .filter(r => r.kind === 'BoundaryDeclaration')
           .map(r => r.value as BoundaryDeclaration)
       const boundaryAppendix = renderBoundaryAppendix(boundaryDeclarations)
-      const deliverableText = grade === 'MARKED'
-        ? `${current}${boundaryAppendix}${renderDeliveryAppendix(grade, graded.annotations)}`
-        : `${current}${boundaryAppendix}`
+      // ── L6 交付形态：四档语义 + 已知缺陷表 ───────────────────────────
+      // 旧形态只在 MARKED 时附一段"未通过项"；现在**任何非 CLEAN 的档位**
+      // 都要带两样东西：
+      //   ① 顶部一句话状态（`renderTierBanner`）——一份带未消解缺陷的交付物，
+      //      头部不能显示"通过"；
+      //   ② 阶梯附录——MARKED/DEGRADED 带已知缺陷表，ESCALATE 带缺口清单。
+      // CLEAN 时两者都为空串，因此历史 CLEAN 交付逐字节不变。
+      const tierBanner = ladder === null || ladder.tier === 'CLEAN' ? '' : renderTierBanner(ladder, closureReport.findings.length)
+      const ladderAppendix = ladder?.appendix ?? (grade === 'MARKED' ? renderDeliveryAppendix(grade, graded.annotations) : '')
+      const deliverableText = tierBanner === '' && ladderAppendix === ''
+        ? `${current}${boundaryAppendix}`
+        : `${tierBanner === '' ? '' : `${tierBanner}\n\n`}${current}${boundaryAppendix}${ladderAppendix}`
 
       // TASK 5.0.5 / INV-014: the ONLY path to a DeliverableArtifact
       // is `promoteCandidateToDeliverable`. The executor no longer
@@ -1887,6 +2326,23 @@ export class WorkflowExecutor {
       runnerEntryFile: produceRun.entryFile,
       timeoutMs: produceRun.timeoutMs,
     })
+    // 配置缺口（部分准入的产物）：记进审计，并在链尾进 findings。
+    // 它是"符号表不全"的如实上报，不是链的失败——见 execution-producer.ts 的注释。
+    const configGaps = executed.ok ? (executed.configGaps ?? []) : []
+    if (configGaps.length > 0) {
+      await this.audit({
+        eventType: 'ir_entry_written',
+        actor: 'paper-executor',
+        runId,
+        detail: {
+          kind: 'NumericConfig',
+          id: `NC-${runNs}`,
+          stage: 'config-gap',
+          gaps: configGaps.length,
+          reason: configGaps[0],
+        },
+      })
+    }
     if (!executed.ok) {
       return { ok: false, code: executed.code, reason: `code run refused: ${executed.reason}` }
     }
@@ -2233,8 +2689,89 @@ export class WorkflowExecutor {
     // paper referenced evidence that no longer existed anywhere. Persist them
     // next to the figures under the same sink contract.
     await this.persistDataFiles(runId, executed.outputs.map(o => ({ basename: basename(o.locator), bytes: o.bytes })))
+
+    // ── L3 符号证据通道（harness 侧驱动）──────────────────────────────
+    // 从已声明的 EquationSpec 直接推出形式性质：表达式可解析、自由符号已声明、
+    // lhs/rhs 与自由符号一致、单位非空。**它判不了"方程对不对"**，因此证据级别是
+    // `structural_check`，论文里只能说"形式一致"。
+    //
+    // fail-soft：sympy 不可用 / 脚本跑不通 → 落 unverifiable 并**如实写进附录**，
+    // 绝不因此拒绝交付（未执行与未通过同级，但都不拦交付——见 C3 与四档阶梯）。
+    const symbolic = this.options.ir === undefined
+      ? { claims: [], unverifiable: [] }
+      : runEquationConsistency(
+        this.options.finalOutputRoot === undefined ? process.cwd() : join(this.options.finalOutputRoot, String(runId)),
+        [...this.options.ir.list()]
+          .filter(r => r.kind === 'SymbolSpec')
+          .map((r) => {
+            const s = r.value as { symbol_id?: unknown; token?: unknown; unit?: unknown }
+            return { id: String(s.symbol_id ?? ''), token: String(s.token ?? ''), unit: String(s.unit ?? '') }
+          }),
+        [...this.options.ir.list()]
+          .filter(r => r.kind === 'EquationSpec')
+          .map((r) => {
+            const e = r.value as {
+              equation_id?: unknown
+              expression?: unknown
+              lhs_symbols?: unknown
+              rhs_symbols?: unknown
+              unit?: unknown
+            }
+            return {
+              id: String(e.equation_id ?? ''),
+              expression: String(e.expression ?? ''),
+              lhs_symbols: Array.isArray(e.lhs_symbols) ? e.lhs_symbols.map(String) : [],
+              rhs_symbols: Array.isArray(e.rhs_symbols) ? e.rhs_symbols.map(String) : [],
+              unit: String(e.unit ?? ''),
+            }
+          }),
+      )
+    if (symbolic.claims.length > 0) {
+      await this.audit({
+        eventType: 'symbolic_channel_run',
+        actor: 'paper-executor',
+        runId,
+        detail: {
+          claims: symbolic.claims.length,
+          passed: symbolic.claims.filter(c => c.passed).length,
+          failed: symbolic.claims.filter(c => !c.passed).map(c => c.claim_id),
+          level: 'structural_check',
+        },
+      })
+    }
+    // ── L4 结构指纹：把"这次交付的模型长什么样"变成可审计的身份 ─────────
+    //
+    // 它让两个问题可回答：①同一次运行的不同尝试之间，模型结构**变了没有**
+    // （换方法 / 增删方程 / 调假设都会改变它，而数值指纹对这三类完全无感）；
+    // ②一份**已交付**的论文与它当时的声明是否一致。
+    //
+    // 同一口径也被 `delivery/recheck.ts` 用作建模类 finding 的复验指纹——
+    // 于是"改文字冒充改建模"在结构上不可能通过复验。
+    const structureFingerprint = this.options.ir === undefined
+      ? null
+      : structHashOf(modelStructureOf(new Map([...this.options.ir.list()].map(r => [
+        String((r.value as { [k: string]: unknown })['id'] ?? Object.values(r.value)[0] ?? ''), r,
+      ]))))
+    if (structureFingerprint !== null) {
+      await this.audit({
+        eventType: 'structure_fingerprint',
+        actor: 'paper-executor',
+        runId,
+        detail: {
+          struct_hash: structureFingerprint,
+          attempt,
+          equations: container.entries.filter(e => e.kind === 'EquationSpec').length,
+          assumptions: container.entries.filter(e => e.kind === 'AssumptionSpec').length,
+        },
+      })
+    }
+    const symbolicAppendix = renderSymbolicEvidence(symbolic.claims)
     const codeText = container.code ?? ''
-    return { ok: true, reportText: rendered.text, loadCode: () => codeText }
+    return {
+      ok: true,
+      reportText: symbolicAppendix.length === 0 ? rendered.text : `${rendered.text}${symbolicAppendix}`,
+      loadCode: () => codeText,
+    }
   }
 
   /**
@@ -2284,6 +2821,42 @@ export class WorkflowExecutor {
    * @param mode - the run's execution mode.
    * @returns the policy that was evaluated together with its verdict.
    */
+  /**
+   * L5：本次运行跑几个评审视角。
+   *
+   * **成本随档位走**——这是**一个**决定，所以它写在**一个**地方：
+   *
+   * | run mode | 视角数 | 理由 |
+   * |---|---|---|
+   * | `strict` | **3** | 质量档：多视角覆盖正是这一档买到的东西。一篇稿子被"数学严格性 / 应用相关性 / 写作与呈现"三个独立上下文各审一遍，比被一个"总评审"审一遍更能发现**跨维度**的缺陷 |
+   * | `fast` | 1 | 快速档：它的价值是尽快拿到一份可交的稿，把评审成本压到最低 |
+   * | `exploratory` | 1 | 内部/机制验证档；需要时用 `reviewPersonas` 显式开启 |
+   *
+   * 三视角会让评审调用数变为三倍（一轮 3 次而不是 1 次）。**这个代价是显式的**：
+   * 它由档位决定，不藏在默认值里。
+   *
+   * @param mode - run mode。
+   */
+  /**
+   * 本步骤简报（{@link stepBriefing} 的薄包装）。
+   *
+   * 抽成一个方法而不是在各调用点直接调，是为了将来把**真实的上游状态**喂进去
+   * （例如"上一次评审报了 4 条缺陷"），而不是写死一句泛泛的"上游已就绪"。
+   * 现在各调用点给的就是这一步真实的目标与上游事实。
+   */
+  private briefingOf(
+    step: BriefingStep,
+    facts: { readonly target: string; readonly upstream: string; readonly done: string },
+  ): string {
+    return stepBriefing(step, facts)
+  }
+
+  private reviewPersonasOf(mode: RunMode): ReadonlyArray<ReviewPersona> {
+    const declared = this.options.reviewPersonas
+    const count = declared ?? (mode === 'strict' ? 3 : 1)
+    return count === 1 ? ['mathematical-rigor'] : REVIEW_PERSONAS
+  }
+
   private async enforceDelivery(runId: RunId, mode: string): Promise<DeliveryVerdict> {
     // TASK 5.0.11: the policy is now told the runtime guard's *actual*
     // readiness instead of assuming it. `assertRuntimeReady` at the top
@@ -2316,7 +2889,9 @@ export class WorkflowExecutor {
     // decision flows to `gradeDelivery`, whose CLOSED fatal list is the only
     // thing that can still BLOCK. Strict-tolerance keeps the historical
     // fail-closed behaviour byte-for-byte.
-    const failSoft = this.options.deliveryGradeMode === 'fail-soft'
+    // 非 strict 的档位（fail-soft / closed-loop）都不在这里拒绝：findings 的
+    // 归宿由 L6 闭环决定，而不是由这道门直接终止产线。
+    const failSoft = this.options.deliveryGradeMode !== 'strict-tolerance'
     if (decision.allowed) return { policy, decision }
     // Record one audit entry per failure kind so external auditors can
     // triage without re-running the executor.
@@ -2663,11 +3238,24 @@ export class WorkflowExecutor {
             // explicitly via `e2NormalizationPrompt(e1Text, …)`, so dropping
             // it here loses nothing and removes the conflict.
             const requiredIds = (this.semanticContextOf()?.requiredOutputs ?? []).map(o => o.requirement_id)
-            const e1Sections = sections.filter(s => s.text !== EXECUTE_PROTOCOL_TEACHING)
+            // E1 要**两个**东西都不要：容器教学（D4 的教训），以及为容器而写的
+            // 本步骤简报。E1 的任务是写散文分析——给它看"首键必须是版本标记"这类
+            // 话，等于让两套指令打架（实测：同一 prompt 上锚点合规率在 0 / 2 / 12
+            // 之间跳，不稳定的来源是矛盾本身，不是模型能力）。
+            // 所以 E1 拿它**自己的**简报：锚点语法 + 逐问覆盖 + 明说此阶段不写容器。
+            const e1Sections = sections.filter(s => s.text !== constitutionText() && s.name !== 'this-step')
             const e1Base = e1Sections.length === sections.length
               ? prompt
               : await this.fitPrompt(runId, node.id, role, e1Sections)
-            const e1Prompt = `${e1Base}\n\n${e1AnalysisInstruction(requiredIds)}`
+            const e1Prompt = [
+              e1Base,
+              e1AnalysisInstruction(requiredIds),
+              this.briefingOf('analyze', {
+                target: '一份自由散文的建模分析（Markdown）：逐问给出这一问要什么、用哪个方法族、为什么是它、模型是什么、必须假设什么、怎么验证',
+                upstream: '题面与已注册的子问题已在上文；数字尚未产生。此阶段**不写代码、不写 JSON、不写容器**——那是下一步的事。',
+                done: '每个子问题都有一段以 [[REQUIREMENT: <id>]] 行首锚点开头的推理，且每条假设都带 [[ASSUMPTION: <名字>]] 行首锚点（名字是可用 id，不是占位符）。',
+              }),
+            ].join(String.fromCharCode(10) + String.fromCharCode(10))
             const e1 = await this.call(role, e1Prompt)
             await this.recordUsage(runId, route.provider, route.model, e1.usage)
             // W8.11-B2: persist the analysis BEFORE anything judges it. The
@@ -2700,7 +3288,7 @@ export class WorkflowExecutor {
               detail: { kind: 'E1Reused', id: 'e1', nodeId: node.id, stage: 'receive', chars: e1Text.length },
             })
           }
-          const baseE2Prompt = e2NormalizationPrompt(e1Text, EXECUTE_PROTOCOL_TEACHING)
+          const baseE2Prompt = e2NormalizationPrompt(e1Text, constitutionText())
           // W8.10-B1: the drift guidance. Empty on the first attempt (the
           // prompt is then byte-identical to W8.9's — the backfill is confined
           // to retries, which is also what keeps the cassette corpus valid for
@@ -2726,8 +3314,74 @@ export class WorkflowExecutor {
               },
             })
           }
-          const e2 = await this.call(role, e2Prompt)
+          // W12-A1 — E2 走**带自检工具**的调用。四轮实测的结论是：把判据
+          // 写在 prompt 里（"提交前请自查 entries 非空、id 不重复…"）没有用
+          // ——模型不会因为被要求就执行。做成工具后，判据由 harness 自己跑
+          // （`checkCandidateContainer` 复用 `parseModelContainer` 等真实准入
+          // 路径），模型拿到的是逐条可执行的问题，而不是一段叮嘱。
+          const selfCheckTrace: SelfCheckCallInfo[] = []
+          const e2 = await this.callWithSelfCheck(
+            role,
+            e2Prompt,
+            containerText => checkCandidateContainer(containerText, {
+              scopeRefs: this.problemScopesOf(),
+              e1Text,
+              requiredOutputIds: (this.semanticContextOf()?.requiredOutputs ?? []).map(o => o.requirement_id),
+            }),
+            info => selfCheckTrace.push(info),
+          )
+          // 自检最后告诉它的那一条，喂给**下一次尝试**的回灌。
+          //
+          // 这是 strict-9 实测出来的缺口：模型把 3 次工具额度用满，然后照样提交了
+          // 工具已经指出问题的容器。工具是"提交前自己跑一遍检查"，它需要能把结论
+          // **带过这一轮**——否则额度用完就等于什么都没发生。
+          //
+          // 注意这不是把工具变成门：它仍然只影响**下一次尝试收到的提示文本**，
+          // 准入判定一个字都没变。
+          const lastVerdict = selfCheckTrace.at(-1)
+          if (lastVerdict !== undefined && !lastVerdict.admissible) {
+            const prior = this.#e2ViolationsByRun.get(runKey) ?? []
+            this.#e2ViolationsByRun.set(String(runId), [...prior, {
+              code: 'SELF_CHECK_REPORTED',
+              // 按构造**无数字**：这条文本会被 `e2DriftGuidance` 逐行
+              // `stripNumericLiterals`（E2 的零数字纪律），直接引用工具原文会被剥成
+              // 乱码（`e1_span 过短（3 < 10）` → `e1_span 过短（ < ）`）。
+              // 类别名不含数字，原文让模型自己再调一次工具去看。
+              reason: `你自己调用的自检工具在提交前已经报出问题，但容器里它们仍在：${selfCheckCategorySentence(lastVerdict.problems)}。提交前**再调用一次** ${SELF_CHECK_TOOL_NAME}，把它报的每一条都改掉——不要再交一份工具刚说过有问题的容器。`,
+            }].slice(-3))
+          }
           await this.recordUsage(runId, route.provider, route.model, e2.usage)
+          // 每一次**调用**都单独记一条（在崩溃点之前就写下了）。汇总那条留在
+          // 返回之后——它回答"这一轮自检整体用了几次"，逐条那条回答"到底有没有
+          // 调用过"，两个问题不一样，且后者在崩溃时仍然必须可答。
+          for (const info of selfCheckTrace) {
+            await this.audit({
+              eventType: 'ir_entry_written',
+              actor: 'paper-executor',
+              runId,
+              detail: {
+                kind: 'E2SelfCheckCall',
+                id: `e2-self-check-${String(info.callIndex)}`,
+                nodeId: node.id,
+                stage: 'receive',
+                round: info.round,
+                container_chars: info.containerChars,
+                // 工具当时给出的结论。有了它，"工具报了但它没改"与"工具没报"
+                // 才分得出来——strict-9 里这两者当时无法区分。
+                admissible: info.admissible,
+                problem_count: info.problems.length,
+                problems: info.problems.slice(0, 3),
+              },
+            })
+          }
+          if (e2.toolCalls > 0) {
+            await this.audit({
+              eventType: 'ir_entry_written',
+              actor: 'paper-executor',
+              runId,
+              detail: { kind: 'E2SelfCheck', id: 'e2-self-check', nodeId: node.id, stage: 'receive', calls: e2.toolCalls },
+            })
+          }
           // W8.11-B2: persist the container too. The fidelity gate judges the
           // PAIR (E1 text, container); storing only one half would leave the
           // verdict half-checkable. Note this is a per-attempt artifact — each
@@ -3034,6 +3688,16 @@ export class WorkflowExecutor {
               const err = new Error(`EXECUTE production chain refused: ${chain.reason}`)
               ;(err as { code?: string }).code = chain.code
               ;(err as { w4Class?: FailureClass }).w4Class = failureClassOf(chain.code)
+              // W8.6-A4 的同一条要求，此前**只做到了容器准入那一条路径上**——
+              // 生产链这条漏了，于是熔断键里的指纹恒为空串，键变成与输出无关的
+              // `DRIFT:prose_contract:`，第 2 次尝试必然跳闸。
+              //
+              // 一次真实运行实测到的代价：两次 E2 输出**并不相同**（17,715 / 17,891
+              // 字节，哈希不同），却因空指纹被判成"确定性重复"，熔断器在第 2 次就
+              // 把 DRIFT 预算（4 次）砍到 2 次，运行提前落到兜底路径。
+              // 这正是 W8.6 注释里警告过的过触发形态（"failure message alone is NOT
+              // sufficient"）——只是漏在了另一条路径上。
+              ;(err as { outputFingerprint?: string }).outputFingerprint = sha256Hex(text)
               throw err
             }
             this.#codeLoaders.set(String(runId), chain.loadCode)
@@ -3510,6 +4174,206 @@ export class WorkflowExecutor {
    *  caller must classify this as `truncated`, never as a model contract
    *  violation (parse_failed/schema_violation were the pre-W8.6
    *  misattribution, the "假红"). */
+  /**
+   * 带**一个只读自检工具**的模型调用 —— 让"提交前先检查"成为可执行的调用。
+   *
+   * ## 为什么不是"再写一段教学"
+   *
+   * 把自检写进 prompt 之后，真实运行里**仍然**出现 2 次容器结构失败与 3 次散文契约
+   * 失败。结论：**模型不会因为被告知就照做。** 一段请求与一次调用是两件事。
+   *
+   * ## 边界（刻意收窄）
+   *
+   * 只有一个工具，且**只读**：`check_container` 跑的是门禁自己的判据
+   * （`checkCandidateContainer` 复用 `parseModelContainer` 等），返回逐条问题。
+   * 它不改任何状态、不碰文件、不执行代码——因此即使模型滥用，代价上限只是多几轮。
+   *
+   * ## 轮次上限与失败语义
+   *
+   * 最多 {@link SELF_CHECK_MAX_ROUNDS} 轮工具调用；到顶后**要求模型直接给出最终答案**
+   * （把"不要再调用工具"作为最后一条消息），而不是把这一轮判失败。工具是帮忙的，
+   * 不是新的门。
+   *
+   * @param role - 调用角色。
+   * @param prompt - 首轮 prompt。
+   * @param selfCheck - 自检的执行体（由调用方绑定 run 的真实上下文）。
+   */
+  private async callWithSelfCheck(
+    role: PaperRole,
+    prompt: string,
+    selfCheck: (containerText: string) => SelfCheckVerdict,
+    /**
+     * 每次**调用工具**时回调一次（在跑判据之前）。
+     *
+     * 存在的理由是一个观测缺口：strict-8 真实运行里，工具通道刚打开就撞上端点
+     * 把 `delta.content` 写成 `null`，异常穿透到调用层。因为异常发生在返回
+     * **之后**的审计写入之前，事后**无法判断**模型到底有没有调用过工具——
+     * "模型不爱用工具"与"工具根本没送到"分不出来。观测点必须在**崩溃点之前**。
+     */
+    onToolCall?: (info: SelfCheckCallInfo) => void,
+  ): Promise<{ text: string; usage: TokenUsage | undefined; truncated: boolean; toolCalls: number }> {
+    const route = this.settings.snapshot()[role]
+    const tools = [{
+      name: SELF_CHECK_TOOL_NAME,
+      description: [
+        'Validate a candidate ir-container-v1 BEFORE you submit it.',
+        'Returns the list of problems that would make the container refused at admission.',
+        'It only checks what is checkable before your code runs (parse, entries shape, duplicate ids, per-sub-problem ModelSpec, Result locators, assumption anchors).',
+        'It does NOT check numeric_config.json keys or jsonPath values — those exist only after your code runs.',
+        'Call it as many times as you like before your final answer.',
+      ].join(' '),
+      parameters: {
+        type: 'object',
+        properties: {
+          container_json: { type: 'string', description: 'the full JSON container text you are about to submit' },
+        },
+        required: ['container_json'],
+        additionalProperties: false,
+      },
+    }]
+
+    // 对话累积：首轮 prompt + 每轮的 assistant 文本与工具结果。
+    type Turn =
+      | { readonly role: 'user'; readonly content: string }
+      | { readonly role: 'assistant'; readonly content: string }
+      | { readonly role: 'tool'; readonly content: string; readonly callId: string }
+    const turns: Turn[] = [{ role: 'user', content: prompt }]
+    let totalUsage: TokenUsage | undefined
+    let truncated = false
+    let toolCalls = 0
+    // 到顶之后**还**要一次调用：那一次是用来收最终答案的，不再执行工具。
+    // 因此循环上界是 MAX + 2（MAX 轮执行工具 + 1 轮下发"给最终答案" +
+    // 1 轮收回它）。
+    let askedForFinal = false
+    /**
+     * 工具已经判过"可准入"——接下来那一轮就是最终答案。
+     *
+     * ## 为什么必须在这里收口（strict-12 实测）
+     *
+     * 把额度从 3 提到 6 之后，模型**不是收敛，而是震荡**：
+     *
+     *   round 0  19,730  不可准入
+     *   round 1  29,559  不可准入
+     *   round 2  40,017  不可准入
+     *   round 3  21,567  **可准入**   ← 已经拿到了干净容器
+     *   round 4  38,835  不可准入     ← 又改坏了
+     *   round 5  23,271  不可准入
+     *
+     * 然后它提交了一份**连 JSON 都不合法**的文本。所以"多给几轮"在这里是负收益：
+     * 工具一旦批准，正确的动作是**立刻收口**，而不是让它继续编辑。
+     *
+     * 这不是把工具变成门：准入判定一个字都没变。它只是把"工具说可以了"当作
+     * **循环的终止条件**——一个自然的目标状态，而不是新的约束。
+     */
+    let approved = false
+
+    for (let round = 0; round < SELF_CHECK_MAX_ROUNDS + 2; round += 1) {
+      const assembler = new BlockAssembler()
+      // 三种轮次各自用**正确的消息类型**：工具结果走 `createToolResultMessage`
+      // （role=user + source.kind=tool + toolCallId），而不是伪装成一条用户消息——
+      // 后者会让模型把工具输出误读成新的用户指令。
+      const messages = turns.map(turn => turn.role === 'assistant'
+        ? createAssistantMessage({ content: [{ type: 'text', text: turn.content }], source: { provider: route.provider, model: route.model } })
+        : turn.role === 'tool'
+          ? createToolResultMessage({ callId: turn.callId as never, content: [{ type: 'text', text: turn.content }], isError: false })
+          : createUserMessage({ content: [{ type: 'text', text: turn.content }], source: { kind: 'user' } }))
+      for await (const chunk of this.provider.stream({
+        provider: route.provider,
+        model: route.model,
+        system: SYSTEM_PROMPTS[role],
+        messages,
+        tools,
+      })) {
+        assembler.push(chunk)
+      }
+      const finish = assembler.finish
+      if (finish.kind === 'error' || finish.kind === 'aborted') {
+        throw new ModelCallFailure(finish.failure, assembler.usage)
+      }
+      totalUsage = mergeUsage(totalUsage, assembler.usage)
+      if (finish.kind === 'max-tokens') truncated = true
+
+      const text = assembler.blocks().filter(b => b.type === 'text').map(b => b.text).join(String.fromCharCode(10))
+      const calls = assembler.blocks().filter(b => b.type === 'tool-call')
+
+      // 没有工具调用 = 这就是最终答案。
+      if (calls.length === 0) {
+        return { text, usage: totalUsage, truncated, toolCalls }
+      }
+
+      // 上一轮工具已批准：这一轮的文字就是最终答案（指令已要求逐字给出）。
+      if (approved) {
+        return { text, usage: totalUsage, truncated, toolCalls }
+      }
+
+      // 到顶后仍调用工具：**不再无限循环**，就用这一轮的文本作为最终答案。
+      // 工具是帮忙的，不是新的门——到顶不得把整次尝试判失败（那会让"模型
+      // 太爱自检"变成一个比"不自检"更差的结果）。
+      if (askedForFinal) {
+        return { text, usage: totalUsage, truncated, toolCalls }
+      }
+
+      // 额度用满：明确要求给最终答案，这一轮的调用**不执行**。
+      if (toolCalls >= SELF_CHECK_MAX_ROUNDS) {
+        askedForFinal = true
+        turns.push({ role: 'assistant', content: text })
+        // 到顶时的措辞必须点明一件**实测出来的**事：自检的结论只对它当时看到的
+        // 那份文本成立。strict-11 的 attempt 1 里工具第三轮判了"可准入"，而模型
+        // 之后仍在改，提交的文本从未被检查过——准入侧于是以 B3 拒了它
+        // （`A-INFINITE-RETURN-LOOP: e1_span 在 E1 中找不到逐字匹配`）。
+        // 所以这句话不是"再想想"，而是**明确的提交纪律**。
+        turns.push({ role: 'user', content: `You have used the self-check tool ${String(toolCalls)} times, which is the limit. Produce your FINAL container now. IMPORTANT: the checks you ran applied to the exact text you passed them. If you have edited the container since your last check, that verdict no longer applies and you are submitting something unverified — so submit the checked text VERBATIM, or make no further edits. Do not call ${SELF_CHECK_TOOL_NAME} again.` })
+        continue
+      }
+
+      turns.push({ role: 'assistant', content: text })
+      for (const call of calls) {
+        toolCalls += 1
+        const args = parseToolArguments(call.arguments)
+        const containerText = typeof args['container_json'] === 'string' ? args['container_json'] : ''
+        // 自检**不得把调用弄失败**：判据自己崩了，正确答案是"这次没帮上忙"，
+        // 而不是让整次 E2 调用作废（见 `runSelfCheckSafely` 的注释）。
+        const verdict = containerText.length === 0
+          ? { admissible: false, problems: ['container_json 缺失或不是字符串——把完整的容器文本放进这个参数。'], summary: '参数不合法', notChecked: [] }
+          : runSelfCheckSafely(selfCheck, containerText)
+        // 记痕在**判据之后**：记的是"工具告诉过它什么"，而不只是"它调用过"。
+        // strict-9 暴露的缺口正是这个——模型用了满 3 次工具，然后**照样**提交了
+        // 带 `e1_span 过短` 的容器；而审计里只有 `calls: 3`，看不出工具当时
+        // 到底报了什么问题。没有这一条，"工具报了但它没改"与"工具没报"
+        // 事后分不出来。
+        onToolCall?.({
+          round,
+          callIndex: toolCalls,
+          containerChars: containerText.length,
+          admissible: verdict.admissible,
+          problems: verdict.problems,
+        })
+        if (verdict.admissible) approved = true
+        turns.push({
+          role: 'tool',
+          callId: String(call.id),
+          content: [
+            verdict.summary,
+            ...verdict.problems.map(p => `  - ${p}`),
+            ...(verdict.notChecked.length === 0 ? [] : ['（本工具判不了的：', ...verdict.notChecked.map(n => `  · ${n}`), '）']),
+          ].join(String.fromCharCode(10)),
+        })
+      }
+
+      // 工具批准了某一份文本 → **立刻收口**：要求模型把那份文本原样作为最终答案
+      // 给出，然后下一轮直接取走（见上面 `approved` 的分支）。不再执行任何工具，
+      // 也不给它继续编辑的机会——strict-12 证明了继续编辑只会改坏。
+      if (approved) {
+        turns.push({ role: 'assistant', content: text })
+        turns.push({ role: 'user', content: `The self-check tool reported that the container you just passed it is ADMISSIBLE. Output that exact container text now as your final answer, byte for byte, with no edits. Do not call ${SELF_CHECK_TOOL_NAME} again.` })
+        continue
+      }
+    }
+    // 不可达：`askedForFinal` 最迟在第 MAX 轮被置位，下一轮必然 return。
+    // 留一个**有文本的**兜底而不是抛错——抛错会把一次本可交付的尝试零掉。
+    return { text: '', usage: totalUsage, truncated, toolCalls }
+  }
+
   private async call(role: PaperRole, prompt: string): Promise<{ text: string; usage: TokenUsage | undefined; truncated: boolean }> {
     const route = this.settings.snapshot()[role]
     const assembler = new BlockAssembler()
@@ -3739,6 +4603,100 @@ export function normalizeInterpretationLocators(
   return { ok: true, value: copy as Record<string, unknown> }
 }
 
+/**
+ * 把一条评审缺陷映射到**门禁 id**（状态机的键）。
+ *
+ * 映射是**保守**的：认不出来就返回 null，不进状态机。理由与门禁登记表一致——
+ * 一个"猜出来的"门禁 id 会污染违规计数，让档位反馈建立在不存在的维度上。
+ *
+ * @param defect - 评审缺陷。
+ */
+function gateIdOfDefect(defect: ReviewDefect): string | null {
+  const text = defect.description.toLowerCase()
+  if (defect.id.startsWith('RES-') || text.includes('numeric') || text.includes('数字')) return 'numeric_consistency'
+  if (text.includes('figure') || text.includes('图')) return 'figure_required'
+  if (text.includes('assumption') || text.includes('假设')) return 'assumption_structure'
+  if (text.includes('blank') || text.includes('空')) return 'blank_area'
+  if (text.includes('reference') || text.includes('文献') || text.includes('引用')) return 'reference_validation'
+  if (text.includes('prose') || text.includes('chapter') || text.includes('章节') || text.includes('篇幅')) return 'prose_contract'
+  if (text.includes('config') || text.includes('dt') || text.includes('配置')) return 'config_consistency'
+  if (text.includes('stale') || text.includes('陈旧')) return 'stale_detection'
+  return null
+}
+
+/**
+ * 自检工具允许的**最多轮次**。
+ *
+ * 到顶后要求模型直接给最终答案，而不是把这一轮判失败——工具是帮忙的，不是新的门。
+ * 3 轮的理由：一次修完（第 1 轮）＋一次确认（第 2 轮）已经足够，第 3 轮是给
+ * "改一处又碰坏另一处"的余地；再多就说明模型在打转，那时该让它交卷。
+ */
+/**
+ * 自检工具的轮次上限。
+ *
+ * **从 3 提到 6，依据是实测**（strict-11 attempt 1 的逐次调用）：
+ *
+ *   round 0  21,321 字  不可准入（0 个问题？—— 见下）
+ *   round 1  34,984 字  不可准入（3 个问题）
+ *   round 2  41,685 字  **可准入**
+ *
+ * 模型是在**用工具迭代**：每一轮都把它报的问题改掉，第三轮拿到了干净容器。
+ * 3 轮的额度刚好够它**走到干净**，却不够它**再确认一次**——而它在拿到干净结论
+ * 之后还继续改（见下一条注释），于是提交的文本从未被检查过。
+ *
+ * 上限的作用是防死循环，不是省轮次；6 轮在成本上仍可接受（每次调用都带完整
+ * 对话重发，这是已知代价）。
+ */
+export const SELF_CHECK_MAX_ROUNDS = 6
+
+/**
+ * 一次自检**调用**的记录（在跑判据之后、返回之前产生）。
+ *
+ * 它同时是审计的载荷：`admissible` 与 `problems` 让事后能分辨"工具报了但它没改"
+ * 与"工具根本没报"——strict-8 那次崩溃之后这两者无法区分，正是因为审计里只有
+ * 一个调用计数。
+ */
+interface SelfCheckCallInfo {
+  readonly round: number
+  readonly callIndex: number
+  readonly containerChars: number
+  readonly admissible: boolean
+  readonly problems: ReadonlyArray<string>
+}
+
+/** 累加两轮 usage（工具循环会产生多次调用，账要合起来记）。 */
+function mergeUsage(a: TokenUsage | undefined, b: TokenUsage | undefined): TokenUsage | undefined {
+  if (a === undefined) return b
+  if (b === undefined) return a
+  const sum = (x: number | undefined, y: number | undefined): number => (x ?? 0) + (y ?? 0)
+  const merged: TokenUsage = {
+    inputTokens: a.inputTokens + b.inputTokens,
+    outputTokens: a.outputTokens + b.outputTokens,
+  }
+  if (a.cacheReadTokens !== undefined || b.cacheReadTokens !== undefined) {
+    merged.cacheReadTokens = sum(a.cacheReadTokens, b.cacheReadTokens)
+  }
+  if (a.cacheWriteTokens !== undefined || b.cacheWriteTokens !== undefined) {
+    merged.cacheWriteTokens = sum(a.cacheWriteTokens, b.cacheWriteTokens)
+  }
+  if (a.reasoningTokens !== undefined || b.reasoningTokens !== undefined) {
+    merged.reasoningTokens = sum(a.reasoningTokens, b.reasoningTokens)
+  }
+  return merged
+}
+
+/** 解析工具调用参数；非法 JSON 返回空对象（由调用方给出"参数不合法"的反馈）。 */
+function parseToolArguments(raw: string): Record<string, unknown> {
+  try {
+    const parsed = JSON.parse(raw) as unknown
+    return typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)
+      ? parsed as Record<string, unknown>
+      : {}
+  } catch {
+    return {}
+  }
+}
+
 /** Sections one review request carries. E4b: the reviewer prompt teaches
  *  the three-value severity vocabulary (critical | major | minor) with its
  *  definitions; E4a: from round 1 the reviewer is handed the unresolved
@@ -3749,6 +4707,7 @@ function reviewSections(
   delivered: string,
   priorUnresolved: ReadonlyArray<ReviewDefect> = [],
   semanticContext: SemanticContext | undefined = undefined,
+  persona: ReviewPersona | null = null,
 ): PromptSection[] {
   const firstRound = priorUnresolved.length === 0
   const severityGuide = [
@@ -3774,9 +4733,22 @@ function reviewSections(
   const shape = firstRound
     ? '{"defects":[{"id":"D1","severity":"critical|major|minor","description":"...","semantic":"claim_without_evidence","evidence":{"text_span":"...","ref_ids":["RES-OUT"]}}]}'
     : '{"defects":[{"id":"D1","severity":"critical|major|minor","description":"...","semantic":"claim_without_evidence","evidence":{"text_span":"...","ref_ids":["RES-OUT"]}}],"resolved":["D1"]}'
+  // L5：三视角盲评。每个 persona 只看**产物 + 评分细则**，不看模型的自我声明——
+  // 实测出现过"复核与答题同源、读同一份输入、上游读错则共犯同一错误"的形态。
+  const personaGuide = persona === null
+    ? ''
+    : [
+      '',
+      `You are reviewing from ONE perspective: ${PERSONA_SPEC[persona].name}.`,
+      `Your focus: ${PERSONA_SPEC[persona].focus}`,
+      'Report ONLY defects that fall inside your focus. A defect outside it is another reviewer job —',
+      'reporting it anyway dilutes the ledger and is treated as noise.',
+      `Prefix every defect id you invent with "${PERSONA_SHORT[persona]}-" so three parallel reviews cannot collide.`,
+    ].join(String.fromCharCode(10))
   const instruction = [
     'Review the delivered text for defects.',
     severityGuide,
+    personaGuide,
     semanticGuide,
     firstRound
       ? 'Return JSON only: ' + shape + '. An empty defects array means the text is clean.'

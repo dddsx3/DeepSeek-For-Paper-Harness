@@ -1,6 +1,6 @@
 # DOCX 导出前校核报告
 
-- 输入: D:\deepseek modex\deepseek-harness\artifacts\handoff\R5\dryrun-out\report.md
+- 输入: <repo>\artifacts\handoff\R5\dryrun-out\report.md
 - figures/: 2 个文件
 - 结论: 允许导出（0 致命） — 15 通过 / 0 致命 / 1 无据可查
 

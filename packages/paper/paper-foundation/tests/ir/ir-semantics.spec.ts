@@ -146,6 +146,31 @@ describe('REF — unidirectional scope-owned references (expert plan §1.1)', ()
     })).accepted).toBe(true)
   })
 
+  // 第一轮上限测试的修法：`shared: true` 让"全局假设/方程"可以从任何子问题引用。
+  it('acceptance-3b: `shared: true` 的跨作用域引用被**接受**（补上"全局"的表达能力）', () => {
+    const ir = storeThroughModel()
+    expect(ir.put('ProblemSpec', problemSpec({ problem_id: 'P2', requirement_refs: [] })).accepted).toBe(true)
+    // 同一条方程，作用域在 P2，但声明它对所有子问题成立。
+    expect(ir.put('EquationSpec', equationSpec({
+      equation_id: 'EQ-SHARED', scope_ref: 'P2', shared: true,
+    })).accepted).toBe(true)
+    // M1 属于 P1，引用 P2 的 shared 方程 —— 放行。
+    expect(ir.put('ModelSpec', modelSpec({
+      model_id: 'M-SHARED', problem_refs: ['P1'], equation_refs: ['EQ-SHARED'], assumption_refs: [],
+    })).accepted).toBe(true)
+    // **不变量仍在**：同一条链上，没声明 shared 的跨作用域引用照旧被拒。
+    expect(ir.put('EquationSpec', equationSpec({
+      equation_id: 'EQ-LOCAL', scope_ref: 'P2',
+    })).accepted).toBe(true)
+    const refused = ir.put('ModelSpec', modelSpec({
+      model_id: 'M-LOCAL', problem_refs: ['P1'], equation_refs: ['EQ-LOCAL'], assumption_refs: [],
+    }))
+    expect(refused.accepted).toBe(false)
+    if (!refused.accepted) {
+      expect(refused.failures.some(f => f.kind === 'reference_scope_mismatch')).toBe(true)
+    }
+  })
+
   // Acceptance 4: the reverse lookup agrees with the canonical data.
   it('acceptance-4: modelsByEquation matches the canonical ModelSpec refs', () => {
     const ir = storeThroughModel()
@@ -211,6 +236,39 @@ describe('REF — unidirectional scope-owned references (expert plan §1.1)', ()
     expect(problems.length).toBe(1)
     expect(problems[0]!.resolution).toBe('scope_mismatch')
     expect(problems[0]!.path).toBe('equation_refs')
+  })
+
+  it('**`shared: true` 是这条规则的唯一例外**（第一轮上限测试的修法）', () => {
+    // 事故：模型正确识别出"次品事件独立"是全局假设，声明一条 A-INDEP 并在 4 个
+    // ModelSpec 里引用 → 被 REF-003 拒。两次真实运行共 14 次拒绝里 71% 追溯到它。
+    // `shared: true` 补上的是"全局"这个表达能力。
+    const registry: Record<string, { kind: IrKind; value: unknown }> = {
+      P1: { kind: 'ProblemSpec', value: problemSpec() },
+      P2: { kind: 'ProblemSpec', value: problemSpec({ problem_id: 'P2', requirement_refs: [] }) },
+      // 同一条假设，作用域在 P2，但声明了对所有子问题成立。
+      'ASM-SHARED': { kind: 'AssumptionSpec', value: assumptionSpec({ assumption_id: 'ASM-SHARED', scope_ref: 'P2', shared: true }) },
+      // 对照组：同一条假设，**没有** shared。
+      'ASM-LOCAL': { kind: 'AssumptionSpec', value: assumptionSpec({ assumption_id: 'ASM-LOCAL', scope_ref: 'P2' }) },
+    }
+    const borrowed = (ref: string) => validateScopeOwnership(
+      'ModelSpec',
+      modelSpec({ assumption_refs: [ref] }),
+      ['P1'],
+      r => registry[r],
+    )
+    // shared → 放行（这是本轮修好的那个失败模式）。
+    expect(borrowed('ASM-SHARED')).toEqual([])
+    // **不变量没被削弱**：没声明 shared 的跨作用域引用照旧拒绝。
+    expect(borrowed('ASM-LOCAL').length).toBe(1)
+    expect(borrowed('ASM-LOCAL')[0]!.resolution).toBe('scope_mismatch')
+  })
+
+  it('`shared` 是可选字段，且被 schema 接受（.strict() 不再拒它）', () => {
+    expect(IR_SCHEMAS.AssumptionSpec.safeParse({ ...assumptionSpec(), shared: true }).success).toBe(true)
+    expect(IR_SCHEMAS.AssumptionSpec.safeParse(assumptionSpec()).success).toBe(true)
+    // 类型仍是 boolean——不是"任意真值都算 shared"。
+    expect(IR_SCHEMAS.AssumptionSpec.safeParse({ ...assumptionSpec(), shared: 'yes' }).success).toBe(false)
+    expect(IR_SCHEMAS.EquationSpec.safeParse({ ...equationSpec(), shared: true }).success).toBe(true)
   })
 
   it('the scope-ownership policy table is frozen and ModelSpec-only today', () => {

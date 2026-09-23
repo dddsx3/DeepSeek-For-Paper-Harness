@@ -51,6 +51,8 @@ function polarContainer(overrides: {
   figures?: ReadonlyArray<Record<string, unknown>>
   analysis?: string
   codeNote?: string
+  /** 覆盖「模型评价与推广」——用来驱动散文契约门（篇幅地板）。 */
+  evaluation?: string
 } = {}): string {
   const value = 0.731
   const code = overrides.code ?? [
@@ -96,7 +98,7 @@ function polarContainer(overrides: {
       // prose chapters a real container carries.
       methods: 'The regression is fitted by least squares and the mean is read from the fit.', restatement: 'The problem asks for the mean ice thickness along the survey line.',
       analysis: overrides.analysis ?? 'A linear regression on sonar returns estimates the mean thickness.',
-      evaluation: 'Advantages: the least-squares fit is simple and robust under subsampling. '
+      evaluation: overrides.evaluation ?? 'Advantages: the least-squares fit is simple and robust under subsampling. '
         + 'Limitations: it assumes a homogeneous slab and ignores lateral variation. '
         + 'Sensitivity: a 20% perturbation of the returns moves the estimate by under 3%. '
         + 'Generalization: the same regression transfers to other survey lines.',

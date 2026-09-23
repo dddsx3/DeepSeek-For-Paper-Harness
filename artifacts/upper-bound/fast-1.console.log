@@ -1,0 +1,12 @@
+[CODE-FRESH] 代码来源已断言：entry lib/index.js is 554116 ms newer than the newest source; entry lib/index.js is 158641892 ms newer than the newest source; entry lib/index.js is 158669886 ms newer than the newest source; entry lib/index.js is 158670010 ms newer than the newest source; entry lib/index.js is 158670095 ms newer than the newest source; entry lib/index.js is 158641724 ms newer than the newest source
+  pdf     -> artifacts\upper-bound\2024B-fast-1\paper.pdf (308933 bytes)
+[docx] 导出前校核拒绝（1 致命）——交付包将缺 paper.docx：
+  ❌ [no_placeholders] 存在 2 处未填充占位（章节空槽不得交付）
+[DELIVERED] sha256=d0fda2612a3370e8...
+  run-id  -> 5b1fdf2f-7d54-4325-8c9e-48a4967c0752
+  report  -> artifacts\upper-bound\2024B-fast-1\report.md
+  zip     -> artifacts\upper-bound\2024B-fast-1\deliverable.zip (zip sha256=85a2d0ab3bca23e9...)
+  usage   -> in 131659 tok / out 82754 tok / $0.0000 (TASK-Q2 telemetry)
+  audit   -> workflow_started,capability_check,skill_library_materialized,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,container_refused,provider_retry,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,container_refused,provider_retry,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,container_refused,provider_retry,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,container_refused,provider_retry,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,container_refused,provider_retry,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,container_refused,provider_retry,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,provider_retry,e1_direct_delivery,gate_state_changed,gate_state_changed,gate_state_changed,gate_failed,gate_failed,closure_closed,gate_state_changed,delivery_graded,final_output_written,promotion_succeeded,workflow_completed
+  tier    -> T1
+  path    -> B-e1-direct

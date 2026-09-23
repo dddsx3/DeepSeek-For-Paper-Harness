@@ -29,6 +29,7 @@ import {
 import { ModelingIr } from '../src/ir/store.ts'
 import { CAPTURE_ATTESTATION, type IrKind } from '../src/ir/index.ts'
 import { validChain } from './ir/fixtures.ts'
+import { FAKE_DRAFT_TEXT } from './fixtures/fake-draft.ts'
 
 /** Backbone WITHOUT a FigureSpec (the vacuous figure gate would BLOCK). */
 function backbone(): ModelingIr {
@@ -53,7 +54,12 @@ const routes = {
 }
 
 /** The deliverable prose: it claims a comparison the Result table has not. */
-const PROSE = 'The model outperforms all baselines.'
+// 交付文本必须**够长**才算内容（`EMPTY_CONTENT_CHARS`）——旧夹具是一句话，
+// 在新交付阶梯下会被判为 `fatal content probe`。句子本身保留：语义裁决的
+// text_span 检查要能在交付文本里找到它。
+const PROSE = `${FAKE_DRAFT_TEXT}
+
+The model outperforms all baselines.`
 
 async function* stream(text: string) {
   yield { type: 'block-start', index: 0, blockType: 'text' }
@@ -62,7 +68,7 @@ async function* stream(text: string) {
   yield { type: 'finish', index: 0, reason: { kind: 'stop' } }
 }
 
-async function harness(reviewerOutputs: ReadonlyArray<string>) {
+async function harness(reviewerOutputs: ReadonlyArray<string>, executorConfig: Record<string, unknown> = {}) {
   const ctx = new Context()
   await ctx.plugin(Storage)
   ctx.storage.backend.register('memory', new MemoryStorageBackend(new MemoryMediaPool()))
@@ -81,7 +87,7 @@ async function harness(reviewerOutputs: ReadonlyArray<string>) {
         reviewCalls += 1
         return stream(text)
       }
-      if (system.includes('editor')) return stream('reworded deliverable text')
+      if (system.includes('editor')) return stream(FAKE_DRAFT_TEXT)
       const joined = (request.messages ?? []).map((m) => {
         const content = (m as { content?: unknown }).content
         if (typeof content === 'string') return content
@@ -90,7 +96,7 @@ async function harness(reviewerOutputs: ReadonlyArray<string>) {
       }).join(' ')
       if (joined.includes('numbered execution plan')) return stream('1. draft')
       if (joined.includes('Produce the deliverable')) return stream(PROSE)
-      return stream('reworded deliverable text')
+      return stream(FAKE_DRAFT_TEXT)
     },
   } as never)
   await ctx.plugin(PaperSettingsService, { executor: routes.executor, reviewer: routes.reviewer, editorAi: routes.editorAi, defaultMode: 'exploratory' })
@@ -98,13 +104,13 @@ async function harness(reviewerOutputs: ReadonlyArray<string>) {
   guard.markReady()
   ctx.provide('paperModelingIr', backbone())
   await ctx.plugin(PaperAuditService, {})
-  await ctx.plugin(PaperExecutorService, { backoffBaseMs: 1, backoffCapMs: 1 })
+  await ctx.plugin(PaperExecutorService, { backoffBaseMs: 1, backoffCapMs: 1, ...executorConfig })
   const engine = ctx.paperWorkflow.runs
   const run = await engine.startRun({ mode: 'exploratory', harnessVersion: 'test', configHash: 'sha256:p31' })
   const outcome = await ctx.paperExecutor.runs.execute(RunId(run.id), 'write one sentence')
     .then(() => ({ status: 'resolved' as const }))
     .catch((error: unknown) => ({ status: 'rejected' as const, code: (error as { code?: string }).code }))
-  return { engine, runId: run.id, outcome }
+  return { engine, runId: run.id, outcome, ctx }
 }
 
 /** A semantic finding with evidence — the legal (blocking) shape. */
@@ -122,20 +128,34 @@ function semanticFinding(overrides: Record<string, unknown> = {}): string {
 }
 
 describe('P3-1 semantic findings (E5, closed set + evidence domain)', () => {
-  it('attack 1: prose claiming an unsupported comparison is a critical semantic BLOCK', async () => {
-    const { engine, runId, outcome } = await harness([semanticFinding()])
+  it('attack 1: a critical semantic defect is RECORDED AND SURFACED, not silently dropped', async () => {
+    // 契约反转（本次架构改造的方向性决定）：findings 不再靠"拒绝交付"获得归宿，
+    // 而是进交付物的已知缺陷表 + 审计轨迹。旧形态（一律 BLOCKED）的代价是零产物，
+    // 那不是闭环，是用更严重的失败掩盖原失败。
+    const { engine, runId, outcome, ctx } = await harness([semanticFinding()])
+    expect(outcome.status).toBe('resolved')
+    expect(engine.getRun(RunId(runId))?.status).toBe('completed')
+    const closed = ctx.paperAudit.list(RunId(runId)).find(e => e.eventType === 'closure_closed')
+    expect(closed?.detail?.findings).toBeGreaterThan(0)
+  })
+
+  it('attack 1b: the SAME defect still blocks under explicit strict-tolerance', async () => {
+    // fail-closed 路径没有被删除，只是不再是默认。它仍然必须有效。
+    const { engine, runId, outcome } = await harness([semanticFinding()], { deliveryGradeMode: 'strict-tolerance' })
     expect(outcome.status).toBe('rejected')
-    expect((outcome as { code?: string }).code).toBe('gate-failed')
     expect(engine.getRun(RunId(runId))?.status).toBe('failed')
   })
 
-  it('attack 2 (E4a reuse): reworded prose with no resolved record still BLOCKS', async () => {
-    const { engine, runId, outcome } = await harness([
+  it('attack 2 (E4a reuse): a reworded draft with no resolved record keeps the defect in the ledger', async () => {
+    const { engine, runId, outcome, ctx } = await harness([
       semanticFinding(),
       '{"defects":[],"resolved":[]}',   // "fixed" by rewording, never resolved
     ])
-    expect(outcome.status).toBe('rejected')
-    expect(engine.getRun(RunId(runId))?.status).toBe('failed')
+    // 改文字不能消解缺陷（这正是 L6 的 C1：不接受"我改过了"）。
+    expect(outcome.status).toBe('resolved')
+    expect(engine.getRun(RunId(runId))?.status).toBe('completed')
+    const closed = ctx.paperAudit.list(RunId(runId)).find(e => e.eventType === 'closure_closed')
+    expect(closed?.detail?.findings).toBeGreaterThan(0)
   })
 
   it('attack 3: a semantic finding whose ref_ids dangle is discarded (no hallucinated BLOCK)', async () => {

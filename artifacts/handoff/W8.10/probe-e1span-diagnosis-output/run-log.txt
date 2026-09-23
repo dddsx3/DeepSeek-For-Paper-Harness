@@ -141,4 +141,4 @@ ar      EQ-POST-MEAN         0          FAIL     no     no  no    0         0
 ar      EQ-POST-OBJECTIVE    0          FAIL     no     no  no    0         0     
 ar      EQ-NS                0          FAIL     no     no  no    0         0     
 
-落盘目录：D:\deepseek modex\deepseek-harness\artifacts\handoff\W8.10\probe-e1span-diagnosis-output
+落盘目录：<repo>\artifacts\handoff\W8.10\probe-e1span-diagnosis-output

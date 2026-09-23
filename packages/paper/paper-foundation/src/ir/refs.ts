@@ -433,6 +433,15 @@ export function validateScopeOwnership(
       const resolved = resolve(ref)
       if (resolved === undefined || resolved.kind !== rule.targetKind) continue // ref-field layer owns these
       const targetValue = resolved.value as Record<string, unknown>
+      // `shared: true` —— 本条规则的**唯一例外**（第一轮上限测试实测的修法）。
+      // 一条被声明为"适用于全部子问题"的假设/方程，可以从任何子问题的模型里引用。
+      // 它补上的是"全局"这个表达能力：此前 IR 里无法表达，模型只好把同一条假设
+      // 抄成四份不同 id 的副本（纯记账），或者干脆声明不全而被保真门拒。
+      //
+      // 例外是**窄的**：只有被引用对象**自己**声明了 shared 才放行。没声明 shared
+      // 的假设被跨子问题引用时照旧拒绝——规则原本要防的"借另一个子问题的假设
+      // 来给自己背书"没有被削弱。
+      if (targetValue['shared'] === true) continue
       const targetScope = targetValue[rule.targetScopeField]
       if (typeof targetScope !== 'string') continue
       if (!own.has(targetScope)) {

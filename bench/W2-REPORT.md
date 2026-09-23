@@ -1,5 +1,7 @@
 # W2 报告 — P0-3 交付门槛（CLEAN / MARKED / BLOCKED）落地
 
+> 🔴 **2026-09-22 架构改造提示**：本报告是**当时**的实测记录，其中"`strict-tolerance` 是默认档位"已不成立——默认已反转为 `fail-soft`。现行架构见 [`../docs/upper-bound-architecture.md`](../docs/upper-bound-architecture.md)。
+
 > 依据：DPH-PRD-v2 §3.3（fail-soft 交付门槛）+ §8 W2 退出判据。
 > 基线：W1 commit `7345763bde` 之后。本文档随 W2 批次提交。
 

@@ -35,15 +35,6 @@ artifacts/handoff/W8.12/** -whitespace
 # reasoning as W8.10 — verbatim bytes, exempt from the whitespace gate.
 artifacts/handoff/W10-MQUAL/** -whitespace
 
-# W9 migrated figure-reference assets: verbatim captures of the _mh asset
-# library (SKILL.md mechanisms + templates). Normalizing whitespace would
-# EDIT the reference material the sha256 manifest in README.md vouches for.
-docs/figure-reference/** -whitespace
-
 # W9 real-data ledger: converted from the real 2024-C xlsx at registration
 # time; the original cell text (incl. trailing spaces) is the data itself.
 artifacts/handoff/W9/2024-C-attachment-1.csv -whitespace
-
-# 数字资产库：逐字捕获的参考机制与运行产物快照（sha256 清单背书）；
-# 规范化空白等于改证据。技能 Markdown 混有 CJK 与代码块，保持原样。
-docs/asset-library/** -whitespace

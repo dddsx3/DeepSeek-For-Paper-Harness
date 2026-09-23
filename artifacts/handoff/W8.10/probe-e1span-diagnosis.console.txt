@@ -72,4 +72,4 @@ sample  id              spanChars  exact  ws  typo  gramFold  lcsRaw
 1       EQ_15           57         YES    no  no    1         1     
 1       EQ_16           87         YES    no  no    1         1     
 
-落盘目录：D:\deepseek modex\deepseek-harness\artifacts\handoff\W8.10\probe-e1span-diagnosis-output
+落盘目录：<repo>\artifacts\handoff\W8.10\probe-e1span-diagnosis-output

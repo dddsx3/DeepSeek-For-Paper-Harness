@@ -62,11 +62,26 @@ export interface ExecutorConfig {
    *  T1 = full declaration (default), T2 = guided steps, T3 = template
    *  fill. The executor degrades T1 → T2 → T3 on NONE exhaustion (W4). */
   readonly initialTier?: 'T1' | 'T2' | 'T3'
-  /** P0-3 (PRD v2 §3.3): 'fail-soft' turns unpassed gates into MARKED
-   *  annotations (content delivers with an honest appendix; only the
-   *  three fatal conditions block). Default 'strict-tolerance' keeps the
-   *  historical fail-closed behavior byte-for-byte. */
-  readonly deliveryGradeMode?: 'strict-tolerance' | 'fail-soft'
+  /**
+   * 交付档位（三档，见 `executor.ts` 的 `PaperExecutorOptions.deliveryGradeMode`）。
+   *
+   * **默认 `fail-soft`**：检出但未返修的 finding 走"显式接受"，交付一份带
+   * 已知缺陷表的完整包。`closed-loop` 走闭环返修 + 指纹复验，预算内未消解则
+   * `ESCALATE`。`strict-tolerance` 是历史行为（任何未通过即拒绝、零产物），
+   * 需要显式开启——它是一条从未在任何真实产出中被验证过的路径。
+   */
+  readonly deliveryGradeMode?: 'strict-tolerance' | 'fail-soft' | 'closed-loop'
+  /** L0 能力画像档位；缺省按保守默认 A（详见 `probe/capability-profile.ts`）。 */
+  readonly capabilityTier?: 'S' | 'A' | 'B'
+  /**
+   * L2 探索—择优—深挖。缺省按 run mode 决定（`strict` 开启，其余关闭）。
+   * 开启后 EXECUTE 之前会跑两个 plan 型节点（explore / select）。
+   */
+  readonly exploreDeepen?: boolean
+  /** L5 对抗评审的视角数。缺省 `strict` 跑 3 个，`fast` / `exploratory` 跑 1 个。 */
+  readonly reviewPersonas?: 1 | 3
+  /** L6 闭环预算。缺省 `{maxRounds: 2, maxAttemptsPerFinding: 2}`。 */
+  readonly closureBudget?: { readonly maxRounds: number; readonly maxAttemptsPerFinding: number }
   /** W8.6-P4: per-run OUTPUT-token ceiling (pricing-independent guard).
    *  Zero/absent = unbounded (historical). */
   readonly maxOutputTokensPerRun?: number
@@ -133,9 +148,20 @@ export function resolveExecutorOptions(
     // TASK-PW W2: the tier a producing run starts at; `undefined` resolves
     // to T1 (initialTier()) inside the executor.
     ...(config.initialTier === undefined ? {} : { initialTier: config.initialTier }),
-    // P0-3: the delivery grade threshold; omitted = strict-tolerance
-    // (historical fail-closed behavior).
+    // 交付档位；缺省 = fail-soft（见 schema 处的注释）。
     ...(config.deliveryGradeMode === undefined ? {} : { deliveryGradeMode: config.deliveryGradeMode }),
+    // L0 能力画像档位：只在调用方显式声明时前传——缺省由 executor 取保守默认 A，
+    // 而不是在 schema 层再造一个默认值（避免"两处默认"这类漂移）。
+    ...(config.capabilityTier === undefined ? {} : { capabilityTier: config.capabilityTier }),
+    // 上限解放架构的其余三个开关，同样**只在显式声明时前传**：`undefined` 必须
+    // 到达 executor，由它的单一读者决定默认（档位相关），避免默认值在两层各写一份。
+    //
+    // 这三行曾经缺失：选项在 executor 里实现了、schema 里没有，于是 composition
+    // 传进来会被静默丢掉——"模块接好了但从组合层够不到"。那是本次改造要消灭的
+    // 形态之一，所以这里逐个显式转发，并由 `wired-into-mainline.spec.ts` 覆盖。
+    ...(config.exploreDeepen === undefined ? {} : { exploreDeepen: config.exploreDeepen }),
+    ...(config.reviewPersonas === undefined ? {} : { reviewPersonas: config.reviewPersonas }),
+    ...(config.closureBudget === undefined ? {} : { closureBudget: config.closureBudget }),
     ...(config.maxOutputTokensPerRun === undefined ? {} : { maxOutputTokensPerRun: config.maxOutputTokensPerRun }),
     // W8.9-A4: forward BOTH halves of the switch — dropping the opt-out
     // here would silently ignore a composition's explicit request (the
@@ -188,8 +214,19 @@ export class PaperExecutorService extends Service {
     // TASK-PW W2: T2 guided-step sessions opt in at the composition; the
     // executor's enforced tier still resolves from the W4 ledger.
     initialTier: s.union(['T1', 'T2', 'T3'] as const),
-    // P0-3 (PRD v2 §3.3): fail-soft vs strict-tolerance delivery grading.
-    deliveryGradeMode: s.union(['strict-tolerance', 'fail-soft'] as const).default('strict-tolerance'),
+    // 交付档位。**默认 fail-soft**：`strict-tolerance`（任何 finding 即拒绝、
+    // 零产物）是一条从未在任何真实产出中被验证过的路径，而放行路径的缺陷
+    // （finding 无归宿）已由 L6 闭环补上。因此默认值反转，strict 需显式开启。
+    deliveryGradeMode: s.union(['strict-tolerance', 'fail-soft', 'closed-loop'] as const).default('fail-soft'),
+    // L0 能力画像档位。刻意**不设 schema 默认**：`undefined` 必须到达 executor，
+    // 由它的单一读者决定（`defaultProfile`），避免默认值在两层各写一份。
+    capabilityTier: s.union(['S', 'A', 'B'] as const),
+    // L2 / L5 / L6 的开关同样**不设 schema 默认**：`undefined` 到达 executor 后
+    // 由档位决定默认值。schema 里再写一份默认就会变成"两处默认"，而两处默认
+    // 迟早会漂移——那时"strict 档为什么没跑三视角"会变成一个查不出来的问题。
+    exploreDeepen: s.boolean(),
+    reviewPersonas: s.union([1, 3] as const),
+    closureBudget: s.object({ maxRounds: s.number().step(1).min(0), maxAttemptsPerFinding: s.number().step(1).min(0) }),
     // W8.6-P4: per-run output-token ceiling; 0 = unbounded.
     maxOutputTokensPerRun: s.number().step(1).min(0).default(0),
     // W9-P2 / W8.9-A4: shard declaration. No schema default is declared

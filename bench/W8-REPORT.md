@@ -1,5 +1,7 @@
 # W8 报告 — 论文骨架层(P0-7)+ 验证层接入交付闸门
 
+> 🔴 **2026-09-22 架构改造提示**：本报告是**当时**的实测记录，其中"`strict-tolerance` 是默认档位"已不成立——默认已反转为 `fail-soft`。现行架构见 [`../docs/upper-bound-architecture.md`](../docs/upper-bound-architecture.md)。
+
 > 依据:DPH-PRD-v2 §5.1.4/§6.1 P0-7、§8 W8。
 > 基线:W7 commit `80e0c184b1` 之后。本文档随 W8 批次提交。
 

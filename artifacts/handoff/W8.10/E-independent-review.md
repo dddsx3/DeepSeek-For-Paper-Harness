@@ -1,7 +1,7 @@
 # W8.10-E 独立复核（E1 / E2 / E3）
 
 > **性质**：**独立复核**，目的是**证伪**而非确认。凡与声称不符者，无论好坏，逐条标出。
-> **环境**：Windows 10.0.26200，Git Bash，Node v24.13.0，`pnpm@11.7.0`，仓库根 `D:\deepseek modex\deepseek-harness`。
+> **环境**：Windows 10.0.26200，Git Bash，Node v24.13.0，`pnpm@11.7.0`，仓库根 `<repo>`。
 > **HEAD**：`e5ffdae03f`（W8.10-B）。工作区有 3 个未提交的 paper 作用域改动（见 §E1.5）。
 > **未跑真实 API**（无 key 需要）。**未修改** `packages/`、`apps/`、`bench/` 下任何被跟踪文件。
 > **原始输出**：`artifacts/handoff/W8.10/logs/`（文件名在每节内标注）。
@@ -365,7 +365,7 @@ m1_readable_draft = false | m2_recital_overlap = 0.388 | skeleton missing = 0
 `run-all.mjs` 的 `nc7()`：
 
 ```js
-const actual = await sha256File('bench/problems/2024-B/problem.pdf'.replace('bench/', 'D:/deepseek modex/deepseek-harness/bench/'))
+const actual = await sha256File('bench/problems/2024-B/problem.pdf'.replace('bench/', '<repo>/bench/'))
 check('篡改模拟：哈希不匹配可被检出', actual !== '0'.repeat(64), '篡改检测依赖逐字节比对，此处验证哈希函数活性')
 const tampered = { ok: false, failures: [{ file: 'problems/2024-B/problem.pdf', expected: '0'.repeat(64), actual }] }
 check('校验器对不匹配条目报告 ok=false', tampered.ok === false)
@@ -374,10 +374,10 @@ check('校验器对不匹配条目报告 ok=false', tampered.ok === false)
 - **检查 2 是同义反复**：`actual !== '0'.repeat(64)` 断言"某文件的 sha256 不是 64 个 0"。**恒真**，与篡改检测无关。
 - **检查 3 是同义反复**：断言一个**手写的对象字面量** `{ ok: false }` 的 `.ok === false`。它**没有调用任何校验器**，`verifyManifestIntegrity` 根本没被喂给篡改输入。所谓"篡改模拟"是**手工构造的假失败对象**。
 - **检查 1 是真的**（未篡改 bench → `verifyManifestIntegrity().ok === true`）。所以 NC-7 实际只有 **1 项**有效检查，**2 项为占位**。
-- **硬编码路径**：`'bench/problems/...'.replace('bench/', 'D:/deepseek modex/deepseek-harness/bench/')` 把**本机绝对路径**烧进了脚本。我把同一表达式放到另一 checkout 根下模拟（`logs/probe-nc7-portability.mts`）：
+- **硬编码路径**：`'bench/problems/...'.replace('bench/', '<repo>/bench/')` 把**本机绝对路径**烧进了脚本。我把同一表达式放到另一 checkout 根下模拟（`logs/probe-nc7-portability.mts`）：
 
 ```
-as written in run-all.mjs  : D:/deepseek modex/deepseek-harness/bench/problems/2024-B/problem.pdf
+as written in run-all.mjs  : <repo>/bench/problems/2024-B/problem.pdf
 same expression elsewhere  : /home/ci/paper-harness/bench/problems/2024-B/problem.pdf
 
 nc7() calls sha256File() with no try/catch, then asserts `actual !== "0".repeat(64)`.
@@ -386,7 +386,7 @@ nc7() calls sha256File() with no try/catch, then asserts `actual !== "0".repeat(
      the "18 passed, 0 failed" summary line never prints.
 ```
 
-`nc7()` 是 `await` 的顶层调用且**无 try/catch**——在任何**不是** `D:/deepseek modex/deepseek-harness` 的 checkout 上（CI、其他开发者、CI 容器），该脚本会**以未捕获异常退出**，`18 passed, 0 failed` 这行**根本不会打印**。
+`nc7()` 是 `await` 的顶层调用且**无 try/catch**——在任何**不是** `<repo>` 的 checkout 上（CI、其他开发者、CI 容器），该脚本会**以未捕获异常退出**，`18 passed, 0 failed` 这行**根本不会打印**。
 
 **并且：负对照没有任何 CI 调用者。** 全仓检索：
 

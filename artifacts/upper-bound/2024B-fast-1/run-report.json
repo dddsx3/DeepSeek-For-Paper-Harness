@@ -1,0 +1,61 @@
+{
+  "runId": "5b1fdf2f-7d54-4325-8c9e-48a4967c0752",
+  "delivery_path": "B-e1-direct",
+  "tier": "T1",
+  "mode": "fast",
+  "code_run_timeout_ms": 600000,
+  "status": "DELIVERED",
+  "grade": "MARKED",
+  "routed_family": "F4",
+  "route_truth": "F3+F4",
+  "route_mismatch": false,
+  "code_provenance": {
+    "checked_at": "2026-09-22T13:42:18.037Z",
+    "ok": true,
+    "targets": [
+      {
+        "name": "@deepseek-ai/dsh-paper-foundation",
+        "ok": true,
+        "detail": "entry lib/index.js is 554116 ms newer than the newest source"
+      },
+      {
+        "name": "@deepseek-ai/dsh-storage",
+        "ok": true,
+        "detail": "entry lib/index.js is 158641892 ms newer than the newest source"
+      },
+      {
+        "name": "@deepseek-ai/dsh-storage-domain",
+        "ok": true,
+        "detail": "entry lib/index.js is 158669886 ms newer than the newest source"
+      },
+      {
+        "name": "@deepseek-ai/dsh-storage-json",
+        "ok": true,
+        "detail": "entry lib/index.js is 158670010 ms newer than the newest source"
+      },
+      {
+        "name": "@deepseek-ai/dsh-llm",
+        "ok": true,
+        "detail": "entry lib/index.js is 158670095 ms newer than the newest source"
+      },
+      {
+        "name": "@deepseek-ai/cordis",
+        "ok": true,
+        "detail": "entry lib/index.js is 158641724 ms newer than the newest source"
+      }
+    ]
+  },
+  "minted_ir_count": 97,
+  "wall_clock_seconds": 2149.5,
+  "sha256": "d0fda2612a3370e89ef7eef5b564449bc8e38fc6c4ab7da8e73cacd3a42d1207",
+  "audit": "workflow_started,capability_check,skill_library_materialized,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,container_refused,provider_retry,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,container_refused,provider_retry,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,container_refused,provider_retry,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,container_refused,provider_retry,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,container_refused,provider_retry,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,container_refused,provider_retry,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,provider_retry,e1_direct_delivery,gate_state_changed,gate_state_changed,gate_state_changed,gate_failed,gate_failed,closure_closed,gate_state_changed,delivery_graded,final_output_written,promotion_succeeded,workflow_completed",
+  "usage": {
+    "input_tokens": 131659,
+    "output_tokens": 82754,
+    "cost_usd": 0
+  },
+  "attachments": [],
+  "data_files": [],
+  "figures": 0,
+  "figure_links_broken": []
+}

@@ -168,7 +168,7 @@ review 才被 critical 拦下)。对空交付 fail-fast 应是廉价且值得的
 ## 6. 复现指南
 
 ```bash
-cd "D:\deepseek modex\deepseek-harness"
+cd "<repo>"
 node --input-type=module -e "await import('./apps/cockpit/server.mjs')" &
 # 配置激活 profile(见 cockpit-settings.json,已有 y-api)后:
 # 1) 上传题面(已归档副本 evidence-real-run-2024A/problem-*.md)

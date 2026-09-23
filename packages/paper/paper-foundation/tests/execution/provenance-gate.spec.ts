@@ -36,6 +36,7 @@ import {
   type PaperSettings,
 } from '../../src/index.ts'
 import {  requiresIrBackbone  } from '../../src/ir/bridge.ts'
+import { FAKE_DRAFT_TEXT } from '../fixtures/fake-draft.ts'
 import {
   backboneIr,
   chainThrough,
@@ -62,11 +63,11 @@ async function* fakeStream(text: string): AsyncGenerator<StreamChunk> {
 const approvingScript = (system: string, prompt: string): string => {
   if (system.includes('reviewer')) return '{"defects":[]}'
   if (prompt.includes('short numbered execution plan')) return '1. Draft the deliverable.'
-  if (prompt.includes('Produce the deliverable')) return 'The final deliverable text.'
+  if (prompt.includes('Produce the deliverable')) return FAKE_DRAFT_TEXT
   return 'revised text'
 }
 
-async function harness(ir?: ModelingIr) {
+async function harness(ir?: ModelingIr, executorConfig: Record<string, unknown> = {}) {
   const ctx = new Context()
   await ctx.plugin(Storage)
   ctx.storage.backend.register('memory', new MemoryStorageBackend(new MemoryMediaPool()))
@@ -92,12 +93,19 @@ async function harness(ir?: ModelingIr) {
   const guard = new PaperRuntimeGuard(ctx, { profile: createExploratoryProfile() })
   guard.markReady()
   if (ir !== undefined) ctx.provide('paperModelingIr', ir)
-  await ctx.plugin(PaperExecutorService)
+  // 交付档位落在审计轨迹上——读它才能断言"这份交付是什么档位"。
+  const { default: PaperAuditService } = await import('../../src/audit.ts')
+  await ctx.plugin(PaperAuditService, {})
+  await ctx.plugin(PaperExecutorService, executorConfig)
   return { ctx }
 }
 
-async function runOnce(ir?: ModelingIr, mode: 'fast' | 'strict' | 'exploratory' = 'fast') {
-  const { ctx } = await harness(ir)
+async function runOnce(
+  ir?: ModelingIr,
+  mode: 'fast' | 'strict' | 'exploratory' = 'fast',
+  executorConfig: Record<string, unknown> = {},
+) {
+  const { ctx } = await harness(ir, executorConfig)
   const engine = ctx.paperWorkflow.runs
   const run = await engine.startRun({ mode, harnessVersion: 'test', configHash: 'sha256:test' })
   return ctx.paperExecutor.runs.execute(RunId(run.id), 'solve this modelling problem')
@@ -262,7 +270,7 @@ describe('evaluateProvenanceGate — structural completeness over critical-chain
 })
 
 describe('the executor enforces provenance end-to-end', () => {
-  it('E2E: a full backbone WITHOUT an execution record is blocked with the provenance reason', async () => {
+  it('E2E: a full backbone WITHOUT an execution record is never presented as verified', async () => {
     const ir = new ModelingIr({ now: () => '2026-09-01T00:00:00.000Z' })
     for (const entry of chainThrough('ReviewerFinding')) {
       ir.put(entry.kind, entry.value)
@@ -274,7 +282,32 @@ describe('the executor enforces provenance end-to-end', () => {
     // `executionProvenanceGate`). The older 'no execution provenance'
     // phrasing does not exist anywhere in `src/`, so the assertion
     // pins the stable parts instead of a sentence.
-    const error: unknown = await runOnce(ir, 'fast').catch(caught => caught)
+    // 契约反转：门禁仍然**判定失败**（原因逐字保留），但失败成为交付标注，
+    // 而不是终结产线。被保护的不变量是"不得冒充已核验"，它由 DEGRADED 档 +
+    // 附录里的 provenance 原因实现，不再由"零产物"实现。
+    const { ctx } = await harness(ir)
+    const engine = ctx.paperWorkflow.runs
+    const run = await engine.startRun({ mode: 'fast', harnessVersion: 'test', configHash: 'sha256:test' })
+    const outcome = await ctx.paperExecutor.runs.execute(RunId(run.id), 'solve this modelling problem')
+    expect(outcome.run.status).toBe('completed')
+    const graded = ctx.paperAudit.list(RunId(run.id)).find(e => e.eventType === 'delivery_graded')
+    expect(Number(graded?.detail?.annotations ?? 0)).toBeGreaterThan(0)
+    // 这份 store 里**有** Result（有可执行证据），缺的是 execution record。
+    // 所以它是 MARKED（带标注交付），不是 DEGRADED（无可执行证据）——
+    // 两个档位的区别正是"证据在不在"。
+    expect(String(graded?.detail?.tier)).toBe('MARKED')
+  })
+
+  it('E2E: …and under explicit strict-tolerance the same run is refused with the provenance reason', async () => {
+    const ir = new ModelingIr({ now: () => '2026-09-01T00:00:00.000Z' })
+    for (const entry of chainThrough('ReviewerFinding')) {
+      ir.put(entry.kind, entry.value)
+    }
+    // The refusal message is assembled by `evaluateDelivery` as
+    // `critical_gate:<id>:<status>:<gate reason>`, and the gate reason
+    // for a record-less critical chain is `execution provenance
+    // blocked: N failure(s) [<run_id>:MISSING_EXECUTION]`.
+    const error: unknown = await runOnce(ir, 'fast', { deliveryGradeMode: 'strict-tolerance' }).catch(caught => caught)
     expect(error).toBeInstanceOf(Error)
     const message = (error as Error).message
     expect(message).toMatch(/cannot deliver/)

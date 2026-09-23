@@ -890,7 +890,7 @@
       "actor": "paper-executor",
       "detail": {
         "kind": "figures_persisted",
-        "dir": "D:\\deepseek modex\\deepseek-harness\\apps\\paper-shell\\src\\paper-shell-persist-TutCAw\\61e0b19e-25eb-4385-ad6d-5db32036006d\\final\\figures",
+        "dir": "D:\\<repo>\\deepseek-harness\\apps\\paper-shell\\src\\paper-shell-persist-TutCAw\\61e0b19e-25eb-4385-ad6d-5db32036006d\\final\\figures",
         "figures": 1
       }
     },
@@ -901,7 +901,7 @@
       "actor": "paper-executor",
       "detail": {
         "kind": "data_persisted",
-        "dir": "D:\\deepseek modex\\deepseek-harness\\apps\\paper-shell\\src\\paper-shell-persist-TutCAw\\61e0b19e-25eb-4385-ad6d-5db32036006d\\final\\data",
+        "dir": "D:\\<repo>\\deepseek-harness\\apps\\paper-shell\\src\\paper-shell-persist-TutCAw\\61e0b19e-25eb-4385-ad6d-5db32036006d\\final\\data",
         "files": [
           "q1_results.json",
           "q2_results.json",
@@ -972,7 +972,7 @@
       "eventType": "final_output_written",
       "actor": "paper-executor",
       "detail": {
-        "path": "D:\\deepseek modex\\deepseek-harness\\apps\\paper-shell\\src\\paper-shell-persist-TutCAw\\61e0b19e-25eb-4385-ad6d-5db32036006d\\final\\final",
+        "path": "D:\\<repo>\\deepseek-harness\\apps\\paper-shell\\src\\paper-shell-persist-TutCAw\\61e0b19e-25eb-4385-ad6d-5db32036006d\\final\\final",
         "bytes": 16939,
         "sha256": "1711ca092fd9f480b6f8f4bf103268395563168a79f3d8892a751b35dabf88fe"
       }

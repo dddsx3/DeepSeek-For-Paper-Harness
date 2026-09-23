@@ -72,7 +72,7 @@ data/result.json  figures/F-COST.svg  figure-manifest.json  deliverable.zip
 ```
 
 阅读入口（本机）：`http://127.0.0.1:8788/`（`artifacts/handoff/R5/serve-paper.mts` 服务
-`D:\deepseek modex\preflight-r8`，含 PDF/Word 下载）。
+`<repo>\preflight-r8`，含 PDF/Word 下载）。
 
 ## 三、仍未做到（诚实登记）
 

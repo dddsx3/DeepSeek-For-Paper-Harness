@@ -248,7 +248,9 @@ describe('T2 guided steps — executor end to end', () => {
     // 而引导面的小步里没有任何一步声明图——差异仅此而已。
     expect(t1Report).toContain('figures/F-OUT.svg')
     expect(t2Report).not.toContain('figures/')
-  })
+    // L3：符号证据通道（harness 侧驱动）会 spawn 一次 python+sympy（约 1s）。
+    // 这条用例跑**两次完整交付**，因此超时按它的真实工作量给。
+  }, 30_000)
 
   it('attack 1: a full container smuggled into a step is ESCAPE — zero budget, run failed, no IR written', async () => {
     const { ctx, ir, runId, outcome } = await tierHarness('T2', [t1Container(), STEP2_OK, STEP3_OK])
@@ -379,7 +381,8 @@ describe('T3 template fill — executor end to end', () => {
       expect(t1Report).toContain(marker)
     }
     expect(t3Report).toContain('_(模型待写入)_')
-  })
+    // L3 符号通道 spawn 一次 python+sympy（约 1s）；这条用例跑两次完整交付。
+  }, 30_000)
 
   it('attack 1: a free number in the T3 fill-in is ESCAPE — zero budget, run failed', async () => {
     const withNumber = '{"symbol_id": "SYM-q", "unit": "m", "output_file": "result.json", "json_path": "mean_thickness", "note": "0.731"}'

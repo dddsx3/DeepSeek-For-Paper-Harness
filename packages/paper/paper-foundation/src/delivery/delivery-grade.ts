@@ -109,9 +109,9 @@ export function renderDeliveryAppendix(
   lines.push('## 附录：交付标注（自动生成）')
   lines.push('')
   if (grade === 'MARKED') {
-    lines.push(`本稿以 **MARKED**（标注交付）等级交付：${annotations.length} 项检查未通过。内容照常可用；以下逐项列出未通过项、位置与原因，供复核与改进。`)
+    lines.push(`本稿以 MARKED（标注交付）等级交付：${annotations.length} 项检查未通过。内容照常可用；以下逐项列出未通过项、位置与原因，供复核与改进。`)
   } else {
-    lines.push(`本运行以 **BLOCKED** 判定：${annotations.length} 项致命条件命中，不予交付。以下为判定依据。`)
+    lines.push(`本运行以 BLOCKED 判定：${annotations.length} 项致命条件命中，不予交付。以下为判定依据。`)
   }
   lines.push('')
   lines.push('| # | 检查项 | 位置 | 原因 |')

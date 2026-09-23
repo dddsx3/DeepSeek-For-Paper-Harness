@@ -15,6 +15,7 @@ import {
   type PaperSettings,
 } from '../src/index.ts'
 import { backboneIr } from './ir/fixtures.ts'
+import { FAKE_DRAFT_TEXT } from './fixtures/fake-draft.ts'
 
 const settings: PaperSettings = {
   executor: { provider: 'fake', model: 'fake-model', credentialRef: 'cred://executor', timeoutMs: 1000 },
@@ -47,7 +48,7 @@ function windowedProvider(contextWindow: number | undefined) {
     stream: (options: GenerateOptions): AsyncIterable<StreamChunk> => {
       const first = options.messages[0]?.content[0]
       prompts.push(first !== undefined && first.type === 'text' ? first.text : '')
-      return textStream((options.system ?? '').includes('reviewer') ? '{"defects":[]}' : 'deliverable')
+      return textStream((options.system ?? '').includes('reviewer') ? '{"defects":[]}' : FAKE_DRAFT_TEXT)
     },
   }
 }

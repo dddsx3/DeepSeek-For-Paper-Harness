@@ -26,6 +26,7 @@ import {
 } from '../src/index.ts'
 import { backboneIr } from './ir/fixtures.ts'
 import { resolveRunPolicy } from '../src/policy.ts'
+import { FAKE_DRAFT_TEXT } from './fixtures/fake-draft.ts'
 
 /**
  * TASK 5.0.5: the audit events a *successful* promotion adds to a run's
@@ -33,7 +34,10 @@ import { resolveRunPolicy } from '../src/policy.ts'
  * assert on the audit sequence filter these out so they keep
  * asserting what they were written to assert (INV-014).
  */
-const PROMOTION_EVENTS = ['final_output_written', 'promotion_succeeded', 'delivery_graded']
+// 上限解放架构在运行开始/收口处新增的审计事件（能力画像、技能库落盘、
+// 闭环收口、门禁状态机）。它们不改变这些套件要测的东西，因此与交付类
+// 事件一起从序列断言里滤掉。
+const PROMOTION_EVENTS = ['final_output_written', 'promotion_succeeded', 'delivery_graded', 'capability_check', 'skill_library_materialized', 'closure_closed', 'gate_state_changed']
 
 const settings: PaperSettings = {
   executor: { provider: 'fake', model: 'fake-model', credentialRef: 'cred://executor', timeoutMs: 1000 },
@@ -73,7 +77,7 @@ async function harness(options: HarnessOptions = {}) {
       if (options.throwing !== undefined) throw options.throwing
       const system = request.system ?? ''
       if (system.includes('reviewer')) return textStream(options.reviewerText ?? '{"defects":[]}')
-      return textStream('deliverable text')
+      return textStream(FAKE_DRAFT_TEXT)
     },
   } as never)
   await ctx.plugin(PaperSettingsService, settings)

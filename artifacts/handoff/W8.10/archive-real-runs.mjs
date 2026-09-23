@@ -13,7 +13,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import crypto from 'node:crypto'
 
-const ROOT = 'D:/deepseek modex/deepseek-harness'
+const ROOT = '<repo>'
 const OUT_ROOT = path.join(ROOT, 'artifacts', 'handoff', 'W8.10')
 const SRC_ROOT = path.join(ROOT, 'apps', 'paper-shell', 'src')
 

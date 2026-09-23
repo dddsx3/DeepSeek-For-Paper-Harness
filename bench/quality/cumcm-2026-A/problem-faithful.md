@@ -1,7 +1,7 @@
 # 2026-A 药材的烘干问题 — 题面忠实摘录（机械事实版）
 
 > 目的：为 `capability-library.json` 的每条阈值提供**题面侧出处**。全部数值
-> 逐字来自 `reference-verdicts/PROBLEM_FACTS.json`（sha256 6fc53139e8a599ef…，
+> 逐字来自本目录 `problem-faithful.md` 的原始摘录（2026-A 题面机械事实，
 > 其 PDF 核验记录见该文件 `_meta.verification_notes`）。本文不是可跑题面
 > （`bench/MANIFEST.json` 的 12 题预注册不含本题）。
 

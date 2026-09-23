@@ -256,17 +256,34 @@ describe('M-QUAL DP-4 — execution-time config capture', () => {
     expect(verdict.code).toBe('CONFIG_EMISSION_INVALID')
   }, 60_000)
 
-  it('an emission token that resolves to no declared SymbolSpec refuses the chain', async () => {
+  it('一个锚不到已声明 SymbolSpec 的配置键：**链照常跑通**，缺口作为 configGaps 上报', async () => {
+    // 契约反转（四轮实测）：原文是"refuses the chain"，每次零掉一整次尝试。
+    // 而 `numeric_config.json` 在宪法里写的是 **SHOULD**——把它当 MUST 硬拒是
+    // 优先级错配。真实含义也只是"模型的符号表不全"（用了某个量却没声明它）。
+    //
+    // **不变量仍在**：缺口必须被记录（configGaps 非空），绝不静默丢掉。
     const ir = new ModelingIr()
     seedContract(ir)
     const verdict = await produceRunExecution({
       ir,
       ...configRunArgs(JSON.stringify({ discretization: { mystery: 1 }, physical: {}, choices: {}, property_set: null })),
     })
+    expect(verdict.ok).toBe(true)
+    if (!verdict.ok) return
+    expect(verdict.configGaps?.length).toBe(1)
+    expect(String(verdict.configGaps?.[0])).toContain('mystery')
+  }, 60_000)
+
+  it('结构坏掉的 emission **仍然硬拒**（那不是"锚不上"，是输出本身坏了）', async () => {
+    const ir = new ModelingIr()
+    seedContract(ir)
+    const verdict = await produceRunExecution({
+      ir,
+      ...configRunArgs('this is not JSON at all'),
+    })
     expect(verdict.ok).toBe(false)
     if (verdict.ok) return
-    expect(verdict.code).toBe('CONFIG_EMISSION_TOKEN_UNRESOLVED')
-    expect(verdict.reason).toContain('mystery')
+    expect(verdict.code).toBe('CONFIG_EMISSION_INVALID')
   }, 60_000)
 
   it('a run that never declares the emission simply leaves the contract inactive', async () => {

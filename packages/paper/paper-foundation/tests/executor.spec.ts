@@ -7,6 +7,7 @@ import { MemoryMediaPool, MemoryStorageBackend } from '../../../storage/storage-
 import PaperRuntimeGuard from '../src/runtime/runtime-guard.ts'
 import { createExploratoryProfile } from '../src/runtime/profile.ts'
 import {
+  PaperAuditService,
   PaperExecutorService,
   PaperFoundationService,
   PaperSettingsService,
@@ -15,6 +16,7 @@ import {
   type PaperSettings,
 } from '../src/index.ts'
 import { backboneIr } from './ir/fixtures.ts'
+import { FAKE_DRAFT_TEXT } from './fixtures/fake-draft.ts'
 
 const settings: PaperSettings = {
   executor: { provider: 'fake', model: 'exec-model', credentialRef: 'cred://executor', timeoutMs: 1000 },
@@ -65,6 +67,8 @@ async function harness(script: Script, executorConfig: Record<string, unknown> =
   // Without it these runs are text-only and the bridge blocks them; these
   // suites are about context budgeting, retries and cost, not about the IR.
   ctx.provide('paperModelingIr', backboneIr())
+  // 交付档位落在审计轨迹上——读它才能断言"这份交付是什么档位"。
+  await ctx.plugin(PaperAuditService, {})
   await ctx.plugin(PaperExecutorService, executorConfig)
   return { ctx }
 }
@@ -72,7 +76,7 @@ async function harness(script: Script, executorConfig: Record<string, unknown> =
 const approvingScript: Script = (system, prompt) => {
   if (system.includes('reviewer')) return '{"defects":[]}'
   if (prompt.includes('short numbered execution plan')) return '1. Draft the deliverable.'
-  if (prompt.includes('Produce the deliverable')) return 'The final deliverable text.'
+  if (prompt.includes('Produce the deliverable')) return FAKE_DRAFT_TEXT
   return 'revised text'
 }
 
@@ -107,28 +111,31 @@ describe('WorkflowExecutor', () => {
   // fast/strict delivery is BLOCKED at the six UNIMPLEMENTED gates until
   // P1; the fast=1/strict=3 round split is pinned in
   // executor-guards.spec.ts as resolveRunPolicy unit tests.
-  it('refuses a run whose defects survive its revise rounds', async () => {
+  it('a run whose defects survive its revise rounds delivers with the defects surfaced', async () => {
     const { ctx } = await harness((system) => {
       if (system.includes('reviewer')) return '{"defects":[{"severity":"minor","description":"tone too dry"}]}'
-      if (system.includes('editor')) return 'warmer deliverable text'
-      return 'draft deliverable text'
+      if (system.includes('editor')) return FAKE_DRAFT_TEXT
+      return FAKE_DRAFT_TEXT
     })
     const engine = ctx.paperWorkflow.runs
     const run = await engine.startRun({ mode: 'exploratory', harnessVersion: 'test', configHash: 'sha256:test' })
 
-    await expect(ctx.paperExecutor.runs.execute(RunId(run.id), 'write one sentence'))
-      .rejects.toThrow('blocked at delivery grade BLOCKED')
-
-    expect(engine.getRun(RunId(run.id))?.status).toBe('failed')
+    // 契约反转：surviving defects 不再拒绝交付（那会零产物），而是进已知缺陷表。
+    const outcome = await ctx.paperExecutor.runs.execute(RunId(run.id), 'write one sentence')
+    expect(outcome.run.status).toBe('completed')
+    const graded = ctx.paperAudit.list(RunId(run.id)).find(e => e.eventType === 'delivery_graded')
+    expect(String(graded?.detail?.grade)).toBe('MARKED')
+    expect(Number(graded?.detail?.annotations ?? 0)).toBeGreaterThan(0)
     const nodeTitles = engine.listNodes(RunId(run.id)).map(node => node.title)
     expect(nodeTitles).toContain('revise #1')
     expect(nodeTitles).toContain('review #2')
     const events = engine.listEvents(RunId(run.id))
     // Three revise rounds in exploratory mode -> four reviews, four defects.
     expect(events.filter(event => event.type === 'defect')).toHaveLength(4)
-    // No promotion, therefore no deliverable: the promoter is the only
-    // writer and it is never reached on a refused run (INV-014).
-    expect(engine.getManifest(RunId(run.id))).toBeUndefined()
+    // 这份交付**产出了** manifest（promoter 是唯一写入者，INV-014 仍然成立：
+    // 拒绝运行永远不会走到它，但这条运行不再是被拒绝的运行）。
+    expect(engine.getManifest(RunId(run.id))).toBeDefined()
+    expect(outcome.manifest.delivery_path).toBeDefined()
   })
 
   it('fails a run when defects persist past the policy ceiling', async () => {
@@ -191,7 +198,7 @@ describe('WorkflowExecutor', () => {
     // fixture, and the boundary appendix renders UNCONDITIONALLY (CLEAN
     // deliveries carry their limits too) — so the promoted bytes are the
     // body plus the generated limits section.
-    expect(bytes.startsWith('The final deliverable text.')).toBe(true)
+    expect(bytes.startsWith('# 假交付稿（测试夹具）')).toBe(true)
     expect(bytes).toContain('## 附录：局限与边界声明')
     expect(createHash('sha256').update(bytes).digest('hex')).toMatch(/^[0-9a-f]{64}$/)
     expect(outcome.manifest.finalArtifactId).not.toBeNull()

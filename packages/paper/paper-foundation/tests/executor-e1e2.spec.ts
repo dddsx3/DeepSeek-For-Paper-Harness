@@ -510,8 +510,11 @@ interface HarnessOpts {
   disableShardDeclare?: boolean
   /** W8.11-B2: omit the artifact body store (the "store not mounted" guard). */
   noBodyStore?: boolean
-  /** W8.12: fail-soft grading (the mass-tier default the shell sets via --fail-soft). */
+  /** W8.12: fail-soft grading. **Now the default** — the flag is kept so the
+   *  historical call sites keep recording the same intent. */
   failSoft?: boolean
+  /** 显式钉住 fail-closed 路径（交付档位的第三个选项）。 */
+  strict?: boolean
   /** W11.5 baseline-r9: the output index that reports `max-tokens` (a real truncation). */
   truncatedAt?: number
 }
@@ -576,6 +579,7 @@ ${joined}`
     produceFromExecute: true,
     ...(opts?.disableE1E2 === true ? { disableE1E2: true } : {}),
     ...(opts?.disableShardDeclare === true ? { disableShardDeclare: true } : {}),
+    ...(opts?.strict === true ? { deliveryGradeMode: 'strict-tolerance' as const } : {}),
     ...(opts?.failSoft === true ? { deliveryGradeMode: 'fail-soft' as const } : {}),
     backoffBaseMs: 1,
     backoffCapMs: 1,
@@ -637,10 +641,14 @@ describe('W8.9-B1 — E1 and E2 are two independent calls', () => {
 describe('W8.9-B3/B5 — fidelity refusal + E1 is never re-run', () => {
   it('H6: E2 inventing an assumption is REFUSED (fidelity), and E1 runs only once', async () => {
     const { ctx, runId, outcome, prompts, callCount } = await harness([E1_SAMPLE, INVENTED_ASSUMPTION_CONTAINER])
-    expect(outcome.status).toBe('rejected')
-    // The refusal carries the fidelity code (the circuit breaker appends its
-    // own sentence after the class prefix — see the W8.6-A4 message shape).
-    expect(outcome.message).toContain('E1_E2_FIDELITY_VIOLATION')
+    // 契约反转：保真门仍然**拒绝那个容器**（不变量不变——凭空造的假设进不了 IR），
+    // 但拒绝不再终结产线：E2 的失败成为交付标注，稿子以标注等级交付。
+    expect(outcome.status).toBe('resolved')
+    const graded = ctx.paperAudit.list(runId).find((e: { eventType: string }) => e.eventType === 'delivery_graded')
+    // 被拒的事实进了标注（而不是终结运行）：annotations 非零即"E2 的失败被记录了"。
+    expect(Number(graded?.detail?.annotations ?? 0)).toBeGreaterThan(0)
+    expect(String(graded?.detail?.grade)).toBe('MARKED')
+    expect(String(graded?.detail?.tier)).toBe('DEGRADED')
     // B5: E1 was called exactly once despite the retries.
     const e1Calls = prompts.filter(p => p.includes('Write a modeling analysis in prose')).length
     expect(e1Calls).toBe(1)
@@ -1302,8 +1310,17 @@ describe('W8.12b — critical gates reach the grader under fail-soft', () => {
     const { ctx, runId, outcome } = await harness([E1_SAMPLE, FAITHFUL_CONTAINER])
     expect(outcome.status, outcome.message).toBe('resolved')
     const graded = ctx.paperAudit.list(runId).find((e: { eventType: string }) => e.eventType === 'delivery_graded')
-    expect(String(graded?.detail?.grade)).toBe('CLEAN')
-    expect(String(graded?.detail?.mode)).toBe('strict-tolerance')
+    // 默认档位已是 fail-soft：V1–V4 findings 入 grade input → MARKED（带标注交付）。
+    expect(String(graded?.detail?.grade)).toBe('MARKED')
+    expect(String(graded?.detail?.mode)).toBe('fail-soft')
+
+    // 显式 strict-tolerance 下同一份输入仍是 CLEAN（V findings 不入 grade input）
+    // ——fail-closed 路径没有被删除，只是不再是默认。
+    const strict = await harness([E1_SAMPLE, FAITHFUL_CONTAINER], { strict: true })
+    expect(strict.outcome.status, strict.outcome.message).toBe('resolved')
+    const strictGraded = strict.ctx.paperAudit.list(strict.runId).find((e: { eventType: string }) => e.eventType === 'delivery_graded')
+    expect(String(strictGraded?.detail?.grade)).toBe('CLEAN')
+    expect(String(strictGraded?.detail?.mode)).toBe('strict-tolerance')
   })
 })
 

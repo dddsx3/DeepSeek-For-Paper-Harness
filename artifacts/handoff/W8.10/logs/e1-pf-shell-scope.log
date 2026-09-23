@@ -2,7 +2,7 @@
 [33mThe plugin "vite-tsconfig-paths" is detected. Vite now supports tsconfig paths resolution natively via the [1mresolve.tsconfigPaths[22m option. You can remove the plugin and set [1mresolve.tsconfigPaths: true[22m in your Vite config instead.[39m
 [33mThe plugin "vite-tsconfig-paths" is detected. Vite now supports tsconfig paths resolution natively via the [1mresolve.tsconfigPaths[22m option. You can remove the plugin and set [1mresolve.tsconfigPaths: true[22m in your Vite config instead.[39m
 
-[1m[30m[46m RUN [49m[39m[22m [36mv4.1.8 [39m[90mD:/deepseek modex/deepseek-harness[39m
+[1m[30m[46m RUN [49m[39m[22m [36mv4.1.8 [39m[90m<repo>[39m
 
  [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-foundation/tests/verification/v6-v7.spec.ts [2m([22m[2m10 tests[22m[2m)[22m[32m 232[2mms[22m[39m
  [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-foundation/tests/rt-c3/redteam-rt-c3.spec.ts [2m([22m[2m23 tests[22m[2m)[22m[32m 101[2mms[22m[39m

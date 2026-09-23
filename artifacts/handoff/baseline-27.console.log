@@ -1,0 +1,9 @@
+[CODE-FRESH] 代码来源已断言：entry lib/index.js is 270944 ms newer than the newest source; entry lib/index.js is 74905894 ms newer than the newest source; entry lib/index.js is 74918292 ms newer than the newest source; entry lib/index.js is 74918386 ms newer than the newest source; entry lib/index.js is 74918509 ms newer than the newest source; entry lib/index.js is 74905695 ms newer than the newest source
+[DELIVERED] sha256=fb3276cf8a61f4dd...
+  run-id  -> 345a0b6a-47b2-400a-848c-b9960caab387
+  report  -> artifacts\handoff\baseline-27\report.md
+  zip     -> artifacts\handoff\baseline-27\deliverable.zip (zip sha256=130cdab3e89028e1...)
+  usage   -> in 156885 tok / out 57725 tok / $0.0000 (TASK-Q2 telemetry)
+  audit   -> workflow_started,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,container_refused,provider_retry,ir_entry_written,ir_entry_written,provider_retry,ir_entry_written,ir_entry_written,provider_retry,ir_entry_written,ir_entry_written,provider_retry,ir_entry_written,ir_entry_written,provider_retry,ir_entry_written,ir_entry_written,provider_retry,ir_entry_written,ir_entry_written,e1_direct_delivery,provider_retry,ir_entry_written,ir_entry_written,gate_failed,gate_failed,delivery_graded,final_output_written,promotion_succeeded,workflow_completed
+  tier    -> T1
+  path    -> B-e1-direct

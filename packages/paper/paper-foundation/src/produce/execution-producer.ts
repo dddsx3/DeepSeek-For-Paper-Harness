@@ -42,6 +42,17 @@ import {
   numericConfigFromEmission,
 } from '../ir/numeric-config.ts'
 
+/**
+ * 成功产出的形态。`configGaps` 非空表示 `numeric_config.json` 里有键锚不到任何
+ * 已声明的 SymbolSpec（模型用了某个量却没声明它）——**部分准入**，缺口如实上报。
+ */
+export interface RunExecutionOutput {
+  readonly runArtifactId: string
+  readonly executionId: string
+  readonly outputs: ReadonlyArray<{ readonly locator: string; readonly bytes: string }>
+  readonly configGaps?: ReadonlyArray<string>
+}
+
 export interface RunExecutionInput {
   readonly ir: ModelingIr
   /** id of the new RunArtifact (the composition/executor owns the namespace). */
@@ -70,6 +81,11 @@ export type RunExecutionVerdict =
     executionId: string
     /** P1-3: the REAL produced output bytes for interpretation. */
     outputs: ReadonlyArray<import('./interpretation-producer.ts').OutputBytes>
+    /**
+     * `numeric_config.json` 里锚不到已声明 SymbolSpec 的键（**部分准入**的缺口）。
+     * 非空表示模型的符号表不全——如实上报，进 L6 的已知缺陷表，**不是**链的失败。
+     */
+    configGaps?: ReadonlyArray<string>
   }
   | { ok: false; code: string; reason: string }
 
@@ -206,6 +222,8 @@ export async function produceRunExecution(input: RunExecutionInput): Promise<Run
   // A run that never declares the emission simply leaves the config
   // contract inactive (config-consistency.ts documents the phase-in).
   const emissionFile = captured.outputs.find(o => o.locator.endsWith(NUMERIC_CONFIG_EMISSION_BASENAME))
+  // 配置缺口：声明在块外，因为它在返回里要带出去（块内只是赋值）。
+  let unresolvedKeys: ReadonlyArray<string> = []
   if (emissionFile !== undefined) {
     const configRefusal = (code: string, reason: string) => ({ ok: false as const, code, reason })
     let emissionJson: unknown
@@ -227,21 +245,36 @@ export async function produceRunExecution(input: RunExecutionInput): Promise<Run
       emission: emission.data,
       symbols,
     })
+    // 部分准入（四轮实测的修法）：能锚定的键照常准入，锚不了的作为**缺口**返回，
+    // 由调用方记成 finding —— 不再整条链拒掉。
+    //
+    // 原来的判据是 `!built.ok → configRefusal(...)`，理由是"不得静默降级"。那条
+    // 理由仍然成立，所以缺口**必须被记录**；但代价不该是"这一轮的全部产出"——
+    // 而 `numeric_config.json` 在宪法里本来就写着 **SHOULD**，把它当 MUST 硬拒，
+    // 本身就是优先级错配。
     if (!built.ok) {
-      const failure = built.failures[0]
-      return configRefusal('CONFIG_EMISSION_TOKEN_UNRESOLVED', failure !== undefined ? failure.reason : 'the config emission could not be materialized')
+      if (built.ok === false) {
+        const failure = built.failures[0]
+        return configRefusal('CONFIG_EMISSION_INVALID', failure !== undefined ? failure.reason : 'the config emission could not be materialized')
+      }
     }
     const configAdmitted = ir.put('NumericConfig', built.config)
     if (!configAdmitted.accepted) {
       const failure = configAdmitted.failures[0]
       return configRefusal('CONFIG_EMISSION_REFUSED', failure !== undefined ? `${failure.kind}: ${failure.reason}` : 'store refused the captured NumericConfig')
     }
+    // 缺口如实上报：这些键锚不到任何已声明的 SymbolSpec，说明**符号表不全**
+    // （模型用了某个量却没声明它）。它进 L6 的已知缺陷表。
+    unresolvedKeys = built.ok === 'partial' ? built.failures.map(f => f.reason) : []
   }
   return {
     ok: true,
     runArtifactId: runId,
     executionId,
     outputs: captured.outputs.map(o => ({ locator: o.locator, bytes: o.bytes })),
+    // 配置缺口（可能为空）。调用方把它记成 finding，进 L6 的已知缺陷表——
+    // **缺口被记录**，而不是"整条链归零"。见上面 `unresolvedKeys` 的注释。
+    ...(unresolvedKeys.length === 0 ? {} : { configGaps: unresolvedKeys }),
   }
 }
 

@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="680" height="122" viewBox="0 0 680 122" role="img">
+<rect x="0" y="0" width="680" height="122" fill="#FFFFFF"/>
+<text x="72" y="20" text-anchor="start" font-family="sans-serif" font-size="12" font-weight="600" fill="#222222">量名</text>
+<text x="300" y="20" text-anchor="start" font-family="sans-serif" font-size="12" font-weight="600" fill="#222222">数值</text>
+<text x="470" y="20" text-anchor="start" font-family="sans-serif" font-size="12" font-weight="600" fill="#222222">单位</text>
+<text x="570" y="20" text-anchor="start" font-family="sans-serif" font-size="12" font-weight="600" fill="#222222">不确定度</text>
+<line x1="8" y1="26" x2="672" y2="26" stroke="#222222" stroke-width="1"/>
+<text x="72" y="48" text-anchor="start" font-family="sans-serif" font-size="12" fill="#222222">问题2 最优期望成本</text>
+<text x="300" y="48" text-anchor="start" font-family="monospace" font-size="12" fill="#222222">4362.8</text>
+<text x="470" y="48" text-anchor="start" font-family="sans-serif" font-size="12" fill="#222222">元</text>
+<text x="570" y="48" text-anchor="start" font-family="monospace" font-size="12" fill="#222222">—</text>
+<text x="72" y="74" text-anchor="start" font-family="sans-serif" font-size="12" fill="#222222">问题3 整树期望成本</text>
+<text x="300" y="74" text-anchor="start" font-family="monospace" font-size="12" fill="#222222">8732</text>
+<text x="470" y="74" text-anchor="start" font-family="sans-serif" font-size="12" fill="#222222">元</text>
+<text x="570" y="74" text-anchor="start" font-family="monospace" font-size="12" fill="#222222">—</text>
+<line x1="8" y1="60" x2="672" y2="60" stroke="#D8D8D8" stroke-width="1"/>
+<text x="72" y="100" text-anchor="start" font-family="sans-serif" font-size="12" fill="#222222">问题4 后验稳健成本</text>
+<text x="300" y="100" text-anchor="start" font-family="monospace" font-size="12" fill="#222222">4580.94</text>
+<text x="470" y="100" text-anchor="start" font-family="sans-serif" font-size="12" fill="#222222">元</text>
+<text x="570" y="100" text-anchor="start" font-family="monospace" font-size="12" fill="#222222">—</text>
+<line x1="8" y1="86" x2="672" y2="86" stroke="#D8D8D8" stroke-width="1"/>
+<text x="8" y="120" text-anchor="start" font-family="sans-serif" font-size="11" fill="#222222">各问的期望成本对照</text>
+</svg>
