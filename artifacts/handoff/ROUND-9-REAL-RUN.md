@@ -55,10 +55,10 @@
 
 ## 五、可查看的产物
 
-- 真实运行交付包：`D:\deepseek modex\baseline-r9d\`（`report.md` / `paper.pdf` /
+- 真实运行交付包：`<repo>\baseline-r9d\`（`report.md` / `paper.pdf` /
   `audit-trail.json` / `run-report.json` / `deliverable.zip`）
 - 用**真实 E1**（3,955 字符）+ 修复后的渲染器离线重排的稿子（零成本）：
-  `D:\deepseek modex\real-e1-view\report.md` —— 12 章 + 逐问章 + 附录 A/B，
+  `<repo>\real-e1-view\report.md` —— 12 章 + 逐问章 + 附录 A/B，
   **0 处机器占位**，逐问章标题取自模型自己写的短标题。
 - 本机阅读入口：`http://127.0.0.1:8788/`
 

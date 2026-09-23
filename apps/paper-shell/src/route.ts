@@ -131,8 +131,14 @@ export function classifyProblem(statement: string): RouteVerdict {
 }
 
 /** Render the route verdict into the taskText (family banner for the
- *  contract layer; W5 reads it). */
-export function routeBanner(verdict: Extract<RouteVerdict, { ok: true }>): string {
+ *  contract layer; W5 reads it).
+ *
+ *  接受**任何**带 family/note 的判定——包括域外题型降级后的 `F5-other`
+ *  （见 cli.ts 的 ROUTE-DEGRADED 分支）。`F5-other` 是"没有先验"的显式名字：
+ *  如实标注比省略更有用，模型由此知道这次要在选型上更用力。 */
+export function routeBanner(
+  verdict: { readonly family: string; readonly note: string },
+): string {
   return `\n## 题型路由（自动）\n\n方法族：${verdict.family}\n\n${verdict.note}\n`
 }
 

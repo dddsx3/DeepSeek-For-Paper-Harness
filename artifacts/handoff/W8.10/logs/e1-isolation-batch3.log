@@ -2,7 +2,7 @@
 [33mThe plugin "vite-tsconfig-paths" is detected. Vite now supports tsconfig paths resolution natively via the [1mresolve.tsconfigPaths[22m option. You can remove the plugin and set [1mresolve.tsconfigPaths: true[22m in your Vite config instead.[39m
 [33mThe plugin "vite-tsconfig-paths" is detected. Vite now supports tsconfig paths resolution natively via the [1mresolve.tsconfigPaths[22m option. You can remove the plugin and set [1mresolve.tsconfigPaths: true[22m in your Vite config instead.[39m
 
-[1m[30m[46m RUN [49m[39m[22m [36mv4.1.8 [39m[90mD:/deepseek modex/deepseek-harness[39m
+[1m[30m[46m RUN [49m[39m[22m [36mv4.1.8 [39m[90m<repo>[39m
 
  [31m❯[39m [30m[45m thread-safe [49m[39m scripts/verify-dsh-package-licenses.spec.ts [2m([22m[2m2 tests[22m[2m | [22m[31m1 failed[39m[2m)[22m[32m 60[2mms[22m[39m
 [31m     [31m×[31m checks root, unhyphenated CLI, and dsh-prefixed package names while ignoring other families[39m[32m 40[2mms[22m[39m

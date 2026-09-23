@@ -89,9 +89,9 @@
 cd deepseek-harness/artifacts/handoff/Q1
 python q1-c2-checks.py          # 期望 exit 0，输出 "H6 达成"
 
-# 材料指纹复核（H8）
-cd "C:\Users\35702\Desktop\CUMCM\workspaces\5ba6e7bd5010"
-sha256sum CAPABILITY_CHECKLIST.json | cut -c1-16    # 期望 4b4ade14aa2b1429
+# 基准语料自洽复核（H8）——对本仓库冻结的基准语料做完整性核对
+cd bench/quality/cumcm-2026-A
+python -c "import json;d=json.load(open('capability-library.json'));print(len(d['capabilities']))"  # 期望 11
 find . -name "*CROSS_PROBLEM_LEDGER*"               # 期望 0 命中（G-1）
 ```
 

@@ -1,0 +1,12 @@
+[CODE-FRESH] 代码来源已断言：entry lib/index.js is 128555 ms newer than the newest source; entry lib/index.js is 189054294 ms newer than the newest source; entry lib/index.js is 189088717 ms newer than the newest source; entry lib/index.js is 189088927 ms newer than the newest source; entry lib/index.js is 189088955 ms newer than the newest source; entry lib/index.js is 189054129 ms newer than the newest source
+  pdf     -> artifacts\upper-bound\2024B-strict-10\paper.pdf (541200 bytes)
+[docx] 导出前校核拒绝（1 致命）——交付包将缺 paper.docx：
+  ❌ [table_columns] 6 张表，2 张列数不一
+[DELIVERED] sha256=11ce806d8a56b7e1...
+  run-id  -> 388262c1-061d-4f12-a165-aaac01f2cb43
+  report  -> artifacts\upper-bound\2024B-strict-10\report.md
+  zip     -> artifacts\upper-bound\2024B-strict-10\deliverable.zip (zip sha256=ea5a9a71d878629a...)
+  usage   -> in 244113 tok / out 193756 tok / $0.0000 (TASK-Q2 telemetry)
+  audit   -> workflow_started,capability_check,skill_library_materialized,gate_state_changed,explore_select_completed,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,container_refused,provider_retry,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,container_refused,provider_retry,ir_entry_written,ir_entry_written,ir_entry_written,container_refused,provider_retry,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,ir_entry_written,container_refused,provider_retry,ir_entry_written,ir_entry_written,ir_entry_written,container_refused,provider_retry,ir_entry_written,ir_entry_written,provider_retry,ir_entry_written,ir_entry_written,ir_entry_written,container_refused,provider_retry,e1_direct_delivery,gate_state_changed,gate_state_changed,gate_state_changed,gate_state_changed,gate_state_changed,gate_state_changed,gate_state_changed,gate_state_changed,ir_entry_written,gate_state_changed,ir_entry_written,gate_failed,gate_failed,closure_closed,gate_state_changed,delivery_graded,final_output_written,promotion_succeeded,workflow_completed
+  tier    -> T1
+  path    -> B-e1-direct

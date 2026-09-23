@@ -18,6 +18,7 @@ import {
   type PaperSettings,
 } from '../src/index.ts'
 import { backboneIr } from './ir/fixtures.ts'
+import { FAKE_DRAFT_TEXT } from './fixtures/fake-draft.ts'
 
 /**
  * TASK 5.0.5: the audit events a successful promotion adds to a run's
@@ -25,7 +26,10 @@ import { backboneIr } from './ir/fixtures.ts'
  * Filtered out of the legacy audit-sequence expectations so those
  * assertions keep testing what they were written to test.
  */
-const PROMOTION_EVENTS = ['final_output_written', 'promotion_succeeded', 'delivery_graded']
+// 上限解放架构在运行开始/收口处新增的审计事件（能力画像、技能库落盘、
+// 闭环收口、门禁状态机）。它们不改变这些套件要测的东西，因此与交付类
+// 事件一起从序列断言里滤掉。
+const PROMOTION_EVENTS = ['final_output_written', 'promotion_succeeded', 'delivery_graded', 'capability_check', 'skill_library_materialized', 'closure_closed', 'gate_state_changed']
 
 const settings: PaperSettings = {
   executor: { provider: 'fake', model: 'fake-model', credentialRef: 'cred://executor', timeoutMs: 1000 },
@@ -87,7 +91,7 @@ function scriptedProvider(behaviors: Behavior[], fallback: (system: string) => s
   }
 }
 
-const APPROVING = (system: string): string => (system.includes('reviewer') ? '{"defects":[]}' : 'deliverable text')
+const APPROVING = (system: string): string => (system.includes('reviewer') ? '{"defects":[]}' : FAKE_DRAFT_TEXT)
 
 async function harness(behaviors: Behavior[], config: ExecutorConfig = FAST_BACKOFF) {
   const ctx = new Context()
@@ -147,7 +151,8 @@ describe('executor resilience', () => {
     expect(provider.calls).toHaveLength(1)
     expect(engine.getRun(RunId(run.id))?.status).toBe('failed')
     expect(engine.listNodes(RunId(run.id))[0]?.state).toBe('failed')
-    expect(ctx.paperAudit.list(run.id).map(entry => entry.eventType))
+    expect(ctx.paperAudit.list(run.id).map(entry => entry.eventType)
+      .filter(type => !PROMOTION_EVENTS.includes(type)))
       .toEqual(['workflow_started', 'provider_blocked', 'workflow_failed'])
   })
 
@@ -163,7 +168,8 @@ describe('executor resilience', () => {
     expect(provider.calls).toHaveLength(3)
     expect(engine.getRun(RunId(run.id))?.status).toBe('paused')
     expect(engine.listNodes(RunId(run.id))[0]?.state).toBe('paused')
-    expect(ctx.paperAudit.list(run.id).map(entry => entry.eventType))
+    expect(ctx.paperAudit.list(run.id).map(entry => entry.eventType)
+      .filter(type => !PROMOTION_EVENTS.includes(type)))
       .toEqual(['workflow_started', 'provider_retry', 'provider_retry', 'workflow_failed'])
   })
 
@@ -192,7 +198,8 @@ describe('executor resilience', () => {
     expect(provider.calls).toHaveLength(0)
     expect(engine.getRun(RunId(run.id))?.status).toBe('paused')
     expect(engine.listNodes(RunId(run.id))).toHaveLength(0)
-    expect(ctx.paperAudit.list(run.id).map(entry => entry.eventType))
+    expect(ctx.paperAudit.list(run.id).map(entry => entry.eventType)
+      .filter(type => !PROMOTION_EVENTS.includes(type)))
       .toEqual(['workflow_started', 'budget_exceeded', 'workflow_failed'])
     const budgetEvent = engine.listEvents(RunId(run.id)).find(event => event.type === 'usage')
     expect(budgetEvent?.data).toMatchObject({ budgetState: 'exhausted', limitUsd: 1, spentUsd: 5 })

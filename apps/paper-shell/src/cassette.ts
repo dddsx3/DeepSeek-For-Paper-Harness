@@ -55,17 +55,32 @@ export interface CassetteDoc {
 }
 
 /** Deterministic fingerprint over one seam request. */
-export function requestFingerprint(request: {
+/**
+ * 一次接缝请求的形状（录制与回放共用）。
+ *
+ * 抽成具名类型而不是到处内联：原来同一个形状在五个签名里各写一遍，于是它一长就
+ * 撞 lint 的行长上限，而改一处要改五处。
+ */
+export type CassetteRequest = {
   provider: string
   model: string
   system?: string | undefined
   messages: ReadonlyArray<{ content?: unknown }>
-}): string {
+  /**
+   * 工具定义参与指纹：**带工具与不带工具是不同的请求**。不进指纹的话，
+   * 一份"没工具"的记录会被当成"带工具"的请求的回放来源——模型当时根本没有
+   * 工具可调，回放却告诉调用方"这就是带工具时的回答"。
+   */
+  tools?: ReadonlyArray<{ name: string; description: string; parameters: Record<string, unknown> }> | undefined
+}
+
+export function requestFingerprint(request: CassetteRequest): string {
   return createHash('sha256').update(JSON.stringify({
     provider: request.provider,
     model: request.model,
     system: request.system ?? '',
     messages: request.messages.map(m => ({ content: normalizeContent(m.content) })),
+    ...(request.tools === undefined || request.tools.length === 0 ? {} : { tools: request.tools }),
   })).digest('hex')
 }
 
@@ -92,7 +107,7 @@ export class CassetteRecorder {
     this.#source = source
   }
 
-  record(request: { provider: string; model: string; system?: string | undefined; messages: ReadonlyArray<{ content?: unknown }> }, responseText: string, usage?: CassetteEntry['usage']): void {
+  record(request: CassetteRequest, responseText: string, usage?: CassetteEntry['usage']): void {
     this.#entries.push({
       request_fingerprint: requestFingerprint(request),
       provider: request.provider,
@@ -159,19 +174,19 @@ export class CassetteReplayer {
   }
 
   /** The recorded answer for this exact request, or a loud failure. */
-  answer(request: { provider: string; model: string; system?: string | undefined; messages: ReadonlyArray<{ content?: unknown }> }): string {
+  answer(request: CassetteRequest): string {
     const entry = this.#entryFor(request)
     return entry.response_text
   }
 
   /** The recorded answer AND its usage (TASK-Q2: replay reproduces the
    *  token accounting, so a replayed run-report equals the real one). */
-  answerWithUsage(request: { provider: string; model: string; system?: string | undefined; messages: ReadonlyArray<{ content?: unknown }> }): { text: string; usage?: CassetteEntry['usage'] } {
+  answerWithUsage(request: CassetteRequest): { text: string; usage?: CassetteEntry['usage'] } {
     const entry = this.#entryFor(request)
     return { text: entry.response_text, ...(entry.usage === undefined ? {} : { usage: entry.usage }) }
   }
 
-  #entryFor(request: { provider: string; model: string; system?: string | undefined; messages: ReadonlyArray<{ content?: unknown }> }): CassetteEntry {
+  #entryFor(request: CassetteRequest): CassetteEntry {
     const fingerprint = requestFingerprint(request)
     const entry = this.#byFingerprint.get(fingerprint)
     if (entry === undefined) {

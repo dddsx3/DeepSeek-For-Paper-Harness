@@ -16,12 +16,23 @@
  * @module apps/paper-shell/src/real-provider
  */
 
-import type { StreamChunk } from '@deepseek-ai/dsh-llm'
+import { CallId, type StreamChunk, type ToolSchema } from '@deepseek-ai/dsh-llm'
 
 /** One SSE `data:` JSON payload from an OpenAI-compatible endpoint. */
 interface ChatCompletionChunk {
   choices?: Array<{
-    delta?: { content?: string; reasoning_content?: string }
+    delta?: {
+      content?: string
+      reasoning_content?: string
+      /** OpenAI wire shape for streamed tool calls: the name arrives on the
+       *  first fragment, the arguments accumulate across fragments. */
+      tool_calls?: Array<{
+        index?: number
+        id?: string
+        type?: string
+        function?: { name?: string; arguments?: string }
+      }>
+    }
     finish_reason?: string | null
   }>
   /** Final chunk's usage block when stream_options.include_usage is set. */
@@ -90,8 +101,17 @@ export function classifyStream(state: {
   readonly finishReason: string | null
   readonly contentChunks: number
   readonly sawAnyChoice: boolean
+  /**
+   * 这一次流里出现过工具调用分片。
+   *
+   * 工具调用回合**本来就没有正文**，所以"零文本块"在那里是正常形态，不是空流。
+   * 有些 OpenAI 兼容端点在工具调用回合**不发 `finish_reason`**（协议上允许它
+   * 只出现在 `[DONE]` 之前的那一片里），此时若只看 `contentChunks === 0`，一次
+   * 成功的工具调用会被判成 `EMPTY_STREAM` 而失败。
+   */
+  readonly sawToolCalls: boolean
 }): StreamOutcome {
-  const { inBandError, finishReason, contentChunks, sawAnyChoice } = state
+  const { inBandError, finishReason, contentChunks, sawAnyChoice, sawToolCalls } = state
   if (inBandError !== null) {
     return {
       kind: 'error',
@@ -101,6 +121,8 @@ export function classifyStream(state: {
   }
   if (finishReason === 'length') return { kind: 'max-tokens' }
   if (contentChunks === 0 && finishReason === null) {
+    // 工具调用回合没有正文是**正常**的：只要见到过调用分片，就不是空流。
+    if (sawToolCalls) return { kind: 'stop' }
     return {
       kind: 'error',
       message: `provider returned HTTP 200 with an empty stream: no content chunk and no finish_reason${sawAnyChoice ? ' (choices present, all deltas empty)' : ' (no choices at all)'}`,
@@ -185,11 +207,45 @@ function reasoningEffort(): string | null {
   return raw ?? 'none'
 }
 
+/**
+ * harness 的工具定义 → OpenAI wire 形状。
+ *
+ * 两个形状不同（`{name, description, parameters}` vs
+ * `{type:'function', function:{…}}`），而差异只应存在于这一个边界文件里；
+ * 把它摊到调用方会让每个调用点都要知道对端的协议细节。
+ */
+export function toWireTools(
+  tools: ReadonlyArray<ToolSchema>,
+): ReadonlyArray<{ readonly type: 'function'; readonly function: { readonly name: string; readonly description: string; readonly parameters: Record<string, unknown> } }> {
+  return tools.map(tool => ({
+    type: 'function' as const,
+    function: { name: tool.name, description: tool.description, parameters: tool.parameters },
+  }))
+}
+
 /** One real streaming call → StreamChunks (non-streaming fallback). */
 export async function* streamCompletion(
   route: { baseURL: string; apiKey: string; model: string },
-  request: { system?: string; messages: Array<{ content: string }> },
+  request: {
+    system?: string
+    messages: Array<{ content: string }>
+    /**
+     * Tool definitions in the **harness** shape (`ToolSchema`: flat
+     * `{name, description, parameters}`). Present ⇒ the model MAY call them,
+     * and the stream carries `tool-call-delta` fragments for each call.
+     * Absent ⇒ byte-identical to the previous behaviour (text only).
+     *
+     * 这一层是 OpenAI 兼容边界，所以**转换发生在这里**（下面 `toWireTools`）：
+     * 调用方按 harness 的形状给，wire 形状只在这一个文件里出现。
+     */
+    tools?: ReadonlyArray<ToolSchema>
+  },
 ): AsyncGenerator<StreamChunk> {
+  // 单次调用的墙钟上限：env 可调，默认 5 分钟（一次真实调用通常在 1–3 分钟内，
+  // 超过 5 分钟基本可以判定为对端已经不会回了）。**0 或非法值 = 回落到默认**，
+  // 而不是"无超时"——无超时是一条会把整轮运行卡死的路径。
+  const configured = Number(process.env.PAPER_CALL_TIMEOUT_MS ?? '')
+  const callTimeoutMs = Number.isFinite(configured) && configured > 0 ? configured : 300_000
   const url = `${route.baseURL.replace(/\/$/, '')}/chat/completions`
   const budget = outputBudget()
   const payload = JSON.stringify({
@@ -212,6 +268,9 @@ export async function* streamCompletion(
     // already treats missing usage as "not reported", never as zero-with-
     // confidence.
     stream_options: { include_usage: true },
+    // Tools ride along only when the caller supplied them — an absent field
+    // keeps every existing request byte-identical.
+    ...(request.tools === undefined || request.tools.length === 0 ? {} : { tools: toWireTools(request.tools) }),
   })
 
   // The concurrency slot spans all attempts of one call: a retry must not
@@ -227,6 +286,14 @@ export async function* streamCompletion(
           authorization: `Bearer ${route.apiKey}`,
         },
         body: payload,
+        // 单次调用的墙钟上限。**此前是声明了却没实现**：路由里带着
+        // `timeoutMs: 60_000`，而这个 fetch 没有任何超时——一次挂住的中转调用会把
+        // 整个运行永久卡死（实测代价：一次真实运行在 revise #3 上停摆 25 分钟，
+        // 审计轨迹一动不动，而没有任何信号告诉用户"它在等一个不会回来的响应"）。
+        //
+        // 判据用 AbortSignal.timeout：它不依赖服务端配合，超时即抛，由下面的
+        // catch 分类成可重试的传输失败——与"网络抖动"走同一条恢复路径。
+        signal: AbortSignal.timeout(callTimeoutMs),
       })
       if (response.ok) break
       const detail = await response.text().catch(() => '')
@@ -271,6 +338,7 @@ export async function* streamCompletion(
   // runs #3/#4 hit HTTP 200 + empty SSE twice and each time it surfaced as
   // FINISH_REASON_UNKNOWN, indistinguishable from a genuine protocol bug.
   let contentChunks = 0
+  let toolCallsSeen = 0
   let sawAnyChoice = false
   try {
     yield { type: 'block-start', index: 0, blockType: 'text' }
@@ -300,11 +368,36 @@ export async function* streamCompletion(
       if (parsed.choices !== undefined && parsed.choices.length > 0) sawAnyChoice = true
       const reason = parsed.choices?.[0]?.finish_reason
       if (typeof reason === 'string') finishReason = reason
+      // 判据必须是 `typeof === 'string'`，不能是 `!== undefined`：OpenAI 兼容
+      // 端点在**工具调用分片**上会把 `content` 显式写成 `null`，而
+      // `null !== undefined` 为真，于是 `delta.length` 抛
+      // `Cannot read properties of null (reading 'length')`——整次调用失败。
+      //
+      // 落盘证据（strict-8 真实运行，attempt 3）：`provider_retry UNKNOWN:
+      // Cannot read properties of null (reading 'length')`。这是**工具通道**带出来的
+      // 新形态：没有工具时端点从不发 `content: null`。
       const delta = parsed.choices?.[0]?.delta?.content
-      if (delta !== undefined && delta.length > 0) {
+      if (typeof delta === 'string' && delta.length > 0) {
         text += delta
         contentChunks += 1
         yield { type: 'text-delta', index: 0, text: delta }
+      }
+      // 工具调用：OpenAI 的分片形态是"名字在首片、参数跨片累积"。原样转发成
+      // `tool-call-delta`，由 BlockAssembler 拼装（它早已支持这个类型）。
+      // **不改动文本通道**：工具调用的存在不影响 content 的收集与 finish 判定。
+      const toolCalls = parsed.choices?.[0]?.delta?.tool_calls
+      if (Array.isArray(toolCalls)) {
+        for (const call of toolCalls) {
+          if (call === null || typeof call !== 'object') continue
+          toolCallsSeen += 1
+          yield {
+            type: 'tool-call-delta',
+            index: 1 + (typeof call.index === 'number' ? call.index : 0),
+            id: CallId(String(call.id ?? `call_${String(toolCallsSeen)}`)),
+            ...(typeof call.function?.name === 'string' ? { name: call.function.name } : {}),
+            argumentsDelta: String(call.function?.arguments ?? ''),
+          }
+        }
       }
     }
     yield { type: 'block-end', index: 0, block: { type: 'text', text } }
@@ -338,7 +431,7 @@ ${rawAccum}`)
     // W8.6-A2 / W8.8 / W8.9-A3: translate the wire outcome into the harness
     // vocabulary via `classifyStream` (single source; the boundary cases are
     // unit-tested with constructed inputs there).
-    const outcome = classifyStream({ inBandError, finishReason, contentChunks, sawAnyChoice })
+    const outcome = classifyStream({ inBandError, finishReason, contentChunks, sawAnyChoice, sawToolCalls: toolCallsSeen > 0 })
     if (outcome.kind === 'error') {
       yield { type: 'finish', reason: { kind: 'error', failure: { message: outcome.message, code: outcome.code } } }
     } else if (outcome.kind === 'max-tokens') {

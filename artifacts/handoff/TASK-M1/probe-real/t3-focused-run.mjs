@@ -3,11 +3,11 @@ import { writeFile, mkdir, appendFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { dirname } from 'node:path'
-import { ModelingIr } from 'file:///D:/deepseek%20modex/deepseek-harness/packages/paper/paper-foundation/src/ir/store.ts'
-import { parseModelContainer, produceContainerInto } from 'file:///D:/deepseek%20modex/deepseek-harness/packages/paper/paper-foundation/src/produce/ir-producer.ts'
-import { produceRunExecution } from 'file:///D:/deepseek%20modex/deepseek-harness/packages/paper/paper-foundation/src/produce/execution-producer.ts'
-import { produceInterpretation } from 'file:///D:/deepseek%20modex/deepseek-harness/packages/paper/paper-foundation/src/produce/interpretation-producer.ts'
-import { admitTemplateFill, assembleTemplateContainer, defaultTemplateCandidates, templateFillPrompt } from 'file:///D:/deepseek%20modex/deepseek-harness/packages/paper/paper-foundation/src/produce/template-fill.ts'
+import { ModelingIr } from 'file:///<repo>/packages/paper/paper-foundation/src/ir/store.ts'
+import { parseModelContainer, produceContainerInto } from 'file:///<repo>/packages/paper/paper-foundation/src/produce/ir-producer.ts'
+import { produceRunExecution } from 'file:///<repo>/packages/paper/paper-foundation/src/produce/execution-producer.ts'
+import { produceInterpretation } from 'file:///<repo>/packages/paper/paper-foundation/src/produce/interpretation-producer.ts'
+import { admitTemplateFill, assembleTemplateContainer, defaultTemplateCandidates, templateFillPrompt } from 'file:///<repo>/packages/paper/paper-foundation/src/produce/template-fill.ts'
 
 const sleep = ms => new Promise(r => setTimeout(r, ms))
 const API_KEY = process.env.PAPER_PROBE_API_KEY

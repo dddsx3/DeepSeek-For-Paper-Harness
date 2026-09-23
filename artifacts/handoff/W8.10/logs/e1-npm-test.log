@@ -6,7 +6,7 @@
 [33mThe plugin "vite-tsconfig-paths" is detected. Vite now supports tsconfig paths resolution natively via the [1mresolve.tsconfigPaths[22m option. You can remove the plugin and set [1mresolve.tsconfigPaths: true[22m in your Vite config instead.[39m
 [33mThe plugin "vite-tsconfig-paths" is detected. Vite now supports tsconfig paths resolution natively via the [1mresolve.tsconfigPaths[22m option. You can remove the plugin and set [1mresolve.tsconfigPaths: true[22m in your Vite config instead.[39m
 
-[1m[30m[46m RUN [49m[39m[22m [36mv4.1.8 [39m[90mD:/deepseek modex/deepseek-harness[39m
+[1m[30m[46m RUN [49m[39m[22m [36mv4.1.8 [39m[90m<repo>[39m
 
  [31m❯[39m [30m[45m thread-safe [49m[39m scripts/verify-dsh-package-licenses.spec.ts [2m([22m[2m2 tests[22m[2m | [22m[31m1 failed[39m[2m)[22m[32m 48[2mms[22m[39m
 [31m     [31m×[31m checks root, unhyphenated CLI, and dsh-prefixed package names while ignoring other families[39m[32m 32[2mms[22m[39m
@@ -20,19 +20,19 @@ Switched to a new branch 'current'
 Switched to branch 'master'
 [90mstderr[2m | packages/e2b/subprocess-e2b/tests/subprocess.spec.ts[2m > [22m[2mE2BSubprocessHandle[2m > [22m[2mrejects an unrepresentable graceMs before any remote work
 [22m[39mPromise returned by `expect(actual).rejects.toThrow(expected)` was not awaited. Vitest currently auto-awaits hanging assertions at the end of the test, but this will cause the test to fail in the next Vitest major. Please remember to await the assertion.
-    at D:/deepseek modex/deepseek-harness/packages/e2b/subprocess-e2b/tests/subprocess.spec.ts:472:9
+    at <repo>/packages/e2b/subprocess-e2b/tests/subprocess.spec.ts:472:9
 
 [90mstderr[2m | packages/e2b/subprocess-e2b/tests/subprocess.spec.ts[2m > [22m[2mE2BSubprocessHandle[2m > [22m[2mrejects an unrepresentable graceMs before any remote work
 [22m[39mPromise returned by `expect(actual).rejects.toThrow(expected)` was not awaited. Vitest currently auto-awaits hanging assertions at the end of the test, but this will cause the test to fail in the next Vitest major. Please remember to await the assertion.
-    at D:/deepseek modex/deepseek-harness/packages/e2b/subprocess-e2b/tests/subprocess.spec.ts:472:9
+    at <repo>/packages/e2b/subprocess-e2b/tests/subprocess.spec.ts:472:9
 
 [90mstderr[2m | packages/e2b/subprocess-e2b/tests/subprocess.spec.ts[2m > [22m[2mE2BSubprocessHandle[2m > [22m[2mrejects an unrepresentable graceMs before any remote work
 [22m[39mPromise returned by `expect(actual).rejects.toThrow(expected)` was not awaited. Vitest currently auto-awaits hanging assertions at the end of the test, but this will cause the test to fail in the next Vitest major. Please remember to await the assertion.
-    at D:/deepseek modex/deepseek-harness/packages/e2b/subprocess-e2b/tests/subprocess.spec.ts:472:9
+    at <repo>/packages/e2b/subprocess-e2b/tests/subprocess.spec.ts:472:9
 
 [90mstderr[2m | packages/e2b/subprocess-e2b/tests/subprocess.spec.ts[2m > [22m[2mE2BSubprocessHandle[2m > [22m[2mrejects an unrepresentable graceMs before any remote work
 [22m[39mPromise returned by `expect(actual).rejects.toThrow(expected)` was not awaited. Vitest currently auto-awaits hanging assertions at the end of the test, but this will cause the test to fail in the next Vitest major. Please remember to await the assertion.
-    at D:/deepseek modex/deepseek-harness/packages/e2b/subprocess-e2b/tests/subprocess.spec.ts:472:9
+    at <repo>/packages/e2b/subprocess-e2b/tests/subprocess.spec.ts:472:9
 
 Switched to branch 'current'
  [31m❯[39m [30m[45m thread-safe [49m[39m packages/e2b/subprocess-e2b/tests/terminal.spec.ts [2m([22m[2m35 tests[22m[2m | [22m[31m2 failed[39m[2m)[22m[33m 909[2mms[22m[39m
@@ -1081,8 +1081,8 @@ Switched to branch 'current'
 Wall time: 12.6 seconds
 Output:
 command timed out after 12633 milliseconds
-Exception ignored in: <_io.TextIOWrapper name='<stdout>' mode='w' encoding='utf-8'>
-OSError: [Errno 22] Invalid argument
+Exception ignored in: <_io.TextIOWrapper name='<stdout>' mode='w' encoding='utf-8'>
+OSError: [Errno 22] Invalid argument
 
  [32m✓[39m [30m[45m thread-safe [49m[39m packages/core/tools/tests/code-mode.spec.ts [2m([22m[2m91 tests[22m[2m)[22m[33m 4462[2mms[22m[39m
      [33m[2m✓[22m[39m projects deeply nested output schemas into the Code Mode SDK without structured-clone recursion [33m 648[2mms[22m[39m
@@ -1613,11 +1613,11 @@ Switched to a new branch 'current'
  [32m✓[39m [30m[45m thread-safe [49m[39m packages/workflow/tool-workflow/tests/tool-workflow.spec.ts [2m([22m[2m24 tests[22m[2m)[22m[33m 2024[2mms[22m[39m
 [90mstderr[2m | packages/client/ui-subagent/tests/conversation-ui.client.spec.tsx[2m > [22m[2mSubagentHeaderLineage[2m > [22m[2mcombines the current subagent title and chevron into the parent-catalog trigger
 [22m[39mWarning: Encountered two children with the same key, `child`. Keys should be unique so that components maintain their identity across updates. Non-unique keys may cause children to be duplicated and/or omitted — the behavior is unsupported and could change in a future version.
-    at SubagentHeaderLineage (D:/deepseek modex/deepseek-harness/packages/client/ui-subagent/src/client/SubagentHeaderLineage.tsx:836:34)
+    at SubagentHeaderLineage (<repo>/packages/client/ui-subagent/src/client/SubagentHeaderLineage.tsx:836:34)
 
 [90mstderr[2m | packages/client/ui-subagent/tests/conversation-ui.client.spec.tsx[2m > [22m[2mSubagentHeaderLineage[2m > [22m[2mfalls back to the catalog session id when the selected row has no label
 [22m[39mWarning: Encountered two children with the same key, `child`. Keys should be unique so that components maintain their identity across updates. Non-unique keys may cause children to be duplicated and/or omitted — the behavior is unsupported and could change in a future version.
-    at SubagentHeaderLineage (D:/deepseek modex/deepseek-harness/packages/client/ui-subagent/src/client/SubagentHeaderLineage.tsx:836:34)
+    at SubagentHeaderLineage (<repo>/packages/client/ui-subagent/src/client/SubagentHeaderLineage.tsx:836:34)
 
  [32m✓[39m [30m[45m thread-safe [49m[39m packages/skill/tool-skill/tests/tool-skill.spec.ts [2m([22m[2m31 tests[22m[2m)[22m[33m 5221[2mms[22m[39m
      [33m[2m✓[22m[39m returns isError for unknown, invalid, and model-disabled skills [33m 414[2mms[22m[39m
@@ -1626,11 +1626,11 @@ Switched to a new branch 'current'
      [33m[2m✓[22m[39m leaves unknown names and user-disabled skills as plain prose [33m 444[2mms[22m[39m
 [90mstderr[2m | packages/client/ui-subagent/tests/conversation-ui.client.spec.tsx[2m > [22m[2mSubagentHeaderLineage[2m > [22m[2mrefreshes an absent current switcher catalog without waiting for hover
 [22m[39mWarning: Encountered two children with the same key, `child`. Keys should be unique so that components maintain their identity across updates. Non-unique keys may cause children to be duplicated and/or omitted — the behavior is unsupported and could change in a future version.
-    at SubagentHeaderLineage (D:/deepseek modex/deepseek-harness/packages/client/ui-subagent/src/client/SubagentHeaderLineage.tsx:836:34)
+    at SubagentHeaderLineage (<repo>/packages/client/ui-subagent/src/client/SubagentHeaderLineage.tsx:836:34)
 
 [90mstderr[2m | packages/client/ui-subagent/tests/conversation-ui.client.spec.tsx[2m > [22m[2mSubagentHeaderLineage[2m > [22m[2mkeeps a nested title switcher scoped to its direct-parent catalog
 [22m[39mWarning: Encountered two children with the same key, `grandchild`. Keys should be unique so that components maintain their identity across updates. Non-unique keys may cause children to be duplicated and/or omitted — the behavior is unsupported and could change in a future version.
-    at SubagentHeaderLineage (D:/deepseek modex/deepseek-harness/packages/client/ui-subagent/src/client/SubagentHeaderLineage.tsx:836:34)
+    at SubagentHeaderLineage (<repo>/packages/client/ui-subagent/src/client/SubagentHeaderLineage.tsx:836:34)
 
  [32m✓[39m [30m[45m thread-safe [49m[39m packages/client/ui-subagent/tests/conversation-ui.client.spec.tsx [2m([22m[2m28 tests[22m[2m)[22m[33m 3550[2mms[22m[39m
      [33m[2m✓[22m[39m aggregates live descendant activity onto the closed trigger [33m 773[2mms[22m[39m
@@ -1698,29 +1698,29 @@ Switched to branch 'current'
      [33m[2m✓[22m[39m serves a route pi-ai has never heard of from its own declaration [33m 636[2mms[22m[39m
 [90mstderr[2m | packages/client/ui-commands/tests/popup-view.client.spec.tsx[2m > [22m[2mPopupSelectView[2m > [22m[2ma failed options load shows the error with a retry button that reloads
 [22m[39m[ui-commands] popupSelect options failed for /theme: Error: directory down
-    at Object.options (D:/deepseek modex/deepseek-harness/packages/client/ui-commands/tests/popup-view.client.spec.tsx:218:48)
-    at PopupSelectController.load (D:/deepseek modex/deepseek-harness/packages/client/ui-commands/src/client/popup.ts:145:18)
-    at PopupSelectController.open (D:/deepseek modex/deepseek-harness/packages/client/ui-commands/src/client/popup.ts:140:10)
-    at D:/deepseek modex/deepseek-harness/packages/client/ui-commands/tests/popup-view.client.spec.tsx:69:11
-    at [90mD:\deepseek modex\deepseek-harness\[39mnode_modules\[4m.pnpm[24m\@testing-library+react@16.3_b0bbe147884ef4cbbf95e64a97c782e8\node_modules\[4m@testing-library\react[24m\dist\act-compat.js:47:24
-    at act [90m(D:\deepseek modex\deepseek-harness\[39mnode_modules\[4m.pnpm[24m\react@18.3.1\node_modules\[4mreact[24m\cjs\react.development.js:2512:16[90m)[39m
-    at [90mD:\deepseek modex\deepseek-harness\[39mnode_modules\[4m.pnpm[24m\@testing-library+react@16.3_b0bbe147884ef4cbbf95e64a97c782e8\node_modules\[4m@testing-library\react[24m\dist\act-compat.js:46:25
-    at mountOpen (D:/deepseek modex/deepseek-harness/packages/client/ui-commands/tests/popup-view.client.spec.tsx:68:9)
-    at D:/deepseek modex/deepseek-harness/packages/client/ui-commands/tests/popup-view.client.spec.tsx:215:11
-    at [90mfile:///D:/deepseek%20modex/deepseek-harness/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@4.1.8/node_modules/[4m@vitest/runner[24m/dist/chunk-artifact.js:302:11
+    at Object.options (<repo>/packages/client/ui-commands/tests/popup-view.client.spec.tsx:218:48)
+    at PopupSelectController.load (<repo>/packages/client/ui-commands/src/client/popup.ts:145:18)
+    at PopupSelectController.open (<repo>/packages/client/ui-commands/src/client/popup.ts:140:10)
+    at <repo>/packages/client/ui-commands/tests/popup-view.client.spec.tsx:69:11
+    at [90m<repo>\[39mnode_modules\[4m.pnpm[24m\@testing-library+react@16.3_b0bbe147884ef4cbbf95e64a97c782e8\node_modules\[4m@testing-library\react[24m\dist\act-compat.js:47:24
+    at act [90m(<repo>\[39mnode_modules\[4m.pnpm[24m\react@18.3.1\node_modules\[4mreact[24m\cjs\react.development.js:2512:16[90m)[39m
+    at [90m<repo>\[39mnode_modules\[4m.pnpm[24m\@testing-library+react@16.3_b0bbe147884ef4cbbf95e64a97c782e8\node_modules\[4m@testing-library\react[24m\dist\act-compat.js:46:25
+    at mountOpen (<repo>/packages/client/ui-commands/tests/popup-view.client.spec.tsx:68:9)
+    at <repo>/packages/client/ui-commands/tests/popup-view.client.spec.tsx:215:11
+    at [90mfile:///<repo>/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@4.1.8/node_modules/[4m@vitest/runner[24m/dist/chunk-artifact.js:302:11
 
 [90mstderr[2m | packages/client/ui-commands/tests/popup-view.client.spec.tsx[2m > [22m[2mPopupSelectView[2m > [22m[2man onSelect failure keeps the shell open with the error strip and no retry button (re-select is the retry)
 [22m[39m[ui-commands] popupSelect onSelect failed for /theme: Error: host rejected
-    at Object.onSelect (D:/deepseek modex/deepseek-harness/packages/client/ui-commands/tests/popup-view.client.spec.tsx:231:82)
-    at PopupSelectController.settle (D:/deepseek modex/deepseek-harness/packages/client/ui-commands/src/client/popup.ts:258:26)
-    at PopupSelectController.select (D:/deepseek modex/deepseek-harness/packages/client/ui-commands/src/client/popup.ts:224:16)
-    at onKeyDown (D:/deepseek modex/deepseek-harness/packages/client/ui-commands/src/client/PopupSelectView.tsx:96:20)
-    at HTMLUnknownElement.callCallback [90m(D:\deepseek modex\deepseek-harness\[39mnode_modules\[4m.pnpm[24m\react-dom@18.3.1_react@18.3.1\node_modules\[4mreact-dom[24m\cjs\react-dom.development.js:4164:14[90m)[39m
-    at HTMLUnknownElement.callTheUserObjectsOperation [90m(D:\deepseek modex\deepseek-harness\[39mnode_modules\[4m.pnpm[24m\jsdom@29.1.1\node_modules\[4mjsdom[24m\lib\generated\idl\EventListener.js:26:30[90m)[39m
-    at innerInvokeEventListeners [90m(D:\deepseek modex\deepseek-harness\[39mnode_modules\[4m.pnpm[24m\jsdom@29.1.1\node_modules\[4mjsdom[24m\lib\jsdom\living\events\EventTarget-impl.js:360:16[90m)[39m
-    at invokeEventListeners [90m(D:\deepseek modex\deepseek-harness\[39mnode_modules\[4m.pnpm[24m\jsdom@29.1.1\node_modules\[4mjsdom[24m\lib\jsdom\living\events\EventTarget-impl.js:296:3[90m)[39m
-    at HTMLUnknownElementImpl._dispatch [90m(D:\deepseek modex\deepseek-harness\[39mnode_modules\[4m.pnpm[24m\jsdom@29.1.1\node_modules\[4mjsdom[24m\lib\jsdom\living\events\EventTarget-impl.js:243:9[90m)[39m
-    at HTMLUnknownElementImpl.dispatchEvent [90m(D:\deepseek modex\deepseek-harness\[39mnode_modules\[4m.pnpm[24m\jsdom@29.1.1\node_modules\[4mjsdom[24m\lib\jsdom\living\events\EventTarget-impl.js:114:17[90m)[39m
+    at Object.onSelect (<repo>/packages/client/ui-commands/tests/popup-view.client.spec.tsx:231:82)
+    at PopupSelectController.settle (<repo>/packages/client/ui-commands/src/client/popup.ts:258:26)
+    at PopupSelectController.select (<repo>/packages/client/ui-commands/src/client/popup.ts:224:16)
+    at onKeyDown (<repo>/packages/client/ui-commands/src/client/PopupSelectView.tsx:96:20)
+    at HTMLUnknownElement.callCallback [90m(<repo>\[39mnode_modules\[4m.pnpm[24m\react-dom@18.3.1_react@18.3.1\node_modules\[4mreact-dom[24m\cjs\react-dom.development.js:4164:14[90m)[39m
+    at HTMLUnknownElement.callTheUserObjectsOperation [90m(<repo>\[39mnode_modules\[4m.pnpm[24m\jsdom@29.1.1\node_modules\[4mjsdom[24m\lib\generated\idl\EventListener.js:26:30[90m)[39m
+    at innerInvokeEventListeners [90m(<repo>\[39mnode_modules\[4m.pnpm[24m\jsdom@29.1.1\node_modules\[4mjsdom[24m\lib\jsdom\living\events\EventTarget-impl.js:360:16[90m)[39m
+    at invokeEventListeners [90m(<repo>\[39mnode_modules\[4m.pnpm[24m\jsdom@29.1.1\node_modules\[4mjsdom[24m\lib\jsdom\living\events\EventTarget-impl.js:296:3[90m)[39m
+    at HTMLUnknownElementImpl._dispatch [90m(<repo>\[39mnode_modules\[4m.pnpm[24m\jsdom@29.1.1\node_modules\[4mjsdom[24m\lib\jsdom\living\events\EventTarget-impl.js:243:9[90m)[39m
+    at HTMLUnknownElementImpl.dispatchEvent [90m(<repo>\[39mnode_modules\[4m.pnpm[24m\jsdom@29.1.1\node_modules\[4mjsdom[24m\lib\jsdom\living\events\EventTarget-impl.js:114:17[90m)[39m
 
  [32m✓[39m [30m[45m thread-safe [49m[39m packages/client/ui-commands/tests/popup-view.client.spec.tsx [2m([22m[2m15 tests[22m[2m)[22m[33m 1305[2mms[22m[39m
      [33m[2m✓[22m[39m renders null while closed, opens with focus in the search input [33m 475[2mms[22m[39m
@@ -1772,7 +1772,7 @@ Switched to branch 'current'
   jsonrpc: [32m'2.0'[39m,
   id: [33m1[39m,
   method: [32m'session/new'[39m,
-  params: { cwd: [32m'D:\\deepseek modex\\deepseek-harness'[39m, mcpServers: [] }
+  params: { cwd: [32m'D:\\<repo>\\deepseek-harness'[39m, mcpServers: [] }
 } {
   code: [33m-32603[39m,
   message: [32m'Internal error: the ACP bridge has been disposed'[39m,
@@ -1830,7 +1830,7 @@ Switched to branch 'current'
   id: [33m2[39m,
   method: [32m'session/new'[39m,
   params: {
-    cwd: [32m'D:\\deepseek modex\\deepseek-harness'[39m,
+    cwd: [32m'D:\\<repo>\\deepseek-harness'[39m,
     mcpServers: [],
     additionalDirectories: [ [32m'/tmp/other'[39m ]
   }
@@ -1846,7 +1846,7 @@ Switched to branch 'current'
   id: [33m3[39m,
   method: [32m'session/new'[39m,
   params: {
-    cwd: [32m'D:\\deepseek modex\\deepseek-harness'[39m,
+    cwd: [32m'D:\\<repo>\\deepseek-harness'[39m,
     mcpServers: [ [36m[Object][39m ]
   }
 } {
@@ -2038,110 +2038,110 @@ Switched to branch 'master'
  [32m✓[39m [30m[45m thread-safe [49m[39m packages/client/ui-sidebar/tests/sidebar-snapshot.client.spec.tsx [2m([22m[2m4 tests[22m[2m)[22m[33m 1361[2mms[22m[39m
      [33m[2m✓[22m[39m renders the expanded column in the default locale (zh, no setLocale) [33m 871[2mms[22m[39m
 Error: renderSlot('root') before any 'root' registration (boot order)
-    at RootOutlet (D:/deepseek modex/deepseek-harness/packages/client/ui-renderer/src/client/scoped-slots.tsx:867:11)
-    at renderWithHooks (D:\deepseek modex\deepseek-harness\node_modules\.pnpm\react-dom@18.3.1_react@18.3.1\node_modules\react-dom\cjs\react-dom.development.js:15486:18)
-    at mountIndeterminateComponent (D:\deepseek modex\deepseek-harness\node_modules\.pnpm\react-dom@18.3.1_react@18.3.1\node_modules\react-dom\cjs\react-dom.development.js:20103:13)
-    at beginWork (D:\deepseek modex\deepseek-harness\node_modules\.pnpm\react-dom@18.3.1_react@18.3.1\node_modules\react-dom\cjs\react-dom.development.js:21626:16)
-    at HTMLUnknownElement.callCallback (D:\deepseek modex\deepseek-harness\node_modules\.pnpm\react-dom@18.3.1_react@18.3.1\node_modules\react-dom\cjs\react-dom.development.js:4164:14)
-    at HTMLUnknownElement.callTheUserObjectsOperation (D:\deepseek modex\deepseek-harness\node_modules\.pnpm\jsdom@29.1.1\node_modules\jsdom\lib\generated\idl\EventListener.js:26:30)
-    at innerInvokeEventListeners (D:\deepseek modex\deepseek-harness\node_modules\.pnpm\jsdom@29.1.1\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:360:16)
-    at invokeEventListeners (D:\deepseek modex\deepseek-harness\node_modules\.pnpm\jsdom@29.1.1\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:296:3)
-    at HTMLUnknownElementImpl._dispatch (D:\deepseek modex\deepseek-harness\node_modules\.pnpm\jsdom@29.1.1\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:243:9)
-    at HTMLUnknownElementImpl.dispatchEvent (D:\deepseek modex\deepseek-harness\node_modules\.pnpm\jsdom@29.1.1\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:114:17)
+    at RootOutlet (<repo>/packages/client/ui-renderer/src/client/scoped-slots.tsx:867:11)
+    at renderWithHooks (<repo>\node_modules\.pnpm\react-dom@18.3.1_react@18.3.1\node_modules\react-dom\cjs\react-dom.development.js:15486:18)
+    at mountIndeterminateComponent (<repo>\node_modules\.pnpm\react-dom@18.3.1_react@18.3.1\node_modules\react-dom\cjs\react-dom.development.js:20103:13)
+    at beginWork (<repo>\node_modules\.pnpm\react-dom@18.3.1_react@18.3.1\node_modules\react-dom\cjs\react-dom.development.js:21626:16)
+    at HTMLUnknownElement.callCallback (<repo>\node_modules\.pnpm\react-dom@18.3.1_react@18.3.1\node_modules\react-dom\cjs\react-dom.development.js:4164:14)
+    at HTMLUnknownElement.callTheUserObjectsOperation (<repo>\node_modules\.pnpm\jsdom@29.1.1\node_modules\jsdom\lib\generated\idl\EventListener.js:26:30)
+    at innerInvokeEventListeners (<repo>\node_modules\.pnpm\jsdom@29.1.1\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:360:16)
+    at invokeEventListeners (<repo>\node_modules\.pnpm\jsdom@29.1.1\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:296:3)
+    at HTMLUnknownElementImpl._dispatch (<repo>\node_modules\.pnpm\jsdom@29.1.1\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:243:9)
+    at HTMLUnknownElementImpl.dispatchEvent (<repo>\node_modules\.pnpm\jsdom@29.1.1\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:114:17)
 Error: renderSlot('root') before any 'root' registration (boot order)
-    at RootOutlet (D:/deepseek modex/deepseek-harness/packages/client/ui-renderer/src/client/scoped-slots.tsx:867:11)
-    at renderWithHooks (D:\deepseek modex\deepseek-harness\node_modules\.pnpm\react-dom@18.3.1_react@18.3.1\node_modules\react-dom\cjs\react-dom.development.js:15486:18)
-    at mountIndeterminateComponent (D:\deepseek modex\deepseek-harness\node_modules\.pnpm\react-dom@18.3.1_react@18.3.1\node_modules\react-dom\cjs\react-dom.development.js:20103:13)
-    at beginWork (D:\deepseek modex\deepseek-harness\node_modules\.pnpm\react-dom@18.3.1_react@18.3.1\node_modules\react-dom\cjs\react-dom.development.js:21626:16)
-    at HTMLUnknownElement.callCallback (D:\deepseek modex\deepseek-harness\node_modules\.pnpm\react-dom@18.3.1_react@18.3.1\node_modules\react-dom\cjs\react-dom.development.js:4164:14)
-    at HTMLUnknownElement.callTheUserObjectsOperation (D:\deepseek modex\deepseek-harness\node_modules\.pnpm\jsdom@29.1.1\node_modules\jsdom\lib\generated\idl\EventListener.js:26:30)
-    at innerInvokeEventListeners (D:\deepseek modex\deepseek-harness\node_modules\.pnpm\jsdom@29.1.1\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:360:16)
-    at invokeEventListeners (D:\deepseek modex\deepseek-harness\node_modules\.pnpm\jsdom@29.1.1\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:296:3)
-    at HTMLUnknownElementImpl._dispatch (D:\deepseek modex\deepseek-harness\node_modules\.pnpm\jsdom@29.1.1\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:243:9)
-    at HTMLUnknownElementImpl.dispatchEvent (D:\deepseek modex\deepseek-harness\node_modules\.pnpm\jsdom@29.1.1\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:114:17)
+    at RootOutlet (<repo>/packages/client/ui-renderer/src/client/scoped-slots.tsx:867:11)
+    at renderWithHooks (<repo>\node_modules\.pnpm\react-dom@18.3.1_react@18.3.1\node_modules\react-dom\cjs\react-dom.development.js:15486:18)
+    at mountIndeterminateComponent (<repo>\node_modules\.pnpm\react-dom@18.3.1_react@18.3.1\node_modules\react-dom\cjs\react-dom.development.js:20103:13)
+    at beginWork (<repo>\node_modules\.pnpm\react-dom@18.3.1_react@18.3.1\node_modules\react-dom\cjs\react-dom.development.js:21626:16)
+    at HTMLUnknownElement.callCallback (<repo>\node_modules\.pnpm\react-dom@18.3.1_react@18.3.1\node_modules\react-dom\cjs\react-dom.development.js:4164:14)
+    at HTMLUnknownElement.callTheUserObjectsOperation (<repo>\node_modules\.pnpm\jsdom@29.1.1\node_modules\jsdom\lib\generated\idl\EventListener.js:26:30)
+    at innerInvokeEventListeners (<repo>\node_modules\.pnpm\jsdom@29.1.1\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:360:16)
+    at invokeEventListeners (<repo>\node_modules\.pnpm\jsdom@29.1.1\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:296:3)
+    at HTMLUnknownElementImpl._dispatch (<repo>\node_modules\.pnpm\jsdom@29.1.1\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:243:9)
+    at HTMLUnknownElementImpl.dispatchEvent (<repo>\node_modules\.pnpm\jsdom@29.1.1\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:114:17)
  [32m✓[39m [30m[45m thread-safe [49m[39m packages/core/tools/tests/properties.spec.ts [2m([22m[2m6 tests[22m[2m)[22m[33m 608[2mms[22m[39m
 Error: entry boom
-    at component (D:/deepseek modex/deepseek-harness/packages/client/ui-renderer/tests/scoped-slots.client.spec.tsx:336:48)
-    at renderWithHooks (D:\deepseek modex\deepseek-harness\node_modules\.pnpm\react-dom@18.3.1_react@18.3.1\node_modules\react-dom\cjs\react-dom.development.js:15486:18)
-    at mountIndeterminateComponent (D:\deepseek modex\deepseek-harness\node_modules\.pnpm\react-dom@18.3.1_react@18.3.1\node_modules\react-dom\cjs\react-dom.development.js:20103:13)
-    at beginWork (D:\deepseek modex\deepseek-harness\node_modules\.pnpm\react-dom@18.3.1_react@18.3.1\node_modules\react-dom\cjs\react-dom.development.js:21626:16)
-    at HTMLUnknownElement.callCallback (D:\deepseek modex\deepseek-harness\node_modules\.pnpm\react-dom@18.3.1_react@18.3.1\node_modules\react-dom\cjs\react-dom.development.js:4164:14)
-    at HTMLUnknownElement.callTheUserObjectsOperation (D:\deepseek modex\deepseek-harness\node_modules\.pnpm\jsdom@29.1.1\node_modules\jsdom\lib\generated\idl\EventListener.js:26:30)
-    at innerInvokeEventListeners (D:\deepseek modex\deepseek-harness\node_modules\.pnpm\jsdom@29.1.1\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:360:16)
-    at invokeEventListeners (D:\deepseek modex\deepseek-harness\node_modules\.pnpm\jsdom@29.1.1\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:296:3)
-    at HTMLUnknownElementImpl._dispatch (D:\deepseek modex\deepseek-harness\node_modules\.pnpm\jsdom@29.1.1\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:243:9)
-    at HTMLUnknownElementImpl.dispatchEvent (D:\deepseek modex\deepseek-harness\node_modules\.pnpm\jsdom@29.1.1\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:114:17)
+    at component (<repo>/packages/client/ui-renderer/tests/scoped-slots.client.spec.tsx:336:48)
+    at renderWithHooks (<repo>\node_modules\.pnpm\react-dom@18.3.1_react@18.3.1\node_modules\react-dom\cjs\react-dom.development.js:15486:18)
+    at mountIndeterminateComponent (<repo>\node_modules\.pnpm\react-dom@18.3.1_react@18.3.1\node_modules\react-dom\cjs\react-dom.development.js:20103:13)
+    at beginWork (<repo>\node_modules\.pnpm\react-dom@18.3.1_react@18.3.1\node_modules\react-dom\cjs\react-dom.development.js:21626:16)
+    at HTMLUnknownElement.callCallback (<repo>\node_modules\.pnpm\react-dom@18.3.1_react@18.3.1\node_modules\react-dom\cjs\react-dom.development.js:4164:14)
+    at HTMLUnknownElement.callTheUserObjectsOperation (<repo>\node_modules\.pnpm\jsdom@29.1.1\node_modules\jsdom\lib\generated\idl\EventListener.js:26:30)
+    at innerInvokeEventListeners (<repo>\node_modules\.pnpm\jsdom@29.1.1\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:360:16)
+    at invokeEventListeners (<repo>\node_modules\.pnpm\jsdom@29.1.1\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:296:3)
+    at HTMLUnknownElementImpl._dispatch (<repo>\node_modules\.pnpm\jsdom@29.1.1\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:243:9)
+    at HTMLUnknownElementImpl.dispatchEvent (<repo>\node_modules\.pnpm\jsdom@29.1.1\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:114:17)
 Error: entry boom
-    at component (D:/deepseek modex/deepseek-harness/packages/client/ui-renderer/tests/scoped-slots.client.spec.tsx:336:48)
-    at renderWithHooks (D:\deepseek modex\deepseek-harness\node_modules\.pnpm\react-dom@18.3.1_react@18.3.1\node_modules\react-dom\cjs\react-dom.development.js:15486:18)
-    at mountIndeterminateComponent (D:\deepseek modex\deepseek-harness\node_modules\.pnpm\react-dom@18.3.1_react@18.3.1\node_modules\react-dom\cjs\react-dom.development.js:20103:13)
-    at beginWork (D:\deepseek modex\deepseek-harness\node_modules\.pnpm\react-dom@18.3.1_react@18.3.1\node_modules\react-dom\cjs\react-dom.development.js:21626:16)
-    at HTMLUnknownElement.callCallback (D:\deepseek modex\deepseek-harness\node_modules\.pnpm\react-dom@18.3.1_react@18.3.1\node_modules\react-dom\cjs\react-dom.development.js:4164:14)
-    at HTMLUnknownElement.callTheUserObjectsOperation (D:\deepseek modex\deepseek-harness\node_modules\.pnpm\jsdom@29.1.1\node_modules\jsdom\lib\generated\idl\EventListener.js:26:30)
-    at innerInvokeEventListeners (D:\deepseek modex\deepseek-harness\node_modules\.pnpm\jsdom@29.1.1\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:360:16)
-    at invokeEventListeners (D:\deepseek modex\deepseek-harness\node_modules\.pnpm\jsdom@29.1.1\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:296:3)
-    at HTMLUnknownElementImpl._dispatch (D:\deepseek modex\deepseek-harness\node_modules\.pnpm\jsdom@29.1.1\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:243:9)
-    at HTMLUnknownElementImpl.dispatchEvent (D:\deepseek modex\deepseek-harness\node_modules\.pnpm\jsdom@29.1.1\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:114:17)
+    at component (<repo>/packages/client/ui-renderer/tests/scoped-slots.client.spec.tsx:336:48)
+    at renderWithHooks (<repo>\node_modules\.pnpm\react-dom@18.3.1_react@18.3.1\node_modules\react-dom\cjs\react-dom.development.js:15486:18)
+    at mountIndeterminateComponent (<repo>\node_modules\.pnpm\react-dom@18.3.1_react@18.3.1\node_modules\react-dom\cjs\react-dom.development.js:20103:13)
+    at beginWork (<repo>\node_modules\.pnpm\react-dom@18.3.1_react@18.3.1\node_modules\react-dom\cjs\react-dom.development.js:21626:16)
+    at HTMLUnknownElement.callCallback (<repo>\node_modules\.pnpm\react-dom@18.3.1_react@18.3.1\node_modules\react-dom\cjs\react-dom.development.js:4164:14)
+    at HTMLUnknownElement.callTheUserObjectsOperation (<repo>\node_modules\.pnpm\jsdom@29.1.1\node_modules\jsdom\lib\generated\idl\EventListener.js:26:30)
+    at innerInvokeEventListeners (<repo>\node_modules\.pnpm\jsdom@29.1.1\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:360:16)
+    at invokeEventListeners (<repo>\node_modules\.pnpm\jsdom@29.1.1\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:296:3)
+    at HTMLUnknownElementImpl._dispatch (<repo>\node_modules\.pnpm\jsdom@29.1.1\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:243:9)
+    at HTMLUnknownElementImpl.dispatchEvent (<repo>\node_modules\.pnpm\jsdom@29.1.1\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:114:17)
 Error: entry A boom
-    at component (D:/deepseek modex/deepseek-harness/packages/client/ui-renderer/tests/scoped-slots.client.spec.tsx:395:32)
-    at renderWithHooks (D:\deepseek modex\deepseek-harness\node_modules\.pnpm\react-dom@18.3.1_react@18.3.1\node_modules\react-dom\cjs\react-dom.development.js:15486:18)
-    at mountIndeterminateComponent (D:\deepseek modex\deepseek-harness\node_modules\.pnpm\react-dom@18.3.1_react@18.3.1\node_modules\react-dom\cjs\react-dom.development.js:20103:13)
-    at beginWork (D:\deepseek modex\deepseek-harness\node_modules\.pnpm\react-dom@18.3.1_react@18.3.1\node_modules\react-dom\cjs\react-dom.development.js:21626:16)
-    at HTMLUnknownElement.callCallback (D:\deepseek modex\deepseek-harness\node_modules\.pnpm\react-dom@18.3.1_react@18.3.1\node_modules\react-dom\cjs\react-dom.development.js:4164:14)
-    at HTMLUnknownElement.callTheUserObjectsOperation (D:\deepseek modex\deepseek-harness\node_modules\.pnpm\jsdom@29.1.1\node_modules\jsdom\lib\generated\idl\EventListener.js:26:30)
-    at innerInvokeEventListeners (D:\deepseek modex\deepseek-harness\node_modules\.pnpm\jsdom@29.1.1\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:360:16)
-    at invokeEventListeners (D:\deepseek modex\deepseek-harness\node_modules\.pnpm\jsdom@29.1.1\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:296:3)
-    at HTMLUnknownElementImpl._dispatch (D:\deepseek modex\deepseek-harness\node_modules\.pnpm\jsdom@29.1.1\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:243:9)
-    at HTMLUnknownElementImpl.dispatchEvent (D:\deepseek modex\deepseek-harness\node_modules\.pnpm\jsdom@29.1.1\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:114:17)
+    at component (<repo>/packages/client/ui-renderer/tests/scoped-slots.client.spec.tsx:395:32)
+    at renderWithHooks (<repo>\node_modules\.pnpm\react-dom@18.3.1_react@18.3.1\node_modules\react-dom\cjs\react-dom.development.js:15486:18)
+    at mountIndeterminateComponent (<repo>\node_modules\.pnpm\react-dom@18.3.1_react@18.3.1\node_modules\react-dom\cjs\react-dom.development.js:20103:13)
+    at beginWork (<repo>\node_modules\.pnpm\react-dom@18.3.1_react@18.3.1\node_modules\react-dom\cjs\react-dom.development.js:21626:16)
+    at HTMLUnknownElement.callCallback (<repo>\node_modules\.pnpm\react-dom@18.3.1_react@18.3.1\node_modules\react-dom\cjs\react-dom.development.js:4164:14)
+    at HTMLUnknownElement.callTheUserObjectsOperation (<repo>\node_modules\.pnpm\jsdom@29.1.1\node_modules\jsdom\lib\generated\idl\EventListener.js:26:30)
+    at innerInvokeEventListeners (<repo>\node_modules\.pnpm\jsdom@29.1.1\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:360:16)
+    at invokeEventListeners (<repo>\node_modules\.pnpm\jsdom@29.1.1\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:296:3)
+    at HTMLUnknownElementImpl._dispatch (<repo>\node_modules\.pnpm\jsdom@29.1.1\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:243:9)
+    at HTMLUnknownElementImpl.dispatchEvent (<repo>\node_modules\.pnpm\jsdom@29.1.1\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:114:17)
 Error: entry A boom
-    at component (D:/deepseek modex/deepseek-harness/packages/client/ui-renderer/tests/scoped-slots.client.spec.tsx:395:32)
-    at renderWithHooks (D:\deepseek modex\deepseek-harness\node_modules\.pnpm\react-dom@18.3.1_react@18.3.1\node_modules\react-dom\cjs\react-dom.development.js:15486:18)
-    at mountIndeterminateComponent (D:\deepseek modex\deepseek-harness\node_modules\.pnpm\react-dom@18.3.1_react@18.3.1\node_modules\react-dom\cjs\react-dom.development.js:20103:13)
-    at beginWork (D:\deepseek modex\deepseek-harness\node_modules\.pnpm\react-dom@18.3.1_react@18.3.1\node_modules\react-dom\cjs\react-dom.development.js:21626:16)
-    at HTMLUnknownElement.callCallback (D:\deepseek modex\deepseek-harness\node_modules\.pnpm\react-dom@18.3.1_react@18.3.1\node_modules\react-dom\cjs\react-dom.development.js:4164:14)
-    at HTMLUnknownElement.callTheUserObjectsOperation (D:\deepseek modex\deepseek-harness\node_modules\.pnpm\jsdom@29.1.1\node_modules\jsdom\lib\generated\idl\EventListener.js:26:30)
-    at innerInvokeEventListeners (D:\deepseek modex\deepseek-harness\node_modules\.pnpm\jsdom@29.1.1\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:360:16)
-    at invokeEventListeners (D:\deepseek modex\deepseek-harness\node_modules\.pnpm\jsdom@29.1.1\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:296:3)
-    at HTMLUnknownElementImpl._dispatch (D:\deepseek modex\deepseek-harness\node_modules\.pnpm\jsdom@29.1.1\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:243:9)
-    at HTMLUnknownElementImpl.dispatchEvent (D:\deepseek modex\deepseek-harness\node_modules\.pnpm\jsdom@29.1.1\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:114:17)
+    at component (<repo>/packages/client/ui-renderer/tests/scoped-slots.client.spec.tsx:395:32)
+    at renderWithHooks (<repo>\node_modules\.pnpm\react-dom@18.3.1_react@18.3.1\node_modules\react-dom\cjs\react-dom.development.js:15486:18)
+    at mountIndeterminateComponent (<repo>\node_modules\.pnpm\react-dom@18.3.1_react@18.3.1\node_modules\react-dom\cjs\react-dom.development.js:20103:13)
+    at beginWork (<repo>\node_modules\.pnpm\react-dom@18.3.1_react@18.3.1\node_modules\react-dom\cjs\react-dom.development.js:21626:16)
+    at HTMLUnknownElement.callCallback (<repo>\node_modules\.pnpm\react-dom@18.3.1_react@18.3.1\node_modules\react-dom\cjs\react-dom.development.js:4164:14)
+    at HTMLUnknownElement.callTheUserObjectsOperation (<repo>\node_modules\.pnpm\jsdom@29.1.1\node_modules\jsdom\lib\generated\idl\EventListener.js:26:30)
+    at innerInvokeEventListeners (<repo>\node_modules\.pnpm\jsdom@29.1.1\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:360:16)
+    at invokeEventListeners (<repo>\node_modules\.pnpm\jsdom@29.1.1\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:296:3)
+    at HTMLUnknownElementImpl._dispatch (<repo>\node_modules\.pnpm\jsdom@29.1.1\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:243:9)
+    at HTMLUnknownElementImpl.dispatchEvent (<repo>\node_modules\.pnpm\jsdom@29.1.1\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:114:17)
  [32m✓[39m [30m[45m thread-safe [49m[39m packages/web/web-fetch-http/tests/fetch-http.spec.ts [2m([22m[2m46 tests[22m[2m)[22m[33m 1142[2mms[22m[39m
 [90mstderr[2m | packages/client/ui-renderer/tests/scoped-slots.client.spec.tsx[2m > [22m[2moverlay chains (ChainRenderOpts.overlay)[2m > [22m[2mkeeps election semantics under overlay: priority order, selector-crash decline, live dispose back to fallback
 [22m[39mchain selector crashed in 'k.chain' (unknown registrant), treating as declined: Error: selector boom
-    at Object.select (D:/deepseek modex/deepseek-harness/packages/client/ui-renderer/tests/scoped-slots.client.spec.tsx:601:29)
-    at renderOutletContent (D:/deepseek modex/deepseek-harness/packages/client/ui-renderer/src/client/scoped-slots.tsx:785:26)
-    at SlotOutlet (D:/deepseek modex/deepseek-harness/packages/client/ui-renderer/src/client/scoped-slots.tsx:677:8)
-    at renderWithHooks [90m(D:\deepseek modex\deepseek-harness\[39mnode_modules\[4m.pnpm[24m\react-dom@18.3.1_react@18.3.1\node_modules\[4mreact-dom[24m\cjs\react-dom.development.js:15486:18[90m)[39m
-    at updateFunctionComponent [90m(D:\deepseek modex\deepseek-harness\[39mnode_modules\[4m.pnpm[24m\react-dom@18.3.1_react@18.3.1\node_modules\[4mreact-dom[24m\cjs\react-dom.development.js:19617:20[90m)[39m
-    at beginWork [90m(D:\deepseek modex\deepseek-harness\[39mnode_modules\[4m.pnpm[24m\react-dom@18.3.1_react@18.3.1\node_modules\[4mreact-dom[24m\cjs\react-dom.development.js:21640:16[90m)[39m
-    at beginWork$1 [90m(D:\deepseek modex\deepseek-harness\[39mnode_modules\[4m.pnpm[24m\react-dom@18.3.1_react@18.3.1\node_modules\[4mreact-dom[24m\cjs\react-dom.development.js:27465:14[90m)[39m
-    at performUnitOfWork [90m(D:\deepseek modex\deepseek-harness\[39mnode_modules\[4m.pnpm[24m\react-dom@18.3.1_react@18.3.1\node_modules\[4mreact-dom[24m\cjs\react-dom.development.js:26599:12[90m)[39m
-    at workLoopSync [90m(D:\deepseek modex\deepseek-harness\[39mnode_modules\[4m.pnpm[24m\react-dom@18.3.1_react@18.3.1\node_modules\[4mreact-dom[24m\cjs\react-dom.development.js:26505:5[90m)[39m
-    at renderRootSync [90m(D:\deepseek modex\deepseek-harness\[39mnode_modules\[4m.pnpm[24m\react-dom@18.3.1_react@18.3.1\node_modules\[4mreact-dom[24m\cjs\react-dom.development.js:26473:7[90m)[39m
+    at Object.select (<repo>/packages/client/ui-renderer/tests/scoped-slots.client.spec.tsx:601:29)
+    at renderOutletContent (<repo>/packages/client/ui-renderer/src/client/scoped-slots.tsx:785:26)
+    at SlotOutlet (<repo>/packages/client/ui-renderer/src/client/scoped-slots.tsx:677:8)
+    at renderWithHooks [90m(<repo>\[39mnode_modules\[4m.pnpm[24m\react-dom@18.3.1_react@18.3.1\node_modules\[4mreact-dom[24m\cjs\react-dom.development.js:15486:18[90m)[39m
+    at updateFunctionComponent [90m(<repo>\[39mnode_modules\[4m.pnpm[24m\react-dom@18.3.1_react@18.3.1\node_modules\[4mreact-dom[24m\cjs\react-dom.development.js:19617:20[90m)[39m
+    at beginWork [90m(<repo>\[39mnode_modules\[4m.pnpm[24m\react-dom@18.3.1_react@18.3.1\node_modules\[4mreact-dom[24m\cjs\react-dom.development.js:21640:16[90m)[39m
+    at beginWork$1 [90m(<repo>\[39mnode_modules\[4m.pnpm[24m\react-dom@18.3.1_react@18.3.1\node_modules\[4mreact-dom[24m\cjs\react-dom.development.js:27465:14[90m)[39m
+    at performUnitOfWork [90m(<repo>\[39mnode_modules\[4m.pnpm[24m\react-dom@18.3.1_react@18.3.1\node_modules\[4mreact-dom[24m\cjs\react-dom.development.js:26599:12[90m)[39m
+    at workLoopSync [90m(<repo>\[39mnode_modules\[4m.pnpm[24m\react-dom@18.3.1_react@18.3.1\node_modules\[4mreact-dom[24m\cjs\react-dom.development.js:26505:5[90m)[39m
+    at renderRootSync [90m(<repo>\[39mnode_modules\[4m.pnpm[24m\react-dom@18.3.1_react@18.3.1\node_modules\[4mreact-dom[24m\cjs\react-dom.development.js:26473:7[90m)[39m
 
  [32m✓[39m [30m[45m thread-safe [49m[39m packages/preset/agent-presets/tests/user-root.spec.ts [2m([22m[2m6 tests[22m[2m)[22m[33m 738[2mms[22m[39m
      [33m[2m✓[22m[39m is discovered without any app configuring it [33m 495[2mms[22m[39m
 Error: inject boom
-    at inject (D:/deepseek modex/deepseek-harness/packages/client/ui-renderer/tests/scoped-slots.client.spec.tsx:935:29)
-    at runInject (D:/deepseek modex/deepseek-harness/packages/client/ui-renderer/src/client/scoped-slots.tsx:110:27)
-    at cachedRootInject (D:/deepseek modex/deepseek-harness/packages/client/ui-renderer/src/client/scoped-slots.tsx:179:13)
-    at RootEntry (D:/deepseek modex/deepseek-harness/packages/client/ui-renderer/src/client/scoped-slots.tsx:614:20)
-    at renderWithHooks (D:\deepseek modex\deepseek-harness\node_modules\.pnpm\react-dom@18.3.1_react@18.3.1\node_modules\react-dom\cjs\react-dom.development.js:15486:18)
-    at mountIndeterminateComponent (D:\deepseek modex\deepseek-harness\node_modules\.pnpm\react-dom@18.3.1_react@18.3.1\node_modules\react-dom\cjs\react-dom.development.js:20103:13)
-    at beginWork (D:\deepseek modex\deepseek-harness\node_modules\.pnpm\react-dom@18.3.1_react@18.3.1\node_modules\react-dom\cjs\react-dom.development.js:21626:16)
-    at HTMLUnknownElement.callCallback (D:\deepseek modex\deepseek-harness\node_modules\.pnpm\react-dom@18.3.1_react@18.3.1\node_modules\react-dom\cjs\react-dom.development.js:4164:14)
-    at HTMLUnknownElement.callTheUserObjectsOperation (D:\deepseek modex\deepseek-harness\node_modules\.pnpm\jsdom@29.1.1\node_modules\jsdom\lib\generated\idl\EventListener.js:26:30)
-    at innerInvokeEventListeners (D:\deepseek modex\deepseek-harness\node_modules\.pnpm\jsdom@29.1.1\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:360:16)
+    at inject (<repo>/packages/client/ui-renderer/tests/scoped-slots.client.spec.tsx:935:29)
+    at runInject (<repo>/packages/client/ui-renderer/src/client/scoped-slots.tsx:110:27)
+    at cachedRootInject (<repo>/packages/client/ui-renderer/src/client/scoped-slots.tsx:179:13)
+    at RootEntry (<repo>/packages/client/ui-renderer/src/client/scoped-slots.tsx:614:20)
+    at renderWithHooks (<repo>\node_modules\.pnpm\react-dom@18.3.1_react@18.3.1\node_modules\react-dom\cjs\react-dom.development.js:15486:18)
+    at mountIndeterminateComponent (<repo>\node_modules\.pnpm\react-dom@18.3.1_react@18.3.1\node_modules\react-dom\cjs\react-dom.development.js:20103:13)
+    at beginWork (<repo>\node_modules\.pnpm\react-dom@18.3.1_react@18.3.1\node_modules\react-dom\cjs\react-dom.development.js:21626:16)
+    at HTMLUnknownElement.callCallback (<repo>\node_modules\.pnpm\react-dom@18.3.1_react@18.3.1\node_modules\react-dom\cjs\react-dom.development.js:4164:14)
+    at HTMLUnknownElement.callTheUserObjectsOperation (<repo>\node_modules\.pnpm\jsdom@29.1.1\node_modules\jsdom\lib\generated\idl\EventListener.js:26:30)
+    at innerInvokeEventListeners (<repo>\node_modules\.pnpm\jsdom@29.1.1\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:360:16)
 Error: inject boom
-    at inject (D:/deepseek modex/deepseek-harness/packages/client/ui-renderer/tests/scoped-slots.client.spec.tsx:935:29)
-    at runInject (D:/deepseek modex/deepseek-harness/packages/client/ui-renderer/src/client/scoped-slots.tsx:110:27)
-    at cachedRootInject (D:/deepseek modex/deepseek-harness/packages/client/ui-renderer/src/client/scoped-slots.tsx:179:13)
-    at RootEntry (D:/deepseek modex/deepseek-harness/packages/client/ui-renderer/src/client/scoped-slots.tsx:614:20)
-    at renderWithHooks (D:\deepseek modex\deepseek-harness\node_modules\.pnpm\react-dom@18.3.1_react@18.3.1\node_modules\react-dom\cjs\react-dom.development.js:15486:18)
-    at mountIndeterminateComponent (D:\deepseek modex\deepseek-harness\node_modules\.pnpm\react-dom@18.3.1_react@18.3.1\node_modules\react-dom\cjs\react-dom.development.js:20103:13)
-    at beginWork (D:\deepseek modex\deepseek-harness\node_modules\.pnpm\react-dom@18.3.1_react@18.3.1\node_modules\react-dom\cjs\react-dom.development.js:21626:16)
-    at HTMLUnknownElement.callCallback (D:\deepseek modex\deepseek-harness\node_modules\.pnpm\react-dom@18.3.1_react@18.3.1\node_modules\react-dom\cjs\react-dom.development.js:4164:14)
-    at HTMLUnknownElement.callTheUserObjectsOperation (D:\deepseek modex\deepseek-harness\node_modules\.pnpm\jsdom@29.1.1\node_modules\jsdom\lib\generated\idl\EventListener.js:26:30)
-    at innerInvokeEventListeners (D:\deepseek modex\deepseek-harness\node_modules\.pnpm\jsdom@29.1.1\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:360:16)
+    at inject (<repo>/packages/client/ui-renderer/tests/scoped-slots.client.spec.tsx:935:29)
+    at runInject (<repo>/packages/client/ui-renderer/src/client/scoped-slots.tsx:110:27)
+    at cachedRootInject (<repo>/packages/client/ui-renderer/src/client/scoped-slots.tsx:179:13)
+    at RootEntry (<repo>/packages/client/ui-renderer/src/client/scoped-slots.tsx:614:20)
+    at renderWithHooks (<repo>\node_modules\.pnpm\react-dom@18.3.1_react@18.3.1\node_modules\react-dom\cjs\react-dom.development.js:15486:18)
+    at mountIndeterminateComponent (<repo>\node_modules\.pnpm\react-dom@18.3.1_react@18.3.1\node_modules\react-dom\cjs\react-dom.development.js:20103:13)
+    at beginWork (<repo>\node_modules\.pnpm\react-dom@18.3.1_react@18.3.1\node_modules\react-dom\cjs\react-dom.development.js:21626:16)
+    at HTMLUnknownElement.callCallback (<repo>\node_modules\.pnpm\react-dom@18.3.1_react@18.3.1\node_modules\react-dom\cjs\react-dom.development.js:4164:14)
+    at HTMLUnknownElement.callTheUserObjectsOperation (<repo>\node_modules\.pnpm\jsdom@29.1.1\node_modules\jsdom\lib\generated\idl\EventListener.js:26:30)
+    at innerInvokeEventListeners (<repo>\node_modules\.pnpm\jsdom@29.1.1\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:360:16)
  [32m✓[39m [30m[45m thread-safe [49m[39m packages/client/ui-renderer/tests/scoped-slots.client.spec.tsx [2m([22m[2m37 tests[22m[2m)[22m[33m 578[2mms[22m[39m
 Switched to branch 'current'
 (node:14224) ExperimentalWarning: SQLite is an experimental feature and might change at any time
@@ -2955,7 +2955,7 @@ coverage-partitions: start partition 2/2
  [32m✓[39m [30m[45m thread-safe [49m[39m packages/bundle/web-app/tests/web-app.spec.ts [2m([22m[2m12 tests[22m[2m)[22m[33m 363[2mms[22m[39m
 [90mstderr[2m | packages/client/runtime/tests/workspaces-service.client.spec.ts[2m > [22m[2mstartInitialSelection[2m > [22m[2ma failed connect returns to waiting and retries on the next list change
 [22m[39minitial workspace selection failed: SessionCreateError: session create failed: internal: attach exploded
-    at SessionRuntime.create (D:/deepseek modex/deepseek-harness/packages/client/runtime/src/client/sessions/service.ts:487:27) {
+    at SessionRuntime.create (<repo>/packages/client/runtime/src/client/sessions/service.ts:487:27) {
   rpcError: { code: [32m'internal'[39m, message: [32m'attach exploded'[39m, details: {} },
   requestedSessionId: [90mundefined[39m
 }
@@ -3086,27 +3086,27 @@ coverage-partitions: start partition 2/2
  [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-foundation/tests/skill-provider.spec.ts [2m([22m[2m1 test[22m[2m)[22m[32m 272[2mms[22m[39m
  [32m✓[39m [30m[45m thread-safe [49m[39m packages/client/ui-tool/tests/coverage-tails.client.spec.tsx [2m([22m[2m4 tests[22m[2m)[22m[33m 362[2mms[22m[39m
 Error: slot machinery rendered outside the installed renderer tree
-    at useHost (D:/deepseek modex/deepseek-harness/packages/client/ui-renderer/src/client/session-provider.tsx:27:20)
-    at SessionProvider (D:/deepseek modex/deepseek-harness/packages/client/ui-renderer/src/client/session-provider.tsx:151:16)
-    at renderWithHooks (D:\deepseek modex\deepseek-harness\node_modules\.pnpm\react-dom@18.3.1_react@18.3.1\node_modules\react-dom\cjs\react-dom.development.js:15486:18)
-    at mountIndeterminateComponent (D:\deepseek modex\deepseek-harness\node_modules\.pnpm\react-dom@18.3.1_react@18.3.1\node_modules\react-dom\cjs\react-dom.development.js:20103:13)
-    at beginWork (D:\deepseek modex\deepseek-harness\node_modules\.pnpm\react-dom@18.3.1_react@18.3.1\node_modules\react-dom\cjs\react-dom.development.js:21626:16)
-    at HTMLUnknownElement.callCallback (D:\deepseek modex\deepseek-harness\node_modules\.pnpm\react-dom@18.3.1_react@18.3.1\node_modules\react-dom\cjs\react-dom.development.js:4164:14)
-    at HTMLUnknownElement.callTheUserObjectsOperation (D:\deepseek modex\deepseek-harness\node_modules\.pnpm\jsdom@29.1.1\node_modules\jsdom\lib\generated\idl\EventListener.js:26:30)
-    at innerInvokeEventListeners (D:\deepseek modex\deepseek-harness\node_modules\.pnpm\jsdom@29.1.1\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:360:16)
-    at invokeEventListeners (D:\deepseek modex\deepseek-harness\node_modules\.pnpm\jsdom@29.1.1\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:296:3)
-    at HTMLUnknownElementImpl._dispatch (D:\deepseek modex\deepseek-harness\node_modules\.pnpm\jsdom@29.1.1\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:243:9)
+    at useHost (<repo>/packages/client/ui-renderer/src/client/session-provider.tsx:27:20)
+    at SessionProvider (<repo>/packages/client/ui-renderer/src/client/session-provider.tsx:151:16)
+    at renderWithHooks (<repo>\node_modules\.pnpm\react-dom@18.3.1_react@18.3.1\node_modules\react-dom\cjs\react-dom.development.js:15486:18)
+    at mountIndeterminateComponent (<repo>\node_modules\.pnpm\react-dom@18.3.1_react@18.3.1\node_modules\react-dom\cjs\react-dom.development.js:20103:13)
+    at beginWork (<repo>\node_modules\.pnpm\react-dom@18.3.1_react@18.3.1\node_modules\react-dom\cjs\react-dom.development.js:21626:16)
+    at HTMLUnknownElement.callCallback (<repo>\node_modules\.pnpm\react-dom@18.3.1_react@18.3.1\node_modules\react-dom\cjs\react-dom.development.js:4164:14)
+    at HTMLUnknownElement.callTheUserObjectsOperation (<repo>\node_modules\.pnpm\jsdom@29.1.1\node_modules\jsdom\lib\generated\idl\EventListener.js:26:30)
+    at innerInvokeEventListeners (<repo>\node_modules\.pnpm\jsdom@29.1.1\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:360:16)
+    at invokeEventListeners (<repo>\node_modules\.pnpm\jsdom@29.1.1\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:296:3)
+    at HTMLUnknownElementImpl._dispatch (<repo>\node_modules\.pnpm\jsdom@29.1.1\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:243:9)
 Error: slot machinery rendered outside the installed renderer tree
-    at useHost (D:/deepseek modex/deepseek-harness/packages/client/ui-renderer/src/client/session-provider.tsx:27:20)
-    at SessionProvider (D:/deepseek modex/deepseek-harness/packages/client/ui-renderer/src/client/session-provider.tsx:151:16)
-    at renderWithHooks (D:\deepseek modex\deepseek-harness\node_modules\.pnpm\react-dom@18.3.1_react@18.3.1\node_modules\react-dom\cjs\react-dom.development.js:15486:18)
-    at mountIndeterminateComponent (D:\deepseek modex\deepseek-harness\node_modules\.pnpm\react-dom@18.3.1_react@18.3.1\node_modules\react-dom\cjs\react-dom.development.js:20103:13)
-    at beginWork (D:\deepseek modex\deepseek-harness\node_modules\.pnpm\react-dom@18.3.1_react@18.3.1\node_modules\react-dom\cjs\react-dom.development.js:21626:16)
-    at HTMLUnknownElement.callCallback (D:\deepseek modex\deepseek-harness\node_modules\.pnpm\react-dom@18.3.1_react@18.3.1\node_modules\react-dom\cjs\react-dom.development.js:4164:14)
-    at HTMLUnknownElement.callTheUserObjectsOperation (D:\deepseek modex\deepseek-harness\node_modules\.pnpm\jsdom@29.1.1\node_modules\jsdom\lib\generated\idl\EventListener.js:26:30)
-    at innerInvokeEventListeners (D:\deepseek modex\deepseek-harness\node_modules\.pnpm\jsdom@29.1.1\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:360:16)
-    at invokeEventListeners (D:\deepseek modex\deepseek-harness\node_modules\.pnpm\jsdom@29.1.1\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:296:3)
-    at HTMLUnknownElementImpl._dispatch (D:\deepseek modex\deepseek-harness\node_modules\.pnpm\jsdom@29.1.1\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:243:9)
+    at useHost (<repo>/packages/client/ui-renderer/src/client/session-provider.tsx:27:20)
+    at SessionProvider (<repo>/packages/client/ui-renderer/src/client/session-provider.tsx:151:16)
+    at renderWithHooks (<repo>\node_modules\.pnpm\react-dom@18.3.1_react@18.3.1\node_modules\react-dom\cjs\react-dom.development.js:15486:18)
+    at mountIndeterminateComponent (<repo>\node_modules\.pnpm\react-dom@18.3.1_react@18.3.1\node_modules\react-dom\cjs\react-dom.development.js:20103:13)
+    at beginWork (<repo>\node_modules\.pnpm\react-dom@18.3.1_react@18.3.1\node_modules\react-dom\cjs\react-dom.development.js:21626:16)
+    at HTMLUnknownElement.callCallback (<repo>\node_modules\.pnpm\react-dom@18.3.1_react@18.3.1\node_modules\react-dom\cjs\react-dom.development.js:4164:14)
+    at HTMLUnknownElement.callTheUserObjectsOperation (<repo>\node_modules\.pnpm\jsdom@29.1.1\node_modules\jsdom\lib\generated\idl\EventListener.js:26:30)
+    at innerInvokeEventListeners (<repo>\node_modules\.pnpm\jsdom@29.1.1\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:360:16)
+    at invokeEventListeners (<repo>\node_modules\.pnpm\jsdom@29.1.1\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:296:3)
+    at HTMLUnknownElementImpl._dispatch (<repo>\node_modules\.pnpm\jsdom@29.1.1\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:243:9)
  [32m✓[39m [30m[45m thread-safe [49m[39m packages/client/ui-renderer/tests/session-provider.client.spec.tsx [2m([22m[2m6 tests[22m[2m)[22m[32m 248[2mms[22m[39m
  [32m✓[39m [30m[45m thread-safe [49m[39m packages/core/session/tests/scoped.spec.ts [2m([22m[2m12 tests[22m[2m)[22m[33m 308[2mms[22m[39m
  [32m✓[39m [30m[45m thread-safe [49m[39m packages/client/connection/tests/http-bridge.host.spec.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 170[2mms[22m[39m
@@ -3193,36 +3193,36 @@ Error: slot machinery rendered outside the installed renderer tree
  [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-foundation/tests/rt-c1/edge.spec.ts [2m([22m[2m12 tests[22m[2m)[22m[32m 99[2mms[22m[39m
 [90mstderr[2m | packages/extensions/cordis-client-runner/tests/orchestrator.client.spec.ts[2m > [22m[2mapprove[2m > [22m[2mreports a source fetch that failed as the browser half failing
 [22m[39m[cordis-client-runner] Client activation dyn-1/pkg-1 (run-1) failed: Error: definition vanished
-    at Object.clientCode (D:/deepseek modex/deepseek-harness/packages/extensions/cordis-client-runner/tests/orchestrator.client.spec.ts:277:59)
-    at Object.Mock [as getClientCode] [90m(file:///D:/deepseek%20modex/deepseek-harness/[39mnode_modules/[4m.pnpm[24m/@vitest+spy@4.1.8/node_modules/[4m@vitest/spy[24m/dist/index.js:332:34[90m)[39m
-    at CordisRunOrchestrator.drive (D:/deepseek modex/deepseek-harness/packages/extensions/cordis-client-runner/src/client/orchestrator.ts:346:36)
+    at Object.clientCode (<repo>/packages/extensions/cordis-client-runner/tests/orchestrator.client.spec.ts:277:59)
+    at Object.Mock [as getClientCode] [90m(file:///<repo>/[39mnode_modules/[4m.pnpm[24m/@vitest+spy@4.1.8/node_modules/[4m@vitest/spy[24m/dist/index.js:332:34[90m)[39m
+    at CordisRunOrchestrator.drive (<repo>/packages/extensions/cordis-client-runner/src/client/orchestrator.ts:346:36)
 [90m    at processTicksAndRejections (node:internal/process/task_queues:103:5)[39m
-    at D:/deepseek modex/deepseek-harness/packages/extensions/cordis-client-runner/tests/orchestrator.client.spec.ts:279:5
-    at [90mfile:///D:/deepseek%20modex/deepseek-harness/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@4.1.8/node_modules/[4m@vitest/runner[24m/dist/chunk-artifact.js:1903:20
+    at <repo>/packages/extensions/cordis-client-runner/tests/orchestrator.client.spec.ts:279:5
+    at [90mfile:///<repo>/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@4.1.8/node_modules/[4m@vitest/runner[24m/dist/chunk-artifact.js:1903:20
 
 [90mstderr[2m | packages/extensions/cordis-client-runner/tests/orchestrator.client.spec.ts[2m > [22m[2mapprove[2m > [22m[2mcarries the failing load stage into the answer
 [22m[39m[cordis-client-runner] Client activation dyn-1/pkg-1 (run-1) failed: { message: [32m'activate: apply threw'[39m }
 
 [90mstderr[2m | packages/extensions/cordis-client-runner/tests/orchestrator.client.spec.ts[2m > [22m[2mapprove[2m > [22m[2mtreats a load that rejects outright as a browser-half failure
 [22m[39m[cordis-client-runner] Client activation dyn-1/pkg-1 (run-1) failed: Error: module table missing
-    at Object.loaded (D:/deepseek modex/deepseek-harness/packages/extensions/cordis-client-runner/tests/orchestrator.client.spec.ts:299:55)
-    at Object.Mock [90m(file:///D:/deepseek%20modex/deepseek-harness/[39mnode_modules/[4m.pnpm[24m/@vitest+spy@4.1.8/node_modules/[4m@vitest/spy[24m/dist/index.js:332:34[90m)[39m
-    at CordisRunOrchestrator.drive (D:/deepseek modex/deepseek-harness/packages/extensions/cordis-client-runner/src/client/orchestrator.ts:351:42)
+    at Object.loaded (<repo>/packages/extensions/cordis-client-runner/tests/orchestrator.client.spec.ts:299:55)
+    at Object.Mock [90m(file:///<repo>/[39mnode_modules/[4m.pnpm[24m/@vitest+spy@4.1.8/node_modules/[4m@vitest/spy[24m/dist/index.js:332:34[90m)[39m
+    at CordisRunOrchestrator.drive (<repo>/packages/extensions/cordis-client-runner/src/client/orchestrator.ts:351:42)
 [90m    at processTicksAndRejections (node:internal/process/task_queues:103:5)[39m
-    at D:/deepseek modex/deepseek-harness/packages/extensions/cordis-client-runner/tests/orchestrator.client.spec.ts:301:5
-    at [90mfile:///D:/deepseek%20modex/deepseek-harness/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@4.1.8/node_modules/[4m@vitest/runner[24m/dist/chunk-artifact.js:1903:20
+    at <repo>/packages/extensions/cordis-client-runner/tests/orchestrator.client.spec.ts:301:5
+    at [90mfile:///<repo>/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@4.1.8/node_modules/[4m@vitest/runner[24m/dist/chunk-artifact.js:1903:20
 
 [90mstderr[2m | packages/extensions/cordis-client-runner/tests/orchestrator.client.spec.ts[2m > [22m[2mapprove[2m > [22m[2mclears a previous failure when the same definition is tried again
 [22m[39m[cordis-client-runner] Client activation dyn-1/pkg-1 (run-1) failed: { message: [32m'activate: first try'[39m }
 
 [90mstderr[2m | packages/extensions/cordis-client-runner/tests/orchestrator.client.spec.ts[2m > [22m[2mstartUserRun[2m > [22m[2mrecords a source fetch failure with nothing to answer
 [22m[39m[cordis-client-runner] Client activation dyn-1/pkg-1 (run-1) failed: Error: gone
-    at Object.clientCode (D:/deepseek modex/deepseek-harness/packages/extensions/cordis-client-runner/tests/orchestrator.client.spec.ts:397:59)
-    at Object.Mock [as getClientCode] [90m(file:///D:/deepseek%20modex/deepseek-harness/[39mnode_modules/[4m.pnpm[24m/@vitest+spy@4.1.8/node_modules/[4m@vitest/spy[24m/dist/index.js:332:34[90m)[39m
-    at CordisRunOrchestrator.drive (D:/deepseek modex/deepseek-harness/packages/extensions/cordis-client-runner/src/client/orchestrator.ts:346:36)
+    at Object.clientCode (<repo>/packages/extensions/cordis-client-runner/tests/orchestrator.client.spec.ts:397:59)
+    at Object.Mock [as getClientCode] [90m(file:///<repo>/[39mnode_modules/[4m.pnpm[24m/@vitest+spy@4.1.8/node_modules/[4m@vitest/spy[24m/dist/index.js:332:34[90m)[39m
+    at CordisRunOrchestrator.drive (<repo>/packages/extensions/cordis-client-runner/src/client/orchestrator.ts:346:36)
 [90m    at processTicksAndRejections (node:internal/process/task_queues:103:5)[39m
-    at D:/deepseek modex/deepseek-harness/packages/extensions/cordis-client-runner/tests/orchestrator.client.spec.ts:398:5
-    at [90mfile:///D:/deepseek%20modex/deepseek-harness/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@4.1.8/node_modules/[4m@vitest/runner[24m/dist/chunk-artifact.js:1903:20
+    at <repo>/packages/extensions/cordis-client-runner/tests/orchestrator.client.spec.ts:398:5
+    at [90mfile:///<repo>/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@4.1.8/node_modules/[4m@vitest/runner[24m/dist/chunk-artifact.js:1903:20
 
 [90mstderr[2m | packages/extensions/cordis-client-runner/tests/orchestrator.client.spec.ts[2m > [22m[2mstartUserRun[2m > [22m[2mrecords a load failure, stringifying a non-Error rejection
 [22m[39m[cordis-client-runner] Client activation dyn-1/pkg-1 (run-1) failed: plain rejection
@@ -3251,41 +3251,41 @@ Error: slot machinery rendered outside the installed renderer tree
  [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-foundation/tests/ir/redteam.spec.ts [2m([22m[2m34 tests[22m[2m)[22m[32m 203[2mms[22m[39m
 [90mstderr[2m | packages/client/ui-commands/tests/popup.client.spec.ts[2m > [22m[2mopen and options load[2m > [22m[2man options failure keeps the shell open with search retained, surfaces the error, and retry reloads
 [22m[39m[ui-commands] popupSelect options failed for /theme: Error: directory down
-    at Object.options (D:/deepseek modex/deepseek-harness/packages/client/ui-commands/tests/popup.client.spec.ts:133:48)
-    at PopupSelectController.load (D:/deepseek modex/deepseek-harness/packages/client/ui-commands/src/client/popup.ts:145:18)
-    at PopupSelectController.open (D:/deepseek modex/deepseek-harness/packages/client/ui-commands/src/client/popup.ts:140:10)
-    at readyPopup (D:/deepseek modex/deepseek-harness/packages/client/ui-commands/tests/popup.client.spec.ts:53:9)
-    at D:/deepseek modex/deepseek-harness/packages/client/ui-commands/tests/popup.client.spec.ts:130:29
-    at [90mfile:///D:/deepseek%20modex/deepseek-harness/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@4.1.8/node_modules/[4m@vitest/runner[24m/dist/chunk-artifact.js:302:11
-    at [90mfile:///D:/deepseek%20modex/deepseek-harness/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@4.1.8/node_modules/[4m@vitest/runner[24m/dist/chunk-artifact.js:1903:26
-    at [90mfile:///D:/deepseek%20modex/deepseek-harness/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@4.1.8/node_modules/[4m@vitest/runner[24m/dist/chunk-artifact.js:2326:20
+    at Object.options (<repo>/packages/client/ui-commands/tests/popup.client.spec.ts:133:48)
+    at PopupSelectController.load (<repo>/packages/client/ui-commands/src/client/popup.ts:145:18)
+    at PopupSelectController.open (<repo>/packages/client/ui-commands/src/client/popup.ts:140:10)
+    at readyPopup (<repo>/packages/client/ui-commands/tests/popup.client.spec.ts:53:9)
+    at <repo>/packages/client/ui-commands/tests/popup.client.spec.ts:130:29
+    at [90mfile:///<repo>/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@4.1.8/node_modules/[4m@vitest/runner[24m/dist/chunk-artifact.js:302:11
+    at [90mfile:///<repo>/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@4.1.8/node_modules/[4m@vitest/runner[24m/dist/chunk-artifact.js:1903:26
+    at [90mfile:///<repo>/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@4.1.8/node_modules/[4m@vitest/runner[24m/dist/chunk-artifact.js:2326:20
     at new Promise (<anonymous>)
-    at runWithCancel [90m(file:///D:/deepseek%20modex/deepseek-harness/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@4.1.8/node_modules/[4m@vitest/runner[24m/dist/chunk-artifact.js:2323:10[90m)[39m
+    at runWithCancel [90m(file:///<repo>/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@4.1.8/node_modules/[4m@vitest/runner[24m/dist/chunk-artifact.js:2323:10[90m)[39m
 
  [32m✓[39m [30m[45m thread-safe [49m[39m packages/paper/paper-foundation/tests/ir/execution-record.spec.ts [2m([22m[2m14 tests[22m[2m)[22m[32m 72[2mms[22m[39m
 [90mstderr[2m | packages/client/ui-commands/tests/popup.client.spec.ts[2m > [22m[2mselect[2m > [22m[2man onSelect failure keeps the shell open with search/highlight/token intact, no consumption, and select re-arms
 [22m[39m[ui-commands] popupSelect onSelect failed for /theme: Error: host rejected
-    at Object.onSelect (D:/deepseek modex/deepseek-harness/packages/client/ui-commands/tests/popup.client.spec.ts:295:35)
-    at PopupSelectController.settle (D:/deepseek modex/deepseek-harness/packages/client/ui-commands/src/client/popup.ts:258:26)
-    at PopupSelectController.select (D:/deepseek modex/deepseek-harness/packages/client/ui-commands/src/client/popup.ts:224:16)
-    at D:/deepseek modex/deepseek-harness/packages/client/ui-commands/tests/popup.client.spec.ts:301:17
+    at Object.onSelect (<repo>/packages/client/ui-commands/tests/popup.client.spec.ts:295:35)
+    at PopupSelectController.settle (<repo>/packages/client/ui-commands/src/client/popup.ts:258:26)
+    at PopupSelectController.select (<repo>/packages/client/ui-commands/src/client/popup.ts:224:16)
+    at <repo>/packages/client/ui-commands/tests/popup.client.spec.ts:301:17
 [90m    at processTicksAndRejections (node:internal/process/task_queues:103:5)[39m
-    at [90mfile:///D:/deepseek%20modex/deepseek-harness/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@4.1.8/node_modules/[4m@vitest/runner[24m/dist/chunk-artifact.js:1903:20
+    at [90mfile:///<repo>/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@4.1.8/node_modules/[4m@vitest/runner[24m/dist/chunk-artifact.js:1903:20
 
 [90mstderr[2m | packages/client/ui-commands/tests/popup.client.spec.ts[2m > [22m[2mselect[2m > [22m[2mignores selects while closed, pending, failed, or out of filtered range
 [22m[39m[ui-commands] popupSelect options failed for /theme: Error: x
-    at Object.options (D:/deepseek modex/deepseek-harness/packages/client/ui-commands/tests/popup.client.spec.ts:316:80)
-    at PopupSelectController.load (D:/deepseek modex/deepseek-harness/packages/client/ui-commands/src/client/popup.ts:145:18)
-    at PopupSelectController.open (D:/deepseek modex/deepseek-harness/packages/client/ui-commands/src/client/popup.ts:140:10)
-    at readyPopup (D:/deepseek modex/deepseek-harness/packages/client/ui-commands/tests/popup.client.spec.ts:53:9)
-    at D:/deepseek modex/deepseek-harness/packages/client/ui-commands/tests/popup.client.spec.ts:316:37
+    at Object.options (<repo>/packages/client/ui-commands/tests/popup.client.spec.ts:316:80)
+    at PopupSelectController.load (<repo>/packages/client/ui-commands/src/client/popup.ts:145:18)
+    at PopupSelectController.open (<repo>/packages/client/ui-commands/src/client/popup.ts:140:10)
+    at readyPopup (<repo>/packages/client/ui-commands/tests/popup.client.spec.ts:53:9)
+    at <repo>/packages/client/ui-commands/tests/popup.client.spec.ts:316:37
 [90m    at processTicksAndRejections (node:internal/process/task_queues:103:5)[39m
 
 [90mstderr[2m | packages/client/ui-commands/tests/popup.client.spec.ts[2m > [22m[2mselect[2m > [22m[2ma dispose racing a failing onSelect revokes its error write
 [22m[39m[ui-commands] popupSelect onSelect failed for /theme: Error: late
-    at D:/deepseek modex/deepseek-harness/packages/client/ui-commands/tests/popup.client.spec.ts:350:12
+    at <repo>/packages/client/ui-commands/tests/popup.client.spec.ts:350:12
 [90m    at processTicksAndRejections (node:internal/process/task_queues:103:5)[39m
-    at [90mfile:///D:/deepseek%20modex/deepseek-harness/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@4.1.8/node_modules/[4m@vitest/runner[24m/dist/chunk-artifact.js:1903:20
+    at [90mfile:///<repo>/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@4.1.8/node_modules/[4m@vitest/runner[24m/dist/chunk-artifact.js:1903:20
 
  [32m✓[39m [30m[45m thread-safe [49m[39m packages/client/ui-commands/tests/popup.client.spec.ts [2m([22m[2m23 tests[22m[2m)[22m[32m 67[2mms[22m[39m
  [32m✓[39m [30m[45m thread-safe [49m[39m packages/credentials/authorization/tests/invariant.spec.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 66[2mms[22m[39m
@@ -4224,7 +4224,7 @@ If this is a long-running test, pass a timeout value as the last argument or con
 [31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[33/68]⎯[22m[39m
 
 [41m[1m FAIL [22m[49m [30m[45m thread-safe [49m[39m packages/sandbox/sandbox-windows-acl/tests/runner.spec.ts[2m > [22mwindows-acl runner[2m > [22mworkspace-write: the confined child writes granted directories only
-[31m[1mAssertionError[22m: stderr: windows-acl-run: CreateProcessAsUserW failed (Win32 2): command: pwsh, cwd: D:\deepseek modex\deepseek-harness
+[31m[1mAssertionError[22m: stderr: windows-acl-run: CreateProcessAsUserW failed (Win32 2): command: pwsh, cwd: <repo>
 : expected 127 to be +0 // Object.is equality[39m
 
 [32m- Expected[39m
@@ -4244,7 +4244,7 @@ If this is a long-running test, pass a timeout value as the last argument or con
 [31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[34/68]⎯[22m[39m
 
 [41m[1m FAIL [22m[49m [30m[45m thread-safe [49m[39m packages/sandbox/sandbox-windows-acl/tests/runner.spec.ts[2m > [22mwindows-acl runner[2m > [22mread-only: no write-SID grants — workspace/temp writes denied, reads and $null redirection fine, CIM unavailable
-[31m[1mAssertionError[22m: stderr: windows-acl-run: CreateProcessAsUserW failed (Win32 2): command: pwsh, cwd: D:\deepseek modex\deepseek-harness
+[31m[1mAssertionError[22m: stderr: windows-acl-run: CreateProcessAsUserW failed (Win32 2): command: pwsh, cwd: <repo>
 : expected 127 to be +0 // Object.is equality[39m
 
 [32m- Expected[39m
@@ -4264,7 +4264,7 @@ If this is a long-running test, pass a timeout value as the last argument or con
 [31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[35/68]⎯[22m[39m
 
 [41m[1m FAIL [22m[49m [30m[45m thread-safe [49m[39m packages/sandbox/sandbox-windows-acl/tests/runner.spec.ts[2m > [22mwindows-acl runner[2m > [22mworkspace-write: Remove-Item and Rename-Item succeed in the granted workspace (DELETE + FILE_DELETE_CHILD)
-[31m[1mAssertionError[22m: stderr: windows-acl-run: CreateProcessAsUserW failed (Win32 2): command: pwsh, cwd: D:\deepseek modex\deepseek-harness
+[31m[1mAssertionError[22m: stderr: windows-acl-run: CreateProcessAsUserW failed (Win32 2): command: pwsh, cwd: <repo>
 : expected 127 to be +0 // Object.is equality[39m
 
 [32m- Expected[39m
@@ -4284,7 +4284,7 @@ If this is a long-running test, pass a timeout value as the last argument or con
 [31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[36/68]⎯[22m[39m
 
 [41m[1m FAIL [22m[49m [30m[45m thread-safe [49m[39m packages/sandbox/sandbox-windows-acl/tests/runner.spec.ts[2m > [22mwindows-acl runner[2m > [22mpaired SIDs: the runner trusts caller-owned private-temp grants and materializes nothing itself
-[31m[1mAssertionError[22m: stderr: windows-acl-run: CreateProcessAsUserW failed (Win32 2): command: pwsh, cwd: D:\deepseek modex\deepseek-harness
+[31m[1mAssertionError[22m: stderr: windows-acl-run: CreateProcessAsUserW failed (Win32 2): command: pwsh, cwd: <repo>
 : expected 127 to be +0 // Object.is equality[39m
 
 [32m- Expected[39m
@@ -4304,7 +4304,7 @@ If this is a long-running test, pass a timeout value as the last argument or con
 [31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[37/68]⎯[22m[39m
 
 [41m[1m FAIL [22m[49m [30m[45m thread-safe [49m[39m packages/sandbox/sandbox-windows-acl/tests/runner.spec.ts[2m > [22mwindows-acl runner[2m > [22mmode-downgrade leak regression: a STANDING workspace grant is inert under read-only and effective again on re-upgrade
-[31m[1mAssertionError[22m: stderr: windows-acl-run: CreateProcessAsUserW failed (Win32 2): command: pwsh, cwd: D:\deepseek modex\deepseek-harness
+[31m[1mAssertionError[22m: stderr: windows-acl-run: CreateProcessAsUserW failed (Win32 2): command: pwsh, cwd: <repo>
 : expected 127 to be +0 // Object.is equality[39m
 
 [32m- Expected[39m
@@ -4324,7 +4324,7 @@ If this is a long-running test, pass a timeout value as the last argument or con
 [31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[38/68]⎯[22m[39m
 
 [41m[1m FAIL [22m[49m [30m[45m thread-safe [49m[39m packages/sandbox/sandbox-windows-acl/tests/runner.spec.ts[2m > [22mwindows-acl runner[2m > [22mambient-writable escape regression: a C:\Users\Public subdirectory is denied under BOTH modes (INTERACTIVE absent from both lists)
-[31m[1mAssertionError[22m: stderr: windows-acl-run: CreateProcessAsUserW failed (Win32 2): command: pwsh, cwd: D:\deepseek modex\deepseek-harness
+[31m[1mAssertionError[22m: stderr: windows-acl-run: CreateProcessAsUserW failed (Win32 2): command: pwsh, cwd: <repo>
 : expected 127 to be +0 // Object.is equality[39m
 
 [32m- Expected[39m

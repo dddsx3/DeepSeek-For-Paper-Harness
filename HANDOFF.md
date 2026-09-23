@@ -5,15 +5,35 @@
 > 后面的章节按需查。
 > **编制**：2026-09-19　**基线**：`d2dc30d9ec`（工作树干净）
 > **⚠️ 2026-09-20 更新（W10-MQUAL 轮后）**：HEAD = `816b879e7e`+（建模质量五闸
-> 已落地 + E2E），见 §8.1 与 `artifacts/handoff/W10-MQUAL/W10-REPORT.md`——
-> 本文件其余基线数字以该报告的 §4/§8 为准（scoped 1481/1481、真实运行 27、
-> 真实交付 4、G7 已落地）。
+> 已落地 + E2E），见 §8.1 与 `artifacts/handoff/W10-MQUAL/W10-REPORT.md`。
+>
+> **🔴 2026-09-22 架构改造（读本文件前先读这一段）**：DPH 的架构已重写为
+> **上限解放架构**，权威描述见 **[`docs/upper-bound-architecture.md`](./docs/upper-bound-architecture.md)**。
+> 与本文冲突时，以那份文档与代码为准。本文保留为**改造前**的交接快照（历史记录）。
+>
+> 改造要点（每一条都改变了本文后面章节的语义）：
+>
+> 1. **知识外置**：`EXECUTE_PROTOCOL_TEACHING` 拆为**最小宪法**（prompt 内，容器
+>    schema + 十条铁律）与 **`skills/` 技能库**（7 份可查询文档，运行开始落盘到
+>    工作区）。门禁规则按**成本**分流：接口类留宪法，知识类进技能库，
+>    由 `tests/constitution-contract.spec.ts` 逐条核对。
+> 2. **默认交付档位反转**：`strict-tolerance` → **`fail-soft`**。前者（任何 finding
+>    即 BLOCKED、零产物）是一条**从未在任何真实产出中被验证过**的路径。
+> 3. **L6 闭环落地**（本次唯一真正新增的一层）：finding 契约 + 分派表 + 指纹复验
+>    + 消解 + **四档交付语义**（CLEAN/MARKED/DEGRADED/ESCALATE）+ 已知缺陷表。
+>    **预算耗尽 = ESCALATE，不是 CLEAN**；"我改过了"不是证据。
+> 4. **两个致命条件接上真实判定**：`executionFailed` / `referenceCatastrophe`
+>    此前被**写死为 false**，现在各有真实来源。
+> 5. **方法选择放开**：闭集契约不再约束建模方法；探索—择优—深挖 + 回溯条款。
+> 6. **资产镜像已移除**：`docs/asset-library/`、`docs/figure-reference/`、
+>    `docs/asset-provenance.md`、`bench/reference/` 已删除；PDF 模板改为仓库自研
+>    `templates/paper-zh/dphpaper.cls`。仓库内**不含**任何外部产品名或来源路径。
 
 ---
 
 ## §0 三句话（如果只读三句话，读这三句）
 
-1. **DPH 是一条"模型负责想、harness 负责算和证"的流水线**——E1 让模型自由分析，E2 规范化成结构化声明，数字只能经 `code → jsonPath → Result` 回读，**散文里的数字一概不算**。
+1. **DPH 是一条"模型负责想、harness 负责算和证"的流水线**——模型自由分析并自由选择方法（harness **不限定建模方法**），数字只能经 `code → jsonPath → Result` 回读，**散文里的数字一概不算**。检出到的每个问题都必须有**归宿**（修掉 / 显式接受并写进交付物的已知缺陷表），**不允许"检测到了但无人消费"**。
 2. **25 次真实运行证明：模型（v4-flash）的建模智能是真实的，但散文算术 100% 不可信**——第零次内测逐项核验出 4 类数字错误（最严重的：交付的抽样方案接收概率只有 33.9%，不满足题目的 90% 要求）。
 3. **你最大的风险不是"模型不行"，而是把 harness 侧缺陷误读成"模型能力不足"**——过去 25 次运行实测抓出 **10+ 处**此类缺陷，每一处此前都被读成"模型不行"。
 
@@ -34,7 +54,10 @@
 | tsc | 干净（`tsc -b tsconfig.host.json`） |
 | 构建守卫 | `ok=true`（6 个包全覆盖，W8.11-E1 扩展） |
 | 负对照 | `22 passed, 0 failed`（NC-7 真篡改-还原；已接 CI `paper-harness.yml`） |
-| 资产库 | **已全量入库** `docs/asset-library/`（649 文件 29MB）+ `docs/figure-reference/`（46 文件） |
+| 资产库 | **已移除**（2026-09-22）：外部资产镜像不再入库；论文模板改为仓库自研 `templates/paper-zh/dphpaper.cls` |
+| 架构 | **上限解放架构**（2026-09-22 落地）→ [`docs/upper-bound-architecture.md`](./docs/upper-bound-architecture.md) |
+| 交付档位默认 | **`fail-soft`**（不再是 `strict-tolerance`）；`--strict-tolerance` 显式开启 |
+| 新增模块 | L0 能力画像 · L1 宪法/技能库 · L2 探索—择优—深挖 · L3 符号证据通道 · L4 语义指纹/三通道复验 · L5 三视角对抗评审 · L6 门禁状态机/finding 契约/闭环/四档阶梯 |
 | 计划文档 | 总书/PRD 原件是会话附件未入库；仓库内忠实摘录副本 = **`docs/dph-plan-and-redlines.md`** |
 
 ---
@@ -148,7 +171,6 @@ N1–N34 完整原文在《任务总书》（**会话附件，未入库**）。�
 | 排版折叠（D3）无阈值 | 阈值会放过真改写（LCS 0.9 的改写照样是改写） | 如果折叠后仍有排版残留 → 需扩充折叠规则 |
 | E1 不提 JSON/schema | 指令冲突（形态 7）：85% 篇幅要求 JSON + 15% 要求 prose = 模型服从多数派 | 如果 E1 在纯 prose 指令下也不产锚点 → 需评估模型能力 |
 | 架构图用确定性布局（方案 B） | 引入浏览器依赖太重；自研分层布局保留"自动布局"优势 | 如果布局质量不够 → 需重估（备选：无头浏览器） |
-| 数字资产**全量**迁移 | 逐轮挑选会造成引用点漂移 | 无（用户已裁决） |
 
 ---
 
@@ -225,7 +247,7 @@ budget exhausted**——与全部既往真实运行同构，是当前最高杠�
 
 ### 7.2 pre-commit 钩子的坑
 
-- **whitespace 门**：`git diff --cached --check` 拒绝尾随空白。逐字捕获的证据文件（provider 输出、终端日志）在 `.gitattributes` 里豁免了（`artifacts/handoff/W8.10/**` 和 `docs/figure-reference/**` 和 `artifacts/handoff/W9/2024-C-attachment-1.csv` 和 `docs/asset-library/**`）。**新轮次的归档目录需检查是否需要类似豁免**。
+- **whitespace 门**：`git diff --cached --check` 拒绝尾随空白。逐字捕获的证据文件（provider 输出、终端日志）在 `.gitattributes` 里豁免了（`artifacts/handoff/W8.10/**` 和 `artifacts/handoff/W9/2024-C-attachment-1.csv`）。**新轮次的归档目录需检查是否需要类似豁免**。
 - **lint 门**（oxlint 48 规则）：注意 **no-non-null-assertion**（改用显式 undefined 检查）和 **no-all-duplicated-branches**（重构残渣）。
 - **vendor manifest guard**：改 `package.json` 依赖后须重新生成。
 
@@ -233,7 +255,7 @@ budget exhausted**——与全部既往真实运行同构，是当前最高杠�
 
 - **heredoc 里的 `$` 和反引号**：Git Bash 的 heredoc 不展开变量（用 `<<'EOF'`），但内容太长会被截断——**改用 Write 工具写 Python 脚本再执行**。
 - **`git ls-files` 的 CJK 文件名**：默认 `core.quotepath=true` 会把 CJK 转义成 `\344\270\255`——**用 `git -c core.quotepath=false ls-files` 才能正确比对**。
-- **路径含空格**：`D:\deepseek modex\` 有空格——所有 shell 命令中的路径必须加引号。
+- **路径含空格**：`<repo>\` 有空格——所有 shell 命令中的路径必须加引号。
 - **相对路径的 cwd 不确定性**：tsx 脚本里的相对路径相对于 **cwd** 而非脚本位置——**用 `import.meta.url` 或绝对路径**。
 
 ### 7.4 模型调用的坑
@@ -293,7 +315,6 @@ budget exhausted**——与全部既往真实运行同构，是当前最高杠�
 9. ☐ 确认三组（真实运行/独立复核/红队）已排入计划
 10. ☐ 确认归档目录 `artifacts/handoff/<轮次>/` 已建
 11. ☐ **跑一次第零次内测的 docx 产物**（`artifacts/handoff/neizero/paper.docx`），亲眼看看它长什么样——**这比读十份报告都更能校准你对"能交的初稿"的预期**。注意：其中嵌入的图是 M5 样本图（从 `artifacts/handoff/W9/figures/` 手工复制进 neizero/figures/ 再导出），**不是该次运行自己生产的**——运行自身的图文件写出链路尚未接通（见 §6）
-12. ☐ 确认数字资产库 `docs/asset-library/` 已入库（649 文件），**不要从 `D:\modex\_assets_extracted` 引用**——本目录是唯一引用点
 
 ---
 

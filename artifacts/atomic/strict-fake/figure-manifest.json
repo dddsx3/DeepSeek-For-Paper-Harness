@@ -1,0 +1,9 @@
+{
+  "figures": [
+    {
+      "file": "figures/F-COST.svg",
+      "sha256": "f270fe316ef8ec3c7c082a347eff3f02cf5a0e28b26c54ad421a1ab2d1815353",
+      "renderer_version": "okabe-ito-v1/svg"
+    }
+  ]
+}

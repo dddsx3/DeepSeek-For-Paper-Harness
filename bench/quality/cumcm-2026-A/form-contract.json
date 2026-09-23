@@ -4,7 +4,7 @@
     "provenance": {
       "template": "参考工作区 user_data/result1.xlsx（表头 '时间\\到药材中心的距离'，时间列数据 int）",
       "bad_deliverable": "参考工作区 result1.xlsx（comp-review F3 major 的实物：A1=None 表头丢失、时间列 '1s' 字符串、距离表头 '0.0cm' 加后缀）",
-      "review_finding": "reference-verdicts/COMP_REVIEW_VERDICT.json findings[2] (deliverable_format, major)"
+      "review_finding": "交付形态缺陷（deliverable_format, major）：A1 表头丢失、时间列与距离表头被写成带单位的字符串"
     }
   },
   "contracts": [

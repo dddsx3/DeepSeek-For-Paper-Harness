@@ -7,6 +7,23 @@ import { workflowRunDomainSpec } from './spec.ts'
 export * from './runtime/index.ts'
 export * from './delivery/index.ts'
 export * from './ir/index.ts'
+// ── 上限解放架构 ────────────────────────────────────────────────────────
+// L0 能力画像 / L1 最小宪法与知识外置 / L2 探索—择优—深挖 /
+// L3 符号证据通道 / L4 语义指纹与三通道复验 / L5 三视角对抗评审 /
+// L6 门禁状态机 · finding 契约 · 闭环 · 四档交付语义 · 自动返修。
+export * from './knowledge/constitution.ts'
+export * from './knowledge/skill-library.ts'
+export * from './probe/capability-profile.ts'
+export * from './probe/probe-runner.ts'
+export * from './produce/explore-deepen.ts'
+export * from './verification/symbolic-channel.ts'
+export * from './verification/semantic-fingerprint.ts'
+export * from './verification/adversarial-review.ts'
+export * from './delivery/gate-state.ts'
+export * from './delivery/finding.ts'
+export * from './delivery/closure.ts'
+export * from './delivery/delivery-ladder.ts'
+export * from './delivery/auto-repair.ts'
 export * from './spec.ts'
 export * from './store.ts'
 export * from './diagnostics.ts'

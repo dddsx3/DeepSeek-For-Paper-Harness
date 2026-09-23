@@ -24,7 +24,7 @@
 ### 1.1 命令
 
 ```bash
-cd "D:/deepseek modex/deepseek-harness"
+cd "<repo>"
 node_modules/.bin/tsx "artifacts/handoff/W8.10/probe-dp4-config-capture.mts"
 ```
 
@@ -241,7 +241,7 @@ M5 自身诊断（"缺的是一类对象，不是一条检查"）与散文解析
 ## 五、可复现性
 
 ```bash
-cd "D:/deepseek modex/deepseek-harness"
+cd "<repo>"
 node_modules/.bin/tsx "artifacts/handoff/W8.10/probe-dp4-config-capture.mts"
 ```
 

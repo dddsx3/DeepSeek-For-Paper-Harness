@@ -2,23 +2,23 @@
 [33mThe plugin "vite-tsconfig-paths" is detected. Vite now supports tsconfig paths resolution natively via the [1mresolve.tsconfigPaths[22m option. You can remove the plugin and set [1mresolve.tsconfigPaths: true[22m in your Vite config instead.[39m
 [33mThe plugin "vite-tsconfig-paths" is detected. Vite now supports tsconfig paths resolution natively via the [1mresolve.tsconfigPaths[22m option. You can remove the plugin and set [1mresolve.tsconfigPaths: true[22m in your Vite config instead.[39m
 
-[1m[30m[46m RUN [49m[39m[22m [36mv4.1.8 [39m[90mD:/deepseek modex/deepseek-harness[39m
+[1m[30m[46m RUN [49m[39m[22m [36mv4.1.8 [39m[90m<repo>[39m
 
 [90mstderr[2m | packages/e2b/subprocess-e2b/tests/subprocess.spec.ts[2m > [22m[2mE2BSubprocessHandle[2m > [22m[2mrejects an unrepresentable graceMs before any remote work
 [22m[39mPromise returned by `expect(actual).rejects.toThrow(expected)` was not awaited. Vitest currently auto-awaits hanging assertions at the end of the test, but this will cause the test to fail in the next Vitest major. Please remember to await the assertion.
-    at D:/deepseek modex/deepseek-harness/packages/e2b/subprocess-e2b/tests/subprocess.spec.ts:472:9
+    at <repo>/packages/e2b/subprocess-e2b/tests/subprocess.spec.ts:472:9
 
 [90mstderr[2m | packages/e2b/subprocess-e2b/tests/subprocess.spec.ts[2m > [22m[2mE2BSubprocessHandle[2m > [22m[2mrejects an unrepresentable graceMs before any remote work
 [22m[39mPromise returned by `expect(actual).rejects.toThrow(expected)` was not awaited. Vitest currently auto-awaits hanging assertions at the end of the test, but this will cause the test to fail in the next Vitest major. Please remember to await the assertion.
-    at D:/deepseek modex/deepseek-harness/packages/e2b/subprocess-e2b/tests/subprocess.spec.ts:472:9
+    at <repo>/packages/e2b/subprocess-e2b/tests/subprocess.spec.ts:472:9
 
 [90mstderr[2m | packages/e2b/subprocess-e2b/tests/subprocess.spec.ts[2m > [22m[2mE2BSubprocessHandle[2m > [22m[2mrejects an unrepresentable graceMs before any remote work
 [22m[39mPromise returned by `expect(actual).rejects.toThrow(expected)` was not awaited. Vitest currently auto-awaits hanging assertions at the end of the test, but this will cause the test to fail in the next Vitest major. Please remember to await the assertion.
-    at D:/deepseek modex/deepseek-harness/packages/e2b/subprocess-e2b/tests/subprocess.spec.ts:472:9
+    at <repo>/packages/e2b/subprocess-e2b/tests/subprocess.spec.ts:472:9
 
 [90mstderr[2m | packages/e2b/subprocess-e2b/tests/subprocess.spec.ts[2m > [22m[2mE2BSubprocessHandle[2m > [22m[2mrejects an unrepresentable graceMs before any remote work
 [22m[39mPromise returned by `expect(actual).rejects.toThrow(expected)` was not awaited. Vitest currently auto-awaits hanging assertions at the end of the test, but this will cause the test to fail in the next Vitest major. Please remember to await the assertion.
-    at D:/deepseek modex/deepseek-harness/packages/e2b/subprocess-e2b/tests/subprocess.spec.ts:472:9
+    at <repo>/packages/e2b/subprocess-e2b/tests/subprocess.spec.ts:472:9
 
  [31m❯[39m [30m[45m thread-safe [49m[39m packages/e2b/subprocess-e2b/tests/terminal.spec.ts [2m([22m[2m35 tests[22m[2m | [22m[31m2 failed[39m[2m)[22m[33m 592[2mms[22m[39m
 [31m     [31m×[31m hides bootstrap-shell bytes and preserves requested-shell bytes across the output boundary[39m[32m 16[2mms[22m[39m
@@ -360,7 +360,7 @@ Received: [31m"KEEP=visible UNICODE=你好 DPH_STALE=old HOME=/home/user "[39m
 [31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/13]⎯[22m[39m
 
 [41m[1m FAIL [22m[49m [30m[45m thread-safe [49m[39m packages/sandbox/sandbox-windows-acl/tests/runner.spec.ts[2m > [22mwindows-acl runner[2m > [22mworkspace-write: the confined child writes granted directories only
-[31m[1mAssertionError[22m: stderr: windows-acl-run: CreateProcessAsUserW failed (Win32 2): command: pwsh, cwd: D:\deepseek modex\deepseek-harness
+[31m[1mAssertionError[22m: stderr: windows-acl-run: CreateProcessAsUserW failed (Win32 2): command: pwsh, cwd: <repo>
 : expected 127 to be +0 // Object.is equality[39m
 
 [32m- Expected[39m
@@ -380,7 +380,7 @@ Received: [31m"KEEP=visible UNICODE=你好 DPH_STALE=old HOME=/home/user "[39m
 [31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/13]⎯[22m[39m
 
 [41m[1m FAIL [22m[49m [30m[45m thread-safe [49m[39m packages/sandbox/sandbox-windows-acl/tests/runner.spec.ts[2m > [22mwindows-acl runner[2m > [22mread-only: no write-SID grants — workspace/temp writes denied, reads and $null redirection fine, CIM unavailable
-[31m[1mAssertionError[22m: stderr: windows-acl-run: CreateProcessAsUserW failed (Win32 2): command: pwsh, cwd: D:\deepseek modex\deepseek-harness
+[31m[1mAssertionError[22m: stderr: windows-acl-run: CreateProcessAsUserW failed (Win32 2): command: pwsh, cwd: <repo>
 : expected 127 to be +0 // Object.is equality[39m
 
 [32m- Expected[39m
@@ -400,7 +400,7 @@ Received: [31m"KEEP=visible UNICODE=你好 DPH_STALE=old HOME=/home/user "[39m
 [31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/13]⎯[22m[39m
 
 [41m[1m FAIL [22m[49m [30m[45m thread-safe [49m[39m packages/sandbox/sandbox-windows-acl/tests/runner.spec.ts[2m > [22mwindows-acl runner[2m > [22mworkspace-write: Remove-Item and Rename-Item succeed in the granted workspace (DELETE + FILE_DELETE_CHILD)
-[31m[1mAssertionError[22m: stderr: windows-acl-run: CreateProcessAsUserW failed (Win32 2): command: pwsh, cwd: D:\deepseek modex\deepseek-harness
+[31m[1mAssertionError[22m: stderr: windows-acl-run: CreateProcessAsUserW failed (Win32 2): command: pwsh, cwd: <repo>
 : expected 127 to be +0 // Object.is equality[39m
 
 [32m- Expected[39m
@@ -420,7 +420,7 @@ Received: [31m"KEEP=visible UNICODE=你好 DPH_STALE=old HOME=/home/user "[39m
 [31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/13]⎯[22m[39m
 
 [41m[1m FAIL [22m[49m [30m[45m thread-safe [49m[39m packages/sandbox/sandbox-windows-acl/tests/runner.spec.ts[2m > [22mwindows-acl runner[2m > [22mpaired SIDs: the runner trusts caller-owned private-temp grants and materializes nothing itself
-[31m[1mAssertionError[22m: stderr: windows-acl-run: CreateProcessAsUserW failed (Win32 2): command: pwsh, cwd: D:\deepseek modex\deepseek-harness
+[31m[1mAssertionError[22m: stderr: windows-acl-run: CreateProcessAsUserW failed (Win32 2): command: pwsh, cwd: <repo>
 : expected 127 to be +0 // Object.is equality[39m
 
 [32m- Expected[39m
@@ -440,7 +440,7 @@ Received: [31m"KEEP=visible UNICODE=你好 DPH_STALE=old HOME=/home/user "[39m
 [31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/13]⎯[22m[39m
 
 [41m[1m FAIL [22m[49m [30m[45m thread-safe [49m[39m packages/sandbox/sandbox-windows-acl/tests/runner.spec.ts[2m > [22mwindows-acl runner[2m > [22mmode-downgrade leak regression: a STANDING workspace grant is inert under read-only and effective again on re-upgrade
-[31m[1mAssertionError[22m: stderr: windows-acl-run: CreateProcessAsUserW failed (Win32 2): command: pwsh, cwd: D:\deepseek modex\deepseek-harness
+[31m[1mAssertionError[22m: stderr: windows-acl-run: CreateProcessAsUserW failed (Win32 2): command: pwsh, cwd: <repo>
 : expected 127 to be +0 // Object.is equality[39m
 
 [32m- Expected[39m
@@ -460,7 +460,7 @@ Received: [31m"KEEP=visible UNICODE=你好 DPH_STALE=old HOME=/home/user "[39m
 [31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[9/13]⎯[22m[39m
 
 [41m[1m FAIL [22m[49m [30m[45m thread-safe [49m[39m packages/sandbox/sandbox-windows-acl/tests/runner.spec.ts[2m > [22mwindows-acl runner[2m > [22mambient-writable escape regression: a C:\Users\Public subdirectory is denied under BOTH modes (INTERACTIVE absent from both lists)
-[31m[1mAssertionError[22m: stderr: windows-acl-run: CreateProcessAsUserW failed (Win32 2): command: pwsh, cwd: D:\deepseek modex\deepseek-harness
+[31m[1mAssertionError[22m: stderr: windows-acl-run: CreateProcessAsUserW failed (Win32 2): command: pwsh, cwd: <repo>
 : expected 127 to be +0 // Object.is equality[39m
 
 [32m- Expected[39m

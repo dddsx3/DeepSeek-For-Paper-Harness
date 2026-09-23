@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """
-W11.5 round-3 — PDF 导出：**数字资产自带的 CUMCM 论文格式模板为必选项**。
+PDF 导出：**本仓库自研论文模板（templates/paper-zh/dphpaper.cls）为必选项**。
 
-输入：real-run 的 report.md + figures/ 目录 + 模板目录（cumcmthesis.cls + main.tex）
+输入：real-run 的 report.md + figures/ 目录 + 模板目录（dphpaper.cls）
 输出：paper.pdf
 
-路径：report.md →（pandoc 转 LaTeX 正文）→ 填入 CUMCM 模板的 main.tex →
+路径：report.md →（pandoc 转 LaTeX 正文）→ 填入模板的文档骨架 →
       xelatex 两遍 → PDF。
 
 纪律（与 docx 导出同源，N31）：**导出步不得修改内容**——只做 Markdown→LaTeX 的
@@ -25,7 +25,8 @@ import sys
 import tempfile
 from pathlib import Path
 
-DEFAULT_TEMPLATE = Path("docs/asset-library/skills/comp-paper-zh/templates/cumcm")
+DEFAULT_TEMPLATE = Path("templates/paper-zh")
+TEMPLATE_CLASS = "dphpaper.cls"
 
 
 def die(message: str) -> None:
@@ -37,7 +38,7 @@ def split_front_matter(md: str) -> tuple[str, str, str, str]:
     """Pull title / abstract / keywords out of the delivered markdown.
 
     The delivered report is a 12-section skeleton: `# title`, then `## 摘要`, then
-    the chapters. The CUMCM template wants those three as \\title / abstract
+    the chapters. The template wants those three as \\title / abstract
     environment / \\keywords, so they are lifted out and the rest becomes the body.
     """
     lines = md.split("\n")
@@ -80,6 +81,39 @@ MATH_ALPHANUMERIC = {
 MATH_ALPHANUMERIC.update({chr(0x1D41A + i): chr(ord("a") + i) for i in range(26)})
 MATH_ALPHANUMERIC.update({chr(0x1D7CE + i): chr(ord("0") + i) for i in range(10)})
 MATH_ALPHANUMERIC.update({"−": "-", "×": "x", "·": ".", "∼": "~", "∈": " in "})
+
+
+def normalize_math_delimiters(md: str) -> str:
+    r"""Rewrite `\(...\)` / `\[...\]` into `$...$` / `$$...$$`.
+
+    Why this is required (found by the first real PDF export of an E1-direct
+    draft): the delivered markdown carries LaTeX inline math written with the
+    `\(...\)` delimiters, which **pandoc's markdown reader does not recognise as
+    math** — it only parses `$...$` and `$$...$$`. The raw `\(` then reaches
+    xelatex, where it *opens math mode*, so the cell's closing `)` never closes
+    it and the next text-mode `(` dies with "Missing $ inserted" — pointing at a
+    line far from the real cause.
+
+    This is a form mapping, not a content edit (N31): every character of the
+    formula is preserved, only the delimiter pair changes to the one both pandoc
+    and LaTeX agree on. Fenced code blocks are left byte-identical.
+    """
+    out_lines = []
+    in_code = False
+    for line in md.split(chr(10)):
+        stripped = line.strip()
+        if stripped.startswith("```"):
+            in_code = not in_code
+            out_lines.append(line)
+            continue
+        if in_code:
+            out_lines.append(line)
+            continue
+        # Display math first (its delimiters contain the inline ones' prefix).
+        line = line.replace(r"\[", "$$").replace(r"\]", "$$")
+        line = line.replace(r"\(", "$").replace(r"\)", "$")
+        out_lines.append(line)
+    return chr(10).join(out_lines)
 
 
 def flatten_note_markers(md: str) -> str:
@@ -177,7 +211,7 @@ def markdown_to_latex_body(md: str, figure_dir: Path) -> str:
     pandoc = find_tool("pandoc")
     if pandoc is None:
         die("pandoc is required for the markdown→LaTeX step (winget install JohnMacFarlane.Pandoc)")
-    prepared = prefer_png_figures(flatten_note_markers(fold_math_alphanumerics(md)), figure_dir)
+    prepared = prefer_png_figures(flatten_note_markers(normalize_math_delimiters(fold_math_alphanumerics(md))), figure_dir)
     with tempfile.NamedTemporaryFile("w", suffix=".md", delete=False, encoding="utf-8") as fh:
         fh.write(prepared)
         src = fh.name
@@ -194,8 +228,13 @@ def markdown_to_latex_body(md: str, figure_dir: Path) -> str:
         # CUMCM template does not load — xelatex then dies with "Environment
         # Shaded undefined" (real failure: the whole PDF, including the code
         # appendix, was lost). Plain verbatim compiles everywhere.
+        # `-shift-heading-level-by=-1`: the delivered report's `#` line is the
+        # TITLE (lifted out into 	itle above), so every remaining heading sits one
+        # level deeper than the document really is. Without the shift, `## 问题重述`
+        # becomes a \subsection with no parent \section — the PDF then numbers it
+        # "0.1", which a real export showed.
         [pandoc, src, "-f", "markdown-yaml_metadata_block", "-t", "latex",
-         "--top-level-division=section", "--no-highlight"],
+         "--top-level-division=section", "--shift-heading-level-by=-1", "--no-highlight"],
         capture_output=True, text=True, encoding="utf-8",
     )
     Path(src).unlink(missing_ok=True)
@@ -205,17 +244,17 @@ def markdown_to_latex_body(md: str, figure_dir: Path) -> str:
 
 
 def build_tex(title: str, abstract: str, keywords: str, body_tex: str, figure_dir: Path) -> str:
-    """Assemble the CUMCM template's document with the paper's content."""
+    """Assemble the template class's document with the paper's content."""
     # The report references `figures/<name>.png`, so the search path is the
     # PARENT of the figures directory (plus the directory itself, for a report
     # that references bare file names).
     keyword_line = f"\\keywords{{{keywords}}}" if keywords else ""
-    # The template's own preamble (packages, abstract fix) is reused verbatim;
+    # The class carries the preamble (page geometry, CJK, captions, listings);
     # only the document body is ours. \graphicspath lets the figure files keep
     # the names the report already references.
     return "\n".join([
-        "% 由 DPH 论文生产链生成：内容来自 report.md，模板来自数字资产 cumcm 模板",
-        "\\documentclass[withoutpreface,bwprint]{cumcmthesis}",
+        "% 由 DPH 论文生产链生成：内容来自 report.md，模板为仓库自研 dphpaper.cls",
+        "\\documentclass[withoutpreface,bwprint]{dphpaper}",
         "\\usepackage[numbers,sort&compress]{natbib}",
         "\\usepackage{graphicx}",
         "\\usepackage{longtable,booktabs,array}",
@@ -289,10 +328,10 @@ def main() -> None:
     out = Path(sys.argv[3])
     template = Path(sys.argv[4]) if len(sys.argv) > 4 else DEFAULT_TEMPLATE
     # REQUIRED option: no template, no PDF.
-    cls = template / "cumcmthesis.cls"
+    cls = template / TEMPLATE_CLASS
     if not cls.is_file():
-        die(f"CUMCM template class not found at {cls} — the template is a REQUIRED option "
-            f"(数字资产 cumcm 模板)，缺失即拒绝导出，不静默降级")
+        die(f"paper template class not found at {cls} — the template is a REQUIRED option "
+            f"({TEMPLATE_CLASS})，缺失即拒绝导出，不静默降级")
     if not report.is_file():
         die(f"report not found: {report}")
 
@@ -302,15 +341,15 @@ def main() -> None:
     # abstract environment, so it needs the same marker normalization as the
     # body (the first real PDF export died on a note marker that only existed
     # in the abstract).
-    abstract = flatten_note_markers(abstract)
-    keywords = flatten_note_markers(keywords)
+    abstract = normalize_math_delimiters(flatten_note_markers(abstract))
+    keywords = normalize_math_delimiters(flatten_note_markers(keywords))
     if not abstract:
         die("the paper carries no 摘要 — the CUMCM template requires one (abstract environment)")
     body_tex = markdown_to_latex_body(body_md, figure_dir)
 
     with tempfile.TemporaryDirectory(prefix="dph-pdf-") as tmp:
         workdir = Path(tmp)
-        shutil.copy(cls, workdir / "cumcmthesis.cls")
+        shutil.copy(cls, workdir / TEMPLATE_CLASS)
         # The report references figures as `figures/<name>.png`, so the figures
         # travel into the build directory. A `\graphicspath` pointing at the
         # delivery dir does NOT work here: the path contains spaces, and TeX

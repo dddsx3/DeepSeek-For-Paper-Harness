@@ -1222,7 +1222,7 @@
       "actor": "paper-executor",
       "eventType": "final_output_written",
       "detail": {
-        "path": "D:\\deepseek modex\\deepseek-harness\\apps\\paper-shell\\src\\paper-shell-persist-MM6LpL\\94c91b01-8c9f-45b1-b6da-4c00b9a07b43\\final\\final",
+        "path": "D:\\<repo>\\deepseek-harness\\apps\\paper-shell\\src\\paper-shell-persist-MM6LpL\\94c91b01-8c9f-45b1-b6da-4c00b9a07b43\\final\\final",
         "bytes": 21459,
         "sha256": "84544ed942a008540eb70f661a5f9229c3b2f0c1130db8eafa3eec319754872c"
       }

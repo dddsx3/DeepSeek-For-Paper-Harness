@@ -1,7 +1,7 @@
 /**
  * F3 数据驱动/统计 contract (DPH 核验表 Part B — F3).
  *
- * 候选模型集封闭:回归族 / ARIMA / 灰色 GM(1,1) / 树模型 / 聚类 /
+ * 常见方法（**参考，不是白名单**——方法选择不受约束）:回归族 / ARIMA / 灰色 GM(1,1) / 树模型 / 聚类 /
  * 检验族。模型只能从这组里选,零发明空间。
  * 专项验证(不含通用 V1–V7):残差存在性、R²/拟合指标存在、过拟合告警
  * (参数≤样本 10% 或提供交叉验证)、数据源引用存在。
@@ -47,9 +47,16 @@ export const F3_CONTRACT: FamilyContract = {
     const paramK = typeof input.param_count === 'number' ? input.param_count : 0
     const hasCV = input.cross_validation === true
     findings.push({
-      rule: '候选模型封闭',
-      ok: F3_MODELS.includes(model as (typeof F3_MODELS)[number]),
-      detail: model === '' ? '未声明模型' : `模型 ${model} ${F3_MODELS.includes(model as (typeof F3_MODELS)[number]) ? '' : '不在 F3 候选集内'}`,
+      // 规则名从「候选模型封闭」改为「选型已登记」：验证的对象不再是"你有没有从
+      // 白名单里挑"，而是"你有没有把挑的方法登记进决策记录"。
+      // 闭集语义在上限解放架构 L2 里被移除（见 contracts/index.ts 的 contractBanner）。
+      // `ok` 的判据也相应放宽：**任何**非空模型名都算"已登记"——它是不是这一族的
+      // 常见方法，只影响 detail 里的一句提示，不影响通过与否。
+      rule: '选型已登记',
+      ok: model !== '',
+      detail: model === ''
+        ? '未声明模型'
+        : `模型 ${model} 已登记${F3_MODELS.includes(model as (typeof F3_MODELS)[number]) ? '' : '（不在本族常见方法内——这是允许的，理由应在决策记录里）'}`,
     })
     findings.push({
       rule: '残差存在',

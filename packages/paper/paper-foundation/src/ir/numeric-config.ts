@@ -152,7 +152,24 @@ export interface NumericConfigFromEmissionInput {
 
 export type NumericConfigFromEmissionResult =
   | { readonly ok: true; readonly config: NumericConfig }
+  /**
+   * **部分准入**：能解析的键照常成 config，解析不了的键如实返回。
+   *
+   * 四轮实测里，`numeric_config.json` 的键解析失败是**最高频的下游拒绝**（4 次），
+   * 每次都零掉一整次尝试。而它的真实含义不是"配置写错了"，是**模型的符号表不全**
+   * ——模型用了 `p1` 却没声明 `S-P1`。把整条链拒掉，惩罚的是"符号表不全"这件事，
+   * 代价却是"这一轮的全部产出"。
+   *
+   * 因此改成：**能锚定的照常锚定，锚不了的作为 finding 如实上报**（进 L6 的已知
+   * 缺陷表）。"不得静默降级"仍然成立——缺口是**被记录**的，只是不再以"零产物"
+   * 为代价。这与本架构的立论一致：检出产出 findings，交付携带 findings。
+   */
   | { readonly ok: false; readonly failures: ReadonlyArray<NumericConfigEmissionFailure> }
+  | {
+    readonly ok: 'partial'
+    readonly config: NumericConfig
+    readonly failures: ReadonlyArray<NumericConfigEmissionFailure>
+  }
 
 /**
  * Materialize the code-emitted config into a canonical NumericConfig.
@@ -237,8 +254,11 @@ export function numericConfigFromEmission(
     if (symbolRef === null) continue
     physical.push({ symbol_ref: symbolRef, value })
   }
-  if (failures.length > 0) return { ok: false, failures }
-
+  // 部分准入：有锚不了的键时，仍然把**能锚定的部分**构造成 config，连同 failures
+  // 一起返回。调用方据此两件事都做：准入部分、上报缺口。
+  //
+  // 判据是"缺口被记录"而不是"整条链归零"——见类型定义里的长注释（四轮实测里
+  // 这一类是最高频的下游拒绝，每次零掉一整次尝试，而它的真实含义只是"符号表不全"）。
   const config: NumericConfig = {
     config_id: input.configId,
     run_ref: input.runRef,
@@ -257,5 +277,8 @@ export function numericConfigFromEmission(
       }],
     }
   }
+  // schema 不过 → 真拒绝（那不是"锚不上"，是结构本身坏了）。
+  // schema 过但有未锚定的键 → 部分准入。
+  if (failures.length > 0) return { ok: 'partial', config: parsed.data, failures }
   return { ok: true, config: parsed.data }
 }

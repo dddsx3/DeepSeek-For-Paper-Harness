@@ -12,7 +12,7 @@
 | 文件 | 内容 | 谁生成 | 门槛 |
 |---|---|---|---|
 | `report.md` | 论文主稿（12 章骨架 + 机器数字回读 + 执行输出附录） | 渲染器（harness） | ≥ 4,000 字节 |
-| `paper.pdf` | **PDF 交付**：数字资产 CUMCM 模板（`cumcmthesis.cls`）+ xelatex，16 页量级 | `scripts/export-pdf.py` | ≥ 50,000 字节；**模板缺失即拒绝导出** |
+| `paper.pdf` | **PDF 交付**：仓库自研模板（`templates/paper-zh/dphpaper.cls`）+ xelatex，16 页量级 | `scripts/export-pdf.py` | ≥ 50,000 字节；**模板缺失即拒绝导出** |
 | `paper.docx` | Word 交付（A4 / 25mm 边距 / 宋体小四 / 1.5 倍行距 / 黑体标题 / 图 300dpi PNG） | `scripts/export-docx.py` | ≥ 5,000 字节；**docx 预检 0 致命才写出** |
 | `run-report.json` | 运行报告：`delivery_path` / `grade` / `tier` / `code_run_timeout_ms` / `data_files`(sha256+bytes) / `figures` / `figure_links_broken` / `usage` / `attachments` | CLI | ≥ 200 字节 |
 | `audit-trail.json` | **完整审计轨迹**：每个事件的 seq / ts / eventType / actor / detail | CLI | — |
@@ -59,11 +59,25 @@
 
 ---
 
-## 四、链上门禁（产出前教学 + 产出后核验，两段都在）
+## 四、链上门禁（按成本分流：接口进宪法，知识进技能库，核验在产出后）
 
-**产出前**（写在提示里，模型第一次发射就该满足）：PAPER CONTRACT 十一行（八键 / 逐问归因 ≥600 / 四要素 ≥500 / 文献 ≥3 / 代码附录 ≥200 / 重述 ≥200 / 无空白 / 至少一图 / 每问自己的 Result+CRITICAL claim / 假设被引用且带 justification）、E1 STRUCTURE 三条（逐问锚点 `[[REQUIREMENT: R-Qn]]`、`e1_span` 逐字或 `#<n>` 序号引用、锚点同一性）。
+> 🔴 **2026-09-22 更新**：本节原描述的"把全部规则写进提示"已被**成本分流**取代。
+> 权威描述见 [`upper-bound-architecture.md`](./upper-bound-architecture.md) §4.2 与 §4.7。
 
-**产出后核验**（不满足即拒，带针对性纠错与重试预算）：容器形状/首行版本标记、逐问覆盖、假设结构、图必填、散文要素、实质地板、空白密度、数字闭环（结论数字必须回到 IR）、算式自洽、E1↔E2 双向保真。
+**接口类**（模型不看到就产不出合法容器 → 必须写在**最小宪法**里）：容器形状/首行版本标记、
+逐问覆盖、假设结构、图必填、E1 STRUCTURE 三条（逐问锚点 `[[REQUIREMENT: R-Qn]]`、
+`e1_span` 逐字或 `#<n>` 序号引用、锚点同一性）、十条铁律。
+
+**知识类**（"怎么写更好" → 写在**技能库**里，prompt 只给索引，模型按需 `read_file`）：
+论文契约的章节要素与篇幅参照、去 AI 味清单、方法族适用条件、评分口径、证据纪律、
+符号校验纪律、探索—择优—深挖流程。落盘在 `<runRoot>/skills/`。
+
+**产出后核验**（检出问题，输出 findings 交 L6 闭环——**不再直接决定交付与否**）：
+容器准入、逐问覆盖、假设结构、图必填、散文要素、实质地板、空白密度、
+数字闭环（结论数字必须回到 IR）、算式自洽、E1↔E2 双向保真。
+
+**门禁的激活强度由状态机决定**（`DORMANT → WARN → ENFORCE`）：首次违规注入一条
+针对性的微教学，同维度再次违规则收紧为硬拦截。强模型跑完一程可能一个门禁都没感知到。
 
 **交付前**：docx 预检 16 类（骨架齐备 / 无占位 / 表列对齐 / 公式定界符 / 引用可解析 / 字数 / 图片引用可解析 …），0 致命才允许导出。
 

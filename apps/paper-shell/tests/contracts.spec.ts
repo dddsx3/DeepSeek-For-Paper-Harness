@@ -28,7 +28,11 @@ describe('F3 数据驱动/统计 contract', () => {
     expect(findings.every(f => f.ok)).toBe(true)
   })
 
-  it('a model OUTSIDE the closed set is refused (零发明空间)', () => {
+  it('一个**不在常见方法内**的模型被**接受**，只在 detail 里提示（方法选择自由）', () => {
+    // 契约反转（上限解放架构 L2）：原文是"a model OUTSIDE the closed set is
+    // refused (零发明空间)"——模型的选型自由被拿走了，而"选了什么方法"正是建模
+    // 论文质量差距的大头。现在验证的对象是"你有没有登记选型"，不是"你有没有从
+    // 白名单里挑"。
     const findings = F3_CONTRACT.validate({
       model: 'my-custom-neural-net',
       residuals: [1],
@@ -37,9 +41,22 @@ describe('F3 数据驱动/统计 contract', () => {
       param_count: 2,
       data_ref: 'DA-RAW',
     })
-    const modelFinding = findings.find(f => f.rule === '候选模型封闭')
-    expect(modelFinding?.ok).toBe(false)
-    expect(modelFinding?.detail).toContain('不在 F3 候选集内')
+    const modelFinding = findings.find(f => f.rule === '选型已登记')
+    expect(modelFinding?.ok).toBe(true)
+    expect(modelFinding?.detail).toContain('已登记')
+    expect(modelFinding?.detail).toContain('这是允许的')
+  })
+
+  it('未声明模型仍然不通过（"自由"不等于"可以不说"）', () => {
+    const findings = F3_CONTRACT.validate({
+      model: '',
+      residuals: [1],
+      fit_metric: 0.9,
+      sample_n: 100,
+      param_count: 2,
+      data_ref: 'DA-RAW',
+    })
+    expect(findings.find(f => f.rule === '选型已登记')?.ok).toBe(false)
   })
 
   it('a missing residual sequence is refused', () => {
@@ -122,13 +139,20 @@ describe('contract registry', () => {
     expect(getContract('F1')).toBeUndefined()
   })
 
-  it('contractBanner renders the closed candidate set + required assumptions', () => {
+  it('contractBanner 是**软先验**，不是闭集契约（上限解放架构 L2）', () => {
     const banner = contractBanner('F3')
-    expect(banner).toContain('F3(数据驱动/统计)')
-    expect(banner).toContain('候选模型集(封闭')
+    expect(banner).toContain('F3（数据驱动/统计）')
+    // 候选方法仍然列出来（有用的先验）……
     expect(banner).toContain('linear-regression')
-    expect(banner).toContain('必需假设')
-    expect(banner).toContain('专项验证')
+    expect(banner).toContain('常见的假设')
+    expect(banner).toContain('常见的验证点')
+    // ……但**必须明说这不是白名单**。
+    // 事故：原文写"候选模型集(封闭,只能从中选择,禁止自创)"，一次真实运行里模型
+    // 逐字照抄并在那 8 个方法里挑——而"方法选择自由"正是本架构要解开的封顶。
+    expect(banner).toContain('不是白名单')
+    expect(banner).toContain('不对方法选择施加约束')
+    expect(banner, '闭集措辞回流了').not.toContain('禁止自创')
+    expect(banner).not.toContain('封闭')
   })
 
   it('contractBanner for an unregistered family is empty', () => {

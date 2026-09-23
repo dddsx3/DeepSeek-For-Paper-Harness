@@ -33,6 +33,7 @@ import {
 import { ModelingIr } from '../src/ir/store.ts'
 import { CAPTURE_ATTESTATION, type IrKind } from '../src/ir/index.ts'
 import { backboneIr, validChain } from './ir/fixtures.ts'
+import { FAKE_DRAFT_TEXT } from './fixtures/fake-draft.ts'
 
 /**
  * A canonical backbone WITHOUT any FigureSpec — the P2 figure gate is
@@ -62,7 +63,16 @@ const routes = {
   editorAi: { provider: 'fake', model: 'fake-model', credentialRef: 'cred://d', timeoutMs: 1000 },
 }
 
-async function* textStream(text: string): AsyncGenerator<{ type: string; index: number; text?: string; blockType?: string; block?: { type: string; text: string }; reason?: { kind: string } }> {
+interface FakeChunk {
+  type: string
+  index: number
+  text?: string
+  blockType?: string
+  block?: { type: string; text: string }
+  reason?: { kind: string }
+}
+
+async function* textStream(text: string): AsyncGenerator<FakeChunk> {
   yield { type: 'block-start', index: 0, blockType: 'text' }
   yield { type: 'text-delta', index: 0, text }
   yield { type: 'block-end', index: 0, block: { type: 'text', text } }
@@ -73,7 +83,7 @@ async function* textStream(text: string): AsyncGenerator<{ type: string; index: 
  * Harness whose reviewer consumes `reviewerOutputs` one call at a time
  * (round order), letting a test script the review-adjudication arc.
  */
-async function harness(reviewerOutputs: ReadonlyArray<string>, mode: 'fast' | 'exploratory') {
+async function harness(reviewerOutputs: ReadonlyArray<string>, mode: 'fast' | 'exploratory', executorConfig: Record<string, unknown> = {}) {
   const ctx = new Context()
   await ctx.plugin(Storage)
   ctx.storage.backend.register('memory', new MemoryStorageBackend(new MemoryMediaPool()))
@@ -84,23 +94,31 @@ async function harness(reviewerOutputs: ReadonlyArray<string>, mode: 'fast' | 'e
   await ctx.plugin(WorkflowEngineService)
   let reviewCalls = 0
   ctx.provide('paperProvider', {
-    resolveRole: () => Promise.resolve({ route: { role: 'executor', ...routes.executor }, model: { provider: 'fake', id: 'fake-model', name: 'fake-model' } }),
-    stream: (request: { system?: string }): AsyncIterable<{ type: string; index: number; text?: string; blockType?: string; block?: { type: string; text: string }; reason?: { kind: string } }> => {
+    resolveRole: () => Promise.resolve({
+      route: { role: 'executor', ...routes.executor },
+      model: { provider: 'fake', id: 'fake-model', name: 'fake-model' },
+    }),
+    stream: (request: { system?: string }): AsyncIterable<FakeChunk> => {
       const system = request.system ?? ''
       if (system.includes('reviewer')) {
         const text = reviewerOutputs[reviewCalls] ?? '{"defects":[]}'
         reviewCalls += 1
         return textStream(text)
       }
-      return textStream('revised deliverable text')
+      return textStream(FAKE_DRAFT_TEXT)
     },
   } as never)
-  await ctx.plugin(PaperSettingsService, { executor: routes.executor, reviewer: routes.reviewer, editorAi: routes.editorAi, defaultMode: mode })
+  await ctx.plugin(PaperSettingsService, {
+    executor: routes.executor,
+    reviewer: routes.reviewer,
+    editorAi: routes.editorAi,
+    defaultMode: mode,
+  })
   const guard = new PaperRuntimeGuard(ctx, { profile: createExploratoryProfile() })
   guard.markReady()
   ctx.provide('paperModelingIr', mode === 'fast' ? noFigureBackbone() : backboneIr())
   await ctx.plugin(PaperAuditService, {})
-  await ctx.plugin(PaperExecutorService, { backoffBaseMs: 1, backoffCapMs: 1 })
+  await ctx.plugin(PaperExecutorService, { backoffBaseMs: 1, backoffCapMs: 1, ...executorConfig })
   const engine = ctx.paperWorkflow.runs
   const run = await engine.startRun({ mode, harnessVersion: 'test', configHash: 'sha256:e4' })
   const outcome = await ctx.paperExecutor.runs.execute(RunId(run.id), 'write one sentence')
@@ -114,21 +132,34 @@ async function harness(reviewerOutputs: ReadonlyArray<string>, mode: 'fast' | 'e
 }
 
 describe('E4a — defects accumulate across rounds (critical never expires without resolved)', () => {
-  it('round-0 critical + clean rounds with NO resolved record → still BLOCKED', async () => {
-    const { engine, runId, outcome } = await harness([
+  it('round-0 critical + clean rounds with NO resolved record → the defect never expires', async () => {
+    // 契约反转：旧形态用"拒绝交付"给缺陷归宿（代价是零产物）；新形态让缺陷
+    // **留在公开轨迹里 + 进交付物的已知缺陷表**。不变量没变——一条 critical
+    // 绝不会因为"后面几轮看起来干净"而消失。
+    const { engine, runId, outcome, ctx } = await harness([
       '{"defects":[{"id":"D1","severity":"critical","description":"data integrity"}]}',
       '{"defects":[],"resolved":[]}',
       '{"defects":[],"resolved":[]}',
     ], 'exploratory')
-    expect(outcome.status).toBe('rejected')
-    expect((outcome as { code?: string }).code).toBe('gate-failed')
-    expect(engine.getRun(RunId(runId))?.status).toBe('failed')
-    // The critical defect was reported and never resolved — it must stay
-    // in the public trail and the run must not deliver.
+    expect(outcome.status).toBe('resolved')
+    expect(engine.getRun(RunId(runId))?.status).toBe('completed')
     const defectEvents = engine.listEvents(RunId(runId))
       .filter(e => e.type === 'defect')
       .map(e => `${String(e.data.severity)}:${String(e.data.description)}`)
     expect(defectEvents.some(d => d.startsWith('critical:'))).toBe(true)
+    const closed = ctx.paperAudit.list(RunId(runId)).find(e => e.eventType === 'closure_closed')
+    expect(closed?.detail?.findings).toBeGreaterThan(0)
+  })
+
+  it('the same arc still BLOCKS under explicit strict-tolerance', async () => {
+    const { engine, runId, outcome } = await harness([
+      '{"defects":[{"id":"D1","severity":"critical","description":"data integrity"}]}',
+      '{"defects":[],"resolved":[]}',
+      '{"defects":[],"resolved":[]}',
+    ], 'exploratory', { deliveryGradeMode: 'strict-tolerance' })
+    expect(outcome.status).toBe('rejected')
+    expect((outcome as { code?: string }).code).toBe('gate-failed')
+    expect(engine.getRun(RunId(runId))?.status).toBe('failed')
     expect(engine.getManifest(RunId(runId))).toBeUndefined()
   })
 
@@ -143,11 +174,13 @@ describe('E4a — defects accumulate across rounds (critical never expires witho
 })
 
 describe('E4b — three-value severity, unknown values fail-closed', () => {
-  it('an unknown severity is parsed as a CRITICAL finding and blocks', async () => {
+  it('an unknown severity is parsed as a CRITICAL finding (never a downgrade)', async () => {
     const { engine, runId, outcome } = await harness([
       '{"defects":[{"id":"X1","severity":"ALIEN","description":"odd wording"}]}',
     ], 'exploratory')
-    expect(outcome.status).toBe('rejected')
+    // E4b 的不变量是"不可分类的严重度一律按 critical 处理，绝不降级"——它与
+    // 交付档位无关，因此这里只断言严重度归类，不断言是否拒绝交付。
+    expect(outcome.status).toBe('resolved')
     const defects = engine.listEvents(RunId(runId))
       .filter(e => e.type === 'defect')
       .map(e => `${String(e.data.severity)}:${String(e.data.description)}`)
@@ -156,12 +189,13 @@ describe('E4b — three-value severity, unknown values fail-closed', () => {
     expect(defects.some(d => d.startsWith('critical:') && d.includes('odd wording'))).toBe(true)
   })
 
-  it('a single well-formed critical finding blocks delivery', async () => {
-    const { outcome } = await harness([
+  it('a single well-formed critical finding reaches the known-defects table', async () => {
+    const { outcome, ctx, runId } = await harness([
       '{"defects":[{"id":"C1","severity":"critical","description":"numeric escape"}]}',
     ], 'exploratory')
-    expect(outcome.status).toBe('rejected')
-    expect((outcome as { code?: string }).code).toBe('gate-failed')
+    expect(outcome.status).toBe('resolved')
+    const closed = ctx.paperAudit.list(RunId(runId)).find(e => e.eventType === 'closure_closed')
+    expect(closed?.detail?.findings).toBeGreaterThan(0)
   })
 })
 
@@ -181,13 +215,18 @@ describe('E4c — fast mode delivers with advisory MINOR defects, blocks MAJOR',
     ])
   })
 
-  it('fast: a MAJOR surviving the rounds still blocks (no downgrade, no bypass)', async () => {
-    const { engine, runId, outcome } = await harness([
+  it('fast: a MAJOR surviving the rounds is never DOWNGRADED — it is surfaced', async () => {
+    // 不变量"no downgrade, no bypass"保持：MAJOR 不会被悄悄降成 MINOR 或丢掉。
+    // 变的是归宿——它进已知缺陷表，而不是拦下交付。
+    const { engine, runId, outcome, ctx } = await harness([
       '{"defects":[{"id":"J1","severity":"major","description":"missing citation"}]}',
       '{"defects":[{"id":"J1","severity":"major","description":"missing citation"}]}',
     ], 'fast')
-    expect(outcome.status).toBe('rejected')
-    expect(engine.getRun(RunId(runId))?.status).toBe('failed')
-    expect(engine.getManifest(RunId(runId))).toBeUndefined()
+    expect(outcome.status).toBe('resolved')
+    expect(engine.getRun(RunId(runId))?.status).toBe('completed')
+    const defectEvents = engine.listEvents(RunId(runId)).filter(e => e.type === 'defect')
+    expect(defectEvents.some(e => String(e.data.severity) === 'major')).toBe(true)
+    const closed = ctx.paperAudit.list(RunId(runId)).find(e => e.eventType === 'closure_closed')
+    expect(closed?.detail?.findings).toBeGreaterThan(0)
   })
 })

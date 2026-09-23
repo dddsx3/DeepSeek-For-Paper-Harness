@@ -1214,7 +1214,7 @@
       "actor": "paper-executor",
       "eventType": "final_output_written",
       "detail": {
-        "path": "D:\\deepseek modex\\deepseek-harness\\apps\\paper-shell\\src\\paper-shell-persist-MwhMa5\\9b9e3aa3-83aa-4f80-9c2d-cb47e806e79e\\final\\final",
+        "path": "D:\\<repo>\\deepseek-harness\\apps\\paper-shell\\src\\paper-shell-persist-MwhMa5\\9b9e3aa3-83aa-4f80-9c2d-cb47e806e79e\\final\\final",
         "bytes": 14567,
         "sha256": "30657e861af6a77229133ab74b253e17fdbf772f5cb16c94928546422daecef9"
       }

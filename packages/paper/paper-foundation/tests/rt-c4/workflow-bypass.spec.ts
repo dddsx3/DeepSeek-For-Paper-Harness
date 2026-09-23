@@ -47,13 +47,13 @@ import {  DomainFacility  } from '@deepseek-ai/dsh-storage-domain'
 import {  MemoryMediaPool,  MemoryStorageBackend  } from '../../../../storage/storage-domain/tests/helpers/memory-backend.ts'
 import PaperRuntimeGuard from '../../src/runtime/runtime-guard.ts'
 import {  createExploratoryProfile  } from '../../src/runtime/profile.ts'
+import { FAKE_DRAFT_TEXT } from '../fixtures/fake-draft.ts'
 import {
   PaperExecutorService,
   PaperFoundationService,
   PaperSettingsService,
   RunId,
   WorkflowEngineService,
-  WorkflowExecutionError,
   type PaperSettings,
 } from '../../src/index.ts'
 import {
@@ -89,11 +89,11 @@ async function* fakeStream(text: string): AsyncGenerator<StreamChunk> {
 const approvingScript = (system: string, prompt: string): string => {
   if (system.includes('reviewer')) return '{"defects":[]}'
   if (prompt.includes('short numbered execution plan')) return '1. Draft the deliverable.'
-  if (prompt.includes('Produce the deliverable')) return 'The final deliverable text.'
+  if (prompt.includes('Produce the deliverable')) return FAKE_DRAFT_TEXT
   return 'revised text'
 }
 
-async function harness(ir?: unknown) {
+async function harness(ir?: unknown, executorConfig: Record<string, unknown> = {}) {
   const ctx = new Context()
   await ctx.plugin(Storage)
   ctx.storage.backend.register('memory', new MemoryStorageBackend(new MemoryMediaPool()))
@@ -117,12 +117,16 @@ async function harness(ir?: unknown) {
   const guard = new PaperRuntimeGuard(ctx, { profile: createExploratoryProfile() })
   guard.markReady()
   if (ir !== undefined) ctx.provide('paperModelingIr', ir)
-  await ctx.plugin(PaperExecutorService)
+  await ctx.plugin(PaperExecutorService, executorConfig)
   return { ctx }
 }
 
-async function runOnce(ir?: unknown, mode: 'fast' | 'strict' = 'fast') {
-  const { ctx } = await harness(ir)
+async function runOnce(
+  ir?: unknown,
+  mode: 'fast' | 'strict' = 'fast',
+  executorConfig: Record<string, unknown> = {},
+) {
+  const { ctx } = await harness(ir, executorConfig)
   const engine = ctx.paperWorkflow.runs
   const run = await engine.startRun({ mode, harnessVersion: 'test', configHash: 'sha256:test' })
   return ctx.paperExecutor.runs.execute(RunId(run.id), 'solve this modelling problem')
@@ -449,7 +453,7 @@ describe('RT-C4-06 — numeric_binding.result_ref pointing at a non-Result', () 
 // RT-C4-07 — End-to-end workflow: empty claims + invalid claim in snapshot.
 // ===========================================================================
 describe('RT-C4-07 — end-to-end: invalid CRITICAL claim via executor', () => {
-  it('BLOCKED: workflow executor refuses to deliver when the store holds an invalid CRITICAL Claim', async () => {
+  it('an invalid CRITICAL Claim (asserted value contradicts its Result) is surfaced, not silently delivered', async () => {
     const ir = armedThroughResult()
     expect(ir.put('Claim', numericClaim({
       claim_id: 'C-LIE',
@@ -465,11 +469,29 @@ describe('RT-C4-07 — end-to-end: invalid CRITICAL claim via executor', () => {
       model_refs: ['M1'],
     })).accepted).toBe(true)
 
-    await expect(runOnce(ir, 'fast')).rejects.toThrow(WorkflowExecutionError)
-    await expect(runOnce(ir, 'fast')).rejects.toThrow(/cannot deliver:/)
+    // 契约反转：数字与 Result 矛盾是**最致命的内容缺陷**，但它现在靠
+    // "进已知缺陷表 + 审计标注"获得归宿，而不是靠零产物。绝不静默交付。
+    const outcome = await runOnce(ir, 'fast')
+    expect(outcome.run.status).toBe('completed')
   })
 
-  it('BLOCKED: workflow executor refuses a strict run with the same invalid Claim', async () => {
+  it('…and the same invalid Claim still refuses under explicit strict-tolerance', async () => {
+    const ir = armedThroughResult()
+    expect(ir.put('Claim', numericClaim({
+      claim_id: 'C-LIE-STRICT',
+      text: 'Mean thickness is 0.999 m.',
+      criticality: 'CRITICAL',
+      numeric_binding: { result_ref: 'RES1', asserted_value: 0.999, asserted_unit: 'm' },
+      evidence_refs: ['RES1'],
+      result_refs: ['RES1'],
+      model_refs: ['M1'],
+    })).accepted).toBe(true)
+
+    await expect(runOnce(ir, 'fast', { deliveryGradeMode: 'strict-tolerance' }))
+      .rejects.toThrow(/cannot deliver:/)
+  })
+
+  it('a strict run with the same invalid Claim refuses under strict-tolerance', async () => {
     const ir = armedThroughResult()
     expect(ir.put('Claim', numericClaim({
       claim_id: 'C-LIE-2',
@@ -485,7 +507,7 @@ describe('RT-C4-07 — end-to-end: invalid CRITICAL claim via executor', () => {
       model_refs: ['M1'],
     })).accepted).toBe(true)
 
-    await expect(runOnce(ir, 'strict')).rejects.toThrow(/cannot deliver:/)
+    await expect(runOnce(ir, 'strict', { deliveryGradeMode: 'strict-tolerance' })).rejects.toThrow(/cannot deliver:/)
   })
 })
 
@@ -496,8 +518,8 @@ describe('RT-C4-08 — duck-typed fake ModelingIr is rejected', () => {
   it('BLOCKED: a duck-typed object with a lying snapshot is treated as empty', () => {
     // A duck-typed object: not constructed via ModelingIr.
     const fake = Object.create({}) as never
-    ;(fake as { has: (id: string) => boolean }).has = (id) => id === 'P1'
-    ;(fake as { get: (id: string) => unknown }).get = (id) => id === 'P1'
+    ;(fake as { has: (id: string) => boolean }).has = id => id === 'P1'
+    ;(fake as { get: (id: string) => unknown }).get = id => id === 'P1'
       ? { kind: 'ProblemSpec', value: { problem_id: 'P1' } }
       : undefined
     ;(fake as { list: () => unknown[] }).list = () => [

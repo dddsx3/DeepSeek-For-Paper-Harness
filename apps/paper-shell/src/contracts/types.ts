@@ -2,7 +2,8 @@
  * Method-family contracts (DPH-PRD-v2 P0-8, W5; 核验表 Part B).
  *
  * A family contract is the closed set of what the ENGINE must provide for
- * that family — the model gets ZERO invention space (候选模型集封闭):
+ * that family. **These are priors, not a whitelist**: the model may use any method,
+ * including one not listed here (上限解放架构 L2 — 方法选择自由).
  * the model may only pick a model from the enumerated candidates, declare
  * the required assumptions, and pass the family's dedicated validation.
  *

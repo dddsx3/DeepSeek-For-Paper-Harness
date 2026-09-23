@@ -89,6 +89,30 @@ export const assumptionSpecSchema = zod
      * formalization quotes the reasoning.
      */
     e1_span: textSchema.optional(),
+    /**
+     * 这条假设是否**适用于全部子问题**（全局假设）。
+     *
+     * 事故（第一轮上限测试，2024B × deepseek-v4-pro；两次运行共 14 次拒绝里 **71%**
+     * 追溯到这一处）：模型在 E1 里正确识别出"各零部件的次品事件相互独立"是一条
+     * **全局假设**——它适用于全部 4 个子问题。它声明了一条 `A-INDEP`（`scope_ref: P1`），
+     * 并在 4 个 ModelSpec 里引用它，于是被 `REF-003` 拒绝：
+     * `'A-INDEP' is scoped outside the referencing object's scopes`。
+     *
+     * **那不是模型错，是契约缺一个表达能力**：`scope_ref` 只允许一个作用域，而
+     * `ModelSpec` 只能引用自己 `problem_refs` 之内的对象，于是"全局"这件事在 IR 里
+     * 无法表达。模型被逼着做的是"逐子问题各声明一条、各用不同 id"这种纯记账——而它
+     * 显然不认为那是自己的活。
+     *
+     * `shared: true` 就是那个缺失的表达：作用域仍指向它**推导自**的那个子问题
+     * （保持溯源），但它对**任何**子问题都可引用。归属检查
+     * （`validateScopeOwnership`）据此放行。
+     *
+     * **不变量没有被削弱**：一条**非** shared 的假设被跨子问题引用时仍然照旧拒绝——
+     * 规则原本要防的"借另一个子问题的假设来给自己背书"依然被防住。放宽的只是
+     * "声明者明确说了它对所有子问题成立"这一种情形，而那种情形本身是可审计的
+     * （字段在 IR 里，指纹覆盖它）。
+     */
+    shared: zod.boolean().optional(),
   })
   .strict()
 
@@ -128,6 +152,14 @@ export const equationSpecSchema = zod
     /** W8.9-B3 — the verbatim E1 sentence this equation came from (see
      *  AssumptionSpec.e1_span for the full contract). */
     e1_span: textSchema.optional(),
+    /**
+     * 这条方程是否**适用于全部子问题**（全局定义）。
+     *
+     * 与 `AssumptionSpec.shared` 同源、同理：一条被多个子问题共用的定义式
+     * （例如二项分布的 pmf）不该被逼着抄成四份不同 id 的副本。归属检查据此放行；
+     * 非 shared 的跨子问题引用仍然拒绝。
+     */
+    shared: zod.boolean().optional(),
   })
   .strict()
   .refine(v => new Set(v.lhs_symbols).size === v.lhs_symbols.length, {
