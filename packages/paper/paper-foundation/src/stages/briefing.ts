@@ -36,6 +36,7 @@
  */
 
 import { STAGES, stageDirName, type StageSpec } from './registry.ts'
+import { skillDocIndexBlock } from './skill-docs.ts'
 
 /** 简报的分节名（固定，便于测试与人工检查）。 */
 export const BRIEFING_SECTIONS = [
@@ -422,6 +423,10 @@ export function stageBriefing(
   if (selfCheckTool) {
     L.push('你可以调用 `check_container` **任意多次**，在提交前验证结构化声明。'
       + '它返回逐条问题；**它说不可准入就不要提交**——它跑的是 harness 的同一套判据。')
+    // 语料索引**只在工具确实挂了时**才列。工具没挂却点名文档 = 又造一条
+    // "无法被遵守的指令"（round-5 的原缺陷）。所以两者由同一个开关控制。
+    const docIndex = skillDocIndexBlock(spec.id)
+    if (docIndex !== '') L.push('', docIndex)
   }
   L.push('逐条自查（这些是 harness 会跑的判据，不是建议）：')
   for (const line of skill.selfCheck) L.push(`- ${line}`)

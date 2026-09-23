@@ -67,6 +67,7 @@ import { arithmeticFindingsOf, deliveredNumberFindings } from './delivery/delive
 // 两个检查器本身。
 import { blankAreaViolations, numericClaimCensus, proseContractViolations, proseContractViolationsOfText } from './delivery/prose-contracts.ts'
 import { formatViolations } from './delivery/format-audit.ts'
+import { skillDocToolSpec, type ToolSpec } from './stages/tools.ts'
 import { listSlices, writeSlice } from './runtime/stage-checkpoint.ts'
 import { EXPLORE_INSTRUCTION, SELECT_INSTRUCTION, reviewDecisionRecord } from './produce/explore-deepen.ts'
 import { SELF_CHECK_TOOL_NAME, checkCandidateContainer, runSelfCheckSafely, selfCheckCategorySentence, type SelfCheckVerdict } from './produce/self-check.ts'
@@ -810,6 +811,15 @@ export interface ExecutorOptions {
    * 此时续跑会重新产出（并覆盖同名切片），检查者需要重看——这是已知边界。
    */
   readonly resumeFrom?: { readonly analyze?: string; readonly container?: string }
+  /**
+   * 是否在结构化声明的调用上挂 `read_skill_doc`（取参考语料）。
+   *
+   * **默认关闭**，理由与 `skill-docs.ts` 模块头一致：工具没挂时，简报**不点名**那些语料
+   * ——点名一份取不到的文档就是造了一条"无法被遵守的指令"（round-5 的原缺陷）。
+   * 所以开关与"简报是否列出语料索引"必须**同时**生效，由 `stageBriefing` 的
+   * `selfCheckTool` 参数一并控制。
+   */
+  readonly skillDocs?: boolean
   /**
    * W8.9-B3/B4 — enforce the E1→E2 fidelity checks. When true (default),
    * a container whose Assumption/Equation declarations are not verbatim-
@@ -3479,6 +3489,9 @@ ${microTeaching.map((m, i) => `${String(i + 1)}. ${m}`).join(String.fromCharCode
             }),
             true,
             info => selfCheckTrace.push(info),
+            // 语料工具与自检工具**同一类**：都是模型按需获取外部信息的只读通道。
+            // 参考让它 `cat _utils/x.md`；这里工具化。
+            this.options.skillDocs === true ? [skillDocToolSpec('modeling')] : [],
           )
           // 到顶轮交了散文（放弃式输出）：**不静默接受**，给出精确的拒绝理由。
           // 旧行为是收下 `"I need to "...`，然后在下游变成一条 JSON 语法错误——
@@ -4417,6 +4430,7 @@ ${microTeaching.map((m, i) => `${String(i + 1)}. ${m}`).join(String.fromCharCode
     role: PaperRole,
     prompt: string,
     selfCheck: (containerText: string) => SelfCheckVerdict,
+
     /**
      * 是否要求这一轮的回答**必须是结构化输出**（默认是）。
      *
@@ -4435,9 +4449,19 @@ ${microTeaching.map((m, i) => `${String(i + 1)}. ${m}`).join(String.fromCharCode
      * "模型不爱用工具"与"工具根本没送到"分不出来。观测点必须在**崩溃点之前**。
      */
     onToolCall?: (info: SelfCheckCallInfo) => void,
+    /**
+     * 除 `check_container` 之外再挂哪些只读工具。
+     *
+     * 目前唯一的另一种是 `read_skill_doc`（取参考语料）。默认不挂——见
+     * `PaperExecutorOptions.skillDocs` 的注释：**工具没接线时简报不点名语料**，
+     * 否则会造出"无法被遵守的指令"。
+     */
+    extraTools: ReadonlyArray<ToolSpec> = [],
   ): Promise<{ text: string; usage: TokenUsage | undefined; truncated: boolean; toolCalls: number; notStructured: boolean }> {
     const route = this.settings.snapshot()[role]
-    const tools = [{
+    const tools: ReadonlyArray<ToolSpec> = [
+      ...extraTools,
+      {
       name: SELF_CHECK_TOOL_NAME,
       description: [
         'Validate a candidate ir-container-v1 BEFORE you submit it.',
@@ -4454,7 +4478,20 @@ ${microTeaching.map((m, i) => `${String(i + 1)}. ${m}`).join(String.fromCharCode
         required: ['container_json'],
         additionalProperties: false,
       },
-    }]
+      run: (args) => {
+        const containerText = typeof args['container_json'] === 'string' ? args['container_json'] : ''
+        if (containerText.length === 0) {
+          return ['参数不合法', '  - container_json 缺失或不是字符串——把完整的容器文本放进这个参数。'].join(String.fromCharCode(10))
+        }
+        const verdict = runSelfCheckSafely(selfCheck, containerText)
+        return [
+          verdict.summary,
+          ...verdict.problems.map(p => `  - ${p}`),
+          ...(verdict.notChecked.length === 0 ? [] : ['（本工具判不了的：', ...verdict.notChecked.map(n => `  · ${n}`), '）']),
+        ].join(String.fromCharCode(10))
+      },
+      },
+    ]
 
     // 对话累积：首轮 prompt + 每轮的 assistant 文本与工具结果。
     type Turn =
@@ -4531,7 +4568,8 @@ ${microTeaching.map((m, i) => `${String(i + 1)}. ${m}`).join(String.fromCharCode
         model: route.model,
         system: SYSTEM_PROMPTS[role],
         messages,
-        tools,
+        // provider 的 `tools` 是 mutable 数组；这里是只读清单，展开一份再传。
+        tools: [...tools],
       })) {
         assembler.push(chunk)
       }
@@ -4608,9 +4646,24 @@ ${microTeaching.map((m, i) => `${String(i + 1)}. ${m}`).join(String.fromCharCode
       for (const call of calls) {
         toolCalls += 1
         const args = parseToolArguments(call.arguments)
+        // **按 name 分派**。未登记的名字回一句"没有这个工具"，而不是抛错——
+        // 模型偶尔会拼错名字，那不是失败，是一次可纠正的调用。
+        const spec = tools.find(x => x.name === String(call.name))
+        if (spec === undefined) {
+          turns.push({
+            role: 'tool',
+            callId: String(call.id),
+            content: `没有名为 ${String(call.name)} 的工具。可用的：${tools.map(x => x.name).join('、')}`,
+          })
+          continue
+        }
+        const toolText = spec.run(args)
+        // 自检结论单独记痕（`onToolCall` 是给审计用的，只有容器自检有"可准入"这个语义）
+        if (spec.name !== SELF_CHECK_TOOL_NAME) {
+          turns.push({ role: 'tool', callId: String(call.id), content: toolText })
+          continue
+        }
         const containerText = typeof args['container_json'] === 'string' ? args['container_json'] : ''
-        // 自检**不得把调用弄失败**：判据自己崩了，正确答案是"这次没帮上忙"，
-        // 而不是让整次 E2 调用作废（见 `runSelfCheckSafely` 的注释）。
         const verdict = containerText.length === 0
           ? { admissible: false, problems: ['container_json 缺失或不是字符串——把完整的容器文本放进这个参数。'], summary: '参数不合法', notChecked: [] }
           : runSelfCheckSafely(selfCheck, containerText)

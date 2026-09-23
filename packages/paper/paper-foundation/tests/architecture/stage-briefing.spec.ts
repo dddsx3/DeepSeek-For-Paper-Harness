@@ -125,6 +125,17 @@ describe('简报 —— 不投递模型做不到的指令（round-5 的教训）
     expect(without).not.toContain('check_container')
   })
 
+  it('**语料索引只在工具挂了时出现**（没挂却点名 = 又一条无法被遵守的指令）', () => {
+    // 开关是同一个：`selfCheckTool` 同时控制"自检工具"与"语料索引"。
+    const on = brief('code', true)
+    expect(on).toContain('read_skill_doc')
+    expect(on).toContain('code-checks-index')
+    const off = brief('code', false)
+    expect(off).not.toContain('read_skill_doc')
+    // 但"本步知识"里的规范要点**始终在**（那是内联知识，不依赖工具）
+    expect(off).toContain('jsonPath')
+  })
+
   it('每段都有**提交前自检**清单（harness 会跑的判据，不是建议）', () => {
     for (const s of STAGES) {
       const text = brief(s.id)
