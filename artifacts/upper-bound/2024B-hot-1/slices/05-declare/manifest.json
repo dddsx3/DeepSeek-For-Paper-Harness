@@ -1,0 +1,19 @@
+{
+  "sliceVersion": 1,
+  "stage": "declare",
+  "index": 5,
+  "completedAt": "2026-09-23T19:46:54.516Z",
+  "runId": "c4b34330-d7cc-4c2c-a725-12cbbb916a4c",
+  "payload": "payload.txt",
+  "payloadSha256": "1e3b1c01f19e8c38e23b52ad49a657354c0c647ceb30878c77bf29a174a4f520",
+  "review": {
+    "verdict": "failed",
+    "note": "第四轮（正文契约进工具）：模型调了 3 次工具，工具确实报了正文契约违规（evaluation 459/800、references 359/600），模型也迭代到 admissible=true。但提交的那份 evaluation 是 671/800——**它提交的不是工具批准的那份文本**。批准针对 A、提交 B，而 B 从未被检查过。这是 round-5 修过的'批准后又改'的同一形态，只是改发生在收口之后。已修：返回处验一次，交回文本与批准文本不同则批准作废、对新文本重跑判据并回灌。另：本轮 evaluation 671、references 478（四轮在 670-780 / 272-478 徘徊）。",
+    "at": "2026-09-23T19:49:17.202Z"
+  },
+  "facts": {
+    "note": "容器已通过准入——检查它的声明是否自洽、锚点是否对得上 E1",
+    "container_chars": 31543,
+    "admitted": true
+  }
+}
