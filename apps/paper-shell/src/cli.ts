@@ -52,6 +52,8 @@ import { verifyStudyManifest, type StudyManifest } from './study-manifest.ts'
 import { FINGERPRINT_NAMESPACES } from '@deepseek-ai/dsh-paper-foundation'
 import { zipMixedFiles } from './zip.ts'
 import { honestyGuard } from './deliverable-guard.ts'
+import { StagePauseSignal } from '@deepseek-ai/dsh-paper-foundation'
+import { listSlices, renderResumeInstruction } from '@deepseek-ai/dsh-paper-foundation'
 import { FAKE_CONTAINER, FAKE_E1, FAKE_T3_FILL } from './fake-fixtures.ts'
 
 const here = dirname(fileURLToPath(import.meta.url))
@@ -491,6 +493,8 @@ ${String(result.unverifiable.length)} / ${String(result.claims.length)} 条断�
     return 2
   }
   const outDir = parsed.out !== undefined ? String(parsed.out) : join(here, 'out')
+  // W12-C1：切片根目录（与 execute 的调用点同一作用域，暂停时要读它）。
+  const slicesRoot = join(outDir, 'slices')
   const fake = parsed.fake === true || parsed.fake === 'true'
   // 交付档位。**默认 fail-soft**（见下方 `deliveryGradeMode` 的注释）：
   //   --fail-soft（默认）  检出但未返修的 finding 走"显式接受"，交付带已知缺陷表的完整包
@@ -619,9 +623,16 @@ ${String(result.unverifiable.length)} / ${String(result.claims.length)} 条断�
     : undefined
   const budgetFromEnv = Number(process.env.PAPER_DAILY_BUDGET_USD ?? '')
   try {
+    // W12-C1：分阶段切片 + 热重启。`--pause-after` 列出的阶段**完成即停**，
+    // 由人/agent 检查切片后决定是否继续。默认关闭（热重启是人的工作流，设成默认
+    // 会让无人值守的运行永远走不完）。
+    const pauseAfter = typeof parsed['pause-after'] === 'string' && parsed['pause-after'].length > 0
+      ? String(parsed['pause-after']).split(',').map(s => s.trim()).filter(s => s.length > 0)
+      : []
     await ctx.plugin(PaperExecutorService, {
       produceFromExecute: true,
       finalOutputRoot: baseRoot,
+      ...(pauseAfter.length === 0 ? {} : { slicesRoot, stagePause: pauseAfter }),
       produceRun: { command: ['node', 'main.js'], entryFile: 'main.js', environment: 'paper-shell v0 (node 24)', timeoutMs: codeRunTimeoutMs },
       backoffBaseMs: 1_000,
       backoffCapMs: 10_000,
@@ -779,7 +790,24 @@ ${String(result.unverifiable.length)} / ${String(result.claims.length)} 条断�
     // 论文的「问题重述」——评委打开论文就能看到 harness 的内部提示词（"候选模型集
     // (封闭,只能从中选择,禁止自创)"）。现在分开传：input 仍是模型可见的完整 task，
     // 第二个参数是**纯题面**，只用于注册与论文展示。
-    await ctx.paperExecutor.runs.execute(RunId(run.id), taskText, bundle.taskText)
+    try {
+      await ctx.paperExecutor.runs.execute(RunId(run.id), taskText, bundle.taskText)
+    } catch (error) {
+      // 热重启的暂停：**不是失败**，不进交付流程。打印续跑提示并以独立退出码
+      // （3 = paused at checkpoint）退出，让脚本能区分"失败"与"停在检查点"。
+      if (error instanceof StagePauseSignal) {
+        const slices = await listSlices(slicesRoot)
+        console.log(renderResumeInstruction({
+          slicesRoot,
+          runId: String(run.id),
+          problemFile,
+          slices,
+        }))
+        await dispose()
+        return 3
+      }
+      throw error
+    }
   } catch (error) {
     const err = error as { code?: string; eventType?: string; message?: string }
     // W8.10-A1 (O-L3-06): the thrown WorkflowExecutionError carries only

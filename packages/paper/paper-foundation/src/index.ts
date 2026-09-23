@@ -61,7 +61,7 @@ export type {
 export { CatalogSkillProvider } from './catalog-provider.ts'
 export { resolveRunPolicy } from './policy.ts'
 export type { RunPolicy } from './policy.ts'
-export { WorkflowExecutor, WorkflowExecutionError } from './executor.ts'
+export { StagePauseSignal, WorkflowExecutor, WorkflowExecutionError } from './executor.ts'
 export type {
   AuditSink, ExecutionFailureCode, ExecutionOutcome, ExecutorOptions, ReviewDefect,
 } from './executor.ts'
@@ -236,3 +236,21 @@ export class PaperFoundationService extends Service {
 }
 
 export default PaperFoundationService
+
+// W12-C1：分阶段切片与热重启（阶段边界、切片读写、续跑点判定、续跑提示）。
+export {
+  STAGES,
+  STAGE_IDS,
+  sliceDirName,
+  writeSlice,
+  listSlices,
+  readSlicePayload,
+  recordReview,
+  resumePointOf,
+  nextStageAfter,
+  renderResumeInstruction,
+  type StageId,
+  type StageSpec,
+  type SliceManifest,
+  type StageReview,
+} from './runtime/stage-checkpoint.ts'
