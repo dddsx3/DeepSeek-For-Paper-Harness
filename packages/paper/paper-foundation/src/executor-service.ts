@@ -74,6 +74,15 @@ export interface ExecutorConfig {
   /** L0 能力画像档位；缺省按保守默认 A（详见 `probe/capability-profile.ts`）。 */
   readonly capabilityTier?: 'S' | 'A' | 'B'
   /**
+   * W12-C1：分阶段切片与热重启。
+   *
+   * `slicesRoot` 给出切片落盘位置；`stagePause` 列出**完成即停**的阶段。
+   * 缺省都不设 = 热重启关闭（零开销）。
+   */
+  readonly slicesRoot?: string
+  /** 与 `allowExecutable` 同形：schema 产出 `string[]`，接口照抄以免可选性不匹配。 */
+  readonly stagePause?: string[]
+  /**
    * L2 探索—择优—深挖。缺省按 run mode 决定（`strict` 开启，其余关闭）。
    * 开启后 EXECUTE 之前会跑两个 plan 型节点（explore / select）。
    */
@@ -153,6 +162,11 @@ export function resolveExecutorOptions(
     // L0 能力画像档位：只在调用方显式声明时前传——缺省由 executor 取保守默认 A，
     // 而不是在 schema 层再造一个默认值（避免"两处默认"这类漂移）。
     ...(config.capabilityTier === undefined ? {} : { capabilityTier: config.capabilityTier }),
+    // W12-C1：热重启的两项也必须**显式转发**——白名单漏一项的后果是"模块做好了
+    // 但从组合层够不到"，而症状是**静默的**（运行照跑，只是不停）。
+    // 本轮的端到端测试正是这样抓到它自己的：`--pause-after` 传了却不生效。
+    ...(config.slicesRoot === undefined ? {} : { slicesRoot: config.slicesRoot }),
+    ...(config.stagePause === undefined ? {} : { stagePause: config.stagePause }),
     // 上限解放架构的其余三个开关，同样**只在显式声明时前传**：`undefined` 必须
     // 到达 executor，由它的单一读者决定默认（档位相关），避免默认值在两层各写一份。
     //
@@ -221,6 +235,9 @@ export class PaperExecutorService extends Service {
     // L0 能力画像档位。刻意**不设 schema 默认**：`undefined` 必须到达 executor，
     // 由它的单一读者决定（`defaultProfile`），避免默认值在两层各写一份。
     capabilityTier: s.union(['S', 'A', 'B'] as const),
+    // W12-C1：切片根目录与"完成即停"的阶段清单。
+    slicesRoot: s.string(),
+    stagePause: s.array(s.string()),
     // L2 / L5 / L6 的开关同样**不设 schema 默认**：`undefined` 到达 executor 后
     // 由档位决定默认值。schema 里再写一份默认就会变成"两处默认"，而两处默认
     // 迟早会漂移——那时"strict 档为什么没跑三视角"会变成一个查不出来的问题。

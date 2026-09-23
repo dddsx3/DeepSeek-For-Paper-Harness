@@ -43,6 +43,7 @@ import {
 import { ModelingIr } from '../src/ir/store.ts'
 import { SELF_CHECK_TOOL_NAME, checkCandidateContainer, runSelfCheckSafely, selfCheckCategorySentence } from '../src/produce/self-check.ts'
 import { SELF_CHECK_MAX_ROUNDS } from '../src/executor.ts'
+import { listSlices, nextStageAfter, readSlicePayload, recordReview, resumePointOf, sliceDirName } from '../src/runtime/stage-checkpoint.ts'
 
 // ---------------------------------------------------------------------------
 // 样本
@@ -148,7 +149,10 @@ interface HarnessResult {
   readonly irKinds: ReadonlyArray<string>
 }
 
-async function runWithScript(script: ReadonlyArray<Script>): Promise<HarnessResult> {
+async function runWithScript(
+  script: ReadonlyArray<Script>,
+  executorExtra: Readonly<Record<string, unknown>> = {},
+): Promise<HarnessResult> {
   const ctx = new Context()
   await ctx.plugin(Storage)
   ctx.storage.backend.register('memory', new MemoryStorageBackend(new MemoryMediaPool()))
@@ -276,7 +280,13 @@ async function runWithScript(script: ReadonlyArray<Script>): Promise<HarnessResu
   ctx.provide('paperModelingIr', ir)
   await ctx.plugin(PaperAuditService, {})
   await ctx.plugin(PaperArtifactBodyService, {})
-  await ctx.plugin(PaperExecutorService, { produceFromExecute: true, deliveryGradeMode: 'fail-soft', backoffBaseMs: 1, backoffCapMs: 1 })
+  await ctx.plugin(PaperExecutorService, {
+    produceFromExecute: true,
+    deliveryGradeMode: 'fail-soft',
+    backoffBaseMs: 1,
+    backoffCapMs: 1,
+    ...executorExtra,
+  })
 
   const engine = ctx.paperWorkflow.runs
   const started = await engine.startRun({ mode: 'exploratory', harnessVersion: 'test', configHash: 'sha256:w12a1' })
@@ -758,5 +768,56 @@ describe('W12-A1k — 到顶轮只收结构化输出', () => {
     const result = await runWithScript([{ kind: 'text', text: GOOD_CONTAINER }])
     expect(result.e2Calls).toBe(1)
     expect(result.prompts.some(p => p.includes('was PROSE, not the container'))).toBe(false)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// ⑨ 热重启：停在检查点必须**真的停**，切片必须**真的落盘**
+// ---------------------------------------------------------------------------
+
+describe('W12-C1 — 分阶段切片进主线（端到端）', () => {
+  it('--pause-after analyze：运行停在检查点，切片落盘，可读回 E1', async () => {
+    // 这条是**接线证明**：模块存在不等于进了主线。判据是"跑一次真的会停"。
+    const { mkdtemp } = await import('node:fs/promises')
+    const { tmpdir } = await import('node:os')
+    const { join } = await import('node:path')
+    const root = await mkdtemp(join(tmpdir(), 'dsh-pause-'))
+    const result = await runWithScript(
+      [{ kind: 'text', text: GOOD_CONTAINER }],
+      { slicesRoot: root, stagePause: ['analyze'] },
+    )
+    // ① 运行**没有正常结束**：它停在了检查点。
+    expect(result.outcome.status).toBe('rejected')
+    expect(result.outcome.message).toContain('paused at stage')
+    expect(result.outcome.message).toContain('analyze')
+    // ② 切片真的落盘了，且载荷就是 E1 全文。
+    const slices = await listSlices(root)
+    expect(slices.map(s => s.stage)).toEqual(['analyze'])
+    const payload = await readSlicePayload(join(root, sliceDirName(1, 'analyze')))
+    expect(payload).toBe(E1_SAMPLE)
+    // ③ 审计里留下了检查点事件（可取证）。
+    expect(result.auditKinds).toContain('stage_checkpoint:')
+    // ④ 未检查 → 续跑点为空（"检查通过才继续"不是空话）。
+    expect(resumePointOf(slices)).toBeNull()
+    expect(nextStageAfter(slices).id).toBe('analyze')
+  })
+
+  it('检查通过后 → 续跑点是该切片，下一阶段是 declare', async () => {
+    const { mkdtemp } = await import('node:fs/promises')
+    const { tmpdir } = await import('node:os')
+    const { join } = await import('node:path')
+    const root = await mkdtemp(join(tmpdir(), 'dsh-pause2-'))
+    await runWithScript([{ kind: 'text', text: GOOD_CONTAINER }], { slicesRoot: root, stagePause: ['analyze'] })
+    await recordReview(join(root, sliceDirName(1, 'analyze')), {
+      verdict: 'passed', note: '分析推理到位、逐问覆盖齐', at: '2026-09-24T00:00:00.000Z',
+    })
+    const slices = await listSlices(root)
+    expect(resumePointOf(slices)?.stage).toBe('analyze')
+    expect(nextStageAfter(slices).id).toBe('declare')
+  })
+
+  it('不传 slicesRoot → 零开销、零切片（热重启是可选工作流）', async () => {
+    const result = await runWithScript([{ kind: 'text', text: GOOD_CONTAINER }])
+    expect(result.auditKinds).not.toContain('stage_checkpoint:')
   })
 })

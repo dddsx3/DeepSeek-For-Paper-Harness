@@ -104,6 +104,8 @@ export const AUDIT_EVENT_TYPES = [
   // 它让"模型结构在两次尝试之间变了没有"可回答——换方法/增删方程/调假设这三类
   // 语义修复，数值指纹完全无感，只有结构指纹看得见。
   'structure_fingerprint',
+  // W12-C1：分阶段切片落盘（热重启的检查点）。
+  'stage_checkpoint',
 ] as const
 
 /** One audited operation kind. */

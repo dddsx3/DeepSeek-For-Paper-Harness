@@ -66,6 +66,8 @@ import { arithmeticFindingsOf, deliveredNumberFindings } from './delivery/delive
 // 外置到 `skills/writing-norms.md`，由 `knowledge/skills/*` 同源渲染。这里只需要
 // 两个检查器本身。
 import { blankAreaViolations, numericClaimCensus, proseContractViolations, proseContractViolationsOfText } from './delivery/prose-contracts.ts'
+import { formatViolations } from './delivery/format-audit.ts'
+import { listSlices, writeSlice } from './runtime/stage-checkpoint.ts'
 import { EXPLORE_INSTRUCTION, SELECT_INSTRUCTION, reviewDecisionRecord } from './produce/explore-deepen.ts'
 import { SELF_CHECK_TOOL_NAME, checkCandidateContainer, runSelfCheckSafely, selfCheckCategorySentence, type SelfCheckVerdict } from './produce/self-check.ts'
 import { renderSymbolicEvidence, runEquationConsistency } from './verification/symbolic-channel.ts'
@@ -237,6 +239,9 @@ function severityOfKind(kind: string): ClosureSeverity {
   if (kind.startsWith('review_defect_critical') || kind === 'numeric_channel' || kind === 'numeric_consistency' || kind === 'required_output_unpaid') return 'major'
   // 数字未经验证是**读者会据此下结论**的那一类，比格式问题重。
   if (kind === 'unverified_numbers') return 'major'
+  // 格式飘移是**标注**级（稿子仍然可读、可交付），但它必须可见——否则"对齐参照物"
+  // 永远只能靠人眼看。
+  if (kind === 'format_drift') return 'minor'
   return 'minor'
 }
 
@@ -249,7 +254,7 @@ function severityOfKind(kind: string): ClosureSeverity {
 function scopeOfKind(kind: string): ReadonlyArray<string> {
   // `unverified_numbers` 是**正文**层面的标注（数字在正文里、风险在读者那一侧），
   // 所以分派到 paper/：它要改的是稿子，不是代码或结果。
-  if (kind.startsWith('review_defect') || kind === 'prose_contract' || kind === 'blank_area' || kind === 'unverified_numbers') return ['paper/']
+  if (kind.startsWith('review_defect') || kind === 'prose_contract' || kind === 'blank_area' || kind === 'unverified_numbers' || kind === 'format_drift') return ['paper/']
   if (kind === 'config_consistency' || kind === 'execution' || kind === 'PROVENANCE') return ['code/']
   if (kind === 'figure_data_consistency' || kind === 'figure_required') return ['figures/']
   if (kind === 'stale_detection') return ['results/']
@@ -781,6 +786,18 @@ export interface ExecutorOptions {
    * W8.9-B1: explicit opt-out of the receive layer (takes precedence).
    */
   readonly disableE1E2?: boolean
+  /**
+   * 分阶段切片 + 热重启（W12-C1）。
+   *
+   * `slicesRoot` 给出切片落盘位置；`stagePause` 列出**完成即停**的阶段。
+   * 停在检查点时抛 {@link StagePauseSignal}——它**不是失败**，节点状态不判 failed，
+   * 整轮运行以"暂停"结束，由调用方（CLI）打印续跑提示并以独立退出码退出。
+   *
+   * 为什么默认不暂停：热重启是**人的工作流**（每阶段检查通过才继续），把它设成
+   * 默认会让无人值守的运行永远走不完。它由 `--pause-after` 显式打开。
+   */
+  readonly slicesRoot?: string
+  readonly stagePause?: ReadonlyArray<string>
   /**
    * W8.9-B3/B4 — enforce the E1→E2 fidelity checks. When true (default),
    * a container whose Assumption/Equation declarations are not verbatim-
@@ -1734,6 +1751,10 @@ ${microTeaching.map((m, i) => `${String(i + 1)}. ${m}`).join(String.fromCharCode
               .map(v => ({ kind: 'prose_contract', reason: `${v.title}：${v.reason}` })),
             // 数字暴露量：只在**数字没有代码通道**的路径上报。
             // 产线链的数字来自 Result，逐条可溯源，报它反而是噪声。
+            // 格式审计：以参照物论文为唯一合法标准（见 format-audit.ts 的模块注释）。
+            // 格式飘移是静默的——论文照样能读、能导出、能交付，只是形态不再与参照物
+            // 一致。实测：round-9 之后 13 次运行的交付稿 `###` 小节数全部为 0。
+            ...formatViolations(current).map(v => ({ kind: 'format_drift', reason: `[${v.rule}] ${v.title}：${v.detail}` })),
             ...(deliveryPathEarly === 'B-e1-direct'
               ? ((): ReadonlyArray<{ kind: string; reason: string }> => {
                 const n = numericClaimCensus(current)
@@ -3315,6 +3336,10 @@ ${microTeaching.map((m, i) => `${String(i + 1)}. ${m}`).join(String.fromCharCode
             }
             e1Text = e1.text
             this.#e1ByRun.set(runKey, e1Text)
+            await this.checkpointStage('analyze', runId, e1Text, {
+              note: 'E1 全文已就绪——检查建模分析的推理质量与逐问覆盖',
+              e1_chars: e1Text.length,
+            })
           } else {
             // Visible in the audit trail: this attempt did NOT re-run E1.
             await this.audit({
@@ -3630,6 +3655,13 @@ ${microTeaching.map((m, i) => `${String(i + 1)}. ${m}`).join(String.fromCharCode
           }
 
           const verdict = produceContainerInto(ir, text, undefined, { reservedIds: reserved })
+          if (verdict.ok) {
+            await this.checkpointStage('declare', runId, text, {
+              note: '容器已通过准入——检查它的声明是否自洽、锚点是否对得上 E1',
+              container_chars: text.length,
+              admitted: true,
+            })
+          }
           if (!verdict.ok) {
             // W8.6-D1: a bounded excerpt of the refused container lands on
             // the audit trail BEFORE the throw. Repo principle: 模型可见 ⟺
@@ -3722,6 +3754,12 @@ ${microTeaching.map((m, i) => `${String(i + 1)}. ${m}`).join(String.fromCharCode
             const chain = await this.runProductionChain(
               runId, ir, container.container, verdict.pendingOutputArtifacts, attempt, !isGuidedTier,
             )
+            if (chain.ok) {
+              await this.checkpointStage('produce', runId, chain.reportText, {
+                note: '代码已真跑、IR 已铸、正文已渲染——检查数字是否可溯源、图与表是否齐备',
+                report_chars: chain.reportText.length,
+              })
+            }
             if (!chain.ok) {
               // W11.5 baseline-7 (首次真实产出实测): a refusal from the chain
               // (code run / interpretation / report render) is the cause that
@@ -3769,6 +3807,10 @@ ${microTeaching.map((m, i) => `${String(i + 1)}. ${m}`).join(String.fromCharCode
         await this.engine.transitionNode(node.id, 'succeeded')
         return { nodeId: node.id, text }
       } catch (error: unknown) {
+        // 热重启的暂停**不是失败**：立刻重抛，不进重试分类。
+        // 若让它落进下面的 DRIFT/NONE 分支，"暂停"会变成"重试七次然后降级"——
+        // 与热重启的语义完全相反。
+        if (error instanceof StagePauseSignal) throw error
         const failure = failureOf(error)
         const w4Class = (error as { w4Class?: FailureClass }).w4Class
         lastFailureCode = failure.code
@@ -4062,6 +4104,44 @@ ${microTeaching.map((m, i) => `${String(i + 1)}. ${m}`).join(String.fromCharCode
    * 重试耗尽处兜底，熔断器（更早触发）仍会丢掉 E1，Wave-3 审计指出的洞
    * 只修了一半。
    */
+  /**
+   * 写一个阶段切片；若该阶段被要求暂停，抛 {@link StagePauseSignal}。
+   *
+   * 未配置 `slicesRoot` 时**什么都不做**——热重启是可选工作流，不开就没有开销。
+   *
+   * @param stage - 阶段 id（见 `runtime/stage-checkpoint.ts` 的 STAGES）。
+   * @param runId - 运行 id。
+   * @param payload - 该阶段的产出（可续跑所需的全部内容）。
+   * @param facts - 人读的要点（检查者据此知道该看什么）。
+   */
+  private async checkpointStage(
+    stage: string,
+    runId: RunId,
+    payload: string,
+    facts: Readonly<Record<string, string | number | boolean>>,
+  ): Promise<void> {
+    const root = this.options.slicesRoot
+    if (root === undefined) return
+    const existing = await listSlices(root)
+    const index = existing.length + 1
+    const { dir } = await writeSlice(root, {
+      stage: stage as never,
+      index,
+      runId: String(runId),
+      payload,
+      facts,
+    })
+    await this.audit({
+      eventType: 'stage_checkpoint',
+      actor: 'paper-executor',
+      runId,
+      detail: { stage, slice: dir, index, chars: payload.length },
+    })
+    if (this.options.stagePause?.includes(stage) === true) {
+      throw new StagePauseSignal(stage, dir)
+    }
+  }
+
   private async e1DirectFallback(
     runId: RunId,
     node: NodeRecord,
@@ -4712,6 +4792,23 @@ function gateIdOfDefect(defect: ReviewDefect): string | null {
  * 对话重发，这是已知代价）。
  */
 export const SELF_CHECK_MAX_ROUNDS = 6
+
+/**
+ * 停在检查点。
+ *
+ * 它**不是失败**：节点状态不判 failed，重试预算不消耗。若把它当普通错误，
+ * 它会被 catch 当成可重试拒绝——于是"暂停"变成"重试七次然后降级"，
+ * 与热重启的语义完全相反。
+ */
+export class StagePauseSignal extends Error {
+  constructor(
+    readonly stage: string,
+    readonly sliceDir: string,
+  ) {
+    super(`paused at stage '${stage}' (checkpoint written to ${sliceDir})`)
+    this.name = 'StagePauseSignal'
+  }
+}
 
 /**
  * 一次自检**调用**的记录（在跑判据之后、返回之前产生）。
