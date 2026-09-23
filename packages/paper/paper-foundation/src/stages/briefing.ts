@@ -1,0 +1,443 @@
+/**
+ * 阶段简报（技能适配层）—— 把参考工作流的 SKILL.md 转成**本 harness 可投递**的形态。
+ *
+ * ## 为什么必须适配，而不是照抄
+ *
+ * 参考的 SKILL.md 是给 Claude Code 写的：模型用 `Write` 工具写文件、用
+ * `cat _utils/xxx.md` 读规则、用 `python _utils/*.py` 自己跑门禁、按 `$ARGUMENTS`
+ * 取参数、按 CLAUDE.md 的 `MH_*` 开关切模式。
+ *
+ * **本 harness 的模型调用没有通用文件工具。** round-5 已经为此吃过一次亏：宪法里写
+ * "用 read_file 读 skills/x.md"，而那是一条**无法被遵守的指令**。所以适配的第一条纪律是
+ * **不投递任何模型做不到的指令**。
+ *
+ * ## 适配规则（逐条对应参考形态）
+ *
+ * | 参考 | 本 harness |
+ * |---|---|
+ * | 模型用 `Write` 写文件 | 模型只产出**内容**；harness 落盘到 `stages/NN-id/` 并内联给下一阶段 |
+ * | 模型 `cat _utils/xxx.md` 读规则 | 规则**内联进本简报**（见下面的技能正文） |
+ * | 模型 `python _utils/*.py` 跑门禁 | 门禁是 **harness 侧 TS**；判据作为**提交前自检清单**内联 |
+ * | `MH_FAST_MODE` 等开关 | harness 选项 |
+ * | `$ARGUMENTS` | 阶段输入由 harness 注入 |
+ *
+ * ## 两条写作纪律（用户口径）
+ *
+ * **一、不许简化成摘要。** 参考的技能正文是 83–1441 行的实操细节。转写时保留**具体形态**
+ * （章节骨架、字段名、命名规则、判据数字、反例），只删掉"怎么用工具"那一层。
+ * 一份"你要认真写建模报告"的简报等于没有简报。
+ *
+ * **二、自创部分必须用明确指示，不用建议。** 阶段 8/11 参考里**没有技能**（只有产物形态），
+ * 那两段是本 harness 自创的。自创内容没有参考背书，措辞一软就会被忽略——本项目反复验证过
+ * "模型不会因为被告知就照做"。所以自创部分一律写成**必须 / 不得 / 产出**，并写明违反的后果；
+ * 而移植部分保留参考原本的语气（它已经是被实践校准过的）。
+ *
+ * @module @deepseek-ai/dsh-paper-foundation/stages/briefing
+ */
+
+import { STAGES, stageDirName, type StageSpec } from './registry.ts'
+
+/** 简报的分节名（固定，便于测试与人工检查）。 */
+export const BRIEFING_SECTIONS = [
+  '你的任务（明确指示）',
+  '产出契约（机器可校验——这就是你会被量到的东西）',
+  '上游状态',
+  '本步知识（怎么做）',
+  '明确不要做',
+  '提交前自检',
+  '完成标志',
+] as const
+
+/**
+ * 每阶段的技能正文。
+ *
+ * `ported` 标记来源：`true` = 转写自参考 SKILL.md；`false` = **本 harness 自创**
+ * （参考里没有该技能，只有产物形态）。自创段落一律用明确指示。
+ */
+interface StageSkill {
+  readonly ported: boolean
+  /** 任务陈述：祈使句，说明产出什么、不接受什么。 */
+  readonly task: string
+  /** 怎么做（保留参考的具体形态）。 */
+  readonly how: ReadonlyArray<string>
+  /** 明确不要做（每条带理由——只加禁令不加理由，模型会换一种方式违反）。 */
+  readonly forbidden: ReadonlyArray<string>
+  /** 提交前自检（harness 侧门禁的判据；模型可用时另给工具）。 */
+  readonly selfCheck: ReadonlyArray<string>
+}
+
+const SKILLS: Readonly<Record<string, StageSkill>> = {
+  'prob-analysis': {
+    ported: true,
+    task: '产出**赛题分析**：把题面读成机器可核验的事实集合，并为后续每一步立下可对账的契约。'
+      + '你**必须**同时给出 `PROBLEM_ANALYSIS.md`（人读）与 `CAPABILITY_CHECKLIST.json`（机器读）——'
+      + '后者是后面每一阶段的对照表，缺了它，后面的"逐问覆盖"就只能靠人看。',
+    how: [
+      '**逐句表**：把题面拆成句子，每句标类型（决策 / 目标 / 机制 / 数据 / 约束 / 输出）。'
+        + '标为决策、目标、机制的句子，**必须**被某个能力项的 `source_sentence` 认领——这是硬判据。',
+      '**硬约束清单（HARD_CONSTRAINTS）**：题面里"必须/不得/至少/不超过"这一类。逐条抄原文，不要转述。',
+      '**FIGURE_MANIFEST 块**：夹在 `<!-- BEGIN FIGURE_MANIFEST -->` 与 `<!-- END FIGURE_MANIFEST -->` 之间。'
+        + '每条以 `fig_` 或 `tikz_` 开头；**数据类图 12–20 张**（含横向对比、灵敏度、校核图）。'
+        + '每张图在正文里都要有一处说明它的图表类型。',
+      '**CAPABILITY_CHECKLIST.json**：每条 = `{ id, required_output, machine_check, source_sentence }`。'
+        + '`machine_check` 要写成**别人能照着核**的句子（"问题 2 给出 16 种策略的期望成本表"），'
+        + '不是"建模合理"。',
+      '**PROBLEM_FACTS.json**：题面**给定值**的事实表（每个数字附 `raw_quote` 原文片段）。'
+        + '它防的是**读题读错**，与零数字通道防的"自算数字"是两件事——不要混。',
+      '**锚点**：本阶段的自由分析就是 E1。**必须**保留行首锚点 `[[ASSUMPTION: A-XXX]]` 与 '
+        + '`[[REQUIREMENT: R-Qn]]`：前者是保真门 B3 的锚，后者是 B4 逐问覆盖的锚。',
+    ],
+    forbidden: [
+      '**不得**凭印象补题面参数。题面文本已在上文；凡是你写进 `PROBLEM_FACTS.json` 的数字，'
+        + '都要能在题面里逐字找到（这就是 `raw_quote` 的用途）。',
+      '**不得**写"本问题属于优化问题，需要仔细分析"这类空转句。逐句表的价值在于**可核**，'
+        + '空转句无法被任何判据认领。',
+      '**不得**用裸名命名图（`image2` / `图2` / `chart1`）。下游对账按 `fig_`/`tikz_` 前缀匹配，'
+        + '裸名会被**静默丢掉**——那不是报错，是图凭空消失。',
+    ],
+    selfCheck: [
+      '`PROBLEM_ANALYSIS.md` ≥ 1500 字节（UTF-8 字节数，中文按 3 字节算）。',
+      'FIGURE_MANIFEST 的 BEGIN/END 锚点都在，条目全部以 `fig_`/`tikz_` 开头。',
+      '逐句表里标为决策/目标/机制的句子，全部被能力项的 `source_sentence` 认领。',
+      '`[[ASSUMPTION: …]]` 与 `[[REQUIREMENT: …]]` 各有至少一条、且都在**行首**。',
+    ],
+  },
+  modeling: {
+    ported: true,
+    task: '产出**建模求解**，分两次调用完成：'
+      + '**2a 只声明 IR 条目**（Symbol/Assumption/Equation/ModelSpec），**2b 只写富散文**'
+      + '`MODELING_REPORT.md`。两次是硬要求，不是风格选择——合成一次会回到 40KB 单次输出，'
+      + '而那正是当前头号失败（JSON 写不完整）。',
+    how: [
+      '**2a 的声明要短**：`statement` / `meaning` 控制在 40 字符内。IR 是**索引**，不是正文；'
+        + '装不进去的推理写进 2b。',
+      '**每个子问题一个 ModelSpec**，其 `problem_refs` 指向该子问题。逐问覆盖是硬判据'
+        + '（"虎头蛇尾"要治的就是这个）。',
+      '**假设必须被使用**：每条 `AssumptionSpec` 至少要被某个 `ModelSpec.assumption_refs` 引用。'
+        + '声明了却不用的假设是记账噪声。',
+      '**跨子问题引用有两条合法路线，二选一**：① 在该假设/方程上写 `"shared": true`；'
+        + '② 每个子问题各声明一份、id 不同。两条都不做会被 REF-003 拒。',
+      '**2b 的正文**必须含：模型假设 / 符号说明 / 逐问模型 / 检验方案 / 灵敏度分析 / 编程实现要点，'
+        + '并把阶段 1 的图表预规划**原样带过来**（它是阶段 4 的输入，丢了图就没有来源）。',
+      '**问题分析章逐问写**"归到哪类方法 + 为什么 + 难点在哪"，每问一段（参照物每问 270–600 字）。',
+      '**模型评价与推广**四要素各一段：优点 / 局限 / 敏感性 / 推广。一句话不算一段。',
+    ],
+    forbidden: [
+      '**不得**把富散文塞进 IR 字段。IR 字段是给机器索引用的；塞满会让分片收益归零。',
+      '**不得**声明不使用的假设、方程或符号。每一条声明都会被"闭合性"判据检查。',
+      '**不得**省略"被否掉的方案"。为什么不用 SPRT、为什么不用正态近似——**这正是评委最想看的归因**，'
+        + '也是阶段 7"装配而非推理"这一前提的原料：阶段 7 不会替你补推理。',
+    ],
+    selfCheck: [
+      '`MODELING_REPORT.md` ≥ 1500 字节；IR 声明能满足准入的全部结构判据。',
+      '每个子问题都有 ModelSpec；每条假设都被引用；跨子问题引用走两条合法路线之一。',
+      '问题分析章逐问归因；评价章四要素齐全；图表预规划已带入。',
+    ],
+  },
+  code: {
+    ported: true,
+    task: '产出**编程实现**：让数字由**真跑出来的代码**产生，并**声明**图——但**不得渲染**图。'
+      + '声明与渲染是两件事：你写 `chart_type/data_refs/caption`，harness 据声明取数渲染。'
+      + '你不写渲染代码，也不产出任何图像字节。',
+    how: [
+      '`code/main.py` 是编排入口，依次跑各问并汇总；每问一个 `code/problem*.py`。'
+        + '**代码文件数必须 ≥ 题面问数**（逐问奇偶校验）。',
+      '每个被声明为输出的量，都要真的写进声明的输出文件，并用 `jsonPath` 能读到。'
+        + '**声明的输出必须存在且非空**——声明了却没有，是硬失败。',
+      '`RESULTS.md` 写结果说明：四问的关键数值、校核证据、归因、诚实边界。',
+      '`FIGURE_DECLARATIONS.json` 声明图：每张图 `{ figure_id, chart_type, data_refs, caption }`，'
+        + '`data_refs` **必须**指向本阶段真跑出来的 Result。',
+      '**数字只有两个合法来源**：题面给定值，或代码真跑出来的值。散文里不许出现自算数字。',
+      '分类指标出现 ≥0.99 时，**必须**同时给出防泄漏说明（数据划分、去泄漏步骤）。'
+        + '没有说明的 0.99 是硬失败。',
+    ],
+    forbidden: [
+      '**不得**产出任何图像字节（`.png`/`.jpg`/`.pdf`/`.svg`）。渲染是阶段 4 的事，'
+        + '本阶段只声明——这条是门禁 `no_render`，会硬失败。',
+      '**不得**用"抽样"却不写抽样口径。声明抽样就必须给出抽样说明。',
+      '**不得**声明无法读回的 jsonPath。声明了就必须能解析到有限数。',
+    ],
+    selfCheck: [
+      '`code/main.py` ≥ 500 字节、`RESULTS.md` ≥ 1024 字节、代码文件数 ≥ 题面问数。',
+      '声明的每个交付物都真的存在且非空（`DELIVERABLES.json` 与磁盘一致）。',
+      '没有图像字节；每条图声明的 `data_refs` 都指向本阶段铸出的 Result。',
+      '≥0.99 的分类指标都配了防泄漏说明。',
+    ],
+  },
+  figure: {
+    ported: true,
+    task: '产出**图表**：把阶段 3 的图声明渲染成真图，并与阶段 1 的 FIGURE_MANIFEST 对账。'
+      + '本阶段是**确定性**的——不调用模型，按声明取数渲染。',
+    how: [
+      '与 manifest 对账：计划里的每张**数据图**都必须真的渲染出来；缺一张就是对账失败。',
+      '命名规则：数据图**不得**用架构前缀（`fig_arch`/`fig_flow`/`fig_roadmap`/`fig_pipeline`/'
+        + '`fig_framework`/`fig_network`/`fig_state`/`fig_decision`/`fig_overview`）——'
+        + '那些前缀留给阶段 5 的流程图。',
+      '半成品检测：有 `_plot_data.json` 却没有任何图，或有数据准备脚本却没有图，都算未完成。',
+    ],
+    forbidden: [
+      '**不得**在数据图上加标题（`plt.title()`）。题注由正文给，图里重复一遍是噪声。',
+      '**不得**用默认色板（`tab10`）与 CSS 颜色名、`RdYlGn`/`RdBu_r`/`dark_background`——'
+        + '打印成灰度后不可区分。',
+      '**不得**输出低于 300 DPI 的图。',
+    ],
+    selfCheck: ['manifest 里每张数据图都有对应文件', '无标题、非默认色板、≥300 DPI', '命名前缀合规'],
+  },
+  diagram: {
+    ported: true,
+    task: '产出**流程与架构图**（路线图 / 数据流 / 框架图）。本阶段**确定性**，按模板渲染。',
+    how: [
+      '**模板族固定五种，按图选模板**：路线图 `tpl_roadmap`（四问依赖链、数据流总路线）/'
+        + '流程 `tpl_flow`（决策流程、算法步骤）/ 架构 `tpl_arch`（系统分层）/'
+        + '框架 `tpl_framework`（建模框架）/ 管线 `tpl_pipeline`（数据处理管线）。'
+        + '**不许自创模板形态**——模板族的价值是全篇一致。',
+      '**命名前缀固定**：`fig_arch` / `fig_flow` / `fig_pipeline` / `fig_framework` / `fig_roadmap`，'
+        + '几何精度图用 `tikz_`。这些前缀与数据图（阶段 4）**互斥**，不得混用。',
+      '**与 manifest 对账**：阶段 1 的 FIGURE_MANIFEST 里属于 HTML/DrawIO/TikZ 段的每一条，'
+        + '都必须真的产出一个文件（`.pdf`/`.html`/`.png` 任一形态都接受）。缺一条即对账失败。',
+      '**风格族三选一，全篇统一**：A 朴素竞赛风（黑白为主、线框清晰）/ B 现代精致风（克制的配色与留白）/ '
+        + 'C 纯黑白（零色彩——判据是全文不出现任何 `hsl(...)` 与强调色变量）。'
+        + '混用两个风格族会让整篇看起来像拼凑的。',
+      '**单页、矢量、无白边**：产出的 PDF 必须单页、文字是可选中的字体对象（不是位图）、'
+        + '且没有大片留白边距。多页或纯位图都算未完成。',
+      '**元素级几何自检**：渲染后逐个元素核对四类问题——文字溢出被裁切、元素越出画布、'
+        + '文字块互相重叠、声明对齐的元素中轴漂移（同一列/行的元素中轴偏差超过 4px 即失败）。'
+        + '这四类都必须在提交前自己核一遍。',
+    ],
+    forbidden: [
+      '**不得**与数据图混用前缀——架构图用 `fig_arch`/`fig_flow`/`fig_roadmap` 等，'
+        + '数据图用阶段 4 的规则；混用会让阶段 4/5 的对账互相踩。',
+      '**不得**出现文字溢出裁切、越界、文字块重叠、声明对齐漂移——这四类各有专门判据，'
+        + '而且是**渲染后**才能发现，所以必须在提交前自己核。',
+      '**不得**在一个风格族里混进另一个的配色或线宽。C 族尤其严格：出现任何颜色即失败。',
+    ],
+    selfCheck: [
+      'manifest 的 HTML/DrawIO/TikZ 段对账通过（每条都有文件）。',
+      '四类几何问题零命中：溢出 / 越界 / 重叠 / 对齐漂移（>4px）。',
+      '全篇只用一个风格族；C 族时零颜色。',
+      'PDF 单页、矢量（文字可选中）、无明显白边。',
+    ],
+  },
+  review: {
+    ported: true,
+    task: '产出**逻辑对抗复核**：找出会让论文被评委一击致命的**逻辑缺陷**，'
+      + '并给出机器可读的结论 `COMP_REVIEW_VERDICT.json`。'
+      + '**本阶段同时承载 L5 的三视角评审**（三视角在本阶段内部跑）。',
+    how: [
+      'findings 的类别固定：`bound_direction`（边界方向）/ `double_count`（重复计数）/'
+        + '`extrapolation`（外推越界）/ `missing_feature`（漏了机制）/ `cross_problem`（跨问不一致）。',
+      '严重度三档：`fatal` / `major` / `minor`。**只有 fatal 会阻断**。',
+      '每条 finding 必须给 `where`（在哪）、`evidence`（证据）、`fix`（怎么修）。',
+      '三视角评审**分别**从三个角度读同一份产物（方法是否成立 / 数字是否可信 / 论证是否自洽），'
+        + '并把缺陷合进同一份 verdict。',
+    ],
+    forbidden: [
+      '**不得**把 major/minor 报成 fatal 来"保险"——误报会让回滚白跑。'
+        + 'major/minor 不阻断，但必须在论文里如实标注为情景模拟/假设。',
+      '**不得**只报"建议加强论证"这类无法执行的意见。每条都要能指到具体位置。',
+    ],
+    selfCheck: [
+      '`COMP_REVIEW_VERDICT.json` 是合法 JSON，含 `findings[]` 与 `fatal_count`。',
+      '`fatal_count` 与 findings 里 fatal 的条数一致。',
+      'fatal > 0 → **必须回滚**到归属阶段（建模 → 阶段 2；代码 → 阶段 3）修正后重跑，不许进阶段 7。',
+    ],
+  },
+  paper: {
+    ported: true,
+    task: '产出**论文正文**（单文件 `paper/main.md`）。'
+      + '**本阶段是装配，不是再推理**：上游产物已经确定了内容，你的任务是把它们组织成论文。',
+    how: [
+      '章节骨架固定：`# 论文标题` / `## 摘要` / `## 1 问题重述` … / `## 8 模型评价与推广` /'
+        + '`## 参考文献` / `## 附录 A：代码`。标题在全文唯一。',
+      '图用 `![图 N：题注](figures/xxx.png)` 嵌入；表用**三线表**，题注 `**表 N：题注**` 独占一行。',
+      '**正文（附录之前）不少于 20 页**（按每页 800 字符估算）。附录不计入页数。',
+      '**参考文献 ≥3 条**，且**至少一条要指向你实际用过的方法**（抽样检验 / 序贯 / 贝叶斯 / 决策 / '
+        + '优化 / 仿真 …）。这条是当前最高频的拒绝——它不是格式问题，是"你的论文看起来没读过方法文献"。',
+      '**问题重述**用自己的话转述题面背景与各问要求，不要把题面原文贴一遍。',
+    ],
+    forbidden: [
+      '**不得**出现任何 LaTeX 结构：`\\begin{}`/`\\cite{}`/`\\ref{}`/`\\includegraphics{}` 等一律禁止，'
+        + '也不得产出 `.tex` 文件。论文是 Markdown。',
+      '**不得**现场发明建模结论。凡需要推理的内容（"为什么不用 SPRT"）必须在阶段 1/2 的产物里'
+        + '**已经存在**；上游没有的，你不许补——这是 `paper_claim_check` 要拦的东西。',
+      '**不得**留连续空行或近空章节。任一章节的正文（不含表与代码块）不少于 120 字。',
+      '**不得**在正文里写自算数字。数字只能来自上游 Result（用 `{<result_id>}` 占位符）或题面给定值。',
+    ],
+    selfCheck: [
+      '`paper/main.md` ≥ 5120 字节；正文 ≥ 20 页。',
+      '无 LaTeX 残留、无 `.tex` 产物；上游三件产物各 ≥500 字符。',
+      '参考文献 ≥3 条且至少一条含方法关键词；评价章四要素齐全；逐问都有对应章节。',
+      '`paper_claim_check` 通过**才准写**——每条将写进论文的结果，上游都要有已核验的落地。',
+    ],
+  },
+  improve: {
+    // 参考工作流里**没有**这个技能（只有产物形态 PAPER_IMPROVEMENT_STATE.json 与
+    // _improvement_rounds/）。所以下面一律用**明确指示**，不用建议。
+    ported: false,
+    task: '**必须**对 `paper/main.md` 执行"找问题 → 改写 → 复检"的循环，'
+      + '并**必须**产出 `PAPER_IMPROVEMENT_STATE.json` 与 `paper/_improvement_rounds/roundN.md`。'
+      + '**每一轮的稿子都必须保留**——不许覆盖上一轮。',
+    how: [
+      '**每一轮必须记录缺陷数**：写进 `PAPER_IMPROVEMENT_STATE.json` 的 `rounds[].defects`。'
+        + '没有这个计数，"有没有进展"就无法判定，整条循环也就没有终止依据。',
+      '**终止条件只有两条，必须命中其中一条**：'
+        + '① `termination: "approved"`——检查器报**零缺陷**时**立即停止**；'
+        + '② `termination: "no-progress"`——"进展"的定义是**缺陷数严格下降**，'
+        + '连续三轮没有下降则停止。',
+      '**必须**在 `termination` 里写明命中哪一条。没有 `termination` 字段即门禁硬失败。',
+    ],
+    forbidden: [
+      '**不得**用"超时"或"轮次用尽"作为终止理由。**额度不是终止条件**——'
+        + '实测（strict-12）多给额度只会让稿子在"改好"与"改坏"之间震荡；'
+        + '旧系统曾在撞上限后**自行宣布定稿**，那等于把未收敛说成已收敛。',
+      '**不得**在拿到"零缺陷"之后继续编辑。批准即收口：继续编辑只会把已经干净的稿子改坏。',
+      '**不得**删除或覆盖历史轮次。`roundN.md` 是"修之前长什么样"的唯一证据。',
+    ],
+    selfCheck: [
+      '`PAPER_IMPROVEMENT_STATE.json` 含 `rounds[].defects`（每轮一个数）与 `termination`。',
+      '`termination` 是 `approved` 或 `no-progress` 之一，且与缺陷数序列一致。',
+      '`paper/_improvement_rounds/` 下的轮次文件齐全，未被覆盖。',
+    ],
+  },
+  'format-profile': {
+    ported: true,
+    task: '产出**格式画像**：把用户给的文字格式要求解析成机器可读的 `_text_profile.json`。'
+      + '**本阶段只准产出这一个文件**，不得写正文、不得改动任何其它东西。',
+    how: [
+      '**中文字号 → pt**：初号 42 / 小初 36 / 一号 26 / 小一 24 / 二号 22 / 小二 18 / 三号 16 /'
+        + '小三 15 / 四号 14 / 小四 12 / 五号 10.5 / 小五 9。',
+      '**字体术语 → 系统名**：宋体 SimSun / 黑体 SimHei / 仿宋 FangSong / 楷体 KaiTi /'
+        + '微软雅黑 Microsoft YaHei / 等线 DengXian。',
+      '逐条把要求落到字段上（页面边距 / 字体 / 各级标题字号与对齐 / 正文行距与首行缩进 /'
+        + '表格三线线宽与字号 / 参考文献悬挂缩进 / 图宽与对齐 / 代码块字号与底色）。',
+      '**未识别的要求保持默认，并在 `_matched_items` 里说明**——不许猜。',
+    ],
+    forbidden: [
+      '**不得**产出第二个文件。参考的纪律是"本步骤只输出一个 JSON 文件"，'
+        + '多产出即硬失败（门禁 `profile_single_file`）。',
+      '**不得**为没写的要求编造值。用户没提的行距就用默认值，并记进 `_matched_items` 的未识别项。',
+    ],
+    selfCheck: [
+      '`_text_profile.json` ≥ 300 字节且是合法 JSON 对象。',
+      '除它之外本阶段目录里没有别的产物。',
+      '`_matched_items` 至少 1 条（说明哪些要求被识别、落在哪个字段）。',
+    ],
+  },
+  'format-check': {
+    ported: true,
+    task: '产出**格式自检报告** `DOCX_FORMAT_CHECK_REPORT.md`，并在**安全**的前提下就地修复 Markdown。'
+      + '**即使全部检查通过，也必须出报告**——报告本身是产物。',
+    how: [
+      '五类检查，逐类给 ✅/⚠️ 与修复计数：代码块完整性 / 公式编号语法 / 三线表格式 /'
+        + '图片引用 / Markdown 噪声。',
+      '报告固定三段：自动修复的问题 / 仍需人工处理的问题 / 结论。',
+      '修复**保守**：只做确定的等价改写（`（）`→` ()`、`$$X$$`→`$X$`）；'
+        + '代码围栏的语言标记只有 100% 可推断时才补，否则留裸围栏。',
+    ],
+    forbidden: [
+      '**不得**改变公式语义。只允许上面那两类等价改写。',
+      '**不得**与导出前校核重复（图片闭合、LaTeX 残留、引用闭合、字数那些归阶段 11 的校核）。',
+      '**不得**因为有问题就阻塞——**本阶段是非阻塞的**：未消解的人工项照写报告。',
+    ],
+    selfCheck: ['`DOCX_FORMAT_CHECK_REPORT.md` ≥ 200 字节', '五类检查都有结论', '修复计数与实际改动一致'],
+  },
+  'docx-export': {
+    // 参考工作流里**没有**这个技能（只有引擎 tools/docx-cn-engine 与产物形态
+    // paper/main.docx）。所以下面一律用**明确指示**。
+    ported: false,
+    task: '**必须**产出 `paper/main.docx`：用 `paper/main.md` 与阶段 9 的 `_text_profile.json` '
+      + '渲染出目标格式的 Word 文档，并**必须**在导出前通过格式校核。'
+      + '校核不过就**不得**产出 docx，也不得假装导出成功。',
+    how: [
+      '**必须**在导出前跑一次校核：Markdown 是否还有占位符、表格列数是否一致、图片链接是否闭合。'
+        + '任一致命项存在即**拒绝导出**，并把致命项写进报告。',
+      '**必须**按 `_text_profile.json` 落格式（字号 / 字体 / 行距 / 三线表线宽 / 悬挂缩进）。'
+        + '画像缺失或非法时**回退到默认画像**，并在报告里写明"用了默认"。',
+      '**必须**校验产物的存在与体量：导出器退出码为 0 **不等于**导出成功——'
+        + '还要文件真的存在且不是空壳。',
+    ],
+    forbidden: [
+      '**不得**在致命项存在时产出 docx。宁可交出"缺 docx 的交付包 + 明确的致命项报告"，'
+        + '也不要交出一个看起来完整、实际格式错乱的 Word 文件。',
+      '**不得**修改 `paper/main.md` 的正文内容。本阶段只做格式转换。',
+    ],
+    selfCheck: [
+      '导出前校核的致命项为 0。',
+      '`paper/main.docx` 存在且体量合理（不是空壳）。',
+      '格式画像缺失时，报告里写明了"回退到默认画像"。',
+    ],
+  },
+}
+
+/**
+ * 组装一个阶段的简报。
+ *
+ * 顺序即优先级（**越靠后越重要**——模型的注意力在末尾最集中）：
+ * 任务 → 契约 → 上游 → 怎么做 → 不要做 → 自检 → 完成标志。
+ *
+ * @param spec - 阶段。
+ * @param upstreamText - 上游产物的内联内容（`相对路径 → 文本`）。
+ * @param selfCheckTool - 该阶段是否挂了可调用的自检工具（阶段 2a/3）。
+ * @returns 简报全文。
+ */
+export function stageBriefing(
+  spec: StageSpec,
+  upstreamText: ReadonlyMap<string, string>,
+  selfCheckTool: boolean,
+): string {
+  const skill = SKILLS[spec.id]
+  if (skill === undefined) throw new Error(`no skill content for stage '${spec.id}'`)
+  const L: string[] = []
+  const sec = (name: string): void => { L.push('', `## ${name}`) }
+
+  sec(BRIEFING_SECTIONS[0])
+  L.push(skill.task)
+  L.push('', `本阶段目录：\`stages/${stageDirName(spec)}/\`。`
+    + (skill.ported ? '技能转写自参考工作流。' : '**本阶段的技能是本 harness 自创的**（参考工作流里没有它）——'
+      + '所以下面的话是指示，不是建议。'))
+
+  sec(BRIEFING_SECTIONS[1])
+  L.push('harness 会用下面这些判据量你的产出。**逐条对着它写**，不要写完再猜：')
+  for (const p of spec.produces) {
+    const floor = p.minBytes === undefined ? '' : `，≥ ${String(p.minBytes)} 字节`
+    L.push(`- \`${p.file}\`（${p.kind}${floor}）—— ${p.desc}`)
+  }
+
+  sec(BRIEFING_SECTIONS[2])
+  if (upstreamText.size === 0) {
+    L.push('（本阶段没有上游产物。）')
+  } else {
+    for (const [path, text] of upstreamText) {
+      L.push(`### ${path}`, '', text)
+    }
+  }
+
+  sec(BRIEFING_SECTIONS[3])
+  for (const line of skill.how) L.push(`- ${line}`)
+
+  sec(BRIEFING_SECTIONS[4])
+  for (const line of skill.forbidden) L.push(`- ${line}`)
+
+  sec(BRIEFING_SECTIONS[5])
+  if (selfCheckTool) {
+    L.push('你可以调用 `check_container` **任意多次**，在提交前验证结构化声明。'
+      + '它返回逐条问题；**它说不可准入就不要提交**——它跑的是 harness 的同一套判据。')
+  }
+  L.push('逐条自查（这些是 harness 会跑的判据，不是建议）：')
+  for (const line of skill.selfCheck) L.push(`- ${line}`)
+
+  sec(BRIEFING_SECTIONS[6])
+  L.push(`产出齐备（${spec.produces.map(p => p.file).join('、')}）、且上面每一条自检都成立。`
+    + '门禁全过才会签发本阶段的通行证，下一阶段才能启动。')
+  return L.join('\n')
+}
+
+/** 该阶段的技能是否转写自参考（`false` = 本 harness 自创）。 */
+export function isPorted(spec: StageSpec): boolean {
+  return SKILLS[spec.id]?.ported ?? false
+}
+
+/** 全部阶段的技能是否都有内容（装配完整性）。 */
+export function missingSkills(): ReadonlyArray<string> {
+  return STAGES.filter(s => SKILLS[s.id] === undefined).map(s => s.id)
+}
