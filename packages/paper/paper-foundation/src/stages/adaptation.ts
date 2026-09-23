@@ -21,6 +21,7 @@
  * | `inlined` | 资产内容**内联进该阶段的简报** | 规则语料 → 简报的"本步知识"节 |
  * | `ported` | 资产**移植进仓库**并由 harness 使用 | 模板 → 渲染器资产；样式档 → 导出器 |
  * | `harness-side` | 原本由模型做的动作改由 **harness 执行** | 门禁脚本 → TS 门禁；文件读写 → harness |
+ * | `tool-fetchable` | 资产**已在仓库**，由**只读工具按需取用**（参考 `cat` 的工具化） |
  * | `missing` | **尚未适配** —— 必须给出 `option`（本机怎么补） | 需要数值计算的 Python 库 |
  *
  * @module @deepseek-ai/dsh-paper-foundation/stages/adaptation
@@ -45,7 +46,7 @@ export interface AssetAdaptation {
   readonly assetClass: AssetClass
   /** 参考里对应的具体文件/脚本（便于逐个核对，不是泛指）。 */
   readonly reference: string
-  readonly mode: 'inlined' | 'ported' | 'harness-side' | 'missing'
+  readonly mode: 'inlined' | 'ported' | 'harness-side' | 'tool-fetchable' | 'missing'
   /** 本机怎么适配的（`missing` 时写**可执行的补齐方案**）。 */
   readonly detail: string
   /**
@@ -64,24 +65,26 @@ export const ADAPTATIONS: ReadonlyArray<AssetAdaptation> = [
   // ── 规则语料：当前最大的缺口（我 S3 只放了手写摘要） ──────────────────────
   {
     stage: 'paper', assetClass: 'rule_corpus', reference: '_utils/writing_rules.md + shared-references/writing-principles.md',
-    mode: 'missing',
-    detail: 'S3 的简报只放了我手写的写作要点摘要，参考的写作规范语料一条都没进来。',
-    option: '把语料移植进 `src/stages/skill-docs/` 并按阶段内联（现有 `knowledge/skills/library-docs.ts` '
-      + '就是同一形态的先例：文档正文进仓库、`stepBriefing` 按步内联）。**不许只留摘要**——'
-      + '摘要是我对规范的理解，而规范本身是可被逐条核对的事实。',
+    mode: 'tool-fetchable',
+    detail: '语料**已恢复**到 `src/stages/skill-docs/writing-rules.md`（58KB，索引在 `skill-docs.ts`）。'
+      + '**不内联**：58KB 塞进 prompt 会把简报淹掉；参考原本也是让模型按需 `cat`。',
+    option: '接线只读工具 `read_skill_doc(id)`（参考的 `cat _utils/x.md` 的工具化，与 `check_container` 同一条路）。'
+      + '**工具落地前简报不点名这些文档**——点名一份取不到的文档就是新的"无法被遵守的指令"。',
   },
   {
     stage: 'figure', assetClass: 'rule_corpus', reference: '_utils/figure_style_guide.md(81KB) + figure_recipes_*.md(41–135KB×5) + figure_exemplars.md(41KB)',
-    mode: 'missing',
-    detail: '简报里只有命名规则与几条禁令，五份图型配方（basic/advanced/academic/empirical/competition）都没进来。',
-    option: '按图型把配方移植进 `skill-docs/figure-recipes/`，`stageBriefing` 依声明的 chart_type 内联**对应那一份**'
-      + '（不是全塞——那是注意力灾难）。',
+    mode: 'tool-fetchable',
+    detail: '语料**已恢复**到 `src/stages/skill-docs/`（`figure-style-guide.md` 80KB + '
+      + '`figure-exemplars.md` 41KB + 五份 `figure-recipes-*.md` 合计 362KB）。'
+      + '**不内联**：五份配方合计 362KB。',
+    option: '同 `read_skill_doc` 工具；模型按自己声明的 `chart_type` 取**对应那一份**（不是全读）。',
   },
   {
     stage: 'code', assetClass: 'rule_corpus', reference: '_utils/error_prevention_code.md(130KB) + references/checks/*.md(7份)',
-    mode: 'missing',
-    detail: '简报里有"数字只有两个合法来源"这条纪律，但七份检查清单（一致性/评估/优化/物理/预测/自检）都没进来。',
-    option: '把七份检查清单移植成 `skill-docs/code-checks/`，并按"本题用到哪类方法"内联相关的那几份。',
+    mode: 'tool-fetchable',
+    detail: '语料**已恢复**到 `src/stages/skill-docs/`（`code-error-prevention.md` + '
+      + '`code-checks-*.md` 七份检查清单 + 总索引）。',
+    option: '同 `read_skill_doc` 工具；模型先读总索引，再按本题的方法类型取相关的那几份。',
   },
   // ── 门禁脚本：已做 harness-side，但 10 条能力仍缺 ─────────────────────────
   {
