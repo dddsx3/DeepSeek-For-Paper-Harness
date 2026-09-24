@@ -30,8 +30,12 @@ describe('适配台账 —— 没有"删掉"这个选项', () => {
     // 这不是"通过"的断言，是把当前缺口**钉成一个数字**：缺口变化时测试会红，
     // 逼作者在提交里说明为什么多了/少了一项。
     // 缺口在按计划收敛：8 → 5（规则语料转 tool-fetchable）→ 4（国赛样式档已迁移）
-    // → 3（图模板已迁移）。剩：导出引擎（差依赖）+ Python 计算的规范部分 ×2。
-    expect(missingAdaptations().length).toBe(3)
+    // → 3（图模板已迁移）→ 1（S5b：导出引擎三个依赖已装并实测跑通；
+    //    图表的 Python 规范已做成 `figure_style_rules` 门禁）。
+    // 剩的那一项不是"算法没写"，是**接线位置没有**：阶段 1 是模型阶段，
+    // 没有 harness 侧后处理钩子，画像器无处可挂（见那行的 detail）。
+    expect(missingAdaptations().length).toBe(1)
+    expect(missingAdaptations().map(a => `${a.stage}/${a.assetClass}`)).toEqual(['prob-analysis/python_compute'])
   })
 })
 
@@ -77,11 +81,16 @@ describe('适配台账 —— 阶段覆盖', () => {
 
   it('阶段 5/9/11 的模板与引擎缺口都在台账里（不是漏记）', () => {
     const stages = ADAPTATIONS.filter(a => a.mode === 'missing').map(a => a.stage)
-    expect(stages).toContain('docx-export')    // 导出引擎（文件已迁移，差三个依赖）
+    // 导出引擎**不在** missing 里了 —— 三个依赖已装、已实测跑通
+    expect(stages).not.toContain('docx-export')
     // 图模板、国赛样式档都**不在** missing 里了 —— 已迁移
     expect(stages).not.toContain('diagram')
     expect(stages).not.toContain('format-profile')
     // 规则语料**不在** missing 里了 —— 它已恢复
     expect(stages).not.toContain('paper')
+    // 图表规范**不在** missing 里了 —— 已做成 `figure_style_rules` 门禁
+    expect(stages).not.toContain('figure')
+    // 仍然在的那一项是接线缺口，不是能力缺口
+    expect(stages).toEqual(['prob-analysis'])
   })
 })

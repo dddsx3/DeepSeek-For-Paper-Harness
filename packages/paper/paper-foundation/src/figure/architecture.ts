@@ -209,7 +209,12 @@ export function computeArchitectureLayout(input: ArchInput): ArchLayout {
     // 层内居中：该层总高/总宽对齐画布中轴
     const span = count * nodeH + (count - 1) * gapCross
     const startY = vertical
-      ? 60 + li * (nodeW + gapMain)
+      // 纵向展开时层是**上下**排的，所以层间距要按节点**高**（nodeH）算。
+      // 第一版这里写的是 `nodeW + gapMain`（横向分支的拷贝），于是四层的图最后
+      // 一层落在 y=912 而 viewBox 高只有 564——**节点越出画布**。这条一直没被发现，
+      // 因为既有的用例都用横向（`direction` 缺省），纵向分支从没被跑过；
+      // 阶段 5 的 `diagram_geometry` 第一次跑纵向就撞出来了。
+      ? 60 + li * (nodeH + gapMain)
       : 50 + (height - 100 - span) / 2
     const startX = vertical
       ? 60 + (width - 120 - (count * nodeW + (count - 1) * gapCross)) / 2
@@ -315,7 +320,9 @@ export function renderArchitectureSvg(input: ArchInput): string {
     const fill = mono ? '#FFFFFF' : isFocus ? focusFill : '#F5F5F3'
     const stroke = mono ? '#000000' : isFocus ? focusStroke : '#777777'
     const sw = isFocus ? 2 : 1
-    parts.push(`<rect x="${fmtN(rect.x)}" y="${fmtN(rect.y)}" width="${rect.w}" height="${rect.h}" rx="${rx}" fill="${fill}" stroke="${stroke}" stroke-width="${sw}"/>`)
+    // `data-mh-row` = 层号。几何门禁（`diagram_geometry`）**只读 SVG 字节**就能复原
+    // "哪些节点同层"，从而复算对齐不变量——判据落在产物上，不靠第二份真相。
+    parts.push(`<rect data-mh-row="${String(rect.row)}" x="${fmtN(rect.x)}" y="${fmtN(rect.y)}" width="${rect.w}" height="${rect.h}" rx="${rx}" fill="${fill}" stroke="${stroke}" stroke-width="${sw}"/>`)
     const labelSize = 12
     const labelY = rect.y + (node.subtitle !== undefined && family === 'B' ? 22 : rect.h / 2 + 4)
     parts.push(`<text x="${fmtN(rect.x + rect.w / 2)}" y="${fmtN(labelY)}" text-anchor="middle" font-family="${fontFam}" font-size="${labelSize}" font-weight="${mono ? 800 : isFocus ? 600 : 400}" fill="#000000">${escapeXml(node.label)}</text>`)

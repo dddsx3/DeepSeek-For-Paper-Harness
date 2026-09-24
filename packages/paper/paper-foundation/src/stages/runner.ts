@@ -48,7 +48,7 @@
  * @module @deepseek-ai/dsh-paper-foundation/stages/runner
  */
 
-import { mkdir, readFile, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, readdir, stat, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { stageBriefing } from './briefing.ts'
 import { runGates, type GateInput } from './gates.ts'
@@ -133,17 +133,22 @@ export function parseStageOutput(spec: StageSpec, text: string): ReadonlyMap<str
   if (typeof files !== 'object' || files === null || Array.isArray(files)) {
     throw new Error(`stage '${spec.id}' envelope has no "files" object`)
   }
-  const expected = new Set(spec.produces.map(p => p.file))
+  const expected = new Set(spec.produces.filter(p => p.kind !== 'dir').map(p => p.file))
+  // 目录型产物（阶段 3 的 `code/`）**以目录为契约**：里面的文件名由模型按题面定
+  // （逐问一个 `problem*.py`，问数是题面决定的，写不进静态的 produces 列表）。
+  // 所以"契约内"= 精确名 ∪ 目录前缀；前缀之外的仍然算多出来。
+  const dirPrefixes = spec.produces.filter(p => p.kind === 'dir').map(p => p.file)
   const got = Object.keys(files as Record<string, unknown>)
   const missing = [...expected].filter(f => !got.includes(f))
-  const extra = got.filter(f => !expected.has(f))
+  const extra = got.filter(f => !expected.has(f) && !dirPrefixes.some(d => f.startsWith(d)))
   // **缺与多都判失败**：静默接受"多出来的文件"会让阶段悄悄产出契约外的产物。
   if (missing.length > 0 || extra.length > 0) {
     throw new Error(
       `stage '${spec.id}' envelope does not match its contract —`
       + (missing.length > 0 ? ` missing: ${missing.join('、')};` : '')
       + (extra.length > 0 ? ` unexpected: ${extra.join('、')};` : '')
-      + ` expected exactly: ${[...expected].join('、')}`,
+      + ` expected exactly: ${[...expected].join('、')}`
+      + (dirPrefixes.length === 0 ? '' : `（或 ${dirPrefixes.join('、')} 之下的任意文件）`),
     )
   }
   for (const [name, body] of Object.entries(files as Record<string, unknown>)) {
@@ -164,16 +169,95 @@ async function upstreamTextOf(stagesRoot: string, spec: StageSpec): Promise<Map<
   return out
 }
 
-/** 读阶段目录内的产物文本（供门禁）。 */
-async function stageFilesOf(stagesRoot: string, spec: StageSpec): Promise<Map<string, string>> {
-  const dir = join(stagesRoot, stageDirName(spec))
-  const out = new Map<string, string>()
-  for (const p of spec.produces) {
-    if (p.kind === 'dir') continue
-    const text = await readFile(join(dir, p.file), 'utf8').catch(() => null)
-    if (text !== null) out.set(p.file, text)
+/** 目录型产物的展开深度上限（`figures/` 是平的，`paper/_improvement_rounds/` 也只一层）。 */
+const DIR_PRODUCE_DEPTH = 2
+
+/** 文本类产物（读进来给门禁判）。其余（docx/png/xlsx）只记字节数——按 utf8 读二进制会改长度。 */
+const TEXT_KINDS = /\.(md|json|py|svg|tex|csv|txt|ya?ml|html)$/i
+
+/**
+ * 递归收一个目录型产物。
+ *
+ * **为什么要展开目录**：阶段 4/5 的产物主体就是 `figures/` 里的图，而门禁
+ * （对账、风格、几何）判的正是那些文件。不展开的话"目录型产物"对门禁不可见，
+ * 于是"计划里的图都渲染出来了吗"只能靠人看——那正是注册表 `produces` 这一列
+ * 要消灭的东西。
+ */
+async function collectDir(
+  absDir: string,
+  relPrefix: string,
+  depth: number,
+  files: Map<string, string>,
+  sizes: Map<string, number>,
+): Promise<void> {
+  if (depth > DIR_PRODUCE_DEPTH) return
+  // 前缀里的尾斜杠要剥掉：注册表写的是 `code/`（人读友好），但拼出来会变成
+  // `code//problem1.py`，于是 `^code/problem.*\.py$` 这类判据全部落空——
+  // 实测抓到的 bug（阶段 3 的 `code_parity` 因此判 1）。
+  const prefix = relPrefix.replace(/\/+$/, '')
+  const entries = await readdir(absDir, { withFileTypes: true }).catch(() => [])
+  for (const entry of entries) {
+    const rel = prefix === '' ? entry.name : `${prefix}/${entry.name}`
+    const abs = join(absDir, entry.name)
+    if (entry.isDirectory()) {
+      await collectDir(abs, rel, depth + 1, files, sizes)
+      continue
+    }
+    const info = await stat(abs).catch(() => null)
+    if (info === null) continue
+    sizes.set(rel, info.size)
+    if (!TEXT_KINDS.test(rel)) continue
+    const text = await readFile(abs, 'utf8').catch(() => null)
+    if (text !== null) files.set(rel, text)
   }
-  return out
+}
+
+/** 读阶段目录内的产物文本与字节数（供门禁）。 */
+async function stageFilesOf(
+  stagesRoot: string,
+  spec: StageSpec,
+): Promise<{ readonly files: Map<string, string>; readonly sizes: Map<string, number> }> {
+  const dir = join(stagesRoot, stageDirName(spec))
+  const files = new Map<string, string>()
+  const sizes = new Map<string, number>()
+  for (const p of spec.produces) {
+    if (p.kind === 'dir') {
+      await collectDir(join(dir, p.file), p.file, 1, files, sizes)
+      continue
+    }
+    const abs = join(dir, p.file)
+    const info = await stat(abs).catch(() => null)
+    if (info === null) continue
+    sizes.set(p.file, info.size)
+    if (!TEXT_KINDS.test(p.file)) continue
+    const text = await readFile(abs, 'utf8').catch(() => null)
+    if (text !== null) files.set(p.file, text)
+  }
+  return { files, sizes }
+}
+
+/**
+ * 声明的产物**齐了没有**。
+ *
+ * `produces` 这一列的全部意义就是"产出齐没齐可以机械判"（注册表模块头）。少了这一
+ * 步，一个"什么都没产出"的阶段会因为门禁恰好没查那个文件而拿到 `passed`——
+ * 那比没有门禁更糟：它让"通过"这个事实变成假的。
+ *
+ * @returns 缺失的产物名（空 = 齐）。
+ */
+async function missingDeliverables(stagesRoot: string, spec: StageSpec): Promise<ReadonlyArray<string>> {
+  const dir = join(stagesRoot, stageDirName(spec))
+  const missing: string[] = []
+  for (const p of spec.produces) {
+    if (p.kind === 'dir') {
+      const entries = await readdir(join(dir, p.file)).catch(() => null)
+      if (entries === null || entries.length === 0) missing.push(`${p.file}（目录为空或不存在）`)
+      continue
+    }
+    const info = await stat(join(dir, p.file)).catch(() => null)
+    if (info === null || !info.isFile() || info.size === 0) missing.push(p.file)
+  }
+  return missing
 }
 
 /**
@@ -232,8 +316,24 @@ export async function runStages(
       break
     }
 
+    // 声明的产物齐不齐 —— 在跑门禁**之前**判。一个什么都没产出的阶段不该有机会
+    // 因为"门禁恰好没查那个文件"而拿到 passed。
+    const missing = await missingDeliverables(ctx.stagesRoot, spec)
+    if (missing.length > 0) {
+      outcomes.push({
+        stage: spec.id, status: 'gate-failed',
+        gate: { code: 1, items: [{ id: 'stage_deliverable_missing', ok: false, detail: `声明的产物缺失或为空：${missing.join('、')}` }] },
+        ...(spec.rollbackTo.length === 0 ? {} : { suggestedRollbackTo: spec.rollbackTo[0] as StageId }),
+        reason: `门禁前置不成立：本阶段声明的 ${String(missing.length)} 项产物不存在或为空（${missing.join('、')}）`
+          + '—— 产出齐备是门禁的前提，"没产出"不许被当成"通过"',
+      })
+      break
+    }
+
+    const stageFiles = await stageFilesOf(ctx.stagesRoot, spec)
     const gateInput: GateInput = {
-      files: await stageFilesOf(ctx.stagesRoot, spec),
+      files: stageFiles.files,
+      sizes: stageFiles.sizes,
       upstream: new Map([...await upstreamTextOf(ctx.stagesRoot, spec)].map(([k, v]) => [k.split('/').pop() ?? k, v])),
       problemCount: options.problemCount ?? 0,
     }

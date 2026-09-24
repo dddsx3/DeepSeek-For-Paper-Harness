@@ -27,8 +27,8 @@
  */
 
 import { readFileSync } from 'node:fs'
-import { dirname, join } from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { join } from 'node:path'
+import { resolveStageAssetDir } from './asset-dir.ts'
 import type { StageId } from './registry.ts'
 
 /** 一份语料的索引项。 */
@@ -160,11 +160,11 @@ export const SKILL_DOCS: ReadonlyArray<SkillDoc> = [
  * 第一版这里漏了 `skill-docs/` 这一段，于是 `skillDocBody` 全部读不到；而测试里
  * 我自己另拼了一份带 `skill-docs/` 的路径，所以文件存在性检查全绿，
  * **只有真正调 `skillDocBody` 的那条抓到了**——两个路径各说各话就是这种结果。
+ *
+ * 路径**只能从 `resolveStageAssetDir` 来**：本包的产物是打包过的 `lib/index.js`，
+ * 静态资源不会自动跟过去，所以解析要覆盖 src 与 lib 两种布局（见 `asset-dir.ts`）。
  */
-const HERE = dirname(fileURLToPath(import.meta.url))
-
-/** 语料目录（从模块自身解析，唯一来源）。 */
-export const SKILL_DOCS_DIR = join(HERE, 'skill-docs')
+export const SKILL_DOCS_DIR = resolveStageAssetDir('skill-docs').dir
 
 /**
  * 取一份语料的正文。

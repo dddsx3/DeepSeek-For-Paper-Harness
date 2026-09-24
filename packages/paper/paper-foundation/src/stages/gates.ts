@@ -14,24 +14,45 @@
  * ## 哪些是"真的判据"、哪些是"暂未实现"
  *
  * 参考的门禁分两类：
- * - **机械可判**（字节地板、文件存在、正则、条目数、锚点形态）→ 本文件实现；
+ * - **机械可判**（字节地板、文件存在、正则、条目数、锚点形态、**与清单对账、
+ *   声明里的引用解析、SVG 字节上的风格与几何**）→ 本文件实现；
  * - **需要真实计算**（`capability_check` 要跨文件比对能力项、`modeling_coverage` 要
  *   逐条核对建模落地、`delivery_audit` 要核对声明的交付物是否真存在且非空、
- *   `leakage_audit` 要看分类指标与去泄漏证据、`paper_claim_check` 要核对 claim 上游落地）
- *   → 本文件**显式给 2**，并在 `detail` 里写明"需要什么才算实现"。
+ *   `paper_claim_check` 要核对 claim 上游落地）→ 本文件**显式给 2**，并在 `detail`
+ *   里写明"需要什么才算实现"。
  *
  * 后一类不是"忘了写"，是**如实标注能力边界**——它们的实现各自需要一次专门的设计
  * （见 `artifacts/upper-bound/ROUND-*` 的方法论）。
  *
+ * ## 已实现 / 未实现的分界**由测试钉住**
+ *
+ * `gates.spec.ts` 里那份"未实现清单"是**断言**：实现一条就从清单里删一条。
+ * 于是"哪些判据其实没跑"永远可回答——它不会随着时间悄悄变成"都实现了"。
+ *
  * @module @deepseek-ai/dsh-paper-foundation/stages/gates
  */
 
+import { checkArchitectureAlignment, type ArchLayout } from '../figure/architecture.ts'
+import { estimateLabelPx } from '../figure/axis-labels.ts'
+import { checkFigureQuality } from '../figure/quality-check.ts'
+import { parseDiagramManifestFile } from './diagram-render.ts'
+import { docxPrecheckFatal, resolveDocxProfile } from './docx-profile.ts'
+import { FIGURE_DECLARATIONS_FILE, FIGURE_MANIFEST_FILE, parseFigureDeclarations, parseFigureManifestFile } from './figure-render.ts'
+import { architectureFigureNames, dataFigureNames, parseFigureManifest } from './figure-manifest.ts'
 import type { GateVerdict } from './handoff.ts'
 
 /** 门禁的输入：产物文本（由调用方读盘后传入，门禁本身不碰文件系统）。 */
 export interface GateInput {
-  /** 本阶段目录内 `文件相对名 → 文本`。缺失的文件不出现。 */
+  /** 本阶段目录内 `文件相对名 → 文本`。缺失的文件不出现。**二进制产物不在里面**。 */
   readonly files: ReadonlyMap<string, string>
+  /**
+   * 产物的**真实字节数**（由调用方 stat 得到）。
+   *
+   * 为什么不能拿文本长度代替：`docx`/`png` 这类二进制按 utf8 读会改长度，
+   * 于是"文件是不是空壳"这个判据会变成一个错的数。文本产物两边的数一致，
+   * 但判据只该有一个来源。
+   */
+  readonly sizes?: ReadonlyMap<string, number>
   /** 上游阶段目录内 `相对路径 → 文本`（供跨阶段判据使用）。 */
   readonly upstream: ReadonlyMap<string, string>
   /** 题面的子问题数（`count_subproblems` 的等价物）。 */
@@ -235,6 +256,350 @@ const improveTerminated: GateFn = (input) => {
   return fail(id, `终止原因 '${termination}' 不在允许集（approved / no-progress）`)
 }
 
+// ── 阶段 4/5：图对账、声明完整性、风格与几何 ────────────────────────────────
+//
+// 这三组判据**只读文本**（门禁的第三条纪律）：对账用的清单、声明、SVG 字节全部
+// 由 `GateInput` 传进来。所以它们可测、可复算、可进审计轨迹——不需要重跑渲染。
+
+/** 本阶段产出的 SVG 图文件（`figures/x.svg`）—— 由 runner 枚举 dir 型产物后进来。 */
+function renderedSvgFiles(input: GateInput): ReadonlyArray<string> {
+  return [...input.files.keys()].filter(f => /^figures\/.+\.svg$/i.test(f))
+}
+
+/** 图文件名 → 图 id（`figures/fig_a.svg` → `fig_a`）。 */
+function figureIdOf(file: string): string {
+  return (file.split('/').pop() ?? file).replace(/\.svg$/i, '')
+}
+
+/** 上游声明的题注（`图 id → caption`）——用于"题注不得出现在图内"的判据。 */
+function declaredCaptions(input: GateInput): ReadonlyMap<string, string> {
+  const raw = input.upstream.get(FIGURE_DECLARATIONS_FILE) ?? null
+  const out = new Map<string, string>()
+  if (raw === null) return out
+  try {
+    for (const f of parseFigureDeclarations(raw).figures) {
+      if (f.caption !== undefined && f.caption.length > 0) out.set(f.figure_id, f.caption)
+    }
+  } catch {
+    return out // 声明本身坏了由 `figure_declaration_complete` 报，这里不重复报
+  }
+  return out
+}
+
+/**
+ * 阶段 4 的声明完整性 —— 每条 `data_refs` 必须指向**真有的** Result，且每条声明
+ * 都真的被渲染出来了。
+ *
+ * 参考的 `figure_declaration_complete.py` 要的正是这个（"每条声明的 data_refs 必须
+ * 指向阶段 3 铸出的 Result"）。这里不需要 IR 快照：阶段 3 交过来的声明文件里就带着
+ * 执行结果的只读投影，判据落在**那个文件**上，而不是某个内存对象。
+ */
+const figureDeclarationComplete: GateFn = (input) => {
+  const id = 'figure_declaration_complete'
+  const raw = input.upstream.get(FIGURE_DECLARATIONS_FILE) ?? null
+  if (raw === null) {
+    return cannot(id, `上游 03-code/${FIGURE_DECLARATIONS_FILE} 不在 —— `
+      + '没有声明就无从判定"每条 data_refs 都指向真有的 Result"')
+  }
+  let declarations
+  try {
+    declarations = parseFigureDeclarations(raw)
+  } catch (error) {
+    return fail(id, `声明文件形态不合法：${String(error instanceof Error ? error.message : error).slice(0, 160)}`)
+  }
+  const known = new Set(declarations.results.map(r => r.result_id))
+  const dangling: string[] = []
+  const duplicates: string[] = []
+  const seen = new Set<string>()
+  for (const figure of declarations.figures) {
+    for (const ref of figure.data_refs) {
+      if (!known.has(ref)) dangling.push(`${figure.figure_id} → ${ref}`)
+    }
+    if (seen.has(figure.figure_id)) duplicates.push(figure.figure_id)
+    seen.add(figure.figure_id)
+  }
+  const rendered = new Set(renderedSvgFiles(input).map(figureIdOf))
+  const unrendered = declarations.figures.filter(f => !rendered.has(f.figure_id)).map(f => f.figure_id)
+  const problems: string[] = []
+  if (dangling.length > 0) {
+    problems.push(`悬空 data_refs：${dangling.slice(0, 5).join('、')}`
+      + `（投影里有的 Result：[${declarations.results.map(r => r.result_id).join(', ') || '（空）'}]）`)
+  }
+  if (duplicates.length > 0) problems.push(`重复声明的 figure_id：${duplicates.join('、')}`)
+  if (unrendered.length > 0) problems.push(`声明了但没渲染出来：${unrendered.join('、')}`)
+  return problems.length === 0
+    ? ok(id, `${String(declarations.figures.length)} 条声明的 data_refs 全部解析到真有的 Result（`
+      + `${String(declarations.results.length)} 条投影），且全部渲染`)
+    : fail(id, problems.join('；'))
+}
+
+/**
+ * 阶段 4 与阶段 1 的**计划对账** —— 参考的 `figure_manifest_reconcile`。
+ *
+ * 判据是双向的：计划里的每张数据图都要有文件（缺一张即失败），清单外的图也不许
+ * 静默存在（多一张即失败）。只查一个方向会让"多渲染的图"永远没人发现——
+ * 而多出来的图会被下游当成真产物引用。
+ */
+const figureManifestReconcile: GateFn = (input) => {
+  const id = 'figure_manifest_reconcile'
+  const analysis = input.upstream.get('PROBLEM_ANALYSIS.md') ?? null
+  if (analysis === null) {
+    return cannot(id, '上游 01-prob-analysis/PROBLEM_ANALYSIS.md 不在 —— 没有计划清单就无从对账')
+  }
+  const manifest = parseFigureManifest(analysis)
+  if (manifest === null) {
+    return cannot(id, 'PROBLEM_ANALYSIS.md 里没有完整的 FIGURE_MANIFEST 块 —— 无法对账"计划里的图都渲染出来了"')
+  }
+  const planned = dataFigureNames(manifest)
+  if (planned.length === 0) {
+    return cannot(id, 'FIGURE_MANIFEST 里没有任何数据图条目 —— 本阶段无事可对账'
+      + '（阶段 1 的简报要求 12–20 张数据图，清单为空说明那一环没做）')
+  }
+  const rendered = renderedSvgFiles(input).map(figureIdOf)
+  const missing = planned.filter(n => !rendered.includes(n))
+  const untracked = rendered.filter(n => !planned.includes(n))
+  if (missing.length === 0 && untracked.length === 0) {
+    return ok(id, `计划 ${String(planned.length)} 张数据图，全部渲染；无清单外的图`)
+  }
+  return fail(id, [
+    missing.length > 0 ? `计划里有、但没渲染出来：${missing.slice(0, 6).join('、')}` : '',
+    untracked.length > 0 ? `渲染了、但不在计划里：${untracked.slice(0, 6).join('、')}` : '',
+  ].filter(s => s !== '').join('；'))
+}
+
+/** 参考明令禁止的色板与样式名（打印成灰度后不可区分）。 */
+const BANNED_STYLE_NAMES = /tab10|tab20|RdYlGn|RdBu_r|dark_background|jet\b/
+/** 合法的颜色写法：十六进制 / hsl() / rgb() / none / url(#…)（引用 marker）。 */
+const LEGAL_COLOR = /^(?:none|currentColor|url\(#[\w-]+\)|#[0-9a-fA-F]{3,8}|hsla?\(|rgba?\()/
+
+/**
+ * 阶段 4 的风格门禁（`figure_style_rules`）—— 把参考 `setup_style` 的规范
+ * **做成可核的判据**（这是 `adaptation.ts` 里那条 `missing` 的补齐项）。
+ *
+ * 三条，全部**只读 SVG 字节**：
+ * 1. **印刷质量**：字号 ≥9、元素不越出 viewBox、文字与白底对比度 ≥4.5（复用
+ *    `checkFigureQuality`——它就是为这件事写的，不另写一份判据）；
+ * 2. **配色禁令**：不得出现 `tab10` / `RdYlGn` / `RdBu_r` / `dark_background`，
+ *    也不得用 CSS 颜色名（`red`、`gray` 这种，灰度打印后不可区分）；
+ * 3. **图内不得有标题**：声明的题注不得作为文本出现在 SVG 里（`plt.title` 的等价物；
+ *    题注由正文给）。
+ */
+const figureStyleRules: GateFn = (input) => {
+  const id = 'figure_style_rules'
+  const svgs = renderedSvgFiles(input)
+  if (svgs.length === 0) return cannot(id, '本阶段没有产出任何 SVG 图 —— 没有可核的风格对象')
+  const captions = declaredCaptions(input)
+  const problems: string[] = []
+  for (const file of svgs) {
+    const svg = input.files.get(file) ?? ''
+    for (const v of checkFigureQuality(svg)) problems.push(`${file}：${v.kind} —— ${v.detail}`)
+    if (BANNED_STYLE_NAMES.test(svg)) {
+      const hit = BANNED_STYLE_NAMES.exec(svg)
+      problems.push(`${file}：出现被禁的色板/样式名 '${hit?.[0] ?? ''}'（打印成灰度后不可区分）`)
+    }
+    for (const m of svg.matchAll(/(?:fill|stroke)="([^"]*)"/g)) {
+      const value = (m[1] ?? '').trim()
+      if (value === '' || LEGAL_COLOR.test(value)) continue
+      problems.push(`${file}：颜色用了 CSS 颜色名 '${value}' —— 打印成灰度后不可区分`)
+    }
+    const caption = captions.get(figureIdOf(file))
+    if (caption !== undefined && svg.includes(caption)) {
+      problems.push(`${file}：题注出现在图内（'${caption.slice(0, 20)}'）—— 数据图不写图内标题，题注由正文给`)
+    }
+  }
+  return problems.length === 0
+    ? ok(id, `${String(svgs.length)} 张图全部通过：字号/边界/对比度 + 配色禁令 + 无图内标题`)
+    : fail(id, problems.slice(0, 6).join('；'))
+}
+
+/**
+ * 阶段 5 与阶段 1 的**计划对账**（架构/几何段）。
+ *
+ * TikZ 几何族（`tikz_*`）要 LaTeX 引擎，本仓库没有 → 它们既没产出、也没被判定，
+ * 所以这一条给 **`2`（无法判定）而不是 `0`**：把它们算成"通过"就是拿"没做"当"做对了"。
+ */
+const diagramManifestReconcile: GateFn = (input) => {
+  const id = 'diagram_manifest_reconcile'
+  const analysis = input.upstream.get('PROBLEM_ANALYSIS.md') ?? null
+  if (analysis === null) {
+    return cannot(id, '上游 01-prob-analysis/PROBLEM_ANALYSIS.md 不在 —— 没有计划清单就无从对账')
+  }
+  const manifest = parseFigureManifest(analysis)
+  if (manifest === null) {
+    return cannot(id, 'PROBLEM_ANALYSIS.md 里没有完整的 FIGURE_MANIFEST 块 —— 无法对账架构段')
+  }
+  const planned = architectureFigureNames(manifest)
+  const htmlPlanned = planned.filter(n => !n.startsWith('tikz_'))
+  const tikzPlanned = planned.filter(n => n.startsWith('tikz_'))
+  if (htmlPlanned.length === 0) {
+    return cannot(id, 'FIGURE_MANIFEST 的 DRAWIO/HTML 段是空的 —— 本阶段无事可对账'
+      + '（本阶段声明的产物 `figures/fig_roadmap.svg` 需要清单里有对应条目）')
+  }
+  const rendered = renderedSvgFiles(input).map(figureIdOf)
+  const missing = htmlPlanned.filter(n => !rendered.includes(n))
+  const untracked = rendered.filter(n => !htmlPlanned.includes(n))
+  if (missing.length > 0 || untracked.length > 0) {
+    return fail(id, [
+      missing.length > 0 ? `计划里有、但没渲染出来：${missing.slice(0, 6).join('、')}` : '',
+      untracked.length > 0 ? `渲染了、但不在计划里：${untracked.slice(0, 6).join('、')}` : '',
+    ].filter(s => s !== '').join('；'))
+  }
+  if (tikzPlanned.length > 0) {
+    return cannot(id, `DRAWIO/HTML 段 ${String(htmlPlanned.length)} 张全部渲染；`
+      + `但 TIKZ 段 ${String(tikzPlanned.length)} 张（${tikzPlanned.join('、')}）需要 LaTeX 引擎，`
+      + '本仓库没有该工具链 —— 这几张既没产出、也没被判定，所以本门禁不能算通过')
+  }
+  return ok(id, `DRAWIO/HTML 段 ${String(htmlPlanned.length)} 张全部渲染；无清单外的图；无 TIKZ 条目`)
+}
+
+/** 从 SVG 字节复原节点矩形（几何判据只读产物，不靠第二份真相）。 */
+function nodeRectsOf(svg: string): ReadonlyArray<{ row: number; x: number; y: number; w: number; h: number }> {
+  return [...svg.matchAll(/<rect data-mh-row="(\d+)" x="(-?[\d.]+)" y="(-?[\d.]+)" width="([\d.]+)" height="([\d.]+)"/g)]
+    .map(m => ({
+      row: Number(m[1]),
+      x: Number(m[2]),
+      y: Number(m[3]),
+      w: Number(m[4]),
+      h: Number(m[5]),
+    }))
+}
+
+/** 从 SVG 字节复原文本盒（只取落在某个节点矩形内的文本——那才是"节点标签"）。 */
+function nodeLabelsOf(
+  svg: string,
+  rects: ReadonlyArray<{ row: number; x: number; y: number; w: number; h: number }>,
+): ReadonlyArray<{ row: number; text: string; left: number; right: number; top: number; bottom: number }> {
+  const out: Array<{ row: number; text: string; left: number; right: number; top: number; bottom: number }> = []
+  for (const m of svg.matchAll(/<text x="(-?[\d.]+)" y="(-?[\d.]+)"[^>]*font-size="([\d.]+)"[^>]*>([^<]*)<\/text>/g)) {
+    const x = Number(m[1])
+    const y = Number(m[2])
+    const size = Number(m[3])
+    const text = m[4] ?? ''
+    if (text.trim() === '') continue
+    const host = rects.find(r => x >= r.x - 1 && x <= r.x + r.w + 1 && y >= r.y - 1 && y <= r.y + r.h + 1)
+    if (host === undefined) continue
+    const width = estimateLabelPx(text, size)
+    out.push({
+      row: host.row,
+      text,
+      left: x - width / 2,
+      right: x + width / 2,
+      top: y - size * 0.8,
+      bottom: y + size * 0.25,
+    })
+  }
+  return out
+}
+
+/**
+ * 阶段 5 的几何自检（`diagram_geometry`）—— 参考的四类几何问题里的三类在这里落地：
+ * **文字溢出被裁切**（标签宽度超过所在节点）、**元素越出画布**（复用
+ * `checkFigureQuality` 的边界判据）、**同层中轴漂移 >4px**（复用
+ * `checkArchitectureAlignment`，层号从 SVG 的 `data-mh-row` 复原）。
+ *
+ * **文字块互相重叠**只核"节点标签之间"：边标签落在层间空隙，与节点标签的比较需要
+ * 连线的实际走向，那超出"只读 SVG 字节"能判的范围——这条边界如实写在这里，
+ * 不假装四类都覆盖了。
+ */
+const diagramGeometry: GateFn = (input) => {
+  const id = 'diagram_geometry'
+  const svgs = renderedSvgFiles(input)
+  if (svgs.length === 0) return cannot(id, '本阶段没有产出任何 SVG 图 —— 没有几何对象可核')
+  const problems: string[] = []
+  for (const file of svgs) {
+    const svg = input.files.get(file) ?? ''
+    for (const v of checkFigureQuality(svg)) problems.push(`${file}：${v.kind} —— ${v.detail}`)
+    const rects = nodeRectsOf(svg)
+    if (rects.length === 0) {
+      problems.push(`${file}：没有任何带 data-mh-row 的节点矩形 —— 几何不可复算`)
+      continue
+    }
+    // 方向：同层多节点共享 x → 横向展开；共享 y → 纵向展开。
+    const multi = [...new Set(rects.map(r => r.row))]
+      .map(row => rects.filter(r => r.row === row))
+      .find(rs => rs.length >= 2)
+    const direction: ArchLayout['direction'] = multi !== undefined && (multi[0]?.x === multi[1]?.x)
+      ? 'horizontal'
+      : 'vertical'
+    const vb = /viewBox="0 0 ([\d.]+) ([\d.]+)"/.exec(svg)
+    const layout: ArchLayout = {
+      nodeRects: rects.map((r, i) => ({ id: `n${String(i)}`, x: r.x, y: r.y, w: r.w, h: r.h, row: r.row })),
+      width: Number(vb?.[1] ?? '0'),
+      height: Number(vb?.[2] ?? '0'),
+      direction,
+    }
+    for (const v of checkArchitectureAlignment(layout, 4)) {
+      problems.push(`${file}：第 ${String(v.row)} 层的中轴漂移 ${v.deviation.toFixed(1)}px（>4px）`)
+    }
+    const labels = nodeLabelsOf(svg, rects)
+    for (const label of labels) {
+      const host = rects.find(r => r.row === label.row && label.left >= r.x - 40 && label.right <= r.x + r.w + 40)
+      if (host !== undefined && (label.left < host.x || label.right > host.x + host.w)) {
+        problems.push(`${file}：标签「${label.text.slice(0, 16)}」宽 ${(label.right - label.left).toFixed(0)}px `
+          + `超出节点宽 ${String(host.w)}px —— 文字会被裁切`)
+      }
+    }
+    for (let i = 0; i < labels.length; i += 1) {
+      for (let j = i + 1; j < labels.length; j += 1) {
+        const a = labels[i]
+        const b = labels[j]
+        if (a === undefined || b === undefined) continue
+        // **同层也要比**：横排节点之间最容易挤在一起，跳过同层就正好漏掉那一类。
+        const overlap = a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom
+        if (overlap) {
+          problems.push(`${file}：标签「${a.text.slice(0, 12)}」与「${b.text.slice(0, 12)}」的文字块重叠`)
+        }
+      }
+    }
+  }
+  return problems.length === 0
+    ? ok(id, `${String(svgs.length)} 张架构图：边界/溢出/对齐（≤4px）/标签重叠 全部通过`)
+    : fail(id, problems.slice(0, 6).join('；'))
+}
+
+/** 上游两个清单里登记过的图文件名（导出前校核用）。 */
+function upstreamFigureNames(input: GateInput): ReadonlyArray<string> {
+  const out: string[] = []
+  const figureManifest = parseFigureManifestFile(input.upstream.get(FIGURE_MANIFEST_FILE) ?? null)
+  for (const f of figureManifest?.figures ?? []) out.push((f.file.split('/').pop() ?? f.file))
+  const diagramManifest = parseDiagramManifestFile(input.upstream.get('diagram-manifest.json') ?? null)
+  for (const f of diagramManifest?.figures ?? []) out.push((f.file.split('/').pop() ?? f.file))
+  return out
+}
+
+/**
+ * 阶段 11 的导出前校核（`docx_precheck`）—— 参考 `docx-export` 的三件事：
+ * 占位符 / 表格列数 / 图片链接闭合，**判据写成代码**（`docxPrecheckFatal`）。
+ *
+ * 判据的落点：
+ * - 正文不在 → `2`（没有可校核的对象）；
+ * - 阶段 9 的画像在、但不是合法 JSON → **`1`**：那不是"用户没提要求"，是
+ *   "要求没被解析出来"，导出会按默认格式走而没人知道；
+ * - 画像缺失 → 不阻断（回退到国赛默认是**设计好的**行为，且回退这件事写在导出报告里）；
+ * - 有致命项 → `1`。
+ */
+const docxPrecheck: GateFn = (input) => {
+  const id = 'docx_precheck'
+  const markdown = input.upstream.get('paper/main.md') ?? null
+  if (markdown === null) {
+    return cannot(id, '上游 07-paper/paper/main.md 不在 —— 没有可校核的正文')
+  }
+  const rawProfile = input.upstream.get('_text_profile.json') ?? null
+  if (rawProfile !== null) {
+    try {
+      JSON.parse(rawProfile)
+    } catch (error) {
+      return fail(id, `阶段 9 的 _text_profile.json 不是合法 JSON（${String(error).slice(0, 80)}）—— `
+        + '用户要求没被解析出来，导出会静默按默认格式走')
+    }
+  }
+  const profile = resolveDocxProfile(rawProfile)
+  const fatal = docxPrecheckFatal(markdown, upstreamFigureNames(input))
+  if (fatal.length > 0) return fail(id, `导出前校核有致命项：${fatal.slice(0, 3).join('；')}`)
+  return ok(id, `导出前校核零致命项；格式画像来源 ${profile.source}`
+    + (profile.source === 'default' ? `（回退：${profile.fallbackReason.slice(0, 60)}）` : ''))
+}
+
 /**
  * 门禁登记表。
  *
@@ -267,15 +632,13 @@ export const GATES: ReadonlyMap<string, GateFn> = new Map<string, GateFn>([
   ['leakage_audit', leakageAudit],
   ['no_render', noRender],
   // ── 阶段 4/5 ──────────────────────────────────────────────────────────
-  ['figure_manifest_reconcile', () => cannot('figure_manifest_reconcile',
-    '未实现：要与阶段 1 的 FIGURE_MANIFEST 对账（计划里的每张图都必须真的渲染出来）。'
-    + '需要先把 manifest 解析成机器可读清单。')],
-  ['figure_declaration_complete', () => cannot('figure_declaration_complete',
-    '未实现：每条声明的 data_refs 必须指向阶段 3 铸出的 Result。需要 IR 快照作为输入。')],
-  ['diagram_manifest_reconcile', () => cannot('diagram_manifest_reconcile', '未实现：同 figure_manifest_reconcile，针对 HTML/DrawIO/TikZ 段。')],
-  ['diagram_geometry', () => cannot('diagram_geometry',
-    '未实现：参考的几何自检（文字溢出/越界/重叠/对齐漂移）需要渲染后的几何数据，'
-    + '本 harness 的渲染器要先把元素坐标吐出来。')],
+  ['figure_manifest_reconcile', figureManifestReconcile],
+  ['figure_declaration_complete', figureDeclarationComplete],
+  // 风格门禁 —— `adaptation.ts` 里那条 `missing`（Python 绘图库的规范）的补齐项：
+  // 规范本身早已在仓库里（语料 + 简报的禁令），缺的是**可核的判据**，这就是它。
+  ['figure_style_rules', figureStyleRules],
+  ['diagram_manifest_reconcile', diagramManifestReconcile],
+  ['diagram_geometry', diagramGeometry],
   // ── 阶段 6 ────────────────────────────────────────────────────────────
   ['review_fatal_count', reviewFatalCount],
   // ── 阶段 7 ────────────────────────────────────────────────────────────
@@ -301,13 +664,19 @@ export const GATES: ReadonlyMap<string, GateFn> = new Map<string, GateFn>([
   ['profile_valid_json', profileValidJson],
   // ── 阶段 10/11 ────────────────────────────────────────────────────────
   ['format_check_report', formatCheckReport],
-  ['docx_precheck', () => cannot('docx_precheck', '未实现：需要与阶段 9 的 _text_profile.json 对账（导出前的格式校核）。')],
+  ['docx_precheck', docxPrecheck],
   ['docx_exported', (i) => {
     const id = 'docx_exported'
-    const docx = text(i, 'paper/main.docx')
-    return docx === null
-      ? fail(id, 'paper/main.docx 不存在（导出不算成功）')
-      : ok(id, `paper/main.docx 存在（${String(Buffer.byteLength(docx, 'utf8'))} 字节）`)
+    // 字节数优先取 stat 的真值：docx 是二进制，按 utf8 读出来的长度不是它的体量。
+    const size = i.sizes?.get('paper/main.docx') ?? null
+    if (size === null) {
+      const docx = text(i, 'paper/main.docx')
+      return docx === null
+        ? fail(id, 'paper/main.docx 不存在（导出不算成功）')
+        : ok(id, `paper/main.docx 存在（${String(Buffer.byteLength(docx, 'utf8'))} 字节）`)
+    }
+    if (size === 0) return fail(id, 'paper/main.docx 存在但是空的（导出不算成功）')
+    return ok(id, `paper/main.docx 存在（${String(size)} 字节）`)
   }],
 ])
 

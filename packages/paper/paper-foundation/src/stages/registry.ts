@@ -102,9 +102,12 @@ export const STAGES: ReadonlyArray<StageSpec> = [
     consumes: ['02-modeling/MODELING_REPORT.md', '02-modeling/DECLARATION.json'],
     produces: [
       D('code/main.py', 'py', '编排入口：依次跑各问并汇总', 500),
+      // 逐问实现以**目录**为契约：问数由题面决定（参考的 `code/problem*.py`），
+      // 写不进静态列表。`code_parity` 判的就是这个目录里有几个 `problem*.py`。
+      D('code/', 'dir', '逐问实现：`problem*.py`，文件数 ≥ 题面问数（逐问奇偶校验）'),
       D('RESULTS.md', 'md', '结果说明', 1024),
       D('DELIVERABLES.json', 'json', '机器可校验的产出清单（kind/min_rows/min_bytes/desc）'),
-      D('FIGURE_DECLARATIONS.json', 'json', '图的**声明**（chart_type/data_refs/caption）；渲染是阶段 4 的事'),
+      D('FIGURE_DECLARATIONS.json', 'json', '图的**声明**：`results`（执行结果只读投影）+ `figures`（chart_type/data_refs/caption）；渲染是阶段 4 的事'),
     ],
     gates: ['code_parity', 'delivery_audit', 'leakage_audit', 'no_render'],
     contractRules: ['code_appendix_names_questions', 'floor_code'],
@@ -118,17 +121,27 @@ export const STAGES: ReadonlyArray<StageSpec> = [
     consumes: ['03-code/FIGURE_DECLARATIONS.json', '03-code/DELIVERABLES.json', '01-prob-analysis/PROBLEM_ANALYSIS.md'],
     produces: [
       D('figures/', 'dir', '按声明渲染的图（声明驱动，不写渲染代码）'),
-      D('figure-manifest.json', 'json', '渲染清单：图 id → 文件 → 数据引用'),
+      D('figure-manifest.json', 'json', '渲染清单：图 id → 文件 → 数据引用 → 渲染哈希'),
     ],
-    gates: ['figure_manifest_reconcile', 'figure_declaration_complete'],
+    gates: ['figure_manifest_reconcile', 'figure_declaration_complete', 'figure_style_rules'],
     contractRules: [], rollbackTo: ['code'],
+    premise: '**渲染是 harness 的事**：模型只声明 `chart_type/data_refs/caption`，'
+      + '图里的每个数都必须先作为 Result 存在。这一条由 `figure_declaration_complete`'
+      + '（每条 ref 都要解析到真有的 Result）与 `figure_style_rules`（字号/配色/无图内标题）'
+      + '机械强制——没有它们，"声明驱动"只是一句设计意图。',
   },
   {
     id: 'diagram', index: 5, kind: 'deterministic', title: '流程与架构图绘制', skillId: 'paper-figure-html',
     consumes: ['01-prob-analysis/PROBLEM_ANALYSIS.md'],
-    produces: [D('figures/fig_roadmap.svg', 'svg', '流程 / 架构 / 路线图')],
+    produces: [
+      D('figures/fig_roadmap.svg', 'svg', '流程 / 架构 / 路线图（按清单逐张渲染）'),
+      D('diagram-manifest.json', 'json', '架构图清单：图 id → 模板 → 模板摘要 → 风格族；含够不到的图'),
+    ],
     gates: ['diagram_manifest_reconcile', 'diagram_geometry'],
     contractRules: [], rollbackTo: ['prob-analysis'],
+    premise: '**结构也要声明**：`FIGURE_MANIFEST` 只给图名（参考里就是如此），给不出层/'
+      + '节点/连线。所以阶段 1 另立一份 `ARCH_DECLARATION` 块——与阶段 4 同一条纪律。'
+      + 'TikZ 几何族需要 LaTeX 引擎，本仓库没有：那几张**如实标注够不到**，门禁给 `2` 不给 `0`。',
   },
   {
     id: 'review', index: 6, kind: 'model', title: '逻辑对抗复核', skillId: 'comp-review',
@@ -185,8 +198,14 @@ export const STAGES: ReadonlyArray<StageSpec> = [
   },
   {
     id: 'docx-export', index: 11, kind: 'deterministic', title: '格式检查与导出', skillId: 'docx-export',
-    consumes: ['07-paper/paper/main.md', '09-format-profile/_text_profile.json'],
-    produces: [D('paper/main.docx', 'docx', '目标格式交付物')],
+    consumes: [
+      '07-paper/paper/main.md', '09-format-profile/_text_profile.json',
+      '04-figure/figure-manifest.json', '05-diagram/diagram-manifest.json',
+    ],
+    produces: [
+      D('paper/main.docx', 'docx', '目标格式交付物'),
+      D('DOCX_EXPORT_REPORT.md', 'md', '导出报告：依赖探测 / 画像来源与回退原因 / 栅格化 / 校核结论', 200),
+    ],
     gates: ['docx_precheck', 'docx_exported'],
     contractRules: [], rollbackTo: [],
     premise: '参考工作流里本阶段没有技能（只有引擎与产物形态），**本阶段的技能是自写的**。',

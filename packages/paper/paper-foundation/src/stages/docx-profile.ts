@@ -26,13 +26,11 @@
  */
 
 import { readFileSync } from 'node:fs'
-import { dirname, join } from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { join } from 'node:path'
+import { resolveStageAssetDir } from './asset-dir.ts'
 
-const HERE = dirname(fileURLToPath(import.meta.url))
-
-/** 样式档与封面档所在目录（从模块自身解析，单一来源）。 */
-export const DOCX_PROFILES_DIR = join(HERE, 'assets', 'docx-profiles')
+/** 样式档与封面档所在目录（从模块自身解析，单一来源；覆盖 src/lib 两种布局）。 */
+export const DOCX_PROFILES_DIR = join(resolveStageAssetDir('assets').dir, 'docx-profiles')
 
 /** 国赛正文样式档的形状（只声明本机真的会读的字段——**不是**全文转录）。 */
 export interface DocxProfile {
