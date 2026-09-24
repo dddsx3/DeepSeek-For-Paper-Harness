@@ -167,9 +167,21 @@ function envelopesOf(spec: StageSpec, files: Record<string, unknown>): ReadonlyM
   // （逐问一个 `problem*.py`，问数是题面决定的，写不进静态的 produces 列表）。
   // 所以"契约内"= 精确名 ∪ 目录前缀；前缀之外的仍然算多出来。
   const dirPrefixes = spec.produces.filter(p => p.kind === 'dir').map(p => p.file)
+  // **目录回声**：简报的契约节会列出 `code/`（dir）这样的条目，模型有理由把它
+  // 也当成一个键抄回来（2024B 阶段 3 实测）。它不承载文件内容——只要该前缀下
+  // 真有文件，就认出这是回声并忽略（**并且点名**，不静默）；前缀下一个文件都
+  // 没有，就不是回声而是缺文件，照常判失败。
   const got = Object.keys(files)
-  const missing = [...expected].filter(f => !got.includes(f))
-  const extra = got.filter(f => !expected.has(f) && !dirPrefixes.some(d => f.startsWith(d)))
+  const echoed = got.filter(f => dirPrefixes.some(d => d.replace(/\/+$/, '') === f.replace(/\/+$/, '')))
+  const fileKeys = got.filter(f => !echoed.includes(f))
+  const missing = [...expected].filter(f => !fileKeys.includes(f))
+  const covered = dirPrefixes.filter(d => fileKeys.some(f => f.startsWith(d.replace(/\/+$/, '') + '/')))
+  const uncovered = dirPrefixes.filter(d => !covered.includes(d))
+  const extra = fileKeys.filter(f => !expected.has(f) && !dirPrefixes.some(d => f.startsWith(d.replace(/\/+$/, ''))))
+  if (uncovered.length > 0) {
+    throw new Error(`stage '${spec.id}' envelope has no file under the declared dir produce(s) `
+      + `${uncovered.join('、')} —— 只回声了目录名、没有给出其中的文件`)
+  }
   // **缺与多都判失败**：静默接受"多出来的文件"会让阶段悄悄产出契约外的产物。
   if (missing.length > 0 || extra.length > 0) {
     throw new Error(
@@ -181,6 +193,7 @@ function envelopesOf(spec: StageSpec, files: Record<string, unknown>): ReadonlyM
     )
   }
   for (const [name, body] of Object.entries(files)) {
+    if (echoed.includes(name)) continue // 目录回声：不落盘（上面的 uncovered 检查已确认前缀下有真文件）
     if (typeof body !== 'string') throw new Error(`stage '${spec.id}' file '${name}' is not a string`)
     out.set(name, body)
   }

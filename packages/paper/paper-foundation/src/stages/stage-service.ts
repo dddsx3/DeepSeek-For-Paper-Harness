@@ -182,23 +182,39 @@ export class PaperStageChainService extends Service {
           system: STAGE_CHAIN_SYSTEM,
           messages: [createUserMessage({ content: [{ type: 'text', text: prompt }], source: { kind: 'user' } })],
         }
-        let text = ''
-        let finish: { kind: string } | undefined
-        for await (const chunk of provider.stream(request)) {
-          if (chunk.type === 'text-delta') text += chunk.text
-          if (chunk.type === 'finish') finish = chunk.reason
+        // 传输级重试（2024B 阶段 3 实测）：一次十几分钟的流会被中转中途掐断
+        // （"terminated" / 看门狗触发 / ECONNRESET）。这些是**传输失败**，不是
+        // "模型答错了"——重试是恢复路径，把整阶段作废才是真的浪费。
+        // 上限 3 次、退避 5s/15s/45s；max-tokens 截断**不重试**（那是产出超限，
+        // 重发只会再超限一次），按契约失败上报。
+        let lastFailure: unknown
+        for (let attempt = 1; attempt <= 3; attempt += 1) {
+          try {
+            let text = ''
+            let finish: { kind: string } | undefined
+            for await (const chunk of provider.stream(request)) {
+              if (chunk.type === 'text-delta') text += chunk.text
+              if (chunk.type === 'finish') finish = chunk.reason
+            }
+            const kind = finish?.kind ?? 'stop'
+            if (kind === 'max-tokens') {
+              throw new Error(`阶段 '${spec.id}' 的回答被 max-tokens 截断 —— `
+                + '这不是"写错了哪里"，是产出超过了单次调用的输出上限；分片或压缩后重试')
+            }
+            if (kind === 'error' || kind === 'aborted') {
+              throw new Error(`模型调用未正常结束（finish=${kind}）—— 阶段 '${spec.id}' 没有可用回答`)
+            }
+            return text
+          } catch (error) {
+            lastFailure = error
+            const message = String(error instanceof Error ? error.message : error)
+            const retryable = /terminated|ECONNRESET|fetch failed|socket|看门狗|network|timeout|aborted/i.test(message)
+              && !/max-tokens/.test(message)
+            if (!retryable || attempt === 3) break
+            await new Promise(resolve => setTimeout(resolve, 5_000 * 3 ** (attempt - 1)))
+          }
         }
-        // 结束原因**必须看**：`max-tokens` 截断的产物会缺尾（JSON 信封缺右括号），
-        // 按契约解析必然失败——但失败信息要说清是截断，而不是让模型去猜哪里写错了。
-        const kind = finish?.kind ?? 'stop'
-        if (kind === 'error' || kind === 'aborted') {
-          throw new Error(`模型调用未正常结束（finish=${kind}）—— 阶段 '${spec.id}' 没有可用回答`)
-        }
-        if (kind === 'max-tokens') {
-          throw new Error(`阶段 '${spec.id}' 的回答被 max-tokens 截断 —— `
-            + '这不是"写错了哪里"，是产出超过了单次调用的输出上限；分片或压缩后重试')
-        }
-        return text
+        throw lastFailure instanceof Error ? lastFailure : new Error(String(lastFailure))
       },
       runDeterministic: deterministicRunner(this.config.onDeterministicOutcome),
       skillVersionOf: () => 'stage-chain-v1',
