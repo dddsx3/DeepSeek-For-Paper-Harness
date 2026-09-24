@@ -434,6 +434,11 @@ export function stageBriefing(
     const floor = p.minBytes === undefined ? '' : `，≥ ${String(p.minBytes)} 字节`
     L.push(`- \`${p.file}\`（${p.kind}${floor}）—— ${p.desc}`)
   }
+  // **回答形态必须教给模型**。runner 的映射规则（1 份取原文 / ≥2 份取 JSON 信封）
+  // 原本只写在 runner.ts 的模块头——那是给人看的，模型看不见。2024B-stages-1 的
+  // 第一次真实运行撞在这里：模型产出 270KB 推理 + 四个独立的围栏代码块，
+  // **没有一个 JSON 信封**，于是"信封不是合法 JSON"。规则没投递，就不是模型不守约。
+  L.push('', `- **回答形态（硬性）**：${answerFormOf(spec)}`)
 
   sec(BRIEFING_SECTIONS[2])
   if (upstreamText.size === 0) {
@@ -471,6 +476,30 @@ export function stageBriefing(
 /** 该阶段的技能是否转写自参考（`false` = 本 harness 自创）。 */
 export function isPorted(spec: StageSpec): boolean {
   return SKILLS[spec.id]?.ported ?? false
+}
+
+/**
+ * 一个阶段的**回答形态**（给模型看的硬性要求）。
+ *
+ * 与 `runner.parseStageOutput` 的映射规则**同源**：1 份产出取原文，≥2 份取 JSON 信封。
+ * 规则只写一份，然后两边用——这里导出给测试钉住"简报教的形态 = runner 解析的形态"，
+ * 两边漂移时测试会红。
+ *
+ * @param spec - 阶段。
+ * @returns 一句投递给模型的硬性要求。
+ */
+export function answerFormOf(spec: StageSpec): string {
+  if (spec.produces.length === 1) {
+    const only = spec.produces[0]
+    return `你的回答就是 \`${only?.file ?? '?'}\` 的完整内容本身——从第一个字符到最后一个字符都是它，`
+      + '不得加任何解释、任何代码围栏（```）、任何前后缀。'
+  }
+  const keys = spec.produces.map(p => p.file)
+  return `你的回答必须**只有一个** JSON 对象，形如 \`{"files": {…}}\`：`
+    + `顶层键是 \`files\`，它下面**恰好**这几个键——${keys.map(k => `\`${k}\``).join('、')}——`
+    + '每个键的值就是那份文件的完整内容（字符串）。'
+    + '除这一个 JSON 对象外**不得有任何其它字符**：不要解释、不要推理过程、不要代码围栏、'
+    + '不要在 JSON 前后加任何话。你的回答会被直接按这个形态解析，多一个字符都会解析失败。'
 }
 
 /** 全部阶段的技能是否都有内容（装配完整性）。 */

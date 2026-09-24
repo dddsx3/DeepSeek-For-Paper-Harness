@@ -6,6 +6,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   BRIEFING_SECTIONS,
+  answerFormOf,
   isPorted,
   missingSkills,
   stageBriefing,
@@ -65,6 +66,32 @@ describe('简报 —— ① 不许简化成摘要', () => {
     expect(brief('paper')).toContain('参考文献')             // 头号拒绝的判据
     expect(brief('review')).toContain('bound_direction')     // findings 类别是闭集
     expect(brief('code')).toContain('jsonPath')              // 数字的合法来源
+  })
+})
+
+describe('简报 —— 回答形态必须教给模型（2024B-stages-1 真实运行换来的判据）', () => {
+  it('**简报教的形态 = runner 解析的形态**（规则只写一份，两边共用）', () => {
+    // 第一版这条规则只写在 runner.ts 的模块头——模型看不见。真实运行里模型产出
+    // 270KB 推理 + 四个独立围栏块、没有一个 JSON 信封，于是"信封不是合法 JSON"。
+    // 规则没投递，就不是模型不守约。
+    for (const s of STAGES) {
+      const text = brief(s.id)
+      expect(text, `${s.id} 的简报没写回答形态`).toContain('回答形态（硬性）')
+      expect(text).toContain(answerFormOf(s))
+    }
+  })
+
+  it('多产出阶段点名**每一个**文件名，单产出阶段点名那一个文件', () => {
+    const modeling = brief('modeling')
+    for (const f of ['DECLARATION.json', 'MODELING_REPORT.md']) expect(modeling).toContain(f)
+    expect(modeling).toContain('{"files"')
+    const paper = brief('paper')
+    expect(paper).toContain('paper/main.md')
+    expect(paper).not.toContain('{"files"')
+  })
+
+  it('多产出阶段明说"除这一个 JSON 对象外不得有任何其它字符"', () => {
+    expect(brief('code')).toContain('不得有任何其它字符')
   })
 })
 

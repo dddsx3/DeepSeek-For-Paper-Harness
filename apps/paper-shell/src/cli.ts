@@ -732,6 +732,19 @@ ${String(result.unverifiable.length)} / ${String(result.claims.length)} 条断�
 
     console.log(`[STAGE CHAIN] ${stagesRoot}`)
     console.log(`  题面问数（数出来的）：${countProblems(problemText)}`)
+    // **每阶段停**：只跑下一个未通过的阶段，跑完即停，等人检查后放行。
+    // 放行 = 检查的人决定"再调一次 --stage-next"；检查结论写进检查点报告。
+    if (parsed['stage-next'] === true) {
+      const one = await ctx.paperStageChain.runOneStage()
+      if (one === null) {
+        console.log('[STAGE NEXT] 整条链都已完成 —— 没有可跑的阶段。')
+        void dispose()
+        return 0
+      }
+      console.log(`[STAGE NEXT] 只跑了 '${one.stage}'，到此即停。`
+        + `检查 ${stagesRoot} 后，放行 = 再执行一次 --stages --stage-next。`)
+      return finishStageChain([one], stagesRoot, dispose)
+    }
     if (parsed['stage-resume'] === true) {
       const resumed = await ctx.paperStageChain.resume()
       if (resumed.from === null) {
