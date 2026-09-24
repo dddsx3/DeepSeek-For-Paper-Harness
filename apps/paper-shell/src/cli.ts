@@ -29,6 +29,7 @@ import {
   PaperArtifactBodyService,
   PaperAuditService,
   PaperExecutorService,
+  PaperStageChainService,
   PaperFoundationService,
   PaperProviderService,
   PaperRuntimeGuard,
@@ -38,6 +39,7 @@ import {
   createExploratoryProfile,
 } from '@deepseek-ai/dsh-paper-foundation'
 import { ModelingIr } from '@deepseek-ai/dsh-paper-foundation'
+import { STAGE_REGISTRY, countProblems, type StageChainId, type StageOutcome } from '@deepseek-ai/dsh-paper-foundation'
 import { brokenFigureLinks, deliverablesContractFindings, docxExportGate, docxPrecheckVerdict, exportDepsSummary, parseDeliverablesContract, probeExportDeps, runDocxPrechecks, type ActualDeliverable } from '@deepseek-ai/dsh-paper-foundation'
 import { resolveShellRoute, blockMessage, failureFactsOf, fidelityBlockedHuman, lastFailureClassEvent, type ShellRoute } from './invoke.ts'
 import { assembleBundle } from './bundle.ts'
@@ -147,11 +149,43 @@ async function buildContext(shellRoot: string, display?: { provider: string; mod
   }
 }
 
+/**
+ * 打印逐阶段结果并给出退出码。
+ *
+ * 退出码的语义与阶段链的失败档一致：`blocked` / `gate-failed` → 1（**立即停**的那个
+ * 阶段就是最后一行）；`passed-unverified` → 0（`2` 不阻断阶段，但缺口已记在通行证上，
+ * 交付侧按它降档——这里不替交付侧做决定）。
+ */
+function finishStageChain(
+  outcomes: ReadonlyArray<StageOutcome>,
+  stagesRoot: string,
+  dispose: () => Promise<void>,
+): number {
+  const icon = (status: StageOutcome['status']): string =>
+    status === 'passed' ? '✅' : status === 'passed-unverified' ? '🟡' : status === 'blocked' ? '⛔' : '❌'
+  for (const o of outcomes) console.log(`  ${icon(o.status)} ${o.stage}: ${o.reason}`)
+  const failed = outcomes.filter(o => o.status === 'gate-failed' || o.status === 'blocked')
+  if (failed.length > 0) {
+    console.error(`
+STAGE CHAIN FAILED — ${String(failed.length)} 个阶段没通过（产物与通行证在 ${stagesRoot}）。`)
+    void dispose()
+    return 1
+  }
+  const unverified = outcomes.filter(o => o.status === 'passed-unverified')
+  console.log(`
+STAGE CHAIN OK — ${String(outcomes.length)} 个阶段签发通行证`
+    + `（其中 ${String(unverified.length)} 个带未判定门禁，缺口已记在 PASSED 上）。产物在 ${stagesRoot}`)
+  void dispose()
+  return 0
+}
+
 async function main(): Promise<number> {
   const parsed = parseArgs(process.argv.slice(2))
   const positionals = parsed.positionals
   if (positionals.length === 0 && parsed.version === undefined && parsed.help === undefined) {
     console.error('usage: paper-shell run <problem-file> [--tier T1|T2|T3] [--mode fast|strict|exploratory] [--fail-soft|--closed-loop|--strict-tolerance] [--capability-tier S|A|B] [--out <dir>] [--zip]')
+    console.error('       paper-shell run <problem-file> --stages [--stage-only a,b] [--stage-pause-after a,b] [--stage-resume] [--stage-problems N]')
+    console.error('                                     # 走 11 阶段链（每阶段一个技能/产物/门禁/通行证；暂停后续跑见 --stage-resume）')
     console.error('       paper-shell probe [--json]            # L0 能力探针：跑三个可机械判定的任务，产出档位 S/A/B')
     console.error('       paper-shell claims <workspace> [--json]   # L3 符号证据：跑 claims/*.py 并标注证据级别')
     return 2
@@ -641,6 +675,82 @@ ${String(result.unverifiable.length)} / ${String(result.claims.length)} 条断�
     }
     const adapter: SeamAdapter = (r, req) => streamCompletion(r, req)
     ctx.provide('paperProvider', createRealProvider(route, adapter, recorder))
+  }
+
+  // ── S6：`--stages` = 走 11 阶段链（不走交付链） ──────────────────────────
+  // 两条路径共用同一条 provider 缝与同一次审计，但产出方式不同：交付链把八章写在
+  // 一次调用里，阶段链按注册表逐阶段跑（每阶段一个技能、一组同名产物、一套门禁、
+  // 一个通行证）。`--stages-pause-after` 跑到指定阶段就停；`--stages-resume` 从
+  // 第一份缺失/已作废的通行证继续（通行证就是切片——见 stage-service 的模块头）。
+  if (parsed.stages === true) {
+    const stagesRoot = join(outDir, 'stages')
+    const inputDir = join(stagesRoot, '00-input')
+    await mkdir(inputDir, { recursive: true })
+    // 题面与附件是**外部输入**：harness 把它们落进 00-input，阶段 1 的简报才会内联它们
+    // （第一版 runner 刻意跳过 00-input，那是为测试写的；真实运行的阶段 1 必须看得见题面）。
+    const problemText = await readFile(problemFile, 'utf8')
+    await writeFile(join(inputDir, 'problem.txt'), problemText, 'utf8')
+    const attachmentsArg = typeof parsed['stage-attachments'] === 'string' ? String(parsed['stage-attachments']) : undefined
+    if (attachmentsArg !== undefined) {
+      await writeFile(join(inputDir, 'attachments.json'), await readFile(attachmentsArg, 'utf8'), 'utf8')
+    }
+    const stageIds: ReadonlyArray<string> = STAGE_REGISTRY.map(s => s.id)
+    const parseIds = (raw: unknown, flag: string): StageChainId[] => {
+      if (typeof raw !== 'string' || raw.length === 0) return []
+      const ids = raw.split(',').map(x => x.trim()).filter(x => x.length > 0)
+      const unknown = ids.filter(id => !stageIds.includes(id))
+      if (unknown.length > 0) {
+        throw new Error(`${flag} 里有不认识的阶段 id：${unknown.join('、')}（全部：${stageIds.join('、')}）`)
+      }
+      return ids as StageChainId[]
+    }
+    let pauseAfter: StageChainId[] = []
+    let only: StageChainId[] | undefined
+    try {
+      pauseAfter = parseIds(parsed['stage-pause-after'], '--stage-pause-after')
+      const onlyArg = parseIds(parsed['stage-only'], '--stage-only')
+      only = onlyArg.length === 0 ? undefined : onlyArg
+    } catch (error) {
+      console.error((error as Error).message)
+      await dispose()
+      return 2
+    }
+    const problemsArg = Number(parsed['stage-problems'])
+    try {
+      await ctx.plugin(PaperStageChainService, {
+        stagesRoot,
+        ...(only === undefined ? {} : { only }),
+        ...(pauseAfter.length === 0 ? {} : { pauseAfter }),
+        ...(Number.isFinite(problemsArg) && problemsArg > 0 ? { problemCount: problemsArg } : {}),
+        onDeterministicOutcome: (o) => console.log(`  [deterministic] ${o.stage}: ${o.summary}`),
+      })
+    } catch (error) {
+      console.error('stage chain mount failed:', (error as Error).message)
+      await dispose()
+      return 1
+    }
+
+    console.log(`[STAGE CHAIN] ${stagesRoot}`)
+    console.log(`  题面问数（数出来的）：${countProblems(problemText)}`)
+    if (parsed['stage-resume'] === true) {
+      const resumed = await ctx.paperStageChain.resume()
+      if (resumed.from === null) {
+        console.log('[RESUME] 整条链都已完成 —— 没有可续跑的阶段。')
+        await dispose()
+        return 0
+      }
+      console.log(`[RESUME] 从 '${resumed.from}' 续跑（它的通行证缺失或已作废）。`)
+      return finishStageChain(resumed.outcomes, stagesRoot, dispose)
+    }
+    const outcomes = pauseAfter.length === 0
+      ? await ctx.paperStageChain.run()
+      : await ctx.paperStageChain.runUntilPause()
+    if (pauseAfter.length > 0) {
+      const last = outcomes[outcomes.length - 1]
+      console.log(`[PAUSE] 跑到 '${last?.stage ?? '?'}' 就停 —— 检查 ${stagesRoot} 里的产物与 PASSED 后，`
+        + `用 --stages --stage-resume 继续。`)
+    }
+    return finishStageChain(outcomes, stagesRoot, dispose)
   }
   // Plugin executor AFTER provider is mounted.
   // TASK-2026-09-09 E2/O3 (cockpit wiring): pricing arrives via
