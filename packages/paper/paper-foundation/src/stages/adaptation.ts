@@ -116,9 +116,11 @@ export const ADAPTATIONS: ReadonlyArray<AssetAdaptation> = [
   // ── 模板：尚未移植 ────────────────────────────────────────────────────────
   {
     stage: 'diagram', assetClass: 'template', reference: 'paper-figure-html/templates/tpl_*.html(5份) + themes.css',
-    mode: 'missing',
-    detail: '简报里写了"五种模板族"，但模板文件本身没进仓库——渲染器无模板可用。',
-    option: '把五份模板与主题样式移植进 `src/stages/assets/diagram-templates/`，由阶段 5 的渲染器读取。',
+    mode: 'ported',
+    detail: '五份模板 + 主题样式**已原样迁移**到 `src/stages/assets/diagram-templates/`（6 份 / 34KB，'
+      + '模板是版式规范本身，不改写）。模板与阶段 5 简报的模板族**由测试钉成一一对应**'
+      + '——简报写了不存在的模板名，模型就无从选起。',
+    option: '剩下的只是把渲染器接上模板（阶段 5 的渲染器尚未实现）；模板本身是纯静态资源，无额外依赖。',
   },
   {
     stage: 'format-profile', assetClass: 'template', reference: 'tools/docx_style_profiles/competition_zh.json + covers/cumcm.json',
@@ -131,13 +133,13 @@ export const ADAPTATIONS: ReadonlyArray<AssetAdaptation> = [
   {
     stage: 'docx-export', assetClass: 'docx_engine', reference: 'tools/docx-cn-engine/(md_to_docx.js + latex_to_omml.js + new_doc.js)',
     mode: 'missing',
-    detail: '阶段 11 的导出引擎（`md_to_docx.js` + `latex_to_omml.js` + `new_doc.js`）未接；'
-      + '本仓库现有的 `scripts/export-docx.py` 对齐的是本仓库模板（dphpaper.cls 一系），'
-      + '**不是**参考的国赛样式档，两者不可互换。**样式档侧已就绪**（`docx-profile.ts`），'
-      + '缺的只是消费它的渲染器。',
-    option: '**迁移引擎而不是改造**：`docx-cn-engine` 是 Node 实现，与本仓库同运行时，可直接调用；'
-      + '适配点是它的画像输入——把 `competition_zh.json` 换成 `resolveDocxProfile` 的输出。'
-      + '不选复用 `export-docx.py`：它对齐的是本仓库模板，与迁移进来的国赛样式档**不是同一套标准**。',
+    detail: '引擎文件**已迁移**到 `src/stages/assets/docx-engine/`（5 份 / 110KB）；样式档侧也已就绪'
+      + '（`docx-profile.ts`）。**但拷文件不等于能跑**：引擎的 `package.json` 声明了三个依赖 '
+      + '`docx` / `fast-xml-parser` / `temml`，而本仓库**一个都没有**（已核实，并有断言钉住'
+      + '"还没装"这一事实——装了依赖那条断言会红，逼作者同步台账）。',
+    option: '**装这三个依赖**，或把引擎里用到它们的地方改成仓库已有的能力。'
+      + '不选复用 `export-docx.py`：它对齐的是本仓库模板（dphpaper.cls 一系），'
+      + '与迁移进来的国赛样式档**不是同一套标准**，混用会产出"样式档说 A、渲染器按 B 做"的文档。',
   },
   {
     stage: 'format-check', assetClass: 'gate_script', reference: 'docx-format-check/SKILL.md 的五类检查（代码块/公式编号/三线表/图片引用/噪声）',
@@ -156,10 +158,12 @@ export const ADAPTATIONS: ReadonlyArray<AssetAdaptation> = [
   {
     stage: 'figure', assetClass: 'python_compute', reference: '_utils/plot_utils.py(104KB, setup_style 强制) + get_recipe.py',
     mode: 'missing',
-    detail: '本 harness 的图由 `figure/producer.ts` 声明驱动渲染（TS），不走 matplotlib。'
-      + '所以参考的绘图库**不需要移植**——但它的**风格规范**（setup_style 的等价物）需要。',
-    option: '把 `setup_style` 的**规范**（字号下限 9pt、灰度可区分、禁默认色板、300DPI）移植进 TS 渲染器；'
-      + '绘图库本身不移植。**这是一次真正的适配**：能力等价物换了实现，规范一条不丢。',
+    detail: '本 harness 的图由 `figure/producer.ts` 声明驱动渲染（TS），不走 matplotlib，'
+      + '所以绘图库**不移植**。它的**规范**已经迁移——`figure-style-guide.md`(80KB) 与五份配方'
+      + '在 `skill-docs/` 里，由 `read_skill_doc` 取用；简报的禁令（禁 plt.title / 禁默认色板 /'
+      + '≥300DPI / 字号 ≥9pt）也逐条写进了阶段 4 的 `forbidden`。',
+    option: '**剩下的不是迁移而是强制**：把这几条规范做成 TS 门禁（`figure_style_rules`），'
+      + '需要渲染器先吐出每个元素的字号与配色元数据。规范本身已经在仓库里，缺的是可核的判据。',
   },
   {
     stage: 'prob-analysis', assetClass: 'python_compute', reference: '_utils/data_profile.py + stats_utils.py',
