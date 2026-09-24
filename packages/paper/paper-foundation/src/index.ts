@@ -59,6 +59,46 @@ export type {
   SkillConflict,
 } from './skill-catalog.ts'
 export { CatalogSkillProvider } from './catalog-provider.ts'
+// 11 阶段链（S0–S6）。这一行是 S6 的"进产物"：index 是 tsdown 的打包入口，
+// 不从它导出，`stages/**` 整个子树不会出现在 `lib/index.js` 里——
+// 之前 `grep docx-profiles lib/index.js` 为 0 就是这个原因。
+export {
+  STAGES as STAGE_REGISTRY,
+  STAGE_IDS as STAGE_CHAIN_IDS,
+  DETERMINISTIC_STAGES as DETERMINISTIC_CHAIN_STAGES,
+  MODEL_STAGES as MODEL_CHAIN_STAGES,
+  stageOf as chainStageOf,
+  stageDirName as chainStageDirName,
+  // **改名导出**：`runtime/stage-checkpoint.ts` 也导出一个 `StageId`（交付链的 5 阶段表）。
+  // 两个同名类型从同一个入口出去，`import { type StageId }` 拿到的是哪一个就成了
+  // 碰运气——这正是交接文档 §3.3 说的"11 阶段表要与 5 阶段表对齐"的那处碰撞。
+  type StageId as StageChainId,
+} from './stages/registry.ts'
+export {
+  runStages as runStageChain,
+  parseStageOutput,
+  type StageRunContext,
+  type StageOutcome,
+} from './stages/runner.ts'
+export {
+  PaperStageChainService,
+  resumePointOf as stageChainResumePointOf,
+  countProblems,
+  STAGE_CHAIN_SYSTEM,
+  type StageChainConfig,
+} from './stages/stage-service.ts'
+export { deterministicRunner as stageChainDeterministicRunner } from './stages/deterministic.ts'
+export {
+  readPassport as readStagePassport,
+  writePassport as writeStagePassport,
+  markStaleFrom as markStageChainStaleFrom,
+  stageReady as stageChainStageReady,
+} from './stages/handoff.ts'
+export { runGates as runStageGates, GATES as STAGE_GATES } from './stages/gates.ts'
+export { stageBriefing } from './stages/briefing.ts'
+// 资产目录解析（含"这次用的是 src 还是 lib 那一份"）——诊断与报告要能回答这个问题。
+export { resolveStageAssetDir, stageAssetDir, type AssetLayout } from './stages/asset-dir.ts'
+export { missingAdaptations, ADAPTATIONS } from './stages/adaptation.ts'
 export { resolveRunPolicy } from './policy.ts'
 export type { RunPolicy } from './policy.ts'
 export { StagePauseSignal, WorkflowExecutor, WorkflowExecutionError } from './executor.ts'

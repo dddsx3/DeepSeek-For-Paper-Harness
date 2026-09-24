@@ -158,11 +158,18 @@ export function parseStageOutput(spec: StageSpec, text: string): ReadonlyMap<str
   return out
 }
 
-/** 读上游产物文本（供简报内联）。缺失的记空串并在简报里如实体现。 */
+/**
+ * 读上游产物文本（供简报内联）。
+ *
+ * **`00-input/` 也要读**：题面与附件是阶段 1 的 `consumes`，而阶段 1 的模型必须
+ * 看得见题面——跳过它们，简报就会是一份"分析一个你看不见的题"的指令。第一版
+ * 跳过是按"外部输入由调用方另行注入"写的，但调用方（`stage-service.ts`）把题面
+ * 落盘到 `00-input/problem.txt` 之后，这条路就是唯一通路。缺失的文件照旧不出现
+ * （缺失在简报里如实体现，不假装是空串）。
+ */
 async function upstreamTextOf(stagesRoot: string, spec: StageSpec): Promise<Map<string, string>> {
   const out = new Map<string, string>()
   for (const path of spec.consumes) {
-    if (path.startsWith('00-input/')) continue // 题面等外部输入由调用方另行注入
     const text = await readFile(join(stagesRoot, path), 'utf8').catch(() => null)
     if (text !== null) out.set(path, text)
   }
