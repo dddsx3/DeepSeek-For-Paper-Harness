@@ -117,28 +117,57 @@ export function parseStageOutput(spec: StageSpec, text: string): ReadonlyMap<str
     out.set(only.file, text)
     return out
   }
-  // ≥2 份：要 JSON 信封
-  const start = text.indexOf('{')
-  const end = text.lastIndexOf('}')
-  if (start === -1 || end <= start) {
-    throw new Error(`stage '${spec.id}' declares ${String(spec.produces.length)} deliverables, so the answer must be a JSON envelope {"files": {...}} — got no JSON object`)
+  // ≥2 份：要 JSON 信封。
+  //
+  // **候选阶梯，而不是单一规则**。真实运行（2024B-stages-1）实测：模型会先写
+  // 数百 KB 的推理散文再给信封，而散文里也有 `{`——"取第一个 { 到最后一个 }"
+  // 拿到的片段根本不是信封。阶梯每一级都是**确定性的**，逐级尝试；全部失败时把
+  // 每一级的证据一起点名（不静默取其一，也不"尽力猜哪份是哪份"）。
+  const trimmed = text.trim()
+  const attempts: Array<{ readonly label: string; readonly text: string }> = [
+    { label: '整个回答', text: trimmed },
+  ]
+  // 契约锚：顶层键必须是 `files`。从**最后一个** `"files"` 往前找它所属的 `{`——
+  // 模型先推理后产出，真信封在末尾；散文里引用的 `{"files"}` 在它前面。
+  const anchor = trimmed.lastIndexOf('"files"')
+  if (anchor > 0) {
+    const brace = trimmed.lastIndexOf('{', anchor)
+    if (brace >= 0) attempts.push({ label: `契约锚（最后一个 "files" 所属的 {，偏移 ${String(brace)}）`, text: trimmed.slice(brace) })
   }
-  let parsed: { files?: unknown }
-  try {
-    parsed = JSON.parse(text.slice(start, end + 1)) as { files?: unknown }
-  } catch (error) {
-    throw new Error(`stage '${spec.id}' envelope is not valid JSON: ${String(error).slice(0, 100)}`)
+  const start = trimmed.indexOf('{')
+  const end = trimmed.lastIndexOf('}')
+  if (start >= 0 && end > start) {
+    attempts.push({ label: `第一个 { 到最后一个 }（${String(start)}…${String(end)}）`, text: trimmed.slice(start, end + 1) })
   }
-  const files = parsed.files
-  if (typeof files !== 'object' || files === null || Array.isArray(files)) {
-    throw new Error(`stage '${spec.id}' envelope has no "files" object`)
+  const failures: string[] = []
+  for (const attempt of attempts) {
+    let parsed: { files?: unknown }
+    try {
+      parsed = JSON.parse(attempt.text) as { files?: unknown }
+    } catch (error) {
+      failures.push(`[${attempt.label}] ${String(error).slice(0, 120)}`)
+      continue
+    }
+    const files = parsed.files
+    if (typeof files !== 'object' || files === null || Array.isArray(files)) {
+      failures.push(`[${attempt.label}] 有 JSON 但没有 "files" 对象`)
+      continue
+    }
+    return envelopesOf(spec, files as Record<string, unknown>)
   }
+  throw new Error(`stage '${spec.id}' declares ${String(spec.produces.length)} deliverables, so the answer must be a JSON envelope {"files": {...}}`
+    + ` —— 没有一个候选能解析出信封：${failures.join('；')}`)
+}
+
+/** 信封形态校验：缺文件、多文件、名字不对——一律判失败并点名（不"尽力猜"）。 */
+function envelopesOf(spec: StageSpec, files: Record<string, unknown>): ReadonlyMap<string, string> {
+  const out = new Map<string, string>()
   const expected = new Set(spec.produces.filter(p => p.kind !== 'dir').map(p => p.file))
   // 目录型产物（阶段 3 的 `code/`）**以目录为契约**：里面的文件名由模型按题面定
   // （逐问一个 `problem*.py`，问数是题面决定的，写不进静态的 produces 列表）。
   // 所以"契约内"= 精确名 ∪ 目录前缀；前缀之外的仍然算多出来。
   const dirPrefixes = spec.produces.filter(p => p.kind === 'dir').map(p => p.file)
-  const got = Object.keys(files as Record<string, unknown>)
+  const got = Object.keys(files)
   const missing = [...expected].filter(f => !got.includes(f))
   const extra = got.filter(f => !expected.has(f) && !dirPrefixes.some(d => f.startsWith(d)))
   // **缺与多都判失败**：静默接受"多出来的文件"会让阶段悄悄产出契约外的产物。
@@ -151,7 +180,7 @@ export function parseStageOutput(spec: StageSpec, text: string): ReadonlyMap<str
       + (dirPrefixes.length === 0 ? '' : `（或 ${dirPrefixes.join('、')} 之下的任意文件）`),
     )
   }
-  for (const [name, body] of Object.entries(files as Record<string, unknown>)) {
+  for (const [name, body] of Object.entries(files)) {
     if (typeof body !== 'string') throw new Error(`stage '${spec.id}' file '${name}' is not a string`)
     out.set(name, body)
   }
@@ -178,6 +207,9 @@ async function upstreamTextOf(stagesRoot: string, spec: StageSpec): Promise<Map<
 
 /** 目录型产物的展开深度上限（`figures/` 是平的，`paper/_improvement_rounds/` 也只一层）。 */
 const DIR_PRODUCE_DEPTH = 2
+
+/** 被拒回答的留档名（阶段目录内）。失败要能诊断，原始回答就是证据。 */
+export const REJECTED_ANSWER_FILE = '_rejected-answer.txt'
 
 /** 文本类产物（读进来给门禁判）。其余（docx/png/xlsx）只记字节数——按 utf8 读二进制会改长度。 */
 const TEXT_KINDS = /\.(md|json|py|svg|tex|csv|txt|ya?ml|html)$/i
@@ -299,10 +331,12 @@ export async function runStages(
 
     const dir = join(ctx.stagesRoot, stageDirName(spec))
     await mkdir(dir, { recursive: true })
+    let rejectedAnswer: string | undefined
     try {
       if (spec.kind === 'model') {
         const prompt = stageBriefing(spec, await upstreamTextOf(ctx.stagesRoot, spec), ctx.toolsMounted?.(spec) === true)
         const answer = await ctx.callModel(spec, prompt)
+        rejectedAnswer = answer
         for (const [name, body] of parseStageOutput(spec, answer)) {
           const file = join(dir, name)
           await mkdir(dirname(file), { recursive: true })
@@ -314,11 +348,22 @@ export async function runStages(
         await ctx.runDeterministic?.(spec, ctx.stagesRoot)
       }
     } catch (error) {
+      const message = String(error instanceof Error ? error.message : error)
+      // **被拒的回答要留档**：没有它，"信封不是合法 JSON"这类失败无法诊断——
+      // 模型到底写了什么、差在哪个字符、是截断还是包了散文。这是真实运行
+      // （2024B-stages-1 第一次就撞上）换来的观测点：失败只留一句 SyntaxError，
+      // 而原始回答被丢掉，检查点报告就写不出"错误形态/根因"。
+      if (rejectedAnswer !== undefined) {
+        await writeFile(join(dir, REJECTED_ANSWER_FILE),
+          `<!-- 拒绝原因：${message.replace(/--/g, '——')} -->\n\n${rejectedAnswer}\n`, 'utf8')
+          .catch(() => { /* 落盘失败不掩盖原失败 */ })
+      }
       outcomes.push({
         stage: spec.id, status: 'gate-failed',
-        gate: { code: 1, items: [{ id: 'stage_output', ok: false, detail: String(error instanceof Error ? error.message : error) }] },
+        gate: { code: 1, items: [{ id: 'stage_output', ok: false, detail: message }] },
         ...(spec.rollbackTo.length === 0 ? {} : { suggestedRollbackTo: spec.rollbackTo[0] as StageId }),
-        reason: `阶段产出未通过形态检查：${String(error instanceof Error ? error.message : error)}`,
+        reason: `阶段产出未通过形态检查：${message}`
+          + (rejectedAnswer === undefined ? '' : `（原始回答已留档：${REJECTED_ANSWER_FILE}）`),
       })
       break
     }

@@ -138,6 +138,24 @@ export class PaperStageChainService extends Service {
   }
 
   /**
+   * **只跑一个阶段**：下一个未通过的阶段，跑完即停。
+   *
+   * 这是"每阶段完成即停、人工检查后放行"的最小单元：调用方（CLI/agent）拿到
+   * 一个结果，检查产物与通行证，**人决定**是否放行下一个。放行不是这里的事——
+   * 它是"再调一次 runOneStage"这个动作本身；检查结论写进检查点报告。
+   *
+   * @returns 该阶段的结果；整条链都已完成时为 `null`。
+   */
+  async runOneStage(): Promise<StageOutcome | null> {
+    const next = await resumePointOf(this.config.stagesRoot)
+    if (next === null) return null
+    const problemCount = await this.problemCount()
+    const outcomes = await runStages(this.contextOf(), { only: [next], problemCount })
+    const first = outcomes[outcomes.length - 1]
+    return first ?? null
+  }
+
+  /**
    * 续跑：找出第一份缺失或已作废的通行证，从那里继续。
    *
    * @returns 续跑点（整条链都已完成时为 `null`）与续跑结果。

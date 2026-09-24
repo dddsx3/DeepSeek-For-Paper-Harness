@@ -241,11 +241,32 @@ export async function* streamCompletion(
     tools?: ReadonlyArray<ToolSchema>
   },
 ): AsyncGenerator<StreamChunk> {
-  // 单次调用的墙钟上限：env 可调，默认 5 分钟（一次真实调用通常在 1–3 分钟内，
-  // 超过 5 分钟基本可以判定为对端已经不会回了）。**0 或非法值 = 回落到默认**，
-  // 而不是"无超时"——无超时是一条会把整轮运行卡死的路径。
-  const configured = Number(process.env.PAPER_CALL_TIMEOUT_MS ?? '')
-  const callTimeoutMs = Number.isFinite(configured) && configured > 0 ? configured : 300_000
+  // 连接建立上限：对端连不上 / TLS 握手挂住，10 秒就该报错（不是"等它想"）。
+  const connectTimeoutMs = 10_000
+  //
+  // **产出约束 = 无令牌看门狗（idle watchdog），不是墙钟。**
+  // 2024B-stages-1 真实运行实测：阶段 1 要产出约 280KB 的高质量分析，跑了约 7 分钟
+  // 才完成——而此前的墙钟（5 分钟）把它拦腰截断。高质量建模的产出时长**本来就
+  // 不可预测**，任何墙钟都会撞上"慢但健康"的生成。
+  //
+  // 合理的判据是**令牌是否还在流动**：健康的生成会持续吐字节；对端挂住/中转断流
+  // 则一个字节都不来。所以每个收到的 chunk 都重置一次看门狗，超过
+  // `PAPER_IDLE_TIMEOUT_MS`（默认 180s）没有任何新字节才判失败——这保住了
+  // 原来墙钟要防的那个真故障（挂住的对端让整轮运行永久停摆、审计一动不动），
+  // 又不再误杀长产出。**0 = 关闭看门狗**（不推荐：那是回到"永久卡死"的路径）。
+  const idleConfigured = Number(process.env.PAPER_IDLE_TIMEOUT_MS ?? '')
+  const idleTimeoutMs = Number.isFinite(idleConfigured) && idleConfigured >= 0 ? idleConfigured : 180_000
+  const idle = new AbortController()
+  let idleTimer: ReturnType<typeof setTimeout> | undefined = idleTimeoutMs > 0
+    ? setTimeout(() => idle.abort(new Error(`idle watchdog：${String(idleTimeoutMs)}ms 没有任何新令牌 —— 对端大概率已挂住`)), idleTimeoutMs)
+    : undefined
+  const bumpIdle = (): void => {
+    if (idleTimeoutMs <= 0) return
+    clearTimeout(idleTimer)
+    idleTimer = setTimeout(() => idle.abort(new Error(`idle watchdog：${String(idleTimeoutMs)}ms 没有任何新令牌 —— 对端大概率已挂住`)), idleTimeoutMs)
+  }
+  // 生成结束（无论成败）都要清掉看门狗，否则定时器会挂着进程不放。
+  const stopIdle = (): void => { clearTimeout(idleTimer) }
   const url = `${route.baseURL.replace(/\/$/, '')}/chat/completions`
   const budget = outputBudget()
   const payload = JSON.stringify({
@@ -286,14 +307,9 @@ export async function* streamCompletion(
           authorization: `Bearer ${route.apiKey}`,
         },
         body: payload,
-        // 单次调用的墙钟上限。**此前是声明了却没实现**：路由里带着
-        // `timeoutMs: 60_000`，而这个 fetch 没有任何超时——一次挂住的中转调用会把
-        // 整个运行永久卡死（实测代价：一次真实运行在 revise #3 上停摆 25 分钟，
-        // 审计轨迹一动不动，而没有任何信号告诉用户"它在等一个不会回来的响应"）。
-        //
-        // 判据用 AbortSignal.timeout：它不依赖服务端配合，超时即抛，由下面的
-        // catch 分类成可重试的传输失败——与"网络抖动"走同一条恢复路径。
-        signal: AbortSignal.timeout(callTimeoutMs),
+        // 连接建立的上限（对端连不上要尽快报错）。**真正的产出约束是下面的
+        // 无令牌看门狗，不是墙钟**——见 PAPER_IDLE_TIMEOUT_MS 的注释。
+        signal: AbortSignal.timeout(connectTimeoutMs),
       })
       if (response.ok) break
       const detail = await response.text().catch(() => '')
@@ -304,11 +320,13 @@ export async function* streamCompletion(
     }
   } catch (error) {
     release()
+    stopIdle()
     throw error
   }
 
   if (response === undefined || response.body === null) {
     release()
+    stopIdle()
     throw new Error('provider returned an empty body')
   }
   const body = response.body
@@ -343,6 +361,7 @@ export async function* streamCompletion(
   try {
     yield { type: 'block-start', index: 0, blockType: 'text' }
     for await (const line of sseLines(body)) {
+      bumpIdle() // 有字节来 = 对端活着；看门狗只在**持续无字节**时触发
       if (line === '' || line === '[DONE]') continue
       let parsed: ChatCompletionChunk
       try {
@@ -440,6 +459,9 @@ ${rawAccum}`)
       yield { type: 'finish', reason: { kind: 'stop' } }
     }
   } finally {
+    // 无论怎么退出（正常 finish / max-tokens / error / 调用方提前 break），
+    // 看门狗定时器都必须清掉——否则它会挂着进程不放，运行"结束"了进程还在。
+    stopIdle()
     await finish()
   }
 }
