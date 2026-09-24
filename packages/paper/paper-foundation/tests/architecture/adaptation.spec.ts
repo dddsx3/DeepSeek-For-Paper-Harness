@@ -30,7 +30,8 @@ describe('适配台账 —— 没有"删掉"这个选项', () => {
     // 这不是"通过"的断言，是把当前缺口**钉成一个数字**：缺口变化时测试会红，
     // 逼作者在提交里说明为什么多了/少了一项。
     // 缺口在按计划收敛：8 → 5（规则语料转 tool-fetchable）→ 4（国赛样式档已迁移）
-    expect(missingAdaptations().length).toBe(4)
+    // → 3（图模板已迁移）。剩：导出引擎（差依赖）+ Python 计算的规范部分 ×2。
+    expect(missingAdaptations().length).toBe(3)
   })
 })
 
@@ -76,9 +77,9 @@ describe('适配台账 —— 阶段覆盖', () => {
 
   it('阶段 5/9/11 的模板与引擎缺口都在台账里（不是漏记）', () => {
     const stages = ADAPTATIONS.filter(a => a.mode === 'missing').map(a => a.stage)
-    expect(stages).toContain('diagram')       // HTML 模板
-    expect(stages).toContain('docx-export')    // 导出引擎
-    // 国赛样式档**不在** missing 里了 —— 已迁移（数据原样）并适配（默认画像回退）
+    expect(stages).toContain('docx-export')    // 导出引擎（文件已迁移，差三个依赖）
+    // 图模板、国赛样式档都**不在** missing 里了 —— 已迁移
+    expect(stages).not.toContain('diagram')
     expect(stages).not.toContain('format-profile')
     // 规则语料**不在** missing 里了 —— 它已恢复
     expect(stages).not.toContain('paper')
