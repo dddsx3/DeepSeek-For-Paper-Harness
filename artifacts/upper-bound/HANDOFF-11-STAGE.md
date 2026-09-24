@@ -16,8 +16,9 @@
    一组同名产物、一套机器可校验的门禁、一个通行证；阶段之间靠 **JSON 文件**交接。
 2. **为什么**：现在八章写在同一次调用里，**出问题只能全盘返修**（重发 40KB、数分钟）；
    而"骗过门禁的错误"（如分析章与求解章不自洽）**没有返修路径**——修订轮只改文本、碰不到容器。
-3. **做到哪了**：S0–S5b 完成。**11 个阶段现在能端到端跑完**（确定性阶段是真执行体，不是假夹具），
-   导出引擎的三个依赖已装并实测跑通，`it.skip` 清零。**剩余见 §3**，第一优先是 **S6：CLI 接线**。
+3. **做到哪了**：S0–S6 完成。**11 个阶段已从 CLI 端到端接通**（`--stages` 走真 provider 缝，
+   确定性阶段是真执行体，暂停/续跑以通行证为切片），导出引擎三个依赖已装并跑通，`it.skip` 清零。
+   **剩余见 §3**：S7 并排比对（要一次真实模型运行）、台账剩 1 项、5 条未实现门禁。
 
 ---
 
@@ -52,8 +53,11 @@
 | **S5a** | `stages/runner.ts` | 11 阶段编排；产出映射规则（1 份取原文 / ≥2 份取 JSON 信封）；`code 2` **不阻断阶段、阻断 CLEAN** |
 | **S5b** | `stages/{deterministic,figure-render,diagram-render,format-check,docx-export,figure-manifest,asset-dir}.ts` | **四个确定性阶段的执行体**（阶段 4/5/10/11 真跑）；5 条门禁从 `2` 变真判据 + 新增 `figure_style_rules`；运行器补上"声明的产物齐了没有"与目录型产物展开；导出引擎三依赖已装并跑通 |
 | **S5b（门禁侧）** | `stages/gates.ts` | 未实现判据 10 → **5** 条（清单是 `gates.spec.ts` 里的断言）；`figure_style_rules` 把 `setup_style` 的规范做成可核判据 |
+| **S6** | `stages/stage-service.ts` + `apps/paper-shell/src/cli.ts` | `--stages` 接通：`callModel` 走 `paperProvider.stream`（与交付链同一条缝）；暂停/续跑以**通行证**为切片；`stages/**` 经 `src/index.ts` 进入打包产物（已验证：lib 里 28 条门禁、资产解析落到 src）| |
 
-**测试规模**：全量 **2061 通过 / 0 显式待办**（171 文件；`it.skip` 已清零）。`tsc -b tsconfig.host.json` 干净。
+**测试规模**：packages/paper **1936** + apps/paper-shell **135** = **2071 通过 / 0 显式待办**，`it.skip` 清零，`tsc -b tsconfig.host.json` 干净。
+**两套要分开跑**：合并跑会撞 JS 堆上限（S6 的用例要起子进程 + python + node 引擎）——与 §5.2
+记的"满负载抖动"同源，不是代码问题。
 
 **S5b 抓到的四个真缺陷**（详见 `S5B-REPORT.md` §2）：纵向架构图节点越出画布、
 数据图图内出现标题（代码与自己的契约相反）、逐问代码文件对门禁不可见、
@@ -78,32 +82,49 @@ SVG，迁移进来的引擎**只嵌位图**——不补一步，Word 里会是 `
 所以由 harness 侧补一次 SVG→PNG 栅格化（`cairosvg`，300 DPI，复用既有的 `probeExportDeps`，
 cairosvg 早就在那张表里）。测试**解压 docx** 断言 `word/media/` 非空且无占位符。
 
-### 3.3 🔴 S6：CLI 接线（**第一优先**）
+### 3.3 ✅ S6：CLI 接线（S6 完成）
 
-`--stages` / `--pause-after` / `--resume` 复用既有热重启。要点：
-- `--stages` 走 `runStages`，`callModel` 接 `WorkflowExecutor` 的 provider 调用，
-  `runDeterministic` 接 `deterministicRunner()`；
-- **`stages/**` 现在整个子树不在 `lib/index.js` 里**（`grep docx-profiles lib/index.js` = 0）——
-  接线时它才会进产物。**同时要定"静态资产怎么进产物"**：`src/stages/{assets,skill-docs}`
-  是纯静态资源，构建不会复制它们（仓库里没有任何 `tsdown.config.ts` 用 `copy`）。
-  `stages/asset-dir.ts` 做了显式两段解析（模块旁边 → 回退源码树，都找不到就抛错），
-  **但回退是回退**：正确形态是构建把它们复制到 `lib` 旁边。改根配置会波及全部 workspace 包，
-  按包加配置会丢掉根配置里的 typert 插件——这一步要和 S6 一起决定；
-- **语料工具与自检工具同一个开关**（`PaperExecutorOptions.skillDocs`）——工具没挂时简报不列语料索引；
-- 暂停/续跑的语义已由 `runtime/stage-checkpoint.ts` 实现，**11 阶段表要与它的 5 阶段表对齐**
-  （或把 `stage-checkpoint.ts` 的 `STAGES` 换成引用 `stages/registry.ts` 的 `STAGES`）。
+`--stages` / `--stage-only` / `--stage-pause-after` / `--stage-resume` / `--stage-problems N` /
+`--stage-attachments` 已接进 `apps/paper-shell/src/cli.ts` 的 `run`。
 
-### 3.4 S7：逐阶段与参考并排比对
+**三个按交接文档执行时做的决定**（理由都在 `stage-service.ts` 的模块头）：
+
+1. **暂停/续跑的载体是通行证，不是 `stage-checkpoint.ts` 的 5 阶段表**。那张表服务的是
+   交付链的切片点，把 11 阶段塞进去是硬套；通行证是更强的载体（机器算的 `inputDigest`，
+   上游/技能/门禁任一变了就失效，`markStaleFrom` 已实现）。**复用的是热重启的工作流，不是那张表**。
+2. **工具开关在这条路径上必须是 false**。`read_skill_doc` 的宿主在 `WorkflowExecutor` 的
+   工具调用循环里；阶段链的 `callModel` 是一次纯文本调用，模型没有发起工具调用的通道。
+   所以 `skillDocs: true` 在这里**拒绝启动**并说明原因——静默接受就等于让简报点名一份
+   取不到的语料（round-5 的原缺陷）。要在阶段链上启用语料，先给 `callModel` 加工具回路。
+3. **两个同名导出撞车**（§3.3 原文预言的那处）：`runtime/stage-checkpoint.ts` 与
+   `stages/registry.ts` 都导出 `StageId`，`resumePointOf` 也撞。已改名导出
+   `StageChainId`；测试里的 `resumePointOf` 改为从源码模块导入。
+
+**顺带修的**：阶段 1 的简报现在内联 `00-input/` 的题面——第一版跳过它们是按"外部输入
+由调用方另行注入"写的，但调用方把题面落盘到 `00-input/problem.txt` 之后，这条路就是唯一通路。
+
+**真实运行的命令形态**（`--fake` 的回答不满足契约，所以离线只能验证到"失败带着阶段名浮出来"）：
+
+```bash
+set -a && . ./.env.local && set +a
+PAPER_PROBE_MODEL=deepseek/deepseek-v4-pro PAPER_CAPABILITY_TIER=A npx tsx apps/paper-shell/src/cli.ts run bench/problems/2024-B/problem-faithful.md   --mode strict --tier T1 --out artifacts/upper-bound/2024B-stages-1   --stages --stage-pause-after prob-analysis,code
+# 人工检查后：
+#   ... --stages --stage-resume
+```
+
+### 3.4 🔴 S7：逐阶段与参考并排比对（**第一优先**，但要先有一次真实模型运行）
 
 同名产物（`PROBLEM_ANALYSIS.md` / `MODELING_REPORT.md` / `RESULTS.md` / `paper/main.md` …）
 可直接与参考工作区 `C:\Users\35702\Desktop\CUMCM\workspaces\5ba6e7bd5010\` 逐份 diff。
 
-### 3.5 台账里剩下的 1 项 `missing`
+### 3.5 台账里剩下的 1 项 `missing` + 5 条未实现门禁
 
-`prob-analysis` 的附件画像器（见 3.1）。另外**未实现的门禁还有 5 条**
-（`capability_check` / `modeling_coverage` / `modeling_self_check` / `delivery_audit` /
-`paper_claim_check`），最高优先级仍是 `paper_claim_check`——它是阶段 7"装配而非推理"
-这一前提的机械强制手段。清单在 `gates.spec.ts` 里，**实现一条就删一条**。
+`prob-analysis` 的附件画像器（见 3.1）。补齐它要先给阶段执行器加一个"模型阶段也可以有
+harness 侧后处理"的钩子——阶段 1 是模型阶段，`runStages` 对它只调 `callModel` 并落盘。
+
+**未实现的门禁还有 5 条**（`capability_check` / `modeling_coverage` / `modeling_self_check` /
+`delivery_audit` / `paper_claim_check`），最高优先级仍是 `paper_claim_check`——它是阶段 7
+"装配而非推理"这一前提的机械强制手段。清单在 `gates.spec.ts` 里，**实现一条就删一条**。
 
 ---
 
@@ -250,6 +271,7 @@ packages/paper/paper-foundation/src/stages/
   format-check.ts    阶段 10：五类检查 + 逐字可比的安全修复 + 报告
   docx-export.ts     阶段 11：校核 → SVG→PNG 栅格化 → 引擎渲染 + 导出报告
   figure-manifest.ts FIGURE_MANIFEST 的唯一解析器（阶段 4/5 与门禁共用）
+  stage-service.ts   阶段链的服务层（S6）：callModel→provider 缝、暂停/续跑、工具开关的拒绝语义
   skill-docs/        20 份语料（809KB，原样迁移）
   assets/            docx-profiles/（样式档+封面档）、diagram-templates/（5+1）、docx-engine/（5）
 
@@ -266,7 +288,9 @@ tests/architecture/
   stage-assets.spec.ts            S4d
   asset-dir.spec.ts               S5b（资产目录两种布局）
   stage-runner.spec.ts            S5a+S5b（**确定性阶段用真执行体**；解压 docx 断言图真的嵌进去了）
+  stage-service.spec.ts           S6（provider 缝的证据、暂停/续跑、工具开关拒绝）
 ```
+apps/paper-shell/tests/stage-cli.spec.ts  S6（起真 CLI 进程：`--stages` 到阶段链的端到端）
 
 **报告**：`artifacts/upper-bound/S5B-REPORT.md`（S5b：做了什么 / 四个真缺陷的根因 / 测试侧失误）、
 `ROUND-5-REPORT.md`（自检工具）、`ROUND-6-REPORT.md`（按审计修复）、
