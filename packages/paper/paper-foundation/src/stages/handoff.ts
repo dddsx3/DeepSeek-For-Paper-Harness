@@ -47,6 +47,14 @@ export interface StagePassport {
   readonly gate: GateVerdict
   /** 被标 stale 时写明原因（谁回滚了、何时）。 */
   readonly staleReason?: string
+  /**
+   * **无法判定**的门禁 id（`code 2`）。
+   *
+   * 它们既不是通过、也不是失败：判据还没实现（或本轮判不了）。记在证上有两个作用——
+   * ① "`2` 不等于通过"这条纪律落在纸面上，谁想宣称 CLEAN 就得先补上它们；
+   * ② 事后能回答"这一轮有哪些判据其实没跑"。
+   */
+  readonly unverifiedGates?: ReadonlyArray<string>
 }
 
 const PASSPORT_FILE = 'PASSED'
@@ -69,15 +77,35 @@ export function passportFor(
     readonly gateVersion: string
     readonly artifacts: Readonly<Record<string, string>>
     readonly gate: GateVerdict
+    readonly unverifiedGates?: ReadonlyArray<string>
     readonly now?: string
   },
 ): StagePassport {
-  if (input.gate.code !== 0) {
+  // `1`（硬失败）→ 拒绝签发。
+  if (input.gate.code === 1) {
     throw new Error(
-      `refusing to issue PASSED for stage '${spec.id}': gate code ${String(input.gate.code)}`
-      + (input.gate.code === 2 ? '（2 = 无法判定，不算通过）' : '')
+      `refusing to issue PASSED for stage '${spec.id}': gate code 1 (hard failure)`
       + ` — ${input.gate.items.filter(i => !i.ok).map(i => i.id).join('、') || '(no failing item listed)'}`,
     )
+  }
+  // `2`（无法判定）→ **可以签发，但必须把"哪些门禁没判"记在证上**。
+  //
+  // 这条契约是本文件里唯一一处刻意允许"非全过也签发"的地方，理由写在 `runner.ts`
+  // 的模块头：让 `2` 阻断阶段会让**所有门禁实现完之前系统完全不可运行**；而
+  // `CLEAN/MARKED/DEGRADED/ESCALATE` 这套既有阶梯本来就是"检出问题但如实标注、
+  // 不零掉产物"。
+  //
+  // 但"`2` 不等于通过"这条纪律**没有丢**：证上必须带 `unverifiedGates`，交付侧
+  // 按它降档。**忘了记就等于把它当成了通过**，所以这里强制非空。
+  if (input.gate.code === 2) {
+    const unverified = input.unverifiedGates ?? []
+    if (unverified.length === 0) {
+      throw new Error(
+        `refusing to issue PASSED for stage '${spec.id}': gate code 2 (cannot judge) requires`
+        + ' `unverifiedGates` to name WHICH gates were unjudgeable — recording nothing would'
+        + ' amount to treating "cannot judge" as "passed"',
+      )
+    }
   }
   return {
     passportVersion: 1,
@@ -92,6 +120,9 @@ export function passportFor(
     }),
     artifacts: input.artifacts,
     gate: input.gate,
+    ...(input.unverifiedGates === undefined || input.unverifiedGates.length === 0
+      ? {}
+      : { unverifiedGates: input.unverifiedGates }),
   }
 }
 
