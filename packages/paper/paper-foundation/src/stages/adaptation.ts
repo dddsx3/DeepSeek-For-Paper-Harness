@@ -119,8 +119,11 @@ export const ADAPTATIONS: ReadonlyArray<AssetAdaptation> = [
     mode: 'ported',
     detail: '五份模板 + 主题样式**已原样迁移**到 `src/stages/assets/diagram-templates/`（6 份 / 34KB，'
       + '模板是版式规范本身，不改写）。模板与阶段 5 简报的模板族**由测试钉成一一对应**'
-      + '——简报写了不存在的模板名，模型就无从选起。',
-    option: '剩下的只是把渲染器接上模板（阶段 5 的渲染器尚未实现）；模板本身是纯静态资源，无额外依赖。',
+      + '——简报写了不存在的模板名，模型就无从选起。渲染器已接上（`diagram-render.ts`）：'
+      + '按图 id 前缀选模板，并把**模板身份与摘要**写进 `diagram-manifest.json`——'
+      + '改了模板，清单即失效，所以"这张图按哪份模板画的"是可核的事实。'
+      + '布局语义固化在 `figure/architecture.ts`（方案 B：确定性分层布局 → SVG，不引浏览器）。',
+    option: '',
   },
   {
     stage: 'format-profile', assetClass: 'template', reference: 'tools/docx_style_profiles/competition_zh.json + covers/cumcm.json',
@@ -132,14 +135,27 @@ export const ADAPTATIONS: ReadonlyArray<AssetAdaptation> = [
   },
   {
     stage: 'docx-export', assetClass: 'docx_engine', reference: 'tools/docx-cn-engine/(md_to_docx.js + latex_to_omml.js + new_doc.js)',
-    mode: 'missing',
-    detail: '引擎文件**已迁移**到 `src/stages/assets/docx-engine/`（5 份 / 110KB）；样式档侧也已就绪'
-      + '（`docx-profile.ts`）。**但拷文件不等于能跑**：引擎的 `package.json` 声明了三个依赖 '
-      + '`docx` / `fast-xml-parser` / `temml`，而本仓库**一个都没有**（已核实，并有断言钉住'
-      + '"还没装"这一事实——装了依赖那条断言会红，逼作者同步台账）。',
-    option: '**装这三个依赖**，或把引擎里用到它们的地方改成仓库已有的能力。'
-      + '不选复用 `export-docx.py`：它对齐的是本仓库模板（dphpaper.cls 一系），'
-      + '与迁移进来的国赛样式档**不是同一套标准**，混用会产出"样式档说 A、渲染器按 B 做"的文档。',
+    mode: 'ported',
+    detail: '引擎文件**已迁移**到 `src/stages/assets/docx-engine/`（5 份 / 110KB）；'
+      + '它的三个依赖 `docx` / `fast-xml-parser` / `temml` **已装进本包**'
+      + '（`packages/paper/paper-foundation/package.json`），已实测跑通（`md_to_docx.js` 产出真 docx）。'
+      + '导出走 `docx-export.ts`：校核 → 栅格化 → 引擎渲染，三段各有具名失败。'
+      + '**没有换成 `export-docx.py`**：它对齐的是本仓库模板（dphpaper.cls 一系），'
+      + '与迁移进来的国赛样式档不是同一套标准，混用会产出"样式档说 A、渲染器按 B 做"的文档。',
+    option: '',
+  },
+  {
+    stage: 'docx-export', assetClass: 'python_compute', reference: '参考的图由 matplotlib 直接出 PNG（350 DPI）',
+    mode: 'harness-side',
+    detail: '**参考侧不存在这一步**：它的图是位图，直接嵌进 Word。本 harness 的图是 SVG'
+      + '（`figure/renderer.ts` 的确定性输出，矢量、与分辨率无关），而迁移进来的引擎只嵌位图'
+      + '（png/jpg/gif/bmp）——不补这一步，Word 里会是 "[unsupported image]" 占位符。'
+      + '所以由 harness 侧补一次 SVG → PNG 栅格化（`cairosvg`，**300 DPI**，'
+      + '与参考的图质量地板一致），依赖探测复用既有的 `probeExportDeps`（cairosvg 早就在那张表里，'
+      + 'purpose 写的正是"SVG → PNG（300dpi 图嵌入）"）。栅格化不可用时**具名拒绝导出**，'
+      + '不静默嵌占位符。图链接的 `.svg → .png` 只发生在导出用的派生副本 `_export.md` 上，'
+      + '`paper/main.md` 保持原样。',
+    option: '',
   },
   {
     stage: 'format-check', assetClass: 'gate_script', reference: 'docx-format-check/SKILL.md 的五类检查（代码块/公式编号/三线表/图片引用/噪声）',
@@ -157,20 +173,30 @@ export const ADAPTATIONS: ReadonlyArray<AssetAdaptation> = [
   // ── Python 计算：未接，但有明确的适配选项 ────────────────────────────────
   {
     stage: 'figure', assetClass: 'python_compute', reference: '_utils/plot_utils.py(104KB, setup_style 强制) + get_recipe.py',
-    mode: 'missing',
+    mode: 'harness-side',
     detail: '本 harness 的图由 `figure/producer.ts` 声明驱动渲染（TS），不走 matplotlib，'
       + '所以绘图库**不移植**。它的**规范**已经迁移——`figure-style-guide.md`(80KB) 与五份配方'
       + '在 `skill-docs/` 里，由 `read_skill_doc` 取用；简报的禁令（禁 plt.title / 禁默认色板 /'
-      + '≥300DPI / 字号 ≥9pt）也逐条写进了阶段 4 的 `forbidden`。',
-    option: '**剩下的不是迁移而是强制**：把这几条规范做成 TS 门禁（`figure_style_rules`），'
-      + '需要渲染器先吐出每个元素的字号与配色元数据。规范本身已经在仓库里，缺的是可核的判据。',
+      + '≥300DPI / 字号 ≥9pt）也逐条写进了阶段 4 的 `forbidden`。'
+      + '**规范已做成可核的门禁**（这一步就是补齐）：`figure_style_rules` 只读 SVG 字节，'
+      + '判三条——印刷质量（字号/边界/对比度，复用 `checkFigureQuality`）、配色禁令'
+      + '（tab10 / RdYlGn / RdBu_r / dark_background / CSS 颜色名）、图内不得有标题。'
+      + '顺带修掉一个**代码与自己的契约相反**的地方：标量渲染路径原本把 caption 画进了 SVG，'
+      + '而模块头的契约写着"从不输出 caption 到 SVG 内部"——契约是对的（参考禁 plt.title），'
+      + '改的是代码。',
+    option: '',
   },
   {
     stage: 'prob-analysis', assetClass: 'python_compute', reference: '_utils/data_profile.py + stats_utils.py',
     mode: 'missing',
-    detail: '`DATA_PROFILE.json` 要求对附件做画像，但本仓库没有画像器。',
-    option: '两个选项：① 用 TS 实现基础画像（行列数、缺失率、数值列分布）；'
-      + '② 调沙箱里的 Python（harness 已有 code runner，跑 `python` 是既有能力）。'
+    detail: '`DATA_PROFILE.json` 要求对附件做画像，但本仓库没有画像器。'
+      + '**这一条仍然缺**，而且缺的不是算法而是**接线位置**：阶段 1 是模型阶段，'
+      + '`runStages` 对它只调 `callModel` 并落盘，没有 harness 侧的钩子；'
+      + '把画像器挂上去要给阶段执行器加一个"模型阶段也可以有 harness 侧后处理"的机制——'
+      + '那是 S6（CLI 接线）范围内的一次设计，不是阶段 4/5/10/11 执行体的一部分。'
+      + '**不假装已经适配**：写一个用不上的 TS 画像器，正是"模块做好不等于进了主线"那类缺陷。',
+    option: '两个选项：① 给阶段执行器加 harness 侧后处理钩子，用 TS 实现基础画像'
+      + '（行列数、缺失率、数值列分布）；② 调沙箱里的 Python（harness 已有 code runner，跑 `python` 是既有能力）。'
       + '**优先 ①**——画像不需要统计生态，而 ② 会把"能跑代码"扩到 pipeline 内部，那是另一层权限。',
   },
   // ── 已适配好的（列出来是为了让台账完整，不是凑数） ────────────────────────

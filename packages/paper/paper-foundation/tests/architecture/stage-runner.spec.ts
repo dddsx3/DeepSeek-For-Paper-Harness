@@ -1,32 +1,171 @@
 /**
  * 阶段执行器 —— 逐阶段门禁 + 通行证 + 失败语义。
  *
- * 用**假调用器**驱动完整条链，所以这条测试不需要 provider、不花模型调用。
+ * 用**假调用器**驱动完整条链（不花模型调用），但**确定性阶段用真执行体**
+ * （`deterministicRunner()`）——否则"阶段 4/5/10/11 的执行体真的进了主线"这件事
+ * 没有任何断言证明它，而那正是本项目反复吃过的亏（模块做好 ≠ 进了主线）。
+ *
+ * 夹具必须是**真实产物的样子**：第一版这三条用例被 `it.skip` 掉，原因写在当时的
+ * 注释里——"不是断言写错，是夹具还满足不了真实门禁"。现在夹具长成了真实形态
+ * （FIGURE_MANIFEST 段头式清单 + ARCH_DECLARATION 块 + 逐问代码文件 + ≥20 页正文 +
+ * 带图链接的正文），三条用例就都跑通了。
  */
 
-import { mkdtemp, writeFile, mkdir } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, writeFile } from 'node:fs/promises'
+import { inflateRawSync } from 'node:zlib'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
+import { deterministicRunner } from '../../src/stages/deterministic.ts'
 import { parseStageOutput, runStages, type StageRunContext } from '../../src/stages/runner.ts'
-import { STAGES, stageOf, type StageSpec } from '../../src/stages/registry.ts'
+import { STAGES, stageDirName, stageOf, type StageSpec } from '../../src/stages/registry.ts'
 import { readPassport } from '../../src/stages/handoff.ts'
 
 const tmp = async (): Promise<string> => mkdtemp(join(tmpdir(), 'dsh-run-'))
 
-/** 每个阶段的**合规**假产出：够字节地板、形态正确。 */
+/** 一份合规的图声明：投影 + 一条声明（refs 指向投影里的 id）。 */
+function figureDeclarations(): string {
+  return JSON.stringify({
+    results: [
+      { result_id: 'RES-A', name: '指标A', value: 12.5, unit: '%', uncertainty: null },
+      { result_id: 'RES-B', name: '指标B', value: 7.25, unit: '%', uncertainty: 0.4 },
+    ],
+    figures: [
+      { figure_id: 'fig_a', chart_type: 'bar', data_refs: ['RES-A', 'RES-B'], caption: '两项指标对照', y_label: '占比 / %' },
+    ],
+  })
+}
+
+/** 阶段 1 的分析：锚点 + 段头式清单 + 架构结构声明，全部齐备。 */
+function problemAnalysis(): string {
+  const manifest = [
+    '<!-- BEGIN FIGURE_MANIFEST -->',
+    'DATA=1',
+    'fig_a',
+    'DRAWIO=1',
+    'fig_roadmap',
+    'TIKZ=1',
+    'tikz_geom',
+    'GPTIMG=0',
+    'ALL=3',
+    '<!-- END FIGURE_MANIFEST -->',
+  ].join('\n')
+  const arch = [
+    '<!-- BEGIN ARCH_DECLARATION -->',
+    JSON.stringify({
+      fig_roadmap: {
+        style_family: 'A',
+        direction: 'vertical',
+        layers: [
+          { label: '问题1', nodes: [{ id: 'n1', label: '常物性温度场求解' }] },
+          { label: '问题2', nodes: [{ id: 'n2', label: '变物性耦合求解' }] },
+          { label: '问题3', nodes: [{ id: 'n3', label: '干燥完成时刻反解' }] },
+          { label: '问题4', nodes: [{ id: 'n4', label: '移动边界归因分析' }] },
+        ],
+        edges: [{ from: 'n1', to: 'n2' }, { from: 'n2', to: 'n3' }, { from: 'n3', to: 'n4' }],
+      },
+    }),
+    '<!-- END ARCH_DECLARATION -->',
+  ].join('\n')
+  return [
+    '# 赛题分析',
+    '',
+    '[[ASSUMPTION: A-X]] 药材内部温度与含水率各向同性。',
+    '[[REQUIREMENT: R-Q1]] 在 0-1800 s 内给出温度场与含水率分布。',
+    '[[REQUIREMENT: R-Q2]] 用变物性模型贯通全过程。',
+    '[[REQUIREMENT: R-Q3]] 反解干燥完成时刻。',
+    '[[REQUIREMENT: R-Q4]] 分析移动边界与归因。',
+    '',
+    manifest,
+    '',
+    arch,
+    '',
+    '逐句表与硬约束的正文……'.repeat(80),
+  ].join('\n')
+}
+
+/** 每阶段的**合规**假产出：够字节地板、形态正确。 */
 function fakeDeliverable(spec: StageSpec, file: string): string {
   const floor = spec.produces.find(p => p.file === file)?.minBytes ?? 300
-  if (file === 'PROBLEM_ANALYSIS.md') {
-    return '[[ASSUMPTION: A-X]] 甲\n[[REQUIREMENT: R-OUT]] 乙\n<!-- BEGIN FIGURE_MANIFEST -->\n- fig_a\n<!-- END FIGURE_MANIFEST -->\n'
-      + '中'.repeat(floor)
+  if (file === 'PROBLEM_ANALYSIS.md') return problemAnalysis()
+  if (file === 'FIGURE_DECLARATIONS.json') return figureDeclarations()
+  if (file === 'CAPABILITY_CHECKLIST.json') {
+    return JSON.stringify({
+      items: [
+        { id: 'CAP-1', required_output: '温度场分布', machine_check: '问题1 给出 7 个时刻 × 21 个径向节点的温度表', source_sentence: '在 0-1800 s 内给出温度场' },
+        { id: 'CAP-2', required_output: '干燥完成时刻', machine_check: '问题3 给出 t* 与收敛证据', source_sentence: '反解干燥完成时刻' },
+      ],
+    })
+  }
+  if (file === 'DELIVERABLES.json') {
+    return JSON.stringify({
+      deliverables: [
+        { file: 'code/main.py', kind: 'other', min_bytes: 500, desc: '编排入口：依次跑问题1-4' },
+        { file: 'RESULTS.md', kind: 'md', min_bytes: 1024, desc: '结果说明' },
+      ],
+    })
   }
   if (file === 'COMP_REVIEW_VERDICT.json') return JSON.stringify({ findings: [], fatal_count: 0 })
-  if (file === 'PAPER_IMPROVEMENT_STATE.json') return JSON.stringify({ rounds: [{ defects: 3 }, { defects: 1 }, { defects: 0 }], termination: 'approved' })
-  if (file === '_text_profile.json') return JSON.stringify({ body: { font_size_pt: 12 }, _matched_items: ['正文：小四号宋体'] })
+  if (file === 'PAPER_IMPROVEMENT_STATE.json') {
+    return JSON.stringify({ rounds: [{ defects: 3 }, { defects: 1 }, { defects: 0 }], termination: 'approved' })
+  }
+  if (file === '_text_profile.json') {
+    return JSON.stringify({
+      profile_name: '用户文字要求派生样式',
+      _derived_from: 'text-description',
+      _matched_items: ['正文内容：小四号(12pt)宋体，单倍行距(1.0)', '正文一级标题：四号(14pt)黑体，居中'],
+      page: { size: 'A4', margin_top_cm: 2.5, margin_bottom_cm: 2.5, margin_left_cm: 2.5, margin_right_cm: 2.5 },
+      fonts: { chinese_heading: 'SimHei', chinese_body: 'SimSun', latin: 'Times New Roman', monospace: 'Consolas' },
+      headings: { level1_pt: 14, level2_pt: 12, level3_pt: 12, bold: true, level1_alignment: 'center' },
+      body: { font_size_pt: 12, line_spacing: 1.0, first_line_indent_chars: 2 },
+      table: { font_size_pt: 10.5, header_bold: true, top_border_pt: 1.5 },
+      references: { hanging_indent_cm: 0.74, font_size_pt: 10.5 },
+      image: { max_width_cm: 14, alignment: 'center' },
+      code_block: { font_size_pt: 9, line_spacing: 1.0 },
+    })
+  }
   if (file === 'DOCX_FORMAT_CHECK_REPORT.md') return '五类检查：全部通过\n'.repeat(20)
   if (file === 'paper/main.md') {
-    return '# 标题\n\n## 摘要\n\n' + '中'.repeat(800 * 21) + '\n\n## 参考文献\n\n[1] Wald A. Sequential Analysis. Wiley. 1947.\n'
+    // 正文（附录之前）≥ 20 页；含图链接与一张三线表；无 LaTeX 结构、无占位符。
+    const body = '中'.repeat(800 * 21)
+    return [
+      '# 药材干燥过程的数学建模与求解',
+      '',
+      '## 摘要',
+      '',
+      '本文建立耦合传热传质模型。'.repeat(10),
+      '',
+      '## 1 问题重述',
+      '',
+      body,
+      '',
+      '![图 1：两项指标对照](figures/fig_a.svg)',
+      '',
+      '**表 1：主要结果**',
+      '',
+      '| 指标 | 数值 | 单位 |',
+      '| --- | --- | --- |',
+      '| 指标A | 12.5 | % |',
+      '| 指标B | 7.25 | % |',
+      '',
+      '## 8 模型评价与推广',
+      '',
+      '优点、局限、敏感性与推广各一段。'.repeat(20),
+      '',
+      '## 参考文献',
+      '',
+      '[1] Wald A. Sequential Analysis. Wiley. 1947.',
+      '[2] 姜启源. 数学模型. 高等教育出版社. 2011.',
+      '[3] Crank J. The Mathematics of Diffusion. Oxford. 1975.',
+      '',
+      '## 附录 A：代码',
+      '',
+      '```python',
+      'import numpy as np',
+      'print(np.pi)',
+      '```',
+      '',
+    ].join('\n')
   }
   return `内容：${file}\n`.repeat(Math.ceil(floor / 10) + 5)
 }
@@ -39,18 +178,18 @@ function fakeCallModel(): StageRunContext['callModel'] {
       return fakeDeliverable(spec, only.file)
     }
     const files: Record<string, string> = {}
-    for (const p of spec.produces) files[p.file] = fakeDeliverable(spec, p.file)
+    for (const p of spec.produces) {
+      if (p.kind === 'dir') continue // 目录型产物在下面按阶段补
+      files[p.file] = fakeDeliverable(spec, p.file)
+    }
+    if (spec.id === 'code') {
+      // 逐问实现：`code_parity` 要 `code/problem*.py` ≥ 题面问数。
+      for (let i = 1; i <= 4; i += 1) files[`code/problem${String(i)}.py`] = `# 问题${String(i)}\nprint(${String(i)})\n`
+    }
+    if (spec.id === 'improve') {
+      files['paper/_improvement_rounds/round1.md'] = '# 第 1 轮\n\n改前稿。\n'
+    }
     return JSON.stringify({ files })
-  }
-}
-
-/** 确定性阶段的假执行体：按契约写文件。 */
-const fakeDeterministic: NonNullable<StageRunContext['runDeterministic']> = async (spec, root) => {
-  const dir = join(root, `${String(spec.index).padStart(2, '0')}-${spec.id}`)
-  await mkdir(dir, { recursive: true })
-  for (const p of spec.produces) {
-    if (p.kind === 'dir') { await mkdir(join(dir, p.file), { recursive: true }); continue }
-    await writeFile(join(dir, p.file), fakeDeliverable(spec, p.file), 'utf8')
   }
 }
 
@@ -58,12 +197,46 @@ function ctxOf(root: string, over: Partial<StageRunContext> = {}): StageRunConte
   return {
     stagesRoot: root,
     callModel: fakeCallModel(),
-    runDeterministic: fakeDeterministic,
+    runDeterministic: deterministicRunner(),
     skillVersionOf: () => 'sk1',
     gateVersionOf: () => 'g1',
-    problemCount: undefined,
     ...over,
   } as StageRunContext
+}
+
+/**
+ * 读 ZIP 条目（只为本测试服务）。
+ *
+ * 为什么值得写这 30 行：docx 是 zip，正文在 `word/document.xml` 里且是 deflate 过的，
+ * 所以"图片有没有真嵌进去"只能解压了才看得见。第一版的断言只查了"文件存在 + 体量够"，
+ * 而那两条对"图全是占位符"的产物**同样成立**。
+ */
+function zipEntries(buf: Buffer): Map<string, Buffer> {
+  let eocd = -1
+  for (let i = buf.length - 22; i >= 0 && i >= buf.length - 66_000; i -= 1) {
+    if (buf.readUInt32LE(i) === 0x0605_4b50) { eocd = i; break }
+  }
+  if (eocd === -1) throw new Error('zip: 找不到中央目录结尾（EOCD）')
+  const count = buf.readUInt16LE(eocd + 10)
+  let off = buf.readUInt32LE(eocd + 16)
+  const out = new Map<string, Buffer>()
+  for (let i = 0; i < count; i += 1) {
+    if (buf.readUInt32LE(off) !== 0x0201_4b50) throw new Error('zip: 中央目录条目签名不对')
+    const method = buf.readUInt16LE(off + 10)
+    const compSize = buf.readUInt32LE(off + 20)
+    const nameLen = buf.readUInt16LE(off + 28)
+    const extraLen = buf.readUInt16LE(off + 30)
+    const commentLen = buf.readUInt16LE(off + 32)
+    const localOff = buf.readUInt32LE(off + 42)
+    const name = buf.subarray(off + 46, off + 46 + nameLen).toString('utf8')
+    const localNameLen = buf.readUInt16LE(localOff + 26)
+    const localExtraLen = buf.readUInt16LE(localOff + 28)
+    const dataStart = localOff + 30 + localNameLen + localExtraLen
+    const raw = buf.subarray(dataStart, dataStart + compSize)
+    out.set(name, method === 0 ? Buffer.from(raw) : inflateRawSync(raw))
+    off += 46 + nameLen + extraLen + commentLen
+  }
+  return out
 }
 
 describe('阶段产出映射 —— 一条明确的规则，不是猜', () => {
@@ -89,22 +262,30 @@ describe('阶段产出映射 —— 一条明确的规则，不是猜', () => {
     }))).toThrow(/unexpected: extra\.md/)
   })
 
+  it('**目录型产出的子路径是契约内的**（阶段 3 的逐问代码文件必须有地方放）', () => {
+    const out = parseStageOutput(stageOf('code'), JSON.stringify({
+      files: {
+        'code/main.py': 'print(1)',
+        'code/problem1.py': 'print(1)',
+        'RESULTS.md': 'x',
+        'DELIVERABLES.json': '{}',
+        'FIGURE_DECLARATIONS.json': '{}',
+      },
+    }))
+    expect(out.get('code/problem1.py')).toBe('print(1)')
+    // 目录前缀之外的仍然算"多出来"
+    expect(() => parseStageOutput(stageOf('code'), JSON.stringify({
+      files: { 'code/main.py': 'x', 'RESULTS.md': 'x', 'DELIVERABLES.json': '{}', 'FIGURE_DECLARATIONS.json': '{}', 'notes/other.md': 'y' },
+    }))).toThrow(/unexpected: notes\/other\.md/)
+  })
+
   it('多产出阶段没有 JSON 对象 → 抛错（不猜哪份是哪份）', () => {
     expect(() => parseStageOutput(stageOf('modeling'), '我写了报告但忘了信封')).toThrow(/must be a JSON envelope/)
   })
 })
 
-describe('执行器 —— 顺利推进', () => {
-  // ── 以下三条**待办**：夹具还满足不了全部真实门禁 ──────────────────────────
-  //
-  // 已跑通的部分（见上面通过的用例）：产出映射规则、`blocked` 语义、门禁 `1` 阻断、
-  // `code 2` 不阻断但记账。这三条要的是"**跑完整条链**"，而假夹具目前：
-  //   - 阶段 3 的 `code_parity` 要 `code/problem*.py`（我的假产出只有 `code/main.py`）；
-  //   - 阶段 4/5 是确定性阶段，需要一个**真渲染器**（未实现）；
-  //   - 阶段 7 的 `paper_page_floor` 要正文 ≥20 页且附录不计入。
-  // 所以它们不是"断言写错"，是**夹具必须长成真实产物的样子**——那正是 S5 剩下的工作。
-  // 用 `it.skip` 显式标注，而不是删掉或放宽断言：**缺口要被看见**。
-  it.skip('【待办】11 个阶段跑完 → 每阶段都签发通行证；有未实现门禁的阶段标 `passed-unverified`', async () => {
+describe('执行器 —— 顺利推进（确定性阶段用**真执行体**）', () => {
+  it('11 个阶段跑完 → 每阶段都签发通行证；有未实现门禁的阶段标 `passed-unverified`', async () => {
     const root = await tmp()
     const outcomes = await runStages(ctxOf(root), { problemCount: 4 })
     expect(outcomes).toHaveLength(11)
@@ -121,7 +302,75 @@ describe('执行器 —— 顺利推进', () => {
     expect(passport?.unverifiedGates).toContain('capability_check')
     // 最后一片的通行证也在
     expect((await readPassport(root, stageOf('docx-export')))?.status).toBe('passed')
-  })
+  }, 120_000)
+
+  it('**阶段 4 真的渲染出了图**（执行体不是"没挂上"）', async () => {
+    const root = await tmp()
+    await runStages(ctxOf(root), { problemCount: 4 })
+    expect((await readPassport(root, stageOf('figure')))?.status).toBe('passed')
+    // 判据落在**磁盘上的字节**上：第一版断言的是"门禁 detail 里出现了文件名"，
+    // 而门禁的措辞是"计划 1 张数据图，全部渲染"——没有文件名。那是"我以为的"，
+    // 不是被测对象的真实语义。
+    const dir = join(root, stageDirName(stageOf('figure')))
+    const svg = await readFile(join(dir, 'figures/fig_a.svg'), 'utf8').catch(() => null)
+    expect(svg, 'figures/fig_a.svg 不在——阶段 4 的执行体没真的跑').not.toBeNull()
+    expect(svg).toContain('<svg')
+    const manifest = JSON.parse(await readFile(join(dir, 'figure-manifest.json'), 'utf8')) as {
+      figures: ReadonlyArray<{ figure_id: string; file: string; data_refs: ReadonlyArray<string>; data_hash: string }>
+    }
+    expect(manifest.figures.map(f => f.figure_id)).toEqual(['fig_a'])
+    expect(manifest.figures[0]?.data_refs).toEqual(['RES-A', 'RES-B'])
+    expect(manifest.figures[0]?.data_hash.startsWith('sha256:')).toBe(true)
+  }, 120_000)
+
+  it('**阶段 5 的 TikZ 缺口如实标 `2`**（够不到就不许算通过）', async () => {
+    const root = await tmp()
+    const outcomes = await runStages(ctxOf(root), { problemCount: 4 })
+    const diagram = outcomes.find(o => o.stage === 'diagram')
+    expect(diagram?.status).toBe('passed-unverified')
+    expect(diagram?.passport?.unverifiedGates).toContain('diagram_manifest_reconcile')
+    const detail = diagram?.gate.items.find(i => i.id === 'diagram_manifest_reconcile')?.detail ?? ''
+    expect(detail).toContain('tikz_geom')
+    expect(detail).toContain('LaTeX')
+  }, 120_000)
+
+  it('**阶段 11 真的导出了 docx**（迁移进来的引擎跑得起来）', async () => {
+    const root = await tmp()
+    await runStages(ctxOf(root), { problemCount: 4 })
+    const passport = await readPassport(root, stageOf('docx-export'))
+    expect(passport?.status).toBe('passed')
+    expect(Object.keys(passport?.artifacts ?? {})).toContain('paper/main.docx')
+
+    const dir = join(root, stageDirName(stageOf('docx-export')))
+    const docx = await readFile(join(dir, 'paper/main.docx'))
+    expect(docx.byteLength, 'docx 是空壳').toBeGreaterThan(1000)
+    expect(docx.subarray(0, 2).toString('latin1'), '不是 ZIP 容器（docx 是 zip）').toBe('PK')
+
+    // **图真的嵌进去了吗**：docx 是 zip，正文在 word/document.xml（deflate）。
+    // 只断言"文件存在且够大"是不够的——引擎只嵌位图，而本 harness 的图是 SVG；
+    // 栅格化一旦没生效，产物里会是 "[unsupported image: …]" 占位符而**体量照样够**。
+    const entries = zipEntries(docx)
+    expect(entries.has('word/document.xml'), 'docx 里没有 word/document.xml').toBe(true)
+    const media = [...entries.keys()].filter(k => k.startsWith('word/media/'))
+    expect(media.length, `docx 里没有嵌任何图片（media 目录空）：${[...entries.keys()].join(', ')}`).toBeGreaterThan(0)
+    const document = entries.get('word/document.xml')?.toString('utf8') ?? ''
+    expect(document).not.toContain('unsupported image')
+    expect(document).not.toContain('image missing')
+    // 导出报告里记了逐张栅格化
+    const exportReport = await readFile(join(dir, 'DOCX_EXPORT_REPORT.md'), 'utf8')
+    expect(exportReport).toContain('figures/fig_a.png')
+    expect(exportReport).toContain('300 DPI')
+  }, 120_000)
+
+  it('**阶段 10 就地修复后仍留下改动前的副本**（回滚证据）', async () => {
+    const root = await tmp()
+    await runStages(ctxOf(root), { problemCount: 4 })
+    const before = await import('node:fs/promises').then(m => m.readFile(join(root, stageDirName(stageOf('format-check')), '_before/main.md'), 'utf8').catch(() => null))
+    expect(before, '修复前的正文副本不见了——那是"改动前长什么样"的唯一证据').not.toBeNull()
+    const report = await import('node:fs/promises').then(m => m.readFile(join(root, stageDirName(stageOf('format-check')), 'DOCX_FORMAT_CHECK_REPORT.md'), 'utf8'))
+    expect(report).toContain('仍需人工处理的问题')
+    expect(report).toContain('结论')
+  }, 120_000)
 })
 
 describe('执行器 —— 失败语义', () => {
@@ -133,7 +382,7 @@ describe('执行器 —— 失败语义', () => {
     expect(outcomes[0]?.reason).toContain('prob-analysis')
   })
 
-  it.skip('【待办】门禁不过 → **不签发**、报告建议回滚目标、并把下游标 stale', async () => {
+  it('门禁不过 → **不签发**、报告建议回滚目标、并把下游标 stale', async () => {
     const root = await tmp()
     // 先跑完整条链播种（只跑部分会让 modeling 因上游缺失而 blocked，那是另一条语义）
     await runStages(ctxOf(root), { problemCount: 4 })
@@ -156,17 +405,21 @@ describe('执行器 —— 失败语义', () => {
     // 下游被标 stale
     expect(outcomes[0]?.staledDownstream).toContain('code')
     expect((await readPassport(root, stageOf('code')))?.status).toBe('stale')
-  })
+  }, 120_000)
 
-  it.skip('【待办】确定性阶段没有执行体 → 门禁因文件不存在而失败（**没实现的不许静默通过**）', async () => {
+  it('确定性阶段没有执行体 → 声明的产物不存在 → 门禁前置不成立（**没实现的不许静默通过**）', async () => {
     const root = await tmp()
-    await runStages(ctxOf(root), { problemCount: 4 })
+    // 只播种阶段 1..3：**不能先跑完整条链**——那样阶段 4 的目录里已经有上一次
+    // 跑出来的图与清单，删掉执行体也照样"通过"（那是 resume 语义，不是本条要测的）。
+    await runStages(ctxOf(root), { only: ['prob-analysis', 'modeling', 'code'], problemCount: 4 })
     const noDeterministic = ctxOf(root)
     delete (noDeterministic as { runDeterministic?: unknown }).runDeterministic
     const outcomes = await runStages(noDeterministic, { only: ['figure'], problemCount: 4 })
     expect(outcomes[0]?.status).toBe('gate-failed')
+    expect(outcomes[0]?.gate.items[0]?.id).toBe('stage_deliverable_missing')
     expect(outcomes[0]?.reason).toContain('门禁')
-  })
+    expect(outcomes[0]?.reason).toContain('figures/')
+  }, 120_000)
 
   it('产出形态不合法 → 记 `stage_output` 失败并点名原因（不静默重试）', async () => {
     const root = await tmp()
@@ -179,4 +432,62 @@ describe('执行器 —— 失败语义', () => {
     expect(last?.gate.items[0]?.id).toBe('stage_output')
     expect(last?.gate.items[0]?.detail).toContain('JSON envelope')
   })
+})
+
+describe('确定性执行体 —— 各自的具名失败', () => {
+  it('阶段 4：声明文件不在 → 点名说清"渲染器没有输入"', async () => {
+    const root = await tmp()
+    await mkdir(join(root, stageDirName(stageOf('code'))), { recursive: true })
+    const outcomes = await runStages(ctxOf(root), { only: ['figure'], problemCount: 4 })
+    // 上游没就绪 → blocked（先撞上游通行证）；补一条只跑执行体本身的断言
+    expect(['blocked', 'gate-failed']).toContain(outcomes[0]?.status)
+    const { renderFigureStage } = await import('../../src/stages/figure-render.ts')
+    await expect(renderFigureStage(root)).rejects.toThrow(/FIGURE_DECLARATIONS\.json/)
+  })
+
+  it('阶段 4：data_refs 悬空 → 点名说出找不到哪一个（不跳过那一张）', async () => {
+    const root = await tmp()
+    const { renderFigureStage } = await import('../../src/stages/figure-render.ts')
+    const codeDir = join(root, stageDirName(stageOf('code')))
+    await mkdir(codeDir, { recursive: true })
+    await writeFile(join(codeDir, 'FIGURE_DECLARATIONS.json'), JSON.stringify({
+      results: [{ result_id: 'RES-A', name: 'A', value: 1, unit: '%', uncertainty: null }],
+      figures: [{ figure_id: 'fig_a', chart_type: 'bar', data_refs: ['RES-GHOST'] }],
+    }), 'utf8')
+    await expect(renderFigureStage(root)).rejects.toThrow(/RES-GHOST/)
+  })
+
+  it('阶段 5：清单里有 DRAWIO 但分析里没有 ARCH_DECLARATION → 具名失败（不凭空造图）', async () => {
+    const root = await tmp()
+    const { renderDiagramStage } = await import('../../src/stages/diagram-render.ts')
+    const analysisDir = join(root, stageDirName(stageOf('prob-analysis')))
+    await mkdir(analysisDir, { recursive: true })
+    await writeFile(join(analysisDir, 'PROBLEM_ANALYSIS.md'), [
+      '<!-- BEGIN FIGURE_MANIFEST -->', 'DRAWIO=1', 'fig_roadmap', '<!-- END FIGURE_MANIFEST -->',
+    ].join('\n'), 'utf8')
+    await expect(renderDiagramStage(root)).rejects.toThrow(/ARCH_DECLARATION/)
+  })
+
+  it('阶段 10：正文不在 → 具名失败（那不是格式问题，是没有输入）', async () => {
+    const root = await tmp()
+    const { runFormatCheckStage } = await import('../../src/stages/format-check.ts')
+    await expect(runFormatCheckStage(root)).rejects.toThrow(/paper\/main\.md/)
+  })
+
+  it('阶段 10：逐字比对**能抓住"修复动了目标之外"**（这是"自动修复不变成自动改坏"的机械保证）', async () => {
+    const { assertVerbatim } = await import('../../src/stages/format-check.ts')
+    // 只改了目标模式 → 通过
+    expect(() => assertVerbatim('甲的（）乙', '甲的()乙', /（）/g, '()')).not.toThrow()
+    // 目标之外也被动了 → 必须红（否则"自动修复"会静默改坏正文）
+    expect(() => assertVerbatim('甲的（）乙', '甲的()丙', /（）/g, '()')).toThrow(/逐字比对失败/)
+  })
+
+  it('阶段 11：正文里有未填充占位 → **拒绝导出**（宁可交缺 docx 的包）', async () => {
+    const root = await tmp()
+    const { runDocxExportStage } = await import('../../src/stages/docx-export.ts')
+    const paperDir = join(root, stageDirName(stageOf('paper')))
+    await mkdir(join(paperDir, 'paper'), { recursive: true })
+    await writeFile(join(paperDir, 'paper/main.md'), '# 标题\n\n这里还有一个 TODO 没填。\n', 'utf8')
+    await expect(runDocxExportStage(root)).rejects.toThrow(/致命项/)
+  }, 60_000)
 })

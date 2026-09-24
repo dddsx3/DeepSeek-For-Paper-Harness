@@ -3,9 +3,10 @@
 > **写给谁**：接手"按 11 阶段重塑 DPH 架构"的下一个 agent。
 > **读法**：先读 §0 与 §1，再读 §2（已完成）与 §3（剩余）。**§4 与 §5 一定要读**——
 > §4 是已经定下来的设计决策（别重新论证），§5 是上一个 agent 的稳定失误模式（别重复）。
-> **编制**：2026-09-24　**基线**：`d98d5160f7`（工作树干净，套件 2021 通过 / 3 显式待办）
+> **编制**：2026-09-24（S5b 后更新）　**基线**：`801235a8d2` → S5b 工作树
 > **上游**：`HANDOFF.md` 是**改造前**的快照，已被本轮重塑取代；`docs/upper-bound-architecture.md`
 > 描述 L0–L6 守卫层（本轮**不动**那一层，只换产出方式）。
+> **S5b 详情**：`S5B-REPORT.md`（做了什么 / 抓到哪四个真缺陷及其根因 / 测试侧失误 4 次）。
 
 ---
 
@@ -15,8 +16,8 @@
    一组同名产物、一套机器可校验的门禁、一个通行证；阶段之间靠 **JSON 文件**交接。
 2. **为什么**：现在八章写在同一次调用里，**出问题只能全盘返修**（重发 40KB、数分钟）；
    而"骗过门禁的错误"（如分析章与求解章不自洽）**没有返修路径**——修订轮只改文本、碰不到容器。
-3. **做到哪了**：S0–S5a 完成（切分可行性已证、注册表、门禁、技能适配、语料恢复、工具回路、执行器）。
-   **剩余见 §3**，其中第一优先是**确定性阶段的执行体**（阶段 4/5 渲染器 + 10/11 导出）。
+3. **做到哪了**：S0–S5b 完成。**11 个阶段现在能端到端跑完**（确定性阶段是真执行体，不是假夹具），
+   导出引擎的三个依赖已装并实测跑通，`it.skip` 清零。**剩余见 §3**，第一优先是 **S6：CLI 接线**。
 
 ---
 
@@ -49,40 +50,45 @@
 | **S4c** | `stages/assets/docx-profiles/` + `stages/docx-profile.ts` | 国赛样式档**原样迁移**；`resolveDocxProfile` 缺失/非法时回退默认并给具名原因 |
 | **S4d** | `stages/assets/diagram-templates/` + `docx-engine/` + `stages/assets.ts` | 模板 6 份、引擎 5 份迁移；**引擎三个依赖未装**（有断言钉住） |
 | **S5a** | `stages/runner.ts` | 11 阶段编排；产出映射规则（1 份取原文 / ≥2 份取 JSON 信封）；`code 2` **不阻断阶段、阻断 CLEAN** |
+| **S5b** | `stages/{deterministic,figure-render,diagram-render,format-check,docx-export,figure-manifest,asset-dir}.ts` | **四个确定性阶段的执行体**（阶段 4/5/10/11 真跑）；5 条门禁从 `2` 变真判据 + 新增 `figure_style_rules`；运行器补上"声明的产物齐了没有"与目录型产物展开；导出引擎三依赖已装并跑通 |
+| **S5b（门禁侧）** | `stages/gates.ts` | 未实现判据 10 → **5** 条（清单是 `gates.spec.ts` 里的断言）；`figure_style_rules` 把 `setup_style` 的规范做成可核判据 |
 
-**测试规模**：全量 **2021 通过 / 3 显式待办**（那 3 条见 §3.1）。`tsc -b tsconfig.host.json` 干净。
+**测试规模**：全量 **2061 通过 / 0 显式待办**（171 文件；`it.skip` 已清零）。`tsc -b tsconfig.host.json` 干净。
+
+**S5b 抓到的四个真缺陷**（详见 `S5B-REPORT.md` §2）：纵向架构图节点越出画布、
+数据图图内出现标题（代码与自己的契约相反）、逐问代码文件对门禁不可见、
+**阶段 11 的 docx 写到了正文路径上**（在加"产物齐了没有"这条检查之前，它是"通过"的）。
 
 ---
 
 ## §3 剩余工作（按优先级，每项带判据）
 
-### 3.1 🔴 确定性阶段的执行体（**第一优先**，它同时解锁两项台账缺口）
+### 3.1 ✅ 确定性阶段的执行体（S5b 完成）
 
-`runner.ts` 的 `StageContext.runDeterministic` 目前是**测试里的假执行体**，主线没有实现。
-需要实现四个确定性阶段：
+四个阶段都跑通了，判据（那 3 条 `it.skip`）已转正，并补了 6 条执行体专项用例。
+`adaptation.ts` 的两条 Python 计算缺口：**图表规范那条已闭合**（`figure_style_rules` 门禁）；
+**附件画像器那条仍未闭合**，但缺的不是算法是接线位置（阶段 1 是模型阶段，没有 harness 侧
+后处理钩子）——如实留在台账里，不假装适配。
 
-| 阶段 | 要做什么 | 现成可复用的 |
-|---|---|---|
-| **4 图表生成** | 读 `FIGURE_DECLARATIONS.json` → 渲染 SVG → 写 `figure-manifest.json` | **`figure/producer.ts` 已经是声明驱动渲染器**（模型声明 `chart_type/data_refs/caption`，producer 从 store 取数渲染）——**适配它，不要重写** |
-| **5 流程与架构图** | 读 `PROBLEM_ANALYSIS.md` 的 FIGURE_MANIFEST → 用迁移进来的模板渲染 | `stages/assets/diagram-templates/`（5 模板 + themes.css，**已迁移**） |
-| **10 格式自检** | 五类检查 + 就地安全修复 → 写报告 | 参考的 `docx-format-check/SKILL.md` 已转写进 `briefing.ts` |
-| **11 导出** | 引擎渲染 docx | `stages/assets/docx-engine/`（**已迁移，差三个依赖**） |
+### 3.2 ✅ 导出引擎的三个依赖（S5b 完成）
 
-**判据**：§2 里那 3 条 `it.skip` 用例转绿（它们要的就是"跑完整条链"）。
-**同时解锁**：`adaptation.ts` 里两条 Python 计算缺口的 `option`——把
-`setup_style` 的规范（禁 `plt.title` / 禁默认色板 / ≥300DPI / 字号 ≥9pt）做成 TS 门禁
-`figure_style_rules`，需要渲染器先吐出元素的字号与配色元数据。
+`docx` / `fast-xml-parser` / `temml` 已装进 `packages/paper/paper-foundation`，已实测跑通。
+**顺带发现一个参考侧不存在的问题**：参考的图由 matplotlib 直接出 PNG，而本 harness 的图是
+SVG，迁移进来的引擎**只嵌位图**——不补一步，Word 里会是 `[unsupported image]` 占位符。
+所以由 harness 侧补一次 SVG→PNG 栅格化（`cairosvg`，300 DPI，复用既有的 `probeExportDeps`，
+cairosvg 早就在那张表里）。测试**解压 docx** 断言 `word/media/` 非空且无占位符。
 
-### 3.2 导出引擎的三个依赖
-
-`docx` / `fast-xml-parser` / `temml` —— 本仓库**一个都没有**。
-`tests/architecture/stage-assets.spec.ts` 里有**断言钉住"还没装"**：装了依赖那条会红，
-**逼你同步台账**。两条路：装依赖，或把引擎里用到它们的地方改成仓库已有的能力。
-
-### 3.3 S6：CLI 接线
+### 3.3 🔴 S6：CLI 接线（**第一优先**）
 
 `--stages` / `--pause-after` / `--resume` 复用既有热重启。要点：
-- `--stages` 走 `runStages`，`callModel` 接 `WorkflowExecutor` 的 provider 调用；
+- `--stages` 走 `runStages`，`callModel` 接 `WorkflowExecutor` 的 provider 调用，
+  `runDeterministic` 接 `deterministicRunner()`；
+- **`stages/**` 现在整个子树不在 `lib/index.js` 里**（`grep docx-profiles lib/index.js` = 0）——
+  接线时它才会进产物。**同时要定"静态资产怎么进产物"**：`src/stages/{assets,skill-docs}`
+  是纯静态资源，构建不会复制它们（仓库里没有任何 `tsdown.config.ts` 用 `copy`）。
+  `stages/asset-dir.ts` 做了显式两段解析（模块旁边 → 回退源码树，都找不到就抛错），
+  **但回退是回退**：正确形态是构建把它们复制到 `lib` 旁边。改根配置会波及全部 workspace 包，
+  按包加配置会丢掉根配置里的 typert 插件——这一步要和 S6 一起决定；
 - **语料工具与自检工具同一个开关**（`PaperExecutorOptions.skillDocs`）——工具没挂时简报不列语料索引；
 - 暂停/续跑的语义已由 `runtime/stage-checkpoint.ts` 实现，**11 阶段表要与它的 5 阶段表对齐**
   （或把 `stage-checkpoint.ts` 的 `STAGES` 换成引用 `stages/registry.ts` 的 `STAGES`）。
@@ -92,9 +98,12 @@
 同名产物（`PROBLEM_ANALYSIS.md` / `MODELING_REPORT.md` / `RESULTS.md` / `paper/main.md` …）
 可直接与参考工作区 `C:\Users\35702\Desktop\CUMCM\workspaces\5ba6e7bd5010\` 逐份 diff。
 
-### 3.5 台账里剩下的 3 项 `missing`
+### 3.5 台账里剩下的 1 项 `missing`
 
-见 `stages/adaptation.ts` 的 `missingAdaptations()`（测试断言了数量，改动要同步）。
+`prob-analysis` 的附件画像器（见 3.1）。另外**未实现的门禁还有 5 条**
+（`capability_check` / `modeling_coverage` / `modeling_self_check` / `delivery_audit` /
+`paper_claim_check`），最高优先级仍是 `paper_claim_check`——它是阶段 7"装配而非推理"
+这一前提的机械强制手段。清单在 `gates.spec.ts` 里，**实现一条就删一条**。
 
 ---
 
@@ -190,7 +199,7 @@
 ## §6 验证命令
 
 ```bash
-# 全量套件（约 45s，2021 通过 / 3 待办）
+# 全量套件（约 20s，2061 通过 / 0 待办）
 npx vitest run packages/paper apps/paper-shell
 
 # 只跑本轮新增的架构测试
@@ -201,6 +210,11 @@ npx tsc -b tsconfig.host.json
 
 # 真实运行前必须重建（否则 CODE-STALE 会拒绝启动）
 npm run build:lib:host
+```
+
+**注意**：`stages/**` 目前**不在** `lib/index.js` 里（S6 才会接进产物），
+所以重建之后 `grep docx-profiles packages/paper/paper-foundation/lib/index.js` 仍是 0——
+那不是"构建坏了"，是还没接线。静态资产怎么进产物见 §3.3。
 
 # 真实运行（阶段链，暂停在检查点）
 set -a && . ./.env.local && set +a
@@ -221,7 +235,7 @@ packages/paper/paper-foundation/src/stages/
   registry.ts        11 阶段 × 七字段（kind/consumes/produces/gates/contractRules/rollbackTo/guidedFallback）
   handoff.ts         通行证：签发/读取/上游就绪/回滚作废
   interchange.ts     JSON 传递媒介：IR 往返、digest、inputDigestOf
-  gates.ts           16 条门禁（0/1/2）+ 10 条显式未实现
+  gates.ts           16 条门禁（0/1/2）+ 5 条显式未实现
   briefing.ts        七节阶段简报（技能适配层）
   adaptation.ts      适配台账（八类资产 × 五种方式，missing 必须写 option）
   skill-docs.ts      规则语料索引（20 份）
@@ -229,6 +243,13 @@ packages/paper/paper-foundation/src/stages/
   docx-profile.ts    国赛样式档解析 + 导出前校核
   assets.ts          图模板与导出引擎的清单
   runner.ts          阶段执行器（provider 无关）
+  asset-dir.ts       资产目录解析（src/lib 两种布局 + 缺资产抛错）
+  deterministic.ts   确定性执行体总入口（deterministicRunner() 一行接线）
+  figure-render.ts   阶段 4：声明驱动的数据图渲染 + figure-manifest.json
+  diagram-render.ts  阶段 5：FIGURE_MANIFEST + ARCH_DECLARATION → 架构图 + diagram-manifest.json
+  format-check.ts    阶段 10：五类检查 + 逐字可比的安全修复 + 报告
+  docx-export.ts     阶段 11：校核 → SVG→PNG 栅格化 → 引擎渲染 + 导出报告
+  figure-manifest.ts FIGURE_MANIFEST 的唯一解析器（阶段 4/5 与门禁共用）
   skill-docs/        20 份语料（809KB，原样迁移）
   assets/            docx-profiles/（样式档+封面档）、diagram-templates/（5+1）、docx-engine/（5）
 
@@ -236,15 +257,17 @@ tests/architecture/
   chain-split-prototype.spec.ts   S0
   interchange.spec.ts             S1a
   stage-registry-handoff.spec.ts  S1b
-  gates.spec.ts                   S2
+  gates.spec.ts                   S2（38 条：含对账/风格/几何/校核四组）
   stage-briefing.spec.ts          S3
   adaptation.spec.ts              S3（台账）
   skill-docs.spec.ts              S4a
   tools.spec.ts                   S4b
   docx-profile.spec.ts            S4c
   stage-assets.spec.ts            S4d
-  stage-runner.spec.ts            S5a（**含 3 条 it.skip，是 §3.1 的判据**）
+  asset-dir.spec.ts               S5b（资产目录两种布局）
+  stage-runner.spec.ts            S5a+S5b（**确定性阶段用真执行体**；解压 docx 断言图真的嵌进去了）
 ```
 
-**报告**：`artifacts/upper-bound/ROUND-5-REPORT.md`（自检工具）、`ROUND-6-REPORT.md`（按审计修复）、
+**报告**：`artifacts/upper-bound/S5B-REPORT.md`（S5b：做了什么 / 四个真缺陷的根因 / 测试侧失误）、
+`ROUND-5-REPORT.md`（自检工具）、`ROUND-6-REPORT.md`（按审计修复）、
 `FORMAT-AUDIT.md`（格式飘移定位）、`2024B-hot-1/CHECKPOINT-*.md`（热重启四份检查点报告）。

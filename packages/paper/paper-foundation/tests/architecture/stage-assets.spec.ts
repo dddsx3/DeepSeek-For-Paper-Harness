@@ -1,12 +1,15 @@
 /**
  * 迁移进来的资产 —— 模板与导出引擎。
  *
- * 判据是"**拷文件不等于能跑**"：引擎的依赖还缺三个，这一条必须被断言钉住，
- * 不能因为文件在了就宣称适配完成。
+ * 判据是"**拷文件不等于能跑**"。第一版这条断言的是"引擎的三个依赖还没装"
+ * （那时确实跑不起来）。依赖装上之后，判据换成**从引擎目录能不能解析到它们**——
+ * "装在哪儿"不是判据（pnpm 的工作区布局会把它放进包自己的 node_modules），
+ * "引擎 require 得到吗"才是。
  */
 
 import { describe, expect, it } from 'vitest'
 import { existsSync, readFileSync } from 'node:fs'
+import { createRequire } from 'node:module'
 import { join } from 'node:path'
 import {
   DIAGRAM_TEMPLATES,
@@ -48,7 +51,7 @@ describe('图模板 —— 迁移与可用性', () => {
   })
 })
 
-describe('导出引擎 —— 迁移完成，但**依赖还缺**', () => {
+describe('导出引擎 —— 迁移完成，且**依赖真的可解析**', () => {
   it('引擎文件都在磁盘上（含主入口）', () => {
     for (const f of DOCX_ENGINE_FILES) {
       expect(existsSync(join(DOCX_ENGINE_DIR, f.file)), `${f.file} 不在`).toBe(true)
@@ -56,13 +59,21 @@ describe('导出引擎 —— 迁移完成，但**依赖还缺**', () => {
     expect(readFileSync(join(DOCX_ENGINE_DIR, 'md_to_docx.js'), 'utf8').length).toBeGreaterThan(10_000)
   })
 
-  it('**三个外部依赖在本仓库里一个都没有** —— 拷文件不等于能跑', () => {
-    // 这条断言故意断言"还没装"。一旦装了依赖，它会红，逼作者同步台账与适配说明。
-    const root = join(DOCX_ENGINE_DIR, '..', '..', '..', '..', '..', '..')
+  it('**三个外部依赖从引擎目录可解析** —— 拷文件不等于能跑，装上了才算', () => {
+    const requireFromEngine = createRequire(join(DOCX_ENGINE_DIR, 'md_to_docx.js'))
     for (const dep of DOCX_ENGINE_EXTERNAL_DEPS) {
-      expect(existsSync(join(root, 'node_modules', dep)), `${dep} 已装 —— 请同步台账`).toBe(false)
+      expect(() => requireFromEngine.resolve(dep), `${dep} 从引擎目录解析不到 —— 引擎跑不起来`).not.toThrow()
     }
     expect(DOCX_ENGINE_EXTERNAL_DEPS).toEqual(['docx', 'fast-xml-parser', 'temml'])
+  })
+
+  it('引擎自己的 `package.json` 声明了这三个依赖（迁移过来的声明不改写）', () => {
+    const declared = JSON.parse(readFileSync(join(DOCX_ENGINE_DIR, 'package.json'), 'utf8')) as {
+      dependencies?: Record<string, string>
+    }
+    for (const dep of DOCX_ENGINE_EXTERNAL_DEPS) {
+      expect(declared.dependencies?.[dep], `引擎的 package.json 没声明 ${dep}`).toBeDefined()
+    }
   })
 
   it('每个引擎文件都写明了它用到哪些依赖（"还差什么"可核，不靠记忆）', () => {

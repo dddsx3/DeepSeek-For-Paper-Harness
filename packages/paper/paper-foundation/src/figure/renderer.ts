@@ -313,9 +313,13 @@ export function renderFigureSvg(input: RenderInput): string {
   if (input.x_label !== undefined) {
     parts.push(`<text x="${L + plotW / 2}" y="${H - 12}" text-anchor="middle" font-family="sans-serif" font-size="12" fill="${INK}">${escapeXml(input.x_label)}</text>`)
   }
-  if (input.caption !== undefined) {
-    parts.push(`<text x="${L}" y="${18}" font-family="sans-serif" font-size="13" font-weight="600" fill="${INK}">${escapeXml(input.caption)}</text>`)
-  }
+  // W9-B4 —— 数据图**不写图内标题**（`plt.title` 的等价物）。题注由交付物正文给
+  // （`report-v2.ts` 输出独立的题注行），图里再写一遍是噪声，也会被
+  // `figure_style_rules` 门禁按"题注不得出现在图内"判失败。
+  //
+  // 第一版这里确实把 `caption` 画进了 SVG，而模块头的契约写着"从不输出 caption
+  // 到 SVG 内部"——**代码与自己的契约相反**。契约是对的（参考的 setup_style 禁
+  // plt.title），所以改的是代码：`caption` 字段只供审计对账，不进字节。
   parts.push('</svg>')
   return parts.join('\n') + '\n'
 }

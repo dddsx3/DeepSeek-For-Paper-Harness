@@ -78,8 +78,14 @@ const SKILLS: Readonly<Record<string, StageSkill>> = {
         + '标为决策、目标、机制的句子，**必须**被某个能力项的 `source_sentence` 认领——这是硬判据。',
       '**硬约束清单（HARD_CONSTRAINTS）**：题面里"必须/不得/至少/不超过"这一类。逐条抄原文，不要转述。',
       '**FIGURE_MANIFEST 块**：夹在 `<!-- BEGIN FIGURE_MANIFEST -->` 与 `<!-- END FIGURE_MANIFEST -->` 之间。'
-        + '每条以 `fig_` 或 `tikz_` 开头；**数据类图 12–20 张**（含横向对比、灵敏度、校核图）。'
-        + '每张图在正文里都要有一处说明它的图表类型。',
+        + '段头式写法（与参考一致）：先写 `DATA=<n>` 再逐行列数据图名，然后 `DRAWIO=<n>`、`TIKZ=<n>`、'
+        + '`GPTIMG=0`、`ALL=<n>`。每条以 `fig_` 或 `tikz_` 开头；**数据类图 12–20 张**'
+        + '（含横向对比、灵敏度、校核图）。每张图在正文里都要有一处说明它的图表类型。',
+      '**ARCH_DECLARATION 块**（`<!-- BEGIN ARCH_DECLARATION -->` … `<!-- END ARCH_DECLARATION -->`）：'
+        + '**只要清单里有 `DRAWIO` 条目就必须写**。它是 `图 id → {style_family, direction, layers, edges}` 的 JSON 对象。'
+        + '理由：清单只给图**名**，给不出层/节点/连线——阶段 5 的渲染器按声明画图，**没有声明就不画**'
+        + '（凭空造一张路线图比缺一张更糟）。节点标签要短（**不得**写具体结果数值，也**不得**整张图都是'
+        + '"数据采集/建立模型"这类万能词）。',
       '**CAPABILITY_CHECKLIST.json**：每条 = `{ id, required_output, machine_check, source_sentence }`。'
         + '`machine_check` 要写成**别人能照着核**的句子（"问题 2 给出 16 种策略的期望成本表"），'
         + '不是"建模合理"。',
@@ -99,6 +105,7 @@ const SKILLS: Readonly<Record<string, StageSkill>> = {
     selfCheck: [
       '`PROBLEM_ANALYSIS.md` ≥ 1500 字节（UTF-8 字节数，中文按 3 字节算）。',
       'FIGURE_MANIFEST 的 BEGIN/END 锚点都在，条目全部以 `fig_`/`tikz_` 开头。',
+      '清单里有 `DRAWIO` 条目时，`ARCH_DECLARATION` 块也在，且每个 `fig_*` 条目都有对应的层/节点/连线声明。',
       '逐句表里标为决策/目标/机制的句子，全部被能力项的 `source_sentence` 认领。',
       '`[[ASSUMPTION: …]]` 与 `[[REQUIREMENT: …]]` 各有至少一条、且都在**行首**。',
     ],
@@ -146,8 +153,14 @@ const SKILLS: Readonly<Record<string, StageSkill>> = {
       '每个被声明为输出的量，都要真的写进声明的输出文件，并用 `jsonPath` 能读到。'
         + '**声明的输出必须存在且非空**——声明了却没有，是硬失败。',
       '`RESULTS.md` 写结果说明：四问的关键数值、校核证据、归因、诚实边界。',
-      '`FIGURE_DECLARATIONS.json` 声明图：每张图 `{ figure_id, chart_type, data_refs, caption }`，'
-        + '`data_refs` **必须**指向本阶段真跑出来的 Result。',
+      '`FIGURE_DECLARATIONS.json` 声明图：**一个 JSON 对象，两个键**——'
+        + '`results`（代码真跑出来的量的只读投影：`{result_id, name, value, unit, uncertainty}`）与 '
+        + '`figures`（每张图 `{figure_id, chart_type, data_refs, caption, x_label?, y_label?}`）。'
+        + '`data_refs` **必须**指向 `results` 里真有的 `result_id`。'
+        + '为什么把数也放进来：阶段 4 的渲染器只认 `Result` 记录，而它是**确定性**的（不调模型、'
+        + '不跑你的代码），所以你的代码算出来的值必须以这个形态交出去。`chart_type` 只能是 '
+        + '`line` / `scatter` / `bar` / `table` 四个之一（渲染器是固定的，不认自创图型）。'
+        + '`caption` / `x_label` / `y_label` 里**不得**出现 `results` 之外的数字。',
       '**数字只有两个合法来源**：题面给定值，或代码真跑出来的值。散文里不许出现自算数字。',
       '分类指标出现 ≥0.99 时，**必须**同时给出防泄漏说明（数据划分、去泄漏步骤）。'
         + '没有说明的 0.99 是硬失败。',
@@ -161,7 +174,7 @@ const SKILLS: Readonly<Record<string, StageSkill>> = {
     selfCheck: [
       '`code/main.py` ≥ 500 字节、`RESULTS.md` ≥ 1024 字节、代码文件数 ≥ 题面问数。',
       '声明的每个交付物都真的存在且非空（`DELIVERABLES.json` 与磁盘一致）。',
-      '没有图像字节；每条图声明的 `data_refs` 都指向本阶段铸出的 Result。',
+      '没有图像字节；`FIGURE_DECLARATIONS.json` 的每条 `data_refs` 都指向自己 `results` 里真有的 id。',
       '≥0.99 的分类指标都配了防泄漏说明。',
     ],
   },
@@ -170,19 +183,29 @@ const SKILLS: Readonly<Record<string, StageSkill>> = {
     task: '产出**图表**：把阶段 3 的图声明渲染成真图，并与阶段 1 的 FIGURE_MANIFEST 对账。'
       + '本阶段是**确定性**的——不调用模型，按声明取数渲染。',
     how: [
-      '与 manifest 对账：计划里的每张**数据图**都必须真的渲染出来；缺一张就是对账失败。',
+      '与 manifest 对账（**双向**）：计划里的每张**数据图**都必须真的渲染出来；渲染出来的图也必须都在计划里。'
+        + '缺一张是失败，多一张也是失败——多出来的图会被下游当成真产物引用。',
       '命名规则：数据图**不得**用架构前缀（`fig_arch`/`fig_flow`/`fig_roadmap`/`fig_pipeline`/'
         + '`fig_framework`/`fig_network`/`fig_state`/`fig_decision`/`fig_overview`）——'
         + '那些前缀留给阶段 5 的流程图。',
+      '渲染器是**固定的**：Okabe–Ito 色盲安全配色、680×420 viewBox、字号下限 9px、'
+        + '数值刻度用等宽字体。声明里能改的只有 `chart_type` / `data_refs` / 题注与轴标签。',
       '半成品检测：有 `_plot_data.json` 却没有任何图，或有数据准备脚本却没有图，都算未完成。',
     ],
     forbidden: [
-      '**不得**在数据图上加标题（`plt.title()`）。题注由正文给，图里重复一遍是噪声。',
+      '**不得**在数据图上加标题（`plt.title()` 的等价物）。题注由正文给，图里重复一遍是噪声——'
+        + '这条是门禁 `figure_style_rules`：声明的题注不得作为文本出现在 SVG 里。',
       '**不得**用默认色板（`tab10`）与 CSS 颜色名、`RdYlGn`/`RdBu_r`/`dark_background`——'
-        + '打印成灰度后不可区分。',
-      '**不得**输出低于 300 DPI 的图。',
+        + '打印成灰度后不可区分。这条也是 `figure_style_rules` 的判据。',
+      '**不得**输出低于 300 DPI 的图。本阶段的产物是 SVG（矢量，与分辨率无关）；'
+        + '这条地板在栅格化路径上生效——阶段 11 把 SVG 转成 PNG 嵌进 Word 时按 300 DPI 渲染。',
     ],
-    selfCheck: ['manifest 里每张数据图都有对应文件', '无标题、非默认色板、≥300 DPI', '命名前缀合规'],
+    selfCheck: [
+      'manifest 里每张数据图都有对应文件，且没有清单外的图。',
+      '无图内标题、非默认色板、字号 ≥9px、元素不越出画布。',
+      '命名前缀合规（数据图不用架构前缀）。',
+      '每条 `data_refs` 都解析到阶段 3 投影里真有的 Result。',
+    ],
   },
   diagram: {
     ported: true,
@@ -194,8 +217,9 @@ const SKILLS: Readonly<Record<string, StageSkill>> = {
         + '**不许自创模板形态**——模板族的价值是全篇一致。',
       '**命名前缀固定**：`fig_arch` / `fig_flow` / `fig_pipeline` / `fig_framework` / `fig_roadmap`，'
         + '几何精度图用 `tikz_`。这些前缀与数据图（阶段 4）**互斥**，不得混用。',
-      '**与 manifest 对账**：阶段 1 的 FIGURE_MANIFEST 里属于 HTML/DrawIO/TikZ 段的每一条，'
-        + '都必须真的产出一个文件（`.pdf`/`.html`/`.png` 任一形态都接受）。缺一条即对账失败。',
+      '**与 manifest 对账**：阶段 1 的 FIGURE_MANIFEST 里属于 DRAWIO/HTML 段的每一条，'
+        + '都必须真的产出一个文件；结构来自分析里的 `ARCH_DECLARATION` 块（**没有声明就不画**）。'
+        + 'TIKZ 几何族需要 LaTeX 引擎，本仓库没有——那几张**如实标注够不到**，门禁给 `2` 不给 `0`。',
       '**风格族三选一，全篇统一**：A 朴素竞赛风（黑白为主、线框清晰）/ B 现代精致风（克制的配色与留白）/ '
         + 'C 纯黑白（零色彩——判据是全文不出现任何 `hsl(...)` 与强调色变量）。'
         + '混用两个风格族会让整篇看起来像拼凑的。',
@@ -329,14 +353,17 @@ const SKILLS: Readonly<Record<string, StageSkill>> = {
     task: '产出**格式自检报告** `DOCX_FORMAT_CHECK_REPORT.md`，并在**安全**的前提下就地修复 Markdown。'
       + '**即使全部检查通过，也必须出报告**——报告本身是产物。',
     how: [
-      '五类检查，逐类给 ✅/⚠️ 与修复计数：代码块完整性 / 公式编号语法 / 三线表格式 /'
-        + '图片引用 / Markdown 噪声。',
+      '五类检查，逐类给 ✅/⚠️ 与修复计数：**代码块完整性** / **公式编号语法** / **三线表格式** /'
+        + '**伪标题·伪题注·伪公式号** / **Markdown 噪声**。',
       '报告固定三段：自动修复的问题 / 仍需人工处理的问题 / 结论。',
-      '修复**保守**：只做确定的等价改写（`（）`→` ()`、`$$X$$`→`$X$`）；'
-        + '代码围栏的语言标记只有 100% 可推断时才补，否则留裸围栏。',
+      '修复**保守**，只做三类确定的等价改写：空的全角括号 `（）`→`()`；**同一行内**的 `$$X$$`→`$X$`'
+        + '（整行只有 `$$X$$` 的是块公式，不动）；代码围栏的语言标记**只有 100% 可推断时才补**，'
+        + '推不出来就留裸围栏。每一次修复都过"改动前后遮掉目标模式后逐字节相同"的比对。',
+      '修复**就地**施加在 `07-paper/paper/main.md` 上，修复前的文本另存到本阶段目录的 `_before/main.md`'
+        + '（"改动前长什么样"的唯一副本，也是回滚证据）。',
     ],
     forbidden: [
-      '**不得**改变公式语义。只允许上面那两类等价改写。',
+      '**不得**改变公式语义。只允许上面那三类等价改写。',
       '**不得**与导出前校核重复（图片闭合、LaTeX 残留、引用闭合、字数那些归阶段 11 的校核）。',
       '**不得**因为有问题就阻塞——**本阶段是非阻塞的**：未消解的人工项照写报告。',
     ],
@@ -353,19 +380,23 @@ const SKILLS: Readonly<Record<string, StageSkill>> = {
       '**必须**在导出前跑一次校核：Markdown 是否还有占位符、表格列数是否一致、图片链接是否闭合。'
         + '任一致命项存在即**拒绝导出**，并把致命项写进报告。',
       '**必须**按 `_text_profile.json` 落格式（字号 / 字体 / 行距 / 三线表线宽 / 悬挂缩进）。'
-        + '画像缺失或非法时**回退到默认画像**，并在报告里写明"用了默认"。',
+        + '画像缺失或非法时**回退到默认画像**，并在报告里写明"用了默认"与回退原因。',
       '**必须**校验产物的存在与体量：导出器退出码为 0 **不等于**导出成功——'
         + '还要文件真的存在且不是空壳。',
+      '**必须**把 SVG 图栅格化成 PNG 再交给引擎（引擎只嵌位图），栅格化按 300 DPI；'
+        + '栅格化依赖缺失时**具名拒绝**，不许嵌占位符充数。',
     ],
     forbidden: [
       '**不得**在致命项存在时产出 docx。宁可交出"缺 docx 的交付包 + 明确的致命项报告"，'
         + '也不要交出一个看起来完整、实际格式错乱的 Word 文件。',
-      '**不得**修改 `paper/main.md` 的正文内容。本阶段只做格式转换。',
+      '**不得**修改 `paper/main.md` 的正文内容。本阶段只做格式转换；图链接的 `.svg → .png`'
+        + '只发生在导出用的派生副本（`_export.md`）上。',
     ],
     selfCheck: [
       '导出前校核的致命项为 0。',
       '`paper/main.docx` 存在且体量合理（不是空壳）。',
-      '格式画像缺失时，报告里写明了"回退到默认画像"。',
+      '`DOCX_EXPORT_REPORT.md` 里写明了格式画像的来源（explicit / 回退到默认）与回退原因。',
+      '引用到的 SVG 图都真的被栅格化成了 PNG（报告里有逐张记录）。',
     ],
   },
 }

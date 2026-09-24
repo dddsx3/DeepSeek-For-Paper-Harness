@@ -11,32 +11,34 @@
  * **都原样迁移，不改写**：模板是版式规范本身，引擎是渲染实现本身。改写它们等于换标准。
  * 逐份核查 modex：干净。
  *
- * ## 适配状态：模板**可直接用**，引擎**还差依赖**
+ * ## 适配状态：模板与引擎**都能跑**
  *
  * 模板是纯静态资源（HTML + CSS），渲染器读它即可，**没有额外依赖**。
  *
  * 引擎是 Node 实现（与本仓库同运行时，这是选它而不是改造 `export-docx.py` 的理由），
- * 但它的 `package.json` 声明了三个依赖：**`docx` / `fast-xml-parser` / `temml`**，
- * 而本仓库**一个都没有**（已核实）。所以引擎的适配**还差一步**：装这三个依赖，
- * 或者把引擎里用到它们的地方改成仓库已有的能力。
+ * 它声明了三个依赖：**`docx` / `fast-xml-parser` / `temml`**。这三个**已装进本包**
+ * （`packages/paper/paper-foundation/package.json`），并已实测跑通
+ * （`node md_to_docx.js --source x.md --output x.docx` 产出真 docx）。
  *
- * 这一条**如实记在台账里**（`missing` 的 `option`），不因为"文件已经拷进来了"就
- * 宣称适配完成——**拷文件不等于能跑**。
+ * `DOCX_ENGINE_EXTERNAL_DEPS` 仍列在这里，但含义变了：它不再是"还差什么"的清单，
+ * 而是**测试用来断言"依赖真的可解析"**的清单——`stage-assets.spec.ts` 从引擎目录
+ * 逐个 `require.resolve`，所以"文件在但依赖没装"这种状态跑不起来也藏不住。
  *
  * @module @deepseek-ai/dsh-paper-foundation/stages/assets
  */
 
 import { readFileSync } from 'node:fs'
-import { dirname, join } from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { join } from 'node:path'
+import { resolveStageAssetDir } from './asset-dir.ts'
 
-const HERE = dirname(fileURLToPath(import.meta.url))
+/** 资产目录的解析结果（含"用的是 src 还是 lib 那一份"，供报告与清单记录）。 */
+export const STAGE_ASSETS_DIR = resolveStageAssetDir('assets')
 
 /** 模板目录（从模块自身解析，单一来源）。 */
-export const DIAGRAM_TEMPLATES_DIR = join(HERE, 'assets', 'diagram-templates')
+export const DIAGRAM_TEMPLATES_DIR = join(STAGE_ASSETS_DIR.dir, 'diagram-templates')
 
 /** 导出引擎目录。 */
-export const DOCX_ENGINE_DIR = join(HERE, 'assets', 'docx-engine')
+export const DOCX_ENGINE_DIR = join(STAGE_ASSETS_DIR.dir, 'docx-engine')
 
 /**
  * 五种图模板 —— 与阶段 5 简报里写的模板族**必须一一对应**。
@@ -80,10 +82,11 @@ export const DOCX_ENGINE_FILES: ReadonlyArray<{
 ]
 
 /**
- * 引擎的外部依赖 —— 本仓库**一个都没有**（已核实）。
+ * 引擎的外部依赖。
  *
- * 这是适配的**最后一步**，也是唯一还没做的一步。列成常量而不是写在注释里，
- * 因为测试要断言"它确实还没被满足"——一旦装了依赖，这条断言会红，逼作者同步台账。
+ * **不再是"还差什么"**——三个都已装进本包（见模块头）。这张表现在的用途是
+ * **可核**：测试从引擎目录逐个 `require.resolve`，所以"文件在但依赖没装"
+ * 这种状态既跑不起来、也藏不住。
  */
 export const DOCX_ENGINE_EXTERNAL_DEPS: ReadonlyArray<string> = ['docx', 'fast-xml-parser', 'temml']
 

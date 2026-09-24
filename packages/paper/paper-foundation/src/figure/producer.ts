@@ -49,8 +49,14 @@ function figureUniquenessKey(data_refs: ReadonlyArray<string>, chart_type: strin
   return `${[...data_refs].sort().join('|')}::${chart_type ?? 'line'}::${FIGURE_STYLE_PROFILE}`
 }
 
-/** Guard caption/axis labels: numeric literals must be referenced values. */
-function guardLabelNumbers(decl: FigureDeclaration, allowed: ReadonlyArray<string>): string | null {
+/**
+ * Guard caption/axis labels: numeric literals must be referenced values.
+ *
+ * 导出给阶段 4 的执行体复用：那条路径不铸 FigureSpec 记录（它渲染到磁盘，
+ * 不进 store），但**同一个缝必须堵**——题注是唯一能绕过"数字只能来自 store"
+ * 的地方。判据写两份迟早会分叉，所以只有这一份。
+ */
+export function guardFigureLabelNumbers(decl: FigureDeclaration, allowed: ReadonlyArray<string>): string | null {
   const texts = [decl.caption ?? '', decl.x_label ?? '', decl.y_label ?? '']
   const allowedSet = new Set(allowed)
   const found = new Set<string>()
@@ -112,7 +118,7 @@ export function produceFigures(
     }
     // Numeric guard on captions/labels (P2-3 attack 1).
     const allowedValues = derived.input.series.map(s => String(s.value))
-    const stray = guardLabelNumbers(decl, allowedValues)
+    const stray = guardFigureLabelNumbers(decl, allowedValues)
     if (stray !== null) {
       return { ok: false, code: 'figure_declaration_invalid', reason: `figure '${decl.figure_id}' caption/axis label contains numeric literal '${stray}' that is not a referenced Result value [${allowedValues.join(', ')}]` }
     }
