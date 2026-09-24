@@ -114,11 +114,31 @@ describe('通行证 —— 门禁不过就拒绝签发', () => {
     })).toThrow(/refusing to issue PASSED/)
   })
 
-  it('**code=2（无法判定）同样不算通过** —— 折成通过就是自欺', () => {
+  it('**code=2（无法判定）可以签发，但必须记名** —— 不记名就等于把它当成了通过', () => {
+    // 契约在 S5 改过一次，理由写在 `runner.ts` 模块头：让 `2` 阻断阶段会使
+    // **所有门禁实现完之前系统完全不可运行**；而 CLEAN/MARKED/DEGRADED/ESCALATE
+    // 这套既有阶梯本来就是"检出问题但如实标注、不零掉产物"。
+    //
+    // 但"`2` 不等于通过"**没有丢**：证上必须带 `unverifiedGates`，交付侧按它降档。
+    const gate = { code: 2 as const, items: [{ id: 'leakage_audit', ok: false, detail: '无法判定' }] }
+    // 不记名 → 拒绝
+    expect(() => passportFor(stageOf('code'), {
+      upstreamDigests: [], skillVersion: 's', gateVersion: 'g', artifacts: {}, gate,
+    })).toThrow(/unjudgeable|cannot judge/)
+    // 记名 → 签发，且证上带着缺口
+    const passport = passportFor(stageOf('code'), {
+      upstreamDigests: [], skillVersion: 's', gateVersion: 'g', artifacts: {}, gate,
+      unverifiedGates: ['leakage_audit'],
+    })
+    expect(passport.status).toBe('passed')
+    expect(passport.unverifiedGates).toEqual(['leakage_audit'])
+  })
+
+  it('**code=1（硬失败）仍然拒绝签发**（这条没变）', () => {
     expect(() => passportFor(stageOf('code'), {
       upstreamDigests: [], skillVersion: 's', gateVersion: 'g', artifacts: {},
-      gate: { code: 2, items: [{ id: 'leakage_audit', ok: false, detail: '无法判定' }] },
-    })).toThrow(/无法判定/)
+      gate: { code: 1, items: [{ id: 'x', ok: false, detail: '硬失败' }] },
+    })).toThrow(/hard failure/)
   })
 
   it('code=0 → 签发，且摘要覆盖上游/技能/门禁', () => {
