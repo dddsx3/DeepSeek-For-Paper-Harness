@@ -39,7 +39,7 @@ import {
   createExploratoryProfile,
 } from '@deepseek-ai/dsh-paper-foundation'
 import { ModelingIr } from '@deepseek-ai/dsh-paper-foundation'
-import { STAGE_REGISTRY, countProblems, type StageChainId, type StageOutcome } from '@deepseek-ai/dsh-paper-foundation'
+import { STAGE_REGISTRY, countProblems, markStageChainStaleFrom, readStagePassport, writeStagePassport, chainStageOf, type StageChainId, type StageOutcome } from '@deepseek-ai/dsh-paper-foundation'
 import { brokenFigureLinks, deliverablesContractFindings, docxExportGate, docxPrecheckVerdict, exportDepsSummary, parseDeliverablesContract, probeExportDeps, runDocxPrechecks, type ActualDeliverable } from '@deepseek-ai/dsh-paper-foundation'
 import { resolveShellRoute, blockMessage, failureFactsOf, fidelityBlockedHuman, lastFailureClassEvent, type ShellRoute } from './invoke.ts'
 import { assembleBundle } from './bundle.ts'
@@ -732,6 +732,29 @@ ${String(result.unverifiable.length)} / ${String(result.claims.length)} 条断�
 
     console.log(`[STAGE CHAIN] ${stagesRoot}`)
     console.log(`  题面问数（数出来的）：${countProblems(problemText)}`)
+    // **检查人否决**：把某阶段（含下游）的通行证作废，重跑它才有依据。
+    // 这是"每阶段停、人工放行"的另一半——放行 = 再调一次 --stage-next；
+    // 否决 = --stage-rollback <id>（不删除旧证，证据保留，写明是谁/为何作废）。
+    const rollbackArg = typeof parsed['stage-rollback'] === 'string' ? String(parsed['stage-rollback']) : undefined
+    if (rollbackArg !== undefined) {
+      if (!stageIds.includes(rollbackArg)) {
+        console.error(`--stage-rollback ${rollbackArg}：不认识的阶段 id（全部：${stageIds.join('、')}）`)
+        await dispose()
+        return 2
+      }
+      const reason = typeof parsed['stage-reason'] === 'string' ? String(parsed['stage-reason']) : '检查人否决（人工检查未通过）'
+      // markStaleFrom 的语义是"保留目标、作废其下游"（回滚到 X 修正后重跑）；
+      // 检查人否决要作废**该阶段本身**及其后——所以先把它自己的证标 stale，
+      // 再用它作废下游。
+      const self = await readStagePassport(stagesRoot, chainStageOf(rollbackArg as StageChainId))
+      if (self !== null) {
+        await writeStagePassport(stagesRoot, { ...self, status: 'stale', staleReason: `${reason} —— 检查人否决` })
+      }
+      const staled = await markStageChainStaleFrom(stagesRoot, rollbackArg as StageChainId, `${reason} —— 检查人回滚`)
+      console.log(`[ROLLBACK] 已作废 ${staled.length} 个阶段的通行证（含下游）：${staled.join('、') || '（无）'}`)
+      await dispose()
+      return 0
+    }
     // **每阶段停**：只跑下一个未通过的阶段，跑完即停，等人检查后放行。
     // 放行 = 检查的人决定"再调一次 --stage-next"；检查结论写进检查点报告。
     if (parsed['stage-next'] === true) {
