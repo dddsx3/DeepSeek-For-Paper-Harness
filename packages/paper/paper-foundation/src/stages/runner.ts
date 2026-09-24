@@ -132,7 +132,14 @@ export function parseStageOutput(spec: StageSpec, text: string): ReadonlyMap<str
   const anchor = trimmed.lastIndexOf('"files"')
   if (anchor > 0) {
     const brace = trimmed.lastIndexOf('{', anchor)
-    if (brace >= 0) attempts.push({ label: `契约锚（最后一个 "files" 所属的 {，偏移 ${String(brace)}）`, text: trimmed.slice(brace) })
+    if (brace >= 0) {
+      // 从锚点做**括号配平扫描**取完整对象：真实运行实测，信封之后还拖着尾巴
+      // （结尾围栏/一句收尾话），切到文本末尾会报 "after JSON at position …"。
+      // 扫描按字符串/转义感知配平，拿到对象的真实终点——确定性的，不是猜。
+      const end = balancedEnd(trimmed, brace)
+      if (end > brace) attempts.push({ label: `契约锚（最后一个 "files" 所属的完整对象，${String(brace)}…${String(end)}）`, text: trimmed.slice(brace, end + 1) })
+      attempts.push({ label: `契约锚到文本末尾（偏移 ${String(brace)}）`, text: trimmed.slice(brace) })
+    }
   }
   const start = trimmed.indexOf('{')
   const end = trimmed.lastIndexOf('}')
@@ -198,6 +205,31 @@ function envelopesOf(spec: StageSpec, files: Record<string, unknown>): ReadonlyM
     out.set(name, body)
   }
   return out
+}
+
+/**
+ * 从 `start` 的 `{` 起做字符串/转义感知的括号配平，返回配平的 `}` 的下标；配不平返回 -1。
+ */
+export function balancedEnd(text: string, start: number): number {
+  let depth = 0
+  let inString = false
+  let escaped = false
+  for (let i = start; i < text.length; i += 1) {
+    const ch = text[i] ?? ''
+    if (inString) {
+      if (escaped) escaped = false
+      else if (ch === String.fromCharCode(92)) escaped = true
+      else if (ch === '"') inString = false
+      continue
+    }
+    if (ch === '"') inString = true
+    else if (ch === '{') depth += 1
+    else if (ch === '}') {
+      depth -= 1
+      if (depth === 0) return i
+    }
+  }
+  return -1
 }
 
 /**
