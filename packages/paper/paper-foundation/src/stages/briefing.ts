@@ -500,6 +500,11 @@ export function answerFormOf(spec: StageSpec): string {
     + '每个键的值就是那份文件的完整内容（字符串）。'
     + '除这一个 JSON 对象外**不得有任何其它字符**：不要解释、不要推理过程、不要代码围栏、'
     + '不要在 JSON 前后加任何话。你的回答会被直接按这个形态解析，多一个字符都会解析失败。'
+    + (spec.produces.some(p => p.kind === 'dir')
+      ? `目录型产物（${spec.produces.filter(p => p.kind === 'dir').map(p => `\`${p.file}\``).join('、')}）`
+        + '**不要**单独作为键列出——把里面的文件用完整相对路径当键'
+        + '（例如 `code/main.py`、`code/problem1.py`），目录本身不出现在键里。'
+      : '')
 }
 
 /** 全部阶段的技能是否都有内容（装配完整性）。 */

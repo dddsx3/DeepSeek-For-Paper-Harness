@@ -241,8 +241,6 @@ export async function* streamCompletion(
     tools?: ReadonlyArray<ToolSchema>
   },
 ): AsyncGenerator<StreamChunk> {
-  // 连接建立上限：对端连不上 / TLS 握手挂住，10 秒就该报错（不是"等它想"）。
-  const connectTimeoutMs = 10_000
   //
   // **产出约束 = 无令牌看门狗（idle watchdog），不是墙钟。**
   // 2024B-stages-1 真实运行实测：阶段 1 要产出约 280KB 的高质量分析，跑了约 7 分钟
@@ -307,9 +305,10 @@ export async function* streamCompletion(
           authorization: `Bearer ${route.apiKey}`,
         },
         body: payload,
-        // 连接建立的上限（对端连不上要尽快报错）。**真正的产出约束是下面的
-        // 无令牌看门狗，不是墙钟**——见 PAPER_IDLE_TIMEOUT_MS 的注释。
-        signal: AbortSignal.timeout(connectTimeoutMs),
+        // **同一个看门狗信号管全程**（连接 + 流式 body）。绝不能用
+        // AbortSignal.timeout(连接上限)：那个信号会一直挂在响应上，把 body 的
+        // 流式读取也一起掐断——2024B 阶段 3 实测就是这样在 10s 处被杀的。
+        signal: idle.signal,
       })
       if (response.ok) break
       const detail = await response.text().catch(() => '')
