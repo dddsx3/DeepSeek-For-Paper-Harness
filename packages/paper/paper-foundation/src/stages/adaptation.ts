@@ -122,21 +122,22 @@ export const ADAPTATIONS: ReadonlyArray<AssetAdaptation> = [
   },
   {
     stage: 'format-profile', assetClass: 'template', reference: 'tools/docx_style_profiles/competition_zh.json + covers/cumcm.json',
-    mode: 'missing',
-    detail: '参考有现成的国赛样式档（A4/2.5cm 边距/SimHei 标题/SimSun 正文/12pt 1.5 倍行距/三线表 1.5-0.75-1.5pt）'
-      + '与封面档（承诺书 + 9 个表单字段），本仓库没有。',
-    option: '移植这两个 JSON 作为**默认画像与封面**：`_text_profile.json` 缺失或非法时回退到它，'
-      + '而不是回退到"无格式"。这是"本机适配选项"的典型——参考的能力不丢，只是改成 harness 侧默认值。',
+    mode: 'ported',
+    detail: '两份 JSON **已原样迁移**到 `src/stages/assets/docx-profiles/`（数据不改写——改写数据等于换标准）；'
+      + '适配的是用法：`resolveDocxProfile` 把阶段 9 的画像**叠加在国赛默认之上**，'
+      + '缺失/非法/无识别字段时回退到默认并**给出具名原因**，绝不回退到"无格式"。'
+      + '导出前校核（占位符/图片链接/表格列数）也已实现为 TS（`docxPrecheckFatal`）。',
   },
   {
     stage: 'docx-export', assetClass: 'docx_engine', reference: 'tools/docx-cn-engine/(md_to_docx.js + latex_to_omml.js + new_doc.js)',
     mode: 'missing',
     detail: '阶段 11 的导出引擎（`md_to_docx.js` + `latex_to_omml.js` + `new_doc.js`）未接；'
       + '本仓库现有的 `scripts/export-docx.py` 对齐的是本仓库模板（dphpaper.cls 一系），'
-      + '**不是**参考的国赛样式档，两者不可互换。',
-    option: '移植引擎（Node 实现，与本仓库同运行时，可直接调用）；或复用仓库既有的 '
-      + '`scripts/export-docx.py`（已在本管线里跑通，但它对齐的是本仓库模板而非国赛样式档）。'
-      + '**二选一并写明**：引擎换了，样式档的对应关系也要跟着换。',
+      + '**不是**参考的国赛样式档，两者不可互换。**样式档侧已就绪**（`docx-profile.ts`），'
+      + '缺的只是消费它的渲染器。',
+    option: '**迁移引擎而不是改造**：`docx-cn-engine` 是 Node 实现，与本仓库同运行时，可直接调用；'
+      + '适配点是它的画像输入——把 `competition_zh.json` 换成 `resolveDocxProfile` 的输出。'
+      + '不选复用 `export-docx.py`：它对齐的是本仓库模板，与迁移进来的国赛样式档**不是同一套标准**。',
   },
   {
     stage: 'format-check', assetClass: 'gate_script', reference: 'docx-format-check/SKILL.md 的五类检查（代码块/公式编号/三线表/图片引用/噪声）',
