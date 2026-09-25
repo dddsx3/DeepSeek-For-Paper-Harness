@@ -179,16 +179,10 @@ function fakeDeliverable(spec: StageSpec, file: string): string {
 /** 假调用器：按阶段契约产出**合规**内容（多产出用 JSON 信封）。 */
 function fakeCallModel(): StageRunContext['callModel'] {
   return async (spec) => {
-    if (spec.id === 'figure-declare') {
-      // 单产出 → 原文。只声明结构；数在阶段 3 铸出的账本里。
-      return JSON.stringify({
-        figures: [
-          { figure_id: 'fig_a', chart_type: 'bar', data_refs: ['RES-A', 'RES-B'], caption: '两项指标对照', y_label: '占比 / %' },
-        ],
-      })
-    }
-    if (spec.produces.length === 1) {
-      const only = spec.produces[0]!
+    // 与 parseStageOutput 同一口径：harness 铸的产物不进模型回答；目录型算模型交付。
+    const modelOwned = spec.produces.filter(p => p.harnessMinted !== true)
+    if (modelOwned.length === 1) {
+      const only = modelOwned[0]!
       return fakeDeliverable(spec, only.file)
     }
     const files: Record<string, string> = {}
@@ -219,7 +213,7 @@ function ctxOf(root: string, over: Partial<StageRunContext> = {}): StageRunConte
     stagesRoot: root,
     callModel: fakeCallModel(),
     runDeterministic: deterministicRunner(),
-    afterModel: (spec, root) => spec.id === 'code' ? runCodeAndMintResults(root) : Promise.resolve(),
+    afterModel: (spec, root) => spec.id === 'result-sources' ? runCodeAndMintResults(root) : Promise.resolve(),
     skillVersionOf: () => 'sk1',
     gateVersionOf: () => 'g1',
     ...over,
@@ -291,13 +285,12 @@ describe('阶段产出映射 —— 一条明确的规则，不是猜', () => {
         'code/problem1.py': 'print(1)',
         'RESULTS.md': 'x',
         'DELIVERABLES.json': '{}',
-        'RESULT_SOURCES.json': '{}',
       },
     }))
     expect(out.get('code/problem1.py')).toBe('print(1)')
     // 目录前缀之外的仍然算"多出来"
     expect(() => parseStageOutput(stageOf('code'), JSON.stringify({
-      files: { 'code/main.py': 'x', 'RESULTS.md': 'x', 'DELIVERABLES.json': '{}', 'RESULT_SOURCES.json': '{}', 'notes/other.md': 'y' },
+      files: { 'code/main.py': 'x', 'RESULTS.md': 'x', 'DELIVERABLES.json': '{}', 'notes/other.md': 'y' },
     }))).toThrow(/unexpected: notes\/other\.md/)
   })
 
@@ -310,7 +303,8 @@ describe('执行器 —— 顺利推进（确定性阶段用**真执行体**）'
   it('11 个阶段跑完 → 每阶段都签发通行证；有未实现门禁的阶段标 `passed-unverified`', async () => {
     const root = await tmp()
     const outcomes = await runStages(ctxOf(root), { problemCount: 4 })
-    expect(outcomes).toHaveLength(12)
+    console.log('PROBE ' + JSON.stringify(outcomes.map(o => [o.stage, o.status, o.reason.slice(0,200), o.gate.items.filter(i=>!i.ok).map(i=>i.detail.slice(0,160))])))
+    expect(outcomes).toHaveLength(13)
     expect(outcomes.map(o => o.stage)).toEqual(STAGES.map(s => s.id))
     // **没有一个是 gate-failed** —— `2`（无法判定）不阻断阶段
     expect(outcomes.every(o => o.status === 'passed' || o.status === 'passed-unverified')).toBe(true)
@@ -326,7 +320,7 @@ describe('执行器 —— 顺利推进（确定性阶段用**真执行体**）'
     expect((await readPassport(root, stageOf('docx-export')))?.status).toBe('passed')
   }, 120_000)
 
-  it('**阶段 5 真的渲染出了图**（执行体不是"没挂上"）', async () => {
+  it('**阶段 6 真的渲染出了图**（执行体不是"没挂上"）', async () => {
     const root = await tmp()
     await runStages(ctxOf(root), { problemCount: 4 })
     expect((await readPassport(root, stageOf('figure')))?.status).toBe('passed')
@@ -345,7 +339,7 @@ describe('执行器 —— 顺利推进（确定性阶段用**真执行体**）'
     expect(manifest.figures[0]?.data_hash.startsWith('sha256:')).toBe(true)
   }, 120_000)
 
-  it('**阶段 6 的 TikZ 缺口如实标 `2`**（够不到就不许算通过）', async () => {
+  it('**阶段 7 的 TikZ 缺口如实标 `2`**（够不到就不许算通过）', async () => {
     const root = await tmp()
     const outcomes = await runStages(ctxOf(root), { problemCount: 4 })
     const diagram = outcomes.find(o => o.stage === 'diagram')
@@ -356,7 +350,7 @@ describe('执行器 —— 顺利推进（确定性阶段用**真执行体**）'
     expect(detail).toContain('LaTeX')
   }, 120_000)
 
-  it('**阶段 12 真的导出了 docx**（迁移进来的引擎跑得起来）', async () => {
+  it('**阶段 13 真的导出了 docx**（迁移进来的引擎跑得起来）', async () => {
     const root = await tmp()
     await runStages(ctxOf(root), { problemCount: 4 })
     const passport = await readPassport(root, stageOf('docx-export'))
@@ -384,7 +378,7 @@ describe('执行器 —— 顺利推进（确定性阶段用**真执行体**）'
     expect(exportReport).toContain('300 DPI')
   }, 120_000)
 
-  it('**阶段 11 就地修复后仍留下改动前的副本**（回滚证据）', async () => {
+  it('**阶段 12 就地修复后仍留下改动前的副本**（回滚证据）', async () => {
     const root = await tmp()
     await runStages(ctxOf(root), { problemCount: 4 })
     const before = await import('node:fs/promises').then(m => m.readFile(join(root, stageDirName(stageOf('format-check')), '_before/main.md'), 'utf8').catch(() => null))
@@ -433,7 +427,7 @@ describe('执行器 —— 失败语义', () => {
     const root = await tmp()
     // 只播种阶段 1..4：**不能先跑完整条链**——那样阶段 5 的目录里已经有上一次
     // 跑出来的图与清单，删掉执行体也照样"通过"（那是 resume 语义，不是本条要测的）。
-    await runStages(ctxOf(root), { only: ['prob-analysis', 'modeling', 'code', 'figure-declare'], problemCount: 4 })
+    await runStages(ctxOf(root), { only: ['prob-analysis', 'modeling', 'code', 'result-sources', 'figure-declare'], problemCount: 4 })
     const noDeterministic = ctxOf(root)
     delete (noDeterministic as { runDeterministic?: unknown }).runDeterministic
     const outcomes = await runStages(noDeterministic, { only: ['figure'], problemCount: 4 })
@@ -467,18 +461,18 @@ describe('确定性执行体 —— 各自的具名失败', () => {
     await expect(renderFigureStage(root)).rejects.toThrow(/FIGURE_DECLARATIONS\.json/)
   })
 
-  it('阶段 5：data_refs 悬空 → 点名说出找不到哪一个（不跳过那一张；数只来自铸出的账本）', async () => {
+  it('阶段 6：data_refs 悬空 → 点名说出找不到哪一个（不跳过那一张；数只来自铸出的账本）', async () => {
     const root = await tmp()
     const { renderFigureStage } = await import('../../src/stages/figure-render.ts')
     const declareDir = join(root, stageDirName(stageOf('figure-declare')))
-    const codeDir = join(root, stageDirName(stageOf('code')))
+    const ledgerDir = join(root, stageDirName(stageOf('result-sources')))
     await mkdir(declareDir, { recursive: true })
-    await mkdir(codeDir, { recursive: true })
+    await mkdir(ledgerDir, { recursive: true })
     await writeFile(join(declareDir, 'FIGURE_DECLARATIONS.json'), JSON.stringify({
       figures: [{ figure_id: 'fig_a', chart_type: 'bar', data_refs: ['RES-GHOST'] }],
     }), 'utf8')
-    // 账本是 harness 铸的（阶段 3）；这里直接落一份合法账本，专注测渲染器的取数守卫。
-    await writeFile(join(codeDir, 'results.json'), JSON.stringify({
+    // 账本是 harness 铸的（阶段 4）；这里直接落一份合法账本，专注测渲染器的取数守卫。
+    await writeFile(join(ledgerDir, 'results.json'), JSON.stringify({
       results: [{ result_id: 'RES-A', name: 'A', value: 1, unit: '%', uncertainty: null }],
     }), 'utf8')
     await expect(renderFigureStage(root)).rejects.toThrow(/RES-GHOST/)

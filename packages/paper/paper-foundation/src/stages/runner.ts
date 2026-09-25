@@ -49,6 +49,7 @@
  */
 
 import { mkdir, readFile, readdir, stat, writeFile } from 'node:fs/promises'
+import { compressForModeling, shouldCompress } from './context-compression.ts'
 import { dirname, join } from 'node:path'
 import { stageBriefing } from './briefing.ts'
 import { runGates, type GateInput } from './gates.ts'
@@ -120,8 +121,13 @@ export interface StageOutcome {
  */
 export function parseStageOutput(spec: StageSpec, text: string): ReadonlyMap<string, string> {
   const out = new Map<string, string>()
-  if (spec.produces.length === 1) {
-    const only = spec.produces[0]
+  // 单/多产出的判定只看**模型要交付的**产物：harness 铸的（results.json）不在
+  // 模型回答里，数进判定会让单产出阶段被误判成"必须 JSON 信封"。
+  // 目录型产物**算模型交付**（逐问代码 `code/`、改进轮次 `paper/_improvement_rounds/`
+  // 都由模型经前缀键写出来）。
+  const modelOwned = spec.produces.filter(p => p.harnessMinted !== true)
+  if (modelOwned.length === 1 && modelOwned[0]?.kind !== 'dir') {
+    const only = modelOwned[0]
     if (only === undefined) throw new Error(`stage '${spec.id}' declares no deliverable`)
     out.set(only.file, text)
     return out
@@ -252,11 +258,32 @@ export function balancedEnd(text: string, start: number): number {
  * 落盘到 `00-input/problem.txt` 之后，这条路就是唯一通路。缺失的文件照旧不出现
  * （缺失在简报里如实体现，不假装是空串）。
  */
+/** 单份上游产物的内联预算（字符）。env 可调；默认 24000——超出才压。 */
+function inlineBudget(): number {
+  const raw = Number(process.env['PAPER_STAGE_INLINE_BUDGET'] ?? '')
+  return Number.isFinite(raw) && raw > 0 ? raw : 24_000
+}
+
 async function upstreamTextOf(stagesRoot: string, spec: StageSpec): Promise<Map<string, string>> {
   const out = new Map<string, string>()
+  const budget = inlineBudget()
   for (const path of spec.consumes) {
     const text = await readFile(join(stagesRoot, path), 'utf8').catch(() => null)
-    if (text !== null) out.set(path, text)
+    if (text === null) continue
+    if (!shouldCompress(text, budget)) {
+      out.set(path, text)
+      continue
+    }
+    // 数学建模语境的结构保持压缩：数字/锚点/表格/代码逐字保留，只削散文。
+    // 压缩要**明说**——模型得知道读的是节选，且头部记录压了多少（可审计）。
+    const { text: compressed, report } = compressForModeling(text, budget)
+    const note = [
+      '<!-- 上游产物超过内联预算，已按数学建模语境压缩：',
+      '     数字/锚点/表格/代码逐字保留（一个不少），散文只留段首句；',
+      `     原文 ${String(report.originalChars)} 字 → ${String(report.compressedChars)} 字。`,
+      '     若需要未压缩原文，向检查人申请。 -->',
+    ].join('\n')
+    out.set(path, `${note}\n${compressed}`)
   }
   return out
 }

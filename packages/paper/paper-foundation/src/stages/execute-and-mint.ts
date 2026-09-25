@@ -129,10 +129,11 @@ export function parseResultSources(raw: string): ReadonlyArray<ResultSource> {
  */
 export async function runCodeAndMintResults(stagesRoot: string): Promise<ExecuteMintResult> {
   const codeDir = join(stagesRoot, stageDirName(stageOf('code')), 'code')
-  const sourcesPath = join(codeDir, '..', RESULT_SOURCES_FILE)
+  // RESULT_SOURCES 是**本阶段**（result-sources）的产物；代码在上一阶段（code）。
+  const sourcesPath = join(stagesRoot, stageDirName(stageOf('result-sources')), RESULT_SOURCES_FILE)
   const raw = await readFile(sourcesPath, 'utf8').catch(() => null)
   if (raw === null) {
-    throw new Error(`阶段 3 没有产出 ${RESULT_SOURCES_FILE} —— 模型必须声明每个数在哪个产物的哪个路径，`
+    throw new Error(`本阶段没有产出 ${RESULT_SOURCES_FILE} —— 模型必须声明每个数在哪个产物的哪个路径，`
       + '否则 harness 无从铸数（数不由模型持有）')
   }
   const sources = parseResultSources(raw)
@@ -206,7 +207,8 @@ export async function runCodeAndMintResults(stagesRoot: string): Promise<Execute
     throw new Error(`${RESULT_SOURCES_FILE} 的 sources 是空的 —— 没有声明任何数，下游图表无从取数`)
   }
 
-  const ledgerPath = join(stagesRoot, stageDirName(stageOf('code')), RESULTS_LEDGER_FILE)
+  // 账本落在本阶段（result-sources）目录：它是本阶段 harness 侧铸出的产物。
+  const ledgerPath = join(stagesRoot, stageDirName(stageOf('result-sources')), RESULTS_LEDGER_FILE)
   await mkdir(join(ledgerPath, '..'), { recursive: true })
   const ledger: MintedResultsFile = { results: minted }
   await writeFile(ledgerPath, `${JSON.stringify(ledger, null, 2)}\n`, 'utf8')
@@ -220,7 +222,7 @@ export async function runCodeAndMintResults(stagesRoot: string): Promise<Execute
 
 /** 读铸出的账本（供阶段 4 的简报内联与门禁对账）。 */
 export async function readMintedResults(stagesRoot: string): Promise<MintedResultsFile | null> {
-  const path = join(stagesRoot, stageDirName(stageOf('code')), RESULTS_LEDGER_FILE)
+  const path = join(stagesRoot, stageDirName(stageOf('result-sources')), RESULTS_LEDGER_FILE)
   const raw = await readFile(path, 'utf8').catch(() => null)
   if (raw === null) return null
   try {

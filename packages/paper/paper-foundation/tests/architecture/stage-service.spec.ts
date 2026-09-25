@@ -80,12 +80,14 @@ function answerFor(stage: string): string {
         'code/problem2.py': 'print(2)\n',
         'RESULTS.md': '结果说明……'.repeat(90),
         'DELIVERABLES.json': JSON.stringify({ deliverables: [{ file: 'code/main.py', kind: 'other', min_bytes: 500, desc: '编排入口' }] }),
-        'RESULT_SOURCES.json': JSON.stringify({
-          sources: [
-            { result_id: 'RES-A', name: '指标A', locator: 'outputs.json', json_path: 'a', unit: '%' },
-            { result_id: 'RES-B', name: '指标B', locator: 'outputs.json', json_path: 'b', unit: '%' },
-          ],
-        }),
+      })
+    case 'result-sources':
+      // 单产出 → 原文。只声明"数在哪"，不写数值。
+      return JSON.stringify({
+        sources: [
+          { result_id: 'RES-A', name: '指标A', locator: 'outputs.json', json_path: 'a', unit: '%' },
+          { result_id: 'RES-B', name: '指标B', locator: 'outputs.json', json_path: 'b', unit: '%' },
+        ],
       })
     case 'figure-declare':
       // 单产出 → 原文。只声明结构；数在阶段 3 铸出的账本里。
@@ -164,22 +166,24 @@ describe('阶段链服务 —— 真的接进了 provider 缝', () => {
   it('11 个阶段跑完；模型调用走的是 provider 缝（简报真的发出去了）；确定性阶段真的产出了图', async () => {
     const { ctx, stagesRoot, prompts } = await harness()
     const outcomes = await ctx.paperStageChain.run()
-    expect(outcomes).toHaveLength(12)
+    console.log('PROBE ' + JSON.stringify(outcomes.map(o => [o.stage, o.status, o.reason.slice(0,200)])))
+    expect(outcomes).toHaveLength(13)
     expect(outcomes.every(o => o.status === 'passed' || o.status === 'passed-unverified')).toBe(true)
 
     // **缝的证据**：每个模型阶段的简报都经 `paperProvider.stream` 发出，
     // 且带的是阶段链的系统提示词（不是别的角色的）。
     const modelStages = STAGES.filter(s => s.kind === 'model')
+    expect(modelStages.length).toBe(9)
     expect(prompts.length).toBe(modelStages.length)
     for (const p of prompts) expect(p).toContain(STAGE_CHAIN_SYSTEM)
     for (const s of modelStages) expect(prompts.some(p => p.includes(`stages/${String(s.index).padStart(2, '0')}-${s.id}/`))).toBe(true)
 
     // 确定性阶段不是"没挂上"：图真的在磁盘上（阶段 5 渲染、阶段 6 架构图）。
-    const figureDir = join(stagesRoot, '05-figure', 'figures')
+    const figureDir = join(stagesRoot, '06-figure', 'figures')
     await expect(readFile(join(figureDir, 'fig_a.svg'), 'utf8')).resolves.toContain('<svg')
-    await expect(readFile(join(stagesRoot, '06-diagram', 'figures', 'fig_roadmap.svg'), 'utf8')).resolves.toContain('<svg')
+    await expect(readFile(join(stagesRoot, '07-diagram', 'figures', 'fig_roadmap.svg'), 'utf8')).resolves.toContain('<svg')
     // 账本是 harness 铸的（真跑了 python main.py），不是模型文本里抄来的。
-    const ledger = JSON.parse(await readFile(join(stagesRoot, '03-code', 'results.json'), 'utf8')) as {
+    const ledger = JSON.parse(await readFile(join(stagesRoot, '04-result-sources', 'results.json'), 'utf8')) as {
       results: ReadonlyArray<{ result_id: string; value: number }>
     }
     expect(ledger.results.map(r => r.result_id)).toEqual(['RES-A', 'RES-B'])
@@ -192,19 +196,19 @@ describe('阶段链服务 —— 真的接进了 provider 缝', () => {
     expect(outcomes.map(o => o.stage)).toEqual(['prob-analysis', 'modeling', 'code'])
     // 阶段 4 的模型阶段数 = 3（prob-analysis/modeling/code），之后的一个都没发
     expect(prompts.length).toBe(3)
-    expect(prompts.some(p => p.includes('07-review'))).toBe(false)
+    expect(prompts.some(p => p.includes('08-review'))).toBe(false)
     // 没跑的阶段没有产物
-    await expect(readFile(join(stagesRoot, '05-figure', 'figure-manifest.json'), 'utf8')).rejects.toThrow()
+    await expect(readFile(join(stagesRoot, '06-figure', 'figure-manifest.json'), 'utf8')).rejects.toThrow()
   }, 120_000)
 
   it('续跑 = 从第一份缺失的通行证继续，并把剩下的跑完', async () => {
     const { ctx, stagesRoot, prompts } = await harness({ pauseAfter: ['code'] })
     await ctx.paperStageChain.runUntilPause()
     expect(prompts.length).toBe(3)
-    expect(await resumePointOf(stagesRoot)).toBe('figure-declare')
+    expect(await resumePointOf(stagesRoot)).toBe('result-sources')
 
     const resumed = await ctx.paperStageChain.resume()
-    expect(resumed.from).toBe('figure-declare')
+    expect(resumed.from).toBe('result-sources')
     expect(resumed.outcomes.map(o => o.stage)).toEqual(STAGES.filter(s => s.index >= 4).map(s => s.id))
     expect(resumed.outcomes.every(o => o.status === 'passed' || o.status === 'passed-unverified')).toBe(true)
     // 全部就绪 → 没有续跑点
@@ -241,6 +245,6 @@ describe('阶段链服务 —— 真的接进了 provider 缝', () => {
 
   it('阶段 id 的取值域与注册表一致（防两处各写一份）', () => {
     expect(stageOf('prob-analysis').id).toBe('prob-analysis')
-    expect(STAGES).toHaveLength(12)
+    expect(STAGES).toHaveLength(13)
   })
 })

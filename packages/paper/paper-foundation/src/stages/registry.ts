@@ -19,7 +19,7 @@
 
 /** 阶段 id（顺序即流水线顺序）。 */
 export const STAGE_IDS = [
-  'prob-analysis', 'modeling', 'code', 'figure-declare', 'figure', 'diagram', 'review',
+  'prob-analysis', 'modeling', 'code', 'result-sources', 'figure-declare', 'figure', 'diagram', 'review',
   'paper', 'improve', 'format-profile', 'format-check', 'docx-export',
 ] as const
 export type StageId = (typeof STAGE_IDS)[number]
@@ -116,30 +116,41 @@ export const STAGES: ReadonlyArray<StageSpec> = [
       D('code/', 'dir', '逐问实现：`problem*.py`，文件数 ≥ 题面问数（逐问奇偶校验）'),
       D('RESULTS.md', 'md', '结果说明', 1024),
       D('DELIVERABLES.json', 'json', '机器可校验的产出清单（kind/min_rows/min_bytes/desc）'),
-      D('RESULT_SOURCES.json', 'json', '**数在哪**：`[{result_id, name, locator, json_path, unit}]`——模型只声明定位，不写数值'),
-      D('results.json', 'json', '**harness 铸出的数**：真跑代码后按 locator+json_path 从产物字节读出（模型从头到尾不持有数值）', undefined, true),
     ],
-    gates: ['code_parity', 'results_minted', 'delivery_audit', 'leakage_audit', 'no_render'],
+    gates: ['code_parity', 'delivery_audit', 'leakage_audit', 'no_render'],
     contractRules: ['code_appendix_names_questions', 'floor_code'],
     rollbackTo: ['modeling', 'prob-analysis'], guidedFallback: 'T2',
-    premise: '**建模代码与图表声明分属两个阶段**（2024B 实测：合在一个阶段把回答顶过输出上限，'
-      + '且图声明会诱导模型转写数值）。**数从哪来不由模型持有**：模型在 RESULT_SOURCES.json '
-      + '里只写"哪个文件、哪个路径"，harness 真跑代码后从产物字节里铸出 results.json——'
-      + '前后一致（图画的数=代码产出的数）且可追溯（每个数定位到一次真实执行）。',
+    premise: '**建模代码与图表声明分属不同阶段**（用户口径），且本阶段只写代码：'
+      + '数在哪（RESULT_SOURCES）是下一阶段的事，渲染再下一阶段。'
+      + '2024B 实测：三者合在一次调用里，回答被输出上限截断三次。',
   },
   {
-    id: 'figure-declare', index: 4, kind: 'model', title: '图表声明', skillId: 'comp-figure-declare',
-    consumes: ['03-code/results.json', '01-prob-analysis/PROBLEM_ANALYSIS.md'],
+    id: 'result-sources', index: 4, kind: 'model', title: '数源声明与铸数', skillId: 'comp-result-sources',
+    consumes: ['03-code/RESULTS.md', '03-code/DELIVERABLES.json'],
+    produces: [
+      D('RESULT_SOURCES.json', 'json', '**数在哪**：`[{result_id, name, locator, json_path, unit}]`——模型只声明定位，不写数值', 200),
+      D('results.json', 'json', '**harness 铸出的数**：真跑代码后按 locator+json_path 从产物字节读出（模型从头到尾不持有数值）', undefined, true),
+    ],
+    gates: ['result_sources_valid', 'results_minted'],
+    contractRules: [], rollbackTo: ['code'], guidedFallback: 'T2',
+    premise: '**数不由模型持有**（用户口径）：模型只声明定位，harness 真跑代码后'
+      + '从产物字节里铸出账本——前后一致（图画的数=代码产出的数）且可追溯'
+      + '（每个数定位到一次真实执行）。单独成阶段还把"声明数在哪"从代码回答里'
+      + '拆出来——2024B 实测：合在一起三次被输出上限截断。',
+  },
+  {
+    id: 'figure-declare', index: 5, kind: 'model', title: '图表声明', skillId: 'comp-figure-declare',
+    consumes: ['04-result-sources/results.json', '01-prob-analysis/PROBLEM_ANALYSIS.md'],
     produces: [D('FIGURE_DECLARATIONS.json', 'json', '数据图的**声明**（figure_id/chart_type/data_refs/caption）；渲染是下一阶段的事')],
     gates: ['figure_declaration_complete'],
-    contractRules: [], rollbackTo: ['code'], guidedFallback: 'T2',
+    contractRules: [], rollbackTo: ['result-sources', 'code'], guidedFallback: 'T2',
     premise: '**声明与渲染分属两阶段、与建模代码分属两阶段**：本阶段只引用 harness 铸出的 '
       + 'Result id 组织图，不写渲染代码、不产出图像字节、不写任何数值（题注里的数'
       + '也会被守卫拒绝）。分叉计划必须用 plan_deviations 申报。',
   },
   {
-    id: 'figure', index: 5, kind: 'deterministic', title: '图表生成', skillId: 'paper-figure',
-    consumes: ['04-figure-declare/FIGURE_DECLARATIONS.json', '03-code/results.json', '01-prob-analysis/PROBLEM_ANALYSIS.md'],
+    id: 'figure', index: 6, kind: 'deterministic', title: '图表生成', skillId: 'paper-figure',
+    consumes: ['05-figure-declare/FIGURE_DECLARATIONS.json', '04-result-sources/results.json', '01-prob-analysis/PROBLEM_ANALYSIS.md'],
     produces: [
       D('figures/', 'dir', '按声明渲染的图（声明驱动，不写渲染代码）'),
       D('figure-manifest.json', 'json', '渲染清单：图 id → 文件 → 数据引用 → 渲染哈希'),
@@ -152,7 +163,7 @@ export const STAGES: ReadonlyArray<StageSpec> = [
       + '机械强制——没有它们，"声明驱动"只是一句设计意图。',
   },
   {
-    id: 'diagram', index: 6, kind: 'deterministic', title: '流程与架构图绘制', skillId: 'paper-figure-html',
+    id: 'diagram', index: 7, kind: 'deterministic', title: '流程与架构图绘制', skillId: 'paper-figure-html',
     consumes: ['01-prob-analysis/PROBLEM_ANALYSIS.md'],
     produces: [
       D('figures/fig_roadmap.svg', 'svg', '流程 / 架构 / 路线图（按清单逐张渲染）'),
@@ -165,7 +176,7 @@ export const STAGES: ReadonlyArray<StageSpec> = [
       + 'TikZ 几何族需要 LaTeX 引擎，本仓库没有：那几张**如实标注够不到**，门禁给 `2` 不给 `0`。',
   },
   {
-    id: 'review', index: 7, kind: 'model', title: '逻辑对抗复核', skillId: 'comp-review',
+    id: 'review', index: 8, kind: 'model', title: '逻辑对抗复核', skillId: 'comp-review',
     consumes: ['02-modeling/MODELING_REPORT.md', '03-code/RESULTS.md', '01-prob-analysis/PROBLEM_ANALYSIS.md'],
     produces: [
       D('COMP_REVIEW.md', 'md', '逻辑对抗复核（含 L5 三视角评审）'),
@@ -177,8 +188,8 @@ export const STAGES: ReadonlyArray<StageSpec> = [
       + '外加 comp-review 的 fatal_count 门。',
   },
   {
-    id: 'paper', index: 8, kind: 'model', title: '论文撰写', skillId: 'comp-paper-zh-docx',
-    consumes: ['01-prob-analysis/PROBLEM_ANALYSIS.md', '02-modeling/MODELING_REPORT.md', '03-code/RESULTS.md', '05-figure/figure-manifest.json'],
+    id: 'paper', index: 9, kind: 'model', title: '论文撰写', skillId: 'comp-paper-zh-docx',
+    consumes: ['01-prob-analysis/PROBLEM_ANALYSIS.md', '02-modeling/MODELING_REPORT.md', '03-code/RESULTS.md', '06-figure/figure-manifest.json'],
     produces: [D('paper/main.md', 'md', '论文正文（单文件）', 5120)],
     gates: ['paper_floor', 'paper_page_floor', 'no_latex_residue', 'upstream_min_chars', 'paper_claim_check'],
     contractRules: ['references_method_keyword', 'floor_references', 'floor_restatement', 'blank_area'],
@@ -188,8 +199,8 @@ export const STAGES: ReadonlyArray<StageSpec> = [
       + '在上游已有已核验的落地。',
   },
   {
-    id: 'improve', index: 9, kind: 'model', title: '论文改进循环', skillId: 'auto-paper-improvement-loop',
-    consumes: ['08-paper/paper/main.md', '07-review/COMP_REVIEW_VERDICT.json'],
+    id: 'improve', index: 10, kind: 'model', title: '论文改进循环', skillId: 'auto-paper-improvement-loop',
+    consumes: ['09-paper/paper/main.md', '08-review/COMP_REVIEW_VERDICT.json'],
     produces: [
       D('PAPER_IMPROVEMENT_STATE.json', 'json', '改进状态：轮次、缺陷数序列、终止原因'),
       D('paper/_improvement_rounds/', 'dir', '每一轮的稿子（保留全部轮次）'),
@@ -201,7 +212,7 @@ export const STAGES: ReadonlyArray<StageSpec> = [
       + '连续三轮无下降则停并**如实报告未收敛**（不自行宣布定稿）。',
   },
   {
-    id: 'format-profile', index: 10, kind: 'model', title: '解析格式要求', skillId: 'format-profile',
+    id: 'format-profile', index: 11, kind: 'model', title: '解析格式要求', skillId: 'format-profile',
     consumes: ['00-input/FORMAT_REQUIREMENTS.md'],
     produces: [D('_text_profile.json', 'json', '**只此一个文件**；严格单文件产出', 300)],
     gates: ['profile_single_file', 'profile_valid_json'],
@@ -210,7 +221,7 @@ export const STAGES: ReadonlyArray<StageSpec> = [
       + '但字号/字体术语是**有限词表**，常见措辞走确定性快路，只有未识别措辞回退模型。',
   },
   {
-    id: 'format-check', index: 11, kind: 'deterministic', title: 'Markdown 格式自检与修复', skillId: 'docx-format-check',
+    id: 'format-check', index: 12, kind: 'deterministic', title: 'Markdown 格式自检与修复', skillId: 'docx-format-check',
     consumes: ['08-paper/paper/main.md'],
     produces: [D('DOCX_FORMAT_CHECK_REPORT.md', 'md', '五类检查报告（**即使全过也要出报告**）', 200)],
     gates: ['format_check_report'],
@@ -218,10 +229,10 @@ export const STAGES: ReadonlyArray<StageSpec> = [
     premise: '**非阻塞**：未消解的人工项照写报告，`exit 0`。',
   },
   {
-    id: 'docx-export', index: 12, kind: 'deterministic', title: '格式检查与导出', skillId: 'docx-export',
+    id: 'docx-export', index: 13, kind: 'deterministic', title: '格式检查与导出', skillId: 'docx-export',
     consumes: [
-      '08-paper/paper/main.md', '10-format-profile/_text_profile.json',
-      '05-figure/figure-manifest.json', '06-diagram/diagram-manifest.json',
+      '10-paper/paper/main.md', '12-format-profile/_text_profile.json',
+      '06-figure/figure-manifest.json', '07-diagram/diagram-manifest.json',
     ],
     produces: [
       D('paper/main.docx', 'docx', '目标格式交付物'),

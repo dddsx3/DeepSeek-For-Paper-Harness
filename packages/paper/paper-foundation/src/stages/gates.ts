@@ -38,7 +38,7 @@ import { checkFigureQuality } from '../figure/quality-check.ts'
 import { parseDiagramManifestFile } from './diagram-render.ts'
 import { docxPrecheckFatal, resolveDocxProfile } from './docx-profile.ts'
 import { FIGURE_DECLARATIONS_FILE, FIGURE_MANIFEST_FILE, parseFigureDeclarations, parseFigureManifestFile } from './figure-render.ts'
-import { RESULTS_LEDGER_FILE } from './execute-and-mint.ts'
+import { parseResultSources, RESULTS_LEDGER_FILE } from './execute-and-mint.ts'
 import { architectureFigureNames, dataFigureNames, parseFigureManifest } from './figure-manifest.ts'
 import type { GateVerdict } from './handoff.ts'
 
@@ -680,6 +680,20 @@ export const GATES: ReadonlyMap<string, GateFn> = new Map<string, GateFn>([
   ['code_parity', codeParity],
   // 阶段 3 的数由 harness 铸出（runCodeAndMintResults）：账本存在、非空、
   // 每个值都是有限数——这是"数不由模型持有"的机械落点。
+  ['result_sources_valid', (i) => {
+    const id = 'result_sources_valid'
+    const raw = i.files.get('RESULT_SOURCES.json') ?? null
+    if (raw === null) return fail(id, 'RESULT_SOURCES.json 不存在 —— 模型必须声明每个数在哪个产物的哪个路径')
+    try {
+      const sources = parseResultSources(raw)
+      const ids = sources.map(s2 => s2.result_id)
+      const dupes = ids.filter((x, k) => ids.indexOf(x) !== k)
+      if (dupes.length > 0) return fail(id, `重复的 result_id：${[...new Set(dupes)].join('、')}`)
+      return ok(id, `${String(sources.length)} 条数源声明，id 唯一、locator/json_path 齐备`)
+    } catch (error) {
+      return fail(id, String(error instanceof Error ? error.message : error).slice(0, 200))
+    }
+  }],
   ['results_minted', (i) => {
     const id = 'results_minted'
     const raw = i.files.get('results.json') ?? null
