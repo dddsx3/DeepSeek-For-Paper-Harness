@@ -177,14 +177,23 @@ export class PaperStageChainService extends Service {
     const provider = this.ctx.paperProvider
     const route = this.ctx.paperSettings.snapshot().executor
 
-    // **限额降级**（用户指定，免费模型场景）：主模型触发限额时，切换到
-    // PAPER_STAGE_FALLBACK_MODEL（默认 glm-5.3-flash-free）完成剩余内容。
-    // 切换一次后对**后续所有阶段**生效（剩余内容都在降级模型上继续）。
+    // **限额应对**（用户指定，免费模型场景）：免费模型的配额是**周期性**的
+    // ——实测同一账户报"余额不足"后几分钟又恢复 200。所以正确处置不是失败，
+    // 而是：① 先切 PAPER_STAGE_FALLBACK_MODEL（默认 glm-5.3-flash-free，两者
+    // 配额独立）；② 都受限就**等待并交替重试**（配额按时间恢复）。
+    // 上限由 PAPER_STAGE_QUOTA_WAIT_MS 控制（默认 30 分钟），超时才如实失败。
     const fallbackModel = process.env['PAPER_STAGE_FALLBACK_MODEL'] ?? 'glm-5.3-flash-free'
     let activeModel = route.model
     let modelSwitched = false
+    const quotaWaitCapMs = (() => {
+      const raw = Number(process.env['PAPER_STAGE_QUOTA_WAIT_MS'] ?? '')
+      return Number.isFinite(raw) && raw > 0 ? raw : 1_800_000
+    })()
+    let quotaWaitedMs = 0
     const isQuotaError = (message: string): boolean =>
       /429|402|quota|额度|余额|配额|insufficient|exhaust|rate.?limit|无可用|渠道/i.test(message)
+    // 配额等待阶梯（秒）：越往后等越久，交替两个模型试（各自配额独立恢复）。
+    const QUOTA_WAIT_LADDER_MS = [30_000, 60_000, 120_000, 300_000, 600_000]
 
     // **单次调用原语**（传输级重试 + 限额降级内建）。阶段 3 的分片与单产出的模型阶段都用它。
     const singleCall = async (spec: StageSpec, prompt: string): Promise<string> => {
@@ -200,6 +209,7 @@ export class PaperStageChainService extends Service {
       // 上限 3 次、退避 5s/15s/45s；max-tokens 截断**不重试**（那是产出超限，
       // 重发只会再超限一次），按契约失败上报。
       let lastFailure: unknown
+      let quotaWaits = 0
       for (let attempt = 1; attempt <= 3; attempt += 1) {
         try {
           let text = ''
@@ -220,14 +230,30 @@ export class PaperStageChainService extends Service {
         } catch (error) {
           lastFailure = error
           const message = String(error instanceof Error ? error.message : error)
-          // 限额 → 切降级模型并**重置重试预算**（新模型有自己的 3 次）。
-          if (isQuotaError(message) && !modelSwitched && activeModel !== fallbackModel) {
-            modelSwitched = true
-            activeModel = fallbackModel
+          // 限额 → 先切降级模型（重置重试预算），都受限就等待后交替重试。
+          if (isQuotaError(message)) {
+            if (!modelSwitched && activeModel !== fallbackModel) {
+              modelSwitched = true
+              activeModel = fallbackModel
+              this.config.onDeterministicOutcome?.({
+                stage: spec.id,
+                summary: `模型 ${route.model} 触发限额，切换到 ${fallbackModel} 继续完成剩余内容`,
+              })
+              attempt = 0
+              continue
+            }
+            // 两个模型都受限：等配额恢复（周期性），交替试。
+            const waitMs = QUOTA_WAIT_LADDER_MS[Math.min(quotaWaits, QUOTA_WAIT_LADDER_MS.length - 1)] ?? 600_000
+            if (quotaWaitedMs + waitMs > quotaWaitCapMs) break
+            quotaWaits += 1
+            quotaWaitedMs += waitMs
+            activeModel = activeModel === route.model ? fallbackModel : route.model
             this.config.onDeterministicOutcome?.({
               stage: spec.id,
-              summary: `模型 ${route.model} 触发限额，切换到 ${fallbackModel} 继续完成剩余内容`,
+              summary: `两个模型都受限，等待 ${String(Math.round(waitMs / 1000))}s 后改用 ${activeModel} 重试`
+                + `（已等 ${String(Math.round(quotaWaitedMs / 1000))}s / 上限 ${String(Math.round(quotaWaitCapMs / 1000))}s）`,
             })
+            await new Promise(resolve => setTimeout(resolve, waitMs))
             attempt = 0
             continue
           }
