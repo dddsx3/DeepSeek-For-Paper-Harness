@@ -544,9 +544,9 @@ function renderTableSvg(input: RenderInput): string {
       parts.push(`<line x1="8" y1="${headerH + row * rowH + 4}" x2="${W - 8}" y2="${headerH + row * rowH + 4}" stroke="${GRID}" stroke-width="1"/>`)
     }
   })
-  if (input.caption !== undefined) {
-    parts.push(`<text x="8" y="${H - 2}" text-anchor="start" font-family="sans-serif" font-size="11" fill="${INK}">${escapeXml(input.caption)}</text>`)
-  }
+  // W9-B4 —— 表格图同样**不写图内标题**。标量路径修掉这一处时漏了这里：
+  // 2024B 阶段 4 实测，`table` 图的题注进了 SVG，被 figure_style_rules 按同一
+  // 判据拦下。题注由正文给，两条路径一条契约。
   parts.push('</svg>')
   return parts.join('\n') + '\n'
 }
