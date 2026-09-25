@@ -252,3 +252,53 @@ describe('章节号 vs 结果 —— 判别力（第八、九处真实误报）'
     }
   })
 })
+
+/**
+ * 第十一处真实误报：**名词短语被当成断言**。
+ *
+ * 阶段 2 第六次被拦，`no_claimed_verification` 报 L41——
+ * `| ASM-011 | 全文核算单位为"每件交付用户的合格成品" | 本文口径 |`。
+ * "核算单位"是名词（accounting unit），不是在说"我算出来了一个数"，
+ * 但原判据只看左边动词 `核算`，右侧接什么都算——于是把假设表的一行判成假声明。
+ *
+ * 修法与前面同一条纪律：**判别力**。右侧必须是数值/表达式（数字、正负号、小数点、LaTeX），
+ * 名词化的接续（单位/口径/方式…）自然落空。同一族还顺手修了 `经检验的零配件`
+ * ——本题的核心对象就是"被检过的零件"，那不是"我们验过了"。
+ */
+describe('第十一处误报 —— 名词短语 vs 断言（判别力）', () => {
+  it('**假设表里的"核算单位"**不误报（真实形态逐字固化）', () => {
+    const line = '| ASM-011 | 全文核算单位为“每件交付用户的合格成品” | 本文口径 |'
+    expect(verificationClaims(line)).toEqual([])
+  })
+
+  it('名词化接续一律不误报（单位/口径/方式/方法/依据/范围）', () => {
+    for (const text of [
+      '全文核算单位为“每件合格成品”。',
+      '核算口径按本文第 2 节定义。',
+      '成本核算方式采用期望值法。',
+      '核算范围覆盖四问。',
+    ]) {
+      expect(verificationClaims(text).length, `误报：${text}`).toBe(0)
+    }
+  })
+
+  it('**判别力**：真的"算得一个数"照样抓', () => {
+    for (const text of [
+      '复算结果为 12.50。',
+      '算得期望利润为 104.32。',
+      '求得最优样本量为 137。',
+      '计算得 p = 0.01。',
+      '回代验算为 12.50。',
+      '经核算为 -3.2。',
+    ]) {
+      expect(verificationClaims(text).length, `漏了：${text}`).toBeGreaterThan(0)
+    }
+  })
+
+  it('`经检验的零配件`（描述对象）不误报，`经检验通过`（断言）照抓', () => {
+    expect(verificationClaims('经检验的零配件方可进入装配；经检验后合格品流转。')).toEqual([])
+    expect(verificationClaims('该方案已经验证，与解析解一致。').length).toBeGreaterThan(0)
+    expect(verificationClaims('六种情况全部检验通过。').length).toBeGreaterThan(0)
+    expect(verificationClaims('逐一核对无误。').length).toBeGreaterThan(0)
+  })
+})
