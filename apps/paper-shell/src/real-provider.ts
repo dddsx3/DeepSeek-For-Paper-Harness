@@ -202,9 +202,15 @@ function outputBudget(): number | null {
  * 未抑制的形态（供探针做 A/B）。
  */
 function reasoningEffort(): string | null {
+  // **默认不发送**（2026-09-25 对中转的 A/B/C/D 实测结论，见 EXPERT-CONSULT.md）：
+  //   A 带 reasoning_effort=none → content 以英文推理开头（360 字符散文才给答案）；
+  //   B 再加 thinking:{type:"disabled"} → 同样写推理（开关被中转丢弃）；
+  //   C 什么都不传 → 直接输出 print(1)，零散文。
+  // 即：发送该参数反而改变了中转/后端的行为（疑似按参数路由到不同后端）。
+  // 只有显式设置 PAPER_PROBE_REASONING 才发送。
   const raw = process.env.PAPER_PROBE_REASONING
-  if (raw === 'default' || raw === 'off') return null
-  return raw ?? 'none'
+  if (raw === undefined || raw === '' || raw === 'default' || raw === 'off') return null
+  return raw
 }
 
 /**
