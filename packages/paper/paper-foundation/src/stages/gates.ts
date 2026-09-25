@@ -670,15 +670,20 @@ const numbersTraced: GateFn = (input) => {
   const id = 'numbers_traced'
   // 白名单**为空是合法的**（题面本来就可能没有数值事实）——此时任何数字都是无出生证明的，
   // 照常审计。只有"上游根本没给可核的来源"才是无法判定。
-  if (!input.upstream.has('PROBLEM_FACTS.json') && !input.upstream.has('DECLARATION.json')) {
-    return cannot(id, '上游既没有 PROBLEM_FACTS.json 也没有 DECLARATION.json —— '
+  //
+  // **声明文件既可能在上游，也可能就是本阶段的产物**：阶段 2/3 自己产出
+  // `DECLARATION.json`（`consumes` 里没有它），而 `upstream` 只装 `consumes` 的东西。
+  // 第十处真实误报就撞在这里：模型在 `DECLARATION.json` 里声明了备择次品率 `0.15`，
+  // 正文引用它，门禁却因"上游没有 DECLARATION.json"而判它没有出生证明——
+  // **白名单的文档来源取不到，门禁就在惩罚守约的模型**。所以本阶段目录也要找一遍。
+  const declared = input.upstream.get('DECLARATION.json') ?? input.files.get('DECLARATION.json') ?? null
+  const facts = input.upstream.get('PROBLEM_FACTS.json') ?? null
+  const ledger = input.upstream.get(RESULTS_LEDGER_FILE) ?? null
+  if (facts === null && declared === null) {
+    return cannot(id, '既没有 PROBLEM_FACTS.json 也没有 DECLARATION.json —— '
       + '没有任何"出生证明来源"，无从判断某个数字是否有据')
   }
-  const allowed = buildAllowlist([
-    input.upstream.get('PROBLEM_FACTS.json') ?? null,
-    input.upstream.get('DECLARATION.json') ?? null,
-    input.upstream.get(RESULTS_LEDGER_FILE) ?? null,
-  ])
+  const allowed = buildAllowlist([facts, declared, ledger])
   // **审全部文本面**（散文 + 声明类 JSON），不是只审第一个匹配到的文件——
   // 第一版漏掉了阶段 2 的 DECLARATION.json 与阶段 3 的 DELIVERABLES.json。
   const audited = auditFiles(input.files, allowed)
@@ -689,7 +694,7 @@ const numbersTraced: GateFn = (input) => {
   const total = audited.reduce((n, a) => n + a.audit.scanned, 0)
   if (bad.length === 0) {
     return ok(id, `${String(audited.length)} 个文本产物的 ${String(total)} 个数字全部有出生证明`
-      + `（题面给定值 / 声明的常数${input.upstream.has(RESULTS_LEDGER_FILE) ? ' / 铸出的结果' : ''}）`)
+      + `（题面给定值 / 声明的常数${ledger !== null ? ' / 铸出的结果' : ''}）`)
   }
   const parts = bad.slice(0, 3).map((a) => {
     const uniq = [...new Set(a.audit.violations.map(v => v.literal))]

@@ -120,6 +120,8 @@ export function decideAudit(verdict: AuditVerdict, input: AuditGateInput): Audit
  * @param skillTask - 该阶段给执行者的任务陈述（**契约的一部分**，不是执行者的推理）。
  * @param artifacts - 本阶段产出的 `文件名 → 文本`。
  * @param upstreamNames - 上游可见的产物名（审计员需要知道"上游给了什么"，以便判"要求是否被满足"）。
+ * @param groundTruth - **题面事实**（`文件名 → 文本`：原始题面 + 阶段 1 的给定值事实表）。
+ *   这不是执行者的产物，也不是执行者的推理——它是判"是否符合题面"的唯一依据。
  * @param budgetChars - 单个产物的内联上限（超出截断并**明说**）。
  * @returns 审计提示词。
  */
@@ -128,6 +130,7 @@ export function auditPromptOf(input: {
   readonly skillTask: string
   readonly artifacts: ReadonlyMap<string, string>
   readonly upstreamNames: ReadonlyArray<string>
+  readonly groundTruth?: ReadonlyMap<string, string>
   readonly budgetChars?: number
 }): string {
   const budget = input.budgetChars ?? 12_000
@@ -157,6 +160,27 @@ export function auditPromptOf(input: {
     for (const n of input.upstreamNames) L.push(`- \`${n}\``)
     L.push('')
   }
+  // **题面事实**必须内联：审计员若只拿到"上游给了什么"的**文件名清单**，
+  // 就无从判断产物是否与题面相符——2024B 的实测失配正是这一类：题面给了调换损失
+  // `ce=40`，而阶段 3 的代码从头到尾没用它，"什么都不检查"于是虚假胜出。
+  // 那种失配不是"结构不完整"，而是"与题面不符"，**只有拿到题面才审得出来**。
+  // 独立性不受影响：题面与给定值事实表都不是执行者的自述。
+  if (input.groundTruth !== undefined && input.groundTruth.size > 0) {
+    L.push('### 题面事实（判"是否符合题面"的**唯一**依据）')
+    L.push('这是本题的原始题面与给定值事实表——**不是**执行者的产物，也不是它的推理。'
+      + '你要拿它当尺子，去量产物。')
+    L.push('')
+    for (const [name, text] of input.groundTruth) {
+      const bytes = Buffer.byteLength(text, 'utf8')
+      if (bytes <= budget) {
+        L.push(`#### \`${name}\`（${String(bytes)} 字节）`, '', text, '')
+        continue
+      }
+      const cut = Buffer.from(text, 'utf8').subarray(0, budget).toString('utf8')
+      L.push(`#### \`${name}\`（${String(bytes)} 字节，**只内联前 ${String(budget)} 字节**）`, '', cut, '',
+        `（\`${name}\` 被截断——不要因为"没看到"就判它缺内容；只对可见部分下判断。）`, '')
+    }
+  }
   L.push('### 本阶段实际产出的内容')
   if (input.artifacts.size === 0) {
     L.push('（**没有任何产物**——这本身就是 fatal。）')
@@ -171,11 +195,23 @@ export function auditPromptOf(input: {
     L.push(`#### \`${name}\`（${String(bytes)} 字节，**只内联前 ${String(budget)} 字节**）`, '', cut, '',
       `（\`${name}\` 被截断——不要因为"没看到"就判它缺内容；只对可见部分下判断。）`, '')
   }
-  L.push('## 你要回答三件事')
+  L.push('## 你要回答四件事')
   L.push('1. **要求完成度**：逐条对照上面的任务陈述与产出契约——执行者是否真的做了每一件？'
     + '特别注意"看起来做了但其实没有"的形态（空壳、占位符、把要求复述一遍当完成）。')
-  L.push('2. **交付结构**：产物是否齐备、形态是否正确、有无自相矛盾或与上游冲突？')
-  L.push('3. **质量初判**：这一轮产物够不够格进入下一阶段？给一个 0–1 的分。')
+  L.push('2. **与题面相符**（有题面事实时**必查**）：把题面给定的每个参数、每条约束、'
+    + '每个子问题，拿去在产物里找落点。三种形态都要查，**第二种最隐蔽**：')
+  L.push('   - ① **完全找不到**：题面给了，产物里连名字都没有。')
+  L.push('   - ② **声明了却是死参数**（最危险）：参数写进了参数表 / 符号表 / 常数声明，'
+    + '但**从未进入任何公式、目标函数、约束或判定条件**。它能让"参数齐备"的检查全绿，'
+    + '结论却整个错掉。实测形态：调换损失 `ce` 在参数表里写着 `40.0`，'
+    + '而期望利润公式 `Ep` 只用了检测成本与拆解费用——`ce` 一次都没被算进去，'
+    + '于是"什么都不检查"虚假胜出（利润 104 vs 真值 66.09）。**逐条参数去公式里找它**，'
+    + '找不到就是 finding。')
+  L.push('   - ③ **凭空多出来的**：产物里出现题面没有、上游也没有的参数——同样要报。')
+  L.push('   严重度：漏用/错用一项会改变结论的成本或约束 → `fatal`；不影响结论的 → `major`，'
+    + '并在 `fix` 里说清该补在哪。')
+  L.push('3. **交付结构**：产物是否齐备、形态是否正确、有无自相矛盾或与上游冲突？')
+  L.push('4. **质量初判**：这一轮产物够不够格进入下一阶段？给一个 0–1 的分。')
   L.push('')
   L.push('## 输出（**只输出一个 JSON 对象，前后不得有任何其它字符**）')
   L.push('```json')
