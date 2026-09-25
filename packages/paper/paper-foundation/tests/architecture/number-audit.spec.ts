@@ -159,3 +159,39 @@ describe('补严后的覆盖面（状态检查发现的三个遗漏）', () => {
     }
   })
 })
+
+describe('四个真实误报形态（2024B 阶段 2 实测，逐条固化成回归夹具）', () => {
+  const facts = JSON.stringify({ facts: [{ name: '售价', value: '56', raw_quote: '市场售价 56 元' }] })
+
+  it('随机种子 `202409`（模型声明的常数，只是写在散文里）不误报', () => {
+    const text = '蒙特卡洛固定随机种子 202409，重复 2000 次。'
+    expect(auditNumbers(text, buildAllowlist([facts, null, null])).violations).toEqual([])
+  })
+
+  it('**正文里的章节引用**（"理由见 4.1 末" / "4.3 论证"）不误报', () => {
+    const text = [
+      '**被否方案**：序贯概率比检验，理由见 4.1 末。',
+      '**被否方案**：连续松弛，理由见 4.2 末。',
+      '并给出拓扑稳健性说明（见 4.3 末）。',
+      '只回代点估计、完整贝叶斯后验最优，理由见 4.4 末。',
+      '结构性结论的稳健性已在 4.3 论证。',
+    ].join(String.fromCharCode(10))
+    const audit = auditNumbers(text, buildAllowlist([facts, null, null]))
+    expect(audit.violations.map(v => v.literal), '章节引用被当成结果').toEqual([])
+  })
+
+  it('`100%` 是完备性表述（"检测被假设为 100% 准确"）不误报；但孤立的 100 仍要出生证明', () => {
+    const ok = '检测被假设为 100% 准确。'
+    expect(auditNumbers(ok, buildAllowlist([facts, null, null])).violations).toEqual([])
+    const bare = '样本量取 100 件。'
+    expect(auditNumbers(bare, buildAllowlist([facts, null, null])).violations.map(v => v.literal)).toEqual(['100'])
+  })
+
+  it('**"均通过抽样检测方法得到" 不是"声称已执行检验"**（"通过"=经由，非通过检验）', () => {
+    const via = '问题 4 规定所有零配件、半成品、成品的次品率均通过抽样检测方法（例如问题 1 的方法）得到。'
+    expect(verificationClaims(via)).toEqual([])
+    // 但真正的"全部通过"仍要抓（落在小句末尾）
+    expect(verificationClaims('表 1 的六种情况全部通过。').length).toBeGreaterThan(0)
+    expect(verificationClaims('全部通过，无异常').length).toBeGreaterThan(0)
+  })
+})
