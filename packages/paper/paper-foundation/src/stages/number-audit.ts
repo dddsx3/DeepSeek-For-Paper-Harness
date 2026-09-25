@@ -196,12 +196,63 @@ export function auditNumbers(text: string, allowed: ReadonlySet<string>): Number
  * 它给下游传递"已验证"的假信号。
  */
 const VERIFICATION_CLAIMS: ReadonlyArray<{ readonly pattern: RegExp; readonly why: string }> = [
-  { pattern: /(?:全部|均|都)\s*(?:通过|一致|闭合|满足)/, why: '"全部通过"式的完成时结论' },
-  { pattern: /(?:检验|验证|校核|核对)\s*(?:通过|一致|合格|完成)/, why: '把"检验"写成已完成的结论' },
-  { pattern: /(?:容差|误差)\s*(?:为|=|≤|<)\s*[\d.]+\s*(?:时)?\s*(?:通过|一致)/, why: '带容差的"通过"结论' },
-  { pattern: /(?:已|经)\s*(?:验证|校核|检验|确认)/, why: '"已验证/已校核"式声明' },
-  { pattern: /(?:复算|核算|算得|求得|计算得)[^，。；\n]{0,8}[为＝=]/, why: '在无执行环境下"算得"的数值结论' },
+  { pattern: /(?:全部|均|都|逐一|一一)\s*(?:通过|一致|闭合|满足|吻合|相等)/, why: '"全部通过/一致"式的完成时结论' },
+  { pattern: /(?:检验|验证|校核|核对|测试)\s*(?:通过|一致|合格|完成|无误)/, why: '把"检验"写成已完成的结论' },
+  { pattern: /(?:容差|误差|偏差)\s*(?:为|=|≤|<|不超过)\s*[\d.]+\s*(?:时)?\s*(?:通过|一致|内)/, why: '带容差的"通过"结论' },
+  { pattern: /(?:已|经)\s*(?:验证|校核|检验|确认|核实)/, why: '"已验证/已校核"式声明' },
+  { pattern: /(?:复算|核算|算得|求得|计算得|回代)[^，。；\n]{0,8}[为＝=]/, why: '在无执行环境下"算得"的数值结论' },
+  { pattern: /(?:检验|验证|核算|复算)\s*结果[：:]/, why: '"检验结果：…"式的已完成结论' },
+  // 英文（模型常在中文报告里混写英文小结）
+  { pattern: /\b(?:all\s+)?(?:tests?|checks?|verification|assertions?)\s*[:\-—]?\s+(?:pass(?:ed)?|succeed(?:ed)?|ok|clean)\b/i, why: '英文的"检验通过"结论' },
+  { pattern: /\b(?:verified|validated|confirmed)\b/i, why: '英文的"已验证"声明' },
 ]
+
+/**
+ * 从源码里抽出**注释行**。
+ *
+ * 为什么单独抽注释：代码本体合法地充满数字（`range(1, 11)`、`1e-6`、`figsize=(8,6)`），
+ * 全量审计会满屏误报；而红队点名的风险恰恰在**注释**里——"把阶段 2 的 12.50 抄进
+ * 代码注释里说'验证通过'"。所以对代码只审注释，不审代码本体。
+ *
+ * @param text - 源码文本。
+ * @returns 逐行的注释文本（行数与原文一致，空串=该行无注释）。
+ */
+export function commentLines(text: string): ReadonlyArray<string> {
+  return text.split('\n').map((line) => {
+    const hash = line.indexOf('#')
+    const slash = line.indexOf('//')
+    const cut = hash === -1 ? slash : slash === -1 ? hash : Math.min(hash, slash)
+    return cut === -1 ? '' : line.slice(cut)
+  })
+}
+
+/**
+ * 审计**一组文件**里的数字出生证明（逐个文件报告，缺一不可）。
+ *
+ * **只审 `.md` 散文**。两条理由都是实测换来的：
+ * ① 声明类 JSON（`DECLARATION.json`）**本身就是白名单来源**——拿它审自己等于空转；
+ * ② 契约类 JSON（`DELIVERABLES.json` 的 `min_bytes`、`_text_profile.json` 的字号）
+ *    里的数字是**schema 常量**不是结果，审它会满屏误报（实测：`min_bytes: 500`
+ *    被当成"无出生证明的数字"）。
+ *
+ * 而"手写的最终数值结论"恰恰都住在散文里（红队点名的 6 处全在 `MODELING_REPORT.md`
+ * 的表格与段落里），所以这个范围既不漏也不误报。
+ *
+ * @param files - `文件名 → 文本`。
+ * @param allowed - 白名单。
+ * @returns 逐文件的审计结论（只含被审的 `.md` 文件）。
+ */
+export function auditFiles(
+  files: ReadonlyMap<string, string>,
+  allowed: ReadonlySet<string>,
+): ReadonlyArray<{ readonly file: string; readonly audit: NumberAudit }> {
+  const out: Array<{ file: string; audit: NumberAudit }> = []
+  for (const [name, text] of files) {
+    if (!/\.md$/i.test(name)) continue
+    out.push({ file: name, audit: auditNumbers(text, allowed) })
+  }
+  return out
+}
 
 /** 一处可疑的"已执行"声明。 */
 export interface VerificationClaim {

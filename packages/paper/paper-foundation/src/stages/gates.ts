@@ -39,7 +39,7 @@ import { parseDiagramManifestFile } from './diagram-render.ts'
 import { docxPrecheckFatal, resolveDocxProfile } from './docx-profile.ts'
 import { FIGURE_DECLARATIONS_FILE, FIGURE_MANIFEST_FILE, parseFigureDeclarations, parseFigureManifestFile } from './figure-render.ts'
 import { parseResultSources, RESULTS_LEDGER_FILE } from './execute-and-mint.ts'
-import { auditNumbers, buildAllowlist, verificationClaims } from './number-audit.ts'
+import { auditFiles, buildAllowlist, commentLines, verificationClaims } from './number-audit.ts'
 import { architectureFigureNames, dataFigureNames, parseFigureManifest } from './figure-manifest.ts'
 import type { GateVerdict } from './handoff.ts'
 
@@ -668,31 +668,36 @@ const docxPrecheck: GateFn = (input) => {
  */
 const numbersTraced: GateFn = (input) => {
   const id = 'numbers_traced'
-  const target = input.files.has('MODELING_REPORT.md')
-    ? 'MODELING_REPORT.md'
-    : input.files.has('RESULTS.md') ? 'RESULTS.md' : 'paper/main.md'
-  const text = input.files.get(target) ?? null
-  if (text === null) return cannot(id, `找不到可审计的产物（期望 MODELING_REPORT.md / RESULTS.md / paper/main.md）`)
-  const allowed = buildAllowlist([
-    input.upstream.get('PROBLEM_FACTS.json') ?? null,
-    input.upstream.get('DECLARATION.json') ?? null,
-    input.upstream.get(RESULTS_LEDGER_FILE) ?? null,
-  ])
   // 白名单**为空是合法的**（题面本来就可能没有数值事实）——此时任何数字都是无出生证明的，
   // 照常审计。只有"上游根本没给可核的来源"才是无法判定。
   if (!input.upstream.has('PROBLEM_FACTS.json') && !input.upstream.has('DECLARATION.json')) {
     return cannot(id, '上游既没有 PROBLEM_FACTS.json 也没有 DECLARATION.json —— '
       + '没有任何"出生证明来源"，无从判断某个数字是否有据')
   }
-  const audit = auditNumbers(text, allowed)
-  if (audit.violations.length === 0) {
-    return ok(id, `${target} 的 ${String(audit.scanned)} 个数字全部有出生证明`
+  const allowed = buildAllowlist([
+    input.upstream.get('PROBLEM_FACTS.json') ?? null,
+    input.upstream.get('DECLARATION.json') ?? null,
+    input.upstream.get(RESULTS_LEDGER_FILE) ?? null,
+  ])
+  // **审全部文本面**（散文 + 声明类 JSON），不是只审第一个匹配到的文件——
+  // 第一版漏掉了阶段 2 的 DECLARATION.json 与阶段 3 的 DELIVERABLES.json。
+  const audited = auditFiles(input.files, allowed)
+  if (audited.length === 0) {
+    return cannot(id, '本阶段没有可审计的文本产物（.md / 声明类 .json）—— 没有审计对象')
+  }
+  const bad = audited.filter(a => a.audit.violations.length > 0)
+  const total = audited.reduce((n, a) => n + a.audit.scanned, 0)
+  if (bad.length === 0) {
+    return ok(id, `${String(audited.length)} 个文本产物的 ${String(total)} 个数字全部有出生证明`
       + `（题面给定值 / 声明的常数${input.upstream.has(RESULTS_LEDGER_FILE) ? ' / 铸出的结果' : ''}）`)
   }
-  const uniq = [...new Set(audit.violations.map(v => v.literal))]
-  return fail(id, `${target} 里有 ${String(audit.violations.length)} 处**没有出生证明**的数字`
-    + `（去重 ${String(uniq.length)} 个：${uniq.slice(0, 10).join('、')}${uniq.length > 10 ? ' …' : ''}）。`
-    + `首个位置 L${String(audit.violations[0]?.line ?? 0)}：${audit.violations[0]?.context.slice(0, 70) ?? ''}。`
+  const parts = bad.slice(0, 3).map((a) => {
+    const uniq = [...new Set(a.audit.violations.map(v => v.literal))]
+    return `${a.file}：${String(a.audit.violations.length)} 处（去重 ${String(uniq.length)}：`
+      + `${uniq.slice(0, 8).join('、')}${uniq.length > 8 ? '…' : ''}）`
+      + `，首个 L${String(a.audit.violations[0]?.line ?? 0)}「${a.audit.violations[0]?.context.slice(0, 50) ?? ''}」`
+  })
+  return fail(id, `有 ${String(bad.length)} 个文件出现**没有出生证明**的数字 —— ${parts.join('；')}。`
     + '在代码执行之前算出来的数没有出生证明——请改成结果锚点（如 `{R-Q2-case5-profit}`），'
     + '数值只能由 harness 真跑代码后铸出')
 }
@@ -706,13 +711,30 @@ const numbersTraced: GateFn = (input) => {
  */
 const noClaimedVerification: GateFn = (input) => {
   const id = 'no_claimed_verification'
-  const text = input.files.get('MODELING_REPORT.md') ?? null
-  if (text === null) return cannot(id, 'MODELING_REPORT.md 不在 —— 没有可扫描的文本')
-  const claims = verificationClaims(text)
-  if (claims.length === 0) return ok(id, '没有"已执行检验"类声明（检验方案都写成待执行）')
-  return fail(id, `${String(claims.length)} 处声称已执行检验：`
-    + claims.slice(0, 3).map(c => `L${String(c.line)}（${c.why}）${c.context.slice(0, 50)}`).join('；')
-    + ' —— 本阶段还没有代码，检验不可能跑过；把结论改成"检验方案（待执行）"')
+  // 审散文全文 + **代码注释**（红队点名：把心算数字抄进代码注释里说"验证通过"）。
+  // 代码本体不审——`range(1,11)` / `1e-6` / `figsize=(8,6)` 会满屏误报。
+  const scanned: Array<{ file: string; claims: ReadonlyArray<{ line: number; context: string; why: string }> }> = []
+  for (const [name, text] of input.files) {
+    if (/\.md$/i.test(name)) {
+      const claims = verificationClaims(text)
+      if (claims.length > 0) scanned.push({ file: name, claims })
+      continue
+    }
+    if (/\.py$/i.test(name)) {
+      const lines = commentLines(text)
+      const claims: Array<{ line: number; context: string; why: string }> = []
+      lines.forEach((comment, i) => {
+        if (comment === '') return
+        for (const c of verificationClaims(comment)) claims.push({ line: i + 1, context: comment.trim().slice(0, 100), why: `代码注释里的${c.why}` })
+      })
+      if (claims.length > 0) scanned.push({ file: name, claims })
+    }
+  }
+  if (scanned.length === 0) return ok(id, '没有"已执行检验"类声明（检验方案都写成待执行；代码注释也干净）')
+  const total = scanned.reduce((n, s2) => n + s2.claims.length, 0)
+  return fail(id, `${String(total)} 处声称已执行检验：`
+    + scanned.slice(0, 3).map(s2 => `${s2.file} L${String(s2.claims[0]?.line ?? 0)}（${s2.claims[0]?.why ?? ''}）${s2.claims[0]?.context.slice(0, 50) ?? ''}`).join('；')
+    + ' —— 本阶段还没有代码执行，检验不可能跑过；把结论改成"检验方案（待执行）"')
 }
 
 /**
