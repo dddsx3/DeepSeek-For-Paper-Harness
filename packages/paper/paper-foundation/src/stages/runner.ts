@@ -521,7 +521,7 @@ export async function runStages(
       reason: unverified.length === 0
         ? '门禁全过，已签发通行证'
         : `门禁全过但**有 ${String(unverified.length)} 条无法判定**（${unverified.join('、')}）——`
-          + '已如实记在通行证上；这些缺口使本阶段不能计入 CLEAN。',
+          + '已如实记在通行证上（`cleanliness: unverified-gates`）；这些缺口使本阶段不能计入 CLEAN。',
     })
   }
   return outcomes

@@ -39,6 +39,7 @@ import { parseDiagramManifestFile } from './diagram-render.ts'
 import { docxPrecheckFatal, resolveDocxProfile } from './docx-profile.ts'
 import { FIGURE_DECLARATIONS_FILE, FIGURE_MANIFEST_FILE, parseFigureDeclarations, parseFigureManifestFile } from './figure-render.ts'
 import { parseResultSources, RESULTS_LEDGER_FILE } from './execute-and-mint.ts'
+import { auditNumbers, buildAllowlist, verificationClaims } from './number-audit.ts'
 import { architectureFigureNames, dataFigureNames, parseFigureManifest } from './figure-manifest.ts'
 import type { GateVerdict } from './handoff.ts'
 
@@ -653,6 +654,68 @@ const docxPrecheck: GateFn = (input) => {
 }
 
 /**
+ * **数字出生证明**（红队实测的失败模式）—— 每个数字要么是题面给的，要么是模型自己
+ * 声明的常数，要么（下游阶段）是 harness 铸出的结果；否则它没有出生证明。
+ *
+ * 2024B 实测：阶段 2 在没有任何代码执行的情况下手写了最终数值结论，Q2 六种情况
+ * 错三种（12.50 vs 真值 15.88、20.19 vs 16.94、12.50 vs 21.68）。错的不是模型，
+ * 是**算术**——它在无执行环境下心算。这条门禁就是零数字通道在建模阶段的落点。
+ *
+ * 白名单来源随阶段不同（都由 `consumes` 保证可见）：
+ * - 阶段 2/3：题面给定值（`PROBLEM_FACTS.json`）+ 模型声明的常数（`DECLARATION.json`）
+ *   ——此时**还没有任何结果**，所以任何算出来的数都是无出生证明的；
+ * - 阶段 9：再加上 harness 铸出的账本（`results.json`）——结果至此才合法。
+ */
+const numbersTraced: GateFn = (input) => {
+  const id = 'numbers_traced'
+  const target = input.files.has('MODELING_REPORT.md')
+    ? 'MODELING_REPORT.md'
+    : input.files.has('RESULTS.md') ? 'RESULTS.md' : 'paper/main.md'
+  const text = input.files.get(target) ?? null
+  if (text === null) return cannot(id, `找不到可审计的产物（期望 MODELING_REPORT.md / RESULTS.md / paper/main.md）`)
+  const allowed = buildAllowlist([
+    input.upstream.get('PROBLEM_FACTS.json') ?? null,
+    input.upstream.get('DECLARATION.json') ?? null,
+    input.upstream.get(RESULTS_LEDGER_FILE) ?? null,
+  ])
+  // 白名单**为空是合法的**（题面本来就可能没有数值事实）——此时任何数字都是无出生证明的，
+  // 照常审计。只有"上游根本没给可核的来源"才是无法判定。
+  if (!input.upstream.has('PROBLEM_FACTS.json') && !input.upstream.has('DECLARATION.json')) {
+    return cannot(id, '上游既没有 PROBLEM_FACTS.json 也没有 DECLARATION.json —— '
+      + '没有任何"出生证明来源"，无从判断某个数字是否有据')
+  }
+  const audit = auditNumbers(text, allowed)
+  if (audit.violations.length === 0) {
+    return ok(id, `${target} 的 ${String(audit.scanned)} 个数字全部有出生证明`
+      + `（题面给定值 / 声明的常数${input.upstream.has(RESULTS_LEDGER_FILE) ? ' / 铸出的结果' : ''}）`)
+  }
+  const uniq = [...new Set(audit.violations.map(v => v.literal))]
+  return fail(id, `${target} 里有 ${String(audit.violations.length)} 处**没有出生证明**的数字`
+    + `（去重 ${String(uniq.length)} 个：${uniq.slice(0, 10).join('、')}${uniq.length > 10 ? ' …' : ''}）。`
+    + `首个位置 L${String(audit.violations[0]?.line ?? 0)}：${audit.violations[0]?.context.slice(0, 70) ?? ''}。`
+    + '在代码执行之前算出来的数没有出生证明——请改成结果锚点（如 `{R-Q2-case5-profit}`），'
+    + '数值只能由 harness 真跑代码后铸出')
+}
+
+/**
+ * **不许声称"已执行检验"** —— 在代码存在之前，任何"检验通过"都是假的。
+ *
+ * 红队实测：阶段 2 的 §9 写"表 1 的六种情况与问题 3 的算例全部通过（容差 1e-6）"，
+ * 而这些检验**一次都没跑过**（阶段 3 尚不存在代码）。这比单个错数字更危险——
+ * 它给下游传递"已验证"的假信号。
+ */
+const noClaimedVerification: GateFn = (input) => {
+  const id = 'no_claimed_verification'
+  const text = input.files.get('MODELING_REPORT.md') ?? null
+  if (text === null) return cannot(id, 'MODELING_REPORT.md 不在 —— 没有可扫描的文本')
+  const claims = verificationClaims(text)
+  if (claims.length === 0) return ok(id, '没有"已执行检验"类声明（检验方案都写成待执行）')
+  return fail(id, `${String(claims.length)} 处声称已执行检验：`
+    + claims.slice(0, 3).map(c => `L${String(c.line)}（${c.why}）${c.context.slice(0, 50)}`).join('；')
+    + ' —— 本阶段还没有代码，检验不可能跑过；把结论改成"检验方案（待执行）"')
+}
+
+/**
  * 门禁登记表。
  *
  * **未实现的判据给 `2`**，并在 `detail` 里写明"需要什么才算实现"——它们不是"忘了写"，
@@ -670,6 +733,9 @@ export const GATES: ReadonlyMap<string, GateFn> = new Map<string, GateFn>([
   ['anchor_presence', anchorPresence],
   // ── 阶段 2 ────────────────────────────────────────────────────────────
   ['modeling_floor', i => byteFloor(i, 'modeling_floor', 'MODELING_REPORT.md', 1500)],
+  // 零数字通道在建模阶段的落点（红队实测：阶段 2 手写结果数字，六处错三处）
+  ['numbers_traced', numbersTraced],
+  ['no_claimed_verification', noClaimedVerification],
   ['modeling_coverage', () => cannot('modeling_coverage',
     '未实现：参考的 modeling_coverage_check.py 要核对 CAPABILITY_CHECKLIST.json 的每条能力项'
     + '在 MODELING_REPORT.md 里都有建模落地。需要先定义"落地"的机器可读形态（能力项 id 的引用）。')],
@@ -678,6 +744,8 @@ export const GATES: ReadonlyMap<string, GateFn> = new Map<string, GateFn>([
     + '可机械化的那几项（逐问数、目标/公式/约束非零、符号表存在、灵敏度计划）待实现。')],
   // ── 阶段 3 ────────────────────────────────────────────────────────────
   ['code_parity', codeParity],
+  // 阶段 3 同样不许写没有出生证明的数字（此时还没有账本，所以只能写锚点）
+  ['numbers_traced', numbersTraced],
   // 阶段 3 的数由 harness 铸出（runCodeAndMintResults）：账本存在、非空、
   // 每个值都是有限数——这是"数不由模型持有"的机械落点。
   ['result_sources_valid', (i) => {
@@ -730,6 +798,8 @@ export const GATES: ReadonlyMap<string, GateFn> = new Map<string, GateFn>([
   ['review_fatal_count', reviewFatalCount],
   // ── 阶段 7 ────────────────────────────────────────────────────────────
   ['paper_floor', i => byteFloor(i, 'paper_floor', 'paper/main.md', 5120)],
+  // 论文里的每个数字必须能追到：题面给定值 / 声明的常数 / harness 铸出的结果（F2 的对账）
+  ['numbers_traced', numbersTraced],
   ['paper_page_floor', paperPageFloor],
   ['no_latex_residue', noLatexResidue],
   ['upstream_min_chars', (i) => {

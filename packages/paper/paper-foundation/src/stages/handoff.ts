@@ -40,6 +40,18 @@ export interface StagePassport {
   readonly index: number
   readonly at: string
   readonly status: 'passed' | 'stale'
+  /**
+   * **通过得干不干净** —— 与 `status` 分开的一个轴（红队 F6）。
+   *
+   * `status: 'passed'` 说的是"可以往下走"；`cleanliness` 说的是"走得多干净"：
+   * - `clean`：门禁全 0；
+   * - `unverified-gates`：有门禁给 `2`（无法判定）——**可签发但不算通过**，
+   *   缺口在 `unverifiedGates` 里点名。
+   *
+   * 为什么单独一个字段：把 `status: "passed"` 与 code 2 并列会被下游当绿灯读，
+   * 而"`2` 不等于通过"是本项目反复强调的纪律。机器可读的分离胜过措辞约定。
+   */
+  readonly cleanliness?: 'clean' | 'unverified-gates'
   /** 上游摘要 + 技能版本 + 门禁版本 的合成摘要。上游一变，本证失效。 */
   readonly inputDigest: string
   /** 产物名 → sha256（目录型产物记 `dir:<文件数>`）。 */
@@ -113,6 +125,7 @@ export function passportFor(
     index: spec.index,
     at: input.now ?? new Date().toISOString(),
     status: 'passed',
+    cleanliness: input.gate.code === 0 ? 'clean' : 'unverified-gates',
     inputDigest: inputDigestOf({
       upstreamDigests: input.upstreamDigests,
       skillVersion: input.skillVersion,
