@@ -228,3 +228,27 @@ describe('元语言 vs 断言（第六、七处真实误报）', () => {
     expect(verificationClaims('该结论已验证，与解析解一致。').length).toBeGreaterThan(0)
   })
 })
+
+describe('章节号 vs 结果 —— 判别力（第八、九处真实误报）', () => {
+  const facts = JSON.stringify({ facts: [{ name: '售价', value: '56', raw_quote: '市场售价 56 元' }] })
+
+  it('**行内章节引用**（"对应 5.1 的 OC 函数；对应 6.1…"）不误报', () => {
+    const text = '图表类型说明：fig_q1_oc_curve_p1 为折线图，对应 5.1 的 OC 函数；fig_x 对应 6.1 的模型；fig_y 对应 8.1 与 8.2；fig_z 见 5.2、5.3。'
+    expect(auditNumbers(text, buildAllowlist([facts, null, null])).violations.map(v => v.literal)).toEqual([])
+  })
+
+  it('**加粗小节标题**（"**6.1 序贯概率比检验不作主方案。**"）不误报', () => {
+    const text = ['**6.1 序贯概率比检验（SPRT）不作主方案。** SPRT 在期望样本量上更优。',
+      '### 5.1 问题 1：最小检测次数的精确二项验收方案'].join(String.fromCharCode(10))
+    expect(auditNumbers(text, buildAllowlist([facts, null, null])).violations.map(v => v.literal)).toEqual([])
+  })
+
+  it('**判别力**：第二分量 >30 的（红队点名的真错数字）即使贴着章节标记也照样被抓', () => {
+    // 这是这条规则的"不误伤"证明：12.50 / 21.68 / 15.88 的第二分量是 50/68/88 > 30，
+    // 所以它们**不满足"各分量都 ≤30"**，任何章节标记都救不了它们。
+    for (const bad of ['12.50', '21.68', '15.88', '34.32']) {
+      const text = `对应 ${bad} 的结果，见 ${bad} 节。`
+      expect(auditNumbers(text, buildAllowlist([facts, null, null])).violations.map(v => v.literal), `${bad} 被章节规则误放`).toContain(bad)
+    }
+  })
+})
