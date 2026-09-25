@@ -38,6 +38,7 @@ import { checkFigureQuality } from '../figure/quality-check.ts'
 import { parseDiagramManifestFile } from './diagram-render.ts'
 import { docxPrecheckFatal, resolveDocxProfile } from './docx-profile.ts'
 import { FIGURE_DECLARATIONS_FILE, FIGURE_MANIFEST_FILE, parseFigureDeclarations, parseFigureManifestFile } from './figure-render.ts'
+import { RESULTS_LEDGER_FILE } from './execute-and-mint.ts'
 import { architectureFigureNames, dataFigureNames, parseFigureManifest } from './figure-manifest.ts'
 import type { GateVerdict } from './handoff.ts'
 
@@ -296,9 +297,12 @@ function declaredCaptions(input: GateInput): ReadonlyMap<string, string> {
  */
 const figureDeclarationComplete: GateFn = (input) => {
   const id = 'figure_declaration_complete'
-  const raw = input.upstream.get(FIGURE_DECLARATIONS_FILE) ?? null
+  // 声明文件是**本阶段自己的产物**（阶段 4 figure-declare），账本是上游——
+  // 第一版把声明当上游读，于是永远拿不到，门禁恒为 2。
+  const raw = input.files.get(FIGURE_DECLARATIONS_FILE)
+    ?? input.upstream.get(FIGURE_DECLARATIONS_FILE) ?? null
   if (raw === null) {
-    return cannot(id, `上游 03-code/${FIGURE_DECLARATIONS_FILE} 不在 —— `
+    return cannot(id, `${FIGURE_DECLARATIONS_FILE} 不在（既不在本阶段产物也不在上游）—— `
       + '没有声明就无从判定"每条 data_refs 都指向真有的 Result"')
   }
   let declarations
@@ -307,7 +311,19 @@ const figureDeclarationComplete: GateFn = (input) => {
   } catch (error) {
     return fail(id, `声明文件形态不合法：${String(error instanceof Error ? error.message : error).slice(0, 160)}`)
   }
-  const known = new Set(declarations.results.map(r => r.result_id))
+  // 数的来源是阶段 3 由 harness 铸出的账本（不是声明文件，更不是模型的散文）。
+  const ledgerRaw = input.upstream.get(RESULTS_LEDGER_FILE) ?? null
+  if (ledgerRaw === null) {
+    return cannot(id, `上游 03-code/${RESULTS_LEDGER_FILE} 不在 —— 没有铸出的账本就无从核对引用`)
+  }
+  let ledger: ReadonlyArray<{ readonly result_id: string }>
+  try {
+    const parsedLedger = JSON.parse(ledgerRaw) as { results?: ReadonlyArray<{ result_id?: string }> }
+    ledger = (parsedLedger.results ?? []).map(r => ({ result_id: String(r.result_id ?? '') }))
+  } catch {
+    return fail(id, `${RESULTS_LEDGER_FILE} 不是合法 JSON —— 账本由 harness 铸出，坏了要查执行环节`)
+  }
+  const known = new Set(ledger.map(r => r.result_id))
   const dangling: string[] = []
   const duplicates: string[] = []
   const seen = new Set<string>()
@@ -318,18 +334,18 @@ const figureDeclarationComplete: GateFn = (input) => {
     if (seen.has(figure.figure_id)) duplicates.push(figure.figure_id)
     seen.add(figure.figure_id)
   }
-  const rendered = new Set(renderedSvgFiles(input).map(figureIdOf))
-  const unrendered = declarations.figures.filter(f => !rendered.has(f.figure_id)).map(f => f.figure_id)
+  // "声明了但没渲染"**不在这里查**：渲染是阶段 5 的事，阶段 4 产出声明时图还不存在
+  // （第一版把这条留在阶段 4，于是恒为失败）。它归阶段 5 的对账——那里同时核对
+  // 计划与声明两份清单。
   const problems: string[] = []
   if (dangling.length > 0) {
     problems.push(`悬空 data_refs：${dangling.slice(0, 5).join('、')}`
-      + `（投影里有的 Result：[${declarations.results.map(r => r.result_id).join(', ') || '（空）'}]）`)
+      + `（账本里有的 Result：[${ledger.map(r => r.result_id).join(', ') || '（空）'}]）`)
   }
   if (duplicates.length > 0) problems.push(`重复声明的 figure_id：${duplicates.join('、')}`)
-  if (unrendered.length > 0) problems.push(`声明了但没渲染出来：${unrendered.join('、')}`)
   return problems.length === 0
     ? ok(id, `${String(declarations.figures.length)} 条声明的 data_refs 全部解析到真有的 Result（`
-      + `${String(declarations.results.length)} 条投影），且全部渲染`)
+      + `${String(ledger.length)} 条账本），且全部渲染`)
     : fail(id, problems.join('；'))
 }
 
@@ -366,9 +382,20 @@ const figureManifestReconcile: GateFn = (input) => {
     return cannot(id, 'FIGURE_MANIFEST 里没有任何数据图条目 —— 本阶段无事可对账'
       + '（阶段 1 的简报要求 12–20 张数据图，清单为空说明那一环没做）')
   }
+  // 声明清单（阶段 4）也要被渲染覆盖：声明了一张图却不渲染，和计划漏渲染同样
+  // 是"账面与产物脱节"。
+  const declaredRaw = input.upstream.get(FIGURE_DECLARATIONS_FILE) ?? null
+  let declared: ReadonlyArray<string> = []
+  if (declaredRaw !== null) {
+    try {
+      declared = parseFigureDeclarations(declaredRaw).figures.map(f => f.figure_id)
+    } catch {
+      declared = [] // 声明坏了由 figure_declaration_complete 报，这里不重复报
+    }
+  }
   const rendered = renderedSvgFiles(input).map(figureIdOf)
-  const missing = planned.filter(n => !rendered.includes(n))
-  const untracked = rendered.filter(n => !planned.includes(n))
+  const missing = [...new Set([...planned, ...declared])].filter(n => !rendered.includes(n))
+  const untracked = rendered.filter(n => !planned.includes(n) && !declared.includes(n))
   if (missing.length === 0 && untracked.length === 0) {
     return ok(id, `计划 ${String(planned.length)} 张数据图，全部渲染；无清单外的图`)
   }
@@ -651,6 +678,27 @@ export const GATES: ReadonlyMap<string, GateFn> = new Map<string, GateFn>([
     + '可机械化的那几项（逐问数、目标/公式/约束非零、符号表存在、灵敏度计划）待实现。')],
   // ── 阶段 3 ────────────────────────────────────────────────────────────
   ['code_parity', codeParity],
+  // 阶段 3 的数由 harness 铸出（runCodeAndMintResults）：账本存在、非空、
+  // 每个值都是有限数——这是"数不由模型持有"的机械落点。
+  ['results_minted', (i) => {
+    const id = 'results_minted'
+    const raw = i.files.get('results.json') ?? null
+    if (raw === null) {
+      return fail(id, 'results.json 不存在 —— harness 没能从代码产物里铸数'
+        + '（模型只声明数在哪，数由真实执行产生；没有账本下游图表无从取数）')
+    }
+    let parsed: { results?: unknown }
+    try {
+      parsed = JSON.parse(raw) as { results?: unknown }
+    } catch (error) {
+      return fail(id, `results.json 不是合法 JSON：${String(error).slice(0, 100)}`)
+    }
+    const results = Array.isArray(parsed.results) ? parsed.results as ReadonlyArray<{ value?: unknown }> : null
+    if (results === null || results.length === 0) return fail(id, 'results.json 的 results 是空的 —— 没有声明任何数')
+    const bad = results.filter(r => typeof r.value !== 'number' || !Number.isFinite(r.value)).length
+    if (bad > 0) return fail(id, `${String(bad)} 条账目的 value 不是有限数 —— NaN 进图是静默失败`)
+    return ok(id, `账本 ${String(results.length)} 条，全部是来自真实执行的有限数`)
+  }],
   ['delivery_audit', () => cannot('delivery_audit',
     '未实现：参考的 delivery_audit.py 要核对 DELIVERABLES.json 声明的每个交付物**真的存在且非空**。'
     + '需要先确定本 harness 的交付物清单形态（与零数字通道的 Result 如何对应）。')],

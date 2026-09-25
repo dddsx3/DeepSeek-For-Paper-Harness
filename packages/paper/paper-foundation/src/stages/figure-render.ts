@@ -53,10 +53,14 @@ import {
   type FigureChartType,
 } from '../figure/renderer.ts'
 import type { IrObjectRecord } from '../ir/store.ts'
+import { readMintedResults } from './execute-and-mint.ts'
 import { stageDirName, stageOf, type StageId } from './registry.ts'
 
-/** 阶段 3 的声明文件名（**单一来源**：注册表与门禁都从这里取）。 */
+/** 阶段 4（figure-declare）的声明文件名（**单一来源**：注册表与门禁都从这里取）。 */
 export const FIGURE_DECLARATIONS_FILE = 'FIGURE_DECLARATIONS.json'
+
+/** 阶段 3 由 harness 铸出的结果账本（渲染取数的唯一来源）。 */
+export const RESULTS_LEDGER_FILE = 'results.json'
 
 /** 本阶段的渲染清单文件名。 */
 export const FIGURE_MANIFEST_FILE = 'figure-manifest.json'
@@ -83,9 +87,8 @@ export interface PlanDeviation {
   readonly reason: string
 }
 
-/** 阶段 3 交过来的声明文件。 */
+/** 阶段 4 交过来的声明文件（figures only——数在阶段 3 的账本里）。 */
 export interface FigureDeclarationFile {
-  readonly results: ReadonlyArray<ResultProjection>
   readonly figures: ReadonlyArray<FigureDeclaration>
   /** 可选：把"计划 vs 实际"的分叉**显式申报**出来——申报的分叉在对账时放行并留痕，静默的分叉照判失败。 */
   readonly plan_deviations?: ReadonlyArray<PlanDeviation>
@@ -134,14 +137,13 @@ export function parseFigureDeclarations(raw: string): FigureDeclarationFile {
     throw new Error(`${FIGURE_DECLARATIONS_FILE} 不是合法 JSON：${String(error).slice(0, 120)}`)
   }
   if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
-    throw new Error(`${FIGURE_DECLARATIONS_FILE} 必须是 JSON 对象（{"results":[…],"figures":[…]})`)
+    throw new Error(`${FIGURE_DECLARATIONS_FILE} 必须是 JSON 对象（{"figures":[…],"plan_deviations":[…]})`)
   }
-  const obj = parsed as { results?: unknown; figures?: unknown; plan_deviations?: unknown }
+  const obj = parsed as { figures?: unknown; plan_deviations?: unknown }
   if (!Array.isArray(obj.figures)) {
     throw new Error(`${FIGURE_DECLARATIONS_FILE} 缺 "figures" 数组 —— 没有声明就没有可渲染的图`
       + '（六轮真实运行的 figures=0 就是这个原因）')
   }
-  const results = Array.isArray(obj.results) ? obj.results : []
   const deviations: PlanDeviation[] = []
   if (obj.plan_deviations !== undefined) {
     if (!Array.isArray(obj.plan_deviations)) throw new Error(`${FIGURE_DECLARATIONS_FILE} 的 plan_deviations 必须是数组`)
@@ -158,33 +160,11 @@ export function parseFigureDeclarations(raw: string): FigureDeclarationFile {
     }
   }
   return {
-    results: results.map((r, i) => parseResult(r, i)),
     figures: obj.figures.map((f, i) => parseFigure(f, i)),
     ...(deviations.length === 0 ? {} : { plan_deviations: deviations }),
   }
 }
 
-function parseResult(raw: unknown, index: number): ResultProjection {
-  const where = `results[${String(index)}]`
-  if (typeof raw !== 'object' || raw === null) throw new Error(`${where} 不是对象`)
-  const r = raw as Record<string, unknown>
-  const id = r['result_id']
-  if (typeof id !== 'string' || id.length === 0) throw new Error(`${where} 缺 result_id`)
-  const value = r['value']
-  if (typeof value !== 'number' || !Number.isFinite(value)) {
-    // 渲染器只画有限数；NaN/Infinity 会在 SVG 里变成 "NaN" 而**看起来**像渲染成功。
-    throw new Error(`${where}（${id}）的 value 不是有限数（得到 ${JSON.stringify(value)}）——`
-      + '图里出现 NaN 是静默失败，不是渲染成功')
-  }
-  const uncertainty = r['uncertainty']
-  return {
-    result_id: id,
-    name: typeof r['name'] === 'string' && r['name'].length > 0 ? r['name'] : id,
-    value,
-    unit: typeof r['unit'] === 'string' ? r['unit'] : '',
-    uncertainty: typeof uncertainty === 'number' && Number.isFinite(uncertainty) ? uncertainty : null,
-  }
-}
 
 function parseFigure(raw: unknown, index: number): FigureDeclaration {
   const where = `figures[${String(index)}]`
@@ -261,16 +241,29 @@ export function stagePathOf(stagesRoot: string, id: StageId): string {
  * @throws 声明缺失/非法、ref 解析不了、题注含未引用的数字时抛错（**具名**）。
  */
 export async function renderFigureStage(stagesRoot: string): Promise<FigureStageResult> {
-  const codeDir = stagePathOf(stagesRoot, 'code')
+  const declareDir = stagePathOf(stagesRoot, 'figure-declare')
   const ownDir = stagePathOf(stagesRoot, 'figure')
 
-  const raw = await readMaybe(join(codeDir, FIGURE_DECLARATIONS_FILE))
+  const raw = await readMaybe(join(declareDir, FIGURE_DECLARATIONS_FILE))
   if (raw === null) {
-    throw new Error(`阶段 3 没有产出 ${FIGURE_DECLARATIONS_FILE} —— 渲染器没有输入，`
+    throw new Error(`阶段 4 没有产出 ${FIGURE_DECLARATIONS_FILE} —— 渲染器没有输入，`
       + 'figures 会是 0（这正是六轮真实运行的实际失败）')
   }
   const declarations = parseFigureDeclarations(raw)
-  const store = figureStoreProjection(declarations.results)
+  // 数**只**来自 harness 铸出的账本（阶段 3 真跑代码后按声明铸造）——
+  // 模型在阶段 4 只声明结构，从头到尾不持有一个数值。
+  const ledger = await readMintedResults(stagesRoot)
+  if (ledger === null) {
+    throw new Error(`阶段 3 没有产出 ${RESULTS_LEDGER_FILE} —— 账本是渲染取数的唯一来源`
+      + '（数不由模型持有；没有它就没有可画的数）')
+  }
+  const store = figureStoreProjection(ledger.results.map(r => ({
+    result_id: r.result_id,
+    name: r.name,
+    value: r.value,
+    unit: r.unit,
+    uncertainty: r.uncertainty,
+  })))
 
   const seen = new Set<string>()
   const figures: RenderedFigure[] = []
@@ -293,7 +286,7 @@ export async function renderFigureStage(stagesRoot: string): Promise<FigureStage
     if (!derived.ok) {
       throw new Error(`图 '${decl.figure_id}' 取数失败：${derived.reason}`
         + `（声明的 refs：[${decl.data_refs.join(', ')}]；`
-        + `投影里有的：[${declarations.results.map(r => r.result_id).join(', ') || '（空）'}]）`)
+        + `账本里有的：[${ledger.results.map(r => r.result_id).join(', ') || '（空）'}]）`)
     }
     // 题注/轴标签里的数字必须是**被引用过的** Result 值（P2-3 attack 1：
     // 题注是唯一能绕过"数字只能来自 store"的缝）。复用 producer 的守卫，

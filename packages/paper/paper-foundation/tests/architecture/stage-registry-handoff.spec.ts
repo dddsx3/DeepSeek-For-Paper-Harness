@@ -49,8 +49,8 @@ async function seed(root: string, n: number, skillVersion = 'sk1', gateVersion =
 
 describe('注册表 —— 结构不变量', () => {
   it('11 个阶段，序号 1..11 连续，id 与 STAGE_IDS 同序', () => {
-    expect(STAGES).toHaveLength(11)
-    expect(STAGES.map(s => s.index)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11])
+    expect(STAGES).toHaveLength(12)
+    expect(STAGES.map(s => s.index)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12])
     expect(STAGES.map(s => s.id)).toEqual([...STAGE_IDS])
   })
 
@@ -78,8 +78,9 @@ describe('注册表 —— 结构不变量', () => {
   })
 
   it('阶段 4/5/10/11 是**确定性**的（不消耗模型调用）；9 是模型阶段', () => {
+    // 建模代码（3）与图表声明（4）分属两个阶段；数据图渲染（5）与流程/架构图（6）也分开。
     expect(DETERMINISTIC_STAGES.map(s => s.id)).toEqual(['figure', 'diagram', 'format-check', 'docx-export'])
-    expect(MODEL_STAGES.map(s => s.id)).toEqual(['prob-analysis', 'modeling', 'code', 'review', 'paper', 'improve', 'format-profile'])
+    expect(MODEL_STAGES.map(s => s.id)).toEqual(['prob-analysis', 'modeling', 'code', 'figure-declare', 'review', 'paper', 'improve', 'format-profile'])
   })
 
   it('**每条正文契约规则都有归属**（当前头号拒绝"参考文献↔方法"必须在列）', () => {
@@ -102,7 +103,7 @@ describe('注册表 —— 结构不变量', () => {
 
   it('目录名带序号前缀（排序稳定）', () => {
     expect(stageDirName(stageOf('prob-analysis'))).toBe('01-prob-analysis')
-    expect(stageDirName(stageOf('docx-export'))).toBe('11-docx-export')
+    expect(stageDirName(stageOf('docx-export'))).toBe('12-docx-export')
   })
 })
 
@@ -174,8 +175,8 @@ describe('通行证 —— 上游就绪与回滚作废', () => {
     await seed(root, 5)
     const stale = await markStaleFrom(root, 'modeling', '阶段 6 报 fatal：拆解回流方程未定义')
     // 只作废序号更大的
-    // seed(root, 5) 只播种了阶段 1..5 —— 序号 >2 的是 code/figure/diagram（review 是阶段 6，未播种）
-    expect(stale).toEqual(['code', 'figure', 'diagram'])
+    // seed(root, 5) 只播种了阶段 1..5 —— 序号 >2 的是 code/figure-declare/figure（review 是阶段 7，未播种）
+    expect(stale).toEqual(['code', 'figure-declare', 'figure'])
     expect((await readPassport(root, stageOf('modeling')))?.status).toBe('passed')
     // **不删除**：旧哨兵仍在，且带着作废原因（证据保留）
     const codePassport = await readPassport(root, stageOf('code'))
