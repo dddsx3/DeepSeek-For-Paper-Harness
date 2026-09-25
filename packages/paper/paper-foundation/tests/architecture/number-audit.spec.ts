@@ -211,3 +211,20 @@ describe('第五个真实误报形态：**声明的集合长度**', () => {
     expect(auditNumbers(bad, buildAllowlist([declaration, null, null])).violations.map(v => v.literal)).toEqual(['34'])
   })
 })
+
+describe('元语言 vs 断言（第六、七处真实误报）', () => {
+  it('**反例引用**不算声称（"绝不写「全部通过」"）', () => {
+    const line = '所有检验口径都写成**待执行**：写「将对 16 种组合逐一核验分项恒等式」，绝不写「16 种组合全部通过」。'
+    expect(verificationClaims(line)).toEqual([])
+  })
+
+  it('**批评假验证**不算声称（"会给下游传递错误的已验证信号"）', () => {
+    const line = '把检验方案写成检验结论会给下游传递错误的已验证信号，比单个错数字更危险。'
+    expect(verificationClaims(line)).toEqual([])
+  })
+
+  it('真断言仍然被抓（红队点名的 §9）', () => {
+    expect(verificationClaims('表 1 的六种情况与问题 3 的算例全部通过（容差 1e-6）。').length).toBeGreaterThan(0)
+    expect(verificationClaims('该结论已验证，与解析解一致。').length).toBeGreaterThan(0)
+  })
+})
