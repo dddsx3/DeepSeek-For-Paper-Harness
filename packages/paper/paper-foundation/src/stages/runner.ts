@@ -51,6 +51,7 @@
 import { mkdir, readFile, readdir, stat, writeFile } from 'node:fs/promises'
 import { compressForModeling, shouldCompress } from './context-compression.ts'
 import { dirname, join } from 'node:path'
+import { decideAudit, type AuditVerdict } from './audit.ts'
 import { stageBriefing } from './briefing.ts'
 import { runGates, type GateInput } from './gates.ts'
 import {
@@ -91,6 +92,16 @@ export interface StageRunContext {
    * 账本不存在，下游图表无从取数。
    */
   readonly afterModel?: (stage: StageSpec, stagesRoot: string) => Promise<void>
+  /**
+   * **逐节点审计**（用户新增的架构约束）：本阶段交付前，由另一个 AI 角色独立审一遍。
+   *
+   * 与门禁的分工：门禁是机械判据（字节地板、形态、对账），审计判的是
+   * "这一轮执行者**是否按要求完成了任务**、交付结构是否完整、质量是否达标"。
+   * 返回 `null` = 审计跑不了（配额/坏回答）→ 记 `2`（**不当通过**）。
+   */
+  readonly auditStage?: (spec: StageSpec, stagesRoot: string, artifacts: ReadonlyMap<string, string>) => Promise<AuditVerdict | null>
+  /** 审计放行的最低质量分（默认 0.7）。 */
+  readonly auditMinScore?: number
   /** 阶段是否挂了只读工具（影响简报是否列语料索引）。 */
   readonly toolsMounted?: (stage: StageSpec) => boolean
   /** 时钟（测试可注入）。 */
@@ -296,6 +307,9 @@ export const REJECTED_ANSWER_FILE = '_rejected-answer.txt'
 
 /** 门禁逐条结论的留档名（阶段目录内）。检查人放行/否决看的是它，不是 id 列表。 */
 export const GATE_REPORT_FILE = '_gate-report.json'
+
+/** 逐节点审计结论的留档名（阶段目录内）。 */
+export const AUDIT_FILE = '_audit.json'
 
 /** 文本类产物（读进来给门禁判）。其余（docx/png/xlsx）只记字节数——按 utf8 读二进制会改长度。 */
 const TEXT_KINDS = /\.(md|json|py|svg|tex|csv|txt|ya?ml|html)$/i
@@ -505,12 +519,65 @@ export async function runStages(
     }
 
     const unverified = gate.items.filter(i => !i.ok).map(i => i.id)
+
+    // ── 逐节点审计（用户新增约束）：关键节点交付前先由独立角色审一遍 ──────────
+    // 为什么放在门禁之后：机械判据便宜，先跑；审计是模型调用，只在形态已经合法时才花钱。
+    // 为什么失败即不签发：用户口径"低于阈值不允许交付"——宁可停在这一阶段回滚，
+    // 也不要让"没按要求做完"的产物流到下一阶段（那才是真正的试错成本）。
+    let audit: AuditVerdict | null = null
+    if (ctx.auditStage !== undefined && spec.kind === 'model') {
+      try {
+        audit = await ctx.auditStage(spec, ctx.stagesRoot, stageFiles.files)
+      } catch (error) {
+        // 审计本身跑不了 → 记 2（无法判定），**绝不当成通过**。
+        unverified.push('stage_audit')
+        outcomes.push({
+          stage: spec.id, status: 'passed-unverified',
+          gate: { code: 2, items: [...gate.items, { id: 'stage_audit', ok: false, detail: `审计未跑成：${String(error instanceof Error ? error.message : error).slice(0, 160)}` }] },
+          reason: `门禁通过但**逐节点审计没跑成**（${String(error instanceof Error ? error.message : error).slice(0, 100)}）——`
+            + '按 `2 ≠ 0` 的纪律记在通行证上，本阶段不能计入 CLEAN。',
+        })
+        // 继续往下走（签发通行证），但把缺口带上。
+        audit = null
+        const passport = passportFor(spec, {
+          upstreamDigests: await upstreamDigestList(ctx, spec),
+          skillVersion, gateVersion,
+          artifacts: await artifactDigests(dir, spec.produces),
+          gate: { code: 2, items: [...gate.items, { id: 'stage_audit', ok: false, detail: '审计未跑成（无法判定）' }] },
+          unverifiedGates: unverified,
+          ...(ctx.now === undefined ? {} : { now: ctx.now() }),
+        })
+        await writePassport(ctx.stagesRoot, passport)
+        continue
+      }
+      if (audit !== null) {
+        await writeFile(join(dir, AUDIT_FILE), JSON.stringify(audit, null, 2) + String.fromCharCode(10), 'utf8').catch(() => {})
+        const decision = decideAudit(audit, { minScore: ctx.auditMinScore ?? 0.7 })
+        if (!decision.ok) {
+          const staled = await markStaleFrom(
+            ctx.stagesRoot, spec.id,
+            `阶段 '${spec.id}' 逐节点审计未通过 —— 下游前提不成立`,
+          )
+          outcomes.push({
+            stage: spec.id, status: 'gate-failed',
+            gate: { code: 1, items: [{ id: 'stage_audit', ok: false, detail: decision.reason }] },
+            ...(spec.rollbackTo.length === 0 ? {} : { suggestedRollbackTo: spec.rollbackTo[0] as StageId }),
+            staledDownstream: staled,
+            reason: `逐节点审计未通过：${decision.reason} —— 低于阈值不允许交付`
+              + `（审计结论见 ${AUDIT_FILE}）`,
+          })
+          break
+        }
+      }
+    }
+
     const passport = passportFor(spec, {
       upstreamDigests: await upstreamDigestList(ctx, spec),
       skillVersion, gateVersion,
       artifacts: await artifactDigests(dir, spec.produces),
       gate,
       unverifiedGates: unverified,
+      ...(audit === null ? {} : { audit }),
       ...(ctx.now === undefined ? {} : { now: ctx.now() }),
     })
     await writePassport(ctx.stagesRoot, passport)

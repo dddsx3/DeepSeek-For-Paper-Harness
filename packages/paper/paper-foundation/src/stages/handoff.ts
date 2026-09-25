@@ -24,6 +24,7 @@
 
 import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
+import type { AuditVerdict } from './audit.ts'
 import { digestOf, inputDigestOf } from './interchange.ts'
 import { STAGES, stageDirName, type StageId, type StageSpec } from './registry.ts'
 
@@ -67,6 +68,13 @@ export interface StagePassport {
    * ② 事后能回答"这一轮有哪些判据其实没跑"。
    */
   readonly unverifiedGates?: ReadonlyArray<string>
+  /**
+   * **逐节点审计的结论**（用户新增约束）。
+   *
+   * 记在通行证上而不是只写阶段目录，是为了让"这一轮是谁审的、判了多少分、有哪些要求没完成"
+   * 成为**交付物的一部分**——下游（与人工检查）读通行证就能看到，不必去翻阶段目录。
+   */
+  readonly audit?: AuditVerdict
 }
 
 const PASSPORT_FILE = 'PASSED'
@@ -90,6 +98,8 @@ export function passportFor(
     readonly artifacts: Readonly<Record<string, string>>
     readonly gate: GateVerdict
     readonly unverifiedGates?: ReadonlyArray<string>
+    /** 逐节点审计的结论（有则记进通行证）。 */
+    readonly audit?: AuditVerdict
     readonly now?: string
   },
 ): StagePassport {
@@ -136,6 +146,7 @@ export function passportFor(
     ...(input.unverifiedGates === undefined || input.unverifiedGates.length === 0
       ? {}
       : { unverifiedGates: input.unverifiedGates }),
+    ...(input.audit === undefined ? {} : { audit: input.audit }),
   }
 }
 
