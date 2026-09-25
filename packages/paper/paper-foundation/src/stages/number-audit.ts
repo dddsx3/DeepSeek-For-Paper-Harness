@@ -324,12 +324,27 @@ export interface VerificationClaim {
  */
 export function verificationClaims(text: string): ReadonlyArray<VerificationClaim> {
   const out: VerificationClaim[] = []
-  text.split('\n').forEach((line, i) => {
+  text.split('\n').forEach((rawLine, i) => {
+    // **先剥掉元语言引号**：实测假阳性——正文写"绝不写「全部通过」"，那是**引用**
+    // 被禁的措辞作为反例，不是断言。中文技术写作里「」『』`` 与成对引号承担元语言
+    // 功能（提到某句话而非使用它），所以扫描前先去掉它们的内容。
+    const line = rawLine
+      .replace(/「[^」\n]*」/g, ' ')
+      .replace(/『[^』\n]*』/g, ' ')
+      .replace(/`[^`\n]*`/g, ' ')
+      .replace(/“[^”\n]*”/g, ' ')
     for (const claim of VERIFICATION_CLAIMS) {
-      if (claim.pattern.test(line)) {
-        out.push({ line: i + 1, context: line.trim().slice(0, 120), why: claim.why })
-        return // 一行只报一次
-      }
+      const hit = claim.pattern.exec(line)
+      if (hit === null) continue
+      // **断言框架守卫**：命中点附近若有否定/引用/元语言标记，那是在**谈论**验证
+      // 而不是**断言**验证。实测假阳性："把检验方案写成检验结论会给下游传递错误的
+      // 已验证信号"——这句话本身在批评假验证，却被判成声称已验证。
+      const from = Math.max(0, (hit.index ?? 0) - 14)
+      const to = Math.min(line.length, (hit.index ?? 0) + hit[0].length + 8)
+      const window = line.slice(from, to)
+      if (/[不没未绝勿禁]|错误|假|若|如果|写成|写作|引|称|所谓|示例|反例|避免|防止|禁止/.test(window)) continue
+      out.push({ line: i + 1, context: rawLine.trim().slice(0, 120), why: claim.why })
+      return // 一行只报一次
     }
   })
   return out

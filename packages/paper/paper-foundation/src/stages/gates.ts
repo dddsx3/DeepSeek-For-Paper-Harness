@@ -698,8 +698,10 @@ const numbersTraced: GateFn = (input) => {
       + `，首个 L${String(a.audit.violations[0]?.line ?? 0)}「${a.audit.violations[0]?.context.slice(0, 50) ?? ''}」`
   })
   return fail(id, `有 ${String(bad.length)} 个文件出现**没有出生证明**的数字 —— ${parts.join('；')}。`
-    + '在代码执行之前算出来的数没有出生证明——请改成结果锚点（如 `{R-Q2-case5-profit}`），'
-    + '数值只能由 harness 真跑代码后铸出')
+    + '补救只有两条路：**若它是你的模型常数**（随机种子/容差/网格数/重复次数…），'
+    + '写进 `DECLARATION.json` 的 `model_constants`；**若它是计算结果**，改成结果锚点'
+    + '（如 `{R-Q2-case5-profit}`）——数值只能由 harness 真跑代码后铸出。'
+    + '在散文里声明常数不算声明。')
 }
 
 /**
