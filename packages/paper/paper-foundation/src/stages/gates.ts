@@ -333,6 +333,17 @@ const figureDeclarationComplete: GateFn = (input) => {
     : fail(id, problems.join('；'))
 }
 
+/** 上游声明文件里**已申报**的计划分叉（没有该字段或解析失败时为空）。 */
+function declaredDeviations(input: GateInput): ReadonlyArray<{ readonly from: string; readonly to: string; readonly reason: string }> {
+  const raw = input.upstream.get(FIGURE_DECLARATIONS_FILE) ?? null
+  if (raw === null) return []
+  try {
+    return parseFigureDeclarations(raw).plan_deviations ?? []
+  } catch {
+    return []
+  }
+}
+
 /**
  * 阶段 4 与阶段 1 的**计划对账** —— 参考的 `figure_manifest_reconcile`。
  *
@@ -361,9 +372,23 @@ const figureManifestReconcile: GateFn = (input) => {
   if (missing.length === 0 && untracked.length === 0) {
     return ok(id, `计划 ${String(planned.length)} 张数据图，全部渲染；无清单外的图`)
   }
+  // **已申报的分叉放行并留痕**：计划是阶段 1 写的，编码阶段的模型可能合理地改进图
+  // （拆分/合并/换更贴合数据的图型）。静默改名的对账必失败；但阶段 3 可以在
+  // `plan_deviations` 里申报 {from, to, reason}——申报了就可审计，门禁放行并把
+  // 理由写进结论。没有理由的分叉就是没被审视的分叉。
+  const deviations = declaredDeviations(input)
+  const accepted = deviations.filter(d => missing.includes(d.from) && untracked.includes(d.to))
+  const stillMissing = missing.filter(n => !accepted.some(d => d.from === n))
+  const stillUntracked = untracked.filter(n => !accepted.some(d => d.to === n))
+  if (stillMissing.length === 0 && stillUntracked.length === 0) {
+    return ok(id, `计划 ${String(planned.length)} 张数据图全部渲染（含 ${String(accepted.length)} 处**已申报**的分叉：`
+      + accepted.map(d => `${d.from}→${d.to}`).join('、') + '；理由见阶段 3 的声明文件）')
+  }
+  const undeclared = untracked.filter(n => !accepted.some(d => d.to === n) && deviations.some(d => d.to === n))
   return fail(id, [
-    missing.length > 0 ? `计划里有、但没渲染出来：${missing.slice(0, 6).join('、')}` : '',
-    untracked.length > 0 ? `渲染了、但不在计划里：${untracked.slice(0, 6).join('、')}` : '',
+    stillMissing.length > 0 ? `计划里有、但没渲染出来：${stillMissing.slice(0, 6).join('、')}` : '',
+    stillUntracked.length > 0 ? `渲染了、但不在计划里（也未申报分叉）：${stillUntracked.slice(0, 6).join('、')}` : '',
+    undeclared.length > 0 ? `申报了分叉但对不上：${undeclared.slice(0, 4).join('、')}` : '',
   ].filter(s => s !== '').join('；'))
 }
 

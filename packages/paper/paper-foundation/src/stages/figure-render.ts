@@ -73,10 +73,22 @@ export interface ResultProjection {
   readonly uncertainty: number | null
 }
 
+/** 一条**已申报的计划分叉**：阶段 3 在编码时把清单里的某张图改名/改型了。 */
+export interface PlanDeviation {
+  /** 阶段 1 清单里的原名。 */
+  readonly from: string
+  /** 实际声明并渲染的名字。 */
+  readonly to: string
+  /** 为什么分叉（进对账记录——申报了才可审计）。 */
+  readonly reason: string
+}
+
 /** 阶段 3 交过来的声明文件。 */
 export interface FigureDeclarationFile {
   readonly results: ReadonlyArray<ResultProjection>
   readonly figures: ReadonlyArray<FigureDeclaration>
+  /** 可选：把"计划 vs 实际"的分叉**显式申报**出来——申报的分叉在对账时放行并留痕，静默的分叉照判失败。 */
+  readonly plan_deviations?: ReadonlyArray<PlanDeviation>
 }
 
 /** 渲染清单里的一条。 */
@@ -95,6 +107,8 @@ export interface RenderedFigure {
 /** 渲染清单文件的内容。 */
 export interface FigureManifestFile {
   readonly figures: ReadonlyArray<RenderedFigure>
+  /** 已申报的计划分叉（无分叉时省略）——对账记录的一部分。 */
+  readonly plan_deviations?: ReadonlyArray<PlanDeviation>
 }
 
 /** 本阶段的结果。 */
@@ -122,15 +136,31 @@ export function parseFigureDeclarations(raw: string): FigureDeclarationFile {
   if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
     throw new Error(`${FIGURE_DECLARATIONS_FILE} 必须是 JSON 对象（{"results":[…],"figures":[…]})`)
   }
-  const obj = parsed as { results?: unknown; figures?: unknown }
+  const obj = parsed as { results?: unknown; figures?: unknown; plan_deviations?: unknown }
   if (!Array.isArray(obj.figures)) {
     throw new Error(`${FIGURE_DECLARATIONS_FILE} 缺 "figures" 数组 —— 没有声明就没有可渲染的图`
       + '（六轮真实运行的 figures=0 就是这个原因）')
   }
   const results = Array.isArray(obj.results) ? obj.results : []
+  const deviations: PlanDeviation[] = []
+  if (obj.plan_deviations !== undefined) {
+    if (!Array.isArray(obj.plan_deviations)) throw new Error(`${FIGURE_DECLARATIONS_FILE} 的 plan_deviations 必须是数组`)
+    for (const [i, raw] of obj.plan_deviations.entries()) {
+      if (typeof raw !== 'object' || raw === null) throw new Error(`plan_deviations[${String(i)}] 不是对象`)
+      const d = raw as Record<string, unknown>
+      const from = d['from']
+      const to = d['to']
+      const reason = d['reason']
+      if (typeof from !== 'string' || typeof to !== 'string' || typeof reason !== 'string' || reason.length === 0) {
+        throw new Error(`plan_deviations[${String(i)}] 需要 {from, to, reason}——没有理由的分叉就是没被审视的分叉`)
+      }
+      deviations.push({ from, to, reason })
+    }
+  }
   return {
     results: results.map((r, i) => parseResult(r, i)),
     figures: obj.figures.map((f, i) => parseFigure(f, i)),
+    ...(deviations.length === 0 ? {} : { plan_deviations: deviations }),
   }
 }
 
@@ -287,7 +317,9 @@ export async function renderFigureStage(stagesRoot: string): Promise<FigureStage
     })
   }
 
-  const manifest: FigureManifestFile = { figures }
+  const manifest: FigureManifestFile = declarations.plan_deviations === undefined
+    ? { figures }
+    : { figures, plan_deviations: declarations.plan_deviations }
   await writeFile(join(ownDir, FIGURE_MANIFEST_FILE), `${JSON.stringify(manifest, null, 2)}\n`, 'utf8')
   return { figures }
 }
