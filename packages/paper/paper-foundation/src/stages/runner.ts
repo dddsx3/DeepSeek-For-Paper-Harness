@@ -256,6 +256,9 @@ const DIR_PRODUCE_DEPTH = 2
 /** 被拒回答的留档名（阶段目录内）。失败要能诊断，原始回答就是证据。 */
 export const REJECTED_ANSWER_FILE = '_rejected-answer.txt'
 
+/** 门禁逐条结论的留档名（阶段目录内）。检查人放行/否决看的是它，不是 id 列表。 */
+export const GATE_REPORT_FILE = '_gate-report.json'
+
 /** 文本类产物（读进来给门禁判）。其余（docx/png/xlsx）只记字节数——按 utf8 读二进制会改长度。 */
 const TEXT_KINDS = /\.(md|json|py|svg|tex|csv|txt|ya?ml|html)$/i
 
@@ -435,6 +438,14 @@ export async function runStages(
       problemCount: options.problemCount ?? 0,
     }
     const gate = runGates(spec.gates, gateInput)
+    // **门禁逐条结论要留在产物旁边**。运行器对外的 reason 只点名门禁 id，而
+    // "哪一条、什么证据"是检查人放行/否决的依据——2024B 阶段 4 实测：两个门禁
+    // 失败，日志里却只有 id，细节得手动重跑门禁才能拿到。与 _rejected-answer.txt
+    // 同一条纪律：失败要可诊断。
+    await writeFile(join(dir, GATE_REPORT_FILE),
+      `${JSON.stringify({ stage: spec.id, code: gate.code, items: gate.items }, null, 2)}
+`, 'utf8')
+      .catch(() => { /* 落盘失败不掩盖门禁结论本身 */ })
     // `1` = 硬失败 → 阻断；`2` = 无法判定 → **不阻断阶段，但记账**（见模块头的取舍）
     if (gate.code === 1) {
       // 门禁不过 → 不签发；把**下游**标 stale（它们的输入前提已经不成立）

@@ -71,8 +71,15 @@ export const ARCHITECTURE_SECTIONS: ReadonlySet<string> = new Set(['DRAWIO', 'TI
 
 /** 段头行：大写键 = 数量（`DATA=20`）。 */
 const SECTION_HEADER = /^([A-Z][A-Z0-9_]*)\s*=\s*(\d+)$/
-/** 条目行：`- fig_a` / `* fig_a` / `fig_a`。 */
-const ENTRY_LINE = /^(?:[-*+]\s+)?([A-Za-z][A-Za-z0-9_]*)$/
+/**
+ * 条目行：`- fig_a` / `fig_a` / **`fig_a|问题1两种信度下…（折线图）`**。
+ *
+ * 参考工作流的清单条目本来就带题注（`名字|题注`）——2024B 真实运行实测：
+ * 阶段 1 写的就是这种形态，而第一版解析器按"整行只有一个名字"匹配，
+ * 18 条全部不识别 → 计划侧读到 0 条 → 对账失败。条目的**身份**是 `|` 之前
+ * 的那段；后面的题注是给人看的，不进对账键。
+ */
+const ENTRY_LINE = /^(?:[-*+]?\s*)?([A-Za-z][A-Za-z0-9_]*)(?:\s*[|｜].*)?$/
 
 /**
  * 解析 `PROBLEM_ANALYSIS.md` 里的 `FIGURE_MANIFEST` 块。
