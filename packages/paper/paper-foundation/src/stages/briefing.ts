@@ -154,7 +154,9 @@ const SKILLS: Readonly<Record<string, StageSkill>> = {
         + '**声明的输出必须存在且非空**——声明了却没有，是硬失败。',
       '`RESULTS.md` 写结果说明：四问的关键数值、校核证据、归因、诚实边界。',
       '`FIGURE_DECLARATIONS.json` 声明图：**一个 JSON 对象，两个键**——'
-        + '`results`（代码真跑出来的量的只读投影：`{result_id, name, value, unit, uncertainty}`）与 '
+        + '`results`（代码真跑出来的量的只读投影：`{result_id, name, value, unit, uncertainty}`；'
+        + '**只登记会被 `data_refs` 引用的量**——18 张图通常对应 40–60 条，不是把每个数都抄进来'
+        + '（2024B 实测：登记 177 条把回答顶过输出上限，max-tokens 截断；其余数值留在 RESULTS.md 与 DELIVERABLES.json））与 '
         + '`figures`（每张图 `{figure_id, chart_type, data_refs, caption, x_label?, y_label?}`）。'
         + '`data_refs` **必须**指向 `results` 里真有的 `result_id`。'
         + '`figure_id` **必须**逐字用阶段 1 FIGURE_MANIFEST 里的名字——阶段 4 按名字对账，'
