@@ -128,7 +128,7 @@ function answerFor(stage: string): string {
   }
 }
 
-async function harness(options: { readonly pauseAfter?: ReadonlyArray<string>; readonly skillDocs?: boolean } = {}) {
+async function harness(options: { readonly pauseAfter?: ReadonlyArray<string>; readonly skillDocs?: boolean; readonly problemCount?: number } = {}) {
   const stagesRoot = await mkdtemp(join(tmpdir(), 'dsh-stage-svc-'))
   const ctx = new Context()
   const prompts: string[] = []
@@ -158,13 +158,15 @@ async function harness(options: { readonly pauseAfter?: ReadonlyArray<string>; r
     stagesRoot,
     ...(options.pauseAfter === undefined ? {} : { pauseAfter: options.pauseAfter as never }),
     ...(options.skillDocs === undefined ? {} : { skillDocs: options.skillDocs }),
+    // 阶段 3 分片：问数 2 → 入口 1 + 逐问 2 + 收尾 1 = 4 次调用（都走 provider 缝）
+    ...(options.problemCount === undefined ? {} : { problemCount: options.problemCount }),
   })
   return { ctx, stagesRoot, prompts }
 }
 
 describe('阶段链服务 —— 真的接进了 provider 缝', () => {
   it('11 个阶段跑完；模型调用走的是 provider 缝（简报真的发出去了）；确定性阶段真的产出了图', async () => {
-    const { ctx, stagesRoot, prompts } = await harness()
+    const { ctx, stagesRoot, prompts } = await harness({ problemCount: 2 })
     const outcomes = await ctx.paperStageChain.run()
     console.log('PROBE ' + JSON.stringify(outcomes.map(o => [o.stage, o.status, o.reason.slice(0,200)])))
     expect(outcomes).toHaveLength(13)
@@ -174,7 +176,11 @@ describe('阶段链服务 —— 真的接进了 provider 缝', () => {
     // 且带的是阶段链的系统提示词（不是别的角色的）。
     const modelStages = STAGES.filter(s => s.kind === 'model')
     expect(modelStages.length).toBe(9)
-    expect(prompts.length).toBe(modelStages.length)
+    // 阶段 3 分片：问数 2 → 4 次调用（入口 + problem1 + problem2 + 收尾信封）
+    const codeCalls = prompts.filter(p => p.includes('stages/03-code/'))
+    expect(codeCalls.length).toBe(4)
+    expect(codeCalls.filter(p => p.includes('只产出 `code/problem1.py`')).length).toBe(1)
+    expect(prompts.length).toBe(modelStages.length - 1 + 4)
     for (const p of prompts) expect(p).toContain(STAGE_CHAIN_SYSTEM)
     for (const s of modelStages) expect(prompts.some(p => p.includes(`stages/${String(s.index).padStart(2, '0')}-${s.id}/`))).toBe(true)
 
