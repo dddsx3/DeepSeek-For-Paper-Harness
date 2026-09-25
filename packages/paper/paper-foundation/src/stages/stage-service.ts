@@ -47,8 +47,10 @@ import { Context, Service } from '@deepseek-ai/cordis'
 import { createUserMessage, type GenerateOptions } from '@deepseek-ai/dsh-llm'
 import { deterministicRunner, type DeterministicOutcome } from './deterministic.ts'
 import { runCodeAndMintResults } from './execute-and-mint.ts'
+import { assembleShards, planCodeShards } from './code-shard.ts'
 import { readPassport } from './handoff.ts'
 import { runStages, type StageOutcome, type StageRunContext } from './runner.ts'
+import type { StageSpec } from './registry.ts'
 import { STAGES, type StageId } from './registry.ts'
 
 /** 读一个文件；不存在返回 null（**不返回空串**）。 */
@@ -174,48 +176,69 @@ export class PaperStageChainService extends Service {
   private contextOf(): StageRunContext {
     const provider = this.ctx.paperProvider
     const route = this.ctx.paperSettings.snapshot().executor
+
+    // **单次调用原语**（传输级重试内建）。阶段 3 的分片与单产出的模型阶段都用它。
+    const singleCall = async (spec: StageSpec, prompt: string): Promise<string> => {
+      const request: GenerateOptions = {
+        provider: route.provider,
+        model: route.model,
+        system: STAGE_CHAIN_SYSTEM,
+        messages: [createUserMessage({ content: [{ type: 'text', text: prompt }], source: { kind: 'user' } })],
+      }
+      // 传输级重试（2024B 阶段 3 实测）：一次十几分钟的流会被中转中途掐断
+      // （"terminated" / 看门狗触发 / ECONNRESET）。这些是**传输失败**，不是
+      // "模型答错了"——重试是恢复路径，把整阶段作废才是真的浪费。
+      // 上限 3 次、退避 5s/15s/45s；max-tokens 截断**不重试**（那是产出超限，
+      // 重发只会再超限一次），按契约失败上报。
+      let lastFailure: unknown
+      for (let attempt = 1; attempt <= 3; attempt += 1) {
+        try {
+          let text = ''
+          let finish: { kind: string } | undefined
+          for await (const chunk of provider.stream(request)) {
+            if (chunk.type === 'text-delta') text += chunk.text
+            if (chunk.type === 'finish') finish = chunk.reason
+          }
+          const kind = finish?.kind ?? 'stop'
+          if (kind === 'max-tokens') {
+            throw new Error(`阶段 '${spec.id}' 的回答被 max-tokens 截断 —— `
+              + '这不是"写错了哪里"，是产出超过了单次调用的输出上限；分片或压缩后重试')
+          }
+          if (kind === 'error' || kind === 'aborted') {
+            throw new Error(`模型调用未正常结束（finish=${kind}）—— 阶段 '${spec.id}' 没有可用回答`)
+          }
+          return text
+        } catch (error) {
+          lastFailure = error
+          const message = String(error instanceof Error ? error.message : error)
+          const retryable = /terminated|ECONNRESET|fetch failed|socket|看门狗|network|timeout|aborted/i.test(message)
+            && !/max-tokens/.test(message)
+          if (!retryable || attempt === 3) break
+          await new Promise(resolve => setTimeout(resolve, 5_000 * 3 ** (attempt - 1)))
+        }
+      }
+      throw lastFailure instanceof Error ? lastFailure : new Error(String(lastFailure))
+    }
+
     return {
       stagesRoot: this.config.stagesRoot,
       callModel: async (spec, prompt) => {
-        const request: GenerateOptions = {
-          provider: route.provider,
-          model: route.model,
-          system: STAGE_CHAIN_SYSTEM,
-          messages: [createUserMessage({ content: [{ type: 'text', text: prompt }], source: { kind: 'user' } })],
-        }
-        // 传输级重试（2024B 阶段 3 实测）：一次十几分钟的流会被中转中途掐断
-        // （"terminated" / 看门狗触发 / ECONNRESET）。这些是**传输失败**，不是
-        // "模型答错了"——重试是恢复路径，把整阶段作废才是真的浪费。
-        // 上限 3 次、退避 5s/15s/45s；max-tokens 截断**不重试**（那是产出超限，
-        // 重发只会再超限一次），按契约失败上报。
-        let lastFailure: unknown
-        for (let attempt = 1; attempt <= 3; attempt += 1) {
-          try {
-            let text = ''
-            let finish: { kind: string } | undefined
-            for await (const chunk of provider.stream(request)) {
-              if (chunk.type === 'text-delta') text += chunk.text
-              if (chunk.type === 'finish') finish = chunk.reason
-            }
-            const kind = finish?.kind ?? 'stop'
-            if (kind === 'max-tokens') {
-              throw new Error(`阶段 '${spec.id}' 的回答被 max-tokens 截断 —— `
-                + '这不是"写错了哪里"，是产出超过了单次调用的输出上限；分片或压缩后重试')
-            }
-            if (kind === 'error' || kind === 'aborted') {
-              throw new Error(`模型调用未正常结束（finish=${kind}）—— 阶段 '${spec.id}' 没有可用回答`)
-            }
-            return text
-          } catch (error) {
-            lastFailure = error
-            const message = String(error instanceof Error ? error.message : error)
-            const retryable = /terminated|ECONNRESET|fetch failed|socket|看门狗|network|timeout|aborted/i.test(message)
-              && !/max-tokens/.test(message)
-            if (!retryable || attempt === 3) break
-            await new Promise(resolve => setTimeout(resolve, 5_000 * 3 ** (attempt - 1)))
+        // 阶段 3 **分片调用**（与 shard-declare 同一模式）：每次只交付一个小文件，
+        // 全部落在中转的输出天花板之内；组装成 JSON 信封后按原契约解析——
+        // runner 不感知分片。见 code-shard.ts 的模块头。
+        if (spec.id === 'code') {
+          const shards = planCodeShards(spec, prompt, await this.problemCount())
+          const answers: string[] = []
+          for (const shard of shards) {
+            answers.push(await singleCall(spec, shard.prompt))
+            this.config.onDeterministicOutcome?.({
+              stage: spec.id,
+              summary: `分片 ${String(shard.index)}/${String(shard.total)} 交付 ${shard.deliverable}`,
+            })
           }
+          return assembleShards(shards, answers)
         }
-        throw lastFailure instanceof Error ? lastFailure : new Error(String(lastFailure))
+        return singleCall(spec, prompt)
       },
       runDeterministic: deterministicRunner(this.config.onDeterministicOutcome),
       // 阶段 3 的 harness 侧后处理：**真跑代码并铸数**。模型只声明数在哪
