@@ -267,6 +267,17 @@ export async function* streamCompletion(
   const stopIdle = (): void => { clearTimeout(idleTimer) }
   const url = `${route.baseURL.replace(/\/$/, '')}/chat/completions`
   const budget = outputBudget()
+  // **非流式模式**：harness 的缝是 AsyncIterable，所以完整回答会在下面被展开成
+  // 同一形状的 chunk 序列——下游（阶段链/交付链）完全无感。
+  // 注意：非流式下没有"字节在流动"可观察，看门狗不适用；唯一的界是总时长
+  // （PAPER_NON_STREAM_TIMEOUT_MS，默认 15 分钟——这是该模式**不得不**用的墙钟，
+  // 与流式路径的无令牌判据是两回事）。工具调用回合不支持非流式：带了 tools
+  // 就回落到流式（工具往返需要增量拼装）。
+  const nonStream = process.env.PAPER_NON_STREAM === '1' && (request.tools ?? []).length === 0
+  const nonStreamTimeoutMs = (() => {
+    const raw = Number(process.env.PAPER_NON_STREAM_TIMEOUT_MS ?? '')
+    return Number.isFinite(raw) && raw > 0 ? raw : 900_000
+  })()
   const payload = JSON.stringify({
     model: route.model,
     messages: [
@@ -274,7 +285,10 @@ export async function* streamCompletion(
       ...request.messages.map(m => ({ role: 'user', content: m.content })),
     ],
     temperature: 0.2,
-    stream: true,
+    // 非流式模式（PAPER_NON_STREAM=1）：一次拿完整 JSON。中转对流式与非流式的
+    // 输出天花板可能不同（2024B 阶段 3 的 max-tokens 截断只在流式下反复出现），
+    // 且 SSE 断流（terminated）这类传输失败在非流式下天然不存在。
+    stream: !nonStream,
     // W8.6-B1: explicit budget when configured (PAPER_PROBE_MAX_OUTPUT_TOKENS).
     ...(budget === null ? {} : { max_tokens: budget }),
     // W8.9-D1: keep the reasoning channel from eating the whole budget
@@ -286,7 +300,7 @@ export async function* streamCompletion(
     // endpoint that ignores the option simply omits usage — the executor
     // already treats missing usage as "not reported", never as zero-with-
     // confidence.
-    stream_options: { include_usage: true },
+    ...(nonStream ? {} : { stream_options: { include_usage: true } }),
     // Tools ride along only when the caller supplied them — an absent field
     // keeps every existing request byte-identical.
     ...(request.tools === undefined || request.tools.length === 0 ? {} : { tools: toWireTools(request.tools) }),
@@ -295,6 +309,82 @@ export async function* streamCompletion(
   // The concurrency slot spans all attempts of one call: a retry must not
   // open a second in-flight request while the first is being backed off.
   await acquire()
+  // ── 非流式分支：一次拿完整 JSON，展开成同一形状的 chunk 序列后直接返回。──
+  if (nonStream) {
+    try {
+      for (let attempt = 1; ; attempt += 1) {
+        let response: Response | undefined
+        try {
+          response = await fetch(url, {
+            method: 'POST',
+            headers: {
+              'content-type': 'application/json',
+              authorization: `Bearer ${route.apiKey}`,
+            },
+            body: payload,
+            // 非流式没有"字节在流动"可观察，唯一能设的界是总时长
+            //（生成期间没有任何中间信号可喂看门狗）。
+            signal: AbortSignal.timeout(nonStreamTimeoutMs),
+          })
+        } catch (error) {
+          const message = String(error instanceof Error ? error.message : error)
+          if (attempt < MAX_ATTEMPTS && /timeout|terminated|ECONNRESET|fetch failed/i.test(message)) {
+            await new Promise(resolve => setTimeout(resolve, BASE_BACKOFF_MS * 2 ** (attempt - 1)))
+            continue
+          }
+          throw error
+        }
+        if (!response.ok) {
+          const detail = await response.text().catch(() => '')
+          const err = new Error(`provider http ${response.status} ${detail.slice(0, 200)}`) as Error & { status?: number }
+          err.status = response.status
+          if (!retryableStatus(response.status) || attempt >= MAX_ATTEMPTS) throw err
+          await new Promise(resolve => setTimeout(resolve, BASE_BACKOFF_MS * 2 ** (attempt - 1)))
+          continue
+        }
+        const data = JSON.parse(await response.text()) as {
+          choices?: ReadonlyArray<{ message?: { content?: string }; finish_reason?: string | null }>
+          usage?: { prompt_tokens?: number; completion_tokens?: number; prompt_tokens_details?: { cached_tokens?: number }; completion_tokens_details?: { reasoning_tokens?: number } }
+          error?: { message?: string }
+        }
+        const content = data.choices?.[0]?.message?.content ?? ''
+        const wireFinish = data.choices?.[0]?.finish_reason ?? null
+        release()
+        stopIdle()
+        yield { type: 'block-start', index: 0, blockType: 'text' }
+        if (content !== '') yield { type: 'text-delta', index: 0, text: content }
+        yield { type: 'block-end', index: 0, block: { type: 'text', text: content } }
+        if (data.error !== undefined) {
+          yield { type: 'finish', reason: { kind: 'error', failure: { message: String(data.error.message ?? 'provider error'), code: 'in_band' } } }
+        } else if (wireFinish === 'length') {
+          yield { type: 'finish', reason: { kind: 'max-tokens' } }
+        } else {
+          yield { type: 'finish', reason: { kind: 'stop' } }
+        }
+        const usage = data.usage
+        if (usage !== undefined) {
+          const cached = usage.prompt_tokens_details?.cached_tokens ?? 0
+          const promptTotal = usage.prompt_tokens ?? 0
+          yield {
+            type: 'usage',
+            usage: {
+              inputTokens: Math.max(promptTotal - cached, 0),
+              outputTokens: usage.completion_tokens ?? 0,
+              ...(cached > 0 ? { cacheReadTokens: cached } : {}),
+              ...(usage.completion_tokens_details?.reasoning_tokens !== undefined
+                ? { reasoningTokens: usage.completion_tokens_details.reasoning_tokens }
+                : {}),
+            },
+          }
+        }
+        return
+      }
+    } catch (error) {
+      release()
+      stopIdle()
+      throw error
+    }
+  }
   let response: Response | undefined
   try {
     for (let attempt = 1; ; attempt += 1) {
