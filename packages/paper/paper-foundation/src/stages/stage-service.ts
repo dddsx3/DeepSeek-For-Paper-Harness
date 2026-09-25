@@ -221,10 +221,10 @@ export class PaperStageChainService extends Service {
       // 阶段 3 的 harness 侧后处理：**真跑代码并铸数**。模型只声明数在哪
       // （RESULT_SOURCES.json），账本由真实执行的产物字节铸成——数不由模型持有。
       afterModel: async (spec, stagesRoot) => {
-        if (spec.id !== 'code') return
+        if (spec.id !== 'result-sources') return
         const outcome = await runCodeAndMintResults(stagesRoot)
         this.config.onDeterministicOutcome?.({
-          stage: 'code',
+          stage: 'result-sources',
           summary: '执行 code/main.py（exit ' + String(outcome.exitCode) + '），按声明铸出 '
             + String(outcome.minted) + ' 条账目',
         })

@@ -72,6 +72,14 @@ export const ADAPTATIONS: ReadonlyArray<AssetAdaptation> = [
       + '**工具落地前简报不点名这些文档**——点名一份取不到的文档就是新的"无法被遵守的指令"。',
   },
   {
+    stage: 'result-sources', assetClass: 'file_io', reference: '参考：all_results.json 由代码写出，模型从不转录数值',
+    mode: 'harness-side',
+    detail: '**数不由模型持有**（用户口径）：模型只写 RESULT_SOURCES.json 声明定位，'
+      + 'harness 真跑 code/main.py 后从产物字节里按 locator+json_path 铸出 results.json 账本'
+      + '（execute-and-mint.ts，复用既有 resolveJsonPath）。前后一致与可追溯由此保证；'
+      + '2024B 实测把数值转录交给模型时，两次被输出上限截断。',
+  },
+  {
     stage: 'figure-declare', assetClass: 'rule_corpus', reference: '_utils/figure_style_guide.md + figure_recipes_*.md',
     mode: 'tool-fetchable',
     detail: '语料**已恢复**到 `src/stages/skill-docs/`（figure-style-guide 80KB + 五份配方）。'

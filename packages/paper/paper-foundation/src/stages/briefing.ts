@@ -181,6 +181,37 @@ const SKILLS: Readonly<Record<string, StageSkill>> = {
       '≥0.99 的分类指标都配了防泄漏说明。',
     ],
   },
+  'result-sources': {
+    // 参考工作流里数由代码写出的 all_results.json 承载；本阶段把"数在哪"独立成
+    // 一次小调用——2024B 实测：与代码合在一次回答里，三次被输出上限截断。自创 → 明确指示。
+    ported: false,
+    task: '**必须**产出 `RESULT_SOURCES.json`：为代码真跑出来的每个量声明**数在哪**。'
+      + '**必须**只写定位（`{result_id, name, locator, json_path, unit}`），'
+      + '**不得**写任何数值——harness 会真跑你的代码，从产物字节里读出每个数铸成账本。',
+    how: [
+      '上游是你在阶段 3 交的代码与 `DELIVERABLES.json`。逐个要进论文的量，回答三件事：'
+        + '哪个文件（`locator`，相对 `code/`）、文件内哪个路径（`json_path`，如 `problem1.n_star`）、'
+        + '单位是什么。',
+      '**每个量拆一条**："方案 = {n, k, 置信水平}" 是三个数，写三条（`name` 里写清是哪个）。',
+      '`locator` 指向的文件**必须**是你的代码真的会写出的 JSON 文件；'
+        + 'harness 会执行 `code/main.py` 然后逐条核对——解析不到、落空、非有限数，都具名失败。',
+      '账本（`results.json`）由 harness 铸出并落盘——你**看不到也不需要**看到它的数值；'
+        + '下一阶段的图表声明只引用你这里声明的 `result_id`。',
+    ],
+    forbidden: [
+      '**不得**在 `RESULT_SOURCES.json` 里写任何数值（`value` 字段根本不存在）。'
+        + '写数 = 数又回到模型手里，前后一致与可追溯全部作废。',
+      '**不得**声明代码不会产出的 locator，也**不得**猜一个 json_path——'
+        + '铸数失败会点名到具体哪一条。',
+      '**不得**把多个数塞进一条声明（json_path 解析出对象/数组 = 失败）。',
+    ],
+    selfCheck: [
+      '`RESULT_SOURCES.json` 是合法 JSON 对象，`sources` 数组非空。',
+      '每条声明的 locator 都对应 `code/` 下代码真的会写的 JSON 文件，json_path 都是点路径。',
+      'result_id 无重复；每个数单独一条。',
+      '没有出现任何数值字面量。',
+    ],
+  },
   'figure-declare': {
     // 参考工作流里没有这个独立技能（它让模型在编码的同时写绘图脚本）。
     // 本 harness 把"声明"拆成独立阶段：数由 harness 铸出，这里只组织图。自创 → 明确指示。
