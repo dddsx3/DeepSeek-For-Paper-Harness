@@ -131,8 +131,10 @@ describe('阶段 4/5 的对账 —— 计划与产物**双向**对齐', () => {
   const analysisWith = (block: string): string => `# 分析\n\n${block}\n`
   const manifest = (lines: ReadonlyArray<string>): string =>
     ['<!-- BEGIN FIGURE_MANIFEST -->', ...lines, '<!-- END FIGURE_MANIFEST -->'].join('\n')
-  const decls = (figures: ReadonlyArray<unknown>, results: ReadonlyArray<unknown> = [{ result_id: 'RES-A', name: 'A', value: 1, unit: '%', uncertainty: null }]): string =>
-    JSON.stringify({ results, figures })
+  // 声明文件只带 figures；数在阶段 3 由 harness 铸出的账本（results.json）里。
+  const decls = (figures: ReadonlyArray<unknown>): string => JSON.stringify({ figures })
+  const ledger = (ids: ReadonlyArray<string>): string =>
+    JSON.stringify({ results: ids.map(id => ({ result_id: id, name: id, value: 1, unit: '%', uncertainty: null })) })
 
   it('计划里的数据图**没渲染出来** → 硬失败并点名', () => {
     const up = { 'PROBLEM_ANALYSIS.md': analysisWith(manifest(['DATA=2', 'fig_a', 'fig_b'])) }
@@ -159,19 +161,28 @@ describe('阶段 4/5 的对账 —— 计划与产物**双向**对齐', () => {
     expect(run('figure_manifest_reconcile', input({}, { 'PROBLEM_ANALYSIS.md': '没有清单' })).code).toBe(2)
   })
 
-  it('`data_refs` 悬空 → 硬失败并点名**哪一个 ref 找不到**', () => {
-    const up = { 'FIGURE_DECLARATIONS.json': decls([{ figure_id: 'fig_a', chart_type: 'bar', data_refs: ['RES-GHOST'] }]) }
+  it('`data_refs` 悬空 → 硬失败并点名**哪一个 ref 找不到**（数的来源是铸出的账本）', () => {
+    const up = {
+      'FIGURE_DECLARATIONS.json': decls([{ figure_id: 'fig_a', chart_type: 'bar', data_refs: ['RES-GHOST'] }]),
+      'results.json': ledger(['RES-A']),
+    }
     const v = run('figure_declaration_complete', input({ 'figures/fig_a.svg': '<svg/>' }, up))
     expect(v.code).toBe(1)
     expect(v.items[0]?.detail).toContain('RES-GHOST')
   })
 
-  it('声明了但没渲染 → 硬失败；全部解析且渲染 → 0', () => {
-    const good = { 'FIGURE_DECLARATIONS.json': decls([{ figure_id: 'fig_a', chart_type: 'bar', data_refs: ['RES-A'] }]) }
+  it('只管**引用解析**（渲染齐没齐归阶段 5 的对账）；全部解析 → 0；**账本不在 → 2**（数不由模型持有）', () => {
+    const good = {
+      'FIGURE_DECLARATIONS.json': decls([{ figure_id: 'fig_a', chart_type: 'bar', data_refs: ['RES-A'] }]),
+      'results.json': ledger(['RES-A']),
+    }
+    // 阶段 4 产出声明时图还不存在——所以这条门禁**只**判引用与重复，
+    // "声明了但没渲染"由阶段 5 的对账核对（它同时拿计划与声明两份清单）。
     expect(run('figure_declaration_complete', input({ 'figures/fig_a.svg': '<svg/>' }, good)).code).toBe(0)
-    const v = run('figure_declaration_complete', input({}, good))
-    expect(v.code).toBe(1)
-    expect(v.items[0]?.detail).toContain('没渲染')
+    expect(run('figure_declaration_complete', input({}, good)).code).toBe(0)
+    const noLedger = run('figure_declaration_complete', input({}, { 'FIGURE_DECLARATIONS.json': decls([]) }))
+    expect(noLedger.code).toBe(2)
+    expect(noLedger.items[0]?.detail).toContain('results.json')
   })
 
   it('TikZ 段够不到 → **2**（既没产出也没被判定，不许算通过）', () => {
@@ -188,7 +199,7 @@ describe('阶段 4/5 的对账 —— 计划与产物**双向**对齐', () => {
 
 describe('阶段 4 的风格门禁 —— `setup_style` 规范的可核形态', () => {
   const decls = (caption: string): string =>
-    JSON.stringify({ results: [], figures: [{ figure_id: 'fig_a', chart_type: 'line', data_refs: ['RES-A'], caption }] })
+    JSON.stringify({ figures: [{ figure_id: 'fig_a', chart_type: 'line', data_refs: ['RES-A'], caption }] })
   const svg = (text: string): string =>
     `<svg xmlns="http://www.w3.org/2000/svg" width="200" height="100" viewBox="0 0 200 100">\n`
     + `<rect x="0" y="0" width="200" height="100" fill="#FFFFFF"/>\n${text}\n</svg>\n`

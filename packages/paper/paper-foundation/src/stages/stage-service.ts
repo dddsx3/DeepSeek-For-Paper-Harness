@@ -46,6 +46,7 @@ import { join } from 'node:path'
 import { Context, Service } from '@deepseek-ai/cordis'
 import { createUserMessage, type GenerateOptions } from '@deepseek-ai/dsh-llm'
 import { deterministicRunner, type DeterministicOutcome } from './deterministic.ts'
+import { runCodeAndMintResults } from './execute-and-mint.ts'
 import { readPassport } from './handoff.ts'
 import { runStages, type StageOutcome, type StageRunContext } from './runner.ts'
 import { STAGES, type StageId } from './registry.ts'
@@ -217,6 +218,17 @@ export class PaperStageChainService extends Service {
         throw lastFailure instanceof Error ? lastFailure : new Error(String(lastFailure))
       },
       runDeterministic: deterministicRunner(this.config.onDeterministicOutcome),
+      // 阶段 3 的 harness 侧后处理：**真跑代码并铸数**。模型只声明数在哪
+      // （RESULT_SOURCES.json），账本由真实执行的产物字节铸成——数不由模型持有。
+      afterModel: async (spec, stagesRoot) => {
+        if (spec.id !== 'code') return
+        const outcome = await runCodeAndMintResults(stagesRoot)
+        this.config.onDeterministicOutcome?.({
+          stage: 'code',
+          summary: '执行 code/main.py（exit ' + String(outcome.exitCode) + '），按声明铸出 '
+            + String(outcome.minted) + ' 条账目',
+        })
+      },
       skillVersionOf: () => 'stage-chain-v1',
       gateVersionOf: () => 'stage-gates-v1',
       // **这条路径没有工具回路**（见模块头）：简报永远不列语料索引。

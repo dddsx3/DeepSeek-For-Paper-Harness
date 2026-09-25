@@ -131,17 +131,21 @@ describe('原子验证 —— 离线跑一整条链，逐层取证', () => {
     }
   })
 
-  it('每一次模型调用都有墙钟上限（无超时是一条会把整轮卡死的路径）', () => {
-    // 事故：路由里声明了 `timeoutMs: 60_000`，而 `real-provider.ts` 的 fetch
-    // **没有任何超时**——一次挂住的中转调用把整个运行永久卡死（实测代价：一次真实
-    // 运行在 revise #3 上停摆 25 分钟，审计轨迹一动不动）。
-    //
-    // 判据：provider 源码里必须出现 AbortSignal 超时，且**非法/缺失配置回落成默认
-    // 而不是"无超时"**（"0 = 无限等"正是要消灭的那条路径）。
+  it('每一次模型调用都有**无令牌看门狗**（不是墙钟——产出时长不可预设，挂住的连接才该被杀）', () => {
+    // 两段事故史，两段判据：
+    //   ① 路由声明 `timeoutMs: 60_000` 而 fetch 没有任何超时 → 挂住的中转把运行
+    //      永久卡死（revise #3 停摆 25 分钟，审计一动不动）→ 必须有超时。
+    //   ② 墙钟 PAPER_CALL_TIMEOUT_MS 会误杀**慢但健康**的长产出：2024B 真实运行
+    //      实测阶段 1 产出 280KB 跑了 7 分钟、阶段 3 在 15 分钟处被拦腰截断。
+    //      高质量建模的产出时长本来就不可预测。
+    //   判据：**无令牌看门狗**（AbortController + 每个 chunk 重置喂狗）——只有持续
+    //   无字节才判失败；退出路径必须清定时器；墙钟判据不得残留。
     const source = readFileSync(join(repoRoot, 'apps', 'paper-shell', 'src', 'real-provider.ts'), 'utf8')
-    expect(source, 'provider 的 fetch 没有超时——挂住的调用会把运行卡死').toContain('AbortSignal.timeout(')
-    expect(source, '超时的默认值必须是正数（0/非法值不得解释成"无限等"）').toContain('PAPER_CALL_TIMEOUT_MS')
-    expect(source).toMatch(/configured > 0 \? configured : \d+/)
+    expect(source, 'provider 没有 AbortController 看门狗——挂住的调用会把运行卡死').toContain('new AbortController()')
+    expect(source, '必须有 PAPER_IDLE_TIMEOUT_MS（无令牌判据）').toContain('PAPER_IDLE_TIMEOUT_MS')
+    expect(source, '每个收到的 chunk 都要喂看门狗').toContain('bumpIdle()')
+    expect(source, '退出路径必须清掉定时器（否则挂着进程不放）').toContain('stopIdle()')
+    expect(source, '墙钟判据不得残留（它就是误杀长产出的那把刀）').not.toContain('PAPER_CALL_TIMEOUT_MS')
   })
 
   it('fast 档：不跑探索（成本随档位走），但链仍然走完', () => {

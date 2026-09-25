@@ -150,28 +150,18 @@ const SKILLS: Readonly<Record<string, StageSkill>> = {
     how: [
       '`code/main.py` 是编排入口，依次跑各问并汇总；每问一个 `code/problem*.py`。'
         + '**代码文件数必须 ≥ 题面问数**（逐问奇偶校验）。',
-      '每个被声明为输出的量，都要真的写进声明的输出文件，并用 `jsonPath` 能读到。'
-        + '**声明的输出必须存在且非空**——声明了却没有，是硬失败。',
-      '`RESULTS.md` 写结果说明：四问的关键数值、校核证据、归因、诚实边界。',
-      '`FIGURE_DECLARATIONS.json` 声明图：**一个 JSON 对象，两个键**——'
-        + '`results`（代码真跑出来的量的只读投影：`{result_id, name, value, unit, uncertainty}`；'
-        + '**只登记会被 `data_refs` 引用的量**——18 张图通常对应 40–60 条，不是把每个数都抄进来'
-        + '（2024B 实测：登记 177 条把回答顶过输出上限，max-tokens 截断；其余数值留在 RESULTS.md 与 DELIVERABLES.json））与 '
-        + '`figures`（每张图 `{figure_id, chart_type, data_refs, caption, x_label?, y_label?}`）。'
-        + '`data_refs` **必须**指向 `results` 里真有的 `result_id`。'
-        + '`figure_id` **必须**逐字用阶段 1 FIGURE_MANIFEST 里的名字——阶段 4 按名字对账，'
-        + '计划与产物对不上就是脱节。若你在编码时**确实改进了图**（拆分/合并/换更贴合数据的图型），'
-        + '**必须**在声明文件里加 `plan_deviations: [{"from": "<清单原名>", "to": "<实际名>", "reason": "<为什么>"}]'
-        + '——申报了的对账放行并留痕；静默改名必被拒（2024B 实测：两个图名被改且未申报，对账门禁拒绝签发）。'
-        + '为什么把数也放进来：阶段 4 的渲染器只认 `Result` 记录，而它是**确定性**的（不调模型、'
-        + '不跑你的代码），所以你的代码算出来的值必须以这个形态交出去。`chart_type` 只能是 '
-        + '`line` / `scatter` / `bar` / `table` 四个之一（渲染器是固定的，不认自创图型）。'
-        + '`caption` / `x_label` / `y_label` 里**不得**出现 `results` 之外的数字。'
-        + '**`value` 必须是单个有限数**——渲染器（与 IR 的 Result schema）只画标量。'
-        + '一个量天然有多个数（如"方案 = {n, k, 置信水平, 功效}"）就**拆成多条** results：'
-        + '每个数一条，`name` 里写清是哪个（"情形1纯约束方案的样本量 n"）；'
-        + '2024B 实测：把整个方案塞进一个对象值，阶段 4 会拒绝全部 16 张图。'
-        + '表格数据要画图时，把每个格子拆成一条（`name` 含行/列标识）。',
+      '**你的代码会被 harness 真跑**（`python code/main.py`，工作目录就是 `code/`）。'
+        + '代码必须把要进论文的量写成 **JSON 文件**放在工作目录里（例如 `outputs.json`）——'
+        + '打印到 stdout 的东西不会被采集。',
+      '`RESULT_SOURCES.json` 声明**数在哪**：'
+        + '`{"sources": [{"result_id", "name", "locator", "json_path", "unit"}]}`。'
+        + '`locator` 是代码写出的 JSON 文件名；`json_path` 是文件内的点路径'
+        + '（`problem1.n_star`、`cases[0].accept`）。'
+        + '**你只声明定位，不写数值**——harness 真跑代码后从产物字节里读出每个数铸成账本。'
+        + 'locator 解析不到、路径落空、值不是有限数，都会具名失败。',
+      '`RESULTS.md` 写结果说明：四问的关键数值、校核证据、归因、诚实边界。'
+        + '散文里可以引用账本里的数（它们来自真实执行），但**不得**出现代码没产出的数。',
+      '每个被声明为输出的量，都要真的写进声明的输出文件。**声明的输出必须存在且非空**。',
       '**数字只有两个合法来源**：题面给定值，或代码真跑出来的值。散文里不许出现自算数字。',
       '分类指标出现 ≥0.99 时，**必须**同时给出防泄漏说明（数据划分、去泄漏步骤）。'
         + '没有说明的 0.99 是硬失败。',
@@ -185,20 +175,51 @@ const SKILLS: Readonly<Record<string, StageSkill>> = {
     selfCheck: [
       '`code/main.py` ≥ 500 字节、`RESULTS.md` ≥ 1024 字节、代码文件数 ≥ 题面问数。',
       '声明的每个交付物都真的存在且非空（`DELIVERABLES.json` 与磁盘一致）。',
-      '没有图像字节；`FIGURE_DECLARATIONS.json` 的每条 `data_refs` 都指向自己 `results` 里真有的 id。',
+      '`RESULT_SOURCES.json` 的每条 locator 都指向代码真写出的 JSON 文件，'
+        + '`json_path` 都能解析出有限数（harness 铸账本时会逐条核）。',
+      '代码真跑出 `results.json` 账本（harness 铸数）且非空。',
       '≥0.99 的分类指标都配了防泄漏说明。',
+    ],
+  },
+  'figure-declare': {
+    // 参考工作流里没有这个独立技能（它让模型在编码的同时写绘图脚本）。
+    // 本 harness 把"声明"拆成独立阶段：数由 harness 铸出，这里只组织图。自创 → 明确指示。
+    ported: false,
+    task: '**必须**产出 `FIGURE_DECLARATIONS.json`：把 harness 铸出的结果账本组织成数据图的**声明**。'
+      + '**必须**只声明结构（figure_id / chart_type / data_refs / caption），'
+      + '**不得**写渲染代码、**不得**产出任何图像字节、**不得**在题注里写账本之外的数字。'
+      + '渲染是下一阶段（确定性执行体）的事。',
+    how: [
+      '上游 `03-code/results.json` 是**唯一取数口**：每条 `{result_id, name, value, unit}` '
+        + '都是 harness 真跑代码后从产物字节里铸出的。`data_refs` **必须**指向其中真有的 `result_id`。',
+      '**必须**逐字沿用阶段 1 FIGURE_MANIFEST 里的图名；若你确实要改进图（拆分/合并/换图型），'
+        + '**必须**用 `plan_deviations: [{"from", "to", "reason"}]` 申报——申报了放行并留痕，静默改名必被拒。',
+      '`chart_type` 只能是 `line` / `scatter` / `bar` / `table` 四个之一；'
+        + '`caption` / `x_label` / `y_label` 里**不得**出现任何数字（渲染器有守卫，账本之外的数一律拒绝）。',
+      '与阶段 1 的清单对账：数据图 12–20 张；每个子问题至少一张；横向对比、灵敏度、校核图都要有归属。',
+    ],
+    forbidden: [
+      '**不得**产出图像字节（`.png`/`.jpg`/`.svg`）。本阶段只声明——`no_render` 语义在声明层同样成立。',
+      '**不得**在 `data_refs` 里写账本之外的 id，也**不得**在题注里写具体数值。'
+        + '数值只能由渲染器从账本取——这是"数不由模型持有"的最后一道缝。',
+      '**不得**用架构前缀（`fig_arch`/`fig_flow`/`fig_roadmap`/`fig_pipeline`/`fig_framework`）命名数据图——'
+        + '那些留给流程/架构图阶段，混用会让两边的对账互相踩。',
+    ],
+    selfCheck: [
+      '`FIGURE_DECLARATIONS.json` 是合法 JSON 对象，`figures` 数组非空。',
+      '每条 `data_refs` 都解析到账本里真有的 `result_id`。',
+      '图名与阶段 1 清单一致，或分叉已用 `plan_deviations` 申报且写了理由。',
+      '题注里没有任何数字。',
     ],
   },
   figure: {
     ported: true,
-    task: '产出**图表**：把阶段 3 的图声明渲染成真图，并与阶段 1 的 FIGURE_MANIFEST 对账。'
-      + '本阶段是**确定性**的——不调用模型，按声明取数渲染。',
+    task: '产出**图表**：把阶段 4 的图声明渲染成真图，并与阶段 1 的 FIGURE_MANIFEST 对账。'
+      + '本阶段是**确定性**的——不调用模型，按账本取数渲染。',
     how: [
-      '与 manifest 对账（**双向**）：计划里的每张**数据图**都必须真的渲染出来；渲染出来的图也必须都在计划里。'
-        + '缺一张是失败，多一张也是失败——多出来的图会被下游当成真产物引用。',
       '命名规则：数据图**不得**用架构前缀（`fig_arch`/`fig_flow`/`fig_roadmap`/`fig_pipeline`/'
         + '`fig_framework`/`fig_network`/`fig_state`/`fig_decision`/`fig_overview`）——'
-        + '那些前缀留给阶段 5 的流程图。',
+        + '那些前缀留给阶段 6 的流程图。',
       '渲染器是**固定的**：Okabe–Ito 色盲安全配色、680×420 viewBox、字号下限 9px、'
         + '数值刻度用等宽字体。声明里能改的只有 `chart_type` / `data_refs` / 题注与轴标签。',
       '半成品检测：有 `_plot_data.json` 却没有任何图，或有数据准备脚本却没有图，都算未完成。',

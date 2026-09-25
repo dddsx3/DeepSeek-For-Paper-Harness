@@ -72,6 +72,14 @@ export const ADAPTATIONS: ReadonlyArray<AssetAdaptation> = [
       + '**工具落地前简报不点名这些文档**——点名一份取不到的文档就是新的"无法被遵守的指令"。',
   },
   {
+    stage: 'figure-declare', assetClass: 'rule_corpus', reference: '_utils/figure_style_guide.md + figure_recipes_*.md',
+    mode: 'tool-fetchable',
+    detail: '语料**已恢复**到 `src/stages/skill-docs/`（figure-style-guide 80KB + 五份配方）。'
+      + '本阶段是新拆出来的（建模代码与图表声明分属两阶段），语料依赖与原图表阶段同源，'
+      + '由 `read_skill_doc` 按需取用。',
+    option: '同 `read_skill_doc` 工具；本管线的模型调用没有工具回路，所以简报不点名这些文档。',
+  },
+  {
     stage: 'figure', assetClass: 'rule_corpus', reference: '_utils/figure_style_guide.md(81KB) + figure_recipes_*.md(41–135KB×5) + figure_exemplars.md(41KB)',
     mode: 'tool-fetchable',
     detail: '语料**已恢复**到 `src/stages/skill-docs/`（`figure-style-guide.md` 80KB + '

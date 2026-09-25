@@ -81,6 +81,15 @@ export interface StageRunContext {
    * 这是有意的：**没实现的确定性阶段不许静默通过**。
    */
   readonly runDeterministic?: (stage: StageSpec, stagesRoot: string) => Promise<void>
+  /**
+   * 模型阶段的 **harness 侧后处理**（可选）。
+   *
+   * 为什么要有它：阶段 3 的"数从哪来"收归 harness——模型写代码并声明数在哪
+   * （`RESULT_SOURCES.json`），harness 在模型回答落盘**之后**真跑代码、按声明
+   * 从产物字节里铸出 `results.json`。不挂这个钩子，阶段 3 就只产出文本，
+   * 账本不存在，下游图表无从取数。
+   */
+  readonly afterModel?: (stage: StageSpec, stagesRoot: string) => Promise<void>
   /** 阶段是否挂了只读工具（影响简报是否列语料索引）。 */
   readonly toolsMounted?: (stage: StageSpec) => boolean
   /** 时钟（测试可注入）。 */
@@ -169,7 +178,9 @@ export function parseStageOutput(spec: StageSpec, text: string): ReadonlyMap<str
 /** 信封形态校验：缺文件、多文件、名字不对——一律判失败并点名（不"尽力猜"）。 */
 function envelopesOf(spec: StageSpec, files: Record<string, unknown>): ReadonlyMap<string, string> {
   const out = new Map<string, string>()
-  const expected = new Set(spec.produces.filter(p => p.kind !== 'dir').map(p => p.file))
+  // harness 铸的产物（`results.json`）**不在**模型回答的信封契约里——
+  // 它由 afterModel 从真实执行的产物字节里铸出，模型根本没见过它。
+  const expected = new Set(spec.produces.filter(p => p.kind !== 'dir' && p.harnessMinted !== true).map(p => p.file))
   // 目录型产物（阶段 3 的 `code/`）**以目录为契约**：里面的文件名由模型按题面定
   // （逐问一个 `problem*.py`，问数是题面决定的，写不进静态的 produces 列表）。
   // 所以"契约内"= 精确名 ∪ 目录前缀；前缀之外的仍然算多出来。
@@ -395,6 +406,9 @@ export async function runStages(
         // 这是有意的：没实现的确定性阶段不许静默通过。
         await ctx.runDeterministic?.(spec, ctx.stagesRoot)
       }
+      // 模型阶段的 harness 侧后处理（阶段 3：真跑代码并铸数）。放在**同一个
+      // try** 里——执行失败与产出形态失败是同一类"本阶段没跑成"，都具名失败。
+      if (spec.kind === 'model') await ctx.afterModel?.(spec, ctx.stagesRoot)
     } catch (error) {
       const message = String(error instanceof Error ? error.message : error)
       // **被拒的回答要留档**：没有它，"信封不是合法 JSON"这类失败无法诊断——
