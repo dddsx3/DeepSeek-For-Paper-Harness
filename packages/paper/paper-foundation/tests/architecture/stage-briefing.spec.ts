@@ -175,3 +175,27 @@ describe('简报 —— 不投递模型做不到的指令（round-5 的教训）
     }
   })
 })
+
+/**
+ * 阶段 2 简报要点名**两种最常撞的无出生证明数字形态**。
+ *
+ * 实测：模型在散文里举例时写 `P(X≥2|p_nom) = 0.01`（手算 p_nom²），
+ * 又写"把置信水平提到 99%"（灵敏度格点），两处都被 `numbers_traced` 判无出生证明。
+ * 规则本来就禁止"心算出的结果"，但模型不知道**举例**与**扫描格点**也算——
+ * 所以简报要具名，否则每一轮都要用一次真实运行去教它。
+ */
+describe('阶段 2 简报 —— 举例与扫描格点要出生证明', () => {
+  const brief = stageBriefing(stageOf('modeling'), new Map(), false)
+
+  it('点名"举例写符号不写手算的数"，并给出替换写法', () => {
+    expect(brief).toContain('举例与扫描格点同样要出生证明')
+    expect(brief).toContain('p_nom²')
+    expect(brief).toContain('0.01')
+  })
+
+  it('点名灵敏度格点要进 model_constants，并解释 90%/95% 为何能过', () => {
+    expect(brief).toContain('灵敏度扫描置信水平')
+    expect(brief).toContain('99%')
+    expect(brief).toContain('别把巧合当许可')
+  })
+})
