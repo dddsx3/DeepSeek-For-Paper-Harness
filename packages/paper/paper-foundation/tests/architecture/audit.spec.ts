@@ -1,0 +1,137 @@
+/**
+ * 逐节点独立审计 —— 用户新增的架构约束的机械验收。
+ *
+ * 约束原话：不能让一个单独的模型长期跑下去、到后期才被一个固定阶段发现问题；
+ * 关键节点（分析/建模/编程…）必须固定安排审计 AI，检查"这一轮是否按要求完成"，
+ * 并提前做交付结构与质量初判，**低于阈值不允许交付**；阶段 8 仍做全量审计。
+ *
+ * 三条判据：① 阈值/fatal/结构任一不过即不放行；② 审计提示词**只有契约与产物**
+ * （独立性）；③ 审计跑不成时记 `2`，绝不当通过。
+ */
+
+import { describe, expect, it } from 'vitest'
+import { auditPromptOf, decideAudit, parseAuditVerdict, type AuditVerdict } from '../../src/stages/audit.ts'
+import { skillTaskOf } from '../../src/stages/briefing.ts'
+import { stageOf } from '../../src/stages/registry.ts'
+
+const spec = stageOf('modeling')
+
+function verdict(over: Partial<AuditVerdict> = {}): AuditVerdict {
+  return {
+    stage: 'modeling', verdict: 'pass', score: 0.85, structureOk: true,
+    requirementCompliance: [{ item: '产出契约', done: true, note: '齐备' }],
+    findings: [], missing: [], model: 'auditor-x', at: '2026-09-26T00:00:00.000Z',
+    ...over,
+  }
+}
+
+describe('审计判定 —— 低于阈值不允许交付', () => {
+  it('干净通过 → 放行', () => {
+    const d = decideAudit(verdict(), { minScore: 0.7 })
+    expect(d.ok).toBe(true)
+    expect(d.reason).toContain('审计通过')
+  })
+
+  it('**score < 阈值 → 不放行**（用户口径的直接落点）', () => {
+    const d = decideAudit(verdict({ score: 0.62 }), { minScore: 0.7 })
+    expect(d.ok).toBe(false)
+    // 断言实际措辞（含两个数字），不凭记忆写期望值
+    expect(d.reason).toContain('质量分 0.62')
+    expect(d.reason).toContain('阈值 0.70')
+  })
+
+  it('**任一 fatal → 不放行**（即使分数很高）', () => {
+    const d = decideAudit(verdict({
+      score: 0.95,
+      findings: [{ severity: 'fatal', where: 'MODELING_REPORT.md §6', issue: '公式与题面矛盾', fix: '回阶段 1 核对' }],
+    }), { minScore: 0.7 })
+    expect(d.ok).toBe(false)
+    expect(d.reason).toContain('fatal')
+  })
+
+  it('**结构不完整或 missing 非空 → 不放行**', () => {
+    expect(decideAudit(verdict({ structureOk: false }), { minScore: 0.7 }).ok).toBe(false)
+    expect(decideAudit(verdict({ missing: ['DECLARATION.json 里没有 ModelSpec'] }), { minScore: 0.7 }).ok).toBe(false)
+    expect(decideAudit(verdict({ missing: ['x'] }), { minScore: 0.7 }).reason).toContain('缺：')
+  })
+
+  it('**有要求没完成 → 不放行**（"看起来做了但其实没有"必须被挡住）', () => {
+    const d = decideAudit(verdict({
+      requirementCompliance: [
+        { item: '逐问都有 ModelSpec', done: true, note: '4/4' },
+        { item: '被否方案章节', done: false, note: '只有一句"未采用其他方法"' },
+      ],
+    }), { minScore: 0.7 })
+    expect(d.ok).toBe(false)
+    expect(d.reason).toContain('要求未完成')
+    expect(d.reason).toContain('被否方案')
+  })
+
+  it('阈值可配（默认 0.7 由调用方给，模块不写死）', () => {
+    expect(decideAudit(verdict({ score: 0.62 }), { minScore: 0.6 }).ok).toBe(true)
+    expect(decideAudit(verdict({ score: 0.62 }), { minScore: 0.8 }).ok).toBe(false)
+  })
+})
+
+describe('审计提示词 —— 独立性是机械可核的', () => {
+  const prompt = auditPromptOf({
+    spec,
+    skillTask: skillTaskOf(spec),
+    artifacts: new Map([['MODELING_REPORT.md', '# 建模报告\n\n（正文）']]),
+    upstreamNames: ['PROBLEM_ANALYSIS.md', 'CAPABILITY_CHECKLIST.json', 'PROBLEM_FACTS.json'],
+  })
+
+  it('给出**契约**：任务陈述 + 产出清单 + 门禁 id + 上游有什么', () => {
+    expect(prompt).toContain(skillTaskOf(spec).slice(0, 40))
+    for (const p of spec.produces) expect(prompt).toContain(p.file)
+    for (const g of spec.gates) expect(prompt).toContain(g)
+    expect(prompt).toContain('PROBLEM_FACTS.json')
+  })
+
+  it('**不泄漏执行者的提示词结构**（只给契约与产物——否则就成了自己审自己）', () => {
+    for (const leaked of ['提交前自检', '明确不要做', '完成标志', '本步知识（怎么做）']) {
+      expect(prompt.includes(leaked), `审计提示词里出现了执行者简报的分节「${leaked}」`).toBe(false)
+    }
+  })
+
+  it('产物超预算时**明说被截断**（不许因为"没看到"就判它缺内容）', () => {
+    const big = auditPromptOf({
+      spec, skillTask: skillTaskOf(spec),
+      artifacts: new Map([['MODELING_REPORT.md', 'x'.repeat(500)]]),
+      upstreamNames: [], budgetChars: 100,
+    })
+    expect(big).toContain('只内联前 100 字节')
+    expect(big).toContain('被截断')
+  })
+
+  it('**没有任何产物** → 提示词直接点明这是 fatal', () => {
+    const empty = auditPromptOf({ spec, skillTask: skillTaskOf(spec), artifacts: new Map(), upstreamNames: [] })
+    expect(empty).toContain('没有任何产物')
+    expect(empty).toContain('fatal')
+  })
+})
+
+describe('审计结论的严格解析 —— 坏回答记 2，不当通过', () => {
+  it('合法回答 → 解析出完整结论', () => {
+    const raw = '```json\n{"verdict":"fail","score":0.4,"structure_ok":true,'
+      + '"requirement_compliance":[{"item":"a","done":false,"note":"缺"}],'
+      + '"findings":[{"severity":"fatal","where":"§3","issue":"错","fix":"改"}],"missing":["b"]}\n```'
+    const v = parseAuditVerdict(raw, spec, 'auditor-x', 'T')
+    expect(v.verdict).toBe('fail')
+    expect(v.score).toBe(0.4)
+    expect(v.findings[0]?.severity).toBe('fatal')
+    expect(v.missing).toEqual(['b'])
+    expect(v.model).toBe('auditor-x')
+  })
+
+  it('**缺 score / verdict 非法 / 没有 JSON → 抛错**（调用方据此记 `2`，不当作通过）', () => {
+    expect(() => parseAuditVerdict('审计通过，没有问题。', spec, 'm', 'T')).toThrow(/没有 JSON/)
+    expect(() => parseAuditVerdict('{"verdict":"pass"}', spec, 'm', 'T')).toThrow(/score/)
+    expect(() => parseAuditVerdict('{"verdict":"maybe","score":0.9}', spec, 'm', 'T')).toThrow(/verdict/)
+  })
+
+  it('severity 越界时降级为 minor（不让"乱填严重度"卡住或放行）', () => {
+    const v = parseAuditVerdict('{"verdict":"pass","score":0.9,"findings":[{"severity":"BIG","where":"w","issue":"i","fix":"f"}]}', spec, 'm', 'T')
+    expect(v.findings[0]?.severity).toBe('minor')
+  })
+})

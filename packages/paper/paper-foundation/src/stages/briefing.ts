@@ -558,6 +558,21 @@ export function stageBriefing(
   return L.join('\n')
 }
 
+/**
+ * 该阶段的**任务陈述**（执行者收到的契约）。
+ *
+ * 导出给逐节点审计用：审计员必须看到"执行者被要求做什么"，才能判"是否按要求完成"。
+ * 但**不导出执行者的提示词全文**——那会把上游内联也带过去，而审计只该看契约与产物。
+ *
+ * @param spec - 阶段。
+ * @returns 任务陈述；该阶段没有技能内容时抛错。
+ */
+export function skillTaskOf(spec: StageSpec): string {
+  const skill = SKILLS[spec.id]
+  if (skill === undefined) throw new Error(`no skill content for stage '${spec.id}'`)
+  return skill.task
+}
+
 /** 该阶段的技能是否转写自参考（`false` = 本 harness 自创）。 */
 export function isPorted(spec: StageSpec): boolean {
   return SKILLS[spec.id]?.ported ?? false

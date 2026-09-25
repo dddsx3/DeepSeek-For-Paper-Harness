@@ -48,6 +48,8 @@ import { createUserMessage, type GenerateOptions } from '@deepseek-ai/dsh-llm'
 import { deterministicRunner, type DeterministicOutcome } from './deterministic.ts'
 import { runCodeAndMintResults } from './execute-and-mint.ts'
 import { assembleShards, planCodeShards } from './code-shard.ts'
+import { auditPromptOf, parseAuditVerdict } from './audit.ts'
+import { skillTaskOf } from './briefing.ts'
 import { readPassport } from './handoff.ts'
 import { runStages, type StageOutcome, type StageRunContext } from './runner.ts'
 import type { StageSpec } from './registry.ts'
@@ -298,6 +300,51 @@ export class PaperStageChainService extends Service {
             + String(outcome.minted) + ' 条账目',
         })
       },
+      // ── 逐节点审计（用户新增约束）：交付前由**独立角色**审一遍 ──────────────
+      // 独立性：审计只拿到"契约（任务陈述 + 产出清单 + 门禁 id）+ 本阶段产物 + 上游产物名"，
+      // 拿不到执行者的提示词与推理——否则它会顺着执行者的框架去理解产物，那就成了自己审自己。
+      // 模型：PAPER_AUDIT_MODEL（默认与执行者同模型但**全新上下文**；换成别的模型族更独立）。
+      auditStage: async (spec, _stagesRoot, artifacts) => {
+        const auditModel = process.env['PAPER_AUDIT_MODEL'] ?? activeModel
+        const upstreamNames = spec.consumes.map(p2 => p2.split('/').pop() ?? p2)
+        const prompt = auditPromptOf({
+          spec,
+          skillTask: skillTaskOf(spec),
+          artifacts,
+          upstreamNames,
+          ...(process.env['PAPER_AUDIT_INLINE_BUDGET'] === undefined
+            ? {} : { budgetChars: Number(process.env['PAPER_AUDIT_INLINE_BUDGET']) }),
+        })
+        const request: GenerateOptions = {
+          provider: route.provider,
+          model: auditModel,
+          system: STAGE_CHAIN_SYSTEM,
+          messages: [createUserMessage({ content: [{ type: 'text', text: prompt }], source: { kind: 'user' } })],
+        }
+        let text = ''
+        let finish: { kind: string } | undefined
+        for await (const chunk of provider.stream(request)) {
+          if (chunk.type === 'text-delta') text += chunk.text
+          if (chunk.type === 'finish') finish = chunk.reason
+        }
+        const kind = finish?.kind ?? 'stop'
+        if (kind === 'error' || kind === 'aborted' || kind === 'max-tokens') {
+          // 审计没跑成 → 抛错，由 runner 记 `2`（**绝不当成通过**）
+          throw new Error(`审计调用未正常结束（finish=${kind}）—— 本阶段未被审计`)
+        }
+        const verdict = parseAuditVerdict(text, spec, auditModel, new Date().toISOString())
+        this.config.onDeterministicOutcome?.({
+          stage: spec.id,
+          summary: `逐节点审计（${auditModel}）：${verdict.verdict}，质量分 ${verdict.score.toFixed(2)}，`
+            + `要求 ${String(verdict.requirementCompliance.filter(r => r.done).length)}/${String(verdict.requirementCompliance.length)} 项完成，`
+            + `${String(verdict.findings.length)} 条 findings`,
+        })
+        return verdict
+      },
+      auditMinScore: (() => {
+        const raw = Number(process.env['PAPER_AUDIT_MIN_SCORE'] ?? '')
+        return Number.isFinite(raw) && raw > 0 && raw <= 1 ? raw : 0.7
+      })(),
       skillVersionOf: () => 'stage-chain-v1',
       gateVersionOf: () => 'stage-gates-v1',
       // **这条路径没有工具回路**（见模块头）：简报永远不列语料索引。

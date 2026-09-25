@@ -20,6 +20,7 @@ import { PaperFoundationService, PaperProviderService, PaperSettingsService, STA
 // （交付链的 5 阶段切片续跑点），两同名导出撞在一起，`import { resumePointOf }` 拿到的是
 // 哪个就成了碰运气——这条用例第一版因此拿到的永远是 null（切片根里没有切片）。
 import { PaperStageChainService, resumePointOf } from '../../src/stages/stage-service.ts'
+import { readPassport } from '../../src/stages/handoff.ts'
 import { STAGES, stageOf } from '../../src/stages/registry.ts'
 
 const routes = {
@@ -132,6 +133,7 @@ async function harness(options: { readonly pauseAfter?: ReadonlyArray<string>; r
   const stagesRoot = await mkdtemp(join(tmpdir(), 'dsh-stage-svc-'))
   const ctx = new Context()
   const prompts: string[] = []
+  let auditCalls = 0
   ctx.provide('paperProvider', {
     stream: (request: { system?: string; messages?: ReadonlyArray<{ content?: unknown }> }) => {
       const prompt = (request.messages ?? []).map((m) => {
@@ -140,6 +142,21 @@ async function harness(options: { readonly pauseAfter?: ReadonlyArray<string>; r
         return Array.isArray(c) ? c.map((p: { text?: string }) => p?.text ?? '').join('') : ''
       }).join('\n')
       prompts.push(`${String(request.system ?? '')}\n${prompt}`)
+      // **逐节点审计**的提示词与执行者的简报形态完全不同（它是独立审计员视角，
+      // 只给契约与产物）——夹具必须分别作答，否则审计会因拿不到合法 JSON 而记 `2`。
+      if (prompt.includes('你是**独立审计员**')) {
+        auditCalls += 1
+        const auditText = JSON.stringify({
+          verdict: 'pass', score: 0.85, structure_ok: true,
+          requirement_compliance: [{ item: '产出契约', done: true, note: '产物齐备且非空' }],
+          findings: [], missing: [],
+        })
+        return (async function* () {
+          yield { type: 'block-start', index: 0, blockType: 'text' }
+          yield { type: 'text-delta', index: 0, text: auditText }
+          yield { type: 'finish', index: 0, reason: { kind: 'stop' } }
+        })()
+      }
       const m = /stages\/(\d\d)-([a-z-]+)\//.exec(prompt)
       const stage = m?.[2] ?? ''
       const text = answerFor(stage)
@@ -161,14 +178,13 @@ async function harness(options: { readonly pauseAfter?: ReadonlyArray<string>; r
     // 阶段 3 分片：问数 2 → 入口 1 + 逐问 2 + 收尾 1 = 4 次调用（都走 provider 缝）
     ...(options.problemCount === undefined ? {} : { problemCount: options.problemCount }),
   })
-  return { ctx, stagesRoot, prompts }
+  return { ctx, stagesRoot, prompts, auditCalls: () => auditCalls }
 }
 
 describe('阶段链服务 —— 真的接进了 provider 缝', () => {
   it('11 个阶段跑完；模型调用走的是 provider 缝（简报真的发出去了）；确定性阶段真的产出了图', async () => {
-    const { ctx, stagesRoot, prompts } = await harness({ problemCount: 2 })
+    const { ctx, stagesRoot, prompts, auditCalls } = await harness({ problemCount: 2 })
     const outcomes = await ctx.paperStageChain.run()
-    console.log('PROBE ' + JSON.stringify(outcomes.map(o => [o.stage, o.status, o.reason.slice(0,200)])))
     expect(outcomes).toHaveLength(13)
     expect(outcomes.every(o => o.status === 'passed' || o.status === 'passed-unverified')).toBe(true)
 
@@ -176,11 +192,19 @@ describe('阶段链服务 —— 真的接进了 provider 缝', () => {
     // 且带的是阶段链的系统提示词（不是别的角色的）。
     const modelStages = STAGES.filter(s => s.kind === 'model')
     expect(modelStages.length).toBe(9)
+    // **逐节点审计真的进了主线**（用户新增约束）：每个模型阶段一次独立审计调用
+    expect(auditCalls(), '逐节点审计没有被调用——模块做好不等于进了主线').toBe(9)
+    // 审计结论落在通行证上（可事后追"这一轮是谁审的、判了多少分"）
+    const modelingPassport = await readPassport(stagesRoot, stageOf('modeling'))
+    expect(modelingPassport?.audit?.score).toBeCloseTo(0.85, 5)
+    expect(modelingPassport?.audit?.verdict).toBe('pass')
     // 阶段 3 分片：问数 2 → 4 次调用（入口 + problem1 + problem2 + 收尾信封）
     const codeCalls = prompts.filter(p => p.includes('stages/03-code/'))
     expect(codeCalls.length).toBe(4)
     expect(codeCalls.filter(p => p.includes('只产出 `code/problem1.py`')).length).toBe(1)
-    expect(prompts.length).toBe(modelStages.length - 1 + 4)
+    // 简报调用 = 模型阶段数 − 1（阶段 3 分片成 4 次）+ 3 次额外分片；审计调用另算
+    const briefCalls = prompts.filter(p => !p.includes('你是**独立审计员**'))
+    expect(briefCalls.length).toBe(modelStages.length - 1 + 4)
     for (const p of prompts) expect(p).toContain(STAGE_CHAIN_SYSTEM)
     for (const s of modelStages) expect(prompts.some(p => p.includes(`stages/${String(s.index).padStart(2, '0')}-${s.id}/`))).toBe(true)
 
@@ -197,11 +221,14 @@ describe('阶段链服务 —— 真的接进了 provider 缝', () => {
   }, 120_000)
 
   it('暂停 = 跑到指定阶段就停（之后的阶段不跑、不签发）', async () => {
-    const { ctx, stagesRoot, prompts } = await harness({ pauseAfter: ['code'] })
+    const { ctx, stagesRoot, prompts, auditCalls } = await harness({ pauseAfter: ['code'] })
     const outcomes = await ctx.paperStageChain.runUntilPause()
     expect(outcomes.map(o => o.stage)).toEqual(['prob-analysis', 'modeling', 'code'])
-    // 阶段 4 的模型阶段数 = 3（prob-analysis/modeling/code），之后的一个都没发
-    expect(prompts.length).toBe(3)
+    // 阶段 4 的模型阶段数 = 3（prob-analysis/modeling/code），之后的一个都没发。
+    // 计数只算**简报**调用：每个模型阶段还会额外发一次逐节点审计（那是设计要求的）。
+    const briefs = prompts.filter(p => !p.includes('你是**独立审计员**'))
+    expect(briefs.length).toBe(3)
+    expect(auditCalls()).toBe(3)  // 三个模型阶段各审计一次
     expect(prompts.some(p => p.includes('08-review'))).toBe(false)
     // 没跑的阶段没有产物
     await expect(readFile(join(stagesRoot, '06-figure', 'figure-manifest.json'), 'utf8')).rejects.toThrow()
@@ -210,7 +237,7 @@ describe('阶段链服务 —— 真的接进了 provider 缝', () => {
   it('续跑 = 从第一份缺失的通行证继续，并把剩下的跑完', async () => {
     const { ctx, stagesRoot, prompts } = await harness({ pauseAfter: ['code'] })
     await ctx.paperStageChain.runUntilPause()
-    expect(prompts.length).toBe(3)
+    expect(prompts.filter(p => !p.includes('你是**独立审计员**')).length).toBe(3)
     expect(await resumePointOf(stagesRoot)).toBe('result-sources')
 
     const resumed = await ctx.paperStageChain.resume()
