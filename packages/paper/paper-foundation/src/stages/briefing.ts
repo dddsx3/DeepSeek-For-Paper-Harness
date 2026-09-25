@@ -498,20 +498,36 @@ const SKILLS: Readonly<Record<string, StageSkill>> = {
 }
 
 /**
+ * 上一轮审计提出的一条问题（简报重跑时投递给执行者）。
+ *
+ * 结构上与 `AuditFinding` 同形，但**故意不 import 它**：briefing 是"给模型看的契约"，
+ * audit 是"审计员的结论"，两者独立演化——这里只需要三个字段。
+ */
+export interface BriefingFinding {
+  readonly severity: string
+  readonly where: string
+  readonly issue: string
+  readonly fix: string
+}
+
+/**
  * 组装一个阶段的简报。
  *
  * 顺序即优先级（**越靠后越重要**——模型的注意力在末尾最集中）：
  * 任务 → 契约 → 上游 → 怎么做 → 不要做 → 自检 → 完成标志。
+ * 重跑时在「不要做」与「自检」之间插入**上一轮审计的问题**（最需要被处理的东西）。
  *
  * @param spec - 阶段。
  * @param upstreamText - 上游产物的内联内容（`相对路径 → 文本`）。
  * @param selfCheckTool - 该阶段是否挂了可调用的自检工具（阶段 2a/3）。
+ * @param priorFindings - 上一轮审计对该阶段提出的问题（重跑时给；首轮为空）。
  * @returns 简报全文。
  */
 export function stageBriefing(
   spec: StageSpec,
   upstreamText: ReadonlyMap<string, string>,
   selfCheckTool: boolean,
+  priorFindings: ReadonlyArray<BriefingFinding> = [],
 ): string {
   const skill = SKILLS[spec.id]
   if (skill === undefined) throw new Error(`no skill content for stage '${spec.id}'`)
@@ -550,6 +566,24 @@ export function stageBriefing(
 
   sec(BRIEFING_SECTIONS[4])
   for (const line of skill.forbidden) L.push(`- ${line}`)
+
+  // **重跑必须知道上一轮被判了什么**。没有这一段，重跑就是"盲重试"：同一个模型在
+  // 同一份简报下再生成一次，指望它自己撞对——审计提的问题一条都没传下去。
+  // 放在「不要做」之后、「自检」之前：这是最需要被处理的东西，位置要显眼。
+  if (priorFindings.length > 0) {
+    sec('上一轮审计提出的问题（**必须逐条处理或明确反驳**）')
+    L.push('这是**独立审计员**在上一轮产物上提的问题（它只看契约与产物，看不到你的推理）。'
+      + '这一轮逐条给出落点：**改了**就写出改在哪个条目/哪一节；'
+      + '**不改**就要给出理由（例如"该约束由 ASM-011 的功效下界接管，故非退化"）。'
+      + '沉默地重发一遍不算处理——审计员会再核一次。')
+    L.push('')
+    priorFindings.forEach((f, i) => {
+      L.push(`**${String(i + 1)}. [${f.severity}] ${f.where}**`)
+      L.push(`- 问题：${f.issue}`)
+      L.push(`- 建议改法：${f.fix}`)
+      L.push('')
+    })
+  }
 
   sec(BRIEFING_SECTIONS[5])
   if (selfCheckTool) {

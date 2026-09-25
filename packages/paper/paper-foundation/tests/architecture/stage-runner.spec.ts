@@ -512,3 +512,58 @@ describe('确定性执行体 —— 各自的具名失败', () => {
     await expect(runDocxExportStage(root)).rejects.toThrow(/致命项/)
   }, 60_000)
 })
+
+/**
+ * 重跑时，上一轮 `_audit.json` 的 findings 必须**真的进到简报里**。
+ *
+ * 单元测过 `stageBriefing` 的渲染，但"runner 有没有去磁盘上读"是另一件事——
+ * 契约写得再好，线没接上就是零。这里用一个会捕获 prompt 的 `callModel` 把它钉住。
+ */
+describe('重跑接线 —— 上一轮审计的问题进简报', () => {
+  it('磁盘上有 `_audit.json` → 本次 prompt 里出现那些问题', async () => {
+    const root = await tmp()
+    const dir = join(root, '02-modeling')
+    await mkdir(dir, { recursive: true })
+    await writeFile(join(dir, '_audit.json'), JSON.stringify({
+      stage: 'modeling', verdict: 'pass', score: 0.8, structureOk: true,
+      requirementCompliance: [], missing: [], model: 'auditor-x', at: 'T',
+      findings: [{
+        severity: 'major', where: 'DECLARATION.json EQ-MINN',
+        issue: '情形二约束方向与情形一不对称', fix: '改成 P(X≤c|p_nom) ≤ β',
+      }],
+    }), 'utf8')
+    // 先播种阶段 1——否则 modeling 因上游缺失直接 blocked（那是另一条语义，不是本条要测的）
+    await runStages(ctxOf(root), { only: ['prob-analysis'], problemCount: 4 })
+
+    let seen = ''
+    await runStages(ctxOf(root, {
+      callModel: async (spec, prompt) => {
+        if (spec.id === 'modeling') seen = prompt
+        return fakeCallModel()(spec, prompt)
+      },
+    }), { only: ['modeling'], problemCount: 4 })
+
+    expect(seen).toContain('上一轮审计提出的问题')
+    expect(seen).toContain('情形二约束方向与情形一不对称')
+    expect(seen).toContain('改成 P(X≤c|p_nom) ≤ β')
+  })
+
+  it('`_audit.json` 坏了（坏 JSON）→ 不炸，只是没有那一段', async () => {
+    const root = await tmp()
+    const dir = join(root, '02-modeling')
+    await mkdir(dir, { recursive: true })
+    await writeFile(join(dir, '_audit.json'), '{ 这不是 JSON', 'utf8')
+    await runStages(ctxOf(root), { only: ['prob-analysis'], problemCount: 4 })
+
+    let seen = ''
+    await runStages(ctxOf(root, {
+      callModel: async (spec, prompt) => {
+        if (spec.id === 'modeling') seen = prompt
+        return fakeCallModel()(spec, prompt)
+      },
+    }), { only: ['modeling'], problemCount: 4 })
+
+    expect(seen).toContain('建模求解')
+    expect(seen).not.toContain('上一轮审计提出的问题')
+  })
+})

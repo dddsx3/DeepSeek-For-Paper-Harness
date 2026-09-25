@@ -52,7 +52,7 @@ import { mkdir, readFile, readdir, stat, writeFile } from 'node:fs/promises'
 import { compressForModeling, shouldCompress } from './context-compression.ts'
 import { dirname, join } from 'node:path'
 import { decideAudit, type AuditVerdict } from './audit.ts'
-import { stageBriefing } from './briefing.ts'
+import { stageBriefing, type BriefingFinding } from './briefing.ts'
 import { runGates, type GateInput } from './gates.ts'
 import {
   artifactDigests,
@@ -400,6 +400,44 @@ async function missingDeliverables(stagesRoot: string, spec: StageSpec): Promise
 }
 
 /**
+ * 读上一轮审计对该阶段提的问题（用于重跑时投递进简报）。
+ *
+ * 读的是本阶段目录下的 `_audit.json`——**上一轮的结论不会被本轮覆盖**（本轮还没跑），
+ * 所以直接读磁盘即可。读不到、解析不了、没有 findings 都返回空数组：
+ * 首轮本来就没有，而"审计文件坏了"由 `stage_audit` 那一条缺口去报，不在这里制造新的失败。
+ *
+ * @param stagesRoot - `stages/` 根目录。
+ * @param spec - 阶段。
+ * @returns 上一轮的问题清单（可能为空）。
+ */
+async function priorAuditFindings(
+  stagesRoot: string,
+  spec: StageSpec,
+): Promise<ReadonlyArray<BriefingFinding>> {
+  const raw = await readFile(join(stagesRoot, stageDirName(spec), AUDIT_FILE), 'utf8').catch(() => null)
+  if (raw === null) return []
+  try {
+    const parsed: unknown = JSON.parse(raw)
+    const findings = (parsed as { findings?: unknown }).findings
+    if (!Array.isArray(findings)) return []
+    return findings.flatMap((f): ReadonlyArray<BriefingFinding> => {
+      if (typeof f !== 'object' || f === null) return []
+      const o = f as Record<string, unknown>
+      const where = typeof o['where'] === 'string' ? o['where'] : ''
+      const issue = typeof o['issue'] === 'string' ? o['issue'] : ''
+      if (issue === '') return []
+      return [{
+        severity: typeof o['severity'] === 'string' ? o['severity'] : 'major',
+        where, issue,
+        fix: typeof o['fix'] === 'string' ? o['fix'] : '（审计员未给具体改法）',
+      }]
+    })
+  } catch {
+    return []
+  }
+}
+
+/**
  * 跑一条阶段链。
  *
  * 默认从第 1 阶段跑到第 11 阶段；遇到 `blocked` 或 `gate-failed` **立即停**
@@ -434,7 +472,15 @@ export async function runStages(
     let rejectedAnswer: string | undefined
     try {
       if (spec.kind === 'model') {
-        const prompt = stageBriefing(spec, await upstreamTextOf(ctx.stagesRoot, spec), ctx.toolsMounted?.(spec) === true)
+        // 重跑时把**上一轮审计的问题**带进简报。没有这一步，重跑就是盲重试：
+        // 同一个模型在同一份简报下再生成一次，指望它自己撞对——审计白跑一趟，
+        // 而用户正是为了"不要用试错代替复核"才加的逐节点审计。
+        const prompt = stageBriefing(
+          spec,
+          await upstreamTextOf(ctx.stagesRoot, spec),
+          ctx.toolsMounted?.(spec) === true,
+          await priorAuditFindings(ctx.stagesRoot, spec),
+        )
         const answer = await ctx.callModel(spec, prompt)
         rejectedAnswer = answer
         for (const [name, body] of parseStageOutput(spec, answer)) {

@@ -199,3 +199,44 @@ describe('阶段 2 简报 —— 举例与扫描格点要出生证明', () => {
     expect(brief).toContain('别把巧合当许可')
   })
 })
+
+/**
+ * 重跑必须带上**上一轮审计的问题** —— 否则重跑就是盲重试。
+ *
+ * 用户加逐节点审计的初衷是"不要用试错代替复核"。但如果审计提的问题传不到重跑，
+ * 重跑就退化成"同一个模型在同一份简报下再生成一次，指望它自己撞对"——
+ * 审计白跑，试错照旧。这一段就是那个回路。
+ */
+describe('重跑简报 —— 上一轮审计的问题必须投递', () => {
+  const findings = [
+    { severity: 'major', where: 'DECLARATION.json EQ-MINN', issue: '情形二约束方向与情形一不对称', fix: '改成 P(X≤c|p_nom) ≤ β' },
+    { severity: 'minor', where: '§4.4', issue: 'n=100 未与问题 1 衔接', fix: '改用问题 1 求得的 n' },
+  ]
+
+  it('首轮（没有问题）**不出现**那一段——空标题会让模型以为被判过', () => {
+    const brief = stageBriefing(stageOf('modeling'), new Map(), false)
+    expect(brief).not.toContain('上一轮审计提出的问题')
+  })
+
+  it('重跑时逐条列出：严重度 + 位置 + 问题 + 建议改法', () => {
+    const brief = stageBriefing(stageOf('modeling'), new Map(), false, findings)
+    expect(brief).toContain('上一轮审计提出的问题')
+    expect(brief).toContain('[major] DECLARATION.json EQ-MINN')
+    expect(brief).toContain('情形二约束方向与情形一不对称')
+    expect(brief).toContain('改成 P(X≤c|p_nom) ≤ β')
+    expect(brief).toContain('[minor] §4.4')
+  })
+
+  it('**要求逐条处理或明确反驳**——沉默重发不算处理', () => {
+    const brief = stageBriefing(stageOf('modeling'), new Map(), false, findings)
+    expect(brief).toContain('必须逐条处理或明确反驳')
+    expect(brief).toContain('沉默地重发一遍不算处理')
+  })
+
+  it('位置在「不要做」之后、「自检」之前（越靠后越重要）', () => {
+    const brief = stageBriefing(stageOf('modeling'), new Map(), false, findings)
+    const at = brief.indexOf('上一轮审计提出的问题')
+    expect(at).toBeGreaterThan(brief.indexOf('明确不要做'))
+    expect(at).toBeLessThan(brief.indexOf('提交前自检'))
+  })
+})
