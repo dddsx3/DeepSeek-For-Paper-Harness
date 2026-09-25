@@ -177,11 +177,20 @@ export class PaperStageChainService extends Service {
     const provider = this.ctx.paperProvider
     const route = this.ctx.paperSettings.snapshot().executor
 
-    // **单次调用原语**（传输级重试内建）。阶段 3 的分片与单产出的模型阶段都用它。
+    // **限额降级**（用户指定，免费模型场景）：主模型触发限额时，切换到
+    // PAPER_STAGE_FALLBACK_MODEL（默认 glm-5.3-flash-free）完成剩余内容。
+    // 切换一次后对**后续所有阶段**生效（剩余内容都在降级模型上继续）。
+    const fallbackModel = process.env['PAPER_STAGE_FALLBACK_MODEL'] ?? 'glm-5.3-flash-free'
+    let activeModel = route.model
+    let modelSwitched = false
+    const isQuotaError = (message: string): boolean =>
+      /429|402|quota|额度|余额|配额|insufficient|exhaust|rate.?limit|无可用|渠道/i.test(message)
+
+    // **单次调用原语**（传输级重试 + 限额降级内建）。阶段 3 的分片与单产出的模型阶段都用它。
     const singleCall = async (spec: StageSpec, prompt: string): Promise<string> => {
       const request: GenerateOptions = {
         provider: route.provider,
-        model: route.model,
+        model: activeModel,
         system: STAGE_CHAIN_SYSTEM,
         messages: [createUserMessage({ content: [{ type: 'text', text: prompt }], source: { kind: 'user' } })],
       }
@@ -211,6 +220,17 @@ export class PaperStageChainService extends Service {
         } catch (error) {
           lastFailure = error
           const message = String(error instanceof Error ? error.message : error)
+          // 限额 → 切降级模型并**重置重试预算**（新模型有自己的 3 次）。
+          if (isQuotaError(message) && !modelSwitched && activeModel !== fallbackModel) {
+            modelSwitched = true
+            activeModel = fallbackModel
+            this.config.onDeterministicOutcome?.({
+              stage: spec.id,
+              summary: `模型 ${route.model} 触发限额，切换到 ${fallbackModel} 继续完成剩余内容`,
+            })
+            attempt = 0
+            continue
+          }
           const retryable = /terminated|ECONNRESET|fetch failed|socket|看门狗|network|timeout|aborted/i.test(message)
             && !/max-tokens/.test(message)
           if (!retryable || attempt === 3) break
