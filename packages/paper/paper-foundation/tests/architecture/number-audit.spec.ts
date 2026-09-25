@@ -8,7 +8,7 @@
  */
 
 import { describe, expect, it } from 'vitest'
-import { auditNumbers, buildAllowlist, verificationClaims } from '../../src/stages/number-audit.ts'
+import { auditFiles, auditNumbers, buildAllowlist, commentLines, verificationClaims } from '../../src/stages/number-audit.ts'
 
 /** 题面给定值（2024B 表 1/表 2 的真值，带原文锚点的形态）。 */
 const FACTS = JSON.stringify({
@@ -106,5 +106,56 @@ describe('"已执行检验"的假声明 —— 阶段 2 不可能跑过任何检
   it('"已验证/已校核"式声明被抓', () => {
     expect(verificationClaims('该结论已经验证，与解析解一致。').length).toBeGreaterThan(0)
     expect(verificationClaims('复算结果为 12.50。').length).toBeGreaterThan(0)
+  })
+})
+
+describe('补严后的覆盖面（状态检查发现的三个遗漏）', () => {
+  it('**审全部 .md 散文**，不是只审第一个匹配到的文件', () => {
+    const files = new Map([
+      ['MODELING_REPORT.md', '结论：期望利润 12.50 元/件。'],
+      ['RESULTS.md', '另一处手写数字 21.68。'],
+      ['DELIVERABLES.json', '{"min_bytes": 500}'],   // 契约常量：不审（否则误报）
+    ])
+    const audited = auditFiles(files, allowed)
+    expect(audited.map(a => a.file)).toEqual(['MODELING_REPORT.md', 'RESULTS.md'])
+    expect(audited.every(a => a.audit.violations.length > 0)).toBe(true)
+  })
+
+  it('**契约类 JSON 不被审**（`min_bytes: 500` 是 schema 常量，不是结果）', () => {
+    const files = new Map([['DELIVERABLES.json', '{"deliverables":[{"min_bytes":500,"min_rows":3000}]}']])
+    expect(auditFiles(files, allowed)).toEqual([])
+  })
+
+  it('**代码注释**里的"验证通过"被抓（红队点名的形态）', () => {
+    const code = [
+      'def solve():',
+      '    # 期望利润 12.50，与阶段 2 报告一致，检验通过',
+      '    return 12.50',
+    ].join(String.fromCharCode(10))
+    const comments = commentLines(code)
+    expect(comments[1]).toContain('12.50')
+    expect(comments[0]).toBe('')  // 非注释行为空
+    const claims = comments.flatMap(c => (c === '' ? [] : verificationClaims(c)))
+    expect(claims.length).toBeGreaterThan(0)
+  })
+
+  it('代码注释里的**普通注释不误报**', () => {
+    const code = [
+      '# 用后向欧拉做时间推进，dt 由稳定性条件决定',
+      'for i in range(1, 11):',
+      '    tol = 1e-6  # 收敛容差',
+      'fig = plt.figure(figsize=(8, 6))',
+    ].join(String.fromCharCode(10))
+    const claims = commentLines(code).flatMap(c => (c === '' ? [] : verificationClaims(c)))
+    expect(claims).toEqual([])
+  })
+
+  it('措辞覆盖面：英文与更多中文说法', () => {
+    for (const text of [
+      'All tests passed.', 'verification: OK', 'The result was validated.',
+      '检验结果：全部满足约束。', '逐一核对无误。', '回代验算为 12.50。',
+    ]) {
+      expect(verificationClaims(text).length, `漏了：${text}`).toBeGreaterThan(0)
+    }
   })
 })
