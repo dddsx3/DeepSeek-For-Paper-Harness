@@ -65,7 +65,11 @@ describe('简报 —— ① 不许简化成摘要', () => {
     expect(brief('figure')).toContain('fig_roadmap')         // 命名规则的反例前缀
     expect(brief('paper')).toContain('参考文献')             // 头号拒绝的判据
     expect(brief('review')).toContain('bound_direction')     // findings 类别是闭集
-    expect(brief('code')).toContain('jsonPath')              // 数字的合法来源
+    // 数的**合法来源**这条硬形态随契约移到了阶段 4（数源声明）——断言跟着走，
+    // 并钉真实字段名（`json_path` 是 RESULT_SOURCES.json 的键，不是 camelCase）。
+    expect(brief('result-sources')).toContain('json_path')   // 数的定位形态
+    expect(brief('result-sources')).toContain('locator')
+    expect(brief('code')).toContain('JSON 文件')              // 阶段 3 只负责把量写进 JSON
   })
 })
 
@@ -160,7 +164,7 @@ describe('简报 —— 不投递模型做不到的指令（round-5 的教训）
     const off = brief('code', false)
     expect(off).not.toContain('read_skill_doc')
     // 但"本步知识"里的规范要点**始终在**（那是内联知识，不依赖工具）
-    expect(off).toContain('jsonPath')
+    expect(off).toContain('JSON 文件')  // 内联知识始终在（不依赖工具）
   })
 
   it('每段都有**提交前自检**清单（harness 会跑的判据，不是建议）', () => {

@@ -175,12 +175,9 @@ const SKILLS: Readonly<Record<string, StageSkill>> = {
       '**你的代码会被 harness 真跑**（`python code/main.py`，工作目录就是 `code/`）。'
         + '代码必须把要进论文的量写成 **JSON 文件**放在工作目录里（例如 `outputs.json`）——'
         + '打印到 stdout 的东西不会被采集。',
-      '`RESULT_SOURCES.json` 声明**数在哪**：'
-        + '`{"sources": [{"result_id", "name", "locator", "json_path", "unit"}]}`。'
-        + '`locator` 是代码写出的 JSON 文件名；`json_path` 是文件内的点路径'
-        + '（`problem1.n_star`、`cases[0].accept`）。'
-        + '**你只声明定位，不写数值**——harness 真跑代码后从产物字节里读出每个数铸成账本。'
-        + 'locator 解析不到、路径落空、值不是有限数，都会具名失败。',
+      '**数在哪由下一阶段（数源声明）负责**，本阶段只负责让代码把每个要用的量'
+        + '写成 JSON 文件：键名取成能读懂的（`n_star`、`profit_case5`），路径别太深。'
+        + '下一阶段会声明 `{locator, json_path}`，harness 真跑你的代码后从产物字节里铸出账本。',
       '`RESULTS.md` 写结果说明：四问的关键数值、校核证据、归因、诚实边界。'
         + '散文里可以引用账本里的数（它们来自真实执行），但**不得**出现代码没产出的数。',
       '每个被声明为输出的量，都要真的写进声明的输出文件。**声明的输出必须存在且非空**。',
@@ -192,14 +189,15 @@ const SKILLS: Readonly<Record<string, StageSkill>> = {
       '**不得**产出任何图像字节（`.png`/`.jpg`/`.pdf`/`.svg`）。渲染是阶段 4 的事，'
         + '本阶段只声明——这条是门禁 `no_render`，会硬失败。',
       '**不得**用"抽样"却不写抽样口径。声明抽样就必须给出抽样说明。',
-      '**不得**声明无法读回的 jsonPath。声明了就必须能解析到有限数。',
+      '**不得**把结果只打印到 stdout——stdout 不被采集，量必须写进 JSON 文件。',
+      '**不得**写 `RESULT_SOURCES.json`：那是下一阶段（数源声明）的产物，'
+        + '本阶段写它只会造成两份互相矛盾的定义。',
     ],
     selfCheck: [
       '`code/main.py` ≥ 500 字节、`RESULTS.md` ≥ 1024 字节、代码文件数 ≥ 题面问数。',
       '声明的每个交付物都真的存在且非空（`DELIVERABLES.json` 与磁盘一致）。',
-      '`RESULT_SOURCES.json` 的每条 locator 都指向代码真写出的 JSON 文件，'
-        + '`json_path` 都能解析出有限数（harness 铸账本时会逐条核）。',
-      '代码真跑出 `results.json` 账本（harness 铸数）且非空。',
+      '代码把每个要用的量写进了工作目录下的 JSON 文件（键名可读、路径不深），'
+        + '且**真跑得起来**（harness 会执行 `python code/main.py`，工作目录就是 `code/`）。',
       '`RESULTS.md` 里没有账本之外的数字（门禁 `numbers_traced`）——结果说明只描述'
         + '"算了什么、怎么核"，具体数值由账本承载。',
       '≥0.99 的分类指标都配了防泄漏说明。',
