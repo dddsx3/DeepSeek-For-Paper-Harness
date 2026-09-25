@@ -111,6 +111,69 @@ describe('审计提示词 —— 独立性是机械可核的', () => {
   })
 })
 
+/**
+ * 题面事实必须内联 —— 否则审计员看不见"与题面不符"这类缺陷。
+ *
+ * 真实失配（2024B 红队）：题面给了调换损失 `ce=40`，阶段 3 的代码从头到尾没用它，
+ * 于是"什么都不检查"虚假胜出（利润 104 vs 真值 66.09）。这不是结构缺陷——机械门禁
+ * 全绿——只有拿题面当尺子才量得出来。给文件名清单是不够的。
+ */
+describe('题面事实 —— 审计的尺子', () => {
+  const withFacts = auditPromptOf({
+    spec, skillTask: skillTaskOf(spec),
+    artifacts: new Map([['MODELING_REPORT.md', '# 建模报告']]),
+    upstreamNames: ['PROBLEM_FACTS.json'],
+    groundTruth: new Map([
+      ['题面原文 problem.txt', '调换损失 6 元/件，拆解费用 5 元/件'],
+      ['给定值事实表 PROBLEM_FACTS.json', '{"facts":[{"id":"F-T1-C1","value":{"调换损失":6}}]}'],
+    ]),
+  })
+
+  it('题面与给定值事实表**逐字内联**，并标明是判题面相符的唯一依据', () => {
+    expect(withFacts).toContain('调换损失 6 元/件')
+    expect(withFacts).toContain('F-T1-C1')
+    expect(withFacts).toContain('唯一')
+    expect(withFacts).toContain('不是**执行者的产物')
+  })
+
+  it('**点明这类缺陷**：题面给了却没被用到的参数是最危险的一类，且要写成 finding', () => {
+    expect(withFacts).toContain('与题面相符')
+    // 三种形态必须分清——「声明了却是死参数」是实测里真正发生的那一种：
+    // problem3.py 里 `ce: 40.0` 写在参数表里，公式 Ep 却只用 ct/cd，ce 从未参与运算。
+    // 只查"参数在不在"会给出假绿，所以判据必须落在"进没进公式"上。
+    expect(withFacts).toContain('声明了却是死参数')
+    expect(withFacts).toContain('从未进入任何公式')
+    expect(withFacts).toContain('完全找不到')
+    expect(withFacts).toContain('凭空多出来')
+    // 实测形态（含具体数值）被写进提示词，审计员不必自己猜"死参数"长什么样
+    expect(withFacts).toContain('ce')
+    expect(withFacts).toContain('40.0')
+    expect(withFacts).toContain('66.09')
+  })
+
+  it('**没有题面时不出现尺子那一段**（宁可不说，也不让审计员以为自己看到了尺子）', () => {
+    const noFacts = auditPromptOf({
+      spec, skillTask: skillTaskOf(spec),
+      artifacts: new Map([['MODELING_REPORT.md', '# 建模报告']]),
+      upstreamNames: [], groundTruth: new Map(),
+    })
+    // 判据是**那一段标题**，不是"题面事实"这四个字——第 2 条检查里本来就会提到它。
+    expect(noFacts).not.toContain('### 题面事实')
+    expect(noFacts).toContain('### 上游给了什么'.slice(0, 3)) // 提示词本身仍完整
+  })
+
+  it('题面超预算时**明说被截断**（与产物同一条纪律）', () => {
+    const cut = auditPromptOf({
+      spec, skillTask: skillTaskOf(spec),
+      artifacts: new Map(), upstreamNames: [],
+      groundTruth: new Map([['题面原文 problem.txt', 'y'.repeat(500)]]),
+      budgetChars: 100,
+    })
+    expect(cut).toContain('只内联前 100 字节')
+    expect(cut).toContain('被截断')
+  })
+})
+
 describe('审计结论的严格解析 —— 坏回答记 2，不当通过', () => {
   it('合法回答 → 解析出完整结论', () => {
     const raw = '```json\n{"verdict":"fail","score":0.4,"structure_ok":true,'

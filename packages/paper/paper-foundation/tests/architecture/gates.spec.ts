@@ -345,3 +345,62 @@ describe('未实现的判据给 2，**绝不给 0**', () => {
     expect(v.items[0]?.detail).toContain('未登记')
   })
 })
+
+/**
+ * `numbers_traced` 的白名单来源必须**真的取得到**（第十处真实误报）。
+ *
+ * 2024B 实测：阶段 2 在 `DECLARATION.json` 里声明了备择次品率 `0.15`，正文引用它，
+ * 门禁却判它"没有出生证明"。原因是白名单只从 `upstream` 取 `DECLARATION.json`，
+ * 而 `upstream` 只装 `consumes` 的东西——`DECLARATION.json` 是阶段 2 **自己**的产物，
+ * 永远不在 `consumes` 里。**文档写的来源取不到，门禁就在惩罚守约的模型。**
+ * 所以声明文件必须在本阶段目录（`files`）里也找一遍。
+ */
+describe('numbers_traced —— 声明常数取自本阶段目录（不只上游）', () => {
+  const facts = JSON.stringify({ facts: [{ id: 'F-NOMINAL', value: '10%' }] })
+  const decl = JSON.stringify({
+    model_constants: [
+      { name: '标称次品率', value: 0.1, unit: '' },
+      { name: '判别力约束的备择次品率', value: 0.15, unit: '' },
+      { name: '样本量搜索上界', value: 200, unit: '件' },
+    ],
+  })
+
+  it('**本阶段产出的 DECLARATION.json 里的常数，正文引用它 → 通过**', () => {
+    const v = run('numbers_traced', input(
+      {
+        'MODELING_REPORT.md': '在备择次品率声明常数 0.15 处，第二类错误不超过 0.10。标称值 0.1。',
+        'DECLARATION.json': decl, // ← 本阶段**自己**的产物，`consumes` 里没有它
+      },
+      { 'PROBLEM_FACTS.json': facts },
+    ))
+    expect(v.code).toBe(0)
+  })
+
+  it('声明文件在上游时同样通过（两条路都要通，不能只顾一头）', () => {
+    const v = run('numbers_traced', input(
+      { 'MODELING_REPORT.md': '备择次品率常数 0.15。' },
+      { 'PROBLEM_FACTS.json': facts, 'DECLARATION.json': decl },
+    ))
+    expect(v.code).toBe(0)
+  })
+
+  it('**判别力**：没声明过的数照样抓（别把这条修成"什么都放行"）', () => {
+    const v = run('numbers_traced', input(
+      {
+        'MODELING_REPORT.md': '备择次品率常数 0.15，最优样本量 137，期望利润 104.32。',
+        'DECLARATION.json': decl, // 0.15 有出生证明；137 / 104.32 没有
+      },
+      { 'PROBLEM_FACTS.json': facts },
+    ))
+    expect(v.code).toBe(1)
+    const detail = v.items[0]?.detail ?? ''
+    // 判据落在**去重清单**上：回显的上下文句里本来就有 0.15，不能拿整段做否定断言。
+    expect(detail).toContain('去重 2：137、104.32')
+  })
+
+  it('两份来源都取不到 → 2（无法判定），不是 0', () => {
+    const v = run('numbers_traced', input({ 'MODELING_REPORT.md': '随便 42。' }, {}))
+    expect(v.code).toBe(2)
+    expect(v.items[0]?.detail).toContain('出生证明来源')
+  })
+})

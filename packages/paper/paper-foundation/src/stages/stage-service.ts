@@ -60,6 +60,36 @@ async function readFileMaybe(path: string): Promise<string | null> {
   return readFile(path, 'utf8').catch(() => null)
 }
 
+/**
+ * 读**题面事实**：判"产物是否符合题面"的唯一依据。
+ *
+ * 两份，都不大（2024B 实测 4KB + 11KB），都内联：
+ * - `00-input/problem.txt` —— 原始题面（含附件表格与图转写）；
+ * - `01-prob-analysis/PROBLEM_FACTS.json` —— 阶段 1 抽取的**给定值事实表**（每条带 raw_quote）。
+ *
+ * 为什么是这两份而不是执行者的上游产物：它们是**题面**，不是"某个模型怎么理解题面"。
+ * 审计员拿它当尺子，量的是产物与题面的距离——这正是"独立审计"要量的东西。
+ * 阶段 1 自己的审计也会拿到 problem.txt：那时尺子是原始题面，审的是"有没有读错题"。
+ *
+ * 读不到就**不给**（`size === 0`），提示词里那段整体不出现——而不是给一段空标题
+ * 让审计员以为自己看到了什么。
+ *
+ * @param stagesRoot - `stages/` 根目录。
+ * @returns `文件名 → 文本`（可能为空）。
+ */
+async function loadGroundTruth(stagesRoot: string): Promise<ReadonlyMap<string, string>> {
+  const candidates: ReadonlyArray<readonly [string, string]> = [
+    ['题面原文 problem.txt', join(stagesRoot, '00-input', 'problem.txt')],
+    ['给定值事实表 PROBLEM_FACTS.json', join(stagesRoot, '01-prob-analysis', 'PROBLEM_FACTS.json')],
+  ]
+  const out = new Map<string, string>()
+  for (const [name, path] of candidates) {
+    const text = await readFileMaybe(path)
+    if (text !== null && text.trim() !== '') out.set(name, text)
+  }
+  return out
+}
+
 /** 阶段链的系统提示词（与交付链的角色提示词分开：它说的是"按简报的契约产出"）。 */
 export const STAGE_CHAIN_SYSTEM = [
   '你是数学建模竞赛论文流水线中的一个阶段执行者。',
@@ -301,17 +331,23 @@ export class PaperStageChainService extends Service {
         })
       },
       // ── 逐节点审计（用户新增约束）：交付前由**独立角色**审一遍 ──────────────
-      // 独立性：审计只拿到"契约（任务陈述 + 产出清单 + 门禁 id）+ 本阶段产物 + 上游产物名"，
-      // 拿不到执行者的提示词与推理——否则它会顺着执行者的框架去理解产物，那就成了自己审自己。
+      // 独立性：审计只拿到"契约（任务陈述 + 产出清单 + 门禁 id）+ 本阶段产物 + 上游产物名
+      // + 题面事实"，拿不到执行者的提示词与推理——否则它会顺着执行者的框架去理解产物，
+      // 那就成了自己审自己。
+      // **题面事实必须给**：只给"上游文件名清单"时，审计员无从判断产物是否与题面相符。
+      // 2024B 实测的失配正是这一类：题面给了调换损失 `ce=40`，阶段 3 的代码从头到尾没用它，
+      // "什么都不检查"于是虚假胜出——那不是结构缺陷，机械门禁全绿，只有拿题面当尺子才量得出。
       // 模型：PAPER_AUDIT_MODEL（默认与执行者同模型但**全新上下文**；换成别的模型族更独立）。
-      auditStage: async (spec, _stagesRoot, artifacts) => {
+      auditStage: async (spec, auditStagesRoot, artifacts) => {
         const auditModel = process.env['PAPER_AUDIT_MODEL'] ?? activeModel
         const upstreamNames = spec.consumes.map(p2 => p2.split('/').pop() ?? p2)
+        const groundTruth = await loadGroundTruth(auditStagesRoot)
         const prompt = auditPromptOf({
           spec,
           skillTask: skillTaskOf(spec),
           artifacts,
           upstreamNames,
+          ...(groundTruth.size === 0 ? {} : { groundTruth }),
           ...(process.env['PAPER_AUDIT_INLINE_BUDGET'] === undefined
             ? {} : { budgetChars: Number(process.env['PAPER_AUDIT_INLINE_BUDGET']) }),
         })
