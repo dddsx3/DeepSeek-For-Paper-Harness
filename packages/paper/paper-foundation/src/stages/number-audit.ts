@@ -156,8 +156,30 @@ export function buildAllowlist(sources: ReadonlyArray<string | null>): ReadonlyS
         out.add(normalizeLiteral(String(value * 100)))
       }
     }
+    // **声明的集合长度**也算有出生证明。实测假阳性：正文写"本阶段登记但不赋值的结果
+    // 锚点共 33 个"，而 `DECLARATION.json` 的 `result_anchors.registered` **正好 33 条**
+    // ——这个数可从声明文件复核，它不是算出来的，是**数出来的**。
+    // 只对能解析成 JSON 的来源做这件事；解析失败就跳过（来源坏了由别的门禁报）。
+    try {
+      const parsed: unknown = JSON.parse(source)
+      for (const length of arrayLengthsOf(parsed)) out.add(normalizeLiteral(String(length)))
+    } catch {
+      /* 非 JSON 来源（如 .md）——跳过 */
+    }
   }
   return out
+}
+
+/** 递归收集一个 JSON 值里**所有数组的长度**（每个长度都是一个可核的"数"）。 */
+function arrayLengthsOf(value: unknown, depth = 0): ReadonlyArray<number> {
+  if (depth > 12) return [] // 防深递归；声明文件的嵌套很浅
+  if (Array.isArray(value)) {
+    return [value.length, ...value.flatMap(v => arrayLengthsOf(v, depth + 1))]
+  }
+  if (typeof value === 'object' && value !== null) {
+    return Object.values(value as Record<string, unknown>).flatMap(v => arrayLengthsOf(v, depth + 1))
+  }
+  return []
 }
 
 /**
