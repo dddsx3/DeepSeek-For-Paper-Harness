@@ -97,27 +97,29 @@ export const STAGES: ReadonlyArray<StageSpec> = [
   },
   {
     id: 'modeling', index: 2, kind: 'model', title: '建模求解', skillId: 'comp-modeling',
-    consumes: ['01-prob-analysis/PROBLEM_ANALYSIS.md', '01-prob-analysis/CAPABILITY_CHECKLIST.json'],
+    consumes: ['01-prob-analysis/PROBLEM_ANALYSIS.md', '01-prob-analysis/CAPABILITY_CHECKLIST.json', '01-prob-analysis/PROBLEM_FACTS.json'],
     produces: [
       D('DECLARATION.json', 'json', 'IR 声明（Symbol/Assumption/Equation/ModelSpec）——**2a 次调用**'),
       D('MODELING_REPORT.md', 'md', '建模求解报告（富散文：推理、被否方案、难点）——**2b 次调用**', 1500),
     ],
-    gates: ['modeling_floor', 'modeling_coverage', 'modeling_self_check'],
+    gates: ['modeling_floor', 'numbers_traced', 'no_claimed_verification', 'modeling_coverage', 'modeling_self_check'],
     contractRules: ['analysis_per_question', 'evaluation_four_elements', 'floor_analysis', 'floor_evaluation'],
     rollbackTo: ['prob-analysis'], guidedFallback: 'T2',
     premise: '**两次调用，不是一次**：2a 只声明 IR 条目（小、结构化、可被 check_container 自检）；'
-      + '2b 只写富散文（无 JSON，**结构上不可能撞 parse_failed**）。合成一次会回到 E2 的 40KB 规模。',
+      + '2b 只写富散文（无 JSON，**结构上不可能撞 parse_failed**）。合成一次会回到 E2 的 40KB 规模。'
+      + '**本阶段禁写最终数值结论**：2024B 实测它在无代码执行的情况下手写结果，六处错三处'
+      + '（12.50 vs 真值 15.88 等）——`numbers_traced` 与 `no_claimed_verification` 是这条纪律的落点。',
   },
   {
     id: 'code', index: 3, kind: 'model', title: '编程实现', skillId: 'comp-code',
-    consumes: ['02-modeling/MODELING_REPORT.md', '02-modeling/DECLARATION.json'],
+    consumes: ['02-modeling/MODELING_REPORT.md', '02-modeling/DECLARATION.json', '01-prob-analysis/PROBLEM_FACTS.json'],
     produces: [
       D('code/main.py', 'py', '编排入口：依次跑各问并汇总', 500),
       D('code/', 'dir', '逐问实现：`problem*.py`，文件数 ≥ 题面问数（逐问奇偶校验）'),
       D('RESULTS.md', 'md', '结果说明', 1024),
       D('DELIVERABLES.json', 'json', '机器可校验的产出清单（kind/min_rows/min_bytes/desc）'),
     ],
-    gates: ['code_parity', 'delivery_audit', 'leakage_audit', 'no_render'],
+    gates: ['code_parity', 'numbers_traced', 'delivery_audit', 'leakage_audit', 'no_render'],
     contractRules: ['code_appendix_names_questions', 'floor_code'],
     rollbackTo: ['modeling', 'prob-analysis'], guidedFallback: 'T2',
     premise: '**建模代码与图表声明分属不同阶段**（用户口径），且本阶段只写代码：'
@@ -189,9 +191,13 @@ export const STAGES: ReadonlyArray<StageSpec> = [
   },
   {
     id: 'paper', index: 9, kind: 'model', title: '论文撰写', skillId: 'comp-paper-zh-docx',
-    consumes: ['01-prob-analysis/PROBLEM_ANALYSIS.md', '02-modeling/MODELING_REPORT.md', '03-code/RESULTS.md', '06-figure/figure-manifest.json'],
+    consumes: [
+      '01-prob-analysis/PROBLEM_ANALYSIS.md', '01-prob-analysis/PROBLEM_FACTS.json',
+      '02-modeling/MODELING_REPORT.md', '02-modeling/DECLARATION.json',
+      '03-code/RESULTS.md', '06-figure/figure-manifest.json', '04-result-sources/results.json',
+    ],
     produces: [D('paper/main.md', 'md', '论文正文（单文件）', 5120)],
-    gates: ['paper_floor', 'paper_page_floor', 'no_latex_residue', 'upstream_min_chars', 'paper_claim_check'],
+    gates: ['paper_floor', 'paper_page_floor', 'no_latex_residue', 'upstream_min_chars', 'numbers_traced', 'paper_claim_check'],
     contractRules: ['references_method_keyword', 'floor_references', 'floor_restatement', 'blank_area'],
     rollbackTo: ['modeling', 'code', 'prob-analysis'], guidedFallback: 'T3',
     premise: '**本阶段 = 装配（上游产物 → 论文），不产生新的建模推理**，所以能一次写完而不重犯散文'
