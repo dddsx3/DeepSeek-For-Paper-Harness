@@ -184,7 +184,7 @@ async function main(): Promise<number> {
   const positionals = parsed.positionals
   if (positionals.length === 0 && parsed.version === undefined && parsed.help === undefined) {
     console.error('usage: paper-shell run <problem-file> [--tier T1|T2|T3] [--mode fast|strict|exploratory] [--fail-soft|--closed-loop|--strict-tolerance] [--capability-tier S|A|B] [--out <dir>] [--zip]')
-    console.error('       paper-shell run <problem-file> --stages [--stage-only a,b] [--stage-pause-after a,b] [--stage-resume] [--stage-problems N]')
+    console.error('       paper-shell run <problem-file> --stages [--ingest <pdf|图片>] [--stage-only a,b] [--stage-pause-after a,b] [--stage-resume] [--stage-problems N]')
     console.error('                                     # 走 11 阶段链（每阶段一个技能/产物/门禁/通行证；暂停后续跑见 --stage-resume）')
     console.error('       paper-shell probe [--json]            # L0 能力探针：跑三个可机械判定的任务，产出档位 S/A/B')
     console.error('       paper-shell claims <workspace> [--json]   # L3 符号证据：跑 claims/*.py 并标注证据级别')
@@ -688,8 +688,40 @@ ${String(result.unverifiable.length)} / ${String(result.claims.length)} 条断�
     await mkdir(inputDir, { recursive: true })
     // 题面与附件是**外部输入**：harness 把它们落进 00-input，阶段 1 的简报才会内联它们
     // （第一版 runner 刻意跳过 00-input，那是为测试写的；真实运行的阶段 1 必须看得见题面）。
-    const problemText = await readFile(problemFile, 'utf8')
-    await writeFile(join(inputDir, 'problem.txt'), problemText, 'utf8')
+    //
+    // **`--ingest <pdf|图片|目录>`**：先跑摄取管线，而不是直接把 .md 当题面。
+    // 为什么必须有这一步（2024B 实测两类缺陷）：
+    //   ① 纯文本抽取会把表格压平（逐格一行，结构全丢）；
+    //   ② **图完全进不来**——图 1（装配树）是图片，而组件→半成品的映射只在图里，
+    //      后果是阶段 2 把 I(v) 当抽象符号、问题 3 的决策变量无法实例化。
+    // 摄取管线 = `scripts/ingest-problem.py`（PyMuPDF：正文 + markdown 表格 + 导出图）
+    //            + `scripts/transcribe-figures.mjs`（视觉模型把图转成结构化文字）。
+    const ingestArg = typeof parsed.ingest === 'string' ? String(parsed.ingest) : undefined
+    let problemText: string
+    if (ingestArg !== undefined) {
+      const { spawnSync } = await import('node:child_process')
+      const repoRoot = join(here, '..', '..', '..')
+      const ingester = join(repoRoot, 'scripts', 'ingest-problem.py')
+      console.log(`[INGEST] ${ingestArg} → ${inputDir}`)
+      const run = spawnSync('python', [ingester, ingestArg, inputDir], { encoding: 'utf8', timeout: 300_000 })
+      if (run.status !== 0) {
+        console.error('摄取失败：', (run.stderr || run.stdout || '').split(String.fromCharCode(10)).slice(-6).join(String.fromCharCode(10)))
+        await dispose()
+        return 1
+      }
+      console.log('  ', (run.stdout || '').trim().split(String.fromCharCode(10)).slice(-1)[0])
+      // 图的视觉转录（无图则脚本自动跳过；失败不阻断——图缺失会如实体现在输入里）
+      const transcriber = join(repoRoot, 'scripts', 'transcribe-figures.mjs')
+      const tr = spawnSync(process.execPath, [transcriber, inputDir], {
+        encoding: 'utf8', timeout: 900_000, env: process.env,
+      })
+      if (tr.status === 0) console.log('  ', (tr.stdout || '').trim().split(String.fromCharCode(10)).slice(-1)[0])
+      else console.warn('  图转录未完成（不阻断）：', (tr.stderr || '').trim().split(String.fromCharCode(10)).slice(-2).join(' '))
+      problemText = await readFile(join(inputDir, 'problem.txt'), 'utf8')
+    } else {
+      problemText = await readFile(problemFile, 'utf8')
+      await writeFile(join(inputDir, 'problem.txt'), problemText, 'utf8')
+    }
     const attachmentsArg = typeof parsed['stage-attachments'] === 'string' ? String(parsed['stage-attachments']) : undefined
     if (attachmentsArg !== undefined) {
       await writeFile(join(inputDir, 'attachments.json'), await readFile(attachmentsArg, 'utf8'), 'utf8')
