@@ -195,3 +195,19 @@ describe('四个真实误报形态（2024B 阶段 2 实测，逐条固化成回�
     expect(verificationClaims('全部通过，无异常').length).toBeGreaterThan(0)
   })
 })
+
+describe('第五个真实误报形态：**声明的集合长度**', () => {
+  it('"共 33 个锚点"可从 DECLARATION.json 复核 → 不误报', () => {
+    // 实测：正文写"本阶段登记但不赋值的结果锚点共 33 个"，而 DECLARATION.json 的
+    // result_anchors.registered 正好 33 条——这个数是**数出来的**，不是算出来的。
+    const declaration = JSON.stringify({
+      symbols: new Array(44).fill({}), assumptions: new Array(11).fill({}),
+      result_anchors: { registered: new Array(33).fill({}) },
+    })
+    const text = '本阶段登记但**不赋值**的结果锚点共 33 个，清单见 `DECLARATION.json`。'
+    expect(auditNumbers(text, buildAllowlist([declaration, null, null])).violations).toEqual([])
+    // 但声明里**没有**的数仍然要出生证明（不能因为引入了长度规则就放走任意整数）
+    const bad = '本阶段登记的结果锚点共 34 个。'
+    expect(auditNumbers(bad, buildAllowlist([declaration, null, null])).violations.map(v => v.literal)).toEqual(['34'])
+  })
+})
