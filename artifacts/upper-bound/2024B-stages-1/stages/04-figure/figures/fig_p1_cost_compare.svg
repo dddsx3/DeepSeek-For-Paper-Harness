@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="680" height="420" viewBox="0 0 680 420" role="img">
+<line x1="72" y1="34" x2="656" y2="34" stroke="#D8D8D8" stroke-width="1"/>
+<text x="64" y="38" text-anchor="end" font-family="monospace" font-size="11" fill="#222222">187</text>
+<line x1="72" y1="118.5" x2="656" y2="118.5" stroke="#D8D8D8" stroke-width="1"/>
+<text x="64" y="122.5" text-anchor="end" font-family="monospace" font-size="11" fill="#222222">140.25</text>
+<line x1="72" y1="203" x2="656" y2="203" stroke="#D8D8D8" stroke-width="1"/>
+<text x="64" y="207" text-anchor="end" font-family="monospace" font-size="11" fill="#222222">93.5</text>
+<line x1="72" y1="287.5" x2="656" y2="287.5" stroke="#D8D8D8" stroke-width="1"/>
+<text x="64" y="291.5" text-anchor="end" font-family="monospace" font-size="11" fill="#222222">46.75</text>
+<line x1="72" y1="372" x2="656" y2="372" stroke="#D8D8D8" stroke-width="1"/>
+<text x="64" y="376" text-anchor="end" font-family="monospace" font-size="11" fill="#222222">0</text>
+<line x1="72" y1="34" x2="72" y2="372" stroke="#222222" stroke-width="1"/>
+<line x1="72" y1="372" x2="656" y2="372" stroke="#222222" stroke-width="1"/>
+<rect x="62" y="368.3850267379679" width="20" height="3.6149732620320947" fill="#0072B2"/>
+<rect x="256.66666666666663" y="174.98395721925135" width="20" height="197.01604278074865" fill="#E69F00"/>
+<rect x="451.3333333333333" y="332.2352941176471" width="20" height="39.76470588235293" fill="#009E73"/>
+<rect x="646" y="34" width="20" height="338" fill="#D55E00"/>
+<text x="17" y="26" transform="rotate(-90 17 26)" text-anchor="middle" font-family="sans-serif" font-size="12" fill="#222222">期望检测次数（件）</text>
+</svg>

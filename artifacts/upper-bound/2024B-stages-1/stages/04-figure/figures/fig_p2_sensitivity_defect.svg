@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="680" height="420" viewBox="0 0 680 420" role="img">
+<line x1="72" y1="34" x2="656" y2="34" stroke="#D8D8D8" stroke-width="1"/>
+<text x="64" y="38" text-anchor="end" font-family="monospace" font-size="11" fill="#222222">22.1883</text>
+<line x1="72" y1="118.5" x2="656" y2="118.5" stroke="#D8D8D8" stroke-width="1"/>
+<text x="64" y="122.5" text-anchor="end" font-family="monospace" font-size="11" fill="#222222">16.641225</text>
+<line x1="72" y1="203" x2="656" y2="203" stroke="#D8D8D8" stroke-width="1"/>
+<text x="64" y="207" text-anchor="end" font-family="monospace" font-size="11" fill="#222222">11.09415</text>
+<line x1="72" y1="287.5" x2="656" y2="287.5" stroke="#D8D8D8" stroke-width="1"/>
+<text x="64" y="291.5" text-anchor="end" font-family="monospace" font-size="11" fill="#222222">5.547075</text>
+<line x1="72" y1="372" x2="656" y2="372" stroke="#D8D8D8" stroke-width="1"/>
+<text x="64" y="376" text-anchor="end" font-family="monospace" font-size="11" fill="#222222">0</text>
+<line x1="72" y1="34" x2="72" y2="372" stroke="#222222" stroke-width="1"/>
+<line x1="72" y1="372" x2="656" y2="372" stroke="#222222" stroke-width="1"/>
+<circle cx="72" cy="41.736969483917235" r="3" fill="#0072B2"/>
+<circle cx="169.33333333333331" cy="34" r="3" fill="#E69F00"/>
+<circle cx="266.66666666666663" cy="49.67501791484702" r="3" fill="#009E73"/>
+<circle cx="364" cy="34" r="3" fill="#D55E00"/>
+<circle cx="461.3333333333333" cy="49.67501791484702" r="3" fill="#CC79A7"/>
+<circle cx="558.6666666666667" cy="34" r="3" fill="#56B4E9"/>
+<circle cx="656" cy="49.67501791484702" r="3" fill="#0072B2"/>
+<polyline points="72,41.736969 169.333333,34 266.666667,49.675018 364,34 461.333333,49.675018 558.666667,34 656,49.675018" fill="none" stroke="#0072B2" stroke-width="2"/>
+<text x="17" y="26" transform="rotate(-90 17 26)" text-anchor="middle" font-family="sans-serif" font-size="12" fill="#222222">单位期望利润（元/件）</text>
+</svg>

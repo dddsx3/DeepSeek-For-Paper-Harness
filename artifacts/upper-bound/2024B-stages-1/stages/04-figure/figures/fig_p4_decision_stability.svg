@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="680" height="420" viewBox="0 0 680 420" role="img">
+<line x1="72" y1="34" x2="656" y2="34" stroke="#D8D8D8" stroke-width="1"/>
+<text x="64" y="38" text-anchor="end" font-family="monospace" font-size="11" fill="#222222">0.21</text>
+<line x1="72" y1="118.5" x2="656" y2="118.5" stroke="#D8D8D8" stroke-width="1"/>
+<text x="64" y="122.5" text-anchor="end" font-family="monospace" font-size="11" fill="#222222">-1.6225</text>
+<line x1="72" y1="203" x2="656" y2="203" stroke="#D8D8D8" stroke-width="1"/>
+<text x="64" y="207" text-anchor="end" font-family="monospace" font-size="11" fill="#222222">-3.455</text>
+<line x1="72" y1="287.5" x2="656" y2="287.5" stroke="#D8D8D8" stroke-width="1"/>
+<text x="64" y="291.5" text-anchor="end" font-family="monospace" font-size="11" fill="#222222">-5.2875</text>
+<line x1="72" y1="372" x2="656" y2="372" stroke="#D8D8D8" stroke-width="1"/>
+<text x="64" y="376" text-anchor="end" font-family="monospace" font-size="11" fill="#222222">-7.12</text>
+<line x1="72" y1="34" x2="72" y2="372" stroke="#222222" stroke-width="1"/>
+<line x1="72" y1="372" x2="656" y2="372" stroke="#222222" stroke-width="1"/>
+<circle cx="72" cy="372" r="3" fill="#0072B2"/>
+<circle cx="188.8" cy="158.50204638472033" r="3" fill="#E69F00"/>
+<circle cx="305.6" cy="105.47339699863575" r="3" fill="#009E73"/>
+<circle cx="422.4" cy="68.12278308321966" r="3" fill="#D55E00"/>
+<circle cx="539.2" cy="43.68349249658935" r="3" fill="#CC79A7"/>
+<circle cx="656" cy="34" r="3" fill="#56B4E9"/>
+<polyline points="72,372 188.8,158.502046 305.6,105.473397 422.4,68.122783 539.2,43.683492 656,34" fill="none" stroke="#0072B2" stroke-width="2"/>
+<text x="17" y="26" transform="rotate(-90 17 26)" text-anchor="middle" font-family="sans-serif" font-size="12" fill="#222222">利润带之差（元/件）</text>
+</svg>

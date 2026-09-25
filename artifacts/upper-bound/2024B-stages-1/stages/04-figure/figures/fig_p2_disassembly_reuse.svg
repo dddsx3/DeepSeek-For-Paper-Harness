@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="680" height="420" viewBox="0 0 680 420" role="img">
+<line x1="72" y1="34" x2="656" y2="34" stroke="#D8D8D8" stroke-width="1"/>
+<text x="64" y="38" text-anchor="end" font-family="monospace" font-size="11" fill="#222222">30.981</text>
+<line x1="72" y1="118.5" x2="656" y2="118.5" stroke="#D8D8D8" stroke-width="1"/>
+<text x="64" y="122.5" text-anchor="end" font-family="monospace" font-size="11" fill="#222222">23.23575</text>
+<line x1="72" y1="203" x2="656" y2="203" stroke="#D8D8D8" stroke-width="1"/>
+<text x="64" y="207" text-anchor="end" font-family="monospace" font-size="11" fill="#222222">15.4905</text>
+<line x1="72" y1="287.5" x2="656" y2="287.5" stroke="#D8D8D8" stroke-width="1"/>
+<text x="64" y="291.5" text-anchor="end" font-family="monospace" font-size="11" fill="#222222">7.74525</text>
+<line x1="72" y1="372" x2="656" y2="372" stroke="#D8D8D8" stroke-width="1"/>
+<text x="64" y="376" text-anchor="end" font-family="monospace" font-size="11" fill="#222222">0</text>
+<line x1="72" y1="34" x2="72" y2="372" stroke="#222222" stroke-width="1"/>
+<line x1="72" y1="372" x2="656" y2="372" stroke="#222222" stroke-width="1"/>
+<circle cx="72" cy="34" r="3" fill="#0072B2"/>
+<circle cx="169.33333333333331" cy="107.9648429682709" r="3" fill="#E69F00"/>
+<circle cx="266.66666666666663" cy="127.93325586649887" r="3" fill="#009E73"/>
+<circle cx="364" cy="133.4547625964301" r="3" fill="#D55E00"/>
+<circle cx="461.3333333333333" cy="134.92214583131596" r="3" fill="#CC79A7"/>
+<circle cx="558.6666666666667" cy="135.46545947516222" r="3" fill="#56B4E9"/>
+<circle cx="656" cy="135.46873244892032" r="3" fill="#0072B2"/>
+<polyline points="72,34 169.333333,107.964843 266.666667,127.933256 364,133.454763 461.333333,134.922146 558.666667,135.465459 656,135.468732" fill="none" stroke="#0072B2" stroke-width="2"/>
+<text x="17" y="26" transform="rotate(-90 17 26)" text-anchor="middle" font-family="sans-serif" font-size="12" fill="#222222">单位期望利润（元/件）</text>
+</svg>

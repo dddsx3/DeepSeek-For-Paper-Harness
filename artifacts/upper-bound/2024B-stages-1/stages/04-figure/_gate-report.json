@@ -1,0 +1,21 @@
+{
+  "stage": "figure",
+  "code": 1,
+  "items": [
+    {
+      "id": "figure_manifest_reconcile",
+      "ok": false,
+      "detail": "计划里有、但没渲染出来：fig_p1_reject_region、fig_p3_strategy_heatmap；渲染了、但不在计划里：fig_p1_oc_curve_reject、fig_p1_scheme_table"
+    },
+    {
+      "id": "figure_declaration_complete",
+      "ok": true,
+      "detail": "18 条声明的 data_refs 全部解析到真有的 Result（177 条投影），且全部渲染"
+    },
+    {
+      "id": "figure_style_rules",
+      "ok": false,
+      "detail": "figures/fig_p1_sample_size_curve.svg：题注出现在图内（'问题一：最小样本量随标称次品率的变化（纯'）—— 数据图不写图内标题，题注由正文给；figures/fig_p1_scheme_table.svg：题注出现在图内（'问题一：四种抽样方案的样本量、判定阈值、'）—— 数据图不写图内标题，题注由正文给；figures/fig_p2_strategy_heatmap.svg：题注出现在图内（'问题二：六情形下六个代表策略的单位期望利'）—— 数据图不写图内标题，题注由正文给"
+    }
+  ]
+}

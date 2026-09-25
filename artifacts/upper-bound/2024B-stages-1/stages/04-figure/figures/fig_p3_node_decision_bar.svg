@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="680" height="420" viewBox="0 0 680 420" role="img">
+<line x1="72" y1="34" x2="656" y2="34" stroke="#D8D8D8" stroke-width="1"/>
+<text x="64" y="38" text-anchor="end" font-family="monospace" font-size="11" fill="#222222">0</text>
+<line x1="72" y1="118.5" x2="656" y2="118.5" stroke="#D8D8D8" stroke-width="1"/>
+<text x="64" y="122.5" text-anchor="end" font-family="monospace" font-size="11" fill="#222222">-5.8832</text>
+<line x1="72" y1="203" x2="656" y2="203" stroke="#D8D8D8" stroke-width="1"/>
+<text x="64" y="207" text-anchor="end" font-family="monospace" font-size="11" fill="#222222">-11.7664</text>
+<line x1="72" y1="287.5" x2="656" y2="287.5" stroke="#D8D8D8" stroke-width="1"/>
+<text x="64" y="291.5" text-anchor="end" font-family="monospace" font-size="11" fill="#222222">-17.6496</text>
+<line x1="72" y1="372" x2="656" y2="372" stroke="#D8D8D8" stroke-width="1"/>
+<text x="64" y="376" text-anchor="end" font-family="monospace" font-size="11" fill="#222222">-23.5328</text>
+<line x1="72" y1="34" x2="72" y2="372" stroke="#222222" stroke-width="1"/>
+<line x1="72" y1="372" x2="656" y2="372" stroke="#222222" stroke-width="1"/>
+<rect x="62" y="44.69894785150939" width="20" height="327.3010521484906" fill="#0072B2"/>
+<rect x="115.0909090909091" y="46.2946695675823" width="20" height="325.7053304324177" fill="#E69F00"/>
+<rect x="168.1818181818182" y="48.2638275088387" width="20" height="323.7361724911613" fill="#009E73"/>
+<rect x="221.27272727272725" y="48.2638275088387" width="20" height="323.7361724911613" fill="#D55E00"/>
+<rect x="274.3636363636364" y="42.728353617079144" width="20" height="329.27164638292084" fill="#CC79A7"/>
+<rect x="327.45454545454544" y="42.728353617079144" width="20" height="329.27164638292084" fill="#56B4E9"/>
+<rect x="380.5454545454545" y="47.07601305412018" width="20" height="324.92398694587985" fill="#0072B2"/>
+<rect x="433.6363636363636" y="47.07601305412018" width="20" height="324.92398694587985" fill="#E69F00"/>
+<rect x="486.72727272727275" y="366.67422491161267" width="20" height="5.325775088387331" fill="#009E73"/>
+<rect x="539.8181818181819" y="372" width="20" height="0" fill="#D55E00"/>
+<rect x="592.9090909090909" y="361.30248844166437" width="20" height="10.697511558335634" fill="#CC79A7"/>
+<rect x="646" y="129.75335701658958" width="20" height="242.24664298341042" fill="#56B4E9"/>
+<text x="17" y="26" transform="rotate(-90 17 26)" text-anchor="middle" font-family="sans-serif" font-size="12" fill="#222222">利润变化（元/件）</text>
+</svg>
