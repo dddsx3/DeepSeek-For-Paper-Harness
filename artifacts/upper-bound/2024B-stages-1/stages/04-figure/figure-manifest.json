@@ -1,0 +1,329 @@
+{
+  "figures": [
+    {
+      "figure_id": "fig_p1_sample_size_curve",
+      "file": "figures/fig_p1_sample_size_curve.svg",
+      "chart_type": "table",
+      "data_refs": [
+        "p1_n_rej_p005",
+        "p1_n_rej_p010",
+        "p1_n_rej_p015",
+        "p1_n_rej_p020",
+        "p1_n_acc_p005",
+        "p1_n_acc_p010",
+        "p1_n_acc_p015",
+        "p1_n_acc_p020"
+      ],
+      "data_hash": "sha256:7f72259129570df44957fdba8f664d4a283c9f146cf03162a231ee396407d01d",
+      "style_profile": "okabe-ito-v1",
+      "bytes": 5322
+    },
+    {
+      "figure_id": "fig_p1_oc_curve",
+      "file": "figures/fig_p1_oc_curve.svg",
+      "chart_type": "line",
+      "data_refs": [
+        "p1_oc_acc_p002",
+        "p1_oc_acc_p005",
+        "p1_oc_acc_p010",
+        "p1_oc_acc_p015",
+        "p1_oc_acc_p020"
+      ],
+      "data_hash": "sha256:964b5b63b1fb8c219ea7f63f7690ab3d6b745216a79e3399fe67a2a99e6c64b8",
+      "style_profile": "okabe-ito-v1",
+      "bytes": 1883
+    },
+    {
+      "figure_id": "fig_p1_oc_curve_reject",
+      "file": "figures/fig_p1_oc_curve_reject.svg",
+      "chart_type": "line",
+      "data_refs": [
+        "p1_oc_rej_p005",
+        "p1_oc_rej_p010",
+        "p1_oc_rej_p015",
+        "p1_oc_rej_p020"
+      ],
+      "data_hash": "sha256:76adb2d1c76680377a85a9dfbf03dc3928f80b60914ee14aca8913da369b8078",
+      "style_profile": "okabe-ito-v1",
+      "bytes": 1851
+    },
+    {
+      "figure_id": "fig_p1_scheme_table",
+      "file": "figures/fig_p1_scheme_table.svg",
+      "chart_type": "table",
+      "data_refs": [
+        "p1_n_rej_pure",
+        "p1_k_rej_pure",
+        "p1_size_rej_pure",
+        "p1_power_rej_pure",
+        "p1_n_rej_enh",
+        "p1_k_rej_enh",
+        "p1_size_rej_enh",
+        "p1_power_rej_enh",
+        "p1_n_acc_pure",
+        "p1_k_acc_pure",
+        "p1_size_acc_pure",
+        "p1_power_acc_pure",
+        "p1_n_acc_enh",
+        "p1_k_acc_enh",
+        "p1_size_acc_enh",
+        "p1_power_acc_enh"
+      ],
+      "data_hash": "sha256:8bc2c85c9f2472be0cb4e4bb5c874c12caa0f296ac35b3e21ae3b1b30980dd34",
+      "style_profile": "okabe-ito-v1",
+      "bytes": 9748
+    },
+    {
+      "figure_id": "fig_p1_cost_compare",
+      "file": "figures/fig_p1_cost_compare.svg",
+      "chart_type": "bar",
+      "data_refs": [
+        "p1_n_rej_pure",
+        "p1_n_rej_enh",
+        "p1_n_acc_pure",
+        "p1_n_acc_enh"
+      ],
+      "data_hash": "sha256:a9ee38c43d3eb5f661dd416fddb3d9ad1fe5fe0d9a703521b388e8cf14aa1ed5",
+      "style_profile": "okabe-ito-v1",
+      "bytes": 1703
+    },
+    {
+      "figure_id": "fig_p2_strategy_heatmap",
+      "file": "figures/fig_p2_strategy_heatmap.svg",
+      "chart_type": "table",
+      "data_refs": [
+        "p2_pi_s1_x0001",
+        "p2_pi_s1_x0011",
+        "p2_pi_s1_x1001",
+        "p2_pi_s1_x1000",
+        "p2_pi_s1_x1010",
+        "p2_pi_s1_x1111",
+        "p2_pi_s2_x0001",
+        "p2_pi_s2_x0011",
+        "p2_pi_s2_x1001",
+        "p2_pi_s2_x1000",
+        "p2_pi_s2_x1010",
+        "p2_pi_s2_x1111",
+        "p2_pi_s3_x0001",
+        "p2_pi_s3_x0011",
+        "p2_pi_s3_x1001",
+        "p2_pi_s3_x1000",
+        "p2_pi_s3_x1010",
+        "p2_pi_s3_x1111",
+        "p2_pi_s4_x0001",
+        "p2_pi_s4_x0011",
+        "p2_pi_s4_x1001",
+        "p2_pi_s4_x1000",
+        "p2_pi_s4_x1010",
+        "p2_pi_s4_x1111",
+        "p2_pi_s5_x0001",
+        "p2_pi_s5_x0011",
+        "p2_pi_s5_x1001",
+        "p2_pi_s5_x1000",
+        "p2_pi_s5_x1010",
+        "p2_pi_s5_x1111",
+        "p2_pi_s6_x0001",
+        "p2_pi_s6_x0011",
+        "p2_pi_s6_x1001",
+        "p2_pi_s6_x1000",
+        "p2_pi_s6_x1010",
+        "p2_pi_s6_x1111"
+      ],
+      "data_hash": "sha256:79c4758d8c4af842faacd014fc60d0f8b04bcd1663b0e71c1f05ebe845f04402",
+      "style_profile": "okabe-ito-v1",
+      "bytes": 20932
+    },
+    {
+      "figure_id": "fig_p2_best_strategy_bar",
+      "file": "figures/fig_p2_best_strategy_bar.svg",
+      "chart_type": "bar",
+      "data_refs": [
+        "p2_best_s1",
+        "p2_best_s2",
+        "p2_best_s3",
+        "p2_best_s4",
+        "p2_best_s5",
+        "p2_best_s6"
+      ],
+      "data_hash": "sha256:ed3de3fd536878037bfa102406420328d7b0710b07a42013a87fd4d991a50db9",
+      "style_profile": "okabe-ito-v1",
+      "bytes": 1879
+    },
+    {
+      "figure_id": "fig_p2_profit_decompose",
+      "file": "figures/fig_p2_profit_decompose.svg",
+      "chart_type": "bar",
+      "data_refs": [
+        "p2_dec_parts",
+        "p2_dec_asm",
+        "p2_dec_exch",
+        "p2_dec_dis",
+        "p2_best_s1"
+      ],
+      "data_hash": "sha256:8121322e37d905d189cda13e78575eeaf94e5fb4a4da2bf55bef3b5d90d54c84",
+      "style_profile": "okabe-ito-v1",
+      "bytes": 1736
+    },
+    {
+      "figure_id": "fig_p2_sensitivity_defect",
+      "file": "figures/fig_p2_sensitivity_defect.svg",
+      "chart_type": "line",
+      "data_refs": [
+        "p2_sens_base",
+        "p2_sens_p1_lo",
+        "p2_sens_p1_hi",
+        "p2_sens_p2_lo",
+        "p2_sens_p2_hi",
+        "p2_sens_pa_lo",
+        "p2_sens_pa_hi"
+      ],
+      "data_hash": "sha256:5b4775cba4a67a2c5b86f0a2ae11eaac743d1c3d8bf32bb3e57b69d2fa7578b3",
+      "style_profile": "okabe-ito-v1",
+      "bytes": 1980
+    },
+    {
+      "figure_id": "fig_p2_sensitivity_exchange",
+      "file": "figures/fig_p2_sensitivity_exchange.svg",
+      "chart_type": "line",
+      "data_refs": [
+        "p2_sens_L_m000",
+        "p2_sens_L_m050",
+        "p2_sens_L_m100",
+        "p2_sens_L_m150",
+        "p2_sens_L_m200"
+      ],
+      "data_hash": "sha256:f67986731b45bd90a8a60b6c37c5580dee5f29f6c92e7b6c80f9e4a0f18a1a9a",
+      "style_profile": "okabe-ito-v1",
+      "bytes": 1779
+    },
+    {
+      "figure_id": "fig_p2_disassembly_reuse",
+      "file": "figures/fig_p2_disassembly_reuse.svg",
+      "chart_type": "line",
+      "data_refs": [
+        "p2_reuse_Kk1",
+        "p2_reuse_Kk2",
+        "p2_reuse_Kk3",
+        "p2_reuse_Kk4",
+        "p2_reuse_Kk5",
+        "p2_reuse_Kk10",
+        "p2_best_s1"
+      ],
+      "data_hash": "sha256:1021ecfa78659c88dd0e460f3be8c4317a116fbb13228de4655d92b49aae80d8",
+      "style_profile": "okabe-ito-v1",
+      "bytes": 2029
+    },
+    {
+      "figure_id": "fig_p3_node_decision_bar",
+      "file": "figures/fig_p3_node_decision_bar.svg",
+      "chart_type": "bar",
+      "data_refs": [
+        "p3_dm_x1",
+        "p3_dm_x2",
+        "p3_dm_x3",
+        "p3_dm_x4",
+        "p3_dm_x5",
+        "p3_dm_x6",
+        "p3_dm_x7",
+        "p3_dm_x8",
+        "p3_dm_xs1",
+        "p3_dm_xs2",
+        "p3_dm_xs3",
+        "p3_dm_xf"
+      ],
+      "data_hash": "sha256:92b11ad243e7511391599694efbcc0c3fff147f6db1b8bb574eae53cbe16412e",
+      "style_profile": "okabe-ito-v1",
+      "bytes": 2560
+    },
+    {
+      "figure_id": "fig_p3_profit_decompose",
+      "file": "figures/fig_p3_profit_decompose.svg",
+      "chart_type": "bar",
+      "data_refs": [
+        "p3_dec_parts",
+        "p3_dec_asm",
+        "p3_dec_exch",
+        "p3_dec_dis",
+        "p3_pi_opt"
+      ],
+      "data_hash": "sha256:12d1b59eba65465e30be710ab6d8d4617e66993693df23dae89db47b60d2b9a9",
+      "style_profile": "okabe-ito-v1",
+      "bytes": 1735
+    },
+    {
+      "figure_id": "fig_p3_sensitivity_price",
+      "file": "figures/fig_p3_sensitivity_price.svg",
+      "chart_type": "line",
+      "data_refs": [
+        "p3_sens_s080",
+        "p3_sens_s090",
+        "p3_sens_s100",
+        "p3_sens_s110",
+        "p3_sens_s120"
+      ],
+      "data_hash": "sha256:74743dec536a92c34999613777ddb4978b852a01023b6bf4fffab7f4aa3d3f2c",
+      "style_profile": "okabe-ito-v1",
+      "bytes": 1787
+    },
+    {
+      "figure_id": "fig_p4_profit_band",
+      "file": "figures/fig_p4_profit_band.svg",
+      "chart_type": "bar",
+      "data_refs": [
+        "p4_band1_lo",
+        "p4_band1_hi",
+        "p4_band2_lo",
+        "p4_band2_hi",
+        "p4_pi1_point",
+        "p4_pi2_point"
+      ],
+      "data_hash": "sha256:34e203f756a8227e88d2d20b04adc3fe7ea8bff518455a4ac16e743d97002997",
+      "style_profile": "okabe-ito-v1",
+      "bytes": 1882
+    },
+    {
+      "figure_id": "fig_p4_decision_stability",
+      "file": "figures/fig_p4_decision_stability.svg",
+      "chart_type": "line",
+      "data_refs": [
+        "p4_gap_n109",
+        "p4_gap_n500",
+        "p4_gap_n1000",
+        "p4_gap_n2000",
+        "p4_gap_nstar",
+        "p4_gap_n5000"
+      ],
+      "data_hash": "sha256:05c969c31e90cf7dd69081838319f4500ff21b7157f53ceb853cc56aeaa5f065",
+      "style_profile": "okabe-ito-v1",
+      "bytes": 1853
+    },
+    {
+      "figure_id": "fig_check_flow_balance",
+      "file": "figures/fig_check_flow_balance.svg",
+      "chart_type": "bar",
+      "data_refs": [
+        "chk_flow_buy",
+        "chk_flow_reuse",
+        "chk_flow_out",
+        "chk_flow_residual"
+      ],
+      "data_hash": "sha256:f47095a60445f4b79cdc94f3cc210a2c4999f3a7852fb5bbd05a92224fb8b623",
+      "style_profile": "okabe-ito-v1",
+      "bytes": 1625
+    },
+    {
+      "figure_id": "fig_check_mc_convergence",
+      "file": "figures/fig_check_mc_convergence.svg",
+      "chart_type": "line",
+      "data_refs": [
+        "chk_mc_se_1e3",
+        "chk_mc_se_1e4",
+        "chk_mc_se_1e5",
+        "chk_mc_se_1e6"
+      ],
+      "data_hash": "sha256:766f5e24eaee44594de8027f6d32e45624453529b99cb181f12af3cb08c9b0b2",
+      "style_profile": "okabe-ito-v1",
+      "bytes": 1741
+    }
+  ]
+}

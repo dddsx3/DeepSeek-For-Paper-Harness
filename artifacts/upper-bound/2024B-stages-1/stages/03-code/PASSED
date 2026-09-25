@@ -1,0 +1,44 @@
+{
+  "passportVersion": 1,
+  "stage": "code",
+  "index": 3,
+  "at": "2026-09-24T23:48:28.608Z",
+  "status": "stale",
+  "inputDigest": "920a0b1c5afdb349c52a5b4fcab0f90c74f9a660ebe324f6f46df1b8f3e0b10c",
+  "artifacts": {
+    "code/main.py": "641fb25c35948fb48607aa550fb3947072dc8506a225a9871280111ef9b28ca1",
+    "code/": "dir:5",
+    "RESULTS.md": "9020544d04bb7b2f024f621a2fb4d20091d093e24fce7c2e694a2d4f67698b3f",
+    "DELIVERABLES.json": "c5a4994a40caaf63e347acf798a0dc0e272b714118fbacf07c182171e3d8f5cd",
+    "FIGURE_DECLARATIONS.json": "7b12e159945fdaa6f518900b0086e045343bf85384508dd26ad806d994fe46b7"
+  },
+  "gate": {
+    "code": 2,
+    "items": [
+      {
+        "id": "code_parity",
+        "ok": true,
+        "detail": "代码文件 4 个 ≥ 题面 4 问"
+      },
+      {
+        "id": "delivery_audit",
+        "ok": false,
+        "detail": "未实现：参考的 delivery_audit.py 要核对 DELIVERABLES.json 声明的每个交付物**真的存在且非空**。需要先确定本 harness 的交付物清单形态（与零数字通道的 Result 如何对应）。"
+      },
+      {
+        "id": "leakage_audit",
+        "ok": true,
+        "detail": "出现 ≥0.99 的指标，且产物里有去泄漏说明"
+      },
+      {
+        "id": "no_render",
+        "ok": true,
+        "detail": "没有图像产物（渲染归阶段 4）"
+      }
+    ]
+  },
+  "unverifiedGates": [
+    "delivery_audit"
+  ],
+  "staleReason": "阶段 3 拆分（code | result-sources 分离）后契约已变，重跑 —— 检查人否决"
+}

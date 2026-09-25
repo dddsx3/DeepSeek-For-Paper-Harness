@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="680" height="420" viewBox="0 0 680 420" role="img">
+<line x1="72" y1="34" x2="656" y2="34" stroke="#D8D8D8" stroke-width="1"/>
+<text x="64" y="38" text-anchor="end" font-family="monospace" font-size="11" fill="#222222">25.1105</text>
+<line x1="72" y1="118.5" x2="656" y2="118.5" stroke="#D8D8D8" stroke-width="1"/>
+<text x="64" y="122.5" text-anchor="end" font-family="monospace" font-size="11" fill="#222222">18.832875</text>
+<line x1="72" y1="203" x2="656" y2="203" stroke="#D8D8D8" stroke-width="1"/>
+<text x="64" y="207" text-anchor="end" font-family="monospace" font-size="11" fill="#222222">12.55525</text>
+<line x1="72" y1="287.5" x2="656" y2="287.5" stroke="#D8D8D8" stroke-width="1"/>
+<text x="64" y="291.5" text-anchor="end" font-family="monospace" font-size="11" fill="#222222">6.277625</text>
+<line x1="72" y1="372" x2="656" y2="372" stroke="#D8D8D8" stroke-width="1"/>
+<text x="64" y="376" text-anchor="end" font-family="monospace" font-size="11" fill="#222222">0</text>
+<line x1="72" y1="34" x2="72" y2="372" stroke="#222222" stroke-width="1"/>
+<line x1="72" y1="372" x2="656" y2="372" stroke="#222222" stroke-width="1"/>
+<rect x="62" y="172.9083690089803" width="20" height="199.0916309910197" fill="#0072B2"/>
+<rect x="178.8" y="34" width="20" height="338" fill="#E69F00"/>
+<rect x="295.6" y="179.09212480834708" width="20" height="192.90787519165292" fill="#009E73"/>
+<rect x="412.4" y="58.04315326257938" width="20" height="313.9568467374206" fill="#D55E00"/>
+<rect x="529.2" y="81.1279185997889" width="20" height="290.8720814002111" fill="#CC79A7"/>
+<rect x="646" y="100.22433643296627" width="20" height="271.77566356703375" fill="#56B4E9"/>
+<text x="17" y="26" transform="rotate(-90 17 26)" text-anchor="middle" font-family="sans-serif" font-size="12" fill="#222222">单位期望利润（元/件）</text>
+</svg>

@@ -1,0 +1,55 @@
+{
+  "stage": "03-code",
+  "problem": "2024高教社杯B题：生产过程中的决策问题",
+  "deliverables": [
+    {
+      "path": "code/main.py",
+      "kind": "code",
+      "min_rows": 0,
+      "min_bytes": 500,
+      "desc": "编排入口：依次求解问题1-4并汇总写出results/results.json与控制台摘要"
+    },
+    {
+      "path": "code/problem1.py",
+      "kind": "code",
+      "min_rows": 0,
+      "min_bytes": 1500,
+      "desc": "问题1：单侧二项精确检验、最小样本量整数扫描与CP置信区间"
+    },
+    {
+      "path": "code/problem2.py",
+      "kind": "code",
+      "min_rows": 0,
+      "min_bytes": 2500,
+      "desc": "问题2：16策略全枚举、稳态期望利润、灵敏度扫描与流量/蒙特卡洛校核"
+    },
+    {
+      "path": "code/problem3.py",
+      "kind": "code",
+      "min_rows": 0,
+      "min_bytes": 2500,
+      "desc": "问题3：装配网络拓扑序递归与65536策略全枚举、检测/拆解决策边际收益"
+    },
+    {
+      "path": "code/problem4.py",
+      "kind": "code",
+      "min_rows": 0,
+      "min_bytes": 1500,
+      "desc": "问题4：CP区间端点传播、maximin稳健决策与带分离翻转临界样本量"
+    },
+    {
+      "path": "RESULTS.md",
+      "kind": "doc",
+      "min_rows": 0,
+      "min_bytes": 1024,
+      "desc": "四问关键数值、校核证据、归因与诚实边界"
+    },
+    {
+      "path": "FIGURE_DECLARATIONS.json",
+      "kind": "data",
+      "min_rows": 100,
+      "min_bytes": 8000,
+      "desc": "执行结果只读投影（results）与图表声明（figures），渲染由阶段4执行"
+    }
+  ]
+}

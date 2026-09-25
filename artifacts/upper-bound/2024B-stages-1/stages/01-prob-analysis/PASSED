@@ -1,0 +1,37 @@
+{
+  "passportVersion": 1,
+  "stage": "prob-analysis",
+  "index": 1,
+  "at": "2026-09-24T17:39:44.551Z",
+  "status": "passed",
+  "inputDigest": "ba3eaeb0c4cb0631ab6bb138178646f1bc0f3d6e0646a24bfe55542ae8d65566",
+  "artifacts": {
+    "PROBLEM_ANALYSIS.md": "38c22755458b28dd8dfe7658528467eea2d1d4798eb9b530c90cd6d3174b2642",
+    "CAPABILITY_CHECKLIST.json": "763cb8d223fd12220d495e8f61b815be4a4a190aa4933cf2994c992cfce144d5",
+    "PROBLEM_FACTS.json": "edbafc996c0012382e23d1473dd6bc2dc0067b3a319baa54bb3b38c36a3072f9",
+    "DATA_PROFILE.json": "63a3bec3c4f2c8482801573ab765d997f48f01d2cd7eb1a9da34bdab71b51a93"
+  },
+  "gate": {
+    "code": 2,
+    "items": [
+      {
+        "id": "prob_analysis_floor",
+        "ok": true,
+        "detail": "PROBLEM_ANALYSIS.md 24308 字节 ≥ 1500"
+      },
+      {
+        "id": "figure_manifest_anchors",
+        "ok": true,
+        "detail": "FIGURE_MANIFEST 锚点完整，条目全部以 fig_/tikz_ 开头"
+      },
+      {
+        "id": "capability_check",
+        "ok": false,
+        "detail": "未实现：参考的 capability_check.py 要跨 PROBLEM_ANALYSIS.md 的逐句表与 CAPABILITY_CHECKLIST.json 逐条比对（每条\"决策/目标/机制\"句必须被某个能力项的 source_sentence 认领）。实现它需要先定义逐句表的机器可读形态。"
+      }
+    ]
+  },
+  "unverifiedGates": [
+    "capability_check"
+  ]
+}
