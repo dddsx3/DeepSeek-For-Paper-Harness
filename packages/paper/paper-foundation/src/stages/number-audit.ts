@@ -68,6 +68,19 @@ const YEAR_MIN = 1400
 const YEAR_MAX = 2100
 
 /**
+ * 日期/随机种子放行（6 位 YYYYMM，如 `202409`）。
+ *
+ * 实测假阳性：正文声明"随机种子 202409"，被当成无出生证明的数字报错——而它是
+ * **模型自己声明的常数**（只是声明在散文里，不在 `DECLARATION.json` 里，白名单读不到）。
+ * 边界同 YEAR：恰好落在这个区间的 6 位计算结果会被漏掉（罕见）。
+ */
+function looksLikeDateSeed(numeric: number): boolean {
+  if (!Number.isInteger(numeric) || numeric < 190_001 || numeric > 210_012) return false
+  const month = numeric % 100
+  return month >= 1 && month <= 12
+}
+
+/**
  * 数字面量：**必须带词边界**，避免把标识符里的数字当数字
  * （`EQ-01`、`fig_p1_x`、`ASM-12` 里的数字先由 `stripIdentifiers` 抹掉）。
  */
@@ -91,6 +104,10 @@ export function stripIdentifiers(text: string): string {
     .replace(/(?:§|第)\s*\d+(?:\.\d+)+(?=\s*节|\s*章|\s|$)/g, ' ')
     // `5.3 节` / `4.2 章` 这类**无前缀**的章节引用（实测假阳性：正文写"第 4.2 节与 5.3 节"）
     .replace(/\d+(?:\.\d+)+(?=\s*[节章])/g, ' ')
+    // **正文里的章节引用**（实测假阳性："理由见 4.1 末"、"4.3 论证"、"见 4.4 末"）。
+    // 判据是**引用语境**而不是"点分数字一律放行"——后者会把 12.50 这类真结果也放掉。
+    .replace(/(?:见|参见|理由见|按|如|依|据)\s*\d+(?:\.\d+)+/g, ' ')
+    .replace(/\d+(?:\.\d+)+(?=\s*(?:末|论证|小节|节末|所述|的说明))/g, ' ')
     // 行首锚点 `[[ASSUMPTION: A-X]]`。**必须点名锚点关键字**——否则 `[[` 会误吃
     // JSON 的二维数组（`[["1","10%"…]]`），实测踩到过：白名单因此丢掉整张表。
     .replace(/\[\[(?:ASSUMPTION|REQUIREMENT|DECISION):[^\]]*\]\]/g, ' ')
@@ -174,6 +191,18 @@ export function auditNumbers(text: string, allowed: ReadonlySet<string>): Number
         allowedCount += 1
         continue
       }
+      // 日期/随机种子放行（`202409`）
+      if (looksLikeDateSeed(numeric)) {
+        allowedCount += 1
+        continue
+      }
+      // `100%` 放行——"100% 准确/完整"是**完备性表述**不是计算结果。
+      // 只放行后面紧跟 `%` 的 100，别的 100 仍然要出生证明。
+      const after = line.slice((match.index ?? 0) + literal.length, (match.index ?? 0) + literal.length + 1)
+      if (literal === '100' && after === '%') {
+        allowedCount += 1
+        continue
+      }
       if (allowed.has(key)) {
         allowedCount += 1
         continue
@@ -196,7 +225,11 @@ export function auditNumbers(text: string, allowed: ReadonlySet<string>): Number
  * 它给下游传递"已验证"的假信号。
  */
 const VERIFICATION_CLAIMS: ReadonlyArray<{ readonly pattern: RegExp; readonly why: string }> = [
-  { pattern: /(?:全部|均|都|逐一|一一)\s*(?:通过|一致|闭合|满足|吻合|相等)/, why: '"全部通过/一致"式的完成时结论' },
+  // `通过` 在中文里是**歧义**的："全部通过"（passed）vs "均通过抽样检测得到"（via）。
+  // 实测假阳性：正文写"所有次品的次品率均通过抽样检测方法得到"，被判成"声称已执行检验"。
+  // 所以裸 `通过` 必须落在**小句末尾**才算"通过"；而"一致/闭合/满足/吻合/相等"无歧义，照旧。
+  { pattern: /(?:全部|均|都|逐一|一一)\s*(?:一致|闭合|满足|吻合|相等)/, why: '"全部一致/满足"式的完成时结论' },
+  { pattern: /(?:全部|均|都|逐一|一一)\s*通过(?=[。，、；：（）()\[\]「」\s]|$)/, why: '"全部通过"式的完成时结论' },
   { pattern: /(?:检验|验证|校核|核对|测试)\s*(?:通过|一致|合格|完成|无误)/, why: '把"检验"写成已完成的结论' },
   { pattern: /(?:容差|误差|偏差)\s*(?:为|=|≤|<|不超过)\s*[\d.]+\s*(?:时)?\s*(?:通过|一致|内)/, why: '带容差的"通过"结论' },
   { pattern: /(?:已|经)\s*(?:验证|校核|检验|确认|核实)/, why: '"已验证/已校核"式声明' },
