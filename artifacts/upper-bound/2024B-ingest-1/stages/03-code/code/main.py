@@ -1,100 +1,117 @@
-﻿# -*- coding: utf-8 -*-
-"""阶段 3 编排入口：依次跑问题 1~4 与灵敏度扫描，把全部结果写进 outputs.json。
+"""阶段 03 编排入口。
 
-运行：python code/main.py（工作目录任意，输出落在本文件同目录的 outputs.json）。
+依次执行问题 1-4 的求解模块，把每一问的数值结果汇总成单一 JSON 账本
+``outputs.json``，落在当前工作目录（即本目录 code/）下。
+
+运行方式
+--------
+    python main.py            # 工作目录 = code/
+    python code/main.py       # 工作目录 = code/
+
+纪律
+----
+* 所有数值常数来自 params.py（由题面给定值展开而成），本文件不写死任何模型常数；
+* 本阶段不产生任何图像字节，不做任何绘图调用；量一律落 JSON 文件，不依赖 stdout；
+* 某一问失败不终止整体流程，错误原文记入账本对应键，其余问答照常落盘。
 """
 
+import importlib
 import json
 import os
 import sys
+import traceback
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 if HERE not in sys.path:
     sys.path.insert(0, HERE)
 
-import problem1  # noqa: E402
-import problem2  # noqa: E402
-import problem3  # noqa: E402
-import problem4  # noqa: E402
-import sensitivity  # noqa: E402
-from constants import MODEL_CONSTANTS, IMPLEMENTATION_PARAMS  # noqa: E402
+PROBLEM_MODULES = ("problem1", "problem2", "problem3", "problem4")
+LEDGER_FILENAME = "outputs.json"
 
-OUT_PATH = os.path.join(HERE, "outputs.json")
+
+def to_native(obj):
+    """把 numpy 标量 / 数组等递归转成可 JSON 序列化的原生类型。"""
+    if isinstance(obj, dict):
+        return {str(key): to_native(value) for key, value in obj.items()}
+    if isinstance(obj, (list, tuple)):
+        return [to_native(item) for item in obj]
+    if isinstance(obj, bool):
+        return bool(obj)
+    if isinstance(obj, int):
+        return int(obj)
+    if isinstance(obj, float):
+        return float(obj)
+    if hasattr(obj, "tolist"):
+        return to_native(obj.tolist())
+    if hasattr(obj, "item"):
+        return to_native(obj.item())
+    return obj
+
+
+def echo_constants():
+    """回显 params.py 中的标量常数，供阶段 8 复核每一次运行的键名取值。"""
+    echo = {}
+    try:
+        import params
+    except Exception:
+        return echo
+    for name in dir(params):
+        if name.startswith("_") or not name.isupper():
+            continue
+        try:
+            value = getattr(params, name)
+        except Exception:
+            continue
+        if isinstance(value, (bool, int, float, str)):
+            echo[name] = value
+    return echo
+
+
+def run_problem(modname):
+    """导入并执行单个问的 solve()，返回 (ok, payload)。"""
+    try:
+        module = importlib.import_module(modname)
+    except Exception:
+        return False, {
+            "error": "import %s failed" % modname,
+            "traceback": traceback.format_exc(),
+        }
+    solve = getattr(module, "solve", None)
+    if not callable(solve):
+        return False, {"error": "%s 未提供可调用的 solve()" % modname}
+    try:
+        payload = solve()
+    except Exception:
+        return False, {
+            "error": "%s.solve() raised" % modname,
+            "traceback": traceback.format_exc(),
+        }
+    if not isinstance(payload, dict):
+        return False, {
+            "error": "%s.solve() 未返回 dict" % modname,
+            "payload_type": type(payload).__name__,
+        }
+    return True, to_native(payload)
 
 
 def main():
-    tol = MODEL_CONSTANTS["数值容差"]
-    out = {}
+    ledger = {}
+    status = {}
+    for modname in PROBLEM_MODULES:
+        ok, payload = run_problem(modname)
+        ledger[modname] = payload
+        status[modname] = ok
+        sys.stdout.write("[%s] %s\n" % (modname, "ok" if ok else "FAILED"))
 
-    # ------------------------------------------------ 问题 1
-    q1 = problem1.solve()
-    out["q1"] = q1
+    ledger["run_status"] = status
+    ledger["all_ok"] = all(status.values())
+    ledger["constants_echo"] = echo_constants()
 
-    # ------------------------------------------------ 问题 2
-    q2 = problem2.solve()
-    out["q2"] = q2
-
-    # ------------------------------------------------ 问题 3
-    q3 = problem3.solve()
-    q3["topology_robust"] = problem3.topology_robustness()
-    out["q3"] = q3
-
-    # ------------------------------------------------ 问题 4
-    out["q4"] = problem4.solve()
-
-    # ------------------------------------------------ 灵敏度
-    out["sensitivity"] = sensitivity.solve()
-
-    # ------------------------------------------------ 自检（不进论文数字，只做一致性证据）
-    checks = {}
-    checks["q1_case1_constraint_ok"] = q1["case1_reject"]["constraint_ok"]
-    checks["q1_case2_constraint_ok"] = q1["case2_accept"]["constraint_ok"]
-    checks["q2_max_breakdown_residual"] = q2["max_breakdown_residual"]
-    checks["q2_breakdown_ok"] = bool(q2["max_breakdown_residual"] <= tol)
-    checks["q2_strategy_count_ok"] = bool(q2["strategy_count"] == MODEL_CONSTANTS["问题2策略组合数"])
-    checks["q3_node_count_ok"] = bool(q3["node_count"] == MODEL_CONSTANTS["问题3图1节点总数"])
-    checks["q3_semi_count_ok"] = bool(
-        MODEL_CONSTANTS["问题3半成品数"]
-        == sum(1 for d in q3["decision_table"] if d["kind"] == "semi")
-    )
-    checks["q4_covers_all_q2_cases"] = bool(
-        [c["case"] for c in out["q4"]["q2"]["cases"]] == [c["case"] for c in q2["cases"]]
-    )
-    checks["q4_ci_brackets_point"] = all(
-        c["ci"][j][0] <= c["p_hat"][j] <= c["ci"][j][1]
-        for c in out["q4"]["q2"]["cases"] for j in range(3)
-    )
-    checks["q4_profit_range_ordered"] = all(
-        c["profit_range"][0] is not None and c["profit_range"][0] <= c["profit_range"][1] + tol
-        for c in out["q4"]["q2"]["cases"]
-    )
-    checks["normal_approx_threshold_used"] = q1["normal_approx"]["threshold"]
-    checks["implementation_params"] = IMPLEMENTATION_PARAMS
-    out["verification"] = checks
-
-    # 锚点索引：把 MODELING_REPORT 登记的结果锚点名映射到 outputs.json 的键路径
-    out["anchor_index"] = {
-        "R-Q1-n-case95": "q1.case1_reject.n_star",
-        "R-Q1-c-case95": "q1.case1_reject.c_star",
-        "R-Q1-n-case90": "q1.case2_accept.n_star",
-        "R-Q1-c-case90": "q1.case2_accept.c_star",
-        "R-Q1-sampling-cost": "q1.sampling_cost.case1_cost",
-        "R-Q2-best-combo": "q2.best_combo",
-        "R-Q3-profit": "q3.profit",
-        "R-Q3-decision-table": "q3.decision_table",
-        "R-Q3-node-cost": "q3.node_cost",
-        "R-Q3-topology-robust": "q3.topology_robust",
-        "R-Q4-ci-part1": "q4.q2.cases[0].ci",
-        "R-Q4-profit-range": "q4.q2.cases[0].profit_range",
-        "R-Q4-consistency-rate": "q4.q2.cases[0].consistency_rate",
-        "R-Q4-decision-diff": "q4.decision_diff",
-        "R-OUT-profit-def": "q2.cases[0].best.unit_cost",
-    }
-
-    with open(OUT_PATH, "w", encoding="utf-8") as f:
-        json.dump(out, f, ensure_ascii=False, indent=2)
-    print("wrote %s (%d bytes)" % (OUT_PATH, os.path.getsize(OUT_PATH)))
-    return 0
+    out_path = os.path.join(os.getcwd(), LEDGER_FILENAME)
+    with open(out_path, "w", encoding="utf-8") as handle:
+        json.dump(ledger, handle, ensure_ascii=False, indent=2, default=str)
+    sys.stdout.write("账本已写入: %s\n" % out_path)
+    return 0 if ledger["all_ok"] else 1
 
 
 if __name__ == "__main__":

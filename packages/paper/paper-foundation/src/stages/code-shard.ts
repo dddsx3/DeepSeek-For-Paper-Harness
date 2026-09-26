@@ -114,6 +114,24 @@ export function planModelingShards(spec: StageSpec, prompt: string): ReadonlyArr
 }
 
 /**
+ * 剥掉**一层**包裹围栏（```` ```json ```` / ```` ```python ```` / ```` ``` ````）。
+ *
+ * 为什么容忍：分片契约明写"回答从第一个字符到最后一个字符就是文件内容，
+ * 不得有任何解释、任何代码围栏"，但实测（2024B 阶段 3 第 2 轮）模型仍会给
+ * 末片的 JSON 信封套一层 ```` ```json ````——**那是纯粹的书写惯性，不是内容缺失**，
+ * 代价却是整轮 6 次模型调用白跑（十几分钟）。
+ *
+ * 参考在同类位置的口径是*"形态宽容，但**内容**必须真的在"*：剥掉围栏之后仍要过
+ * 全部内容判据（信封必须是合法 JSON、脚本必须通过代码级门禁、散文不得为空），
+ * 所以这不是放宽标准。**只剥一层**——多层围栏说明回答形态本身有问题，那该报错。
+ */
+export function stripOneFence(text: string): string {
+  const t = text.trim()
+  const m = /^```[A-Za-z0-9_-]*[ \t]*\n([\s\S]*?)\n?```$/.exec(t)
+  return m?.[1] ?? t
+}
+
+/**
  * 组装分片回答成 JSON 信封（交给 `parseStageOutput` 按原契约解析）。
  *
  * @param shards - `planCodeShards` 的分片序列（deliverable 顺序即组装顺序）。
@@ -126,7 +144,12 @@ export function assembleShards(
 ): string {
   const files: Record<string, string> = {}
   shards.forEach((shard, i) => {
-    const answer = answers[i] ?? ''
+    const raw = answers[i] ?? ''
+    // **先剥围栏、再判空**：顺序反了会让"只有一对围栏、里面什么都没有"的回答
+    // 混过去（剥完是空串，却已经在剥之前通过了非空检查）。
+    // 每片都剥一层：带围栏的 `.py` 落盘后是**语法错**（围栏行不是 Python），
+    // 带围栏的 JSON 直接解析失败。两者都是"内容在、只是包了一层"。
+    const answer = stripOneFence(raw)
     if (answer.trim() === '') {
       throw new Error(`分片 ${String(shard.index)}/${String(shard.total)}（${shard.deliverable}）的回答是空的 —— `
         + '该文件没有内容就是没有交付，不静默跳过')

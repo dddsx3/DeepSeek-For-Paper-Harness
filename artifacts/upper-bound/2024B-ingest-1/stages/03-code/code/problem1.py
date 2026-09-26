@@ -1,171 +1,517 @@
-﻿# -*- coding: utf-8 -*-
+```python
+# -*- coding: utf-8 -*-
 """问题 1：检测次数尽可能少的抽样检测方案。
 
-方法：单侧二项检验的两点设计（p_nom 与 p_alt = p_nom + Δ）+ 整数样本量最小化搜索。
+实现口径与 02-modeling/DECLARATION.json 逐字一致：
 
-两种情形的判定方向完全不同，分别实现：
-  情形(1) “在 95% 信度下认定次品率超过标称值则拒收”
-         —— 控制拒收侧第一类错误：P(X >= c+1 | p_nom) <= α1，且在 p_alt 处功效 >= 1-β。
-  情形(2) “在 90% 信度下认定次品率不超过标称值则接收”
-         —— 控制接收侧置信水平：只有当 p 的单侧 90% 上置信界 <= p_nom 时才接收，
-            等价于 P(X <= c | p_nom) <= α2（= 1 - 信度），且在 p_alt 处误收概率 <= β。
+    EQ-OC        L(p) = P(X <= c_r | p) = sum_{i=0}^{c_r} C(n,i) p^i (1-p)^(n-i)
+    EQ-Q1-REJECT n^(1) = min{ n : 存在 c_r, P(X >= c_r+1 | p_nom) <= alpha1
+                                          且 P(X >= c_r+1 | p_alt) >= 1-beta }
+                 判定：X >= c_r+1 则拒收
+    EQ-Q1-ACCEPT n^(2) = min{ n : 存在 c_r, P(X <= c_r | p_nom) >= 1-alpha2
+                                          且 P(X <= c_r | p_alt) <= beta }
+                 判定：X <= c_r 则接收
 
-反向约束 P(X <= c | p_nom) >= 1-α2 是“供应方风险口径”，与题面语义相反，
-仅作为具名对照保留，不进入主答案。
+两种情形的被控尾不同（情形 (1) 控「拒收」尾、情形 (2) 控「接收」尾），
+因此不可互换，也不共用同一个 (n, c_r)。两者都按「两点设计」实现：
+单侧主约束 + 备择点 p_alt = p_nom + Δ 的功效约束，否则最小化 n 会退化到 n=1。
+
+本模块只负责把量算出来并写成 JSON，不做任何绘图，也不写任何图表声明。
 """
 
-from constants import MODEL_CONSTANTS, Q1_P_NOMINAL, IMPLEMENTATION_PARAMS
-from numeric import binom_cdf_table
+from __future__ import annotations
+
+import json
+import math
+from functools import lru_cache
+from typing import Dict, List, Optional, Sequence
+
+try:  # 精确二项尾概率优先走 scipy；不可用时退回纯 Python 实现
+    from scipy.stats import binom as _scipy_binom
+
+    _HAVE_SCIPY = True
+except Exception:  # pragma: no cover
+    _scipy_binom = None
+    _HAVE_SCIPY = False
 
 
-def _search_two_point(p_nom, p_alt, n_max, alpha, beta, mode, tol=1e-12):
-    """返回 (n, c, 第一尾概率, 第二尾概率) 或 None。"""
-    for n in range(1, n_max + 1):
-        cdf_nom = binom_cdf_table(n, p_nom)
-        cdf_alt = binom_cdf_table(n, p_alt)
-        if mode == "reject":
-            # 拒收判据 X >= c+1：控 P(拒收|p_nom) <= alpha，且 P(拒收|p_alt) >= 1-beta
-            for c in range(0, n):
-                pn = 1.0 - cdf_nom[c]
-                pa = 1.0 - cdf_alt[c]
-                if pn <= alpha + tol and pa >= 1.0 - beta - tol:
-                    return n, c, pn, pa
-        elif mode == "accept_ci":
-            # 接收判据 X <= c：控 P(接收|p_nom) <= alpha（单侧上置信界口径）
-            # 且 P(接收|p_alt) <= beta
-            for c in range(0, n + 1):
-                pn = cdf_nom[c]
-                pa = cdf_alt[c]
-                if pn <= alpha + tol and pa <= beta + tol:
-                    return n, c, pn, pa
-    return None
+# --------------------------------------------------------------------------
+# 模型常数读取（一律按 DECLARATION.json 的 model_constants 键名取，不写死在函数体里）
+# --------------------------------------------------------------------------
+try:  # pragma: no cover - 由阶段 3 的其它分片提供
+    from constants import MODEL_CONSTANTS  # type: ignore
+except Exception:  # pragma: no cover
+    MODEL_CONSTANTS = {}
+
+# 回退表：键名与取值与 DECLARATION.json 的 model_constants 完全一致，
+# 仅在 constants.py 缺失时生效，保证本模块可独立执行。
+_FALLBACK_CONSTANTS: Dict[str, object] = {
+    "数值容差": 1e-06,
+    "Q1可识别超标幅度Δ": 0.05,
+    "Q1情形1显著性水平α1": 0.05,
+    "Q1情形2显著性水平α2": 0.1,
+    "Q1功效约束β": 0.1,
+    "Q1样本量搜索上界": 1000,
+    "标称次品率": 0.10,  # 题面给定值 F-NOMINAL
+}
 
 
-def _search_accept_supplier_risk(p_nom, alpha, n_max, tol=1e-12):
-    """对照口径：只控 P(X <= c | p_nom) >= 1-alpha（供应方风险），不施加功效约束。"""
-    for n in range(1, n_max + 1):
-        cdf = binom_cdf_table(n, p_nom)
-        for c in range(0, n + 1):
-            if cdf[c] >= 1.0 - alpha - tol:
-                return n, c, cdf[c]
-    return None
+def _mc(key: str, default=None):
+    """按键名取模型常数：先查 constants.MODEL_CONSTANTS，再查回退表，最后取 default。"""
+    try:
+        if key in MODEL_CONSTANTS:
+            return MODEL_CONSTANTS[key]
+    except Exception:
+        pass
+    if key in _FALLBACK_CONSTANTS:
+        return _FALLBACK_CONSTANTS[key]
+    return default
 
 
-def one_sided_upper_bound(n, c, conf):
-    """p 的单侧 conf 上置信界：解 P(X <= c | p) = 1 - conf。"""
-    target = 1.0 - conf
-    lo, hi = 0.0, 1.0
-    for _ in range(200):
-        mid = 0.5 * (lo + hi)
-        cdf = binom_cdf_table(n, mid)
-        if cdf[c] > target:
+# --------------------------------------------------------------------------
+# 二项分布尾概率（EQ-OC）
+# --------------------------------------------------------------------------
+def _log_pmf(i: int, n: int, p: float) -> float:
+    """ln C(n,i) + i ln p + (n-i) ln(1-p)，对数域防溢出。"""
+    if p <= 0.0:
+        return 0.0 if i == 0 else float("-inf")
+    if p >= 1.0:
+        return 0.0 if i == n else float("-inf")
+    return (
+        math.lgamma(n + 1.0)
+        - math.lgamma(i + 1.0)
+        - math.lgamma(n - i + 1.0)
+        + i * math.log(p)
+        + (n - i) * math.log1p(-p)
+    )
+
+
+@lru_cache(maxsize=None)
+def _binom_sf_impl(k: int, n: int, p: float) -> float:
+    """P(X >= k)，X ~ Binomial(n, p)。"""
+    if k <= 0:
+        return 1.0
+    if k > n:
+        return 0.0
+    if _HAVE_SCIPY:
+        return float(_scipy_binom.sf(k - 1, n, p))
+    total = 0.0
+    for i in range(k, n + 1):
+        lp = _log_pmf(i, n, p)
+        if lp == float("-inf"):
+            continue
+        total += math.exp(lp)
+    return max(0.0, min(1.0, total))
+
+
+@lru_cache(maxsize=None)
+def _binom_cdf_impl(k: int, n: int, p: float) -> float:
+    """P(X <= k)，X ~ Binomial(n, p)。"""
+    if k < 0:
+        return 0.0
+    if k >= n:
+        return 1.0
+    if _HAVE_SCIPY:
+        return float(_scipy_binom.cdf(k, n, p))
+    if k <= n * p:
+        total = 0.0
+        for i in range(0, k + 1):
+            lp = _log_pmf(i, n, p)
+            if lp == float("-inf"):
+                continue
+            total += math.exp(lp)
+        return max(0.0, min(1.0, total))
+    return max(0.0, min(1.0, 1.0 - _binom_sf_impl(k + 1, n, p)))
+
+
+def binom_sf(k: int, n: int, p: float) -> float:
+    """P(X >= k)。"""
+    return _binom_sf_impl(int(k), int(n), float(p))
+
+
+def binom_cdf(k: int, n: int, p: float) -> float:
+    """P(X <= k)（即 OC 函数 L(p) 在给定 (n, c_r) 下的取值）。"""
+    return _binom_cdf_impl(int(k), int(n), float(p))
+
+
+def oc_function(n: int, c_r: int, p: float) -> float:
+    """EQ-OC：L(p) = P(X <= c_r | p)。"""
+    return binom_cdf(c_r, n, p)
+
+
+# --------------------------------------------------------------------------
+# 单调性辅助：k -> P(X >= k) 递减，c -> P(X <= c) 递增
+# --------------------------------------------------------------------------
+def _first_k_leq(n: int, p: float, thr: float) -> Optional[int]:
+    """最小的 k ∈ [1, n] 使 P(X >= k | n, p) <= thr；不存在返回 None。"""
+    if binom_sf(n, n, p) > thr:
+        return None
+    lo, hi = 1, n
+    while lo < hi:
+        mid = (lo + hi) // 2
+        if binom_sf(mid, n, p) <= thr:
+            hi = mid
+        else:
+            lo = mid + 1
+    return lo
+
+
+def _last_k_geq(n: int, p: float, thr: float) -> Optional[int]:
+    """最大的 k ∈ [1, n] 使 P(X >= k | n, p) >= thr；不存在返回 None。"""
+    if binom_sf(1, n, p) < thr:
+        return None
+    lo, hi = 1, n
+    while lo < hi:
+        mid = (lo + hi + 1) // 2
+        if binom_sf(mid, n, p) >= thr:
             lo = mid
         else:
+            hi = mid - 1
+    return lo
+
+
+def _first_c_geq(n: int, p: float, thr: float) -> Optional[int]:
+    """最小的 c ∈ [0, n] 使 P(X <= c | n, p) >= thr；不存在返回 None。"""
+    if binom_cdf(n, n, p) < thr:
+        return None
+    lo, hi = 0, n
+    while lo < hi:
+        mid = (lo + hi) // 2
+        if binom_cdf(mid, n, p) >= thr:
             hi = mid
-    return 0.5 * (lo + hi)
+        else:
+            lo = mid + 1
+    return lo
 
 
-def solve():
-    mc = MODEL_CONSTANTS
-    p_nom = Q1_P_NOMINAL
-    delta = mc["Q1可识别超标幅度Δ"]
-    p_alt = p_nom + delta
-    alpha1 = mc["Q1情形1显著性水平α1"]
-    alpha2 = mc["Q1情形2显著性水平α2"]
-    beta = mc["Q1功效约束β"]
-    n_max = int(mc["Q1样本量搜索上界"])
-    grid = int(mc["盈亏平衡等高线格点数"])
-    norm_thr = mc["正态近似适用下界"]
-    unit_cost = IMPLEMENTATION_PARAMS["q1_unit_inspection_cost"]
-    tol = mc["数值容差"]
+def _last_c_leq(n: int, p: float, thr: float) -> Optional[int]:
+    """最大的 c ∈ [0, n] 使 P(X <= c | n, p) <= thr；不存在返回 None。"""
+    if binom_cdf(0, n, p) > thr:
+        return None
+    lo, hi = 0, n
+    while lo < hi:
+        mid = (lo + hi + 1) // 2
+        if binom_cdf(mid, n, p) <= thr:
+            lo = mid
+        else:
+            hi = mid - 1
+    return lo
 
-    conf1 = 1.0 - alpha1
-    conf2 = 1.0 - alpha2
 
-    r1 = _search_two_point(p_nom, p_alt, n_max, alpha1, beta, "reject")
-    r2 = _search_two_point(p_nom, p_alt, n_max, alpha2, beta, "accept_ci")
-    r2b = _search_accept_supplier_risk(p_nom, alpha2, n_max)
+# --------------------------------------------------------------------------
+# 情形 (1)：95% 信度拒收 —— EQ-Q1-REJECT
+# --------------------------------------------------------------------------
+def min_n_reject(
+    p_nom: float,
+    p_alt: float,
+    alpha: float,
+    beta: float,
+    n_max: int = 1000,
+) -> Optional[dict]:
+    """最小的 n，使存在 c_r 同时满足
 
-    n1, c1, rej_at_nom, power_at_alt = r1
-    n2, c2, acc_nom, acc_alt = r2
-    n2b, c2b, acc_nom_b = r2b
+        P(X >= c_r + 1 | p_nom) <= alpha       （拒收侧第一类错误上界）
+        P(X >= c_r + 1 | p_alt) >= 1 - beta    （备择点功效下界，防 n 退化到 1）
 
-    ub1 = one_sided_upper_bound(n1, c1, conf1)
-    ub2 = one_sided_upper_bound(n2, c2, conf2)
-    ub2b = one_sided_upper_bound(n2b, c2b, conf2)
+    返回 dict（含最小性证据）；在 n_max 内不可行时返回 None。
+    """
+    for n in range(1, int(n_max) + 1):
+        k_lo = _first_k_leq(n, p_nom, alpha)          # 满足 alpha 约束的最小 k
+        if k_lo is None:
+            continue
+        k_hi = _last_k_geq(n, p_alt, 1.0 - beta)      # 满足功效约束的最大 k
+        if k_hi is None:
+            continue
+        if k_lo <= k_hi:
+            # 可行 k 区间 [k_lo, k_hi]；取 k_lo 使第一类错误最小、功效最大
+            k = k_lo
+            c_r = k - 1
+            err_nom = binom_sf(k, n, p_nom)
+            power = binom_sf(k, n, p_alt)
+            return {
+                "n": int(n),
+                "c_r": int(c_r),
+                "reject_threshold": int(k),
+                "feasible_k_range": [int(k_lo), int(k_hi)],
+                "error_at_nominal": float(err_nom),
+                "power_at_alt": float(power),
+                "consumer_risk_at_alt": float(1.0 - power),
+                "oc_at_nominal": float(binom_cdf(c_r, n, p_nom)),
+                "oc_at_alt": float(binom_cdf(c_r, n, p_alt)),
+                "rule": "X >= c_r+1 则拒收，X <= c_r 则接收",
+            }
+    return None
 
-    # OC 曲线（情形 1 的接收概率 L(p) = P(X <= c1 | p)）
-    oc = []
-    for i in range(grid):
-        p = 0.40 * i / float(grid - 1)
-        cdf = binom_cdf_table(n1, p)
-        oc.append({"p": p, "L": cdf[c1]})
 
-    # 正态近似适用性标记（仅作诊断，不进入判定）
-    norm_flag = {
-        "threshold": norm_thr,
-        "case1_n_times_p_nom": n1 * p_nom,
-        "case1_n_times_one_minus_p_nom": n1 * (1.0 - p_nom),
-        "case1_normal_approx_ok": bool(n1 * p_nom >= norm_thr and n1 * (1.0 - p_nom) >= norm_thr),
+# --------------------------------------------------------------------------
+# 情形 (2)：90% 信度接收 —— EQ-Q1-ACCEPT
+# --------------------------------------------------------------------------
+def min_n_accept(
+    p_nom: float,
+    p_alt: float,
+    alpha: float,
+    beta: float,
+    n_max: int = 1000,
+) -> Optional[dict]:
+    """最小的 n，使存在 c_r 同时满足
+
+        P(X <= c_r | p_nom) >= 1 - alpha       （接收侧置信水平下界）
+        P(X <= c_r | p_alt) <= beta            （备择点误收概率上界，防 n 退化到 1）
+
+    返回 dict（含最小性证据）；在 n_max 内不可行时返回 None。
+    """
+    for n in range(1, int(n_max) + 1):
+        c_lo = _first_c_geq(n, p_nom, 1.0 - alpha)    # 满足置信下界的最小 c
+        if c_lo is None:
+            continue
+        c_hi = _last_c_leq(n, p_alt, beta)            # 满足误收上界的最大 c
+        if c_hi is None:
+            continue
+        if c_lo <= c_hi:
+            # 可行 c 区间 [c_lo, c_hi]；取 c_lo 使「以 1-alpha 的信度接收」恰成立
+            c_r = c_lo
+            acc_nom = binom_cdf(c_r, n, p_nom)
+            acc_alt = binom_cdf(c_r, n, p_alt)
+            return {
+                "n": int(n),
+                "c_r": int(c_r),
+                "feasible_c_range": [int(c_lo), int(c_hi)],
+                "accept_prob_at_nominal": float(acc_nom),
+                "accept_prob_at_alt": float(acc_alt),
+                "producer_risk_at_nominal": float(1.0 - acc_nom),
+                "oc_at_nominal": float(acc_nom),
+                "oc_at_alt": float(acc_alt),
+                "rule": "X <= c_r 则接收，X >= c_r+1 则拒收",
+            }
+    return None
+
+
+# --------------------------------------------------------------------------
+# 最小性复核：n' < n* 时确实不存在可行的 c_r
+# --------------------------------------------------------------------------
+def _minimality_reject(p_nom, p_alt, alpha, beta, n_star) -> bool:
+    for n in range(1, int(n_star)):
+        k_lo = _first_k_leq(n, p_nom, alpha)
+        k_hi = _last_k_geq(n, p_alt, 1.0 - beta)
+        if k_lo is not None and k_hi is not None and k_lo <= k_hi:
+            return False
+    return True
+
+
+def _minimality_accept(p_nom, p_alt, alpha, beta, n_star) -> bool:
+    for n in range(1, int(n_star)):
+        c_lo = _first_c_geq(n, p_nom, 1.0 - alpha)
+        c_hi = _last_c_leq(n, p_alt, beta)
+        if c_lo is not None and c_hi is not None and c_lo <= c_hi:
+            return False
+    return True
+
+
+# --------------------------------------------------------------------------
+# 扫描：OC 曲线、样本量—信度关系、SPRT 对照边界
+# --------------------------------------------------------------------------
+def oc_curve(n: int, c_r: int, p_grid: Sequence[float]) -> List[float]:
+    """给定 (n, c_r) 的 OC 曲线 L(p)（EQ-OC）。"""
+    return [float(binom_cdf(c_r, n, p)) for p in p_grid]
+
+
+def sample_size_vs_confidence(
+    conf_grid: Sequence[float],
+    p_nom: float,
+    delta: float,
+    beta: float,
+    n_max: int = 1000,
+) -> dict:
+    """样本量—判别信度关系：对每个信度重新解两情形的最小 n。"""
+    out = {
+        "confidence": [],
+        "case1_n": [],
+        "case1_c_r": [],
+        "case2_n": [],
+        "case2_c_r": [],
     }
+    for conf in conf_grid:
+        alpha = 1.0 - float(conf)
+        r1 = min_n_reject(p_nom, p_nom + delta, alpha, beta, n_max)
+        r2 = min_n_accept(p_nom, p_nom + delta, alpha, beta, n_max)
+        out["confidence"].append(float(conf))
+        out["case1_n"].append(None if r1 is None else r1["n"])
+        out["case1_c_r"].append(None if r1 is None else r1["c_r"])
+        out["case2_n"].append(None if r2 is None else r2["n"])
+        out["case2_c_r"].append(None if r2 is None else r2["c_r"])
+    return out
 
-    # 样本量—信度关系（含登记的对照置信水平）
-    ssc = []
-    for conf in sorted({conf1, conf2, mc["灵敏度扫描置信水平对照值"]}):
-        a = 1.0 - conf
-        rr1 = _search_two_point(p_nom, p_alt, n_max, a, beta, "reject")
-        rr2 = _search_two_point(p_nom, p_alt, n_max, a, beta, "accept_ci")
-        ssc.append({
-            "confidence": conf,
-            "n_case1_reject": rr1[0] if rr1 else None,
-            "c_case1_reject": rr1[1] if rr1 else None,
-            "n_case2_accept": rr2[0] if rr2 else None,
-            "c_case2_accept": rr2[1] if rr2 else None,
-        })
+
+def sprt_boundary(p_nom: float, p_alt: float, alpha: float, beta: float, n_ub: int = 200) -> dict:
+    """序贯概率比检验（SPRT）的接受/拒收/继续抽样边界，仅作对照，不进入主方案。
+
+    LLR(d, n) = d·ln(p_alt/p_nom) + (n-d)·ln((1-p_alt)/(1-p_nom))
+    当 LLR >= ln(A) 拒收，LLR <= ln(B) 接收，A = (1-beta)/alpha，B = beta/(1-alpha)。
+    """
+    a_thr = (1.0 - beta) / alpha
+    b_thr = beta / (1.0 - alpha)
+    ln_p = math.log(p_alt / p_nom)
+    ln_q = math.log((1.0 - p_alt) / (1.0 - p_nom))
+    denom = ln_p - ln_q
+
+    out = {
+        "n": [],
+        "accept_boundary": [],
+        "reject_boundary": [],
+        "continue_band": [],
+        "ln_A": float(math.log(a_thr)),
+        "ln_B": float(math.log(b_thr)),
+    }
+    for n in range(1, int(n_ub) + 1):
+        d_rej = (math.log(a_thr) - n * ln_q) / denom
+        d_acc = (math.log(b_thr) - n * ln_q) / denom
+        rej = math.ceil(d_rej - 1e-12)
+        acc = math.floor(d_acc + 1e-12)
+        rej = None if (rej > n) else int(max(1, rej))
+        acc = None if (acc < 0) else int(acc)
+        out["n"].append(int(n))
+        out["accept_boundary"].append(acc)
+        out["reject_boundary"].append(rej)
+        if acc is None or rej is None:
+            out["continue_band"].append(None)
+        else:
+            out["continue_band"].append(int(max(0, rej - acc - 1)))
+    return out
+
+
+# --------------------------------------------------------------------------
+# 主求解入口
+# --------------------------------------------------------------------------
+def solve(p_nom: Optional[float] = None, n_max: Optional[int] = None) -> dict:
+    """问题 1 全量求解。
+
+    返回的 dict 由 main.py 汇入 outputs.json；所有量均为真跑出来的值。
+    """
+    tol = float(_mc("数值容差"))
+    delta = float(_mc("Q1可识别超标幅度Δ"))
+    alpha1 = float(_mc("Q1情形1显著性水平α1"))
+    alpha2 = float(_mc("Q1情形2显著性水平α2"))
+    beta = float(_mc("Q1功效约束β"))
+    p0 = float(p_nom if p_nom is not None else _mc("标称次品率"))
+    n_ub = int(n_max if n_max is not None else _mc("Q1样本量搜索上界"))
+    p1 = p0 + delta
+
+    case1 = min_n_reject(p0, p1, alpha1, beta, n_ub)
+    case2 = min_n_accept(p0, p1, alpha2, beta, n_ub)
+
+    # OC 曲线数据（供 fig_q1_oc_curve_p1）：p 从 0 扫到 0.30
+    p_grid = [round(0.30 * i / 60.0, 6) for i in range(61)]
+    oc1 = oc_curve(case1["n"], case1["c_r"], p_grid) if case1 else []
+    oc2 = oc_curve(case2["n"], case2["c_r"], p_grid) if case2 else []
+
+    # 样本量—信度扫描（供 fig_q1_sample_size_vs_confidence）
+    conf_grid = [round(0.80 + 0.01 * i, 4) for i in range(20)]
+    conf_scan = sample_size_vs_confidence(conf_grid, p0, delta, beta, n_ub)
+
+    # 序贯对照边界（供 fig_q1_sprt_boundary）
+    sprt = sprt_boundary(p0, p1, alpha1, beta, 200)
+
+    # 抽样成本参考口径：题面只规定检测费由企业承担，未给单件检测单价，
+    # 故同时登记「检测件数」与「按表 1 参考单件检测成本折算的元/批」。
+    unit_cost_ref = float(_mc("问题1参考单件检测成本", 2.0))
+    n1 = case1["n"] if case1 else None
+    n2 = case2["n"] if case2 else None
+
+    verification = {
+        "case1_error_at_nominal_within_alpha": bool(
+            case1 is not None and case1["error_at_nominal"] <= alpha1 + tol
+        ),
+        "case1_power_at_alt_meets_1_minus_beta": bool(
+            case1 is not None and case1["power_at_alt"] >= 1.0 - beta - tol
+        ),
+        "case1_n_is_minimal": bool(
+            case1 is not None and _minimality_reject(p0, p1, alpha1, beta, case1["n"])
+        ),
+        "case2_accept_prob_at_nominal_meets_1_minus_alpha": bool(
+            case2 is not None and case2["accept_prob_at_nominal"] >= 1.0 - alpha2 - tol
+        ),
+        "case2_misaccept_at_alt_within_beta": bool(
+            case2 is not None and case2["accept_prob_at_alt"] <= beta + tol
+        ),
+        "case2_n_is_minimal": bool(
+            case2 is not None and _minimality_accept(p0, p1, alpha2, beta, case2["n"])
+        ),
+        "oc_monotone_nonincreasing_at_nominal": bool(
+            case1 is not None
+            and all(
+                oc1[i] >= oc1[i + 1] - 1e-9 for i in range(len(oc1) - 1)
+            )
+        ),
+        "tolerance_used": tol,
+    }
 
     return {
-        "method": "单侧二项检验两点设计 + 整数样本量最小化搜索",
-        "p_nom": p_nom,
-        "p_alt": p_alt,
-        "delta": delta,
-        "n_max": n_max,
-        "case1_reject": {
-            "reading": "在 1-alpha1 信度下认定 p > p_nom 才拒收；控制 P(X>=c+1|p_nom)<=alpha1，且 p_alt 处功效>=1-beta",
-            "n_star": n1,
-            "c_star": c1,
-            "reject_prob_at_p_nom": rej_at_nom,
-            "reject_prob_at_p_alt": power_at_alt,
-            "alpha": alpha1,
-            "power_floor": 1.0 - beta,
-            "one_sided_upper_conf_bound_at_c_star": ub1,
-            "constraint_ok": bool(rej_at_nom <= alpha1 + tol and power_at_alt >= 1.0 - beta - tol),
+        "problem": 1,
+        "title": "抽样检测方案：检测次数尽可能少（两点设计 + 整数样本量最小化搜索）",
+        "params": {
+            "p_nom": p0,
+            "p_alt": p1,
+            "delta": delta,
+            "alpha1": alpha1,
+            "alpha2": alpha2,
+            "beta": beta,
+            "confidence_case1": 1.0 - alpha1,
+            "confidence_case2": 1.0 - alpha2,
+            "n_max": n_ub,
         },
-        "case2_accept": {
-            "reading": "在 1-alpha2 信度下认定 p <= p_nom 才接收；单侧上置信界<=p_nom 等价于 P(X<=c|p_nom)<=alpha2，且 p_alt 处误收<=beta",
-            "n_star": n2,
-            "c_star": c2,
-            "accept_prob_at_p_nom": acc_nom,
-            "accept_prob_at_p_alt": acc_alt,
-            "alpha": alpha2,
-            "one_sided_upper_conf_bound_at_c_star": ub2,
-            "constraint_ok": bool(acc_nom <= alpha2 + tol and acc_alt <= beta + tol),
+        "case1_reject": case1,
+        "case2_accept": case2,
+        "oc_curves": {
+            "p_grid": p_grid,
+            "case1": oc1,
+            "case2": oc2,
         },
-        "case2_accept_supplier_risk_reading": {
-            "reading": "具名对照（供应方风险口径）：仅控 P(X<=c|p_nom)>=1-alpha2，不施加功效约束；该口径退化为极小样本，与题面“以信度认定不超过标称值”的语义相反，不作为主答案",
-            "n_star": n2b,
-            "c_star": c2b,
-            "accept_prob_at_p_nom": acc_nom_b,
-            "one_sided_upper_conf_bound_at_c_star": ub2b,
-            "bound_exceeds_nominal": bool(ub2b > p_nom),
+        "sample_size_vs_confidence": conf_scan,
+        "two_cases_sample_size": {
+            "labels": ["case1_reject_95pct", "case2_accept_90pct"],
+            "n": [n1, n2],
+            "c_r": [case1["c_r"] if case1 else None, case2["c_r"] if case2 else None],
+            "confidence": [1.0 - alpha1, 1.0 - alpha2],
+            "units": "件",
         },
+        "sprt_boundary": sprt,
         "sampling_cost": {
-            "bearer": "企业",
-            "unit_cost_basis": unit_cost,
-            "case1_cost": n1 * unit_cost,
-            "case2_cost": n2 * unit_cost,
-            "note": "题面未给单件检测费金额，按每件单价归一化；因费用线性可缩放，比较结论与单价无关",
+            "unit_inspection_cost_ref_yuan": unit_cost_ref,
+            "case1_inspections_per_batch": n1,
+            "case2_inspections_per_batch": n2,
+            "case1_cost_ref_yuan_per_batch": (None if n1 is None else float(n1) * unit_cost_ref),
+            "case2_cost_ref_yuan_per_batch": (None if n2 is None else float(n2) * unit_cost_ref),
+            "note": (
+                "题面只规定抽样检测费用由企业承担（F-MECH-INSPECT-COST），未给问题 1 的"
+                "单件检测单价；此处同时登记检测件数 n 与按参考单价折算的元/批，"
+                "元/批仅供口径示意，问题 1 的目标函数本身只依赖 n。"
+            ),
         },
-        "oc_curve": {"n": n1, "c": c1, "points": oc},
-        "sample_size_vs_confidence": ssc,
-        "normal_approx": norm_flag,
+        "verification": verification,
+        "notes": {
+            "asymmetry": (
+                "情形 (1) 与情形 (2) 的被控尾不同：情形 (1) 约束拒收侧在 p_nom 处的"
+                "第一类错误（P(X>=c_r+1|p_nom) <= alpha1）并要求在 p_alt 处的功效下界；"
+                "情形 (2) 约束接收侧在 p_nom 处的置信水平（P(X<=c_r|p_nom) >= 1-alpha2）"
+                "并要求在 p_alt 处的误收概率上界。两者因此不可互换、不共用 (n, c_r)。"
+            ),
+            "delta_role": (
+                "备择点 p_alt = p_nom + Δ 的功效约束是防止最小化 n 退化的必要项；"
+                "Δ 为可识别超标幅度，属登记在 model_constants 的设计量。"
+            ),
+            "scipy_available": _HAVE_SCIPY,
+        },
     }
+
+
+def write_results(path: str = "problem1_results.json", **kwargs) -> dict:
+    """把问题 1 的全部结果写成 JSON（工作目录下，路径不深）。"""
+    data = solve(**kwargs)
+    with open(path, "w", encoding="utf-8") as fh:
+        json.dump(data, fh, ensure_ascii=False, indent=2, sort_keys=False)
+    return data
+
+
+if __name__ == "__main__":  # pragma: no cover
+    write_results()
+```

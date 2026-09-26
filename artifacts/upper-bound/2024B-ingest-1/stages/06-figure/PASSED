@@ -42,5 +42,5 @@
   "unverifiedGates": [
     "figure_style_rules"
   ],
-  "staleReason": "图集塌半：账本只有标量点值，7 张图无米下锅。已放宽铸数收数组，需补算扫描表/矩阵/样本序列 —— 检查人回滚"
+  "staleReason": "阶段 'code' 逐节点审计未通过 —— 下游前提不成立"
 }
