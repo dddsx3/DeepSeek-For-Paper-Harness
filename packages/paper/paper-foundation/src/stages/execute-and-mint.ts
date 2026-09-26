@@ -168,11 +168,20 @@ export async function runCodeAndMintResults(stagesRoot: string): Promise<Execute
       continue
     }
     seen.add(source.result_id)
-    const file = join(codeDir, source.locator)
-    if (!existsSync(file)) {
+    // locator 相对 `code/`。**同时容忍一种自然的误读**：写 `code/outputs.json`
+    // （相对阶段目录的读法）。两种读法指向的都是同一个文件，而"数在哪"本身毫无歧义
+    // ——为路径前缀的读法差异让整轮重跑作废，是把契约的表述问题算在执行者头上。
+    // 契约侧同时加了正例（简报明写"写 `outputs.json`，不要写 `code/outputs.json`"），
+    // 所以这里是容错，不是把两种写法都当规范。
+    const candidates = source.locator.startsWith('code/')
+      ? [source.locator, source.locator.slice('code/'.length)]
+      : [source.locator]
+    const found = candidates.map(c => join(codeDir, c)).find(p => existsSync(p))
+    if (found === undefined) {
       problems.push(`${source.result_id}：locator '${source.locator}' 不存在 —— 代码没有写出声明的产物`)
       continue
     }
+    const file = found
     const content = await readFile(file, 'utf8').catch(() => null)
     if (content === null) {
       problems.push(`${source.result_id}：locator '${source.locator}' 读不出来`)

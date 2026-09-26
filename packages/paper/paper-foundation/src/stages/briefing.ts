@@ -255,6 +255,10 @@ const SKILLS: Readonly<Record<string, StageSkill>> = {
       '上游是你在阶段 3 交的代码与 `DELIVERABLES.json`。逐个要进论文的量，回答三件事：'
         + '哪个文件（`locator`，相对 `code/`）、文件内哪个路径（`json_path`，如 `problem1.n_star`）、'
         + '单位是什么。',
+      '**`locator` 的写法给死，不要自己推**：它是**相对 `code/`** 的路径——'
+        + '写 `outputs.json`（正例），**不要**写 `code/outputs.json`。'
+        + '后者会被解析成 `code/code/outputs.json`，整轮铸数全落空。'
+        + '（harness 对这一种误读做了容错，但契约以 `outputs.json` 为准。）',
       '**每个量拆一条**："方案 = {n, k, 置信水平}" 是三个数，写三条（`name` 里写清是哪个）。',
       '`locator` 指向的文件**必须**是你的代码真的会写出的 JSON 文件；'
         + 'harness 会执行 `code/main.py` 然后逐条核对——解析不到、落空、非有限数，都具名失败。',
