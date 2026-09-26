@@ -189,6 +189,16 @@ function parseFigure(raw: unknown, index: number): FigureDeclaration {
     ...(typeof f['caption'] === 'string' ? { caption: f['caption'] } : {}),
     ...(typeof f['x_label'] === 'string' ? { x_label: f['x_label'] } : {}),
     ...(typeof f['y_label'] === 'string' ? { y_label: f['y_label'] } : {}),
+    // **结构化图型的字段必须原样带过来**。这一步是"只复制已知字段"的白名单式规范化，
+    // 新加的字段会被**静默丢掉**——实测：声明里 `heatmap` 写得好好的（6 行×4 列全是
+    // 真的账本 id），却在这里被扔掉，渲染时报"heatmap 图需要 input.heatmap"。
+    // 这是"新增字段忘了改三处"的典型：声明类型、规范化、透传，少改一处就静默失效。
+    ...(f['ref_lines'] === undefined ? {} : { ref_lines: f['ref_lines'] as NonNullable<FigureDeclaration['ref_lines']> }),
+    ...(f['tornado'] === undefined ? {} : { tornado: f['tornado'] as NonNullable<FigureDeclaration['tornado']> }),
+    ...(f['waterfall'] === undefined ? {} : { waterfall: f['waterfall'] as NonNullable<FigureDeclaration['waterfall']> }),
+    ...(f['forest'] === undefined ? {} : { forest: f['forest'] as NonNullable<FigureDeclaration['forest']> }),
+    ...(f['heatmap'] === undefined ? {} : { heatmap: f['heatmap'] as NonNullable<FigureDeclaration['heatmap']> }),
+    ...(typeof f['baseline_ref'] === 'string' ? { baseline_ref: f['baseline_ref'] } : {}),
   }
 }
 

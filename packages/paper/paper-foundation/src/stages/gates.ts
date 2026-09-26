@@ -492,8 +492,11 @@ const CJK_CAPABLE_FONT = /(?:YaHei|SimHei|SimSun|PingFang|Noto Sans CJK|Source H
  */
 const figureCompleteness: GateFn = (input) => {
   const id = 'figure_completeness'
-  const declRaw = input.files.get('FIGURE_DECLARATIONS.json') ?? null
-  if (declRaw === null) return cannot(id, 'FIGURE_DECLARATIONS.json 不在 —— 没有声明就无从对账')
+  // 声明**可能在上游**（阶段 6 的 `FIGURE_DECLARATIONS.json` 是阶段 5 的产物），
+  // 所以两处都要找。只看本阶段目录会让这条门禁在阶段 6 永远给 2——等于没跑。
+  const declRaw = input.files.get('FIGURE_DECLARATIONS.json')
+    ?? input.upstream.get('FIGURE_DECLARATIONS.json') ?? null
+  if (declRaw === null) return cannot(id, 'FIGURE_DECLARATIONS.json 不在（本阶段目录与上游都没有）—— 没有声明就无从对账')
   let figures: ReadonlyArray<Record<string, unknown>>
   try {
     const parsed: unknown = JSON.parse(declRaw)
