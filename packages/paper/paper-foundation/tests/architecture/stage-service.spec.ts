@@ -65,7 +65,8 @@ function answerFor(stage: string): string {
       })
     case 'modeling':
       return envelope({
-        'DECLARATION.json': JSON.stringify({ entries: [] }),
+        // 逐条认领阶段 1 的能力项（门禁 `modeling_coverage` 按 id 逐字核）
+        'DECLARATION.json': JSON.stringify({ entries: [], models: [{ id: 'MS-1', checklist_refs: ['CAP-1'] }] }),
         'MODELING_REPORT.md': '建模报告……'.repeat(200),
       })
     case 'code':

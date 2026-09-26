@@ -240,3 +240,17 @@ describe('重跑简报 —— 上一轮审计的问题必须投递', () => {
     expect(at).toBeLessThan(brief.indexOf('提交前自检'))
   })
 })
+
+/**
+ * `modeling_coverage` 要在简报里**有对应的硬性要求**——否则就是一条无法被遵守的指令
+ * （round-5 的原缺陷：门禁量一个简报从没要求过的东西）。
+ */
+describe('阶段 2 简报 —— 能力项逐条认领是硬性要求', () => {
+  it('点名 `C-*` id 要逐字出现在 checklist_refs 里，且说明换个说法不算', () => {
+    const brief = stageBriefing(stageOf('modeling'), new Map(), false)
+    expect(brief).toContain('modeling_coverage')
+    expect(brief).toContain('checklist_refs')
+    expect(brief).toContain('逐字出现')
+    expect(brief).toContain('不算认领')
+  })
+})

@@ -710,6 +710,60 @@ const numbersTraced: GateFn = (input) => {
 }
 
 /**
+ * **逐条能力项覆盖** —— 阶段 1 立的能力清单，阶段 2 必须逐条认领。
+ *
+ * 为什么需要它：阶段 1 的 `CAPABILITY_CHECKLIST.json` 是后面每一阶段的对照表，
+ * 而"逐问覆盖"如果只靠人看，就等于没有。缺一条能力项意味着**某问根本没建模**，
+ * 但报告照样能写得很长——`modeling_floor` 只看字节数，看不出来。
+ *
+ * "落地"的机器可读形态就是**能力项 id 的引用**：阶段 2 的 `ModelSpec.checklist_refs`
+ * 逐条挂上 `C-*`（简报里有硬性要求）。所以判据是"每个 id 都在本阶段产物里出现过"，
+ * 而不是"报告里提过某个词"——后者无法机械判定，且正是"看起来做了但其实没有"的温床。
+ *
+ * 2024B 实测：这一版模型 20/20 全部认领（都在 `DECLARATION.json` 的 `checklist_refs` 里）。
+ * 判据落在"本阶段全部文本产物"上而不是只查 `DECLARATION.json`：只要认领得下、说得出，
+ * 写在哪一份里不该由门禁规定死。
+ */
+const modelingCoverage: GateFn = (input) => {
+  const id = 'modeling_coverage'
+  const raw = input.upstream.get('CAPABILITY_CHECKLIST.json') ?? null
+  if (raw === null) {
+    return cannot(id, '上游没有 CAPABILITY_CHECKLIST.json —— 没有对照表，无从判断能力项是否被认领')
+  }
+  let ids: ReadonlyArray<string>
+  try {
+    const parsed: unknown = JSON.parse(raw)
+    // 数组键名两种都认：生成器产出的是 `capabilities`，而参考工作流的旧形态是 `items`。
+    // 只认一种会把"形态差异"变成"一条能力项都没有"的假硬失败——而这条门禁的判据
+    // 本该是**覆盖**，不是**键名**。
+    const o = parsed as { capabilities?: unknown; items?: unknown }
+    const caps = Array.isArray(o.capabilities) ? o.capabilities : o.items
+    if (!Array.isArray(caps)) {
+      return fail(id, 'CAPABILITY_CHECKLIST.json 里没有 `capabilities`（或 `items`）数组 —— 对照表形态不对')
+    }
+    ids = caps.flatMap((c): ReadonlyArray<string> => {
+      if (typeof c !== 'object' || c === null) return []
+      const capId = (c as { id?: unknown }).id
+      return typeof capId === 'string' && capId !== '' ? [capId] : []
+    })
+  } catch {
+    return fail(id, 'CAPABILITY_CHECKLIST.json 不是合法 JSON —— 对照表读不出来')
+  }
+  if (ids.length === 0) {
+    return fail(id, 'CAPABILITY_CHECKLIST.json 的 `capabilities` 为空 —— 阶段 1 没有立出任何能力项')
+  }
+  const haystack = [...input.files.values()].join('\n')
+  const missing = ids.filter(capId => !haystack.includes(capId))
+  if (missing.length > 0) {
+    return fail(id, `${String(missing.length)}/${String(ids.length)} 条能力项**没有被认领**：`
+      + `${missing.slice(0, 10).join('、')}${missing.length > 10 ? '…' : ''}。`
+      + '缺一条就意味着那一问没有建模落地。补救：在对应 `ModelSpec.checklist_refs` 里挂上该 id'
+      + '（或在报告里明确写出该 id 的落点）——id 要**逐字出现**，换个说法不算认领。')
+  }
+  return ok(id, `${String(ids.length)} 条能力项全部被认领（逐字命中 id）`)
+}
+
+/**
  * **不许声称"已执行检验"** —— 在代码存在之前，任何"检验通过"都是假的。
  *
  * 红队实测：阶段 2 的 §9 写"表 1 的六种情况与问题 3 的算例全部通过（容差 1e-6）"，
@@ -765,9 +819,7 @@ export const GATES: ReadonlyMap<string, GateFn> = new Map<string, GateFn>([
   // 零数字通道在建模阶段的落点（红队实测：阶段 2 手写结果数字，六处错三处）
   ['numbers_traced', numbersTraced],
   ['no_claimed_verification', noClaimedVerification],
-  ['modeling_coverage', () => cannot('modeling_coverage',
-    '未实现：参考的 modeling_coverage_check.py 要核对 CAPABILITY_CHECKLIST.json 的每条能力项'
-    + '在 MODELING_REPORT.md 里都有建模落地。需要先定义"落地"的机器可读形态（能力项 id 的引用）。')],
+  ['modeling_coverage', modelingCoverage],
   ['modeling_self_check', () => cannot('modeling_self_check',
     '未实现：参考的 9 项自检含"问题递进性检查"（参考自己标注为"最关键"且是人工项）。'
     + '可机械化的那几项（逐问数、目标/公式/约束非零、符号表存在、灵敏度计划）待实现。')],
