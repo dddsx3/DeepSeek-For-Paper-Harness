@@ -32,13 +32,45 @@ const routes = {
 /** 每个阶段一段**合规**的回答（单产出取原文，多产出取 JSON 信封）。 */
 let figureDeclareCalls = 0
 
+/**
+ * 夹具的图集：12 张（与 `stage-runner.spec` 同一形状）。
+ *
+ * 为什么不是 1 张：预算门禁按"问数 → 目标页数 → 目标张数"判（4 问 → 30 页 →
+ * 15 张、区间 12–18），参考自己还有**绝对底线 3 张**。1 张不是"门禁太严"，
+ * 是夹具不代表一篇真论文。图型选**标量画得出**的四种（各 3 张，满足
+ * `figure_diversity` 的"≤3 次/型、≥4 种型"），前 4 张多面板
+ * （满足 `figure_script_quality` 的"多面板 ≥1/3"）。
+ */
+const SERVICE_FIGURES: ReadonlyArray<{ readonly id: string; readonly type: string; readonly panels: number }> =
+  ['fig_a', 'fig_b', 'fig_c', 'fig_d', 'fig_e', 'fig_f', 'fig_g', 'fig_h', 'fig_i', 'fig_j', 'fig_k', 'fig_l']
+    .map((id, i) => ({ id, type: ['bar', 'lollipop', 'waterfall', 'forest'][i % 4] as string, panels: i < 4 ? 2 : 1 }))
+
 /** 与 `stage-runner.spec` 同一份脚本文本：真写一张像样的 PNG（只用 stdlib）。 */
-function genFigScriptText(): string {
+function genFigScriptText(figId = 'fig_a', chartType = 'bar', panels = 2): string {
+  const api = {
+    bar: '    axes[0].bar([0, 1], [1, 2])',
+    lollipop: '    axes[0].scatter(1, 2)',
+    waterfall: '    axes[0].bar([0, 1], [1, 2])',
+    forest: '    axes[0].errorbar([1, 2], [1, 2], xerr=0.1)',
+  }[chartType] ?? '    axes[0].plot([0, 1], [1, 2])'
+  const subplots = panels >= 2
+    ? '    fig, axes = plt.subplots(1, 2, figsize=(6.0, 2.8))'
+    : '    fig, axes = plt.subplots(figsize=(6.0, 3.6))'
   return [
     '\"\"\"夹具脚本：数据来自 results.json 的 RES-A/RES-B。\"\"\"',
     'try:',
-    '    from _utils.plot_utils import setup_style, save_fig, PALETTE, COLORS, _lighten',
-    '    setup_style()',
+    '    from _figbase import load, save, panel, PALETTE, COLORS, _lighten',
+    '    doc = load("results.json")',
+    'except Exception:',
+    '    doc = {}',
+    'try:',
+    '    import matplotlib',
+    '    matplotlib.use("Agg")',
+    '    import matplotlib.pyplot as plt',
+    subplots,
+    api,
+    '    panel(axes[0], "(a)")',
+    `    save(fig, "${figId}")`,
     'except Exception:',
     '    pass',
     'import json, os, struct, zlib',
@@ -54,9 +86,9 @@ function genFigScriptText(): string {
     'png = (bytes([137, 80, 78, 71, 13, 10, 26, 10])',
     '       + chunk(b"IHDR", struct.pack(">IIBBBBB", W, H, 8, 2, 0, 0, 0))',
     '       + chunk(b"IDAT", zlib.compress(raw, 6)) + chunk(b"IEND", b""))',
-    'with open("figures/fig_a.png", "wb") as f:',
+    `with open("figures/${figId}.png", "wb") as f:`,
     '    f.write(png)',
-    'print("wrote", len(png), "bytes for", len(ledger.get("results", [])))',
+    'print("wrote", len(png), "bytes for", len(doc.get("results", [])))',
     '',
   ].join(String.fromCharCode(10))
 }
@@ -69,8 +101,8 @@ function answerFor(stage: string): string {
     '[[REQUIREMENT: R-Q1]] 问题一要求给出结果。',
     '[[REQUIREMENT: R-Q2]] 问题二要求给出结果。',
     '<!-- BEGIN FIGURE_MANIFEST -->',
-    'DATA=1',
-    'fig_a',
+    `DATA=${String(SERVICE_FIGURES.length)}`,
+    ...SERVICE_FIGURES.map(f => f.id),
     'DRAWIO=1',
     'fig_roadmap',
     '<!-- END FIGURE_MANIFEST -->',
@@ -128,15 +160,18 @@ function answerFor(stage: string): string {
       figureDeclareCalls += 1
       if (figureDeclareCalls === 1) {
         return JSON.stringify({
-          figures: [
-            // 轴标签两个都要有（参考红线：Both set_xlabel and set_ylabel are mandatory）
-            { figure_id: 'fig_a', chart_type: 'bar', recipe: { category: 'basic', number: 1 },
-              data_refs: ['RES-A', 'RES-B'], caption: '指标对照',
-              x_label: '指标', y_label: '占比 / %' },
-          ],
+          // 轴标签两个都要有（参考红线：Both set_xlabel and set_ylabel are mandatory）
+          figures: SERVICE_FIGURES.map(f => ({
+            figure_id: f.id, chart_type: f.type, recipe: { category: 'basic', number: 1 },
+            data_refs: ['RES-A', 'RES-B'], caption: '指标对照',
+            x_label: '指标', y_label: '占比 / %',
+          })),
         })
       }
-      return genFigScriptText()
+      // 第 2 次起是逐图分片：**按规划顺序**交各自的脚本
+      // （分片是确定性生成的，顺序与规划一致；每次调用交一个脚本）。
+      const fig = SERVICE_FIGURES[figureDeclareCalls - 2] ?? SERVICE_FIGURES[0]!
+      return genFigScriptText(fig.id, fig.type, fig.panels)
     }
     case 'review':
       return envelope({

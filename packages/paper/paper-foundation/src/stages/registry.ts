@@ -104,7 +104,7 @@ export const STAGES: ReadonlyArray<StageSpec> = [
       D('PROBLEM_FACTS.json', 'json', '题面给定值事实表（防读题读错，与零数字通道正交）'),
       D('DATA_PROFILE.json', 'json', '附件数据画像'),
     ],
-    gates: ['prob_analysis_floor', 'figure_manifest_anchors', 'capability_check'],
+    gates: ['prob_analysis_floor', 'figure_manifest_anchors', 'figure_manifest_count', 'capability_check'],
     contractRules: [], rollbackTo: [], guidedFallback: 'T3',
     premise: '本阶段的自由分析**就是 E1**：带 `[[ASSUMPTION: id]]` / `[[REQUIREMENT: id]]` 行首锚点，'
       + '是保真门 B3/B4/B5 的锚。拆掉它，保真门与"逐问段 → 章节"的路由都失去依据。',
@@ -164,7 +164,7 @@ export const STAGES: ReadonlyArray<StageSpec> = [
       D('figures/', 'dir', '**逐图一个绘图脚本** `gen_fig_<figure_id>.py`（matplotlib）：从账本读数据、照抄配方骨架；本阶段只写脚本，执行是下一阶段'),
       D('FIGURE_PLAN.json', 'json', '作图规划：`{figure_id, chart_type, recipe:{category,number}, data_refs, caption, x_label, y_label}`'),
     ],
-    gates: ['figure_plan_valid', 'figure_script_quality', 'figure_script_traced', 'figure_type_match', 'figure_diversity'],
+    gates: ['figure_plan_valid', 'figure_plan_budget', 'figure_script_quality', 'figure_script_traced', 'figure_type_match', 'figure_diversity'],
     contractRules: [], rollbackTo: ['result-sources', 'code'], guidedFallback: 'T2',
     premise: '**这一步的约束换掉了（用户口径）**：原来是"模型只声明、不写渲染代码"'
       + '（为"数不由模型持有"设的），现在是**模型写 `gen_fig_*.py`** —— 因为固定渲染器'

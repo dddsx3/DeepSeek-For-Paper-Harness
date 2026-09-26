@@ -47,6 +47,9 @@ import {
   figurePlanValid, figureScriptQuality, figureScriptTraced, figureSizeBuckets, figureTypeMatch,
 } from './figure-script-gates.ts'
 import { architectureFigureNames, dataFigureNames, parseFigureManifest } from './figure-manifest.ts'
+import {
+  FIGURE_COUNT_HARD_FLOOR, budgetSentence, figureBudget,
+} from './figure-budget.ts'
 import type { GateVerdict } from './handoff.ts'
 
 /** 门禁的输入：产物文本（由调用方读盘后传入，门禁本身不碰文件系统）。 */
@@ -246,6 +249,95 @@ const figureManifestAnchors: GateFn = (input) => {
   return bare.length === 0
     ? ok(id, 'FIGURE_MANIFEST 锚点完整，条目全部以 fig_/tikz_ 开头')
     : fail(id, `清单里有裸名：${bare.slice(0, 5).join('、')} —— 下游对账会静默丢掉它们`)
+}
+
+/**
+ * `figure_manifest_count` —— **规划端的图表预算**（阶段 1）。
+ *
+ * 参考在同一个位置卡这件事（`comp-prob-analysis` 的 `FIGURE_MANIFEST` 自检脚本），
+ * 常量原样照搬：`HARD_FLOOR=3` 硬阻塞、软区间 12-20。
+ *
+ * 实测为什么必须卡：2024B 的清单写了 `DATA=14`（在区间内、完全合格），
+ * 但阶段 5 交付时只剩 7 张——**规划端合格不代表交付端合格**，
+ * 所以这一端只保证"起点对"，总量由阶段 5 的 `figure_plan_budget` 兜。
+ */
+const figureManifestCount: GateFn = (input) => {
+  const id = 'figure_manifest_count'
+  const body = text(input, 'PROBLEM_ANALYSIS.md')
+  if (body === null) return fail(id, 'PROBLEM_ANALYSIS.md 不存在')
+  const manifest = parseFigureManifest(body)
+  if (manifest === null) return fail(id, 'FIGURE_MANIFEST 块不完整 —— 没有可数的图表预算')
+  // 以**实际列出的条目**为准，声明数只作参考（声明 14 却只列 7 条时，列出的才是真会画的）
+  const data = manifest.sections['DATA']?.length ?? manifest.declaredCounts['DATA'] ?? 0
+  const flow = (manifest.sections['DRAWIO']?.length ?? 0) + (manifest.sections['TIKZ']?.length ?? 0)
+  const budget = figureBudget(input.problemCount)
+  const sentence = budgetSentence(budget, input.problemCount)
+  if (data < FIGURE_COUNT_HARD_FLOOR) {
+    return fail(id, `数据图只规划了 ${String(data)} 张，低于**绝对底线** ${String(FIGURE_COUNT_HARD_FLOOR)} 张 —— `
+      + `参考口径：少于 3 张数据图是"工作严重不完整"，硬阻塞。${sentence}`)
+  }
+  // 下限认 `DATA + 流程图/TikZ`：参考明说推理密集型题"数据图达底线即正常，
+  // 推导构造图(TIKZ)才是重点，勿为凑数硬加数据曲线"。
+  if (data + flow < budget.lo) {
+    return fail(id, `数据图 ${String(data)} 张 + 流程图/示意图 ${String(flow)} 张 = ${String(data + flow)} 张，`
+      + `低于下限 ${String(budget.lo)} 张 —— 图集撑不起论文篇幅。${sentence}`
+      + `（推理密集型题可把差额补在 TikZ 推导/构造图上，那也是达标路径。）`)
+  }
+  // 上限只卡 DATA：防"为凑数硬加数据曲线稀释重点"
+  if (data > budget.hi) {
+    return fail(id, `数据图规划了 ${String(data)} 张，超过上限 ${String(budget.hi)} 张 —— `
+      + `参考口径：超过推荐上限即为冗余，宁少勿凑。${sentence}`)
+  }
+  return ok(id, `数据图 ${String(data)} 张（+ 流程图/示意图 ${String(flow)} 张）落在 ${String(budget.lo)}–${String(budget.hi)} 张区间内。${sentence}`)
+}
+
+/**
+ * `figure_plan_budget` —— **交付端的图表预算**（阶段 5）。
+ *
+ * 这一条是本轮新增的核心：**申报放弃的机制是对的，但总量必须有下限**。
+ *
+ * 实测（2024B）：阶段 5 的 11 条 `plan_deviations` 里 7 条是"申报放弃"，
+ * 每条理由都真实（账本确实没那些数），于是图从 14 张诚实降到 7 张，
+ * 而**没有任何门禁说过一句话**——契约允许逐张申报，却不数最后剩几张。
+ * 结果就是"诚实地放弃到图集撑不起论文"。
+ *
+ * 注意它**不禁止**申报放弃：放弃在预算内照样放行（少一张不是罪），
+ * 越界才拦——而且拦的时候把"放弃了哪些、为什么"一并报出来，
+ * 让检查人能一眼判断是"产物偷懒"还是"上游缺数"（2024B 是后者，得回滚阶段 3）。
+ */
+const figurePlanBudget: GateFn = (input) => {
+  const id = 'figure_plan_budget'
+  const raw = input.files.get(FIGURE_PLAN_FILE) ?? input.upstream.get(FIGURE_PLAN_FILE) ?? null
+  if (raw === null) return cannot(id, `${FIGURE_PLAN_FILE} 不在 —— 没有规划就数不出张数`)
+  let figures: ReadonlyArray<Record<string, unknown>>
+  let deviations: ReadonlyArray<Record<string, unknown>> = []
+  try {
+    const parsed = JSON.parse(raw) as { figures?: unknown; plan_deviations?: unknown }
+    if (!Array.isArray(parsed.figures)) return cannot(id, `${FIGURE_PLAN_FILE} 里没有 \`figures\` 数组`)
+    figures = parsed.figures as ReadonlyArray<Record<string, unknown>>
+    if (Array.isArray(parsed.plan_deviations)) {
+      deviations = parsed.plan_deviations as ReadonlyArray<Record<string, unknown>>
+    }
+  } catch {
+    return cannot(id, `${FIGURE_PLAN_FILE} 不是合法 JSON`)
+  }
+  const delivered = figures.length
+  const dropped = deviations.filter(d => String(d['to'] ?? '') === '')
+  const budget = figureBudget(input.problemCount)
+  const sentence = budgetSentence(budget, input.problemCount)
+  if (delivered < budget.lo) {
+    const why = dropped.length === 0
+      ? ''
+      : `；其中 ${String(dropped.length)} 张是**申报放弃**（${dropped.slice(0, 3).map(d => String(d['from'] ?? '')).join('、')}…）`
+        + '—— 申报放弃本身合规，但总量不能越过下限：若放弃的理由是"账本没这些数"，'
+        + '那是**上游缺口**，应回滚阶段 3 补算，而不是就此少画'
+    return fail(id, `最终只交付 ${String(delivered)} 张图，低于下限 ${String(budget.lo)} 张${why}。${sentence}`)
+  }
+  if (delivered > budget.hi) {
+    return fail(id, `交付 ${String(delivered)} 张图，超过上限 ${String(budget.hi)} 张 —— 宁少勿凑。${sentence}`)
+  }
+  return ok(id, `交付 ${String(delivered)} 张图${dropped.length === 0 ? '' : `（含申报放弃 ${String(dropped.length)} 张）`}`
+    + `，落在 ${String(budget.lo)}–${String(budget.hi)} 张区间内。${sentence}`)
 }
 
 /** 假设/需求锚点（阶段 1 的 E1 契约；保真门 B3/B4 的锚）。 */
@@ -1072,6 +1164,7 @@ export const GATES: ReadonlyMap<string, GateFn> = new Map<string, GateFn>([
   // ── 阶段 1 ────────────────────────────────────────────────────────────
   ['prob_analysis_floor', i => byteFloor(i, 'prob_analysis_floor', 'PROBLEM_ANALYSIS.md', 1500)],
   ['figure_manifest_anchors', figureManifestAnchors],
+  ['figure_manifest_count', figureManifestCount],
   ['capability_check', () => cannot('capability_check',
     '未实现：参考的 capability_check.py 要跨 PROBLEM_ANALYSIS.md 的逐句表与 CAPABILITY_CHECKLIST.json '
     + '逐条比对（每条"决策/目标/机制"句必须被某个能力项的 source_sentence 认领）。'
@@ -1135,6 +1228,7 @@ export const GATES: ReadonlyMap<string, GateFn> = new Map<string, GateFn>([
   ['figure_manifest_reconcile', figureManifestReconcile],
   // ── 作图阶段换成「模型写脚本」之后的门禁（规则照搬参考实现）──
   ['figure_plan_valid', figurePlanValid],
+  ['figure_plan_budget', figurePlanBudget],
   ['figure_script_quality', figureScriptQuality],
   ['figure_script_traced', figureScriptTraced],
   ['figure_type_match', figureTypeMatch],

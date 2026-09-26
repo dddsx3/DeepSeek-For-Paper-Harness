@@ -67,10 +67,54 @@ export interface MintedResultsFile {
   readonly results: ReadonlyArray<{
     readonly result_id: string
     readonly name: string
-    readonly value: number
+    /**
+     * 账目的值。**不止标量**：序列（扫描表 / 样本 / 收敛序列）、
+     * 矩阵（组合成本表 / 混淆矩阵）、三维张量（参数网格上的指标场）都合法。
+     * 见 `numericShapeOf` —— 元素必须全是有限数。
+     */
+    readonly value: number | ReadonlyArray<unknown>
     readonly unit: string
     readonly uncertainty: number | null
+    /** 值的形态。给下游（脚本、门禁、审计）一个不用猜的判据。 */
+    readonly kind?: NumericShape
   }>
+}
+
+/**
+ * 账目值的形态。
+ *
+ * 为什么要有这个字段而不是让下游自己 `Array.isArray`：
+ * ① 门禁要能机械地回答"**账本里有没有能画那张图的数据**"——
+ *    `figure_data_shapes` 就是按它判的（标量画不出热力图，这是硬事实）；
+ * ② 审计要能核"阶段 3 是否铸了足够结构"，而不是只数条数。
+ */
+export type NumericShape = 'scalar' | 'series' | 'matrix' | 'tensor'
+
+/**
+ * 判定值的形态；**元素必须全是有限数**，否则返回 `null`（不合法）。
+ *
+ * 严格性是刻意的：`NaN`/`Infinity` 画到图上会静默变成空白或断线，
+ * 而"账本里有个坏数"在下游极难定位。字符串与对象一律拒绝
+ * （它们是"标签"或"结构"，不该混进数值账本）。
+ */
+export function numericShapeOf(value: unknown): NumericShape | null {
+  if (typeof value === 'number') return Number.isFinite(value) ? 'scalar' : null
+  if (!Array.isArray(value) || value.length === 0) return null
+  // **外层数组本身算第 1 维**，元素从第 2 维起数。
+  // 第一版把元素当第 1 维，于是 `[[1,2],[3,4]]` 被判成 `series`（矩阵被误判成序列），
+  // 而形态判据是"标量画不出热力图"的依据——误判成 series 会让热力图蒙混过关。
+  let depth = 1
+  const walk = (v: unknown, d: number): boolean => {
+    if (typeof v === 'number') return Number.isFinite(v)
+    if (Array.isArray(v)) {
+      if (v.length === 0) return false
+      if (d > depth) depth = d
+      return v.every(x => walk(x, d + 1))
+    }
+    return false
+  }
+  if (!value.every(v => walk(v, 2))) return null
+  return depth >= 3 ? 'tensor' : depth === 2 ? 'matrix' : 'series'
 }
 
 /** 一次执行 + 铸造的结果。 */
@@ -195,17 +239,30 @@ export async function runCodeAndMintResults(stagesRoot: string): Promise<Execute
       continue
     }
     const value = resolveJsonPath(root, source.json_path)
-    if (typeof value !== 'number' || !Number.isFinite(value)) {
+    // **允许标量之外的三种形态**（序列 / 矩阵 / 三维），这是本轮的关键放宽。
+    //
+    // 原来只收有限数，后果是**结构性的**：2024B 的账本 49 条全是标量点值，
+    // 于是阶段 5 有 7 张图"无米下锅"只能申报放弃——灵敏度图要参数扫描表、
+    // 蒙特卡洛要样本序列、热力图要组合矩阵、盈亏平衡要二维网格。
+    // 每一条放弃都真实，但根因是**这里根本收不下数组**：即使阶段 3 算出了扫描表，
+    // 铸数这一步也会把它判成"不是有限数"而整轮失败。所以"多画几张图"这个要求
+    // 在放宽这里之前是**不可达**的。
+    //
+    // 仍然严查的是**元素**：不许 NaN/Infinity/字符串/对象/null —— 图上出现 NaN 是静默失败。
+    const shape = numericShapeOf(value)
+    if (shape === null) {
       problems.push(`${source.result_id}：json_path '${source.json_path}' 在 '${source.locator}' 里`
-        + ` 解析到 ${JSON.stringify(value) ?? 'undefined'} —— 不是有限数（图里出现 NaN 是静默失败）`)
+        + ` 解析到 ${JSON.stringify(value) ?? 'undefined'} —— 既不是有限数，也不是有限数构成的数组`
+        + '（允许：标量 / 一维序列 / 二维矩阵 / 三维张量；元素必须都是有限数）')
       continue
     }
     minted.push({
       result_id: source.result_id,
       name: source.name,
-      value,
+      value: value as number | ReadonlyArray<unknown>,
       unit: source.unit,
       uncertainty: null,
+      kind: shape,
     })
   }
   if (problems.length > 0) {

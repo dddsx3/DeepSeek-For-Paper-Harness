@@ -267,13 +267,19 @@ export async function renderFigureStage(stagesRoot: string): Promise<FigureStage
     throw new Error(`阶段 3 没有产出 ${RESULTS_LEDGER_FILE} —— 账本是渲染取数的唯一来源`
       + '（数不由模型持有；没有它就没有可画的数）')
   }
-  const store = figureStoreProjection(ledger.results.map(r => ({
-    result_id: r.result_id,
-    name: r.name,
-    value: r.value,
-    unit: r.unit,
-    uncertainty: r.uncertainty,
-  })))
+  // **只把标量交给这个渲染器**：它是旧的"声明驱动"渲染器（固定 SVG 图型，
+  // 每个图型吃标量序列），**画不了**序列/矩阵账目。账本现在也收数组
+  // （阶段 3 的扫描表 / 组合矩阵 / 样本序列），那些条目对本渲染器无意义，过滤掉即可——
+  // 它们由阶段 5/6 的模型脚本（matplotlib）消费。
+  const store = figureStoreProjection(ledger.results
+    .filter(r => typeof r.value === 'number')
+    .map(r => ({
+      result_id: r.result_id,
+      name: r.name,
+      value: r.value as number,
+      unit: r.unit,
+      uncertainty: r.uncertainty,
+    })))
 
   const seen = new Set<string>()
   const figures: RenderedFigure[] = []

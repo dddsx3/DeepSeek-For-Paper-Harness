@@ -195,13 +195,21 @@ export function figurePlanValid(input: GateInput): ScriptGateVerdict {
   }
   const ledger = ledgerRaw(input)
   const known = new Set<string>()
+  /** `result_id → 值的形态`（`scalar`/`series`/`matrix`/`tensor`）。 */
+  const shapes = new Map<string, string>()
   if (ledger !== null) {
     try {
       const parsed: unknown = JSON.parse(ledger)
       const list = (parsed as { results?: unknown }).results
       if (Array.isArray(list)) for (const r of list) {
-        const rid = (r as { result_id?: unknown }).result_id
-        if (typeof rid === 'string') known.add(rid)
+        const row = r as { result_id?: unknown; kind?: unknown; value?: unknown }
+        const rid = row.result_id
+        if (typeof rid === 'string') {
+          known.add(rid)
+          // 老账本没有 `kind` 字段 → 就地按值判形态（向后兼容，别让旧产物被判"缺结构"）
+          const kind = typeof row.kind === 'string' ? row.kind : shapeOfValue(row.value)
+          if (kind !== null) shapes.set(rid, kind)
+        }
       }
     } catch { /* 同上 */ }
   }
@@ -235,6 +243,27 @@ export function figurePlanValid(input: GateInput): ScriptGateVerdict {
       if (missing.length > 0) {
         problems.push(`${fid}：${String(missing.length)} 个 data_ref 不在铸出的账本里（${missing.slice(0, 3).join('、')}）`
           + '—— 图里的数只能来自真实执行')
+      } else if (norm !== null) {
+        // **账本里有没有"能画这张图的那种数据"** —— 只查 result_id 存在是不够的。
+        //
+        // 实测（2024B）：规划了 14 张，交付 7 张，7 张的放弃理由**全是"账本没有那种结构"**
+        // （热力图要组合矩阵、灵敏度要扫描序列、蒙特卡洛要样本序列、盈亏平衡要网格）。
+        // 而 `data_refs` 当时**每一条都能解析到账本**——因为放弃发生在写脚本时，
+        // 规划里引用的都是当时存在的标量。所以"引用解析得到"这一条判据**看不见这个缺陷**。
+        // 这里补上形态判据：标量画不出热力图，这是硬事实，不必等它写到一半再放弃。
+        const have = refs.map(r => shapes.get(String(r)) ?? 'scalar')
+        const need = requiredShapeOf(norm)
+        if (need === 'matrix' && !have.some(s => s === 'matrix' || s === 'tensor')) {
+          problems.push(`${fid}：图型是 \`${norm}\`（要**矩阵/网格**数据），但 data_refs 里`
+            + ` ${String(have.length)} 条账目全是标量/序列 —— 标量画不出热力图。`
+            + '请回滚阶段 3 把组合矩阵（如"各候选组合 × 各指标"的二维表）算出来并铸进账本，'
+            + '或改型成标量画得出的图（`bar` / `lollipop` / `waterfall` 等）。')
+        } else if (need === 'series' && have.every(s => s === 'scalar') && have.length < 3) {
+          problems.push(`${fid}：图型是 \`${norm}\`（要**序列**：沿某个参数/时间的多个点），`
+            + `但 data_refs 只指向 ${String(have.length)} 个标量 —— 两点连不成曲线，`
+            + '硬连会虚构账本里并不存在的趋势（这正是"诚实地放弃"的那一类）。'
+            + '请回滚阶段 3 补算参数扫描/时间序列（≥8 个点），或改型成标量画得出的图。')
+        }
       }
     }
     for (const k of ['caption', 'x_label', 'y_label'] as const) {
@@ -283,6 +312,42 @@ function panelCountOf(code: string): number {
 /** 脚本是否用了 harness 铺好的共用引导模块。 */
 function usesFigbase(code: string): boolean {
   return /from\s+_figbase\s+import|import\s+_figbase/.test(code)
+}
+
+/** 就地判值的形态（账本没有 `kind` 字段时的向后兼容路径）。 */
+function shapeOfValue(value: unknown): string | null {
+  if (typeof value === 'number') return 'scalar'
+  if (!Array.isArray(value) || value.length === 0) return null
+  // 外层数组算第 1 维，元素从第 2 维起（与 `numericShapeOf` 同一口径——
+  // 两处判据不一致时，热力图会在一处被判"缺矩阵"、在另一处蒙混过关）。
+  let depth = 1
+  const walk = (v: unknown, d: number): boolean => {
+    if (typeof v === 'number') return true
+    if (Array.isArray(v) && v.length > 0) {
+      if (d > depth) depth = d
+      return v.every(x => walk(x, d + 1))
+    }
+    return false
+  }
+  if (!value.every(v => walk(v, 2))) return null
+  return depth >= 3 ? 'tensor' : depth === 2 ? 'matrix' : 'series'
+}
+
+/**
+ * 图型**最少**需要什么形态的账目数据。
+ *
+ * 只区分三档，故意保守（判不出来一律按 `scalar` 放行，与参考"宁漏不误"同调）：
+ * - `matrix`：整幅面按两个维度铺色的图（热力图 / 等高线 / 曲面 / 混淆矩阵）——
+ *   **一个标量画不出来**，这是硬事实；
+ * - `series`：沿某个轴展开的图（折线 / 误差棒 / 收敛曲线 / 生存曲线 / ROC）——
+ *   至少要有序列，或者 ≥3 个标量；
+ * - `scalar`：由若干标量就能成的图（柱 / 棒棒糖 / 瀑布 / 森林 / 哑铃 / 箱线 / 雷达…）。
+ */
+function requiredShapeOf(chartType: string): 'matrix' | 'series' | 'scalar' {
+  if (['heatmap', 'contour', 'surface3d', 'confusion'].includes(chartType)) return 'matrix'
+  if (['line', 'ci_line', 'scatter', 'errorbar', 'km', 'roc', 'calibration', 'residual',
+    'ridge', 'parallel', 'stacked_bar', 'grouped_bar', 'trend'].includes(chartType)) return 'series'
+  return 'scalar'
 }
 
 export function figureScriptQuality(input: GateInput): ScriptGateVerdict {
