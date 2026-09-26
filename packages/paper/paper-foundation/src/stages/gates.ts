@@ -325,10 +325,23 @@ function declaredCaptions(input: GateInput): ReadonlyMap<string, string> {
 
 /** 上游声明文件里**已申报**的计划分叉（没有该字段或解析失败时为空）。 */
 function declaredDeviations(input: GateInput): ReadonlyArray<{ readonly from: string; readonly to: string; readonly reason: string }> {
-  const raw = input.upstream.get(FIGURE_DECLARATIONS_FILE) ?? null
+  // 偏移申报现在写在**作图规划**（`FIGURE_PLAN.json`）里——
+  // 声明驱动时代写在 `FIGURE_DECLARATIONS.json`，那个文件已经不再产出。
+  // 只读旧文件会让“已申报的分叉”一律判成未申报。
+  const raw = input.upstream.get(FIGURE_PLAN_FILE) ?? input.files.get(FIGURE_PLAN_FILE) ?? null
   if (raw === null) return []
   try {
-    return parseFigureDeclarations(raw).plan_deviations ?? []
+    const parsed: unknown = JSON.parse(raw)
+    const list = (parsed as { plan_deviations?: unknown }).plan_deviations
+    if (!Array.isArray(list)) return []
+    return list.flatMap((d): ReadonlyArray<{ from: string; to: string; reason: string }> => {
+      if (typeof d !== 'object' || d === null) return []
+      const o = d as Record<string, unknown>
+      const from = typeof o['from'] === 'string' ? o['from'] : ''
+      const to = typeof o['to'] === 'string' ? o['to'] : ''
+      if (from === '' || to === '') return []
+      return [{ from, to, reason: typeof o['reason'] === 'string' ? o['reason'] : '' }]
+    })
   } catch {
     return []
   }
@@ -391,11 +404,21 @@ const figureManifestReconcile: GateFn = (input) => {
   // 理由写进结论。没有理由的分叉就是没被审视的分叉。
   const deviations = declaredDeviations(input)
   const accepted = deviations.filter(d => missing.includes(d.from) && untracked.includes(d.to))
-  const stillMissing = missing.filter(n => !accepted.some(d => d.from === n))
+  // **申报放弃**也要认（`to` 为空 + 写明理由）。
+  //
+  // 实测：模型显式放弃了 6 张计划图，理由是"账本只有两个点，连成曲线会虚构并不存在的
+  // 单调关系"——**那正是要的行为**（拒绝编造）。只认"换名"会把这种诚实的放弃判成漏渲染。
+  // 判据仍是"可审计"：有 `from`、有非空 `reason`，就放行并把理由写进结论；
+  // 没有理由的放弃 = 没被审视的放弃，照旧失败。
+  const dropped = deviations.filter(d => d.to === '' && d.reason.trim() !== '' && missing.includes(d.from))
+  const stillMissing = missing.filter(n => !accepted.some(d => d.from === n) && !dropped.some(d => d.from === n))
   const stillUntracked = untracked.filter(n => !accepted.some(d => d.to === n))
   if (stillMissing.length === 0 && stillUntracked.length === 0) {
-    return ok(id, `计划 ${String(planned.length)} 张数据图全部渲染（含 ${String(accepted.length)} 处**已申报**的分叉：`
-      + accepted.map(d => `${d.from}→${d.to}`).join('、') + '；理由见阶段 3 的声明文件）')
+    const parts: string[] = []
+    if (accepted.length > 0) parts.push(`${String(accepted.length)} 处换名/改型（${accepted.map(d => `${d.from}→${d.to}`).join('、')}）`)
+    if (dropped.length > 0) parts.push(`${String(dropped.length)} 处**申报放弃**（${dropped.map(d => d.from).join('、')}）`)
+    return ok(id, `计划 ${String(planned.length)} 张数据图全部有落点`
+      + (parts.length === 0 ? '' : `（${parts.join('；')}；理由见阶段 5 的规划文件）`))
   }
   const undeclared = untracked.filter(n => !accepted.some(d => d.to === n) && deviations.some(d => d.to === n))
   return fail(id, [

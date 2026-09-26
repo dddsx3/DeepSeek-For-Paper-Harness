@@ -23,7 +23,7 @@
  * @module @deepseek-ai/dsh-paper-foundation/stages/figure-run
  */
 
-import { copyFile, mkdir, readFile, readdir, writeFile } from 'node:fs/promises'
+import { copyFile, mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises'
 import { spawn } from 'node:child_process'
 import { join } from 'node:path'
 import { PLOTTING_ASSETS_DIR } from './assets.ts'
@@ -59,7 +59,12 @@ function figureIdOfScript(script: string): string {
 /** 跑一个子进程，收 stdout/stderr 与退出码（**不抛**——非零是正常返回值）。 */
 function runPython(cwd: string, args: ReadonlyArray<string>, timeoutMs: number): Promise<{ code: number; out: string; err: string }> {
   return new Promise((resolve, reject) => {
-    const child = spawn('python', [...args], { cwd, windowsHide: true })
+    // **`PYTHONPATH` 必须指到阶段目录**：Python 只把**脚本所在目录**加进 `sys.path`
+    // （这里是 `<stage>/figures/`），不是 cwd。不设它，脚本里的
+    // `from _utils.plot_utils import ...` 直接 ModuleNotFoundError（实测 8/8 全挂）。
+    // 参考的脚本头自己 `sys.path.insert(0, '.')`；本仓库由 harness 铺环境，等价效果。
+    const env = { ...process.env, PYTHONPATH: cwd }
+    const child = spawn('python', [...args], { cwd, env, windowsHide: true })
     let out = ''
     let err = ''
     const timer = setTimeout(() => { child.kill(); reject(new Error(`脚本超时（${String(timeoutMs)}ms）`)) }, timeoutMs)
@@ -82,10 +87,23 @@ export async function runFigureScripts(stagesRoot: string, timeoutMs = 180_000):
   const dir = join(stagesRoot, stageDirName(stageOf('figure')))
   const figuresDir = join(dir, 'figures')
   await mkdir(join(dir, '_utils'), { recursive: true })
-  await mkdir(figuresDir, { recursive: true })
+  // **重跑 = 替换**：先清掉 `figures/` 里上一轮留下的产物。
+  // 确定性阶段原来没这一步（`pruneStageDir` 只作用于模型阶段），于是换执行体后
+  // 旧渲染器留下的 SVG 还在，对账会把它当成"本轮产出的图"（实测：脚本全挂，
+  // 却报"实际产出了 fig_x.svg"——那是上一轮的）。
+  for (const name of await readdir(figuresDir).catch(() => [] as string[])) {
+    if (name === '_utils') continue // 样式库兜底那份留着
+    await rm(join(figuresDir, name), { recursive: true, force: true })
+  }
 
-  // ① 样式库（原样，来自 assets/plotting/）
+  // ① 样式库（原样，来自 assets/plotting/）。
+  // **放两处**：`<stage>/_utils/`（规范位置）与 `<stage>/figures/_utils/`（**兜底**）。
+  // 兜底那一份是关键：Python 只把**脚本所在目录**加进 `sys.path`（这里是 `figures/`），
+  // 靠 `PYTHONPATH` 传 cwd 在某些环境下不生效（实测：手动 spawn 通、走执行体不通）。
+  // 把 `_utils` 放到脚本旁边，就**不依赖任何环境变量**了。
   await copyFile(join(PLOTTING_ASSETS_DIR, 'plot_utils.py'), join(dir, '_utils', 'plot_utils.py'))
+  await mkdir(join(dir, 'figures', '_utils'), { recursive: true })
+  await copyFile(join(PLOTTING_ASSETS_DIR, 'plot_utils.py'), join(dir, 'figures', '_utils', 'plot_utils.py'))
   // ② 铸出的账本：脚本取数的唯一来源
   const ledger = await readFile(join(stagesRoot, '04-result-sources', 'results.json'), 'utf8').catch(() => null)
   if (ledger === null) {
