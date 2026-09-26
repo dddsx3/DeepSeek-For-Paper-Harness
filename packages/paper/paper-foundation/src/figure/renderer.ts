@@ -15,30 +15,41 @@
  */
 
 import { canonicalJson, sha256Hex } from '../ir/evidence-freeze.ts'
+import {
+  CJK_FONT_STACK, escapeXml, fitFontSize, fmt, fmtTick, niceScale,
+} from './svg-primitives.ts'
+import {
+  refLineParts, renderForestSvg, renderHeatmapSvg, renderTornadoSvg, renderWaterfallSvg,
+} from './chart-types.ts'
 import { parseLedger, seriesFromLedger, type LedgerTable } from './ledger.ts'
 import { planCategoricalLabels } from './axis-labels.ts'
 import type { IrObjectRecord } from '../ir/store.ts'
 
 export const FIGURE_STYLE_PROFILE = 'okabe-ito-v1'
-export const FIGURE_CHART_TYPES = ['line', 'scatter', 'bar', 'table'] as const
+export const FIGURE_CHART_TYPES = [
+  'line', 'scatter', 'bar', 'table',
+  // ── 以下按参考工作流的「图型决策表」补入（原来只有前四种，是水平上不去的主因）──
+  // 折线 + 置信带（参考：有重复/CI/误差时必须画 fill_between，不要只画一条均值线）
+  'ci_line',
+  // 龙卷风图：灵敏度驱动因子排序（参考决策表：单参数扫描 → Tornado，明确不要 grouped bar）
+  'tornado',
+  // 瀑布图：模块贡献/成本构成（参考：消融/贡献 → Waterfall，明确不要 bar chart）
+  'waterfall',
+  // 热力图：方法×指标矩阵（带格内数值与明暗自适应文字）
+  'heatmap',
+  // 森林图：点估计 + 置信区间 + 参考线（临床/统计面板的标准形态）
+  'forest',
+] as const
 export type FigureChartType = (typeof FIGURE_CHART_TYPES)[number]
 
 /**
- * 承载**中文**的字体栈 —— 必须点名，不能写裸 `sans-serif`。
+ * 承载**中文**的字体栈 —— 见 `svg-primitives.ts` 的模块注释（裸 `sans-serif`
+ * 在 cairosvg 下没有中日韩字形，栅格化进 docx/PDF 就是豆腐块）。
  *
- * 为什么这是硬要求而不是风格偏好：图最终要经 `cairosvg` 栅格化进 docx/PDF，
- * 而 `sans-serif` 在 cairosvg 的解析下会落到一个**不含中日韩字形**的默认字体上，
- * 于是每一个中文标签都渲染成豆腐块（`□□□□`）。浏览器里看不出问题
- * （浏览器会把 `sans-serif` 解析到系统中文字体），**只有栅格化那条路上才暴露**——
- * 也就是说，坏掉的正好是交付物。
- *
- * 2024B 实测：旧的 11 阶段运行渲染出的 18 张图，**每一张的中文轴标签/系列名都是豆腐块**
- * （`fig_p1_oc_curve.svg` 的 `接收概率` / `真实次品率`）。只把这一行换成下面这个栈，
- * 同一张图立刻正常——已验证。
- *
- * 与 `figure/architecture.ts` 用同一个栈：两处各写一份迟早漂移。
+ * 这里**再导出**一次是为了兼容既有引用（门禁与测试都从本模块取它）；
+ * 定义只有一份，在 `svg-primitives.ts`。
  */
-export const CJK_FONT_STACK = "'Microsoft YaHei', 'PingFang SC', 'Noto Sans CJK SC', sans-serif"
+export { CJK_FONT_STACK } from './svg-primitives.ts'
 
 /** Okabe–Ito palette (colourblind-safe). */
 const SERIES_COLORS = ['#0072B2', '#E69F00', '#009E73', '#D55E00', '#CC79A7', '#56B4E9']
@@ -164,6 +175,44 @@ export interface RenderInput {
   readonly x_scale?: 'linear' | 'log'
   /** W9-B3 — the named recipe the figure was rendered with. */
   readonly recipe?: string
+  /**
+   * 判据线 / 阈值线（参考：有阈值/上限/约束/合格线时，画一条虚线 + 线旁短标签）。
+   * 数值同样来自铸出的账本，不由模型手写。
+   */
+  readonly ref_lines?: ReadonlyArray<{
+    readonly axis: 'x' | 'y'
+    readonly value: number
+    readonly label?: string
+  }>
+  /** 龙卷风图的数据：每个驱动因子的低/高偏差（同一个基准下的相对变化）。 */
+  readonly tornado?: ReadonlyArray<{
+    readonly label: string
+    readonly low: number
+    readonly high: number
+    readonly low_label?: string
+    readonly high_label?: string
+  }>
+  /** 基准值（龙卷风/瀑布图在图上标注它）。 */
+  readonly baseline?: number
+  /** 瀑布图的台阶：kind=total 画成落地柱，kind=delta 画成累积浮柱并连横线。 */
+  readonly waterfall?: ReadonlyArray<{
+    readonly label: string
+    readonly value: number
+    readonly kind?: 'delta' | 'total'
+  }>
+  /** 热力图：行/列名 + 数值矩阵（矩阵必须与行列数一致）。 */
+  readonly heatmap?: {
+    readonly rows: ReadonlyArray<string>
+    readonly cols: ReadonlyArray<string>
+    readonly values: ReadonlyArray<ReadonlyArray<number>>
+  }
+  /** 森林图：每行的点估计与置信区间。 */
+  readonly forest?: ReadonlyArray<{
+    readonly label: string
+    readonly estimate: number
+    readonly low: number
+    readonly high: number
+  }>
   /** W9-A3 — provenance: every ledger-backed series records its source
    *  (data_ref + locator + content hash) so each drawn number traces to the
    *  store. */
@@ -201,6 +250,40 @@ export function figureRenderInput(
     readonly caption?: string
     readonly x_label?: string
     readonly y_label?: string
+    /**
+     * ── 参考决策表补入的图型的**结构化声明** ──────────────────────────
+     * 每个字段里写的都是 **Result id**（不是数值）——模型不持有数值这条约束不变，
+     * 由 `figureRenderInput` 解析成账本里的真实值；解析不到就具名拒绝。
+     */
+    readonly ref_lines?: ReadonlyArray<{
+      readonly axis: 'x' | 'y'
+      readonly value_ref: string
+      readonly label?: string
+    }>
+    readonly tornado?: ReadonlyArray<{
+      readonly label: string
+      readonly low_ref: string
+      readonly high_ref: string
+      readonly low_label?: string
+      readonly high_label?: string
+    }>
+    readonly waterfall?: ReadonlyArray<{
+      readonly label: string
+      readonly value_ref: string
+      readonly kind?: 'delta' | 'total'
+    }>
+    readonly forest?: ReadonlyArray<{
+      readonly label: string
+      readonly estimate_ref: string
+      readonly low_ref: string
+      readonly high_ref: string
+    }>
+    readonly heatmap?: {
+      readonly rows: ReadonlyArray<string>
+      readonly cols: ReadonlyArray<string>
+      readonly value_refs: ReadonlyArray<ReadonlyArray<string>>
+    }
+    readonly baseline_ref?: string
   },
   opts?: {
     /** W9-A1 — required for DataArtifact data sources; its absence is a
@@ -295,6 +378,79 @@ export function figureRenderInput(
   if (DATA_FIGURE_RECIPES[recipe] === undefined) {
     return { ok: false, reason: `recipe '${recipe}' is not a named data-figure recipe (have: ${Object.keys(DATA_FIGURE_RECIPES).join(', ')})` }
   }
+  // ── 参考决策表补入的图型所需的**结构化取数** ──────────────────────
+  // 声明里写的仍是 **Result id**（模型不持有数值这条约束不变）；
+  // 这里把每个 id 解析成账本里的真实值，解析不到就**具名拒绝**（不猜、不留空）。
+  const scalar = (ref: unknown): number | { readonly error: string } => {
+    if (typeof ref !== 'string' || ref === '') return { error: '需要一个 Result id 字符串' }
+    const rec = store.get(ref)
+    if (rec === undefined) return { error: `'${ref}' 在账本里找不到` }
+    if (rec.kind !== 'Result') return { error: `'${ref}' 不是 Result（是 ${rec.kind}）` }
+    const v = (rec.value as { value?: unknown }).value
+    if (typeof v !== 'number' || !Number.isFinite(v)) return { error: `'${ref}' 的值不是有限数` }
+    return v
+  }
+  const newFields: Record<string, unknown> = {}
+  if (figure.ref_lines !== undefined) {
+    const out: Array<{ axis: 'x' | 'y'; value: number; label?: string }> = []
+    for (const r of figure.ref_lines) {
+      const v = scalar(r.value_ref)
+      if (typeof v !== 'number') return { ok: false, reason: `ref_lines 的 value_ref ${v.error}` }
+      out.push({ axis: r.axis, value: v, ...(r.label === undefined ? {} : { label: r.label }) })
+    }
+    newFields['ref_lines'] = out
+  }
+  if (figure.tornado !== undefined) {
+    const out = []
+    for (const t of figure.tornado) {
+      const lo = scalar(t.low_ref); const hi = scalar(t.high_ref)
+      if (typeof lo !== 'number') return { ok: false, reason: `tornado '${t.label}' 的 low_ref ${lo.error}` }
+      if (typeof hi !== 'number') return { ok: false, reason: `tornado '${t.label}' 的 high_ref ${hi.error}` }
+      out.push({ label: t.label, low: lo, high: hi,
+        ...(t.low_label === undefined ? {} : { low_label: t.low_label }),
+        ...(t.high_label === undefined ? {} : { high_label: t.high_label }) })
+    }
+    newFields['tornado'] = out
+  }
+  if (figure.waterfall !== undefined) {
+    const out = []
+    for (const w of figure.waterfall) {
+      const v = scalar(w.value_ref)
+      if (typeof v !== 'number') return { ok: false, reason: `waterfall '${w.label}' 的 value_ref ${v.error}` }
+      out.push({ label: w.label, value: v, ...(w.kind === undefined ? {} : { kind: w.kind }) })
+    }
+    newFields['waterfall'] = out
+  }
+  if (figure.forest !== undefined) {
+    const out = []
+    for (const f of figure.forest) {
+      const e = scalar(f.estimate_ref); const lo = scalar(f.low_ref); const hi = scalar(f.high_ref)
+      if (typeof e !== 'number') return { ok: false, reason: `forest '${f.label}' 的 estimate_ref ${e.error}` }
+      if (typeof lo !== 'number') return { ok: false, reason: `forest '${f.label}' 的 low_ref ${lo.error}` }
+      if (typeof hi !== 'number') return { ok: false, reason: `forest '${f.label}' 的 high_ref ${hi.error}` }
+      out.push({ label: f.label, estimate: e, low: lo, high: hi })
+    }
+    newFields['forest'] = out
+  }
+  if (figure.heatmap !== undefined) {
+    const hm = figure.heatmap
+    const values: number[][] = []
+    for (const row of hm.value_refs) {
+      const line: number[] = []
+      for (const ref of row) {
+        const v = scalar(ref)
+        if (typeof v !== 'number') return { ok: false, reason: `heatmap 的 value_ref ${v.error}` }
+        line.push(v)
+      }
+      values.push(line)
+    }
+    newFields['heatmap'] = { rows: hm.rows, cols: hm.cols, values }
+  }
+  if (figure.baseline_ref !== undefined) {
+    const v = scalar(figure.baseline_ref)
+    if (typeof v !== 'number') return { ok: false, reason: `baseline_ref ${v.error}` }
+    newFields['baseline'] = v
+  }
   const input: RenderInput = {
     style_profile: FIGURE_STYLE_PROFILE,
     chart_type: chart as FigureChartType,
@@ -307,12 +463,9 @@ export function figureRenderInput(
     ...(opts?.x_scale === 'log' ? { x_scale: 'log' as const } : {}),
     recipe,
     ...(ledgerSources.length > 0 ? { ledger_sources: ledgerSources } : {}),
+    ...newFields,
   }
   return { ok: true, input, data_hash: `sha256:${sha256Hex(canonicalJson(input))}` }
-}
-
-function fmt(v: number): string {
-  return Number.isInteger(v) ? String(v) : String(Math.round(v * 1e6) / 1e6)
 }
 
 /** Render one canonical input to deterministic SVG bytes (no time/rand).
@@ -321,6 +474,14 @@ function fmt(v: number): string {
  *  本渲染器因此从不输出 caption 到 SVG 内部——caption 字段仅供审计对账。 */
 export function renderFigureSvg(input: RenderInput): string {
   if (input.chart_type === 'table') return renderTableSvg(input)
+  // 按参考决策表补入的图型（各有自己的版式，不复用折线的坐标系）
+  const recipe0 = DATA_FIGURE_RECIPES[input.recipe ?? FIGURE_STYLE_PROFILE]
+  if (recipe0 !== undefined) {
+    if (input.chart_type === 'tornado') return renderTornadoSvg(input, recipe0)
+    if (input.chart_type === 'waterfall') return renderWaterfallSvg(input, recipe0)
+    if (input.chart_type === 'heatmap') return renderHeatmapSvg(input, recipe0)
+    if (input.chart_type === 'forest') return renderForestSvg(input, recipe0)
+  }
   if (input.series2d !== undefined && input.series2d.length > 0) return renderSeries2DSvg(input)
   const W = 680
   const H = 420
@@ -436,7 +597,19 @@ function renderSeries2DSvg(input: RenderInput): string {
   if (yMin === yMax) { yMin -= 1; yMax += 1 }
   const xPad = (xMax - xMin) * 0.04
   const yPad = (yMax - yMin) * 0.06
-  xMin -= xPad; xMax += xPad; yMin -= yPad; yMax += yPad
+  xMin -= xPad; xMax += xPad
+  // **值轴刻度取整**（参考：把关键阈值/端点塞进刻度；实测旧图纵轴是 22.33 / 19.295 /
+  // 16.26 这种非整数，读起来很业余）。留白之后再把区间扩到 1/2/5×10^k 的整数刻度上，
+  // 于是刻度标签天然落在整数（或一位小数）上。
+  //
+  // **只对线性轴做**：对数轴的取值域必须严格为正，而取整会把下界推到 0 甚至负数
+  // （`Math.floor(lo/step)*step`），于是 `log10(yMin)` 直接炸——实测把既有的对数轴
+  // 用例打红了。对数轴本来就有自己的 Locator，不需要这一层。
+  const yNice = input.y_scale === 'log'
+    ? { lo: yMin, hi: yMax, step: (yMax - yMin) / 4 }
+    : niceScale(yMin - yPad, yMax + yPad, 4)
+  yMin = yNice.lo; yMax = yNice.hi
+  const yStep = yNice.step > 0 ? yNice.step : (yMax - yMin) / 4
 
   const sx = (v: number): number => {
     if (input.x_scale === 'log') {
@@ -457,13 +630,13 @@ function renderSeries2DSvg(input: RenderInput): string {
   parts.push(`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="img">`)
   parts.push(`<rect x="0" y="0" width="${W}" height="${H}" fill="#FFFFFF"/>`)
 
-  // grid + ticks (4 divisions)
-  const gridRows = 4
+  // grid + ticks —— 段数由**取整后的步长**推出（原来写死 4 段，与取整后的区间对不上）
+  const gridRows = Math.max(1, Math.round((yMax - yMin) / yStep))
   for (let row = 0; row <= gridRows; row += 1) {
-    const gy = T + (plotH / gridRows) * row
-    parts.push(`<line x1="${L}" y1="${gy}" x2="${W - R}" y2="${gy}" stroke="${recipe.grid_color}" stroke-width="1"/>`)
-    const gv = yMax - ((yMax - yMin) / gridRows) * row
-    parts.push(`<text x="${L - 8}" y="${gy + 4}" text-anchor="end" font-family="monospace" font-size="${recipe.font_size - 1}" fill="${recipe.ink}">${fmtTick(gv)}</text>`)
+    const gv = yMin + yStep * row
+    const gy = sy(gv)
+    parts.push(`<line x1="${L}" y1="${fmt(gy)}" x2="${W - R}" y2="${fmt(gy)}" stroke="${recipe.grid_color}" stroke-width="1"/>`)
+    parts.push(`<text x="${L - 8}" y="${fmt(gy + 4)}" text-anchor="end" font-family="monospace" font-size="${recipe.font_size - 1}" fill="${recipe.ink}">${fmtTick(gv)}</text>`)
   }
   // **类别轴上不画数值刻度**（第四个实测缺陷）。
   // 分类轴（`xLabels`）的刻度位置是 1..n 的序号，画出来就是 `0.8 / 1.8 / 2.8…`
@@ -482,6 +655,9 @@ function renderSeries2DSvg(input: RenderInput): string {
   // axes spines
   parts.push(`<line x1="${L}" y1="${T}" x2="${L}" y2="${T + plotH}" stroke="${recipe.ink}" stroke-width="1"/>`)
   parts.push(`<line x1="${L}" y1="${T + plotH}" x2="${W - R}" y2="${T + plotH}" stroke="${recipe.ink}" stroke-width="1"/>`)
+  // **判据线 / 阈值线**（参考：有阈值/上限/约束/合格线时必画，虚线 + 线旁短标签）。
+  // 画在数据之下（先画），免得盖住柱/线。
+  parts.push(...refLineParts(input, sx, sy, recipe.font_size))
 
   const color = (i: number): string => recipe.palette[i % recipe.palette.length] ?? recipe.ink
 
@@ -586,35 +762,7 @@ function renderSeries2DSvg(input: RenderInput): string {
   return parts.join('\n') + '\n'
 }
 
-/**
- * 把字号缩到"这段文字在可用长度内放得下"（**有下限，不许缩成看不见**）。
- *
- * 中文按 1.0 em/字、拉丁数字按 0.6 em/字估算宽度——只用于**防裁切**，
- * 不追求排版精确。下限 8pt 来自参考工作流的硬要求（"刻度字号下限 8pt、轴标签 9pt"）。
- */
-function fitFontSize(text: string, available: number, want: number): number {
-  const em = [...text].reduce((n, ch) => n + (/[　-鿿＀-￯]/.test(ch) ? 1.0 : 0.6), 0)
-  if (em <= 0) return want
-  const fits = available / em
-  return Math.max(8, Math.min(want, Math.round(fits * 10) / 10))
-}
 
-/** Tick formatter: compact, deterministic, no exponent surprises. */
-function fmtTick(v: number): string {
-  const abs = Math.abs(v)
-  if (abs >= 1e6 || (abs > 0 && abs < 1e-3)) return v.toExponential(1)
-  if (Number.isInteger(v)) return String(v)
-  return String(Math.round(v * 1000) / 1000)
-}
-
-function escapeXml(text: string): string {
-  return text
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&apos;')
-}
 
 /**
  * P3-4: the `table` chart type — one row per data_ref (量名 / 值 / 单位 /

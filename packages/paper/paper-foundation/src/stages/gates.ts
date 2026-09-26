@@ -551,6 +551,62 @@ const figureCompleteness: GateFn = (input) => {
     : fail(id, problems.slice(0, 6).join('；'))
 }
 
+/**
+ * **图型多样性** —— 参考工作流的硬规则，原话两条：
+ * - *"Hard rule: do not use the same chart type more than 2 times in one paper."*
+ * - *"If < 4 unique types for a paper with ≥6 figures, go back and swap."*
+ * 还有一条更狠的：*"All bar charts? Mix at least 3+ different types"*。
+ *
+ * 为什么这不是审美洁癖：一整篇全是柱状图时，读者无法从**图型**上分辨
+ * "这是灵敏度排序"还是"这是成本构成"——而那正是图型本身要承载的信息。
+ * 参考的决策表对每种数据形态都指定了图型，重复用同一种等于放弃了那层表达。
+ *
+ * 判据落在**声明**上（图型是声明字段，不必等渲染出来）：
+ * - 同一种图型最多出现 `MAX_SAME_TYPE` 次；
+ * - 声明 ≥ `MANY_FIGURES` 张图时，unique 图型数不得少于 `MIN_UNIQUE_TYPES`。
+ */
+const MAX_SAME_TYPE = 3
+const MANY_FIGURES = 6
+const MIN_UNIQUE_TYPES = 4
+
+const figureDiversity: GateFn = (input) => {
+  const id = 'figure_diversity'
+  const raw = input.files.get('FIGURE_DECLARATIONS.json') ?? input.upstream.get('FIGURE_DECLARATIONS.json') ?? null
+  if (raw === null) return cannot(id, 'FIGURE_DECLARATIONS.json 不在 —— 没有声明就无从统计图型')
+  let figures: ReadonlyArray<Record<string, unknown>>
+  try {
+    const parsed: unknown = JSON.parse(raw)
+    const list = (parsed as { figures?: unknown }).figures
+    if (!Array.isArray(list)) return fail(id, 'FIGURE_DECLARATIONS.json 里没有 `figures` 数组')
+    figures = list as ReadonlyArray<Record<string, unknown>>
+  } catch {
+    return fail(id, 'FIGURE_DECLARATIONS.json 不是合法 JSON')
+  }
+  if (figures.length === 0) return cannot(id, '声明里没有任何图 —— 没有可统计的对象')
+  const counts = new Map<string, number>()
+  for (const f of figures) {
+    const t = typeof f['chart_type'] === 'string' ? f['chart_type'] : '(未声明)'
+    counts.set(t, (counts.get(t) ?? 0) + 1)
+  }
+  const problems: string[] = []
+  for (const [t, n] of counts) {
+    if (n > MAX_SAME_TYPE) {
+      problems.push(`图型 '${t}' 用了 ${String(n)} 次（上限 ${String(MAX_SAME_TYPE)}）—— `
+        + '参考的硬规则：同一种图型不要在一篇里重复超过 2–3 次；'
+        + '按它的图型决策表换型（灵敏度排序→tornado、贡献构成→waterfall、'
+        + '区间估计→forest、矩阵→heatmap、带重复的趋势→ci_line）')
+    }
+  }
+  if (figures.length >= MANY_FIGURES && counts.size < MIN_UNIQUE_TYPES) {
+    problems.push(`共 ${String(figures.length)} 张图却只有 ${String(counts.size)} 种图型 `
+      + `（参考：≥${String(MANY_FIGURES)} 张图时 unique 图型应 ≥${String(MIN_UNIQUE_TYPES)}）—— `
+      + `现有：${[...counts.entries()].map(([t, n]) => `${t}×${String(n)}`).join('、')}`)
+  }
+  return problems.length === 0
+    ? ok(id, `${String(figures.length)} 张图、${String(counts.size)} 种图型：无单一图型超过 ${String(MAX_SAME_TYPE)} 次`)
+    : fail(id, problems.slice(0, 3).join('；'))
+}
+
 const figureStyleRules: GateFn = (input) => {
   const id = 'figure_style_rules'
   const svgs = renderedSvgFiles(input)
@@ -1084,6 +1140,7 @@ export const GATES: ReadonlyMap<string, GateFn> = new Map<string, GateFn>([
   // 风格门禁 —— `adaptation.ts` 里那条 `missing`（Python 绘图库的规范）的补齐项：
   // 规范本身早已在仓库里（语料 + 简报的禁令），缺的是**可核的判据**，这就是它。
   ['figure_completeness', figureCompleteness],
+  ['figure_diversity', figureDiversity],
   ['figure_style_rules', figureStyleRules],
   ['diagram_manifest_reconcile', diagramManifestReconcile],
   ['diagram_geometry', diagramGeometry],

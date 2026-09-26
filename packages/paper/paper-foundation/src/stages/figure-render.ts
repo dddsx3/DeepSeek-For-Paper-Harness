@@ -282,6 +282,14 @@ export async function renderFigureStage(stagesRoot: string): Promise<FigureStage
       ...(decl.caption === undefined ? {} : { caption: decl.caption }),
       ...(decl.x_label === undefined ? {} : { x_label: decl.x_label }),
       ...(decl.y_label === undefined ? {} : { y_label: decl.y_label }),
+      // 参考决策表补入的图型所需的**结构化声明**（里面写的是 Result id）。
+      // 透传而不是重写：取数与解析只有 `figureRenderInput` 一处口径。
+      ...(decl.ref_lines === undefined ? {} : { ref_lines: decl.ref_lines }),
+      ...(decl.tornado === undefined ? {} : { tornado: decl.tornado }),
+      ...(decl.waterfall === undefined ? {} : { waterfall: decl.waterfall }),
+      ...(decl.forest === undefined ? {} : { forest: decl.forest }),
+      ...(decl.heatmap === undefined ? {} : { heatmap: decl.heatmap }),
+      ...(decl.baseline_ref === undefined ? {} : { baseline_ref: decl.baseline_ref }),
     })
     if (!derived.ok) {
       throw new Error(`图 '${decl.figure_id}' 取数失败：${derived.reason}`
