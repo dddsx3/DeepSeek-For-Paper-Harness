@@ -198,3 +198,28 @@ describe('审计结论的严格解析 —— 坏回答记 2，不当通过', () 
     expect(v.findings[0]?.severity).toBe('minor')
   })
 })
+
+/**
+ * 审计员必须**审编外登记簿**：它是"换一种记账"，也是最可能被滥用的地方
+ * （把计算结果伪装成示意数就能绕过零数字通道）。
+ */
+describe('审计提示词 —— 编外登记簿要审', () => {
+  const prompt = auditPromptOf({
+    spec: stageOf('modeling'),
+    skillTask: skillTaskOf(stageOf('modeling')),
+    artifacts: new Map([['DECLARATION.json', '{}']]),
+    upstreamNames: ['PROBLEM_FACTS.json'],
+    groundTruth: new Map([['给定值事实表 PROBLEM_FACTS.json', '{}']]),
+  })
+
+  it('要求逐条核 `quote` 与 `reason`，并点名"结果伪装成示意"= fatal', () => {
+    expect(prompt).toContain('编外登记簿要审')
+    expect(prompt).toContain('illustrative_numbers')
+    expect(prompt).toContain('把计算结果塞进编外来绕过零数字通道')
+    expect(prompt).toContain('结果伪装成示意')
+  })
+
+  it('**反过来也要说清**：登记齐备的示意数不该被判成错', () => {
+    expect(prompt).toContain('真的示意数不该被判成错')
+  })
+})

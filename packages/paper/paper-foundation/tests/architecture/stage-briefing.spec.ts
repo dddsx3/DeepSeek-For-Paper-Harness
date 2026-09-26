@@ -322,3 +322,28 @@ describe('阶段 2 简报 —— 成本核算的现金流守恒', () => {
     expect(brief).toContain('虚假胜出')
   })
 })
+
+/**
+ * 编外登记簿必须**在简报里教给模型**——否则模型不知道这条通道存在，
+ * 就会继续把示意数直接写进散文（那才是"凭空出现"）。
+ */
+describe('阶段 2 简报 —— 编外登记簿这条通道', () => {
+  const brief = stageBriefing(stageOf('modeling'), new Map(), false)
+
+  it('点名 `illustrative_numbers`，并给出可直接照抄的条目形态', () => {
+    expect(brief).toContain('illustrative_numbers')
+    expect(brief).toContain('编外登记簿')
+    expect(brief).toContain('"quote"')
+    expect(brief).toContain('"reason"')
+  })
+
+  it('说清"编外不是豁免，是换一种记账"与缺项后果', () => {
+    expect(brief).toContain('编外不是豁免，是换一种记账')
+    expect(brief).toContain('凭空出现')
+  })
+
+  it('**堵住"把结果塞进编外"这条路**（否则零数字通道被绕过）', () => {
+    expect(brief).toContain('把计算结果塞进编外')
+    expect(brief).toContain('绕过零数字通道')
+  })
+})
