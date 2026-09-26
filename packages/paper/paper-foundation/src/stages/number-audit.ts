@@ -359,11 +359,17 @@ export function verificationClaims(text: string): ReadonlyArray<VerificationClai
     // **先剥掉元语言引号**：实测假阳性——正文写"绝不写「全部通过」"，那是**引用**
     // 被禁的措辞作为反例，不是断言。中文技术写作里「」『』`` 与成对引号承担元语言
     // 功能（提到某句话而非使用它），所以扫描前先去掉它们的内容。
+    //
+    // **ASCII 直引号也要剥**（第十三处误报）：模型解释这条纪律时写
+    // `任何"已通过 / 已验证 / 全部一致"的完成时声明都比一个错数字更危险`——
+    // 它是在**引用被禁的措辞**，而六个引号全是 U+0022，不在原来的剥离表里，
+    // 于是「全部一致」被判成"声称已执行检验"。引号形式有四种，漏一种就是一个假阳性源。
     const line = rawLine
       .replace(/「[^」\n]*」/g, ' ')
       .replace(/『[^』\n]*』/g, ' ')
       .replace(/`[^`\n]*`/g, ' ')
       .replace(/“[^”\n]*”/g, ' ')
+      .replace(/"[^"\n]*"/g, ' ')
     for (const claim of VERIFICATION_CLAIMS) {
       const hit = claim.pattern.exec(line)
       if (hit === null) continue
