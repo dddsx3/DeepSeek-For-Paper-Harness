@@ -139,9 +139,48 @@ export function assembleFigureAnswers(
       throw new Error(`第 ${String(shard.index)} 段（${shard.deliverable}）的回答是空的 —— `
         + '该脚本没有内容就是没有交付，不静默跳过')
     }
-    // 模型偶尔仍会包一层围栏；剥掉（形态宽容，但**内容**必须真的在）
-    const fenced = /```(?:python)?\s*([\s\S]*?)```/.exec(answer)
-    files[shard.deliverable] = (fenced?.[1] ?? answer).trim() + '\n'
+    files[shard.deliverable] = unwrapScriptAnswer(answer, shard.deliverable)
   })
   return JSON.stringify({ files })
+}
+
+/**
+ * 从一次分片回答里取出**那个文件的正文**（形态宽容，内容必须真的在）。
+ *
+ * 三种形态都要认，因为模型同时看到两个说法：**简报**写着"回答必须是
+ * `{"files": {...}}` 信封"，而分片 prompt 写着"只产出这一个文件"——模型会挑一个。
+ * 实测：它按简报答了信封，而这里只剥代码围栏、不拆信封，于是**写进磁盘的是那段 JSON**
+ * （门禁读到的"脚本"以 `{"files":` 开头，`python gen_x.py` 直接语法错）。
+ *
+ * 1. `{"files": {"figures/gen_x.py": "…"}}` 信封；
+ * 2. ```python 围栏包着的脚本；
+ * 3. 裸脚本。
+ *
+ * @param answer - 分片回答。
+ * @param deliverable - 本片应当交付的相对路径。
+ * @returns 该文件的正文（保证以换行结尾）。
+ */
+export function unwrapScriptAnswer(answer: string, deliverable: string): string {
+  const text = answer.trim()
+  const NL = String.fromCharCode(10)
+  const a = text.indexOf('{')
+  const b = text.lastIndexOf('}')
+  if (a !== -1 && b > a) {
+    try {
+      const parsed: unknown = JSON.parse(text.slice(a, b + 1))
+      const files = (parsed as { files?: Record<string, unknown> }).files
+      if (files !== undefined) {
+        const hit = files[deliverable]
+        if (typeof hit === 'string' && hit.trim() !== '') return hit.trim() + NL
+        // 键名对不上（模型可能只写文件名）：只有一个非空值时就用它
+        const vals = Object.values(files).filter((v): v is string => typeof v === 'string' && v.trim() !== '')
+        if (vals.length === 1) return (vals[0] ?? '').trim() + NL
+      }
+    } catch {
+      /* 不是信封，往下走 */
+    }
+  }
+  const fenced = /```(?:python)?\s*([\s\S]*?)```/.exec(text)
+  if (fenced?.[1] !== undefined) return fenced[1].trim() + NL
+  return text + NL
 }

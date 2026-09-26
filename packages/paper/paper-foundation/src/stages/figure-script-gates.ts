@@ -58,7 +58,9 @@ const TYPE_API: Readonly<Record<string, RegExp>> = {
   surface3d: /plot_surface|plot_trisurf|projection\s*=\s*['"]3d['"]/,
   heatmap: /\.imshow\(|\.pcolormesh\(|sns\.heatmap/,
   confusion: /\.imshow\(|\.pcolormesh\(|sns\.heatmap/,
-  lollipop: /\.hlines\(|\.vlines\(|\.barh\(|\.stem\(/,
+  // 棒棒糖 = 茎线 + 端点圆点；茎线**不一定**用 hlines/barh——参考的配方就是
+  // `ax.plot([0, v], [y, y])` + `ax.scatter(v, y)`（实测：只认 hlines/barh 会误杀真棒棒糖）。
+  lollipop: /\.hlines\(|\.vlines\(|\.barh\(|\.stem\(|\.scatter\(/,
   dumbbell: /\.hlines\(|\.barh\(|\.scatter\(/,
   tornado: /\.barh\(/,
   waterfall: /\.bar\(|\.barh\(|Rectangle|fill_between/,
@@ -276,7 +278,12 @@ export function figureScriptTraced(input: GateInput): ScriptGateVerdict {
       continue
     }
     // 成串的数据字面量：同一个列表里 ≥3 个带小数的数
-    for (const m of code.matchAll(/\[([^\[\]]*\d\.\d[^\[\]]*)\]/g)) {
+    // 逐行扫，**排除坐标轴刻度/范围**这类结构性列表（`set_xticks([0.6, 0.7, …])`、
+    // `set_xlim(...)`）——那是版面参数，不是图里的数（实测：把刻度当数据会误杀）。
+    const dataLines = code.split(String.fromCharCode(10))
+      .filter(l => !/set_[xy]ticks|set_[xy]lim|set_[xy]ticklabels|axhline|axvline|figsize|tight_layout/.test(l))
+      .join(String.fromCharCode(10))
+    for (const m of dataLines.matchAll(/\[([^\[\]]*\d\.\d[^\[\]]*)\]/g)) {
       const nums = (m[1] ?? '').match(/-?\d+\.\d+/g) ?? []
       if (nums.length < 3) continue
       const stray = nums.filter(n => !known.has(n) && !known.has(String(Number(n))))

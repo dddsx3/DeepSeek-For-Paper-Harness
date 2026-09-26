@@ -727,9 +727,10 @@ describe('源码卫生 —— 不许有控制字符（事故：退格符让正�
 describe('figure_diversity —— 同型别重复、图型要够多', () => {
   const decl = (types: ReadonlyArray<string>): string =>
     JSON.stringify({ figures: types.map((t, i) => ({ figure_id: `f${String(i)}`, chart_type: t, data_refs: ['RES-A'] })) })
+  // 约束换成"模型写脚本"之后，图型统计读的是**作图规划**（阶段 5 的产物）
   const run1 = (types: ReadonlyArray<string>) => run('figure_diversity', input(
-    { 'FIGURE_DECLARATIONS.json': decl(types) },
-    { 'FIGURE_DECLARATIONS.json': decl(types) },
+    { 'FIGURE_PLAN.json': decl(types) },
+    { 'FIGURE_PLAN.json': decl(types) },
   ))
 
   it('四种图型、无单一型超过 3 次 → 0', () => {

@@ -538,8 +538,8 @@ const MIN_UNIQUE_TYPES = 4
 
 const figureDiversity: GateFn = (input) => {
   const id = 'figure_diversity'
-  const raw = input.files.get('FIGURE_DECLARATIONS.json') ?? input.upstream.get('FIGURE_DECLARATIONS.json') ?? null
-  if (raw === null) return cannot(id, 'FIGURE_DECLARATIONS.json 不在 —— 没有声明就无从统计图型')
+  const raw = input.files.get(FIGURE_PLAN_FILE) ?? input.upstream.get(FIGURE_PLAN_FILE) ?? null
+  if (raw === null) return cannot(id, `${FIGURE_PLAN_FILE} 不在 —— 没有规划就无从统计图型`)
   let figures: ReadonlyArray<Record<string, unknown>>
   try {
     const parsed: unknown = JSON.parse(raw)
