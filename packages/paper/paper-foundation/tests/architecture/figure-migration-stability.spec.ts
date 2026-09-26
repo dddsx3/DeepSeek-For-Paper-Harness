@@ -197,3 +197,55 @@ describe('跨阶段固化 —— 阶段工具与按题型资料已就位', () =>
     }
   })
 })
+
+/**
+ * 阶段 1 与阶段 3 的契约（补全"所有阶段可学内容"的最后一环）。
+ *
+ * 阶段 1 的 `DATA_FACTS.json` 是**数据台账**：`role` 三分（observed/setpoint/assumed）
+ * 与 `given[]` 的"一字不改"铁律——实测最常见的错法是"把作用在系数上的幂律当成作用在力上"。
+ * 阶段 3 的硬规则是参考反复强调的几条：参数从契约取、遵守方法签名、Excel 显式读全表、
+ * 长求解前台同步等、本阶段不画图。
+ */
+describe('跨阶段固化 —— 阶段 1 的数据台账契约', () => {
+  const brief = stageBriefing(stageOf('prob-analysis'), new Map(), false)
+
+  it('`DATA_FACTS.json` 与 `role` 三分语义都在', () => {
+    expect(brief).toContain('DATA_FACTS.json')
+    for (const r of ['observed', 'setpoint', 'assumed']) expect(brief).toContain(r)
+  })
+
+  it('`given[]` 的"一字不改"铁律（含 `acts_on` 作用对象不许挪位）', () => {
+    expect(brief).toContain('acts_on')
+    expect(brief).toContain('教科书标准形')
+  })
+
+  it('参数 ≥ 20 时另建 `PROBLEM_FACTS.json`（带 source 与 raw_quote）', () => {
+    expect(brief).toContain('PROBLEM_FACTS.json')
+    expect(brief).toContain('raw_quote')
+  })
+})
+
+describe('跨阶段固化 —— 阶段 3 的硬规则', () => {
+  const brief = stageBriefing(stageOf('code'), new Map(), false)
+
+  it('参数从契约取（`params.py`），不许裸数字', () => {
+    expect(brief).toContain('params.py')
+    expect(brief).toContain('裸数字')
+    expect(brief).toContain('facts_audit')
+  })
+
+  it('遵守阶段 2 给的方法签名（`claim_code_check`）', () => {
+    expect(brief).toContain('METHOD_CLAIMS_MACHINE')
+    expect(brief).toContain('claim_code_check')
+  })
+
+  it('Excel 必须显式读全表 + 前台同步等（不许后台跑完就退出）', () => {
+    expect(brief).toContain('sheet_name=None')
+    expect(brief).toContain('前台同步')
+  })
+
+  it('本阶段不画图', () => {
+    expect(brief).toContain('不画图')
+    expect(brief).toContain('savefig')
+  })
+})
