@@ -44,7 +44,13 @@ function figurePlan(): string {
   })
 }
 
-/** 一个"会出图"的最小脚本：写 1×1 PNG，不 import matplotlib。 */
+/**
+ * 夹具脚本：**真的写一张尺寸像样的 PNG**（只用 stdlib：zlib + struct），不 import matplotlib。
+ *
+ * 为什么要"像样"而不是 1×1：门禁 `figure_completeness` 移植了参考那条
+ * *"PDF < 5000 bytes → FAIL（likely broken）"*（本仓库对 PNG 取 3000 字节）。
+ * 拿 68 字节的 1×1 PNG 去糊弄，等于把门禁调松——**该改的是夹具，不是判据**。
+ */
 function genFigScript(): string {
   return [
     '"""夹具脚本：本图讲什么 → 数据来自 results.json 的 RES-A/RES-B。"""',
@@ -54,15 +60,25 @@ function genFigScript(): string {
     '    setup_style()',
     'except Exception:',
     '    pass',
-    'import base64, json, os',
+    'import json, os, struct, zlib',
     'with open("results.json", encoding="utf-8") as f:',
     '    ledger = json.load(f)',
     'os.makedirs("figures", exist_ok=True)',
-    '# 1x1 透明 PNG（合法字节，便于门禁 stat 到非空）',
-    'PNG = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8AAAwAB/wD/AAf/AAAAAElFTkSuQmCC"',
+    'W, H = 400, 300',
+    'raw = b""',
+    'for y in range(H):',
+    // 用 `bytes([0])` 而不是 `b"\x00"`：后者经多层转义会被写成真的 NUL 字符，
+    // 生成的脚本就语法错（实测撞过：stderr 正好指向这一行）。
+    '    raw += bytes([0]) + bytes(v for x in range(W) for v in (x % 256, y % 256, 128))',
+    'def chunk(tag, data):',
+    '    return struct.pack(">I", len(data)) + tag + data + struct.pack(">I", zlib.crc32(tag + data) & 0xFFFFFFFF)',
+    // PNG 签名同样避开转义：`bytes([137,80,78,71,13,10,26,10])`
+    'png = (bytes([137, 80, 78, 71, 13, 10, 26, 10])',
+    '       + chunk(b"IHDR", struct.pack(">IIBBBBB", W, H, 8, 2, 0, 0, 0))',
+    '       + chunk(b"IDAT", zlib.compress(raw, 6)) + chunk(b"IEND", b""))',
     'with open("figures/fig_a.png", "wb") as f:',
-    '    f.write(base64.b64decode(PNG))',
-    'print("wrote", len(ledger.get("results", [])))',
+    '    f.write(png)',
+    'print("wrote", len(png), "bytes for", len(ledger.get("results", [])), "results")',
     '',
   ].join(String.fromCharCode(10))
 }
@@ -371,21 +387,30 @@ describe('执行器 —— 顺利推进（确定性阶段用**真执行体**）'
 
   it('**阶段 6 真的渲染出了图**（执行体不是"没挂上"）', async () => {
     const root = await tmp()
-    await runStages(ctxOf(root), { problemCount: 4 })
+    const _o = await runStages(ctxOf(root), { problemCount: 4 })
+    for (const x of _o) if (x.status !== 'passed' && x.status !== 'passed-unverified') console.log('DBG3', x.stage, x.status, String(x.reason).slice(0,300), JSON.stringify((x.gate?.items ?? []).filter(i => !i.ok).map(i => i.id + ' :: ' + i.detail.slice(0, 200))))
     expect((await readPassport(root, stageOf('figure')))?.status).toBe('passed')
     // 判据落在**磁盘上的字节**上：第一版断言的是"门禁 detail 里出现了文件名"，
     // 而门禁的措辞是"计划 1 张数据图，全部渲染"——没有文件名。那是"我以为的"，
     // 不是被测对象的真实语义。
     const dir = join(root, stageDirName(stageOf('figure')))
-    const svg = await readFile(join(dir, 'figures/fig_a.png'), 'utf8').catch(() => null)
-    expect(svg, 'figures/fig_a.png 不在——阶段 4 的执行体没真的跑').not.toBeNull()
-    expect(svg).toContain('<svg')
+    // PNG 是**二进制**：按 Buffer 读、断言 PNG 魔数与字节数，不要按 utf8 读再查 `<svg`
+    // （那会拿替换字符去比，diff 里刷出一屏乱码——实测撞过）。
+    const png = await readFile(join(dir, 'figures/fig_a.png')).catch(() => null)
+    expect(png, 'figures/fig_a.png 不在——阶段 6 的执行体没真的跑脚本').not.toBeNull()
+    expect(png?.subarray(0, 8).toString('hex')).toBe('89504e470d0a1a0a')
+    expect(png?.byteLength ?? 0).toBeGreaterThan(3000)
+    // 清单的形态也换了：现在是"脚本 → 产物 + 退出码"（脚本执行体写的），
+    // 不再是"声明 → SVG + 渲染哈希"（固定渲染器写的）。
     const manifest = JSON.parse(await readFile(join(dir, 'figure-manifest.json'), 'utf8')) as {
-      figures: ReadonlyArray<{ figure_id: string; file: string; data_refs: ReadonlyArray<string>; data_hash: string }>
+      source: string
+      figures: ReadonlyArray<{ figure_id: string; script: string; file: string | null; exit_code: number }>
     }
+    expect(manifest.source).toBe('model-scripts')
     expect(manifest.figures.map(f => f.figure_id)).toEqual(['fig_a'])
-    expect(manifest.figures[0]?.data_refs).toEqual(['RES-A', 'RES-B'])
-    expect(manifest.figures[0]?.data_hash.startsWith('sha256:')).toBe(true)
+    expect(manifest.figures[0]?.script).toBe('figures/gen_fig_a.py')
+    expect(manifest.figures[0]?.file).toBe('figures/fig_a.png')
+    expect(manifest.figures[0]?.exit_code).toBe(0)
   }, 120_000)
 
   it('**阶段 7 的 TikZ 缺口如实标 `2`**（够不到就不许算通过）', async () => {

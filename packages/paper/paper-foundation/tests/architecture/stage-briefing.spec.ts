@@ -399,29 +399,48 @@ describe('回答形态 —— 简报与解析器逐个阶段对齐（防自相�
  * 没有这一段，渲染器扩容就是白做——模型只会继续声明 `line`/`bar`，
  * 而参考的硬合同是"规划写了什么图型就必须画出那个图型"。
  */
-describe('阶段 5 简报 —— 图型决策表与新图型', () => {
+/**
+ * 阶段 5 简报必须把**"写脚本"这条路**教给模型。
+ *
+ * 约束换成"模型写 `gen_fig_*.py`"之后，简报要讲清四件事：
+ * ① 一图一脚本、产物在哪；② **必须先取配方再写、不要从零写**（参考原话：
+ * *"Do NOT write figure scripts from scratch"*）；③ 数据**只能从铸出的账本读**；
+ * ④ 门禁会逐条审什么（整图标题/被禁色板/硬编码色/图型对账/figsize 档位）。
+ */
+describe('阶段 5 简报 —— 写脚本这条路', () => {
   const brief = stageBriefing(stageOf('figure-declare'), new Map(), false)
 
-  it('点名 tornado / waterfall / heatmap / forest / ci_line 五个新图型', () => {
-    for (const t of ['tornado', 'waterfall', 'heatmap', 'forest', 'ci_line']) {
-      expect(brief, `简报里没提 ${t}`).toContain(t)
-    }
+  it('点名产物形态：一图一脚本 + 规划文件', () => {
+    expect(brief).toContain('gen_fig_')
+    expect(brief).toContain('FIGURE_PLAN.json')
+    expect(brief).toContain('一图一脚本')
   })
 
-  it('说清参考**明确否掉**的退化（否则模型会继续用柱状图凑）', () => {
-    expect(brief).toContain('不要用 grouped bar')
-    expect(brief).toContain('不要用 bar chart')
+  it('**必须先取配方、不要从零写**（参考点名的塌方）', () => {
+    expect(brief).toContain('get_recipe.py')
+    expect(brief).toContain('不要从零写')
+    expect(brief).toContain('figure_recipes_')
   })
 
-  it('把多样性硬规则写进契约（同型 ≤3、≥6 张图 ≥4 种）', () => {
-    expect(brief).toContain('不要超过 3 次')
-    expect(brief).toContain('至少 4 种图型')
-    expect(brief).toContain('figure_diversity')
+  it('数据**只能从铸出的账本读**（约束换了、溯源没丢）', () => {
+    expect(brief).toContain('results.json')
+    expect(brief).toContain('不得硬编码')
+    expect(brief).toContain('figure_script_traced')
   })
 
-  it('结构化图型的**引用字段**逐个列出（值仍只能来自账本）', () => {
-    for (const k of ['low_ref', 'high_ref', 'value_ref', 'estimate_ref', 'value_refs', 'baseline_ref']) {
+  it('把门禁会审的项逐条列出（否则模型只能猜）', () => {
+    for (const k of ['figure_script_quality', 'figure_type_match', 'figure_size_buckets', 'figure_diversity']) {
       expect(brief, `简报里没提 ${k}`).toContain(k)
     }
+    expect(brief).toContain('plt.title')
+    expect(brief).toContain('PALETTE')
+    expect(brief).toContain('setup_style')
+  })
+
+  it('图型决策表的几条"明确否掉"要写进去', () => {
+    expect(brief).toContain('tornado')
+    expect(brief).toContain('waterfall')
+    expect(brief).toContain('heatmap')
   })
 })
+

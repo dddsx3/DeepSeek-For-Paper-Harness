@@ -38,6 +38,9 @@ import { checkFigureQuality } from '../figure/quality-check.ts'
 import { parseDiagramManifestFile } from './diagram-render.ts'
 import { docxPrecheckFatal, resolveDocxProfile } from './docx-profile.ts'
 import { FIGURE_DECLARATIONS_FILE, FIGURE_MANIFEST_FILE, parseFigureDeclarations, parseFigureManifestFile } from './figure-render.ts'
+
+/** 作图规划文件名（阶段 5 的产物；「模型写脚本」之后的合同）。 */
+export const FIGURE_PLAN_FILE = 'FIGURE_PLAN.json'
 import { parseResultSources, RESULTS_LEDGER_FILE } from './execute-and-mint.ts'
 import { auditFiles, buildAllowlist, commentLines, verificationClaims } from './number-audit.ts'
 import {
@@ -298,7 +301,10 @@ function renderedSvgFiles(input: GateInput): ReadonlyArray<string> {
 
 /** 图文件名 → 图 id（`figures/fig_a.svg` → `fig_a`）。 */
 function figureIdOf(file: string): string {
-  return (file.split('/').pop() ?? file).replace(/\.svg$/i, '')
+  // 剥**任意图像后缀**，不只是 `.svg`：数据图现在是 PNG，只剥 svg 会让
+  // `figures/fig_a.png` → `fig_a.png`，于是同一张图被判成"计划里有但没渲染 + 渲染了但不在计划里"
+  // （实测：两句话同时出现，一眼能看出是 id 归一化没做）。
+  return (file.split('/').pop() ?? file).replace(/\.(png|pdf|svg|jpg|jpeg)$/i, '')
 }
 
 /** 上游声明的题注（`图 id → caption`）——用于"题注不得出现在图内"的判据。 */
@@ -350,18 +356,30 @@ const figureManifestReconcile: GateFn = (input) => {
     return cannot(id, 'FIGURE_MANIFEST 里没有任何数据图条目 —— 本阶段无事可对账'
       + '（阶段 1 的简报要求 12–20 张数据图，清单为空说明那一环没做）')
   }
-  // 声明清单（阶段 4）也要被渲染覆盖：声明了一张图却不渲染，和计划漏渲染同样
-  // 是"账面与产物脱节"。
-  const declaredRaw = input.upstream.get(FIGURE_DECLARATIONS_FILE) ?? null
+  // 作图规划（阶段 5 的 `FIGURE_PLAN.json`）也要被渲染覆盖：规划了一张图却没画出来，
+  // 与计划漏渲染同样是"账面与产物脱节"。参考把这条写成硬合同：
+  // *"规划了几张就必须画几张：FIGURE_MANIFEST 是合同，少一张就是违约"*。
+  const planRaw = input.upstream.get(FIGURE_PLAN_FILE) ?? input.files.get(FIGURE_PLAN_FILE) ?? null
   let declared: ReadonlyArray<string> = []
-  if (declaredRaw !== null) {
+  if (planRaw !== null) {
     try {
-      declared = parseFigureDeclarations(declaredRaw).figures.map(f => f.figure_id)
+      const parsed: unknown = JSON.parse(planRaw)
+      const list = (parsed as { figures?: unknown }).figures
+      if (Array.isArray(list)) {
+        declared = list.map(f => String((f as { figure_id?: unknown }).figure_id ?? '')).filter(x => x !== '')
+      }
     } catch {
-      declared = [] // 声明坏了由 figure_declaration_complete 报，这里不重复报
+      declared = [] // 规划坏了由 figure_plan_valid 报，这里不重复报
     }
   }
-  const rendered = renderedSvgFiles(input).map(figureIdOf)
+  // 产物现在是 matplotlib 出的 PNG（PDF 也容忍）——不再是固定渲染器的 SVG。
+  // **二进制不在 `input.files` 里**（那里只装文本），所以从 `sizes` 的键取——
+  // 只看 `files` 会把每一张 PNG 都判成"没渲染出来"（实测踩过两次，这里与
+  // `figure_completeness` 是同一条纪律）。
+  const imageKeys = [...new Set([...input.files.keys(), ...(input.sizes?.keys() ?? [])])]
+  const rendered = imageKeys
+    .filter(f => /^figures\/fig_[A-Za-z0-9_]+\.(png|pdf|svg|jpg|jpeg)$/i.test(f))
+    .map(figureIdOf)
   const missing = [...new Set([...planned, ...declared])].filter(n => !rendered.includes(n))
   const untracked = rendered.filter(n => !planned.includes(n) && !declared.includes(n))
   if (missing.length === 0 && untracked.length === 0) {
@@ -434,25 +452,25 @@ const CJK_CAPABLE_FONT = /(?:YaHei|SimHei|SimSun|PingFang|Noto Sans CJK|Source H
  */
 const figureCompleteness: GateFn = (input) => {
   const id = 'figure_completeness'
-  // 声明**可能在上游**（阶段 6 的 `FIGURE_DECLARATIONS.json` 是阶段 5 的产物），
-  // 所以两处都要找。只看本阶段目录会让这条门禁在阶段 6 永远给 2——等于没跑。
-  const declRaw = input.files.get('FIGURE_DECLARATIONS.json')
-    ?? input.upstream.get('FIGURE_DECLARATIONS.json') ?? null
-  if (declRaw === null) return cannot(id, 'FIGURE_DECLARATIONS.json 不在（本阶段目录与上游都没有）—— 没有声明就无从对账')
+  // 规划**在上游**（阶段 6 的 `FIGURE_PLAN.json` 是阶段 5 的产物），本阶段目录也找一遍。
+  // 只看一处会让这条门禁在阶段 6 永远给 2——等于没跑。
+  const declRaw = input.files.get(FIGURE_PLAN_FILE)
+    ?? input.upstream.get(FIGURE_PLAN_FILE) ?? null
+  if (declRaw === null) return cannot(id, `${FIGURE_PLAN_FILE} 不在（本阶段目录与上游都没有）—— 没有规划就无从对账`)
   let figures: ReadonlyArray<Record<string, unknown>>
   try {
     const parsed: unknown = JSON.parse(declRaw)
     const list = (parsed as { figures?: unknown }).figures
-    if (!Array.isArray(list)) return fail(id, 'FIGURE_DECLARATIONS.json 里没有 `figures` 数组')
+    if (!Array.isArray(list)) return fail(id, `${FIGURE_PLAN_FILE} 里没有 \`figures\` 数组`)
     figures = list as ReadonlyArray<Record<string, unknown>>
   } catch {
-    return fail(id, 'FIGURE_DECLARATIONS.json 不是合法 JSON')
+    return fail(id, `${FIGURE_PLAN_FILE} 不是合法 JSON`)
   }
   const dataFigures = figures.filter(f => f['chart_type'] !== 'table')
-  if (dataFigures.length === 0) return cannot(id, '声明里没有数据图（只有表格）—— 没有可核对象')
-  const svgs = renderedSvgFiles(input)
-  if (svgs.length === 0) return cannot(id, '本阶段没有产出任何 SVG —— 没有可核对象')
+  if (dataFigures.length === 0) return cannot(id, '规划里没有数据图（只有表格）—— 没有可核对象')
   const problems: string[] = []
+
+  // ① 轴标签（参考红线："Both set_xlabel and set_ylabel are mandatory, with units"）
   for (const f of dataFigures) {
     const fid = String(f['figure_id'] ?? '?')
     for (const key of ['x_label', 'y_label'] as const) {
@@ -462,37 +480,41 @@ const figureCompleteness: GateFn = (input) => {
       }
     }
   }
-  for (const file of svgs) {
+
+  // ② **成图必须真的在、且不是坏文件**。
+  // 参考把这条写在 FINAL QUALITY GATE 里：*"PDF < 5000 bytes → FAIL（likely broken）"*。
+  // 本仓库的产物是 PNG，缩到 3000 字节作为"疑似损坏"线（简单图的 PNG 也在 10KB 量级）。
+  const MIN_IMAGE_BYTES = 3000
+  for (const f of dataFigures) {
+    const fid = String(f['figure_id'] ?? '?')
+    const candidates = ['png', 'pdf', 'svg', 'jpg', 'jpeg'].map(ext => `figures/${fid}.${ext}`)
+    // **二进制产物不在 `input.files` 里**（那里只装文本）——PNG 要走 `sizes` 的真实字节数。
+    // 实测踩过：只看 `files` 会把每一张 PNG 都判成"没有成图"。
+    const hit = candidates.find(c => (input.sizes?.get(c) ?? 0) > 0)
+    if (hit === undefined) {
+      problems.push(`${fid}：规划了但**没有成图**（找不到 ${candidates.slice(0, 2).join(' / ')}）—— 参考：*"规划了几张就必须画出几张"*`)
+      continue
+    }
+    const bytes = input.sizes?.get(hit) ?? 0
+    if (bytes > 0 && bytes < MIN_IMAGE_BYTES) {
+      problems.push(`${fid}：成图只有 ${String(bytes)} 字节（< ${String(MIN_IMAGE_BYTES)}）—— 参考把过小的图当“疑似损坏”判失败`)
+    }
+  }
+
+  // ③ 只要本阶段仍有 SVG（结构图阶段），就继续核它的刻度与标注
+  for (const file of renderedSvgFiles(input)) {
     const svg = input.files.get(file) ?? ''
-    const numericLabels = [...svg.matchAll(/<text\b[^>]*>([^<]*)<\/text>/g)]
+    const numericLabels = [...svg.matchAll(/<text[^>]*>([^<]*)<\/text>/g)]
       .map(m => (m[1] ?? '').trim())
       .filter(t => t !== '' && Number.isFinite(Number(t)))
     if (numericLabels.length < 3) {
       problems.push(`${file}：值轴只有 ${String(numericLabels.length)} 个数值刻度 —— `
         + '参考红线"没有刻度的轴不可读；稀疏（3–5 个）可以，空的禁止"')
     }
-    const declOfThis = figures.find(f => String(f['figure_id'] ?? '') === figureIdOf(file))
-    if (declOfThis !== undefined && declOfThis['chart_type'] === 'bar') {
-      // 柱状图：要么有类别标签，要么有柱顶数值标注，否则是残图。
-      //
-      // 判据**不能靠正则猜"哪种 text 像类别名"**（试过：按 font-size 猜，一改字号就误判）。
-      // 用门禁已经掌握的信息排除：声明里的 `x_label` / `y_label` / `caption` 是**已知的长文本**，
-      // 把它们去掉之后，剩下的非数值文本就是类别名/图例/标注。
-      const known = new Set([declOfThis['x_label'], declOfThis['y_label'], declOfThis['caption']]
-        .filter((v): v is string => typeof v === 'string' && v !== '').map(v => v.trim()))
-      const otherTexts = [...svg.matchAll(/<text\b[^>]*>([^<]*)<\/text>/g)]
-        .map(m => (m[1] ?? '').trim())
-        .filter(t => t !== '' && !Number.isFinite(Number(t)) && !known.has(t))
-      // 值轴刻度按"值轴上的刻度数"估：常规图 4–5 个；柱顶标注会让数值文本明显变多
-      const hasValueLabels = numericLabels.length > 6
-      if (otherTexts.length === 0 && !hasValueLabels) {
-        problems.push(`${file}：柱状图既没有类别标签也没有数值标注 —— `
-          + '参考红线"隐藏刻度就必须直接标注数据；两者都没有 = 残图（漂浮的色块）"')
-      }
-    }
   }
+
   return problems.length === 0
-    ? ok(id, `${String(dataFigures.length)} 张数据图：轴标签齐备、值轴刻度 ≥3、柱状图有标注`)
+    ? ok(id, `${String(dataFigures.length)} 张数据图：轴标签齐备、成图存在且不小于 ${String(MIN_IMAGE_BYTES)} 字节`)
     : fail(id, problems.slice(0, 6).join('；'))
 }
 
@@ -555,7 +577,11 @@ const figureDiversity: GateFn = (input) => {
 const figureStyleRules: GateFn = (input) => {
   const id = 'figure_style_rules'
   const svgs = renderedSvgFiles(input)
-  if (svgs.length === 0) return cannot(id, '本阶段没有产出任何 SVG 图 —— 没有可核的风格对象')
+  // 产物现在是 matplotlib 出的 PNG（二进制）——本条审不了它。
+  // **风格改在脚本层审**：`figure_script_quality` 按 `figure_check.sh` 的
+  // CRITICAL 规则直接扫 `gen_fig_*.py`（缺 setup_style / 整图标题 / 被禁色板 / 硬编码色）。
+  // 留着 SVG 那一支是为了结构图阶段（它仍然出 SVG）。
+  if (svgs.length === 0) return cannot(id, '本阶段没有 SVG 产物（数据图现在是 PNG）—— 风格由脚本级门禁 `figure_script_quality` 审')
   const captions = declaredCaptions(input)
   const problems: string[] = []
   for (const file of svgs) {
