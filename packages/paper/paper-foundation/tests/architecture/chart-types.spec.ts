@@ -13,7 +13,7 @@
  */
 import { describe, expect, it } from 'vitest'
 import {
-  FIGURE_STYLE_PROFILE, renderFigureSvg, type RenderInput,
+  FIGURE_CHART_TYPES, FIGURE_STYLE_PROFILE, renderFigureSvg, type RenderInput,
 } from '../../src/figure/renderer.ts'
 
 const base = {
@@ -192,5 +192,41 @@ describe('判据线 —— 参考：有阈值/上限/约束时必画', () => {
     })
     expect(svg).toContain('盈亏平衡')
     expect(svg).toContain('stroke-dasharray="5 3"')
+  })
+})
+
+/**
+ * **简报里点名的图型必须在渲染器白名单里** —— 否则模型照简报写反而被判形态非法。
+ *
+ * 实测（刚发生）：简报写了"`grouped` 多组对比"，但白名单忘了加 `grouped`，
+ * 于是模型规规矩矩声明了 `grouped` 却被门禁判"不在白名单里"。这与之前
+ * `answerFormOf` 那次是同一类错：**契约教的形态 ≠ 解析器要的形态**。
+ * 靠人记得同步两处是防不住的，所以遍历简报里的图型名逐个核。
+ */
+describe('简报 ↔ 白名单一致（防"契约教了、解析器不认"）', () => {
+  it('简报提到的每个 chart_type 都在 FIGURE_CHART_TYPES 里', async () => {
+    const { stageBriefing } = await import('../../src/stages/briefing.ts')
+    const { stageOf } = await import('../../src/stages/registry.ts')
+    const brief = stageBriefing(stageOf('figure-declare'), new Map(), false)
+    const known = ['line', 'scatter', 'bar', 'grouped', 'table', 'ci_line',
+      'tornado', 'waterfall', 'heatmap', 'forest']
+    const named = known.filter(t => brief.includes('`' + t + '`'))
+    expect(named.length).toBeGreaterThan(6) // 简报确实点名了一批图型
+    for (const t of named) {
+      expect(FIGURE_CHART_TYPES as readonly string[], `简报点名了 ${t} 但白名单没有`).toContain(t)
+    }
+  })
+
+  it('`grouped` 能渲染（多序列并排，不是报错）', () => {
+    const svg = svgOf({
+      chart_type: 'grouped',
+      y_label: '利润（元）',
+      series2d: [
+        { label: '方案甲', xLabels: ['情况1', '情况2'], y: [12, 8] },
+        { label: '方案乙', xLabels: ['情况1', '情况2'], y: [9, 14] },
+      ],
+    })
+    expect(svg).toContain('方案甲')
+    expect(svg).toContain('方案乙')
   })
 })

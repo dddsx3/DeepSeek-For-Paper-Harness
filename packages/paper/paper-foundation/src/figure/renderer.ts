@@ -28,6 +28,9 @@ import type { IrObjectRecord } from '../ir/store.ts'
 export const FIGURE_STYLE_PROFILE = 'okabe-ito-v1'
 export const FIGURE_CHART_TYPES = [
   'line', 'scatter', 'bar', 'table',
+  // 分组柱状（多序列并排）。简报里承诺了这个名字，白名单就必须有它——
+  // 否则又是「契约与解析器不一致」，模型照简报写反而被判形态非法。
+  'grouped',
   // ── 以下按参考工作流的「图型决策表」补入（原来只有前四种，是水平上不去的主因）──
   // 折线 + 置信带（参考：有重复/CI/误差时必须画 fill_between，不要只画一条均值线）
   'ci_line',
@@ -517,7 +520,7 @@ export function renderFigureSvg(input: RenderInput): string {
   input.series.forEach((s, i) => {
     const px = x(i)
     const py = y(s.value)
-    if (input.chart_type === 'bar') {
+    if (input.chart_type === 'bar' || input.chart_type === 'grouped') {
       parts.push(`<rect x="${px - 10}" y="${py}" width="20" height="${Math.max(0, T + plotH - py)}" fill="${color(i)}"/>`)
     } else {
       const dot = input.chart_type === 'scatter'
