@@ -664,17 +664,31 @@ export function isPorted(spec: StageSpec): boolean {
  * @returns 一句投递给模型的硬性要求。
  */
 export function answerFormOf(spec: StageSpec): string {
-  if (spec.produces.length === 1) {
-    const only = spec.produces[0]
+  // **口径必须与 `parseStageOutput` 一致：算"模型自己拥有的产出"**（排除 harness 铸的）。
+  // 第十六处实测缺陷：阶段 4 声明两份产出（`RESULT_SOURCES.json` + `results.json`），
+  // 而后者是 harness 铸的（模型从头到尾不持有数值）。原写法用 `spec.produces.length === 1`
+  // 判形态 → 告诉模型"发 JSON 信封、键恰好是这两个"；而 `parseStageOutput` 排除
+  // harness 铸的之后只有 1 份 → 按**原文**取。于是模型**照契约**发了信封，
+  // runner 把整个信封当成 `RESULT_SOURCES.json` 的内容，报"缺 sources 数组"——
+  // 模型没错，是 harness 自相矛盾（契约教的形态 ≠ 解析器要的形态）。
+  const owned = spec.produces.filter(p => p.harnessMinted !== true)
+  if (owned.length === 1) {
+    const only = owned[0]
     return `你的回答就是 \`${only?.file ?? '?'}\` 的完整内容本身——从第一个字符到最后一个字符都是它，`
       + '不得加任何解释、任何代码围栏（```）、任何前后缀。'
+      + (spec.produces.some(p => p.harnessMinted === true)
+        ? '（本阶段另有 harness 铸出的产物，**不要**出现在你的回答里。）'
+        : '')
   }
-  const keys = spec.produces.map(p => p.file)
+  const keys = owned.map(p => p.file)
   return `你的回答必须**只有一个** JSON 对象，形如 \`{"files": {…}}\`：`
     + `顶层键是 \`files\`，它下面**恰好**这几个键——${keys.map(k => `\`${k}\``).join('、')}——`
     + '每个键的值就是那份文件的完整内容（字符串）。'
     + '除这一个 JSON 对象外**不得有任何其它字符**：不要解释、不要推理过程、不要代码围栏、'
     + '不要在 JSON 前后加任何话。你的回答会被直接按这个形态解析，多一个字符都会解析失败。'
+    + (spec.produces.some(p => p.harnessMinted === true)
+      ? '**harness 铸出的产物不要作为键**——它们由 harness 真跑代码后生成，不由你交付。'
+      : '')
     + (spec.produces.some(p => p.kind === 'dir')
       ? `目录型产物（${spec.produces.filter(p => p.kind === 'dir').map(p => `\`${p.file}\``).join('、')}）`
         + '**不要**单独作为键列出——把里面的文件用完整相对路径当键'
