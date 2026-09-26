@@ -332,7 +332,9 @@ describe('阶段 2 简报 —— 成本核算的现金流守恒', () => {
   })
 
   it('两个具体的坑都要点名（丢弃件采购损耗 / 回收件抵扣不重复）', () => {
-    expect(brief).toContain('1/(1−p_i)')
+    // 措辞已**去题目化**（原为"零配件"等题面名词，换题后那段就从"规范"变成"噪声"）：
+    // 判据保留，名词换成题目无关的说法。
+    expect(brief).toContain('1/(1−p)')
     expect(brief).toContain('一买一检必得可用件')
     expect(brief).toContain('只能记一次')
   })
