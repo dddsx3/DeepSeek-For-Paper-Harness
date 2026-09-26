@@ -117,11 +117,20 @@ export function scriptShards(briefing: string, rawPlan: string): ReadonlyArray<F
         + `### 这张图的规划条目\n\n\`\`\`json\n${JSON.stringify(e, null, 2)}\n\`\`\`\n`
         + recipeBlock
         + '\n### 硬要求（门禁会逐条审）\n\n'
-        + '- 脚本头：`from _utils.plot_utils import setup_style, save_fig, PALETTE, COLORS, _lighten` + 裸调 `setup_style()`；\n'
-        + `- 数据从 \`results.json\` 读（\`data_refs\` 里的 result_id 就是它的键），**不得硬编码任何数据**；\n`
-        + `- 落盘 \`save_fig(fig, "figures/${fid}.png")\`；\n`
-        + '- **不写整图标题**（`plt.title`/`suptitle`）；子图面板标签用 `ax.set_title("(a)", loc="left")` 合法；\n'
+        + '- 脚本头：`from _figbase import load, save, panel, PALETTE, COLORS, _lighten, cn`'
+        + '（**harness 已铺好 `figures/_figbase.py`，不要自己另写引导模块**；它导入时就调了 `setup_style()`）；\n'
+        + '- **色别猜形状**：`PALETTE` 是 8 色 **list** → `PALETTE[0]`；`PALETTE_LIGHT` 是 6 色 list；'
+        + '`COLORS` 是**语义 dict**（不是 list！）→ `COLORS["primary"]` / `["secondary"]` / `["accent"]` / '
+        + '`["gray"]` / `["up"]` / `["down"]` / `["ref_line"]` / `["grid"]`；'
+        + '多序列折线 `LINE_COLORS[n]`；连续色阶 `CMAP_SEQ` / `CMAP_SEQ_R` / `CMAP_DIV`（别用 `viridis`）；\n'
+        + `- 数据从账本读：\`doc = load("results.json")\`（或 \`values_by_id()\` 得 \`{result_id: value}\`），`
+        + '`data_refs` 里的 result_id 就是它的键，**不得硬编码任何数据**；\n'
+        + `- 落盘 \`save(fig, "${fid}")\` → \`figures/${fid}.png\`；\n`
+        + '- **不写整图标题**（`plt.title`/`suptitle`）；子图面板标签用 `panel(ax, "(a)")` 合法；\n'
         + '- 不用 `#1f77b4` / `RdYlGn` / `RdBu_r` / `dark_background` / CSS 鲜艳命名色；硬编码 hex ≤2 处；\n'
+        + '- **多面板**：若这张图讲的是两件相关的事（"分布 + 与上限对照"、"主结果 + 残差诊断"、'
+        + '"处理前‖处理后"），用 `plt.subplots(1, 2)` / `plt.subplots(2, 2)` 合成一张，'
+        + '**不要拆成两张孤图**（参考："平庸图的典型特征就是每张都单 panel"）；panel ≤4；\n'
         + '- figsize 按长宽比档位（r≤0.8→宽 6.0in；≤1.2→5.0in；≤1.6→3.6in；否则 3.0in；高 ≤8in）；\n'
         + '- 文件级 docstring：本图讲什么 → 每个 panel 是什么 → 数据来自账本哪些 id。',
     }

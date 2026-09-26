@@ -1,197 +1,172 @@
 """
-fig_q1_oc_curve_p1 —— 问题 1 两种抽样方案的接收特性（OC）曲线
-
+fig_q1_oc_curve_p1 —— 问题 1 抽样方案的接收特性（OC）曲线
+==========================================================
 本图讲什么
-----------
-把问题 1 得到的两个抽样方案（最小检测次数 n*、接收判定临界次品数 c*）画成接收特性（OC）曲线：
-横轴为零配件真实次品率 p，纵轴为按二项分布计算的接收概率
-    L(p) = P(X <= c*),  X ~ Binomial(n*, p)。
-曲线越陡，方案对“次品率是否超过标称值”的区分能力越强。
+    把账本里问题 1 两种情形的最小检测方案 (n*, c*) 还原成接收概率曲线
+    L(p) = P(X <= c*)，X ~ Binomial(n*, p)，回答"检测次数尽可能少的抽样方案"在
+    真实次品率 p 偏离标称值 p0 = 10% 时如何改变接收 / 拒收倾向。
 
-面板结构
---------
-单面板（无子图）。
-  · 实线     = 情形(1)：n*、c* 取自账本 R-Q1-case1-n / R-Q1-case1-c（95% 信度下认定次品率
-               超过标称值即拒收，故临界次品数 c* 较大）；
-  · 虚线     = 情形(2)：n*、c* 取自账本 R-Q1-case2-n / R-Q1-case2-c（90% 信度下认定次品率
-               不超过标称值即接收，故 c* 极小、曲线在标称值处已降到很低）；
-  · 竖虚线   = 题面给定的标称值 p0 = 10%（S07），作为判据线；
-  · ★ 标记   = 两条曲线在 p0 处的接收概率取值（每条曲线的数值锚点）；
-  · 曲线下浅色填充 = 该方案在该 p 下的“接收区域”。
+panel 构成
+    (a) 全量程 OC 曲线（p in [0, 0.40]）：两条曲线 = 情形(1) 与 情形(2)；
+        竖直参考线为标称值 p0 = 10%；★标出两曲线在 p0 处的接收概率 L(p0)。
+    (b) p0 邻域局部放大（p in [0.06, 0.16]）：叠加 0.05（情形(1) 95% 信度拒收侧）
+        与 0.90（情形(2) 90% 信度接收侧）两条判据线；★标出曲线与判据线的交点，
+        并给出与该曲线同侧的判据交点横坐标。
 
-数据来源（账本 results.json，result_id）
---------------------------------------
-  R-Q1-case1-n   情形(1) 最小检测次数 n*
-  R-Q1-case1-c   情形(1) 接收判定临界次品数 c*
-  R-Q1-case2-n   情形(2) 最小检测次数 n*
-  R-Q1-case2-c   情形(2) 接收判定临界次品数 c*
-除上述 4 个账本参数与题面给定的标称值 10% 外，图中每一个数都由这 4 个参数当场算出，
-未引入任何账本之外的数据，也未硬编码任何曲线点。
+数据来源（全部经 _figbase.load 从 results.json 读入，脚本内不写死任何结果数值）
+    R-Q1-case1-n  情形(1) 最小检测次数 n*      R-Q1-case1-c  情形(1) 接收判定临界次品数 c*
+    R-Q1-case2-n  情形(2) 最小检测次数 n*      R-Q1-case2-c  情形(2) 接收判定临界次品数 c*
+    标称值 p0 = 10% 与两条判据信度线为题面给定参数（非账本条目）。
 """
 
-import json
-import math
-from pathlib import Path
+from math import lgamma
 
 import numpy as np
 import matplotlib.pyplot as plt
+from matplotlib.ticker import FormatStrFormatter
 
-from _utils.plot_utils import setup_style, save_fig, PALETTE, COLORS, _lighten
-
-setup_style()
-
-# ----------------------------------------------------------------------------
-# 账本读取：候选路径链，覆盖执行期 cwd 与多种相对层级（与 FIGURE_PLAN.ledger_source 对齐）
-# ----------------------------------------------------------------------------
-LEDGER_RELATIVE = (
-    "results.json",
-    "stages/04-result-sources/results.json",
-    "04-result-sources/results.json",
-    "../04-result-sources/results.json",
-    "../../stages/04-result-sources/results.json",
-)
+from _figbase import load, save, panel, PALETTE, COLORS, _lighten, cn
 
 
-def load_ledger():
-    """在若干候选位置里找 results.json，返回解析后的 dict；找不到则显式报错。"""
-    here = Path(__file__).resolve()
-    bases = [Path.cwd(), here.parent, here.parent.parent, here.parent.parent.parent]
-    candidates = [Path(rel) for rel in LEDGER_RELATIVE]
-    for base in bases:
-        for rel in LEDGER_RELATIVE:
-            candidates.append(base / rel)
-    seen = set()
-    for cand in candidates:
-        key = str(cand)
-        if key in seen:
-            continue
-        seen.add(key)
-        if cand.is_file():
-            with open(cand, "r", encoding="utf-8") as fh:
-                return json.load(fh)
-    raise FileNotFoundError(
-        "未找到 results.json，已尝试：" + ", ".join(sorted(seen))
-    )
+# ---------------------------------------------------------------------------
+# 1. 账本取数（唯一数据来源）
+# ---------------------------------------------------------------------------
+_LEDGER = {r["result_id"]: r["value"] for r in load("results.json")["results"]}
+
+N1 = int(_LEDGER["R-Q1-case1-n"])   # 情形(1) 最小检测次数 n*
+C1 = int(_LEDGER["R-Q1-case1-c"])   # 情形(1) 接收判定临界次品数 c*
+N2 = int(_LEDGER["R-Q1-case2-n"])   # 情形(2) 最小检测次数 n*
+C2 = int(_LEDGER["R-Q1-case2-c"])   # 情形(2) 接收判定临界次品数 c*
+
+# 题面给定参数（非账本条目）
+P0 = 0.10          # 标称次品率
+LEVEL_LO = 0.05    # 情形(1)：95% 信度下认定超标称则拒收 → 接收概率判据 0.05
+LEVEL_HI = 0.90    # 情形(2)：90% 信度下认定不超标称则接收 → 接收概率判据 0.90
+
+P_FULL = (0.0, 0.40)    # (a) 全量程
+P_ZOOM = (0.06, 0.16)   # (b) 标称值邻域
+
+LBL1 = cn(f"情形(1)  n*={N1}, c*={C1}")
+LBL2 = cn(f"情形(2)  n*={N2}, c*={C2}")
 
 
-def ledger_value(ledger, result_id):
-    """按 result_id 从账本取数；取不到直接报错，避免静默用错数。"""
-    for item in ledger["results"]:
-        if item["result_id"] == result_id:
-            return float(item["value"])
-    raise KeyError("账本中不存在 result_id: %s" % result_id)
+# ---------------------------------------------------------------------------
+# 2. 计算工具：二项分布 CDF（对数域求和，避免 n 大时下溢）
+# ---------------------------------------------------------------------------
+def oc_curve(p_grid, n, c):
+    """接收概率 L(p) = P(X <= c)，X ~ Binomial(n, p)；n、c 取自账本。"""
+    p = np.clip(np.asarray(p_grid, dtype=float), 1e-12, 1.0 - 1e-12)
+    k = np.arange(0, int(c) + 1, dtype=float)
+    log_coef = np.array([lgamma(n + 1.0) - lgamma(kk + 1.0) - lgamma(n - kk + 1.0)
+                         for kk in k])
+    log_pmf = (log_coef[:, None]
+               + k[:, None] * np.log(p)[None, :]
+               + (n - k)[:, None] * np.log1p(-p)[None, :])
+    shift = log_pmf.max(axis=0)
+    return np.exp(log_pmf - shift).sum(axis=0) * np.exp(shift)
 
 
-LEDGER = load_ledger()
-
-N_CASE1 = ledger_value(LEDGER, "R-Q1-case1-n")
-C_CASE1 = ledger_value(LEDGER, "R-Q1-case1-c")
-N_CASE2 = ledger_value(LEDGER, "R-Q1-case2-n")
-C_CASE2 = ledger_value(LEDGER, "R-Q1-case2-c")
-
-# 题面 S07 给定的标称次品率（模型常数，非账本数据）
-P_NOMINAL = 0.10
-# 曲线横轴扫描范围（绘图域，非数据）
-P_MAX = 0.30
-
-# ----------------------------------------------------------------------------
-# 二项分布接收概率 L(p) = P(X <= c | n, p)
-# ----------------------------------------------------------------------------
-try:
-    from scipy.stats import binom as _binom
-except Exception:  # pragma: no cover - 无 scipy 时退化为精确求和
-    _binom = None
+def crossings(x, y, level):
+    """折线 (x, y) 与水平线 y = level 的交点横坐标（线性插值）。"""
+    d = np.asarray(y, dtype=float) - level
+    out = []
+    for i in np.where(np.diff(np.sign(d)) != 0)[0]:
+        d0, d1 = d[i], d[i + 1]
+        if d1 != d0:
+            out.append(float(x[i] + (-d0) / (d1 - d0) * (x[i + 1] - x[i])))
+    return out
 
 
-def acceptance_probability(n, c, p):
-    """接收概率：X ~ Binomial(n, p) 时 P(X <= c)。"""
-    n = int(round(n))
-    c = int(round(c))
-    p = float(p)
-    if p <= 0.0:
-        return 1.0
-    if p >= 1.0:
-        return 1.0 if c >= n else 0.0
-    if _binom is not None:
-        return float(_binom.cdf(c, n, p))
-    total = 0.0
-    for k in range(min(c, n) + 1):
-        total += math.comb(n, k) * (p ** k) * ((1.0 - p) ** (n - k))
-    return max(0.0, min(1.0, total))
+# ---------------------------------------------------------------------------
+# 3. 绘图
+# ---------------------------------------------------------------------------
+fig, (ax_a, ax_b) = plt.subplots(1, 2, figsize=(6.0, 2.8))
 
+p_a = np.linspace(P_FULL[0], P_FULL[1], 601)
+p_b = np.linspace(P_ZOOM[0], P_ZOOM[1], 401)
 
-p_grid = np.linspace(0.0, P_MAX, 301)
-L_case1 = np.array([acceptance_probability(N_CASE1, C_CASE1, p) for p in p_grid])
-L_case2 = np.array([acceptance_probability(N_CASE2, C_CASE2, p) for p in p_grid])
+# 每条曲线携带：图例标签、颜色、曲线、(b) 面板中与它同侧的判据线高度
+series_a = [(LBL1, PALETTE[0], oc_curve(p_a, N1, C1)),
+            (LBL2, PALETTE[1], oc_curve(p_a, N2, C2))]
+series_b = [(LBL1, PALETTE[0], oc_curve(p_b, N1, C1), LEVEL_LO),
+            (LBL2, PALETTE[1], oc_curve(p_b, N2, C2), LEVEL_HI)]
 
-L1_AT_NOMINAL = acceptance_probability(N_CASE1, C_CASE1, P_NOMINAL)
-L2_AT_NOMINAL = acceptance_probability(N_CASE2, C_CASE2, P_NOMINAL)
+# --- panel (a)：全量程 OC 曲线 -------------------------------------------------
+for lbl, color, y in series_a:
+    fill_c = _lighten(color, 0.55)
+    for alpha in (0.35, 0.18, 0.08):          # 多层渐变填充，色深浅由浅色底 + 透明度叠出
+        ax_a.fill_between(p_a, 0.0, y, color=fill_c, alpha=alpha, linewidth=0, zorder=1)
+    ax_a.plot(p_a, y, color=color, lw=2.0, zorder=3, label=lbl)
 
-# ----------------------------------------------------------------------------
-# 绘图
-# ----------------------------------------------------------------------------
-fig, ax = plt.subplots(figsize=(6.0, 3.8))
+ax_a.axvline(P0, color=COLORS["ref_line"], ls="--", lw=1.0, zorder=2,
+             label=cn("标称值 p₀=10%"))
 
-# 标称值判据线（题面给定 p0 = 10%）
-ax.axvline(P_NOMINAL, color=COLORS["grid"], linestyle="--", linewidth=1.0, zorder=1)
+y_nom1 = float(oc_curve(np.array([P0]), N1, C1)[0])
+y_nom2 = float(oc_curve(np.array([P0]), N2, C2)[0])
+for yv, color, dy, va in ((y_nom1, PALETTE[0], -20.0, "top"),
+                          (y_nom2, PALETTE[1], 13.0, "bottom")):
+    ax_a.scatter(P0, yv, marker="*", s=110, color=color,
+                 edgecolor="white", linewidth=1.0, zorder=4)
+    ax_a.annotate(f"L={yv:.3f}", xy=(P0, yv), xytext=(6, dy),
+                  textcoords="offset points", fontsize=7, color=color,
+                  va=va, ha="left", zorder=5,
+                  bbox=dict(boxstyle="round,pad=0.18", fc="white",
+                            ec=color, lw=0.7, alpha=0.9))
 
-# 曲线下浅色填充 = 该方案在该 p 下的接收区域
-ax.fill_between(p_grid, 0.0, L_case1, alpha=0.08, color=PALETTE[0], linewidth=0, zorder=1)
-ax.fill_between(p_grid, 0.0, L_case2, alpha=0.08, color=PALETTE[1], linewidth=0, zorder=1)
+# --- panel (b)：p0 邻域放大 + 判据线 + 交点 -------------------------------------
+for lbl, color, y, _lvl in series_b:
+    fill_c = _lighten(color, 0.55)
+    for alpha in (0.35, 0.18, 0.08):
+        ax_b.fill_between(p_b, 0.0, y, color=fill_c, alpha=alpha, linewidth=0, zorder=1)
+    ax_b.plot(p_b, y, color=color, lw=2.0, zorder=3, label=lbl)
 
-# 主折线：实线 = 情形(1)，虚线 = 情形(2)
-ax.plot(
-    p_grid, L_case1, "-", color=PALETTE[0], linewidth=2.2,
-    label="情形(1)  n*=%d, c*=%d" % (round(N_CASE1), round(C_CASE1)), zorder=3,
-)
-ax.plot(
-    p_grid, L_case2, "--", color=PALETTE[1], linewidth=2.0,
-    label="情形(2)  n*=%d, c*=%d" % (round(N_CASE2), round(C_CASE2)), zorder=3,
-)
+ax_b.axhline(LEVEL_LO, color=COLORS["ref_line"], ls="--", lw=1.0, zorder=2,
+             label=cn("判据线 L=0.05"))
+ax_b.axhline(LEVEL_HI, color=COLORS["accent"], ls=":", lw=1.2, zorder=2,
+             label=cn("判据线 L=0.90"))
+ax_b.axvline(P0, color=COLORS["neutral"], ls="-.", lw=1.0, zorder=2)
 
-# ★ 标称值处的接收概率（每条曲线的数值锚点）
-ax.scatter(
-    [P_NOMINAL], [L1_AT_NOMINAL], s=130, marker="*", color=PALETTE[0],
-    edgecolor="white", linewidth=1.4, zorder=5,
-)
-ax.scatter(
-    [P_NOMINAL], [L2_AT_NOMINAL], s=130, marker="*", color=PALETTE[1],
-    edgecolor="white", linewidth=1.4, zorder=5,
-)
+n_lab = 0
+for _lbl, color, y, lvl_des in series_b:
+    for lvl in (LEVEL_LO, LEVEL_HI):
+        for xc in crossings(p_b, y, lvl):
+            ax_b.scatter(xc, lvl, marker="*", s=70, color=color,
+                         edgecolor="white", linewidth=0.8, zorder=5)
+            if abs(lvl - lvl_des) < 1e-12 and n_lab < 2:
+                ax_b.annotate(f"p≈{xc:.3f}", xy=(xc, lvl), xytext=(-8, 16),
+                              textcoords="offset points", ha="right", fontsize=7,
+                              color=color, zorder=6,
+                              bbox=dict(boxstyle="round,pad=0.18", fc="white",
+                                        ec=color, lw=0.7, alpha=0.9))
+                n_lab += 1
 
-ax.annotate(
-    "L(%d%%) = %.3f" % (round(P_NOMINAL * 100), L1_AT_NOMINAL),
-    xy=(P_NOMINAL, L1_AT_NOMINAL),
-    xytext=(0.028, 0.80),
-    fontsize=8.5, color=PALETTE[0],
-    arrowprops=dict(arrowstyle="->", color=PALETTE[0], lw=1.1),
-    bbox=dict(boxstyle="round,pad=0.3", facecolor="white",
-              edgecolor=PALETTE[0], alpha=0.9),
-    zorder=6,
-)
-ax.annotate(
-    "L(%d%%) = %.3f" % (round(P_NOMINAL * 100), L2_AT_NOMINAL),
-    xy=(P_NOMINAL, L2_AT_NOMINAL),
-    xytext=(0.150, 0.30),
-    fontsize=8.5, color=PALETTE[1],
-    arrowprops=dict(arrowstyle="->", color=PALETTE[1], lw=1.1),
-    bbox=dict(boxstyle="round,pad=0.3", facecolor="white",
-              edgecolor=PALETTE[1], alpha=0.9),
-    zorder=6,
-)
+# --- 公共版式 -----------------------------------------------------------------
+for ax in (ax_a, ax_b):
+    ax.set_ylim(0.0, 1.05)
+    ax.set_yticks([0.0, 0.25, 0.50, 0.75, 1.00])
+    ax.grid(alpha=0.12, ls="--", color=COLORS["grid"], zorder=0)
+    ax.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)
+    ax.tick_params(labelsize=7.5)
 
-ax.set_xlabel("真实次品率 p", fontsize=10)
-ax.set_ylabel("接收概率 L(p)", fontsize=10)
-ax.set_xlim(0.0, P_MAX)
-ax.set_ylim(0.0, 1.05)
-ax.set_xticks(np.arange(0.0, P_MAX + 1e-9, 0.05))
-ax.set_yticks(np.arange(0.0, 1.01, 0.25))
-ax.tick_params(labelsize=9)
-ax.legend(frameon=False, labelspacing=0.35, handlelength=1.8, fontsize=8.5,
-          loc="upper right")
-ax.grid(alpha=0.12, linestyle="--", color=COLORS["grid"])
-ax.spines["top"].set_visible(False)
-ax.spines["right"].set_visible(False)
+ax_a.set_xlim(P_FULL)
+ax_b.set_xlim(P_ZOOM)
+ax_a.set_xticks(np.arange(0.0, 0.41, 0.10))
+ax_b.set_xticks(np.arange(0.06, 0.161, 0.02))
+ax_a.xaxis.set_major_formatter(FormatStrFormatter("%.2f"))
+ax_b.xaxis.set_major_formatter(FormatStrFormatter("%.3f"))
 
+ax_a.set_xlabel(cn("真实次品率 p（无量纲）"), fontsize=8.5)
+ax_b.set_xlabel(cn("真实次品率 p（无量纲，局部放大）"), fontsize=8.5)
+ax_a.set_ylabel(cn("接收概率 L(p)（无量纲）"), fontsize=8.5)
+
+ax_a.legend(frameon=False, fontsize=7, loc="upper right",
+            labelspacing=0.3, handlelength=1.4, borderaxespad=0.3)
+ax_b.legend(frameon=False, fontsize=6.5, loc="upper right",
+            labelspacing=0.3, handlelength=1.4, borderaxespad=0.3)
+
+panel(ax_a, "(a)")
+panel(ax_b, "(b)")
 fig.tight_layout()
-save_fig(fig, "figures/fig_q1_oc_curve_p1.png")
+
+save(fig, "fig_q1_oc_curve_p1")

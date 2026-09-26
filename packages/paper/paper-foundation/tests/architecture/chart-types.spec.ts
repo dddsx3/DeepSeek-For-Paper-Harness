@@ -236,3 +236,59 @@ describe('简报 ↔ 白名单一致（防"契约教了、解析器不认"）', 
     expect(svg).toContain('方案乙')
   })
 })
+
+/**
+ * **模型实际写出来的 `chart_type`，必须能被归一化到白名单** —— 用真实跑出来的原文核。
+ *
+ * 实测（2024B 阶段 5 第一次真实运行）：11 条规划里有 11 条把中文说明整句写进了
+ * `chart_type`（`'折线图（OC 曲线：x=真实次品率 p，…）'`），`figure_plan_valid`
+ * 判"不在白名单"——模型没做错任何事，是**门禁只认裸标识符**而简报没说清。
+ *
+ * 修法两头都做：简报要求写裸标识符（`normalizeChartType` 只是兜底），
+ * 这里把**当年真实闯祸的原文**逐条钉住。这些串不是编的，是从
+ * `stages/05-figure-declare/FIGURE_PLAN.json` 里抄的——所以它们再退回去，
+ * 这条测试就会红。另注意：`figure_type_match` 用同一个归一化器，
+ * 一旦返回 `null` 该门禁会退化成"判不出来一律放行"，等于静默失效。
+ */
+describe('chart_type 归一化（真实原文回归）', () => {
+  // [原文, 期望归一到]  —— 原文逐字来自 2024B 阶段 5 的 FIGURE_PLAN.json
+  const WILD: ReadonlyArray<readonly [string, string]> = [
+    ['折线图（OC 曲线：x=真实次品率 p，y=接收概率 L(p)）', 'line'],
+    ['哑铃图（两面板对照：哑铃两端为两个情形，茎长表示量级差）', 'dumbbell'],
+    ['二维边界分区图（fill_between 分区 + 水平判定边界线）', 'contour'],
+    ['分组柱状图（每组两柱：n* 与 c*）', 'grouped_bar'],
+    ['热力图（0-1 决策指示矩阵，imshow + 逐格数值标注）', 'heatmap'],
+    ['瀑布图（成本—利润口径分解，含连接线与柱顶数值）', 'waterfall'],
+    ['棒棒糖图（按期望利润升序的排序图，含末端数值）', 'lollipop'],
+    ['网络结构示意图（三层拓扑：零配件层 → 半成品层 → 成品节点）', 'network'],
+    ['点图（含参考线：两组点 + 水平基准虚线）', 'scatter'],
+    ['森林图（区间估计：点估计 + 水平置信区间 + 参照竖线）', 'forest'],
+    ['带误差棒的散点图（x=利润，y=一致率，yerr=1.96×标准误，含参考线）', 'scatter'],
+  ]
+
+  it('11 条真实原文全部归一到白名单里的图型', async () => {
+    const { normalizeChartType, FIGURE_TYPES } = await import('../../src/stages/figure-script-gates.ts')
+    for (const [raw, want] of WILD) {
+      const got = normalizeChartType(raw)
+      expect(got, `归一化失败：${raw}`).not.toBeNull()
+      expect(got, `${raw} 应归一到 ${want}`).toBe(want)
+      // 归一化的结果必须真的是白名单成员，否则等于把非法值放行
+      expect(FIGURE_TYPES as readonly string[]).toContain(got as string)
+    }
+  })
+
+  it('裸标识符原样通过（归一化不改变本来就合法的值）', async () => {
+    const { normalizeChartType } = await import('../../src/stages/figure-script-gates.ts')
+    for (const t of ['line', 'tornado', 'waterfall', 'grouped_bar', 'scatter']) {
+      expect(normalizeChartType(t)).toBe(t)
+      expect(normalizeChartType(`  ${t}  `)).toBe(t) // 容忍前后空白
+      expect(normalizeChartType(t.toUpperCase())).toBe(t) // 容忍大小写
+    }
+  })
+
+  it('真的判不出来时返回 null（不瞎猜——留给门禁按"放行"处理）', async () => {
+    const { normalizeChartType } = await import('../../src/stages/figure-script-gates.ts')
+    expect(normalizeChartType('一张好看的插图')).toBeNull()
+    expect(normalizeChartType('')).toBeNull()
+  })
+})

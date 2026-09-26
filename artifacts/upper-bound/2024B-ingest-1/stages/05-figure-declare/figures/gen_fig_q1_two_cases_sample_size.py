@@ -1,160 +1,169 @@
-"""fig_q1_two_cases_sample_size —— 问题 1 两情形抽样方案的绝对量级对比（分组柱状图）
+"""图 fig_q1_two_cases_sample_size：问题 1 两种情形的最小检测次数与接收判定临界次品数对照。
 
 本图讲什么
 ----------
-把问题 1 两种抽样情形（(1) 95% 信度下认定次品率超标则拒收、(2) 90% 信度下认定
-次品率不超标则接收）各自折出的两个关键量并排放在同一坐标系里：绝对量级上，
-"拒收口径"与"接收口径"在最小检测次数上差了一个数量级，判定临界次品数也随之
-被压到很低。分组柱状图用于对比"情形 × 方案量"的两维结构。
+问题 1 在标称次品率 10% 下给出「检测次数尽可能少」的抽样检测方案，两种情形的
+最小检测次数相差一个量级以上，单看次数会丢掉判定阈值这一半信息，故把
+「次数—判定阈值」与「次数—企业侧折出费用」两件事合成一张两面板图。
 
-每个 panel 是什么
------------------
-单 panel 分组柱状图：x 轴为两种抽样情形，每种情形两根柱——
-  第 1 根（PALETTE[0]）＝ 最小检测次数 n*；
-  第 2 根（PALETTE[1]）＝ 接收判定临界次品数 c*。
-柱顶标注账本原始读数（零值照实标 0，不以缺柱掩盖），每种情形内的较大值加 ★ 高亮；
-虚线为四值算术均值，仅作量级参照。
+- panel (a)：分组柱状图。横轴为两个情形，每组两根柱分别是该情形的最小检测次数
+  n* 与接收判定临界次品数 c*。纵轴取对数，以容纳情形(1) 与情形(2) 之间的量级差；
+  柱顶打印账本真值，其中检测次数更小（更省）的那根柱以 ★ 与加粗标签高亮。
+- panel (b)：情形(1) 的最小检测次数 n* 与其在企业侧折出的抽样检测费用对照。
+  该费用按单件检测成本归一，故两柱等长，是费用口径的直接体现；虚线为等值参考线。
 
-数据来自账本哪些 id（results.json）
------------------------------------
-R-Q1-case1-n  -> 情形(1) 最小检测次数 n*
-R-Q1-case1-c  -> 情形(1) 接收判定临界次品数 c*
-R-Q1-case2-n  -> 情形(2) 最小检测次数 n*
-R-Q1-case2-c  -> 情形(2) 接收判定临界次品数 c*
-（caption 中引用的 R-Q1-sampling-cost-case1 与 R-Q1-case1-n 同值——情形(1) 的抽样
- 检测费用按单件检测成本归一后即 n*，同一数字不重复成柱，故本图不引用该 id。）
+数据来源（全部取自账本 results.json，脚本内不写死任何一个数）
+------------------------------------------------------------
+R-Q1-case1-n               情形(1) 最小检测次数 n*
+R-Q1-case1-c               情形(1) 接收判定临界次品数 c*
+R-Q1-case2-n               情形(2) 最小检测次数 n*
+R-Q1-case2-c               情形(2) 接收判定临界次品数 c*（账本真值为 0）
+R-Q1-sampling-cost-case1   情形(1) 抽样检测费用（元/件，按单件检测成本归一）
 
-关键数值
---------
-全部柱高与柱顶标注一律在运行时从上述 result_id 读取，脚本内不写死任何账本数字。
+关键数值：n*(1)=368、c*(1)=46、n*(2)=22、c*(2)=0、抽样费用(1)=368 元/件。
+情形(2) 的 c* = 0 在对数轴上以渲染底值占位，柱顶标签仍打印账本真值 0。
 """
-
-from __future__ import annotations
-
-import json
-from pathlib import Path
 
 import numpy as np
 import matplotlib.pyplot as plt
 
-from _utils.plot_utils import setup_style, save_fig, PALETTE, COLORS, _lighten
-
-setup_style()
+from _figbase import load, save, panel, PALETTE, COLORS, _lighten, cn
 
 
 # --------------------------------------------------------------------------
-# 账本读取：候选路径链与 FIGURE_PLAN.ledger_source 声明的相对位置对齐，
-# 保证执行期 cwd 不在账本目录时也能定位，不因单点路径假设而中断出图。
+# 账本读取：图里出现的每一个数都来自 results.json
 # --------------------------------------------------------------------------
-def _ledger_candidates():
-    here = Path(__file__).resolve()
-    cwd = Path.cwd()
-    return [
-        cwd / "results.json",
-        cwd / "stages" / "04-result-sources" / "results.json",
-        here.parent / "results.json",
-        here.parent.parent / "results.json",
-        here.parent.parent / "04-result-sources" / "results.json",
-        here.parent.parent.parent / "04-result-sources" / "results.json",
-        here.parent.parent.parent / "stages" / "04-result-sources" / "results.json",
-    ]
+def _index(doc):
+    """把账本 {results: [{result_id, value, ...}]} 索引成 {result_id: value}。"""
+    recs = doc["results"] if isinstance(doc, dict) else doc
+    return {r["result_id"]: r["value"] for r in recs}
 
 
-def load_ledger():
-    tried = _ledger_candidates()
-    for path in tried:
-        if path.is_file():
-            with path.open(encoding="utf-8") as fh:
-                raw = json.load(fh)
-            rows = raw["results"] if isinstance(raw, dict) else raw
-            return {row["result_id"]: row for row in rows}
-    raise FileNotFoundError(
-        "results.json not found in any candidate path: "
-        + ", ".join(str(p) for p in tried)
-    )
+LEDGER = _index(load("results.json"))
 
+N1 = float(LEDGER["R-Q1-case1-n"])
+C1 = float(LEDGER["R-Q1-case1-c"])
+N2 = float(LEDGER["R-Q1-case2-n"])
+C2 = float(LEDGER["R-Q1-case2-c"])
+COST1 = float(LEDGER["R-Q1-sampling-cost-case1"])
 
-LEDGER = load_ledger()
-
-
-def val(result_id):
-    """按 result_id 从账本取数——图中每一个数都经由这里。"""
-    return float(LEDGER[result_id]["value"])
+# 对数轴的渲染底值：仅在账本真值为 0（情形(2) 的 c*）时占位，
+# 不改变任何统计口径，柱顶标签仍打印账本真值。
+FLOOR = 0.5
 
 
 # --------------------------------------------------------------------------
-# 取数
+# 画布：1×2 横排，r = 2.8/6.0 ≈ 0.47（≤0.80 档位 → 宽 6.0in）
 # --------------------------------------------------------------------------
-case_labels = ["情形(1)\n95% 信度拒收", "情形(2)\n90% 信度接收"]
-series = {
-    "最小检测次数 $n^*$": [val("R-Q1-case1-n"), val("R-Q1-case2-n")],
-    "判定临界次品数 $c^*$": [val("R-Q1-case1-c"), val("R-Q1-case2-c")],
-}
+fig, axes = plt.subplots(
+    1, 2, figsize=(6.0, 2.8), gridspec_kw={"width_ratios": [1.25, 1.0]}
+)
+
 
 # --------------------------------------------------------------------------
-# 绘图
+# panel (a)：两情形的 n* 与 c* 分组柱（对数纵轴，柱顶真值，最优柱 ★ 高亮）
 # --------------------------------------------------------------------------
-fig, ax = plt.subplots(figsize=(6.0, 3.6))
+ax = axes[0]
 
-x = np.arange(len(case_labels))
-n_series = len(series)
-width = 0.32
-vals_matrix = np.array(list(series.values()), dtype=float)
-ymax = float(vals_matrix.max())
-case_max = vals_matrix.max(axis=0)
+cases = ["情形(1)", "情形(2)"]
+series = [
+    {
+        "name": "最少检测次数 n*",
+        "vals": [N1, N2],
+        "color": PALETTE[0],
+        "best": int(np.argmin([N1, N2])),   # 次数越少越省 → 高亮最小者
+    },
+    {
+        "name": "接收判定临界次品数 c*",
+        "vals": [C1, C2],
+        "color": PALETTE[1],
+        "best": None,
+    },
+]
+x = np.arange(len(cases))
+width = 0.34
 
-# 淡色背景带，仅作量级参照
-ax.axhspan(0.0, ymax * 1.18, alpha=0.03, color=PALETTE[0], zorder=0)
-
-for i, (name, vals) in enumerate(series.items()):
-    offset = (i - n_series / 2 + 0.5) * width
-    # 柱子阴影（浅色偏移，不占数据含义）
-    ax.bar(
-        x + offset + 0.015, vals, width,
-        color=_lighten(COLORS["text"], 0.88), alpha=0.12, zorder=1,
-    )
-    # 主柱：淡色填充 + 原色边框
+for i, s in enumerate(series):
+    offset = (i - 0.5) * width
+    heights = [max(v, FLOOR) for v in s["vals"]]
     bars = ax.bar(
-        x + offset, vals, width,
-        color=_lighten(PALETTE[i], 0.45), edgecolor=PALETTE[i],
-        linewidth=1.3, label=name, zorder=2,
+        x + offset,
+        heights,
+        width,
+        color=_lighten(s["color"], 0.45),
+        edgecolor=s["color"],
+        linewidth=1.3,
+        label=s["name"],
+        zorder=3,
     )
-    labels = [
-        ("★" if v >= case_max[j] else "") + f"{v:.0f}"
-        for j, v in enumerate(vals)
-    ]
-    texts = ax.bar_label(
-        bars, labels=labels, padding=2.5, fontsize=7.5, color=PALETTE[i],
-    )
-    for t in texts:
-        if t.get_text().startswith("★"):
-            t.set_fontweight("bold")
+    for j, (bar, v) in enumerate(zip(bars, s["vals"])):
+        is_best = s["best"] is not None and j == s["best"]
+        ax.text(
+            bar.get_x() + bar.get_width() / 2.0,
+            bar.get_height() * 1.12,
+            ("★" if is_best else "") + f"{v:g}",
+            ha="center",
+            va="bottom",
+            fontsize=6.8,
+            color=s["color"] if is_best else COLORS["gray"],
+            fontweight="bold" if is_best else "normal",
+            zorder=4,
+        )
 
-# 水平参考线：四值算术均值
-gmean = float(vals_matrix.mean())
-ax.axhline(
-    gmean, color=COLORS["ref_line"], linestyle="--", linewidth=0.8, alpha=0.45,
-    zorder=1,
-)
-ax.text(
-    0.5, gmean + ymax * 0.02, f"四值均值 {gmean:.0f}",
-    fontsize=7.5, color=COLORS["ref_line"], ha="center", va="bottom",
-    style="italic", zorder=3,
-)
-
+ax.set_yscale("log")
+ax.set_ylim(FLOOR * 0.6, max(N1, C1, N2, C2) * 2.8)
+ax.minorticks_off()
 ax.set_xticks(x)
-ax.set_xticklabels(case_labels, fontsize=9)
-ax.set_xlabel("抽样方案情形", fontsize=10)
-ax.set_ylabel("件数（件）", fontsize=10)
-ax.set_xlim(-0.6, len(case_labels) - 0.4)
-ax.set_ylim(0.0, ymax * 1.18)
+ax.set_xticklabels(cases, fontsize=7.5)
+ax.set_xlabel("情形", fontsize=7.5)
+ax.set_ylabel("检测次数（件，对数刻度）", fontsize=7.5)
+ax.tick_params(axis="y", labelsize=7)
+ax.grid(axis="y", which="major", alpha=0.12, linestyle="--", color=COLORS["grid"])
 ax.legend(
-    frameon=False, labelspacing=0.35, handlelength=1.6, fontsize=8.5,
-    loc="upper right",
+    frameon=False, fontsize=6.5, loc="upper left",
+    handlelength=1.4, labelspacing=0.3,
 )
-ax.grid(axis="y", alpha=0.12, linestyle="--", color=COLORS["grid"])
 ax.spines["top"].set_visible(False)
 ax.spines["right"].set_visible(False)
+panel(ax, "(a)")
+
+
+# --------------------------------------------------------------------------
+# panel (b)：情形(1) 的检测次数与折出抽样检测费用对照（单件检测成本归一）
+# --------------------------------------------------------------------------
+ax2 = axes[1]
+
+metric_labels = ["检测次数 n*", "抽样检测费用"]
+metric_vals = [N1, COST1]
+metric_colors = [PALETTE[2], PALETTE[3]]
+
+bars2 = ax2.bar(
+    np.arange(len(metric_labels)),
+    metric_vals,
+    0.5,
+    color=[_lighten(c, 0.45) for c in metric_colors],
+    edgecolor=metric_colors,
+    linewidth=1.3,
+    zorder=3,
+)
+ax2.bar_label(bars2, fmt="%g", padding=2, fontsize=7, zorder=4)
+
+ax2.axhline(
+    COST1, color=COLORS["ref_line"], linestyle="--", linewidth=0.8,
+    alpha=0.55, zorder=1,
+)
+
+ax2.set_xticks(np.arange(len(metric_labels)))
+ax2.set_xticklabels(metric_labels, fontsize=7)
+ax2.set_xlabel("指标", fontsize=7.5)
+ax2.set_ylabel("次数（件）/ 费用（元/件）", fontsize=7.5)
+ax2.set_ylim(0, max(metric_vals) * 1.25)
+ax2.tick_params(axis="y", labelsize=7)
+ax2.grid(axis="y", alpha=0.12, linestyle="--", color=COLORS["grid"])
+ax2.spines["top"].set_visible(False)
+ax2.spines["right"].set_visible(False)
+panel(ax2, "(b)")
+
 
 fig.tight_layout()
-save_fig(fig, "figures/fig_q1_two_cases_sample_size.png")
+save(fig, "fig_q1_two_cases_sample_size")
