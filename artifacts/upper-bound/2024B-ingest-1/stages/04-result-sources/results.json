@@ -1,0 +1,347 @@
+{
+  "results": [
+    {
+      "result_id": "R-Q1-case1-n",
+      "name": "问题1 情形(1)（控制拒收侧第一类错误）最小检测次数 n*",
+      "value": 368,
+      "unit": "件",
+      "uncertainty": null
+    },
+    {
+      "result_id": "R-Q1-case1-c",
+      "name": "问题1 情形(1) 接收判定临界次品数 c*",
+      "value": 46,
+      "unit": "件",
+      "uncertainty": null
+    },
+    {
+      "result_id": "R-Q1-case2-n",
+      "name": "问题1 情形(2)（单侧置信上界口径）最小检测次数 n*",
+      "value": 22,
+      "unit": "件",
+      "uncertainty": null
+    },
+    {
+      "result_id": "R-Q1-case2-c",
+      "name": "问题1 情形(2) 接收判定临界次品数 c*",
+      "value": 0,
+      "unit": "件",
+      "uncertainty": null
+    },
+    {
+      "result_id": "R-Q1-sampling-cost-case1",
+      "name": "问题1 情形(1) 方案在企业侧折出的抽样检测费用（按单件检测成本归一）",
+      "value": 368,
+      "unit": "元/件",
+      "uncertainty": null
+    },
+    {
+      "result_id": "R-Q2-case1-profit",
+      "name": "问题2 表1 情况1 最优期望利润",
+      "value": 21.680384087791495,
+      "unit": "元/件",
+      "uncertainty": null
+    },
+    {
+      "result_id": "R-Q2-case1-decision-Z1",
+      "name": "问题2 表1 情况1 最优决策中的零配件1检测指示 Z1",
+      "value": 0,
+      "unit": "0-1 指示（无量纲）",
+      "uncertainty": null
+    },
+    {
+      "result_id": "R-Q2-case1-decision-Z2",
+      "name": "问题2 表1 情况1 最优决策中的零配件2检测指示 Z2",
+      "value": 0,
+      "unit": "0-1 指示（无量纲）",
+      "uncertainty": null
+    },
+    {
+      "result_id": "R-Q2-case1-decision-C",
+      "name": "问题2 表1 情况1 最优决策中的成品检测指示 C",
+      "value": 0,
+      "unit": "0-1 指示（无量纲）",
+      "uncertainty": null
+    },
+    {
+      "result_id": "R-Q2-case1-decision-D",
+      "name": "问题2 表1 情况1 最优决策中的不合格成品拆解指示 D",
+      "value": 1,
+      "unit": "0-1 指示（无量纲）",
+      "uncertainty": null
+    },
+    {
+      "result_id": "R-Q2-case1-unit-cost",
+      "name": "问题2 表1 情况1 最优策略下每件合格成品的期望总成本（利润口径的成本侧）",
+      "value": 34.319615912208505,
+      "unit": "元/件",
+      "uncertainty": null
+    },
+    {
+      "result_id": "R-Q2-case2-profit",
+      "name": "问题2 表1 情况2 最优期望利润",
+      "value": 13.812500000000007,
+      "unit": "元/件",
+      "uncertainty": null
+    },
+    {
+      "result_id": "R-Q2-case2-decision-Z1",
+      "name": "问题2 表1 情况2 最优决策中的零配件1检测指示 Z1",
+      "value": 1,
+      "unit": "0-1 指示（无量纲）",
+      "uncertainty": null
+    },
+    {
+      "result_id": "R-Q2-case2-decision-Z2",
+      "name": "问题2 表1 情况2 最优决策中的零配件2检测指示 Z2",
+      "value": 0,
+      "unit": "0-1 指示（无量纲）",
+      "uncertainty": null
+    },
+    {
+      "result_id": "R-Q2-case2-decision-C",
+      "name": "问题2 表1 情况2 最优决策中的成品检测指示 C",
+      "value": 0,
+      "unit": "0-1 指示（无量纲）",
+      "uncertainty": null
+    },
+    {
+      "result_id": "R-Q2-case2-decision-D",
+      "name": "问题2 表1 情况2 最优决策中的不合格成品拆解指示 D",
+      "value": 1,
+      "unit": "0-1 指示（无量纲）",
+      "uncertainty": null
+    },
+    {
+      "result_id": "R-Q2-case3-profit",
+      "name": "问题2 表1 情况3 最优期望利润",
+      "value": 19.795610425240056,
+      "unit": "元/件",
+      "uncertainty": null
+    },
+    {
+      "result_id": "R-Q2-case3-decision-Z1",
+      "name": "问题2 表1 情况3 最优决策中的零配件1检测指示 Z1",
+      "value": 0,
+      "unit": "0-1 指示（无量纲）",
+      "uncertainty": null
+    },
+    {
+      "result_id": "R-Q2-case3-decision-Z2",
+      "name": "问题2 表1 情况3 最优决策中的零配件2检测指示 Z2",
+      "value": 0,
+      "unit": "0-1 指示（无量纲）",
+      "uncertainty": null
+    },
+    {
+      "result_id": "R-Q2-case3-decision-C",
+      "name": "问题2 表1 情况3 最优决策中的成品检测指示 C",
+      "value": 1,
+      "unit": "0-1 指示（无量纲）",
+      "uncertainty": null
+    },
+    {
+      "result_id": "R-Q2-case3-decision-D",
+      "name": "问题2 表1 情况3 最优决策中的不合格成品拆解指示 D",
+      "value": 1,
+      "unit": "0-1 指示（无量纲）",
+      "uncertainty": null
+    },
+    {
+      "result_id": "R-Q2-case4-profit",
+      "name": "问题2 表1 情况4 最优期望利润",
+      "value": 15.875000000000007,
+      "unit": "元/件",
+      "uncertainty": null
+    },
+    {
+      "result_id": "R-Q2-case4-decision-Z1",
+      "name": "问题2 表1 情况4 最优决策中的零配件1检测指示 Z1",
+      "value": 1,
+      "unit": "0-1 指示（无量纲）",
+      "uncertainty": null
+    },
+    {
+      "result_id": "R-Q2-case4-decision-Z2",
+      "name": "问题2 表1 情况4 最优决策中的零配件2检测指示 Z2",
+      "value": 0,
+      "unit": "0-1 指示（无量纲）",
+      "uncertainty": null
+    },
+    {
+      "result_id": "R-Q2-case4-decision-C",
+      "name": "问题2 表1 情况4 最优决策中的成品检测指示 C",
+      "value": 1,
+      "unit": "0-1 指示（无量纲）",
+      "uncertainty": null
+    },
+    {
+      "result_id": "R-Q2-case4-decision-D",
+      "name": "问题2 表1 情况4 最优决策中的不合格成品拆解指示 D",
+      "value": 1,
+      "unit": "0-1 指示（无量纲）",
+      "uncertainty": null
+    },
+    {
+      "result_id": "R-Q2-case5-profit",
+      "name": "问题2 表1 情况5 最优期望利润",
+      "value": 18.93827160493828,
+      "unit": "元/件",
+      "uncertainty": null
+    },
+    {
+      "result_id": "R-Q2-case5-decision-Z1",
+      "name": "问题2 表1 情况5 最优决策中的零配件1检测指示 Z1",
+      "value": 0,
+      "unit": "0-1 指示（无量纲）",
+      "uncertainty": null
+    },
+    {
+      "result_id": "R-Q2-case5-decision-Z2",
+      "name": "问题2 表1 情况5 最优决策中的零配件2检测指示 Z2",
+      "value": 0,
+      "unit": "0-1 指示（无量纲）",
+      "uncertainty": null
+    },
+    {
+      "result_id": "R-Q2-case5-decision-C",
+      "name": "问题2 表1 情况5 最优决策中的成品检测指示 C",
+      "value": 1,
+      "unit": "0-1 指示（无量纲）",
+      "uncertainty": null
+    },
+    {
+      "result_id": "R-Q2-case5-decision-D",
+      "name": "问题2 表1 情况5 最优决策中的不合格成品拆解指示 D",
+      "value": 1,
+      "unit": "0-1 指示（无量纲）",
+      "uncertainty": null
+    },
+    {
+      "result_id": "R-Q2-case6-profit",
+      "name": "问题2 表1 情况6 最优期望利润",
+      "value": 21.6786703601108,
+      "unit": "元/件",
+      "uncertainty": null
+    },
+    {
+      "result_id": "R-Q2-case6-decision-Z1",
+      "name": "问题2 表1 情况6 最优决策中的零配件1检测指示 Z1",
+      "value": 0,
+      "unit": "0-1 指示（无量纲）",
+      "uncertainty": null
+    },
+    {
+      "result_id": "R-Q2-case6-decision-Z2",
+      "name": "问题2 表1 情况6 最优决策中的零配件2检测指示 Z2",
+      "value": 0,
+      "unit": "0-1 指示（无量纲）",
+      "uncertainty": null
+    },
+    {
+      "result_id": "R-Q2-case6-decision-C",
+      "name": "问题2 表1 情况6 最优决策中的成品检测指示 C",
+      "value": 0,
+      "unit": "0-1 指示（无量纲）",
+      "uncertainty": null
+    },
+    {
+      "result_id": "R-Q2-case6-decision-D",
+      "name": "问题2 表1 情况6 最优决策中的不合格成品拆解指示 D",
+      "value": 0,
+      "unit": "0-1 指示（无量纲）",
+      "uncertainty": null
+    },
+    {
+      "result_id": "R-Q3-profit",
+      "name": "问题3 装配树实例在最优节点级决策下的单位成品期望利润",
+      "value": 66.08687700045726,
+      "unit": "元/件",
+      "uncertainty": null
+    },
+    {
+      "result_id": "R-Q4-case1-consistency-rate",
+      "name": "问题4 表1 情况1 重复抽样下重解所得最优决策与点估计决策的一致率",
+      "value": 0.916,
+      "unit": "无量纲（比例）",
+      "uncertainty": null
+    },
+    {
+      "result_id": "R-Q4-case1-consistency-rate-se",
+      "name": "问题4 表1 情况1 一致率估计量的标准误",
+      "value": 0.006202580108309766,
+      "unit": "无量纲（比例）",
+      "uncertainty": null
+    },
+    {
+      "result_id": "R-Q4-case2-consistency-rate",
+      "name": "问题4 表1 情况2 重复抽样下重解所得最优决策与点估计决策的一致率",
+      "value": 0.9485,
+      "unit": "无量纲（比例）",
+      "uncertainty": null
+    },
+    {
+      "result_id": "R-Q4-case2-consistency-rate-se",
+      "name": "问题4 表1 情况2 一致率估计量的标准误",
+      "value": 0.004942051699446293,
+      "unit": "无量纲（比例）",
+      "uncertainty": null
+    },
+    {
+      "result_id": "R-Q4-case3-consistency-rate",
+      "name": "问题4 表1 情况3 重复抽样下重解所得最优决策与点估计决策的一致率",
+      "value": 0.992,
+      "unit": "无量纲（比例）",
+      "uncertainty": null
+    },
+    {
+      "result_id": "R-Q4-case3-consistency-rate-se",
+      "name": "问题4 表1 情况3 一致率估计量的标准误",
+      "value": 0.001991983935678198,
+      "unit": "无量纲（比例）",
+      "uncertainty": null
+    },
+    {
+      "result_id": "R-Q4-case4-consistency-rate",
+      "name": "问题4 表1 情况4 重复抽样下重解所得最优决策与点估计决策的一致率",
+      "value": 0.9995,
+      "unit": "无量纲（比例）",
+      "uncertainty": null
+    },
+    {
+      "result_id": "R-Q4-case4-consistency-rate-se",
+      "name": "问题4 表1 情况4 一致率估计量的标准误",
+      "value": 0.000499874984371065,
+      "unit": "无量纲（比例）",
+      "uncertainty": null
+    },
+    {
+      "result_id": "R-Q4-case5-consistency-rate",
+      "name": "问题4 表1 情况5 重复抽样下重解所得最优决策与点估计决策的一致率",
+      "value": 0.9995,
+      "unit": "无量纲（比例）",
+      "uncertainty": null
+    },
+    {
+      "result_id": "R-Q4-case5-consistency-rate-se",
+      "name": "问题4 表1 情况5 一致率估计量的标准误",
+      "value": 0.000499874984371065,
+      "unit": "无量纲（比例）",
+      "uncertainty": null
+    },
+    {
+      "result_id": "R-Q4-case6-consistency-rate",
+      "name": "问题4 表1 情况6 重复抽样下重解所得最优决策与点估计决策的一致率",
+      "value": 0.6085,
+      "unit": "无量纲（比例）",
+      "uncertainty": null
+    },
+    {
+      "result_id": "R-Q4-case6-consistency-rate-se",
+      "name": "问题4 表1 情况6 一致率估计量的标准误",
+      "value": 0.010913930318634071,
+      "unit": "无量纲（比例）",
+      "uncertainty": null
+    }
+  ]
+}

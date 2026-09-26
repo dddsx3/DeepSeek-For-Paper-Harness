@@ -1,0 +1,7 @@
+[STAGE CHAIN] artifacts\upper-bound\2024B-ingest-1\stages
+  题面问数（数出来的）：4
+  [deterministic] figure-declare: 第 1 段：出作图规划
+[STAGE NEXT] 只跑了 'figure-declare'，到此即停。检查 artifacts\upper-bound\2024B-ingest-1\stages 后，放行 = 再执行一次 --stages --stage-next。
+  ❌ figure-declare: 阶段产出未通过形态检查：第一段没有产出可用的 `figures` 数组 —— 没有规划就无法逐图内联配方
+
+STAGE CHAIN FAILED — 1 个阶段没通过（产物与通行证在 artifacts\upper-bound\2024B-ingest-1\stages）。

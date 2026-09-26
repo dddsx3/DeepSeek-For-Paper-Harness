@@ -1,0 +1,36 @@
+{
+  "stage": "modeling",
+  "code": 2,
+  "items": [
+    {
+      "id": "modeling_floor",
+      "ok": true,
+      "detail": "MODELING_REPORT.md 54258 字节 ≥ 1500",
+      "code": 0
+    },
+    {
+      "id": "numbers_traced",
+      "ok": true,
+      "detail": "1 个文本产物的 380 个数字全部有出生证明（题面给定值 / 声明的常数 / 编外登记 1 条）",
+      "code": 0
+    },
+    {
+      "id": "no_claimed_verification",
+      "ok": true,
+      "detail": "没有\"已执行检验\"类声明（检验方案都写成待执行；代码注释也干净）",
+      "code": 0
+    },
+    {
+      "id": "modeling_coverage",
+      "ok": true,
+      "detail": "20 条能力项全部被认领（逐字命中 id）",
+      "code": 0
+    },
+    {
+      "id": "modeling_self_check",
+      "ok": false,
+      "detail": "未实现：参考的 9 项自检含\"问题递进性检查\"（参考自己标注为\"最关键\"且是人工项）。可机械化的那几项（逐问数、目标/公式/约束非零、符号表存在、灵敏度计划）待实现。",
+      "code": 2
+    }
+  ]
+}

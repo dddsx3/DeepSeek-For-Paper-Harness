@@ -1,0 +1,7 @@
+[STAGE CHAIN] artifacts\upper-bound\2024B-ingest-1\stages
+  题面问数（数出来的）：4
+  [deterministic] modeling: 逐节点审计（glm-5.3-flash-free）：fail，质量分 0.45，要求 8/8 项完成，6 条 findings
+[STAGE NEXT] 只跑了 'modeling'，到此即停。检查 artifacts\upper-bound\2024B-ingest-1\stages 后，放行 = 再执行一次 --stages --stage-next。
+  ❌ modeling: 逐节点审计未通过：审计未通过：2 条 fatal（DECLARATION.json / EQ-COST-Q2 第四项（+ [C=0](r/q)·D·Σa_i），对应 EQ-RECUR、EQ-RECUR-SOL、EQ-RETURN；MODELING_REPORT.md §4.2 期望利润段：退回件的采购抵扣被重复计两次。EQ-RECUR 中 D=1 时不合格品走 W 分；DECLARATION.json / EQ-AGG（A=sum_i(a_i+Z_i·b_i)）与 EQ-COST-Q3 的 A_v；MODELING_REPORT.md §4.2 成本侧段：零配件检测后被丢弃件的采购损耗没有进成本。题面 (1) 明确『将检测出的不合格零）；质量分 0.45 < 阈值 0.70 —— 低于阈值不允许交付（审计结论见 _audit.json）
+
+STAGE CHAIN FAILED — 1 个阶段没通过（产物与通行证在 artifacts\upper-bound\2024B-ingest-1\stages）。

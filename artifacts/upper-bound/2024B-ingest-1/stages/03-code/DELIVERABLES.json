@@ -1,0 +1,62 @@
+{
+  "stage": "03-code",
+  "upstream": [
+    "02-modeling/MODELING_REPORT.md",
+    "02-modeling/DECLARATION.json",
+    "01-prob-analysis/PROBLEM_FACTS.json"
+  ],
+  "run": {
+    "command": "python code/main.py",
+    "working_dir": "code/",
+    "ledger": "code/outputs.json"
+  },
+  "artifacts": [
+    {"kind": "code", "path": "code/main.py", "min_bytes": 500, "desc": "编排入口：依次跑问题1~4与灵敏度扫描，把全部结果写进 code/outputs.json"},
+    {"kind": "code", "path": "code/constants.py", "min_bytes": 1, "desc": "模型常数（按 DECLARATION model_constants 键名）与题面给定值（表1、表2）登记表"},
+    {"kind": "code", "path": "code/numeric.py", "min_bytes": 1, "desc": "二项尾概率表与 Beta 分位数数值工具，无第三方依赖"},
+    {"kind": "code", "path": "code/problem1.py", "min_bytes": 1, "desc": "问题1：单侧二项检验两点设计 + 整数样本量最小化搜索；情形(2)主答案取单侧置信上界口径"},
+    {"kind": "code", "path": "code/problem2.py", "min_bytes": 1, "desc": "问题2：16 组合全枚举 + 期望利润闭式 + 分项成本分解"},
+    {"kind": "code", "path": "code/problem3.py", "min_bytes": 1, "desc": "问题3：装配树节点级 DP（自底向上聚合 U/Q、帕累托前沿剪枝）+ 拓扑扰动扫描"},
+    {"kind": "code", "path": "code/problem4.py", "min_bytes": 1, "desc": "问题4：表1 全部六种情形 + 问题3 装配树的 Clopper-Pearson 区间、固定决策利润区间与蒙特卡洛一致率"},
+    {"kind": "code", "path": "code/sensitivity.py", "min_bytes": 1, "desc": "灵敏度扫描：±扰动重解、盈亏平衡二维网格、逐链蒙特卡洛校验"},
+    {"kind": "output", "path": "code/outputs.json", "min_bytes": 1024, "desc": "全部结果锚点的机器可读账本，由 python code/main.py 真跑生成"},
+    {"kind": "doc", "path": "RESULTS.md", "min_bytes": 1024, "desc": "结果说明：四问结构、校核证据、归因与诚实边界"}
+  ],
+  "result_keys": [
+    {"id": "R-Q1-n-case95", "json_path": "q1.case1_reject.n_star", "locator": "code/outputs.json", "desc": "情形(1) 最小检测次数（95% 信度拒收）"},
+    {"id": "R-Q1-c-case95", "json_path": "q1.case1_reject.c_star", "locator": "code/outputs.json", "desc": "情形(1) 接收判定临界次品数"},
+    {"id": "R-Q1-n-case90", "json_path": "q1.case2_accept.n_star", "locator": "code/outputs.json", "desc": "情形(2) 最小检测次数（90% 信度接收，单侧置信上界口径）"},
+    {"id": "R-Q1-c-case90", "json_path": "q1.case2_accept.c_star", "locator": "code/outputs.json", "desc": "情形(2) 接收判定临界次品数"},
+    {"id": "R-Q1-sampling-cost", "json_path": "q1.sampling_cost.case1_cost", "locator": "code/outputs.json", "desc": "情形(1) 方案在企业侧折出的抽样检测费用"},
+    {"id": "R-Q2-case1-decision", "json_path": "q2.cases[0].best.decision", "locator": "code/outputs.json", "desc": "表1 情况1 最优决策组合 [Z1,Z2,C,D]"},
+    {"id": "R-Q2-case1-profit", "json_path": "q2.cases[0].best.profit", "locator": "code/outputs.json", "desc": "表1 情况1 最优期望利润"},
+    {"id": "R-Q2-case2-decision", "json_path": "q2.cases[1].best.decision", "locator": "code/outputs.json", "desc": "表1 情况2 最优决策组合"},
+    {"id": "R-Q2-case2-profit", "json_path": "q2.cases[1].best.profit", "locator": "code/outputs.json", "desc": "表1 情况2 最优期望利润"},
+    {"id": "R-Q2-case3-decision", "json_path": "q2.cases[2].best.decision", "locator": "code/outputs.json", "desc": "表1 情况3 最优决策组合"},
+    {"id": "R-Q2-case3-profit", "json_path": "q2.cases[2].best.profit", "locator": "code/outputs.json", "desc": "表1 情况3 最优期望利润"},
+    {"id": "R-Q2-case4-decision", "json_path": "q2.cases[3].best.decision", "locator": "code/outputs.json", "desc": "表1 情况4 最优决策组合"},
+    {"id": "R-Q2-case4-profit", "json_path": "q2.cases[3].best.profit", "locator": "code/outputs.json", "desc": "表1 情况4 最优期望利润"},
+    {"id": "R-Q2-case5-decision", "json_path": "q2.cases[4].best.decision", "locator": "code/outputs.json", "desc": "表1 情况5 最优决策组合"},
+    {"id": "R-Q2-case5-profit", "json_path": "q2.cases[4].best.profit", "locator": "code/outputs.json", "desc": "表1 情况5 最优期望利润"},
+    {"id": "R-Q2-case6-decision", "json_path": "q2.cases[5].best.decision", "locator": "code/outputs.json", "desc": "表1 情况6 最优决策组合"},
+    {"id": "R-Q2-case6-profit", "json_path": "q2.cases[5].best.profit", "locator": "code/outputs.json", "desc": "表1 情况6 最优期望利润"},
+    {"id": "R-Q2-best-combo", "json_path": "q2.best_combo", "locator": "code/outputs.json", "desc": "六种情况中的全局最优组合"},
+    {"id": "R-Q2-cost-breakdown", "json_path": "q2.cases[0].best.cost_breakdown", "locator": "code/outputs.json", "desc": "表1 情况1 最优策略的成本分解"},
+    {"id": "R-Q3-decision-table", "json_path": "q3.decision_table", "locator": "code/outputs.json", "desc": "问题3 实例的逐节点检测/拆解决策表"},
+    {"id": "R-Q3-profit", "json_path": "q3.profit", "locator": "code/outputs.json", "desc": "问题3 单位成品期望利润"},
+    {"id": "R-Q3-node-cost", "json_path": "q3.node_cost", "locator": "code/outputs.json", "desc": "问题3 各节点等效成本与合格率分解"},
+    {"id": "R-Q3-topology-robust", "json_path": "q3.topology_robust", "locator": "code/outputs.json", "desc": "ASM-09 拓扑扰动下的最优决策一致率与各变体结果"},
+    {"id": "R-Q4-ci-part1", "json_path": "q4.q2.cases[0].ci", "locator": "code/outputs.json", "desc": "表1 情况1 次品率的 Clopper-Pearson 置信区间"},
+    {"id": "R-Q4-profit-range", "json_path": "q4.q2.cases[0].profit_range", "locator": "code/outputs.json", "desc": "决策固定下情况1 的利润区间"},
+    {"id": "R-Q4-consistency-rate", "json_path": "q4.q2.cases[0].consistency_rate", "locator": "code/outputs.json", "desc": "表1 情况1 重复抽样下的最优决策一致率"},
+    {"id": "R-Q4-decision-diff", "json_path": "q4.decision_diff", "locator": "code/outputs.json", "desc": "问题4 决策与点估计决策的差异与稳健性判定表"},
+    {"id": "R-OUT-profit-def", "json_path": "q2.cases[0].best.unit_cost", "locator": "code/outputs.json", "desc": "统一利润口径（售价减每件合格成品期望总成本）的成本侧"}
+  ],
+  "audit_responses": [
+    {"id": 1, "severity": "fatal", "action": "fixed", "landing": "problem1 情形(2) 主答案改为与情形(1) 对称的置信口径 P(X<=c|p_nom) <= 1-信度，落在 q1.case2_accept；DELIVERABLES.json 的 R-Q1-case2-n / R-Q1-case2-c 指向它；反向约束降级为具名对照 q1.case2_accept_supplier_risk_reading 并输出其单侧上置信界以说明其与题面语义相反。"},
+    {"id": 2, "severity": "major", "action": "fixed", "landing": "problem4.solve 对 TABLE1 全部六种情形循环调用，q4.q2.cases 为按情形编号索引的列表，每项带 case 号；DELIVERABLES 的 result_keys 给出 q4.q2.cases[i].* 路径。"},
+    {"id": 3, "severity": "major", "action": "fixed", "landing": "sensitivity.py 用 MODEL_CONSTANTS['灵敏度扰动幅度'] 对表1 情况1 的关键参数做上下扰动重解，结果落在 outputs.json 顶层键 sensitivity；另用 '盈亏平衡等高线格点数' 构造二维决策翻转网格。"},
+    {"id": 4, "severity": "minor", "action": "fixed", "landing": "problem4 中不再存在 _rate_map()；端点率映射统一由 p_override 字典直接构造，问题3 的区间端点只经 problem3.solve(p_override=...) 一条路径。"},
+    {"id": 5, "severity": "minor", "action": "fixed", "landing": "IMPLEMENTATION_PARAMS.q3_mc_reps 由 100 提升到 500；每个一致率条目同时输出 rate_standard_error，RESULTS.md 明确提示不要把宽区间当精确比例引用。"}
+  ]
+}

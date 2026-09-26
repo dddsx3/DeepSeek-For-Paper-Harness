@@ -1,0 +1,54 @@
+{
+  "stage": "06-figure",
+  "source": "model-scripts",
+  "figures": [
+    {
+      "figure_id": "fig_q1_oc_curve_p1",
+      "script": "figures/gen_fig_q1_oc_curve_p1.py",
+      "file": "figures/fig_q1_oc_curve_p1.png",
+      "exit_code": 0
+    },
+    {
+      "figure_id": "fig_q1_two_cases_sample_size",
+      "script": "figures/gen_fig_q1_two_cases_sample_size.py",
+      "file": "figures/fig_q1_two_cases_sample_size.png",
+      "exit_code": 0
+    },
+    {
+      "figure_id": "fig_q2_optimal_cost_breakdown",
+      "script": "figures/gen_fig_q2_optimal_cost_breakdown.py",
+      "file": "figures/fig_q2_optimal_cost_breakdown.png",
+      "exit_code": 0
+    },
+    {
+      "figure_id": "fig_q2_six_cases_decisions",
+      "script": "figures/gen_fig_q2_six_cases_decisions.py",
+      "file": "figures/fig_q2_six_cases_decisions.png",
+      "exit_code": 0
+    },
+    {
+      "figure_id": "fig_q2_strategy_cost_heatmap",
+      "script": "figures/gen_fig_q2_strategy_cost_heatmap.py",
+      "file": "figures/fig_q2_strategy_cost_heatmap.png",
+      "exit_code": 0
+    },
+    {
+      "figure_id": "fig_q3_strategy_cost_compare",
+      "script": "figures/gen_fig_q3_strategy_cost_compare.py",
+      "file": "figures/fig_q3_strategy_cost_compare.png",
+      "exit_code": 0
+    },
+    {
+      "figure_id": "fig_q4_ci_effect_on_cost",
+      "script": "figures/gen_fig_q4_ci_effect_on_cost.py",
+      "file": "figures/fig_q4_ci_effect_on_cost.png",
+      "exit_code": 0
+    },
+    {
+      "figure_id": "fig_q4_monte_carlo_robustness",
+      "script": "figures/gen_fig_q4_monte_carlo_robustness.py",
+      "file": "figures/fig_q4_monte_carlo_robustness.png",
+      "exit_code": 0
+    }
+  ]
+}

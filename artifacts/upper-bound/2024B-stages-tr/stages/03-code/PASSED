@@ -1,0 +1,42 @@
+{
+  "passportVersion": 1,
+  "stage": "code",
+  "index": 3,
+  "at": "2026-09-25T19:35:08.433Z",
+  "status": "passed",
+  "inputDigest": "920a0b1c5afdb349c52a5b4fcab0f90c74f9a660ebe324f6f46df1b8f3e0b10c",
+  "artifacts": {
+    "code/main.py": "11144133e9e2b81d0b47f19aa9ead565ebe8d8b76b6b0ae817d5e6aa1641943b",
+    "code/": "dir:7",
+    "RESULTS.md": "67d44a1126a18dde5af558c68ac50869c2dd085d1ec19159129a19cbedaf4295",
+    "DELIVERABLES.json": "9508dd937f3d393c0168fbc2b79b13391bb0e05be79412b29ef1732fa6d26b9f"
+  },
+  "gate": {
+    "code": 2,
+    "items": [
+      {
+        "id": "code_parity",
+        "ok": true,
+        "detail": "代码文件 4 个 ≥ 题面 4 问"
+      },
+      {
+        "id": "delivery_audit",
+        "ok": false,
+        "detail": "未实现：参考的 delivery_audit.py 要核对 DELIVERABLES.json 声明的每个交付物**真的存在且非空**。需要先确定本 harness 的交付物清单形态（与零数字通道的 Result 如何对应）。"
+      },
+      {
+        "id": "leakage_audit",
+        "ok": true,
+        "detail": "出现 ≥0.99 的指标，且产物里有去泄漏说明"
+      },
+      {
+        "id": "no_render",
+        "ok": true,
+        "detail": "没有图像产物（渲染归阶段 4）"
+      }
+    ]
+  },
+  "unverifiedGates": [
+    "delivery_audit"
+  ]
+}

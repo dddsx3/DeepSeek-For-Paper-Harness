@@ -1,0 +1,6 @@
+[STAGE CHAIN] artifacts\upper-bound\2024B-ingest-1\stages
+  题面问数（数出来的）：4
+[STAGE NEXT] 只跑了 'modeling'，到此即停。检查 artifacts\upper-bound\2024B-ingest-1\stages 后，放行 = 再执行一次 --stages --stage-next。
+  🟡 modeling: 门禁全过但**有 2 条无法判定**（modeling_coverage、modeling_self_check）——已如实记在通行证上（`cleanliness: unverified-gates`）；这些缺口使本阶段不能计入 CLEAN。
+
+STAGE CHAIN OK — 1 个阶段签发通行证（其中 1 个带未判定门禁，缺口已记在 PASSED 上）。产物在 artifacts\upper-bound\2024B-ingest-1\stages

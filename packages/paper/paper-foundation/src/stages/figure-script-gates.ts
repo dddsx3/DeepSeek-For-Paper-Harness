@@ -88,6 +88,48 @@ const TYPE_API: Readonly<Record<string, RegExp>> = {
   gantt_chart: /\.barh\(/,
 }
 
+/**
+ * 把 `chart_type` **归一化**成白名单里的裸标识符。
+ *
+ * 实测：模型很自然地把**中文图型名（常带一句说明）**写进 `chart_type`——
+ * `'折线图（OC 曲线：x=真实次品率 p，y=接收概率 L(p)）'`、`'哑铃图（两面板对照…）'`。
+ * 那不是错，是**表达习惯**；门禁的判据本该是"这张图是什么型"，不是"字段里是不是裸标识符"。
+ * 所以这里按"最长名优先"匹配中文/英文图型名，认不出来才返回 null（由门禁具名报错）。
+ *
+ * 参考的同一处口径也值得记住：*"判不出来一律放行"*（宁漏不误）。
+ */
+const TYPE_ALIASES: ReadonlyArray<readonly [string, string]> = [
+  // 长的在前，避免"柱状图"吃掉"分组柱状图"
+  ['分组柱状图', 'grouped_bar'], ['堆叠柱状图', 'stacked_bar'], ['堆叠面积图', 'stacked_bar'],
+  ['平行坐标', 'parallel'], ['混淆矩阵', 'confusion'], ['泰勒图', 'radar'],
+  ['棒棒糖图', 'lollipop'], ['棒棒糖', 'lollipop'],
+  ['哑铃图', 'dumbbell'], ['龙卷风图', 'tornado'], ['瀑布图', 'waterfall'],
+  ['森林图', 'forest'], ['山脊图', 'ridge'], ['小提琴图', 'violin'], ['雨云图', 'raincloud'],
+  ['箱线图', 'box'], ['箱型图', 'box'], ['热力图', 'heatmap'], ['热图', 'heatmap'],
+  ['雷达图', 'radar'], ['帕累托', 'pareto'], ['等高线', 'contour'], ['响应面', 'contour'],
+  ['曲面图', 'surface3d'], ['三维曲面', 'surface3d'], ['残差诊断', 'residual'],
+  ['甘特图', 'gantt'], ['网络图', 'network'], ['桑基图', 'sankey'], ['校准曲线', 'calibration'],
+  ['生存曲线', 'km'], ['火山图', 'volcano'], ['漏斗图', 'funnel'], ['三线表', 'table'],
+  ['置信带折线', 'ci_line'], ['折线图', 'line'], ['折线', 'line'], ['散点图', 'scatter'],
+  ['散点', 'scatter'], ['柱状图', 'bar'], ['条形图', 'bar'], ['饼图', 'bar'],
+  // 英文别名（含模型可能写的变体）
+  ['line chart', 'line'], ['bar chart', 'bar'], ['grouped bar', 'grouped_bar'],
+  ['stacked bar', 'stacked_bar'], ['scatter plot', 'scatter'], ['box plot', 'box'],
+  ['violin plot', 'violin'], ['forest plot', 'forest'], ['tornado chart', 'tornado'],
+  ['waterfall chart', 'waterfall'], ['heat map', 'heatmap'], ['radar chart', 'radar'],
+  ['3d surface', 'surface3d'], ['gantt chart', 'gantt'], ['roc curve', 'roc'],
+]
+
+export function normalizeChartType(raw: string): string | null {
+  const t = raw.trim()
+  const lower = t.toLowerCase()
+  if ((FIGURE_TYPES as readonly string[]).includes(lower)) return lower
+  for (const [alias, id] of TYPE_ALIASES) {
+    if (lower.includes(alias.toLowerCase())) return id
+  }
+  return null
+}
+
 /** 从 `input.files` 里取本阶段的 `gen_fig_*.py` 脚本（按路径排序，确定性）。 */
 function figureScripts(input: GateInput): ReadonlyArray<readonly [string, string]> {
   return [...input.files.entries()]
@@ -166,8 +208,12 @@ export function figurePlanValid(input: GateInput): ScriptGateVerdict {
     if (seen.has(fid)) problems.push(`figure_id '${fid}' 重复 —— 重复声明会让后一份静默覆盖前一份`)
     seen.add(fid)
     const ct = o['chart_type']
-    if (typeof ct !== 'string' || !(FIGURE_TYPES as readonly string[]).includes(ct)) {
-      problems.push(`${fid}：chart_type '${String(ct)}' 不在白名单 [${FIGURE_TYPES.join(', ')}]`)
+    // **容忍中文图型名（常带一句说明）**：归一化后再判白名单。
+    // 判据是"这张图是什么型"，不是"字段里是不是裸标识符"。
+    const norm = typeof ct === 'string' ? normalizeChartType(ct) : null
+    if (norm === null) {
+      problems.push(`${fid}：chart_type '${String(ct).slice(0, 40)}' 认不出是什么图型 —— `
+        + `写白名单里的裸标识符（${FIGURE_TYPES.slice(0, 12).join(' / ')} …），说明放进 \`caption\``)
     }
     const recipe = o['recipe']
     if (typeof recipe !== 'object' || recipe === null) {
@@ -330,7 +376,8 @@ export function figureTypeMatch(input: GateInput): ScriptGateVerdict {
   let checked = 0
   for (const f of figures) {
     const fid = String(f['figure_id'] ?? '')
-    const ct = typeof f['chart_type'] === 'string' ? f['chart_type'] : ''
+    const ctRaw = typeof f['chart_type'] === 'string' ? f['chart_type'] : ''
+    const ct = normalizeChartType(ctRaw) ?? ''
     const code = byId.get(fid)
     if (code === undefined || ct === '') continue
     const pat = TYPE_API[ct]

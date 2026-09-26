@@ -1,0 +1,108 @@
+{
+  "meta": {
+    "stage": "01-prob-analysis",
+    "problem_id": "2024-CUMCM-B",
+    "source_file": "00-input/problem.txt",
+    "data_carrier": "题面正文内的表格（表 1、表 2）与图形（图 1）"
+  },
+  "attachment_files": [],
+  "attachment_count": 0,
+  "has_external_data_files": false,
+  "note": "本题无任何附件数据文件（无 xlsx / csv / zip）。全部参数写在题面正文中，已逐条转录到 PROBLEM_FACTS.json，可被后续阶段直接读取，无需再做表格解析。",
+  "tables": [
+    {
+      "id": "table1",
+      "caption": "表 1  企业在生产中遇到的情况（问题 2）",
+      "used_by": "问题 2、问题 4",
+      "shape": "6 行（情况 1—6）× 13 列",
+      "columns": ["情况", "零件1次品率", "零件1购买单价", "零件1检测成本", "零件2次品率", "零件2购买单价", "零件2检测成本", "成品次品率", "成品装配成本", "成品检测成本", "成品市场售价", "调换损失", "拆解费用"],
+      "units": "次品率为无量纲比例；其余 6 类金额为元/件",
+      "completeness": "完整，6 行 × 13 列全部有值，无缺失单元格",
+      "transcribed_to": "PROBLEM_FACTS.json#table1"
+    },
+    {
+      "id": "table2",
+      "caption": "表 2  企业在生产中遇到的情况（问题 3）",
+      "used_by": "问题 3、问题 4",
+      "shape": "零配件 1—8（次品率、购买单价、检测成本）+ 半成品 1—3（次品率、装配成本、检测成本、拆解费用）+ 成品（次品率、装配成本、检测成本、拆解费用、市场售价、调换损失）",
+      "columns": ["零配件 次品率", "购买单价", "检测成本", "半成品 次品率", "装配成本", "检测成本", "拆解费用", "（成品）市场售价", "（成品）调换损失"],
+      "units": "次品率为无量纲比例；其余金额为元/件",
+      "completeness": "零配件 8 行全部有值；半成品仅 3 个对象且有值；成品 1 个对象且有值。题面表格排版中半成品列与零配件行存在行对齐歧义（见 ambiguities）",
+      "transcribed_to": "PROBLEM_FACTS.json#table2"
+    }
+  ],
+  "figures": [
+    {
+      "id": "figure1",
+      "caption": "图 1  两道工序、8 个零配件的组装情况",
+      "raw_quote": "图 1  两道工序、8 个零配件的组装情况",
+      "machine_readable": false,
+      "reason": "图 1 在题面中为图片，输入文本未给出其节点与连线描述",
+      "topology_hypothesis": "由表 2 的 3 个半成品与 8 个零配件、以及“2 道工序”的表述推得：零配件 1—3 → 半成品 1；零配件 4—6 → 半成品 2；零配件 7—8 → 半成品 3；半成品 1—3 → 成品",
+      "status": "待确认（图片不可机读，须在阶段 2 前由人眼核对原图或按假设写入 ASSUMPTION）"
+    }
+  ],
+  "parameter_summary": {
+    "problem1": {
+      "p0": 0.1,
+      "confidence_case1": 0.95,
+      "confidence_case2": 0.9,
+      "data_source": "题面问题 1 文字"
+    },
+    "problem2": {
+      "cases": 6,
+      "decision_variables": ["inspect_part1", "inspect_part2", "inspect_product", "dismantle_defective"],
+      "strategy_space_size": 16,
+      "data_source": "表 1（转录于 PROBLEM_FACTS.json#table1）"
+    },
+    "problem3": {
+      "stages_m": 2,
+      "parts_n": 8,
+      "semis": 3,
+      "products": 1,
+      "data_source": "表 2 + 图 1"
+    },
+    "problem4": {
+      "input": "问题 2 与问题 3 的全部次品率改为由抽样检测得到（带不确定性）",
+      "data_source": "题面问题 4 文字"
+    }
+  },
+  "ambiguities": [
+    {
+      "id": "AMB-01",
+      "topic": "图 1 装配拓扑",
+      "description": "8 个零配件到 3 个半成品、再到成品的具体连接关系只存在于图片中，输入文本无法逐字核验；表 2 的行对齐也提示半成品 1/2/3 的参数与零配件行存在视觉错位",
+      "handling": "在阶段 2 之前由人核对原图；若无法核对，则按 topology_hypothesis 建模并在论文中显式列为假设"
+    },
+    {
+      "id": "AMB-02",
+      "topic": "拆解回路的层数与终止条件",
+      "description": "题面只说“重复步骤(1)和步骤(2)”“重复步骤(3)”，未给出回路次数上限，也未说明拆解所得零配件是否可再次被检测与拆解",
+      "handling": "以期望值/几何级数或马尔可夫稳态求解，并在假设中声明回路无次数上限（A-005）"
+    },
+    {
+      "id": "AMB-03",
+      "topic": "调换后不合格品的处置归属",
+      "description": "题面规定退回的不合格品重复步骤(3)，但未说明调换损失是否在二次退回时重复发生",
+      "handling": "按 A-006 只计一次，并在灵敏度分析中检验该口径对最优决策的影响"
+    },
+    {
+      "id": "AMB-04",
+      "topic": "问题 1 的抽样方式与批量",
+      "description": "题面未给出批量大小、抽样是否有放回，也未指定单侧检验的具体统计量",
+      "handling": "按大批量二项抽样处理（A-008），在论文中给出所用统计量与判据的显式定义"
+    },
+    {
+      "id": "AMB-05",
+      "topic": "检测的准确性",
+      "description": "题面只给出检测成本，未给出漏检率/误判率",
+      "handling": "按完美检测处理（A-002），并在灵敏度分析中讨论该假设"
+    }
+  ],
+  "quality_gates": {
+    "all_statement_values_quoted": true,
+    "values_source": "00-input/problem.txt 逐字",
+    "self_computed_numbers_present": false,
+    "consumer_stages": ["02-sampling-design", "03-decision-model", "04-generalization", "05-sensitivity", "06-paper"]
+  }
+}

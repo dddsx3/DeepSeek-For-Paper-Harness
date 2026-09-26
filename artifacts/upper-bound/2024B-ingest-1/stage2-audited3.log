@@ -1,0 +1,6 @@
+[STAGE CHAIN] artifacts\upper-bound\2024B-ingest-1\stages
+  题面问数（数出来的）：4
+[STAGE NEXT] 只跑了 'modeling'，到此即停。检查 artifacts\upper-bound\2024B-ingest-1\stages 后，放行 = 再执行一次 --stages --stage-next。
+  ❌ modeling: 门禁 code 1（0=通过 1=硬失败 2=无法判定）：numbers_traced、no_claimed_verification、modeling_coverage、modeling_self_check
+
+STAGE CHAIN FAILED — 1 个阶段没通过（产物与通行证在 artifacts\upper-bound\2024B-ingest-1\stages）。

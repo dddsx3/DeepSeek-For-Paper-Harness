@@ -1,0 +1,36 @@
+{
+  "stage": "code",
+  "code": 2,
+  "items": [
+    {
+      "id": "code_parity",
+      "ok": true,
+      "detail": "代码文件 4 个 ≥ 题面 4 问",
+      "code": 0
+    },
+    {
+      "id": "numbers_traced",
+      "ok": true,
+      "detail": "1 个文本产物的 58 个数字全部有出生证明（题面给定值 / 声明的常数 / 编外登记 1 条）",
+      "code": 0
+    },
+    {
+      "id": "delivery_audit",
+      "ok": false,
+      "detail": "未实现：参考的 delivery_audit.py 要核对 DELIVERABLES.json 声明的每个交付物**真的存在且非空**。需要先确定本 harness 的交付物清单形态（与零数字通道的 Result 如何对应）。",
+      "code": 2
+    },
+    {
+      "id": "leakage_audit",
+      "ok": true,
+      "detail": "未发现 ≥0.99 的**分类指标**（置信水平 / 概率 / 坐标轴上的大数不算）",
+      "code": 0
+    },
+    {
+      "id": "no_render",
+      "ok": true,
+      "detail": "没有图像产物（渲染归阶段 4）",
+      "code": 0
+    }
+  ]
+}

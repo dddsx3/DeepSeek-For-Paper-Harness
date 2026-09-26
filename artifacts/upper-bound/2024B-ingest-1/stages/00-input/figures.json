@@ -1,0 +1,15 @@
+{
+  "figures": [
+    {
+      "id": "fig-1",
+      "file": "figures/fig-1.png",
+      "page": 2,
+      "width": 872,
+      "height": 591,
+      "bytes": 71084,
+      "kind": "embedded-image",
+      "transcribed": true,
+      "transcript_file": "figures/fig-1.md"
+    }
+  ]
+}

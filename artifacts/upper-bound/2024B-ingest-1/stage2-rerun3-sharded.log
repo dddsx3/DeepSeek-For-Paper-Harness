@@ -1,0 +1,9 @@
+[STAGE CHAIN] artifacts\upper-bound\2024B-ingest-1\stages
+  题面问数（数出来的）：4
+  [deterministic] modeling: 分片 1/2 交付 DECLARATION.json
+  [deterministic] modeling: 分片 2/2 交付 MODELING_REPORT.md
+  [deterministic] modeling: 逐节点审计（glm-5.3-flash-free）：fail，质量分 0.45，要求 7/7 项完成，9 条 findings
+[STAGE NEXT] 只跑了 'modeling'，到此即停。检查 artifacts\upper-bound\2024B-ingest-1\stages 后，放行 = 再执行一次 --stages --stage-next。
+  ❌ modeling: 逐节点审计未通过：审计未通过：2 条 fatal（MODELING_REPORT.md §4.1 情形（2）小节（与 DECLARATION.json EQ-PLAN-Q1 / SYM-alpha2 冲突）：情形（2）的约束方向被写反。报告写 Pr(X≤c|p=p_nom) ≥ 0.90；MODELING_REPORT.md §4.2(e)(f) 与 DECLARATION.json EQ-RECUR / EQ-RECUR-SOL：D=1 时的归一化把失败概率重复计了一次。报告定义 v=A+K+C b0+xD(）；质量分 0.45 < 阈值 0.70 —— 低于阈值不允许交付（审计结论见 _audit.json）
+
+STAGE CHAIN FAILED — 1 个阶段没通过（产物与通行证在 artifacts\upper-bound\2024B-ingest-1\stages）。

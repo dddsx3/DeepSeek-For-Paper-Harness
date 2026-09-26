@@ -1,0 +1,6 @@
+[STAGE CHAIN] artifacts\upper-bound\2024B-ingest-1\stages
+  题面问数（数出来的）：4
+[STAGE NEXT] 只跑了 'result-sources'，到此即停。检查 artifacts\upper-bound\2024B-ingest-1\stages 后，放行 = 再执行一次 --stages --stage-next。
+  ❌ result-sources: 阶段产出未通过形态检查：铸数失败（43/43 条声明没能从真实产物里解析出有限数）：R-Q1-n-case95：locator 'code/outputs.json' 不存在 —— 代码没有写出声明的产物；R-Q1-c-case95：locator 'code/outputs.json' 不存在 —— 代码没有写出声明的产物；R-Q1-n-case90：locator 'code/outputs.json' 不存在 —— 代码没有写出声明的产物；R-Q1-c-case90：locator 'code/outputs.json' 不存在 —— 代码没有写出声明的产物；R-Q1-sampling-cost：locator 'code/outputs.json' 不存在 —— 代码没有写出声明的产物；R-Q2-case1-profit：locator 'code/outputs.json' 不存在 —— 代码没有写出声明的产物（原始回答已留档：_rejected-answer.txt）
+
+STAGE CHAIN FAILED — 1 个阶段没通过（产物与通行证在 artifacts\upper-bound\2024B-ingest-1\stages）。

@@ -1,0 +1,13 @@
+[STAGE CHAIN] artifacts\upper-bound\2024B-ingest-1\stages
+  题面问数（数出来的）：4
+  [deterministic] code: 分片 1/6 交付 code/main.py
+  [deterministic] code: 分片 2/6 交付 code/problem1.py
+  [deterministic] code: 分片 3/6 交付 code/problem2.py
+  [deterministic] code: 分片 4/6 交付 code/problem3.py
+  [deterministic] code: 分片 5/6 交付 code/problem4.py
+  [deterministic] code: 分片 6/6 交付 *
+  [deterministic] code: 逐节点审计（glm-5.3-flash-free）：fail，质量分 0.20，要求 5/7 项完成，6 条 findings
+[STAGE NEXT] 只跑了 'code'，到此即停。检查 artifacts\upper-bound\2024B-ingest-1\stages 后，放行 = 再执行一次 --stages --stage-next。
+  ❌ code: 逐节点审计未通过：审计未通过：4 条 fatal（code/outputs_q3.json（并见 code/outputs_q4.json 的 q3 段；outputs.json 的 Q3 段同源）：问题三的最优解被报成“所有节点都不检测、不拆解”：optimal_profit=；code/outputs.json 对 code/main.py；code/outputs_q1.json / outputs_q2.json / outputs_q4.json 对 code/problem*.py：交付的账本与交付的代码不是同一版本，产物自相矛盾：(a) main.py 写出的）；质量分 0.20 < 阈值 0.70；交付结构不完整（缺：与 .py 同源、可复现重跑得到的 outputs 账本（现有 outputs.json 与 main.py 的结构和口径都不一致，outputs_q1/q2/q4 亦同）、chart_type/data_refs/caption 形式的图表声明（本阶段契约要求“声明图”））；2 项要求未完成（让数字由真跑出来的代码产生（账本与代码必须同源）、声明图（chart_type/data_refs/capti） —— 低于阈值不允许交付（审计结论见 _audit.json）
+
+STAGE CHAIN FAILED — 1 个阶段没通过（产物与通行证在 artifacts\upper-bound\2024B-ingest-1\stages）。

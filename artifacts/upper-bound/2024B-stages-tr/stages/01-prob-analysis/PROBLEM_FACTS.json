@@ -1,0 +1,247 @@
+{
+  "meta": {
+    "stage": "01-prob-analysis",
+    "problem_id": "2024-CUMCM-B",
+    "title": "生产过程中的决策问题",
+    "source_file": "00-input/problem.txt",
+    "purpose": "题面给定值事实表，防止读题读错；每条数值都必须由 raw_quote 在题面中逐字命中，本文件不含任何自算数字",
+    "external_data_files": []
+  },
+  "facts": [
+    {
+      "id": "F-001",
+      "where": "问题 1",
+      "name": "次品率标称值",
+      "value": 0.1,
+      "unit": "无量纲（比例）",
+      "raw_quote": "如果标称值为 10%"
+    },
+    {
+      "id": "F-002",
+      "where": "问题 1 情形 (1)",
+      "name": "判定信度",
+      "value": 0.95,
+      "unit": "无量纲（置信水平）",
+      "raw_quote": "在 95%的信度下认定零配件次品率超过标称值，则拒收这批零配件；"
+    },
+    {
+      "id": "F-003",
+      "where": "问题 1 情形 (2)",
+      "name": "判定信度",
+      "value": 0.9,
+      "unit": "无量纲（置信水平）",
+      "raw_quote": "在 90%的信度下认定零配件次品率不超过标称值，则接收这批零配件。"
+    },
+    {
+      "id": "F-004",
+      "where": "题面第 1 段",
+      "name": "零配件种类数",
+      "value": 2,
+      "unit": "种",
+      "raw_quote": "需要分别购买两种零配件（零配件 1 和零配件 2）"
+    },
+    {
+      "id": "F-005",
+      "where": "问题 3",
+      "name": "算例工序数",
+      "value": 2,
+      "unit": "道",
+      "raw_quote": "图 1 给出了 2 道工序、8 个零配件的情况"
+    },
+    {
+      "id": "F-006",
+      "where": "问题 3",
+      "name": "算例零配件数",
+      "value": 8,
+      "unit": "个",
+      "raw_quote": "图 1 给出了 2 道工序、8 个零配件的情况"
+    },
+    {
+      "id": "F-007",
+      "where": "表 2",
+      "name": "半成品个数",
+      "value": 3,
+      "unit": "个",
+      "raw_quote": "1 10% 2 1 1 10% 8 4 6"
+    },
+    {
+      "id": "F-008",
+      "where": "表 2",
+      "name": "零配件次品率（1—8 号）",
+      "value": [0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1],
+      "unit": "无量纲（比例）",
+      "raw_quote": "1 10% 2 1 1 10% 8 4 6"
+    },
+    {
+      "id": "F-009",
+      "where": "表 2",
+      "name": "零配件购买单价（1—8 号）",
+      "value": [2, 8, 12, 2, 8, 12, 8, 12],
+      "unit": "元/件",
+      "raw_quote": "8 10% 12 2 成品 200 40"
+    },
+    {
+      "id": "F-010",
+      "where": "表 2",
+      "name": "零配件检测成本（1—8 号）",
+      "value": [1, 1, 2, 1, 1, 2, 1, 2],
+      "unit": "元/件",
+      "raw_quote": "3 10% 12 2 3 10% 8 4 6"
+    },
+    {
+      "id": "F-011",
+      "where": "表 2",
+      "name": "半成品次品率（1—3 号）",
+      "value": [0.1, 0.1, 0.1],
+      "unit": "无量纲（比例）",
+      "raw_quote": "2 10% 8 1 2 10% 8 4 6"
+    },
+    {
+      "id": "F-012",
+      "where": "表 2",
+      "name": "半成品装配成本（1—3 号）",
+      "value": [8, 8, 8],
+      "unit": "元/件",
+      "raw_quote": "1 10% 2 1 1 10% 8 4 6"
+    },
+    {
+      "id": "F-013",
+      "where": "表 2",
+      "name": "半成品检测成本（1—3 号）",
+      "value": [4, 4, 4],
+      "unit": "元/件",
+      "raw_quote": "3 10% 12 2 3 10% 8 4 6"
+    },
+    {
+      "id": "F-014",
+      "where": "表 2",
+      "name": "半成品拆解费用（1—3 号）",
+      "value": [6, 6, 6],
+      "unit": "元/件",
+      "raw_quote": "2 10% 8 1 2 10% 8 4 6"
+    },
+    {
+      "id": "F-015",
+      "where": "表 2",
+      "name": "成品次品率",
+      "value": 0.1,
+      "unit": "无量纲（比例）",
+      "raw_quote": "5 10% 8 1 成品 10% 8 6 10"
+    },
+    {
+      "id": "F-016",
+      "where": "表 2",
+      "name": "成品装配成本",
+      "value": 8,
+      "unit": "元/件",
+      "raw_quote": "5 10% 8 1 成品 10% 8 6 10"
+    },
+    {
+      "id": "F-017",
+      "where": "表 2",
+      "name": "成品检测成本",
+      "value": 6,
+      "unit": "元/件",
+      "raw_quote": "5 10% 8 1 成品 10% 8 6 10"
+    },
+    {
+      "id": "F-018",
+      "where": "表 2",
+      "name": "成品拆解费用",
+      "value": 10,
+      "unit": "元/件",
+      "raw_quote": "5 10% 8 1 成品 10% 8 6 10"
+    },
+    {
+      "id": "F-019",
+      "where": "表 2",
+      "name": "成品市场售价",
+      "value": 200,
+      "unit": "元/件",
+      "raw_quote": "8 10% 12 2 成品 200 40"
+    },
+    {
+      "id": "F-020",
+      "where": "表 2",
+      "name": "成品调换损失",
+      "value": 40,
+      "unit": "元/件",
+      "raw_quote": "8 10% 12 2 成品 200 40"
+    },
+    {
+      "id": "F-021",
+      "where": "附录 (3)",
+      "name": "金额单位",
+      "value": "元/件",
+      "unit": "元/件",
+      "raw_quote": "购买单价、检测成本、装配成本、市场售价、调换损失和拆解费用的单位均为元/件。"
+    }
+  ],
+  "table1": {
+    "caption": "表 1  企业在生产中遇到的情况（问题 2）",
+    "raw_quote_rows": [
+      "1 10% 4 2 10% 18 3 10% 6 3 56 6 5",
+      "2 20% 4 2 20% 18 3 20% 6 3 56 6 5",
+      "3 10% 4 2 10% 18 3 10% 6 3 56 30 5",
+      "4 20% 4 1 20% 18 1 20% 6 2 56 30 5",
+      "5 10% 4 8 20% 18 1 10% 6 2 56 10 5",
+      "6 5% 4 2 5% 18 3 5% 6 3 56 10 40"
+    ],
+    "column_order": [
+      "情况",
+      "零件1次品率",
+      "零件1购买单价",
+      "零件1检测成本",
+      "零件2次品率",
+      "零件2购买单价",
+      "零件2检测成本",
+      "成品次品率",
+      "成品装配成本",
+      "成品检测成本",
+      "成品市场售价",
+      "调换损失",
+      "拆解费用"
+    ],
+    "rows": [
+      {"case": 1, "part1_defect_rate": 0.1, "part1_price": 4, "part1_inspect_cost": 2, "part2_defect_rate": 0.1, "part2_price": 18, "part2_inspect_cost": 3, "product_defect_rate": 0.1, "assemble_cost": 6, "product_inspect_cost": 3, "price": 56, "exchange_loss": 6, "dismantle_cost": 5, "raw_quote": "1 10% 4 2 10% 18 3 10% 6 3 56 6 5"},
+      {"case": 2, "part1_defect_rate": 0.2, "part1_price": 4, "part1_inspect_cost": 2, "part2_defect_rate": 0.2, "part2_price": 18, "part2_inspect_cost": 3, "product_defect_rate": 0.2, "assemble_cost": 6, "product_inspect_cost": 3, "price": 56, "exchange_loss": 6, "dismantle_cost": 5, "raw_quote": "2 20% 4 2 20% 18 3 20% 6 3 56 6 5"},
+      {"case": 3, "part1_defect_rate": 0.1, "part1_price": 4, "part1_inspect_cost": 2, "part2_defect_rate": 0.1, "part2_price": 18, "part2_inspect_cost": 3, "product_defect_rate": 0.1, "assemble_cost": 6, "product_inspect_cost": 3, "price": 56, "exchange_loss": 30, "dismantle_cost": 5, "raw_quote": "3 10% 4 2 10% 18 3 10% 6 3 56 30 5"},
+      {"case": 4, "part1_defect_rate": 0.2, "part1_price": 4, "part1_inspect_cost": 1, "part2_defect_rate": 0.2, "part2_price": 18, "part2_inspect_cost": 1, "product_defect_rate": 0.2, "assemble_cost": 6, "product_inspect_cost": 2, "price": 56, "exchange_loss": 30, "dismantle_cost": 5, "raw_quote": "4 20% 4 1 20% 18 1 20% 6 2 56 30 5"},
+      {"case": 5, "part1_defect_rate": 0.1, "part1_price": 4, "part1_inspect_cost": 8, "part2_defect_rate": 0.2, "part2_price": 18, "part2_inspect_cost": 1, "product_defect_rate": 0.1, "assemble_cost": 6, "product_inspect_cost": 2, "price": 56, "exchange_loss": 10, "dismantle_cost": 5, "raw_quote": "5 10% 4 8 20% 18 1 10% 6 2 56 10 5"},
+      {"case": 6, "part1_defect_rate": 0.05, "part1_price": 4, "part1_inspect_cost": 2, "part2_defect_rate": 0.05, "part2_price": 18, "part2_inspect_cost": 3, "product_defect_rate": 0.05, "assemble_cost": 6, "product_inspect_cost": 3, "price": 56, "exchange_loss": 10, "dismantle_cost": 40, "raw_quote": "6 5% 4 2 5% 18 3 5% 6 3 56 10 40"}
+    ],
+    "units": {
+      "价格类": "元/件",
+      "次品率": "无量纲（题面以百分数给出）"
+    }
+  },
+  "table2": {
+    "caption": "表 2  企业在生产中遇到的情况（问题 3）",
+    "parts": [
+      {"index": 1, "defect_rate": 0.1, "price": 2, "inspect_cost": 1, "raw_quote": "1 10% 2 1 1 10% 8 4 6"},
+      {"index": 2, "defect_rate": 0.1, "price": 8, "inspect_cost": 1, "raw_quote": "2 10% 8 1 2 10% 8 4 6"},
+      {"index": 3, "defect_rate": 0.1, "price": 12, "inspect_cost": 2, "raw_quote": "3 10% 12 2 3 10% 8 4 6"},
+      {"index": 4, "defect_rate": 0.1, "price": 2, "inspect_cost": 1, "raw_quote": "4 10% 2 1"},
+      {"index": 5, "defect_rate": 0.1, "price": 8, "inspect_cost": 1, "raw_quote": "5 10% 8 1 成品 10% 8 6 10"},
+      {"index": 6, "defect_rate": 0.1, "price": 12, "inspect_cost": 2, "raw_quote": "6 10% 12 2"},
+      {"index": 7, "defect_rate": 0.1, "price": 8, "inspect_cost": 1, "raw_quote": "7 10% 8 1"},
+      {"index": 8, "defect_rate": 0.1, "price": 12, "inspect_cost": 2, "raw_quote": "8 10% 12 2 成品 200 40"}
+    ],
+    "semis": [
+      {"index": 1, "defect_rate": 0.1, "assemble_cost": 8, "inspect_cost": 4, "dismantle_cost": 6, "raw_quote": "1 10% 2 1 1 10% 8 4 6"},
+      {"index": 2, "defect_rate": 0.1, "assemble_cost": 8, "inspect_cost": 4, "dismantle_cost": 6, "raw_quote": "2 10% 8 1 2 10% 8 4 6"},
+      {"index": 3, "defect_rate": 0.1, "assemble_cost": 8, "inspect_cost": 4, "dismantle_cost": 6, "raw_quote": "3 10% 12 2 3 10% 8 4 6"}
+    ],
+    "product": {
+      "defect_rate": 0.1,
+      "assemble_cost": 8,
+      "inspect_cost": 6,
+      "dismantle_cost": 10,
+      "price": 200,
+      "exchange_loss": 40,
+      "raw_quote": "5 10% 8 1 成品 10% 8 6 10",
+      "raw_quote_price": "8 10% 12 2 成品 200 40"
+    },
+    "units": "购买单价、检测成本、装配成本、拆解费用、市场售价、调换损失均为元/件（附录 (3)）"
+  }
+}
