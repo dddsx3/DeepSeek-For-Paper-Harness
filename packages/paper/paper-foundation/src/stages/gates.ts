@@ -450,6 +450,16 @@ const BANNED_STYLE_NAMES = /tab10|tab20|RdYlGn|RdBu_r|dark_background|jet\b/
 /** 合法的颜色写法：十六进制 / hsl() / rgb() / none / url(#…)（引用 marker）。 */
 const LEGAL_COLOR = /^(?:none|currentColor|url\(#[\w-]+\)|#[0-9a-fA-F]{3,8}|hsla?\(|rgba?\()/
 
+/** 含中日韩字形的文本（这类文本的 font-family 必须点名中文字体）。 */
+const CJK_TEXT = /[\u3000-\u303f\u3400-\u4dbf\u4e00-\u9fff\uff00-\uffef]/
+/**
+ * 点名了中文字体的字体栈。
+ *
+ * 判据是"**点名**"，不是"含 generic 兜底"：`"Microsoft YaHei", sans-serif` 合格
+ * （前面的名字 cairosvg 解析得到），裸 `sans-serif` 不合格（会落到无中日韩字形的默认字体）。
+ */
+const CJK_CAPABLE_FONT = /(?:YaHei|SimHei|SimSun|PingFang|Noto Sans CJK|Source Han|Hiragino|Heiti|Songti|KaiTi|FangSong|WenQuanYi|Droid Sans Fallback)/i
+
 /**
  * 阶段 4 的风格门禁（`figure_style_rules`）—— 把参考 `setup_style` 的规范
  * **做成可核的判据**（这是 `adaptation.ts` 里那条 `missing` 的补齐项）。
@@ -484,9 +494,24 @@ const figureStyleRules: GateFn = (input) => {
     if (caption !== undefined && svg.includes(caption)) {
       problems.push(`${file}：题注出现在图内（'${caption.slice(0, 20)}'）—— 数据图不写图内标题，题注由正文给`)
     }
+    // **中文标签必须点名可渲染的中文字体**（否则栅格化后是豆腐块）。
+    // 为什么这条必须在门禁上：裸 `sans-serif` 在浏览器里看起来完全正常
+    // （浏览器会解析到系统中文字体），**只有 `cairosvg` 那条路（docx/PDF）才暴露**——
+    // 也就是说，坏掉的正好是交付物，而所有"用浏览器看一眼"的检查都会漏掉它。
+    // 实测：旧的 11 阶段运行 18 张图的中文轴标签**全是豆腐块**。
+    for (const m of svg.matchAll(/<text\b[^>]*font-family="([^"]*)"[^>]*>([^<]*)<\/text>/g)) {
+      const family = (m[1] ?? '').trim()
+      const content = m[2] ?? ''
+      if (!CJK_TEXT.test(content)) continue
+      if (!CJK_CAPABLE_FONT.test(family)) {
+        problems.push(`${file}：中文文本「${content.slice(0, 12)}」的 font-family='${family}' `
+          + '没有点名中文字体 —— 栅格化进 docx/PDF 后会渲染成豆腐块（□□□□）。'
+          + '改用可渲染的中文栈（如 "Microsoft YaHei", "PingFang SC", sans-serif）')
+      }
+    }
   }
   return problems.length === 0
-    ? ok(id, `${String(svgs.length)} 张图全部通过：字号/边界/对比度 + 配色禁令 + 无图内标题`)
+    ? ok(id, `${String(svgs.length)} 张图全部通过：字号/边界/对比度 + 配色禁令 + 无图内标题 + 中文字体`)
     : fail(id, problems.slice(0, 6).join('；'))
 }
 

@@ -26,6 +26,7 @@
  */
 
 import { sha256Hex } from '../ir/evidence-freeze.ts'
+import { CJK_FONT_STACK } from './renderer.ts'
 
 /** One node in the diagram: a short label (数据锚点级，不是句子). */
 export interface ArchNode {
@@ -281,7 +282,12 @@ export function renderArchitectureSvg(input: ArchInput): string {
   parts.push(`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="img">`)
   parts.push(`<rect x="0" y="0" width="${W}" height="${H}" fill="#FFFFFF"/>`)
 
-  const fontFam = serif ? 'Georgia, "Times New Roman", serif' : '"Microsoft YaHei", "PingFang SC", sans-serif'
+  // 中文栈与 `renderer.ts` **共用同一个常量**：两处各写一份迟早漂移，
+  // 而漂移的后果是中文标签在栅格化后变成豆腐块（只有交付物上才看得见）。
+  // 内层名字用**单引号**：整个 font-family 值本身被双引号包着
+  // （`font-family="${fontFam}"`），里面再放双引号会写出**畸形 SVG**
+  // （`font-family=""Microsoft YaHei", …"`）。serif 那支原来就带这个毛病，一并改掉。
+  const fontFam = serif ? "Georgia, 'Times New Roman', serif" : CJK_FONT_STACK
   const rx = family === 'A' ? 0 : params.corner
 
   // edges first (under the nodes); orthogonal connectors between layer mid-edges
