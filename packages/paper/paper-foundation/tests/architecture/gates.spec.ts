@@ -521,3 +521,96 @@ describe('leakage_audit —— 只看分类指标，不把大数一律当指标'
     expect(run('leakage_audit', input({ 'RESULTS.md': '| 准确率 | 0.97 |' })).code).toBe(0)
   })
 })
+
+/**
+ * **编外登记簿**（`illustrative_numbers`）—— 用户口径的落点：
+ *
+ * > 每个数字都要有出生证明，不能某一数字凭空出现而没有任何可溯源痕迹；
+ * > 如果是反例或模型有其他可解释的原因，可以统一管理放到编外，但不能不可追溯。
+ *
+ * 所以编外**不是豁免，是换一种记账**：它必须留下"数 → 出处"的痕迹
+ * （出现在哪句话里 + 为什么它不是常数也不是结果）。三条缺任一条就是"凭空出现"。
+ */
+describe('编外登记簿 —— 可以有编外，但不能不可追溯', () => {
+  const facts = JSON.stringify({ facts: [{ id: 'F-NOMINAL', value: '10%' }] })
+  /** 反例里那个数：既不是题面给定值，也不是声明的常数——实测撞过的真实形态。 */
+  const report = '**为什么不用连续模型。** 决策量是二值的，连续松弛会给出"检测 63% 的成品"这类无法实施的解。'
+
+  it('**登记齐备 → 通过**（quote + reason 都有）', () => {
+    const decl = JSON.stringify({
+      illustrative_numbers: [{
+        value: 63,
+        quote: '连续松弛会给出"检测 63% 的成品"这类无法实施的解',
+        reason: '反例示意：说明连续松弛的解得形态，非计算结果也非模型常数',
+      }],
+    })
+    const v = run('numbers_traced', input(
+      { 'MODELING_REPORT.md': report, 'DECLARATION.json': decl },
+      { 'PROBLEM_FACTS.json': facts },
+    ))
+    expect(v.code).toBe(0)
+    expect(v.items[0]?.detail).toContain('编外登记 1 条')
+  })
+
+  it('**没登记 → 照样判无出生证明**（编外不等于免登记）', () => {
+    const v = run('numbers_traced', input(
+      { 'MODELING_REPORT.md': report, 'DECLARATION.json': '{}' },
+      { 'PROBLEM_FACTS.json': facts },
+    ))
+    expect(v.code).toBe(1)
+    expect(v.items[0]?.detail).toContain('63')
+    expect(v.items[0]?.detail).toContain('illustrative_numbers')
+  })
+
+  it('**缺 reason → 硬失败**（"示意"两个字不算理由）', () => {
+    const decl = JSON.stringify({ illustrative_numbers: [{ value: 63, quote: '检测 63% 的成品' }] })
+    const v = run('numbers_traced', input(
+      { 'MODELING_REPORT.md': report, 'DECLARATION.json': decl },
+      { 'PROBLEM_FACTS.json': facts },
+    ))
+    expect(v.code).toBe(1)
+    expect(v.items[0]?.detail).toContain('reason')
+  })
+
+  it('**缺 quote → 硬失败**（无法回原文核，就是不可追溯）', () => {
+    const decl = JSON.stringify({
+      illustrative_numbers: [{ value: 63, reason: '反例示意：说明连续松弛的解得形态' }],
+    })
+    const v = run('numbers_traced', input(
+      { 'MODELING_REPORT.md': report, 'DECLARATION.json': decl },
+      { 'PROBLEM_FACTS.json': facts },
+    ))
+    expect(v.code).toBe(1)
+    expect(v.items[0]?.detail).toContain('quote')
+  })
+
+  it('**`value` 不是有限数 → 硬失败**；登记簿不是数组 → 硬失败并说清形态', () => {
+    const bad1 = JSON.stringify({
+      illustrative_numbers: [{ value: '63', quote: 'x', reason: '反例示意：说明解得形态' }],
+    })
+    expect(run('numbers_traced', input(
+      { 'MODELING_REPORT.md': report, 'DECLARATION.json': bad1 },
+      { 'PROBLEM_FACTS.json': facts },
+    )).items[0]?.detail).toContain('有限数')
+
+    const bad2 = JSON.stringify({ illustrative_numbers: { '63': '反例' } })
+    expect(run('numbers_traced', input(
+      { 'MODELING_REPORT.md': report, 'DECLARATION.json': bad2 },
+      { 'PROBLEM_FACTS.json': facts },
+    )).items[0]?.detail).toContain('必须是数组')
+  })
+
+  it('**判别力**：登记了编外的数，别的没登记的数照样抓', () => {
+    const decl = JSON.stringify({
+      illustrative_numbers: [{
+        value: 63, quote: '检测 63% 的成品', reason: '反例示意：说明连续松弛的解得形态',
+      }],
+    })
+    const v = run('numbers_traced', input(
+      { 'MODELING_REPORT.md': `${report} 最优样本量为 137。`, 'DECLARATION.json': decl },
+      { 'PROBLEM_FACTS.json': facts },
+    ))
+    expect(v.code).toBe(1)
+    expect(v.items[0]?.detail).toContain('137')
+  })
+})

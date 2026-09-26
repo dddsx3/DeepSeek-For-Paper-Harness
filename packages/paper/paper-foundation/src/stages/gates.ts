@@ -709,6 +709,11 @@ const numbersTraced: GateFn = (input) => {
       + '没有任何"出生证明来源"，无从判断某个数字是否有据')
   }
   const allowed = buildAllowlist([facts, declared, ledger])
+  // **编外数字登记簿的形态要先合法**（用户口径：可以有编外，但不能不可追溯）。
+  // 一个"编外"数字必须能回答两件事：它出现在哪句话里（`quote`）、为什么它既不是
+  // 模型常数也不是计算结果（`reason`）。缺任一项就是"凭空出现"——那正是要禁止的。
+  const registerProblem = illustrativeRegisterProblem(declared)
+  if (registerProblem !== null) return fail(id, registerProblem)
   // **审全部文本面**（散文 + 声明类 JSON），不是只审第一个匹配到的文件——
   // 第一版漏掉了阶段 2 的 DECLARATION.json 与阶段 3 的 DELIVERABLES.json。
   const audited = auditFiles(input.files, allowed)
@@ -719,7 +724,8 @@ const numbersTraced: GateFn = (input) => {
   const total = audited.reduce((n, a) => n + a.audit.scanned, 0)
   if (bad.length === 0) {
     return ok(id, `${String(audited.length)} 个文本产物的 ${String(total)} 个数字全部有出生证明`
-      + `（题面给定值 / 声明的常数${ledger !== null ? ' / 铸出的结果' : ''}）`)
+      + `（题面给定值 / 声明的常数${ledger !== null ? ' / 铸出的结果' : ''}`
+      + `${registerCount(declared) > 0 ? ` / 编外登记 ${String(registerCount(declared))} 条` : ''}）`)
   }
   const parts = bad.slice(0, 3).map((a) => {
     const uniq = [...new Set(a.audit.violations.map(v => v.literal))]
@@ -728,10 +734,86 @@ const numbersTraced: GateFn = (input) => {
       + `，首个 L${String(a.audit.violations[0]?.line ?? 0)}「${a.audit.violations[0]?.context.slice(0, 50) ?? ''}」`
   })
   return fail(id, `有 ${String(bad.length)} 个文件出现**没有出生证明**的数字 —— ${parts.join('；')}。`
-    + '补救只有两条路：**若它是你的模型常数**（随机种子/容差/网格数/重复次数…），'
+    + '补救有三条路：**若它是你的模型常数**（随机种子/容差/网格数/重复次数…），'
     + '写进 `DECLARATION.json` 的 `model_constants`；**若它是计算结果**，改成结果锚点'
-    + '（如 `{R-Q2-case5-profit}`）——数值只能由 harness 真跑代码后铸出。'
+    + '（如 `{R-Q2-case5-profit}`）——数值只能由 harness 真跑代码后铸出；'
+    + '**若它是反例或示意里的数**（说明某个被否方案会给出什么、某个退化情形长什么样），'
+    + '写进 `DECLARATION.json` 的 `illustrative_numbers`（编外登记簿），'
+    + '每条要给出 `quote`（它出现在哪句话里）与 `reason`（为什么它既不是常数也不是结果）。'
+    + '**编外不等于免登记**：没有登记簿条目，门禁照样判它无出生证明。'
     + '在散文里声明常数不算声明。')
+}
+
+/** 编外登记簿的条目数（读不出来按 0 算——形态问题由 `illustrativeRegisterProblem` 报）。 */
+function registerCount(declared: string | null): number {
+  if (declared === null) return 0
+  try {
+    const parsed: unknown = JSON.parse(declared)
+    const list = (parsed as { illustrative_numbers?: unknown }).illustrative_numbers
+    return Array.isArray(list) ? list.length : 0
+  } catch {
+    return 0
+  }
+}
+
+/** 编外登记簿的**最低可追溯要求**：`reason` 至少这么长（几个字不算理由）。 */
+const REGISTER_REASON_MIN = 10
+
+/**
+ * 校验**编外数字登记簿**（`DECLARATION.json` 的 `illustrative_numbers`）。
+ *
+ * 用户口径：*每个数字都要有出生证明，不能某一数字凭空出现而没有任何可溯源痕迹；
+ * 如果是反例或模型有其他可解释的原因，可以统一管理放到编外，但不能不可追溯。*
+ *
+ * 所以编外这条通道**不是豁免，是换一种记账方式**——它必须留下痕迹：
+ * - `value`：那个数（必须是有限数，且真的会被写进白名单）；
+ * - `quote`：它出现在哪句话里（人/审计员能照着回原文核）；
+ * - `reason`：为什么它既不是模型常数也不是计算结果（"示意/反例"要具体到是哪一处论证）。
+ *
+ * 三条缺任一条就是"凭空出现"。另加一条结构性约束：**同一条不能登记两个不同的值**
+ * （一个 `quote` 对应一个数），否则登记簿就不再是"数 → 出处"的映射。
+ *
+ * @param declared - `DECLARATION.json` 的文本（可能为 null）。
+ * @returns 问题描述；没有登记簿或形态合法时返回 null。
+ */
+function illustrativeRegisterProblem(declared: string | null): string | null {
+  if (declared === null) return null
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(declared)
+  } catch {
+    return null // 声明文件本身坏了，由别的判据去报（这里不重复报）
+  }
+  const list = (parsed as { illustrative_numbers?: unknown }).illustrative_numbers
+  if (list === undefined) return null
+  if (!Array.isArray(list)) {
+    return '`illustrative_numbers`（编外登记簿）必须是数组——每条 `{value, quote, reason}`'
+  }
+  const problems: string[] = []
+  for (const [i, raw] of list.entries()) {
+    const at = `第 ${String(i + 1)} 条`
+    if (typeof raw !== 'object' || raw === null) {
+      problems.push(`${at} 不是对象（应为 \`{value, quote, reason}\`）`)
+      continue
+    }
+    const e = raw as Record<string, unknown>
+    const value = e['value']
+    if (typeof value !== 'number' || !Number.isFinite(value)) {
+      problems.push(`${at} 的 \`value\` 不是有限数`)
+    }
+    const quote = typeof e['quote'] === 'string' ? e['quote'].trim() : ''
+    if (quote === '') problems.push(`${at} 缺 \`quote\`（它出现在哪句话里）`)
+    const reason = typeof e['reason'] === 'string' ? e['reason'].trim() : ''
+    if (reason.length < REGISTER_REASON_MIN) {
+      problems.push(`${at} 的 \`reason\` 太短（< ${String(REGISTER_REASON_MIN)} 字）——`
+        + '"示意"两个字不算理由，要具体到是哪一处论证')
+    }
+  }
+  return problems.length === 0
+    ? null
+    : '编外登记簿（`illustrative_numbers`）有不可追溯的条目 —— ' + problems.slice(0, 5).join('；')
+      + '。编外**不是豁免而是换一种记账**：每条要能回答"它出现在哪句话里（`quote`）"'
+      + '与"为什么它既不是模型常数也不是计算结果（`reason`）"。'
 }
 
 /**
