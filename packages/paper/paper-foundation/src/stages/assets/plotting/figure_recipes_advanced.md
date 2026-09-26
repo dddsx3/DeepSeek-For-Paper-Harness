@@ -2170,82 +2170,103 @@ save_fig(fig, 'figures/fig_paired_dot.pdf')
 
 ---
 
-## 23. Ridgeline Plot — 山脊图（堆叠分布对比 + 渐变填充 + 中位数线）
+## 23. Ridgeline Plot — 山脊图（堆叠分布对比 + 中位刻痕）
 
-**场景**: 在紧凑布局中比较多组（5-15 组）的分布。每组有自己的密度曲线，垂直方向略有重叠。比多个直方图或小提琴图更节省空间。在数据新闻和学术论文中越来越流行。
+**场景**: 紧凑布局里比较多组（5–15 组）分布的**形状**。
+
+⛔⛔ **先想清楚要不要用它**：山脊图只给"形状"，读者读不出四分位、样本量、离群点；
+而且各组中位数散落在各自山包里，**组间高低要来回扫视才能比**。
+如果你的结论是"哪组高/哪组低、差多少"，用 **#35 横向 Rain Cloud**（中位数落在同一
+竖直标尺上，一眼可比）或 #24 分组小提琴。只有当"分布形状本身是结论"
+（如"存在双峰 = 两种工作状态"）且组数 ≥8 时，山脊图才是最优选择。
 
 ```python
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.stats import gaussian_kde
-from _utils.plot_utils import setup_style, save_fig, PALETTE, COLORS, _lighten
+from _utils.plot_utils import setup_style, save_fig, PALETTE, _lighten
 setup_style()
 
-np.random.seed(42)
-groups = ['Model A', 'Model B', 'Model C', 'Model D', 'Model E',
-          'Model F', 'Model G', 'Model H']
-n_groups = len(groups)
+groups = [...]                 # 组名，len = n
+data = [...]                   # 每组一个 1-D 数组
+n = len(groups)
 
-# Generate sample data (replace with real data)
-data = []
-for i in range(n_groups):
-    center = 70 + i * 3 + np.random.randn() * 2
-    spread = 5 + np.random.rand() * 5
-    d = np.random.normal(center, spread, 200)
-    data.append(d)
+# ⛔ 组内按中位数排序：无序排列读者要自己找规律，排序后趋势自然浮现
+order = np.argsort([np.median(d) for d in data])
+groups = [groups[i] for i in order]
+data = [data[i] for i in order]
 
-fig, ax = plt.subplots(figsize=(8, 6))
-overlap = 0.6  # vertical overlap factor
-x_grid = np.linspace(min(d.min() for d in data) - 5,
-                      max(d.max() for d in data) + 5, 300)
+OVER, H = 0.42, 0.85           # ⛔ 见下面「坑 ③」：OVER 必须 < H 才真重叠
+fig, ax = plt.subplots(figsize=(7.2, max(3.2, n * 0.38 + 1.4)))
 
-for i in range(n_groups - 1, -1, -1):  # draw back to front
-    kde = gaussian_kde(data[i], bw_method=0.3)
-    density = kde(x_grid)
-    # Normalize density to consistent height
-    density = density / density.max() * 0.8
-
-    baseline = i * overlap
+for i in range(n - 1, -1, -1):                    # 从后往前画
+    d = np.asarray(data[i])
     color = PALETTE[i % len(PALETTE)]
-    light = _lighten(color, 0.5)
+    base = i * OVER
+    # ⛔ 坑 ⑦：退化组必须单独处理，否则静默丢组（比崩溃更坏，没人会发现）
+    #   全等值(方差 0) 时 gaussian_kde 不报错，但返回 ~1e14 的无限窄尖峰，
+    #   且 span=0 → linspace 260 个点全相同 → 填充区零宽 → 图上只剩一条发丝。
+    #   n<3 时 KDE 也没有统计意义。这两种一律画成"实心竖标"，明确表示"就这一个值"。
+    span = float(d.max() - d.min())
+    if span <= 0 or len(d) < 3:
+        v = float(d[0]) if span <= 0 else float(np.median(d))
+        ax.plot([v, v], [base, base + H * 0.55], color=color, lw=2.4,
+                solid_capstyle='round', zorder=n - i + .6)
+        ax.plot(v, base + H * 0.55, 'o', ms=3.2, color=color, zorder=n - i + .7)
+        continue
+    # ⛔ 坑 ①：KDE 只在【本组数据实际范围】求值，不要用全局 x_grid
+    g = np.linspace(max(0, d.min() - span * 0.06), d.max() + span * 0.06, 260)
+    kde = gaussian_kde(d, bw_method=0.32)
+    dens = kde(g)
+    dens = dens / dens.max() * H
+    ax.fill_between(g, base, base + dens, color=_lighten(color, 0.55),
+                    alpha=0.92, lw=0, zorder=n - i)
+    ax.plot(g, base + dens, color=color, lw=1.15, zorder=n - i + .5,
+            solid_capstyle='round')
+    # 基线也只画本组范围（画满整幅 → 一条横贯的直线，见坑 ②）
+    ax.plot([g[0], g[-1]], [base, base], color=color, lw=0.8, alpha=0.55,
+            zorder=n - i + .4)
+    # 中位数【短刻痕】，不是贯穿山包的长虚线
+    med = np.median(d)
+    md = kde(med)[0] / kde(g).max() * H
+    ax.plot([med, med], [base, base + md * 0.72], color=color, lw=1.5,
+            zorder=n - i + .6)
 
-    # Gradient fill
-    ax.fill_between(x_grid, baseline, baseline + density,
-                    color=light, alpha=0.85, zorder=n_groups - i)
-    ax.plot(x_grid, baseline + density, color=color, linewidth=1.5,
-            zorder=n_groups - i + 0.5)
+# ⛔ 坑 ④：标签必须走 y 轴刻度，不能用浮动 text
+ax.set_yticks([i * OVER for i in range(n)])
+ax.set_yticklabels(groups)
+ax.tick_params(axis='y', length=0)
 
-    # Median line
-    median = np.median(data[i])
-    med_density = kde(median)[0] / density.max() * 0.8
-    ax.plot([median, median], [baseline, baseline + med_density],
-            color=color, linewidth=1.5, linestyle='--', alpha=0.7,
-            zorder=n_groups - i + 1)
-    ax.text(median, baseline + med_density + 0.02,
-            f'{median:.1f}', ha='center', fontsize=7, color=color,
-            fontweight='bold', zorder=n_groups + 10)
+# ⛔ 坑 ⑤：只标首尾两个中位数；n 个浮动数字会挤在山峰之间分不清归属
+for i in (0, n - 1):
+    ax.annotate(f'{np.median(data[i]):.0f}',
+                xy=(np.median(data[i]), i * OVER + 0.30),
+                ha='center', va='bottom', fontsize=7.5, zorder=99)
 
-    # Group label
-    ax.text(x_grid[0] - 1, baseline + 0.15, groups[i],
-            ha='right', va='center', fontsize=9, fontweight='bold',
-            color=color)
-
-ax.set_yticks([])
-ax.set_xlabel('Score', fontsize=11)
-ax.spines['left'].set_visible(False)
-ax.spines['top'].set_visible(False)
-ax.spines['right'].set_visible(False)
+ax.set_xlim(0, max(d.max() for d in data) * 1.03)   # ⛔ 非负量从 0 起
+ax.set_ylim(-0.30, (n - 1) * OVER + H + 0.18)
+ax.set_xlabel('指标名（单位）')
+for s in ('left', 'top', 'right'):
+    ax.spines[s].set_visible(False)
 fig.tight_layout()
 save_fig(fig, 'figures/fig_ridgeline.pdf')
 ```
 
-**⚠ 易踩的坑（Ridgeline Plot 专用）：**
-```python
-# 1. 相邻密度曲线的 y 间距 ≥ 2.5：太密会导致曲线互相遮挡
-# 2. 中位数线标签放在曲线右侧：不要放在曲线内部
-# 3. Shapiro-Wilk 标注放在数据右端再偏右：用 bbox 白底
-# 4. 组数 >8 时，自适应高度 _fig_h = max(6, n_groups * 1.2 + 1)
-```
+**⚠ 易踩的坑（都是实测翻车过的，2026-08 某毕设图逐条中招）：**
+
+| # | 症状 | 根因 | 修法 |
+|---|---|---|---|
+| ① | x 轴伸到**负数**（吞吐量/耗时等非负量） | 用全局 `x_grid` 求 KDE，高斯核尾巴越过数据下界 | 每组各自 `linspace(max(0, min-span*0.06), max+span*0.06)` |
+| ② | 右侧一条**横贯整幅的水平直线** | 基线画满 `x_grid`，而那段密度≈0 | 基线也只画 `[g[0], g[-1]]` |
+| ③ | 山包**几乎不重叠**、白占竖向空间 | `OVER=0.6` 配 `H=0.8` → 只叠 25%，失去山脊图省地方的意义 | `OVER=0.42` 配 `H=0.85`（叠约 50%）；**恒须 `OVER < H`** |
+| ④ | **标签与山包错位**（最刺眼） | 标签放 `base+0.15`、峰在 `base+dens`，重叠一大就对不上 | 走 `set_yticks/set_yticklabels` |
+| ⑤ | n 个数值挤在山峰间，分不清归属 | 每组都 `ax.text` 标中位数 | 只标首尾；其余靠刻痕位置读 |
+| ⑥ | 无序堆叠，看不出规律 | 按原始顺序画 | 按中位数 `argsort` 排序 |
+| ⑦ | 某组在图上**只剩一条发丝**（静默丢组） | 该组全等值（方差 0）或 n<3：`gaussian_kde` **不报错**但返回 ~1e14 的无限窄尖峰，`span=0` 使 260 个网格点全相同 → 填充区零宽 | `if span <= 0 or len(d) < 3:` 画成实心竖标 + 端点圆点，明确表示"就这一个值" |
+
+⛔ **别照抄旧版本的"坑"清单**（本条 2026-08 前的版本里写着"y 间距 ≥ 2.5"，
+而同一份代码用的是 `overlap=0.6` —— 自相矛盾；还提了代码里根本不存在的
+Shapiro-Wilk 标注）。以上表格是按真实翻车逐条核对过的。
 
 ---
 
@@ -3196,3 +3217,105 @@ save_fig(fig, 'figures/fig_bivariate.pdf')
 
 ---
 
+---
+
+## 35. 横向 Rain Cloud — 多组分布对比（云 + 箱 + 雨，中位数同标尺可比）
+
+**场景**: 比较 5–15 组分布，且需要**同时**读出「形状 + 四分位 + 每个观测」。
+学术论文里最稳的分布画法 —— 比山脊图多两层信息，比箱线图多了形状。
+
+**为什么优于山脊图（#23）**：中位数全部落在**同一条竖直标尺**上，组间高低一眼可比；
+山脊图的中位数散落在各自山包里，比较得来回扫视。而且样本量与离群点可见，
+审稿人能判断"这个分布可信吗"。双峰在云的轮廓上依然看得见，信息不丢。
+
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+from matplotlib.lines import Line2D
+from scipy.stats import gaussian_kde
+from _utils.plot_utils import setup_style, save_fig, PALETTE, _lighten
+setup_style()
+
+rows = [...]     # [{'name': str, 'data': 1-D array, 'group': str}, ...]
+n = len(rows)
+# ⛔ 组内按中位数降序：与 y 轴自上而下一致，趋势才顺着读
+rows = sorted(rows, key=lambda r: -np.median(r['data']))
+GC = {'A组': PALETTE[0], 'B组': PALETTE[1]}          # 组名 → 颜色
+rng = np.random.default_rng(3)
+
+fig, ax = plt.subplots(figsize=(7.4, max(3.4, n * 0.42 + 1.2)))
+
+for i, r in enumerate(rows):
+    d = np.asarray(r['data'])
+    color = GC.get(r['group'], PALETTE[0])
+    y0 = n - 1 - i                       # 自上而下
+
+    # ⛔ 坑 ⑦：退化组（全等值 / n<3）单独画。gaussian_kde 对方差 0 不报错但返回
+    #   ~1e14 尖峰、span=0 使云与箱都是零宽。本图型比 #23 耐受些（雨仍会画出散点），
+    #   但云和箱会隐形，仍应显式处理，避免读者以为"这组没数据"。
+    if float(d.max() - d.min()) <= 0 or len(d) < 3:
+        v = float(np.median(d))
+        ax.plot([v, v], [y0 - 0.22, y0 + 0.30], color=color, lw=2.4,
+                solid_capstyle='round', zorder=5)
+        ax.annotate(f'n={len(d)}', xy=(v, y0 + 0.32), ha='center', va='bottom',
+                    fontsize=6.5, color=color, zorder=6)
+        continue
+
+    # ── 云：半小提琴（只画上半，下半留给箱与雨）
+    g = np.linspace(d.min(), d.max(), 220)
+    dens = gaussian_kde(d, bw_method=0.32)(g)
+    dens = dens / dens.max() * 0.34      # ⛔ 峰高 ≤0.34：与下方雨的 0.20 相加 < 0.55，
+                                         #   保证相邻行不互相压（见坑 ①）
+    ax.fill_between(g, y0 + 0.10, y0 + 0.10 + dens,
+                    color=_lighten(color, 0.55), alpha=0.95, lw=0, zorder=2)
+    ax.plot(g, y0 + 0.10 + dens, color=color, lw=1.0, zorder=3)
+
+    # ── 雨：抖动散点（⛔ 抽样上限 90，见坑 ②）
+    s = rng.choice(d, size=min(90, len(d)), replace=False)
+    ax.scatter(s, y0 - 0.20 + rng.uniform(-0.055, 0.055, len(s)),
+               s=3.2, color=color, alpha=0.35, lw=0, zorder=2)
+
+    # ── 箱：IQR 粗线 + 1.5×IQR 须 + 中位（白描边保证压在云上也看得清）
+    q1, med, q3 = np.percentile(d, [25, 50, 75])
+    iqr = q3 - q1
+    wlo = d[d >= q1 - 1.5 * iqr].min()
+    whi = d[d <= q3 + 1.5 * iqr].max()
+    ax.plot([wlo, whi], [y0 - 0.02, y0 - 0.02], color=color, lw=0.9,
+            alpha=0.75, zorder=3)
+    ax.plot([q1, q3], [y0 - 0.02, y0 - 0.02], color=color, lw=4.2,
+            alpha=0.55, solid_capstyle='butt', zorder=4)
+    ax.plot([med, med], [y0 - 0.085, y0 + 0.045], color='white', lw=1.9, zorder=6)
+    ax.plot([med, med], [y0 - 0.085, y0 + 0.045], color=color, lw=1.1, zorder=7)
+
+ax.set_yticks(range(n))
+ax.set_yticklabels([r['name'] for r in rows][::-1])   # ⛔ 反转：y=0 在底部
+for t, r in zip(ax.get_yticklabels(), rows[::-1]):
+    t.set_color(GC.get(r['group'], PALETTE[0]))       # 标签染组色 = 免图例辨组
+ax.tick_params(axis='y', length=0)
+ax.set_xlim(0, max(np.asarray(r['data']).max() for r in rows) * 1.02)
+ax.set_ylim(-0.55, n - 0.35)
+ax.set_xlabel('指标名（单位）')
+ax.grid(axis='x', ls='--', alpha=0.22, lw=0.6)
+ax.set_axisbelow(True)
+for s in ('left', 'top', 'right'):
+    ax.spines[s].set_visible(False)
+ax.legend(handles=[Line2D([], [], color=c, lw=5, label=k) for k, c in GC.items()],
+          loc='lower right', frameon=False, handlelength=1.4)
+fig.tight_layout()
+save_fig(fig, 'figures/fig_raincloud_h.pdf')
+```
+
+**⚠ 易踩的坑（横向 Rain Cloud 专用）：**
+
+| # | 症状 | 修法 |
+|---|---|---|
+| ① | 相邻行互相压（云盖住上一行的雨） | 云峰高 ≤0.34、雨中心 −0.20、抖动 ±0.055 → 单行占用 ≈0.55 < 行距 1.0。**改云峰高就要同步检查这个和** |
+| ② | 散点糊成一条实线 | 抽样上限 90 点 + `alpha=0.35` + `s=3.2`。样本 >300 时**必须**抽样，否则挤成黑条 |
+| ③ | 中位线压在云上看不清 | 先画 `white lw=1.9` 再画 `color lw=1.1`（双层描边） |
+| ④ | 须画到极端离群点，x 轴被拉爆 | 须只到 `1.5×IQR` 内的实际极值，不用 `d.min()/d.max()` |
+| ⑤ | 非负量 x 轴从负数起 | `set_xlim(0, ...)` |
+| ⑥ | 组数 >15 开始拥挤 | 改用 #23 山脊图（更省竖向）或拆成两张 |
+| ⑦ | 某组云与箱**隐形**（读者以为没数据） | 该组全等值（方差 0）或 n<3 —— `gaussian_kde` 不报错但返回 ~1e14 尖峰、`span=0` 使云箱零宽。用 `if float(d.max()-d.min()) <= 0 or len(d) < 3:` 画实心竖标 + `n=` 标注 |
+
+⛔ **`figsize` 高度必须随 n 自适应**：`max(3.4, n * 0.42 + 1.2)`。写死高度时
+n=13 会把行距压到 0.25，云雨箱三层必然互相压 —— 这是本图型最容易翻车的地方。

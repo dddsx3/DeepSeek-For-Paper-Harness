@@ -291,7 +291,13 @@ const SKILLS: Readonly<Record<string, StageSkill>> = {
     how: [
       '**先规划，再写脚本**。`FIGURE_PLAN.json` 每条 = `{figure_id, chart_type, recipe: {category, number}, '
         + 'data_refs, caption, x_label, y_label}`。`figure_id` 要逐字沿用阶段 1 的 FIGURE_MANIFEST；'
-        + '要改图（拆分/合并/换型）用 `plan_deviations: [{"from","to","reason"}]` 申报。',
+        + '要改图（拆分/合并/换型）用 `plan_deviations: [{"from","to","reason"}]` 申报；'
+        + '**要放弃某张图也申报**（`to` 留空 + 写明理由，例如"账本只有两个点，连成曲线会虚构'
+        + '并不存在的单调关系"）——申报放弃会被放行并留痕，静默不画才是漏渲染。',
+      '**方法论资产**（都在 `_utils/` 里，按需取用）：`FIGURE-METHOD.md` 是骨架本身；'
+        + '`figure-distribution-exemplars.md` 给出**好论文的图表分布**（几张、各什么型）作参照；'
+        + '`error-prevention-by-problem-type.md` 是**按题型索引**的防错手册——'
+        + '先在里面找本题属于哪一类，那一类历史上踩过的坑直接避开。',
       '**图型按决策表选，不要默认柱状图**。`_utils/figure_style_guide.md` 里有一张「数据形态 → 推荐图型 → 避免什么」'
         + '的表。几条它明确否掉的退化：灵敏度排序**不要用 grouped bar**（用 tornado，柱状图会丢掉排序）；'
         + '成本构成**不要用 bar chart**（用 waterfall）；带重复的趋势**不要只画一条均值线**（用折线+置信带）；'
@@ -310,6 +316,17 @@ const SKILLS: Readonly<Record<string, StageSkill>> = {
         + '成串的数据字面量如 `plot([0,5,10],[1.2,3.4,5.6])` 一律判失败）。',
       '**每张图出到 `figures/<figure_id>.png`**：脚本里写 `save_fig(fig, "figures/fig_xxx.png")`。'
         + '文件级 docstring 写清"本图讲什么 → 每个 panel 是什么 → 数据来自账本哪些 id → 关键数值"。',
+      '**图多于 5 张时先建 `figures/_figbase.py` 共用引导模块**（参考原话：*"实测这是高分图集的'
+        + '共同做法：把样板收敛到一处，几十份脚本不再各写各的，也避免各图指标口径不一致导致论文数字打架"*）。'
+        + '把口径函数、公共常量、缺字替换收到一处，各脚本 `from _figbase import ...`。',
+      '**多面板合成在单个图内实现**（参考：*"multi-panel 在单个 PDF 内实现（不是写两张 PDF）"*）：'
+        + '该合成的时候用 `plt.subplots(1, 2)` 或 `plt.subplots(2, 2)`，面板标签用 '
+        + '`ax.set_title("(a)", loc="left", pad=3)`。**panel 数量 ≤ 4**；'
+        + '1×2 横排 `figsize=(6.0, 2.8)`、2×2 近方 `(5.0, 4.9)`。',
+      '**图内文字三层闸，但不要过度收缩**（参考的原话：*"本条减的是“文字”，不是“信息”和'
+        + '“图表能力”。该有的多 panel、置信带、判据线、丰富图型一个都不能少"*）：'
+        + '结论/口径/方法说明进题注，但**判据线、★极值标注、数值框、置信带、误差棒这些'
+        + '信息性元素该有就有**——把它们一起砍掉是把图变成残图。',
       '**画布尺寸按长宽比档位反推**（参考的硬规则，不是"一律 ≤7.2in"）：'
         + 'r=高/宽 ≤0.80 → 宽写 6.0in；≤1.20 → 5.0in；≤1.60 → 3.6in；否则 3.0in。'
         + '高不超过 8in。门禁 `figure_size_buckets` 按这条判（容差 15%）——'
