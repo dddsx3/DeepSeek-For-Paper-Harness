@@ -171,11 +171,20 @@ export function parseResultSources(raw: string): ReadonlyArray<ResultSource> {
   } catch (error) {
     throw new Error(`${RESULT_SOURCES_FILE} 不是合法 JSON：${String(error).slice(0, 120)}`)
   }
-  const obj = parsed as { sources?: unknown }
-  if (!Array.isArray(obj.sources)) {
-    throw new Error(`${RESULT_SOURCES_FILE} 缺 "sources" 数组 —— 模型必须声明每个数在哪个产物的哪个路径`)
+  // **两种等价形态都收**：`{"sources": [...]}` 与**裸数组** `[...]`。
+  //
+  // 实测（2024B 阶段 4）：模型写了一整份合法的裸数组（134 条声明，字段齐备），
+  // 却因为契约写的是 `{sources: [...]}` 而被判"缺 sources 数组"——**内容一字不缺，
+  // 只是少了一层外壳**。这与围栏、`_figbase` 导出名单是同一类：形态的表述差异
+  // 不该让内容作废。内容判据一条不放松：下面逐条核 result_id/name/locator/json_path。
+  const list = Array.isArray(parsed)
+    ? parsed
+    : (parsed as { sources?: unknown }).sources
+  if (!Array.isArray(list)) {
+    throw new Error(`${RESULT_SOURCES_FILE} 既不是 \`{"sources": […]}\`，也不是裸数组 —— `
+      + '模型必须声明每个数在哪个产物的哪个路径')
   }
-  return obj.sources.map((rawSource, i) => {
+  return list.map((rawSource, i) => {
     if (typeof rawSource !== 'object' || rawSource === null) {
       throw new Error(`sources[${String(i)}] 不是对象`)
     }

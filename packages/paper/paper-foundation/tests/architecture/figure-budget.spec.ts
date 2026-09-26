@@ -18,7 +18,7 @@ import {
   FIGURE_COUNT_HARD_FLOOR, FIGURE_COUNT_TOLERANCE,
   budgetSentence, figureBudget, targetBodyPages, targetDataFigures,
 } from '../../src/stages/figure-budget.ts'
-import { numericShapeOf } from '../../src/stages/execute-and-mint.ts'
+import { numericShapeOf, parseResultSources } from '../../src/stages/execute-and-mint.ts'
 import { figurePlanValid } from '../../src/stages/figure-script-gates.ts'
 import { runGates } from '../../src/stages/gates.ts'
 
@@ -274,5 +274,37 @@ describe('`figure_plan_valid` 的形态判据 —— 标量画不出热力图', 
       { 'FIGURE_PLAN.json': planOf('heatmap', ['R-M']) },
       { 'results.json': ledger([{ id: 'R-M', value: [[1, 2], [3, 4]] }]) }, // 无 kind
     )).code).toBe(0)
+  })
+})
+
+/**
+ * **数源声明的两种等价形态都收** —— 裸数组不该被判"缺 sources 数组"。
+ *
+ * 实测（2024B 阶段 4）：模型写了一整份合法的裸数组（134 条声明，字段齐备），
+ * 却因为契约写的是 `{"sources": [...]}` 而被判失败——**内容一字不缺，只少了一层外壳**。
+ * 与围栏、`_figbase` 导出名单同类：**形态的表述差异不该让内容作废**。
+ * 内容判据一条不放松（逐条核 result_id/name/locator/json_path）。
+ */
+describe('数源声明 —— 外壳形态宽容，内容判据不放松', () => {
+  const one = { result_id: 'R-A', name: '指标A', locator: 'outputs.json', json_path: 'a', unit: '%' }
+
+  it('`{"sources": [...]}` 与**裸数组**都解析出同一份声明', () => {
+    const wrapped = parseResultSources(JSON.stringify({ sources: [one] }))
+    const bare = parseResultSources(JSON.stringify([one]))
+    expect(wrapped).toHaveLength(1)
+    expect(bare).toHaveLength(1)
+    expect(bare[0]?.result_id).toBe('R-A')
+    expect(bare[0]?.json_path).toBe('a')
+  })
+
+  it('**两种形态都缺字段就都失败**（剥外壳不是放宽内容）', () => {
+    const bad = { result_id: 'R-A', name: '指标A' } // 缺 locator / json_path
+    expect(() => parseResultSources(JSON.stringify({ sources: [bad] }))).toThrow(/locator/)
+    expect(() => parseResultSources(JSON.stringify([bad]))).toThrow(/locator/)
+  })
+
+  it('既不是对象也不是数组 → 具名失败（不静默当成空声明）', () => {
+    expect(() => parseResultSources(JSON.stringify('nope'))).toThrow(/裸数组/)
+    expect(() => parseResultSources(JSON.stringify({ rows: [] }))).toThrow(/裸数组/)
   })
 })

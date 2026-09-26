@@ -42,5 +42,5 @@
   "unverifiedGates": [
     "figure_style_rules"
   ],
-  "staleReason": "阶段 'code' 门禁未通过（code 1）—— 下游前提不成立"
+  "staleReason": "分片计划缺 code/params.py 槽位，main.py 的 import params 无从落地；已补该分片 —— 检查人回滚"
 }
