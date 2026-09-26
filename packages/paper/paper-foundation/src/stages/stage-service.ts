@@ -223,7 +223,7 @@ export class PaperStageChainService extends Service {
     })()
     let quotaWaitedMs = 0
     const isQuotaError = (message: string): boolean =>
-      /429|402|quota|额度|余额|配额|insufficient|exhaust|rate.?limit|无可用|渠道/i.test(message)
+      /\b429\b|\b402\b|quota|额度|余额|配额|insufficient|exhaust|rate.?limit|无可用|渠道/i.test(message)
     // 配额等待阶梯（秒）：越往后等越久，交替两个模型试（各自配额独立恢复）。
     const QUOTA_WAIT_LADDER_MS = [30_000, 60_000, 120_000, 300_000, 600_000]
 
