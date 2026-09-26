@@ -521,7 +521,15 @@ export function renderFigureSvg(input: RenderInput): string {
     const px = x(i)
     const py = y(s.value)
     if (input.chart_type === 'bar' || input.chart_type === 'grouped') {
-      parts.push(`<rect x="${px - 10}" y="${py}" width="20" height="${Math.max(0, T + plotH - py)}" fill="${color(i)}"/>`)
+      // 浅填充 + 主色描边（参考的柱状规矩），并**在柱顶直接标数值**。
+      // 参考把它列为完整性红线：*"隐藏刻度就必须直接标注数据；两者都没有 = 残图"*。
+      // 这条路径（标量 Result 的柱状图）原来既无描边也无标注——门禁 `figure_completeness`
+      // 在夹具上把它抓出来了，是**真缺陷**，不是夹具问题。
+      parts.push(`<rect x="${px - 10}" y="${py}" width="20" height="${Math.max(1, T + plotH - py)}" fill="${color(i)}" fill-opacity="0.42" stroke="${color(i)}" stroke-width="1.2"/>`)
+      parts.push(`<text x="${fmt(px)}" y="${fmt(py - 4)}" text-anchor="middle" font-family="monospace" font-size="10" fill="${INK}">${fmtTick(s.value)}</text>`)
+      // 类别名（标量路径里每个系列就是一个类别，用系列名当类别名）
+      const lfs = fitFontSize(s.label, 120, 11)
+      parts.push(`<text x="${fmt(px)}" y="${T + plotH + 16}" text-anchor="middle" font-family="${CJK_FONT_STACK}" font-size="${String(lfs)}" fill="${INK}">${escapeXml(s.label)}</text>`)
     } else {
       const dot = input.chart_type === 'scatter'
         ? `<circle cx="${px}" cy="${py}" r="4.5" fill="${color(i)}"/>`
@@ -794,7 +802,7 @@ function renderTableSvg(input: RenderInput): string {
     const cells = [s.label, fmt(s.value), s.unit, uncertainty]
     cells.forEach((cell, i) => {
       const mono = i === 1 || i === 3
-      parts.push(`<text x="${cols[i]}" y="${y}" text-anchor="start" font-family="${mono ? 'monospace' : 'sans-serif'}" font-size="12" fill="${INK}">${escapeXml(cell)}</text>`)
+      parts.push(`<text x="${cols[i]}" y="${y}" text-anchor="start" font-family="${mono ? 'monospace' : CJK_FONT_STACK}" font-size="12" fill="${INK}">${escapeXml(cell)}</text>`)
     })
     if (row > 0) {
       parts.push(`<line x1="8" y1="${headerH + row * rowH + 4}" x2="${W - 8}" y2="${headerH + row * rowH + 4}" stroke="${GRID}" stroke-width="1"/>`)

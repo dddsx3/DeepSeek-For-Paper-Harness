@@ -29,7 +29,10 @@ const tmp = async (): Promise<string> => mkdtemp(join(tmpdir(), 'dsh-run-'))
 function figureDeclarations(): string {
   return JSON.stringify({
     figures: [
-      { figure_id: 'fig_a', chart_type: 'bar', data_refs: ['RES-A', 'RES-B'], caption: '两项指标对照', y_label: '占比 / %' },
+      // 轴标签**两个都要有**（参考红线："Both set_xlabel and set_ylabel are mandatory,
+      // with units. No bare/unlabeled axes."）——夹具原来只有 y_label，被 `figure_completeness` 拦下。
+      { figure_id: 'fig_a', chart_type: 'bar', data_refs: ['RES-A', 'RES-B'], caption: '两项指标对照',
+        x_label: '指标', y_label: '占比 / %' },
     ],
   })
 }

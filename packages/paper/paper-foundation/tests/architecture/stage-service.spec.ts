@@ -95,7 +95,9 @@ function answerFor(stage: string): string {
       // 单产出 → 原文。只声明结构；数在阶段 3 铸出的账本里。
       return JSON.stringify({
         figures: [
-          { figure_id: 'fig_a', chart_type: 'bar', data_refs: ['RES-A', 'RES-B'], caption: '指标对照', y_label: '占比 / %' },
+          // 轴标签两个都要有（参考红线：Both set_xlabel and set_ylabel are mandatory）
+          { figure_id: 'fig_a', chart_type: 'bar', data_refs: ['RES-A', 'RES-B'], caption: '指标对照',
+            x_label: '指标', y_label: '占比 / %' },
         ],
       })
     case 'review':
