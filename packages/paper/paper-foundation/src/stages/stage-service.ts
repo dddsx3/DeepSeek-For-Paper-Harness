@@ -47,7 +47,7 @@ import { Context, Service } from '@deepseek-ai/cordis'
 import { createUserMessage, type GenerateOptions } from '@deepseek-ai/dsh-llm'
 import { deterministicRunner, type DeterministicOutcome } from './deterministic.ts'
 import { runCodeAndMintResults } from './execute-and-mint.ts'
-import { assembleShards, planCodeShards } from './code-shard.ts'
+import { assembleShards, planCodeShards, planModelingShards } from './code-shard.ts'
 import { auditPromptOf, parseAuditVerdict } from './audit.ts'
 import { skillTaskOf } from './briefing.ts'
 import { readPassport } from './handoff.ts'
@@ -306,6 +306,21 @@ export class PaperStageChainService extends Service {
         // runner 不感知分片。见 code-shard.ts 的模块头。
         if (spec.id === 'code') {
           const shards = planCodeShards(spec, prompt, await this.problemCount())
+          const answers: string[] = []
+          for (const shard of shards) {
+            answers.push(await singleCall(spec, shard.prompt))
+            this.config.onDeterministicOutcome?.({
+              stage: spec.id,
+              summary: `分片 ${String(shard.index)}/${String(shard.total)} 交付 ${shard.deliverable}`,
+            })
+          }
+          return assembleShards(shards, answers)
+        }
+        // 阶段 2 **也分片**：注册表的前提就写着"两次调用，不是一次"（2a 只声明 IR、
+        // 2b 只写富散文），但分片机制只接在阶段 3 上。实测代价：加进"上一轮审计的问题"
+        // 后回答在 47915 字节处被输出天花板截断，整轮重跑作废。
+        if (spec.id === 'modeling') {
+          const shards = planModelingShards(spec, prompt)
           const answers: string[] = []
           for (const shard of shards) {
             answers.push(await singleCall(spec, shard.prompt))

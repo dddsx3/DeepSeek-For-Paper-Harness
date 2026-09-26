@@ -79,6 +79,41 @@ export function planCodeShards(spec: StageSpec, prompt: string, problemCount: nu
 }
 
 /**
+ * 把阶段 2（modeling）的简报切成**一文件一次调用**的分片序列。
+ *
+ * ## 为什么阶段 2 也要分片
+ *
+ * 阶段 2 的注册表前提本来就写着"**两次调用，不是一次**：2a 只声明 IR 条目（小、结构化）；
+ * 2b 只写富散文（无 JSON，**结构上不可能撞 parse_failed**）。合成一次会回到 E2 的 40KB 规模"
+ * ——但分片机制只接在了阶段 3 上，阶段 2 一直是一次调用交两个文件的 JSON 信封。
+ *
+ * 2024B 实测代价：加进"上一轮审计的问题"之后，回答在 47915 字节处被输出天花板截断，
+ * 断在逐条回应第 5 条的中途（`Unterminated string in JSON`）——**整轮重跑作废**。
+ * 也就是说注册表写下的设计没接线，而那正是为防这件事写的。
+ *
+ * 所以这里按"每个交付物一次调用"分片（阶段 2 的交付物就是 2 份：IR 声明 + 富散文），
+ * 组装成 JSON 信封后交给 `parseStageOutput` 按原契约解析——**runner 仍不感知分片**。
+ *
+ * @param spec - 阶段 2 的 spec。
+ * @param prompt - 完整阶段简报。
+ * @returns 分片序列（每片一个文件，回答取原文）。
+ */
+export function planModelingShards(spec: StageSpec, prompt: string): ReadonlyArray<CodeShard> {
+  const deliverables = codeDeliverables(spec)
+  const total = deliverables.length
+  return deliverables.map((deliverable, i) => ({
+    index: i + 1,
+    total,
+    deliverable,
+    prompt: `${prompt}\n\n---\n\n## 本次调用（分片 ${String(i + 1)}/${String(total)}）\n\n`
+      + `**只产出 \`${deliverable}\` 的完整内容**——你的回答从第一个字符到最后一个字符都是它，`
+      + '不得有任何解释、任何代码围栏、任何前后缀。'
+      + (deliverable.endsWith('.json') ? '本片必须是合法 JSON 对象本身。' : '本片是散文本身，不要包 JSON。')
+      + '\n简报的其余要求对本片同样成立；**其余交付物由其它分片负责，不要在本片里写它们**。',
+  }))
+}
+
+/**
  * 组装分片回答成 JSON 信封（交给 `parseStageOutput` 按原契约解析）。
  *
  * @param shards - `planCodeShards` 的分片序列（deliverable 顺序即组装顺序）。
