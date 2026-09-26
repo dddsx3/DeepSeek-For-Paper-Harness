@@ -292,8 +292,23 @@ const SKILLS: Readonly<Record<string, StageSkill>> = {
         + '都是 harness 真跑代码后从产物字节里铸出的。`data_refs` **必须**指向其中真有的 `result_id`。',
       '**必须**逐字沿用阶段 1 FIGURE_MANIFEST 里的图名；若你确实要改进图（拆分/合并/换图型），'
         + '**必须**用 `plan_deviations: [{"from", "to", "reason"}]` 申报——申报了放行并留痕，静默改名必被拒。',
-      '`chart_type` 只能是 `line` / `scatter` / `bar` / `table` 四个之一；'
-        + '`caption` / `x_label` / `y_label` 里**不得**出现任何数字（渲染器有守卫，账本之外的数一律拒绝）。',
+      '**`chart_type` 按数据形态选**（参考工作流的「图型决策表」——它明确否掉了几种常见退化）：'
+        + '`line` 趋势；`ci_line` **带重复/区间的趋势**（只画一条均值线是禁止的）；'
+        + '`bar` 少量类别对比；`grouped` 多组对比；'
+        + '**`tornado` 灵敏度/单参数扫描的驱动因子排序**（参考明确：不要用 grouped bar，那会丢掉排序）；'
+        + '**`waterfall` 成本构成/模块贡献**（参考明确：不要用 bar chart）；'
+        + '**`heatmap` 方法×指标矩阵**（带格内数值）；**`forest` 区间估计/多方法对比**（点估计 + 置信区间 + 参考线）；'
+        + '`table` 三线表。**同一篇里同一种图型不要超过 3 次，≥6 张图时至少 4 种图型**'
+        + '（门禁 `figure_diversity` 会按这条硬规则判——一整篇全是柱状图时，读者无法从图型上'
+        + '分辨"这是灵敏度排序"还是"这是成本构成"）。',
+      '**结构化图型要按"引用 id"声明**（值仍然只能来自账本）：'
+        + '`tornado: [{"label", "low_ref", "high_ref", "low_label", "high_label"}]`、'
+        + '`waterfall: [{"label", "value_ref", "kind": "delta"|"total"}]`、'
+        + '`forest: [{"label", "estimate_ref", "low_ref", "high_ref"}]`、'
+        + '`heatmap: {"rows", "cols", "value_refs": [[id…]…]}`、'
+        + '`ref_lines: [{"axis": "x"|"y", "value_ref", "label"}]`、`baseline_ref`。'
+        + '每个 `*_ref` 都必须是账本里真有的 `result_id`；解析不到会**具名拒绝**。',
+      '`caption` / `x_label` / `y_label` 里**不得**出现任何数字（渲染器有守卫，账本之外的数一律拒绝）。',
       '与阶段 1 的清单对账：数据图 12–20 张；每个子问题至少一张；横向对比、灵敏度、校核图都要有归属。',
     ],
     forbidden: [
@@ -308,6 +323,8 @@ const SKILLS: Readonly<Record<string, StageSkill>> = {
       '每条 `data_refs` 都解析到账本里真有的 `result_id`。',
       '图名与阶段 1 清单一致，或分叉已用 `plan_deviations` 申报且写了理由。',
       '题注里没有任何数字。',
+      '**图型与数据形态匹配**，且没有哪种图型超过 3 次（门禁 `figure_diversity`）。',
+      '用了结构化图型（tornado/waterfall/forest/heatmap）时，每个 `*_ref` 都是账本里真有的 id。',
     ],
   },
   figure: {

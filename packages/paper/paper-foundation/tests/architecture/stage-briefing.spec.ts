@@ -392,3 +392,36 @@ describe('回答形态 —— 简报与解析器逐个阶段对齐（防自相�
     expect(form).toContain('不要**出现在你的回答里')
   })
 })
+
+/**
+ * 阶段 5 的简报必须把**新图型与决策表**教给模型。
+ *
+ * 没有这一段，渲染器扩容就是白做——模型只会继续声明 `line`/`bar`，
+ * 而参考的硬合同是"规划写了什么图型就必须画出那个图型"。
+ */
+describe('阶段 5 简报 —— 图型决策表与新图型', () => {
+  const brief = stageBriefing(stageOf('figure-declare'), new Map(), false)
+
+  it('点名 tornado / waterfall / heatmap / forest / ci_line 五个新图型', () => {
+    for (const t of ['tornado', 'waterfall', 'heatmap', 'forest', 'ci_line']) {
+      expect(brief, `简报里没提 ${t}`).toContain(t)
+    }
+  })
+
+  it('说清参考**明确否掉**的退化（否则模型会继续用柱状图凑）', () => {
+    expect(brief).toContain('不要用 grouped bar')
+    expect(brief).toContain('不要用 bar chart')
+  })
+
+  it('把多样性硬规则写进契约（同型 ≤3、≥6 张图 ≥4 种）', () => {
+    expect(brief).toContain('不要超过 3 次')
+    expect(brief).toContain('至少 4 种图型')
+    expect(brief).toContain('figure_diversity')
+  })
+
+  it('结构化图型的**引用字段**逐个列出（值仍只能来自账本）', () => {
+    for (const k of ['low_ref', 'high_ref', 'value_ref', 'estimate_ref', 'value_refs', 'baseline_ref']) {
+      expect(brief, `简报里没提 ${k}`).toContain(k)
+    }
+  })
+})
