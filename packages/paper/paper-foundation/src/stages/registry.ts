@@ -155,28 +155,40 @@ export const STAGES: ReadonlyArray<StageSpec> = [
       + '拆出来——2024B 实测：合在一起三次被输出上限截断。',
   },
   {
-    id: 'figure-declare', index: 5, kind: 'model', title: '图表声明', skillId: 'comp-figure-declare',
+    id: 'figure-declare', index: 5, kind: 'model', title: '作图脚本', skillId: 'comp-figure-declare',
     consumes: ['04-result-sources/results.json', '01-prob-analysis/PROBLEM_ANALYSIS.md'],
-    produces: [D('FIGURE_DECLARATIONS.json', 'json', '数据图的**声明**（figure_id/chart_type/data_refs/caption）；渲染是下一阶段的事')],
-    gates: ['figure_declaration_complete'],
+    produces: [
+      // 目录型产物**必须声明成 `figures/`**（与阶段 3 的 `code/` 同一写法）：
+      // 写成带通配的 `figures/gen_fig_*.py` 会让信封解析器认不出目录，
+      // 整份回答被判"只回声了目录名"（实测撞过）。命名规则放 desc 里，由门禁审。
+      D('figures/', 'dir', '**逐图一个绘图脚本** `gen_fig_<figure_id>.py`（matplotlib）：从账本读数据、照抄配方骨架；本阶段只写脚本，执行是下一阶段'),
+      D('FIGURE_PLAN.json', 'json', '作图规划：`{figure_id, chart_type, recipe:{category,number}, data_refs, caption, x_label, y_label}`'),
+    ],
+    gates: ['figure_plan_valid', 'figure_script_quality', 'figure_script_traced', 'figure_type_match', 'figure_diversity'],
     contractRules: [], rollbackTo: ['result-sources', 'code'], guidedFallback: 'T2',
-    premise: '**声明与渲染分属两阶段、与建模代码分属两阶段**：本阶段只引用 harness 铸出的 '
-      + 'Result id 组织图，不写渲染代码、不产出图像字节、不写任何数值（题注里的数'
-      + '也会被守卫拒绝）。分叉计划必须用 plan_deviations 申报。',
+    premise: '**这一步的约束换掉了（用户口径）**：原来是"模型只声明、不写渲染代码"'
+      + '（为"数不由模型持有"设的），现在是**模型写 `gen_fig_*.py`** —— 因为固定渲染器'
+      + '的天花板太低（单面板、无布局兜底、图型只有十种），水平上不去。'
+      + '**溯源改由另一条机制保证**：脚本必须从铸出的 `results.json` 读数据、不得硬编码'
+      + '（`figure_script_traced` 门禁审），这正是参考实现自己的做法'
+      + '（*"Read data from JSON/CSV, do not hardcode values"*）。'
+      + '另加 `figure_script_quality`（照搬 `figure_check.sh` 的 CRITICAL 规则）与'
+      + '`figure_type_match`（治"规划写等高线、画出来是条形图"）。',
   },
   {
     id: 'figure', index: 6, kind: 'deterministic', title: '图表生成', skillId: 'paper-figure',
-    consumes: ['05-figure-declare/FIGURE_DECLARATIONS.json', '04-result-sources/results.json', '01-prob-analysis/PROBLEM_ANALYSIS.md'],
+    consumes: ['05-figure-declare/FIGURE_PLAN.json', '05-figure-declare/figures', '04-result-sources/results.json', '01-prob-analysis/PROBLEM_ANALYSIS.md'],
     produces: [
-      D('figures/', 'dir', '按声明渲染的图（声明驱动，不写渲染代码）'),
-      D('figure-manifest.json', 'json', '渲染清单：图 id → 文件 → 数据引用 → 渲染哈希'),
+      D('figures/', 'dir', '跑 `gen_fig_*.py` 产出的图（matplotlib，PNG）'),
+      D('figure-manifest.json', 'json', '渲染清单：图 id → 文件 → 退出码 → 字节数'),
     ],
-    gates: ['figure_manifest_reconcile', 'figure_completeness', 'figure_diversity', 'figure_style_rules'],
+    gates: ['figure_manifest_reconcile', 'figure_completeness', 'figure_size_buckets', 'figure_style_rules'],
     contractRules: [], rollbackTo: ['figure-declare', 'code'],
-    premise: '**渲染是 harness 的事**：模型只声明 `chart_type/data_refs/caption`，'
-      + '图里的每个数都必须先作为 Result 存在。这一条由 `figure_declaration_complete`'
-      + '（每条 ref 都要解析到真有的 Result）与 `figure_style_rules`（字号/配色/无图内标题）'
-      + '机械强制——没有它们，"声明驱动"只是一句设计意图。',
+    premise: '**执行是 harness 的事**：把 `plot_utils.py` 铺到 `_utils/`、把铸出的账本铺到 '
+      + '`results.json`，然后逐个跑 `gen_fig_*.py`（cwd 就是本阶段目录，脚本里的相对路径'
+      + '才成立）。`figure_manifest_reconcile` 对账"规划几张就必须画出几张"，'
+      + '`figure_size_buckets` 按长宽比档位核 figsize（参考实测：原生远大于上页显示宽时，'
+      + '缩下去刻度 8.5pt 会变 5.4pt）。',
   },
   {
     id: 'diagram', index: 7, kind: 'deterministic', title: '流程与架构图绘制', skillId: 'paper-figure-html',

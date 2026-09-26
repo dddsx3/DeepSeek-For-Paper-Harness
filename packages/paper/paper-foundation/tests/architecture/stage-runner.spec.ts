@@ -26,15 +26,45 @@ const tmp = async (): Promise<string> => mkdtemp(join(tmpdir(), 'dsh-run-'))
 
 /** 一份合规的图声明：投影 + 一条声明（refs 指向投影里的 id）。 */
 // 阶段 4（figure-declare）的声明：只有结构；数在阶段 3 铸出的账本里。
-function figureDeclarations(): string {
+/**
+ * 阶段 5 的假产出：**规划 + 逐图脚本**（用户口径：这一步的约束换成"模型写脚本"）。
+ *
+ * 夹具里的脚本**不依赖 matplotlib**——它用 base64 写一个最小的合法 PNG。
+ * 理由是测试要验的是**接线**（脚本被执行、产物被收、门禁对账），
+ * 不是"matplotlib 能不能装"；后者不该成为流水线测试的前提。
+ */
+function figurePlan(): string {
   return JSON.stringify({
     figures: [
-      // 轴标签**两个都要有**（参考红线："Both set_xlabel and set_ylabel are mandatory,
-      // with units. No bare/unlabeled axes."）——夹具原来只有 y_label，被 `figure_completeness` 拦下。
-      { figure_id: 'fig_a', chart_type: 'bar', data_refs: ['RES-A', 'RES-B'], caption: '两项指标对照',
+      // 轴标签两个都要有（参考红线：Both set_xlabel and set_ylabel are mandatory, with units）
+      { figure_id: 'fig_a', chart_type: 'bar', recipe: { category: 'basic', number: 1 },
+        data_refs: ['RES-A', 'RES-B'], caption: '两项指标对照',
         x_label: '指标', y_label: '占比 / %' },
     ],
   })
+}
+
+/** 一个"会出图"的最小脚本：写 1×1 PNG，不 import matplotlib。 */
+function genFigScript(): string {
+  return [
+    '"""夹具脚本：本图讲什么 → 数据来自 results.json 的 RES-A/RES-B。"""',
+    '# 诚实导入样式库（无 matplotlib 时降级——夹具只验接线，不验绘图库）',
+    'try:',
+    '    from _utils.plot_utils import setup_style, save_fig, PALETTE, COLORS, _lighten',
+    '    setup_style()',
+    'except Exception:',
+    '    pass',
+    'import base64, json, os',
+    'with open("results.json", encoding="utf-8") as f:',
+    '    ledger = json.load(f)',
+    'os.makedirs("figures", exist_ok=True)',
+    '# 1x1 透明 PNG（合法字节，便于门禁 stat 到非空）',
+    'PNG = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8AAAwAB/wD/AAf/AAAAAElFTkSuQmCC"',
+    'with open("figures/fig_a.png", "wb") as f:',
+    '    f.write(base64.b64decode(PNG))',
+    'print("wrote", len(ledger.get("results", [])))',
+    '',
+  ].join(String.fromCharCode(10))
 }
 
 /** 阶段 1 的分析：锚点 + 段头式清单 + 架构结构声明，全部齐备。 */
@@ -89,7 +119,8 @@ function problemAnalysis(): string {
 function fakeDeliverable(spec: StageSpec, file: string): string {
   const floor = spec.produces.find(p => p.file === file)?.minBytes ?? 300
   if (file === 'PROBLEM_ANALYSIS.md') return problemAnalysis()
-  if (file === 'FIGURE_DECLARATIONS.json') return figureDeclarations()
+  if (file === 'FIGURE_PLAN.json') return figurePlan()
+  if (file === 'figures/gen_fig_a.py') return genFigScript()
   if (file === 'RESULT_SOURCES.json') {
     return JSON.stringify({
       sources: [
@@ -159,7 +190,7 @@ function fakeDeliverable(spec: StageSpec, file: string): string {
       '',
       body,
       '',
-      '![图 1：两项指标对照](figures/fig_a.svg)',
+      '![图 1：两项指标对照](figures/fig_a.png)',
       '',
       '**表 1：主要结果**',
       '',
@@ -204,6 +235,10 @@ function fakeCallModel(): StageRunContext['callModel'] {
       if (p.kind === 'dir') continue // 目录型产物在下面按阶段补
       if (p.harnessMinted === true) continue // results.json 由 afterModel 铸出，模型不见它
       files[p.file] = fakeDeliverable(spec, p.file)
+    }
+    if (spec.id === 'figure-declare') {
+      // 阶段 5 的目录型产物：逐图脚本（一图一文件）。
+      files['figures/gen_fig_a.py'] = genFigScript()
     }
     if (spec.id === 'code') {
       // 逐问实现：`code_parity` 要 `code/problem*.py` ≥ 题面问数。
@@ -342,8 +377,8 @@ describe('执行器 —— 顺利推进（确定性阶段用**真执行体**）'
     // 而门禁的措辞是"计划 1 张数据图，全部渲染"——没有文件名。那是"我以为的"，
     // 不是被测对象的真实语义。
     const dir = join(root, stageDirName(stageOf('figure')))
-    const svg = await readFile(join(dir, 'figures/fig_a.svg'), 'utf8').catch(() => null)
-    expect(svg, 'figures/fig_a.svg 不在——阶段 4 的执行体没真的跑').not.toBeNull()
+    const svg = await readFile(join(dir, 'figures/fig_a.png'), 'utf8').catch(() => null)
+    expect(svg, 'figures/fig_a.png 不在——阶段 4 的执行体没真的跑').not.toBeNull()
     expect(svg).toContain('<svg')
     const manifest = JSON.parse(await readFile(join(dir, 'figure-manifest.json'), 'utf8')) as {
       figures: ReadonlyArray<{ figure_id: string; file: string; data_refs: ReadonlyArray<string>; data_hash: string }>

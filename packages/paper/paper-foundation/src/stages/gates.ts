@@ -40,6 +40,9 @@ import { docxPrecheckFatal, resolveDocxProfile } from './docx-profile.ts'
 import { FIGURE_DECLARATIONS_FILE, FIGURE_MANIFEST_FILE, parseFigureDeclarations, parseFigureManifestFile } from './figure-render.ts'
 import { parseResultSources, RESULTS_LEDGER_FILE } from './execute-and-mint.ts'
 import { auditFiles, buildAllowlist, commentLines, verificationClaims } from './number-audit.ts'
+import {
+  figurePlanValid, figureScriptQuality, figureScriptTraced, figureSizeBuckets, figureTypeMatch,
+} from './figure-script-gates.ts'
 import { architectureFigureNames, dataFigureNames, parseFigureManifest } from './figure-manifest.ts'
 import type { GateVerdict } from './handoff.ts'
 
@@ -313,67 +316,6 @@ function declaredCaptions(input: GateInput): ReadonlyMap<string, string> {
   return out
 }
 
-/**
- * 阶段 4 的声明完整性 —— 每条 `data_refs` 必须指向**真有的** Result，且每条声明
- * 都真的被渲染出来了。
- *
- * 参考的 `figure_declaration_complete.py` 要的正是这个（"每条声明的 data_refs 必须
- * 指向阶段 3 铸出的 Result"）。这里不需要 IR 快照：阶段 3 交过来的声明文件里就带着
- * 执行结果的只读投影，判据落在**那个文件**上，而不是某个内存对象。
- */
-const figureDeclarationComplete: GateFn = (input) => {
-  const id = 'figure_declaration_complete'
-  // 声明文件是**本阶段自己的产物**（阶段 4 figure-declare），账本是上游——
-  // 第一版把声明当上游读，于是永远拿不到，门禁恒为 2。
-  const raw = input.files.get(FIGURE_DECLARATIONS_FILE)
-    ?? input.upstream.get(FIGURE_DECLARATIONS_FILE) ?? null
-  if (raw === null) {
-    return cannot(id, `${FIGURE_DECLARATIONS_FILE} 不在（既不在本阶段产物也不在上游）—— `
-      + '没有声明就无从判定"每条 data_refs 都指向真有的 Result"')
-  }
-  let declarations
-  try {
-    declarations = parseFigureDeclarations(raw)
-  } catch (error) {
-    return fail(id, `声明文件形态不合法：${String(error instanceof Error ? error.message : error).slice(0, 160)}`)
-  }
-  // 数的来源是阶段 3 由 harness 铸出的账本（不是声明文件，更不是模型的散文）。
-  const ledgerRaw = input.upstream.get(RESULTS_LEDGER_FILE) ?? null
-  if (ledgerRaw === null) {
-    return cannot(id, `上游 03-code/${RESULTS_LEDGER_FILE} 不在 —— 没有铸出的账本就无从核对引用`)
-  }
-  let ledger: ReadonlyArray<{ readonly result_id: string }>
-  try {
-    const parsedLedger = JSON.parse(ledgerRaw) as { results?: ReadonlyArray<{ result_id?: string }> }
-    ledger = (parsedLedger.results ?? []).map(r => ({ result_id: String(r.result_id ?? '') }))
-  } catch {
-    return fail(id, `${RESULTS_LEDGER_FILE} 不是合法 JSON —— 账本由 harness 铸出，坏了要查执行环节`)
-  }
-  const known = new Set(ledger.map(r => r.result_id))
-  const dangling: string[] = []
-  const duplicates: string[] = []
-  const seen = new Set<string>()
-  for (const figure of declarations.figures) {
-    for (const ref of figure.data_refs) {
-      if (!known.has(ref)) dangling.push(`${figure.figure_id} → ${ref}`)
-    }
-    if (seen.has(figure.figure_id)) duplicates.push(figure.figure_id)
-    seen.add(figure.figure_id)
-  }
-  // "声明了但没渲染"**不在这里查**：渲染是阶段 5 的事，阶段 4 产出声明时图还不存在
-  // （第一版把这条留在阶段 4，于是恒为失败）。它归阶段 5 的对账——那里同时核对
-  // 计划与声明两份清单。
-  const problems: string[] = []
-  if (dangling.length > 0) {
-    problems.push(`悬空 data_refs：${dangling.slice(0, 5).join('、')}`
-      + `（账本里有的 Result：[${ledger.map(r => r.result_id).join(', ') || '（空）'}]）`)
-  }
-  if (duplicates.length > 0) problems.push(`重复声明的 figure_id：${duplicates.join('、')}`)
-  return problems.length === 0
-    ? ok(id, `${String(declarations.figures.length)} 条声明的 data_refs 全部解析到真有的 Result（`
-      + `${String(ledger.length)} 条账本），且全部渲染`)
-    : fail(id, problems.join('；'))
-}
 
 /** 上游声明文件里**已申报**的计划分叉（没有该字段或解析失败时为空）。 */
 function declaredDeviations(input: GateInput): ReadonlyArray<{ readonly from: string; readonly to: string; readonly reason: string }> {
@@ -1139,10 +1081,15 @@ export const GATES: ReadonlyMap<string, GateFn> = new Map<string, GateFn>([
   ['no_render', noRender],
   // ── 阶段 4/5 ──────────────────────────────────────────────────────────
   ['figure_manifest_reconcile', figureManifestReconcile],
-  ['figure_declaration_complete', figureDeclarationComplete],
+  // ── 作图阶段换成「模型写脚本」之后的门禁（规则照搬参考实现）──
+  ['figure_plan_valid', figurePlanValid],
+  ['figure_script_quality', figureScriptQuality],
+  ['figure_script_traced', figureScriptTraced],
+  ['figure_type_match', figureTypeMatch],
   // 风格门禁 —— `adaptation.ts` 里那条 `missing`（Python 绘图库的规范）的补齐项：
   // 规范本身早已在仓库里（语料 + 简报的禁令），缺的是**可核的判据**，这就是它。
   ['figure_completeness', figureCompleteness],
+  ['figure_size_buckets', figureSizeBuckets],
   ['figure_diversity', figureDiversity],
   ['figure_style_rules', figureStyleRules],
   ['diagram_manifest_reconcile', diagramManifestReconcile],
