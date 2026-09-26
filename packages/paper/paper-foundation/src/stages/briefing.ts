@@ -278,7 +278,12 @@ const SKILLS: Readonly<Record<string, StageSkill>> = {
       '**数字只有两个合法来源**：题面给定值，或代码真跑出来的值。散文里不许出现自算数字。',
       '**数值常数一律从契约取，不许裸数字**：把 `PROBLEM_FACTS.json` 展开成 `code/params.py`，'
         + '其余脚本 `from params import *`（白名单只留 `0/1/2/-1` 与 π、e）。'
-        + '门禁 `facts_audit` 会扫代码里的裸数字——**它抓的是"代码里的数与题面给定值对不上"**。',
+        + '门禁 `facts_audit` 会扫代码里的裸数字——**它抓的是"代码里的数与题面给定值对不上"**。'
+        + '⛔ **`code/params.py` 是本阶段的一个独立交付物**（分片里它单独占一片）：'
+        + '其它片只写自己那一个文件，**谁都不能替它写**。'
+        + '实测代价：契约要求它、分片计划却没给它位置，于是 `main.py` 写了 `import params` '
+        + '而该文件根本不存在，阶段 4 真跑代码时 ModuleNotFoundError，整轮白跑。'
+        + '**`main.py` 与逐问脚本都要 `import params`，所以它必须先落地。**',
       '**遵守 `METHOD_CLAIMS_MACHINE` 的签名**（阶段 2 已给）：`must` 里列的实现铁证必须真的出现在代码里，'
         + '`forbid` 里列的降级替代**一个都不许出现**。门禁 `claim_code_check` 零方向知识逐条核——'
         + '参考原话：*"凭印象退化成 plot/bar/scatter 是最常见的质量塌方"*，这条就是治它的。',
