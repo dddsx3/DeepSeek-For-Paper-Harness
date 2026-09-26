@@ -589,6 +589,9 @@ export async function runStages(
           await upstreamTextOf(ctx.stagesRoot, spec),
           ctx.toolsMounted?.(spec) === true,
           prior,
+          // 图表预算按问数算：简报里的区间与门禁判的区间必须是同一个数
+          // （否则又是"契约说的 ≠ 门禁判的"那一类错）。
+          options.problemCount ?? 0,
         )
         const answer = await ctx.callModel(spec, prompt)
         rejectedAnswer = answer

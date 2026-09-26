@@ -35,34 +35,87 @@ const tmp = async (): Promise<string> => mkdtemp(join(tmpdir(), 'dsh-run-'))
  */
 function figurePlan(): string {
   return JSON.stringify({
-    figures: [
-      // 轴标签两个都要有（参考红线：Both set_xlabel and set_ylabel are mandatory, with units）
-      { figure_id: 'fig_a', chart_type: 'bar', recipe: { category: 'basic', number: 1 },
-        data_refs: ['RES-A', 'RES-B'], caption: '两项指标对照',
-        x_label: '指标', y_label: '占比 / %' },
-    ],
+    figures: FIXTURE_FIGURES.map(f => ({
+      figure_id: f.id,
+      chart_type: f.type,
+      recipe: { category: 'basic', number: 1 },
+      data_refs: ['RES-A', 'RES-B'],
+      caption: '两项指标对照',
+      x_label: '指标',
+      y_label: '占比 / %',
+    })),
   })
 }
 
 /**
- * 夹具脚本：**真的写一张尺寸像样的 PNG**（只用 stdlib：zlib + struct），不 import matplotlib。
+ * **夹具的图集**：12 张数据图。
+ *
+ * 为什么从 1 张扩到 12 张：新增的预算门禁 `figure_manifest_count` /
+ * `figure_plan_budget` 按"问数 → 目标页数 → 目标张数"判（4 问 → 30 页 → 15 张、
+ * 区间 12–18），而参考自己还有一条**绝对底线 3 张**（少于 3 张判"工作严重不完整"）。
+ * 夹具原来只规划 1 张——那不是"门禁太严"，是**夹具不代表一篇真论文**。
+ * 该改的是夹具（与本文件开头那句"拿 68 字节的 1×1 PNG 去糊弄，等于把门禁调松"同一个道理）。
+ *
+ * 构成：4 种图型各 3 张（`figure_diversity` 要求 ≤3 次/型、≥4 种型），
+ * 前 4 张多面板（`figure_script_quality` 要求脚本 >5 份时多面板 ≥1/3）。
+ * 图型全部选**标量画得出**的（bar/lollipop/waterfall/forest）——
+ * 热力图/等高线要矩阵账目，夹具的账本只有标量（`figure_plan_valid` 会按形态拦）。
+ */
+const FIXTURE_FIGURES: ReadonlyArray<{ readonly id: string; readonly type: string; readonly panels: number }> =
+  ['fig_a', 'fig_b', 'fig_c', 'fig_d', 'fig_e', 'fig_f', 'fig_g', 'fig_h', 'fig_i', 'fig_j', 'fig_k', 'fig_l']
+    .map((id, i) => ({
+      id,
+      type: ['bar', 'lollipop', 'waterfall', 'forest'][i % 4] as string,
+      panels: i < 4 ? 2 : 1,
+    }))
+
+/**
+ * 夹具脚本：**真的写一张尺寸像样的 PNG**（只用 stdlib：zlib + struct），不依赖 matplotlib。
  *
  * 为什么要"像样"而不是 1×1：门禁 `figure_completeness` 移植了参考那条
  * *"PDF < 5000 bytes → FAIL（likely broken）"*（本仓库对 PNG 取 3000 字节）。
  * 拿 68 字节的 1×1 PNG 去糊弄，等于把门禁调松——**该改的是夹具，不是判据**。
+ *
+ * @param figId - 这张图的 id（落盘到 `figures/<figId>.png`）。
+ * @param chartType - 声明的图型。**必须写出对应的绘图 API**：门禁 `figure_type_match`
+ *   会核"规划写的是什么型 vs 脚本真的画了什么"（治参考点名的
+ *   *"规划写等高线、画出来是条形图"*）。夹具原来只声明不调用，
+ *   扩到多图型后立刻被判"找不到对应的绘图 API"——**判据是对的，夹具得跟上**。
+ * @param panels - 面板数；≥2 时写出 `subplots(1, 2)`（`figure_script_quality` 会数它）。
  */
-function genFigScript(): string {
+function genFigScript(figId: string, chartType: string, panels: number): string {
+  const NL = String.fromCharCode(10)
+  const subplots = panels >= 2
+    ? '    fig, axes = plt.subplots(1, 2, figsize=(6.0, 2.8))'
+    : '    fig, axes = plt.subplots(figsize=(6.0, 3.6))'
+  // 每个图型给一个**真的**对应调用；方括号里只用整数
+  // （`figure_script_traced` 抓的是"成串带小数的数据字面量"，整数刻度不在其列）。
+  const api = {
+    bar: '    axes[0].bar([0, 1], [1, 2])',
+    lollipop: '    axes[0].scatter(1, 2)',
+    waterfall: '    axes[0].bar([0, 1], [1, 2])',
+    forest: '    axes[0].errorbar([1, 2], [1, 2], xerr=0.1)',
+  }[chartType] ?? '    axes[0].plot([0, 1], [1, 2])'
   return [
-    '"""夹具脚本：本图讲什么 → 数据来自 results.json 的 RES-A/RES-B。"""',
-    '# 诚实导入样式库（无 matplotlib 时降级——夹具只验接线，不验绘图库）',
+    `"""夹具脚本：本图讲什么 → 数据来自 results.json 的 RES-A/RES-B。"""`,
+    '# 诚实导入共用引导（无 matplotlib 时降级——夹具只验接线，不验绘图库）',
+    'import json, os, struct, zlib',
     'try:',
-    '    from _utils.plot_utils import setup_style, save_fig, PALETTE, COLORS, _lighten',
-    '    setup_style()',
+    '    from _figbase import load, save, panel, PALETTE, COLORS, _lighten',
+    '    doc = load("results.json")',
+    'except Exception:',
+    '    with open("results.json", encoding="utf-8") as f:',
+    '        doc = json.load(f)',
+    'try:',
+    '    import matplotlib',
+    '    matplotlib.use("Agg")',
+    '    import matplotlib.pyplot as plt',
+    subplots,
+    api,
+    '    panel(axes[0], "(a)")' + (panels >= 2 ? NL + '    panel(axes[1], "(b)")' : ''),
+    `    save(fig, "${figId}")`,
     'except Exception:',
     '    pass',
-    'import json, os, struct, zlib',
-    'with open("results.json", encoding="utf-8") as f:',
-    '    ledger = json.load(f)',
     'os.makedirs("figures", exist_ok=True)',
     'W, H = 400, 300',
     'raw = b""',
@@ -76,25 +129,25 @@ function genFigScript(): string {
     'png = (bytes([137, 80, 78, 71, 13, 10, 26, 10])',
     '       + chunk(b"IHDR", struct.pack(">IIBBBBB", W, H, 8, 2, 0, 0, 0))',
     '       + chunk(b"IDAT", zlib.compress(raw, 6)) + chunk(b"IEND", b""))',
-    'with open("figures/fig_a.png", "wb") as f:',
+    `with open("figures/${figId}.png", "wb") as f:`,
     '    f.write(png)',
-    'print("wrote", len(png), "bytes for", len(ledger.get("results", [])), "results")',
+    'print("wrote", len(png), "bytes for", len(doc.get("results", [])), "results")',
     '',
-  ].join(String.fromCharCode(10))
+  ].join(NL)
 }
 
 /** 阶段 1 的分析：锚点 + 段头式清单 + 架构结构声明，全部齐备。 */
 function problemAnalysis(): string {
   const manifest = [
     '<!-- BEGIN FIGURE_MANIFEST -->',
-    'DATA=1',
-    'fig_a',
+    `DATA=${String(FIXTURE_FIGURES.length)}`,
+    ...FIXTURE_FIGURES.map(f => f.id),
     'DRAWIO=1',
     'fig_roadmap',
     'TIKZ=1',
     'tikz_geom',
     'GPTIMG=0',
-    'ALL=3',
+    `ALL=${String(FIXTURE_FIGURES.length + 2)}`,
     '<!-- END FIGURE_MANIFEST -->',
   ].join('\n')
   const arch = [
@@ -136,7 +189,14 @@ function fakeDeliverable(spec: StageSpec, file: string): string {
   const floor = spec.produces.find(p => p.file === file)?.minBytes ?? 300
   if (file === 'PROBLEM_ANALYSIS.md') return problemAnalysis()
   if (file === 'FIGURE_PLAN.json') return figurePlan()
-  if (file === 'figures/gen_fig_a.py') return genFigScript()
+  // 逐图脚本：按 id 找参数（**不用正则**——`figures\/gen_fig_` 里的转义斜杠
+  // 经多层字符串转义会掉成裸 `/`，把正则字面量提前截断，报"duplicated flag"。
+  // 本会话第三次栽在同一类转义上，所以这里直接用 startsWith/endsWith。）
+  if (file.startsWith('figures/gen_') && file.endsWith('.py')) {
+    const id = file.slice('figures/gen_'.length, -'.py'.length)
+    const f = FIXTURE_FIGURES.find(x => x.id === id)
+    if (f !== undefined) return genFigScript(f.id, f.type, f.panels)
+  }
   if (file === 'RESULT_SOURCES.json') {
     return JSON.stringify({
       sources: [
@@ -254,7 +314,7 @@ function fakeCallModel(): StageRunContext['callModel'] {
     }
     if (spec.id === 'figure-declare') {
       // 阶段 5 的目录型产物：逐图脚本（一图一文件）。
-      files['figures/gen_fig_a.py'] = genFigScript()
+      for (const f of FIXTURE_FIGURES) files[`figures/gen_${f.id}.py`] = genFigScript(f.id, f.type, f.panels)
     }
     if (spec.id === 'code') {
       // 逐问实现：`code_parity` 要 `code/problem*.py` ≥ 题面问数。
@@ -407,7 +467,7 @@ describe('执行器 —— 顺利推进（确定性阶段用**真执行体**）'
       figures: ReadonlyArray<{ figure_id: string; script: string; file: string | null; exit_code: number }>
     }
     expect(manifest.source).toBe('model-scripts')
-    expect(manifest.figures.map(f => f.figure_id)).toEqual(['fig_a'])
+    expect(manifest.figures.map(f => f.figure_id)).toEqual(FIXTURE_FIGURES.map(f => f.id))
     expect(manifest.figures[0]?.script).toBe('figures/gen_fig_a.py')
     expect(manifest.figures[0]?.file).toBe('figures/fig_a.png')
     expect(manifest.figures[0]?.exit_code).toBe(0)
