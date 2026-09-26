@@ -16,7 +16,7 @@
 import { describe, expect, it } from 'vitest'
 import { stageBriefing } from '../../src/stages/briefing.ts'
 import { stageOf } from '../../src/stages/registry.ts'
-import { METHODOLOGY_ASSETS, methodologyAsset } from '../../src/stages/assets.ts'
+import { METHODOLOGY_ASSETS, STAGE_TOOLS, methodologyAsset, stageAsset } from '../../src/stages/assets.ts'
 
 describe('稳定迁移 —— 契约里不许有题目词汇', () => {
   const brief = stageBriefing(stageOf('figure-declare'), new Map(), false)
@@ -85,6 +85,115 @@ describe('方法论资产 —— 题型无关的那一层已固化', () => {
     expect(METHODOLOGY_ASSETS.length).toBeGreaterThanOrEqual(9)
     for (const a of METHODOLOGY_ASSETS) {
       expect(methodologyAsset(a.file).length, `${a.file} 是空的`).toBeGreaterThan(1000)
+    }
+  })
+})
+
+/**
+ * **跨阶段**的稳定迁移 —— 用户口径的延伸：*"看一下是否还有可以继续固化与迁移的，
+ * 比如建模阶段，比如问题求解或者逻辑复合对抗阶段真正有价值的资产能否固化下来。"*
+ *
+ * 参考实现在每个阶段都带一整套"**题型无关的机械闸 + 结构化契约**"。它们的格式固定、
+ * 内容按题填——**这正是跨题稳定的机制**：换题只改输入，不改规范。
+ * 这一组把"契约真的进了简报"钉住，否则迁进来的资产只是躺在磁盘上。
+ */
+describe('跨阶段固化 —— 四个题型无关的结构化契约（阶段 2）', () => {
+  const brief = stageBriefing(stageOf('modeling'), new Map(), false)
+
+  it('① `METHOD_CLAIMS_MACHINE`（正文声称的方法必须有机器签名）', () => {
+    expect(brief).toContain('METHOD_CLAIMS_MACHINE')
+    expect(brief).toContain('must')
+    expect(brief).toContain('forbid')
+    expect(brief).toContain('claim_code_check')
+  })
+
+  it('② `LOGIC_CONTRACT_MACHINE` 八键齐备', () => {
+    expect(brief).toContain('LOGIC_CONTRACT_MACHINE')
+    for (const k of ['bounds', 'no_double_count', 'must_features', 'train_range',
+      'monotonic', 'constraints_with_margin', 'calibration_anchors', 'equivalence_claims']) {
+      expect(brief, `八键缺了 ${k}`).toContain(k)
+    }
+  })
+
+  it('③ `CROSS_PROBLEM_LEDGER`（唯一负责跨问对撞的环节）', () => {
+    expect(brief).toContain('CROSS_PROBLEM_LEDGER')
+    expect(brief).toContain('must_le')
+    expect(brief).toContain('跨问对撞')
+  })
+
+  it('④ 方向推导四步 + 探针（不许拍脑袋定方向）', () => {
+    expect(brief).toContain('方向推导四步')
+    expect(brief).toContain('logic_probes')
+  })
+
+  it('把编码阶段的自由度压到零 + 按题型查手册', () => {
+    expect(brief).toContain('不得自行选择')
+    expect(brief).toContain('error_prevention.md')
+    expect(brief).toContain('按题型')
+  })
+
+  it('**阶段 2 的契约里也没有题目词汇**', () => {
+    const nouns = ['2024B', '国赛', '零配件', '次品率', '调换损失', '药材', '干燥', '传质']
+    const hits = nouns.filter(n => brief.includes(n))
+    expect(hits, `建模阶段契约里出现了题目词汇：${hits.join('、')}`).toEqual([])
+  })
+})
+
+describe('跨阶段固化 —— 复核阶段的六类缺口与诚实边界（阶段 8）', () => {
+  const brief = stageBriefing(stageOf('review'), new Map(), false)
+
+  it('六类缺口：前五类 + **任务理解 vs 题目原文**（唯一的独立防线）', () => {
+    expect(brief).toContain('bound_direction')
+    expect(brief).toContain('double_count')
+    expect(brief).toContain('extrapolation')
+    expect(brief).toContain('missing_feature')
+    expect(brief).toContain('cross_problem')
+    expect(brief).toContain('task_misread')
+    expect(brief).toContain('唯一的独立防线')
+  })
+
+  it('任务读歪 = fatal（回炉重来）', () => {
+    expect(brief).toContain('任务读歪')
+    expect(brief).toContain('fatal')
+  })
+
+  it('**不许问自己"我实现了吗"**（会诱导自证）', () => {
+    expect(brief).toContain('我实现了吗')
+    expect(brief).toContain('自证')
+  })
+
+  it('诚实边界：与答题同源、有共同盲区、非万无一失', () => {
+    expect(brief).toContain('同源')
+    expect(brief).toContain('共同盲区')
+    expect(brief).toContain('非万无一失')
+  })
+})
+
+describe('跨阶段固化 —— 阶段工具与按题型资料已就位', () => {
+  it('各阶段的机械闸都能读得到（清单与实际一致）', () => {
+    expect(STAGE_TOOLS.length).toBeGreaterThanOrEqual(17)
+    for (const t of STAGE_TOOLS) {
+      expect(stageAsset(t.file).length, `${t.file} 是空的`).toBeGreaterThan(500)
+    }
+  })
+
+  it('按题型资料都在（这些是"查表"资产，不是写进契约的规则）', () => {
+    for (const rel of [
+      'modeling/SKILL.md', 'modeling/methods_table.md',
+      'code/SKILL.md', 'code/error_prevention_code.md',
+      'code/checks/optimization.md', 'code/checks/prediction.md', 'code/checks/evaluation.md',
+      'code/checks/physical.md', 'code/checks/consistency.md', 'code/checks/sanity_check.md',
+      'review/SKILL.md',
+    ]) {
+      expect(stageAsset(rel).length, `${rel} 读不到或为空`).toBeGreaterThan(300)
+    }
+  })
+
+  it('`logic_audit` 的七查与"有效解释只认非空字符串"都在源码里', () => {
+    const src = stageAsset('logic_audit.py')
+    for (const fn of ['audit_extrapolation', 'audit_feature_completeness', 'audit_double_count',
+      'audit_direction', 'audit_margin', 'audit_self_consistency', 'audit_anchor']) {
+      expect(src, `七查缺了 ${fn}`).toContain(fn)
     }
   })
 })
