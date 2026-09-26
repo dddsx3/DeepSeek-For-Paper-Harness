@@ -280,51 +280,63 @@ const SKILLS: Readonly<Record<string, StageSkill>> = {
     ],
   },
   'figure-declare': {
-    // 参考工作流里没有这个独立技能（它让模型在编码的同时写绘图脚本）。
-    // 本 harness 把"声明"拆成独立阶段：数由 harness 铸出，这里只组织图。自创 → 明确指示。
+    // 参考工作流里这一步是"写 gen_fig_*.py + 取配方"。本仓库原来把它压成了
+    // "只声明 chart_type"（为"数不由模型持有"），代价是水平上不去——固定渲染器
+    // 只能单面板、没有布局兜底、图型只有十种。用户口径：**单独替换这一步的约束**。
+    // 所以这里改成与参考同构：写脚本，但**必须从铸出的账本读数据**。
     ported: false,
-    task: '**必须**产出 `FIGURE_DECLARATIONS.json`：把 harness 铸出的结果账本组织成数据图的**声明**。'
-      + '**必须**只声明结构（figure_id / chart_type / data_refs / caption），'
-      + '**不得**写渲染代码、**不得**产出任何图像字节、**不得**在题注里写账本之外的数字。'
-      + '渲染是下一阶段（确定性执行体）的事。',
+    task: '**必须**产出 `FIGURES/gen_fig_*.py`（**一图一脚本**，matplotlib）与 `FIGURE_PLAN.json`。'
+      + '脚本从铸出的 `results.json` 读每一个数，**不得硬编码**；样式必须走 harness 铺好的 '
+      + '`_utils/plot_utils.py`。本阶段**只写脚本，不执行**（执行是下一阶段）。',
     how: [
-      '上游 `03-code/results.json` 是**唯一取数口**：每条 `{result_id, name, value, unit}` '
-        + '都是 harness 真跑代码后从产物字节里铸出的。`data_refs` **必须**指向其中真有的 `result_id`。',
-      '**必须**逐字沿用阶段 1 FIGURE_MANIFEST 里的图名；若你确实要改进图（拆分/合并/换图型），'
-        + '**必须**用 `plan_deviations: [{"from", "to", "reason"}]` 申报——申报了放行并留痕，静默改名必被拒。',
-      '**`chart_type` 按数据形态选**（参考工作流的「图型决策表」——它明确否掉了几种常见退化）：'
-        + '`line` 趋势；`ci_line` **带重复/区间的趋势**（只画一条均值线是禁止的）；'
-        + '`bar` 少量类别对比；`grouped` 多组对比；'
-        + '**`tornado` 灵敏度/单参数扫描的驱动因子排序**（参考明确：不要用 grouped bar，那会丢掉排序）；'
-        + '**`waterfall` 成本构成/模块贡献**（参考明确：不要用 bar chart）；'
-        + '**`heatmap` 方法×指标矩阵**（带格内数值）；**`forest` 区间估计/多方法对比**（点估计 + 置信区间 + 参考线）；'
-        + '`table` 三线表。**同一篇里同一种图型不要超过 3 次，≥6 张图时至少 4 种图型**'
-        + '（门禁 `figure_diversity` 会按这条硬规则判——一整篇全是柱状图时，读者无法从图型上'
-        + '分辨"这是灵敏度排序"还是"这是成本构成"）。',
-      '**结构化图型要按"引用 id"声明**（值仍然只能来自账本）：'
-        + '`tornado: [{"label", "low_ref", "high_ref", "low_label", "high_label"}]`、'
-        + '`waterfall: [{"label", "value_ref", "kind": "delta"|"total"}]`、'
-        + '`forest: [{"label", "estimate_ref", "low_ref", "high_ref"}]`、'
-        + '`heatmap: {"rows", "cols", "value_refs": [[id…]…]}`、'
-        + '`ref_lines: [{"axis": "x"|"y", "value_ref", "label"}]`、`baseline_ref`。'
-        + '每个 `*_ref` 都必须是账本里真有的 `result_id`；解析不到会**具名拒绝**。',
-      '`caption` / `x_label` / `y_label` 里**不得**出现任何数字（渲染器有守卫，账本之外的数一律拒绝）。',
-      '与阶段 1 的清单对账：数据图 12–20 张；每个子问题至少一张；横向对比、灵敏度、校核图都要有归属。',
+      '**先规划，再写脚本**。`FIGURE_PLAN.json` 每条 = `{figure_id, chart_type, recipe: {category, number}, '
+        + 'data_refs, caption, x_label, y_label}`。`figure_id` 要逐字沿用阶段 1 的 FIGURE_MANIFEST；'
+        + '要改图（拆分/合并/换型）用 `plan_deviations: [{"from","to","reason"}]` 申报。',
+      '**图型按决策表选，不要默认柱状图**。`_utils/figure_style_guide.md` 里有一张「数据形态 → 推荐图型 → 避免什么」'
+        + '的表。几条它明确否掉的退化：灵敏度排序**不要用 grouped bar**（用 tornado，柱状图会丢掉排序）；'
+        + '成本构成**不要用 bar chart**（用 waterfall）；带重复的趋势**不要只画一条均值线**（用折线+置信带）；'
+        + '区间估计用 forest；方法×指标矩阵用 heatmap。**同一篇里同一种图型不要超过 3 次**'
+        + '（门禁 `figure_diversity` 按这条判）。',
+      '**必须先取配方再写脚本，不要从零写**（参考原话：*"Do NOT write figure scripts from scratch — '
+        + 'the recipes contain critical styling details that you will miss if you write from memory"*）。'
+        + '配方库在 `_utils/figure_recipes_{basic,advanced,academic,competition,empirical}.md`，'
+        + '`_utils/get_recipe.py <category> <number>` 按编号取。**照抄骨架，再用账本的真实数据替换 demo 数据。**',
+      '**脚本头固定这么写**（harness 已把样式库铺到 `_utils/`，你不用自己找）：'
+        + '`from _utils.plot_utils import setup_style, save_fig, PALETTE, COLORS, _lighten` + `setup_style()`。'
+        + '`setup_style()` **裸调**——它按工作区名确定性选配色/风格族/中文字体（同篇统一、跨篇各异、重跑不变）。',
+      '**数据只能从账本读**：`results.json` 里有 `{result_id, name, value, unit}` 的数组，'
+        + '`data_refs` 里写的就是这些 `result_id`。脚本用 `json.load(open("results.json"))` 取数，'
+        + '**图里的每一个数都必须来自它**——不得写死在脚本里（门禁 `figure_script_traced` 会审，'
+        + '成串的数据字面量如 `plot([0,5,10],[1.2,3.4,5.6])` 一律判失败）。',
+      '**每张图出到 `figures/<figure_id>.png`**：脚本里写 `save_fig(fig, "figures/fig_xxx.png")`。'
+        + '文件级 docstring 写清"本图讲什么 → 每个 panel 是什么 → 数据来自账本哪些 id → 关键数值"。',
+      '**画布尺寸按长宽比档位反推**（参考的硬规则，不是"一律 ≤7.2in"）：'
+        + 'r=高/宽 ≤0.80 → 宽写 6.0in；≤1.20 → 5.0in；≤1.60 → 3.6in；否则 3.0in。'
+        + '高不超过 8in。门禁 `figure_size_buckets` 按这条判（容差 15%）——'
+        + '原生远大于上页显示宽时，缩下去刻度会从 8.5pt 掉到 5.4pt。',
+      '**图内文字最小化**（参考的"三层闸"）：结论、口径、方法说明**一律进 LaTeX 题注**；'
+        + '图内只留轴标签+单位、图例、colorbar，以及 ≤1 行的数据锚点短标签（每个 panel ≤2 个）。'
+        + '柱顶数值优先用 `ax.bar_label(bars, fmt="%.2f", padding=2)`；点标注用 `smart_labels(ax, xs, ys, texts)` 自动防重叠。',
     ],
     forbidden: [
-      '**不得**产出图像字节（`.png`/`.jpg`/`.svg`）。本阶段只声明——`no_render` 语义在声明层同样成立。',
-      '**不得**在 `data_refs` 里写账本之外的 id，也**不得**在题注里写具体数值。'
-        + '数值只能由渲染器从账本取——这是"数不由模型持有"的最后一道缝。',
-      '**不得**用架构前缀（`fig_arch`/`fig_flow`/`fig_roadmap`/`fig_pipeline`/`fig_framework`）命名数据图——'
-        + '那些留给流程/架构图阶段，混用会让两边的对账互相踩。',
+      '**不得**写整图标题（`plt.title` / `suptitle`）——标题只在 LaTeX 题注里。'
+        + '子图面板标签用 `ax.set_title("(a)", loc="left")` 是合法的。',
+      '**不得**用 matplotlib 默认蓝 `#1f77b4`、`RdYlGn`、`RdBu_r`、`dark_background`；'
+        + '**不得**用 CSS 鲜艳命名色（`color="red"` 这类）；**硬编码 hex 色不超过 2 处**'
+        + '（数据色一律 `PALETTE[n]`、语义色 `COLORS[...]`、浅色填充 `_lighten(...)`）。'
+        + '这些是门禁 `figure_script_quality` 的 CRITICAL 项。',
+      '**不得**在脚本里硬编码数据（见上）。**不得**把数据只打印到 stdout——图必须落盘。',
+      '**不得**产出与规划不符的图型（规划写 contour 就必须出现 `contourf`/`contour`，'
+        + '写 tornado 就必须是 `barh`）——门禁 `figure_type_match` 会对账。'
+        + '图型确实不适合本题数据时，**先改规划再改图**。',
     ],
     selfCheck: [
-      '`FIGURE_DECLARATIONS.json` 是合法 JSON 对象，`figures` 数组非空。',
-      '每条 `data_refs` 都解析到账本里真有的 `result_id`。',
-      '图名与阶段 1 清单一致，或分叉已用 `plan_deviations` 申报且写了理由。',
-      '题注里没有任何数字。',
-      '**图型与数据形态匹配**，且没有哪种图型超过 3 次（门禁 `figure_diversity`）。',
-      '用了结构化图型（tornado/waterfall/forest/heatmap）时，每个 `*_ref` 都是账本里真有的 id。',
+      '`figures/gen_fig_*.py` 一图一脚本，文件名与 `FIGURE_PLAN.json` 的 `figure_id` 一一对应（`gen_<figure_id>.py`）。',
+      '`FIGURE_PLAN.json` 是合法 JSON，每条 `data_refs` 都解析到账本里真有的 `result_id`。',
+      '每个脚本都以 `setup_style()` 开头、都调用 `save_fig`、都从 `results.json` 读数据。',
+      '没有整图标题、没有被禁色板/默认蓝、硬编码 hex ≤2 处。',
+      '图型与规划一致，且没有哪种图型超过 3 次。',
+      'figsize 贴合长宽比档位（门禁 `figure_size_buckets`）。',
     ],
   },
   figure: {

@@ -20,7 +20,7 @@
 
 import { renderDiagramStage, type DiagramStageResult } from './diagram-render.ts'
 import { runDocxExportStage, type DocxExportResult } from './docx-export.ts'
-import { renderFigureStage, type FigureStageResult } from './figure-render.ts'
+import { runFigureScripts } from './figure-run.ts'
 import { runFormatCheckStage, type FormatCheckResult } from './format-check.ts'
 import type { StageId, StageSpec } from './registry.ts'
 
@@ -53,10 +53,23 @@ export async function runDeterministicStage(
   }
   switch (spec.id) {
     case 'figure': {
-      const r: FigureStageResult = await renderFigureStage(stagesRoot)
+      // 换成"跑模型写的脚本"（用户口径：单独替换这一步的约束）。
+      // 铺好 `_utils/plot_utils.py` 与铸出的 `results.json`，逐个执行 `gen_fig_*.py`。
+      // **非零退出与没出图都不在这里抛**：交给门禁去判（`figure_manifest_reconcile`
+      // 对账"规划几张就必须画出几张"），这样失败信息里带得上逐脚本的退出码与 stderr。
+      const r = await runFigureScripts(stagesRoot)
+      const bad = r.scripts.filter(x => x.exitCode !== 0 || x.produced.length === 0)
+      if (bad.length > 0) {
+        const first = bad[0]
+        throw new Error(`${String(bad.length)}/${String(r.scripts.length)} 个绘图脚本没跑成 —— `
+          + `首个 \`${first?.script ?? '?'}\`：exit=${String(first?.exitCode ?? -1)}，`
+          + `期望产出 ${(first?.expected ?? []).join(' / ')}，实际 ${(first?.produced ?? []).join(' / ') || '（无）'}；`
+          + `stderr 末尾：${(first?.stderr ?? '').slice(-400)}`)
+      }
       return {
         stage: spec.id,
-        summary: `渲染 ${String(r.figures.length)} 张数据图（声明驱动，图里的数全部来自 Result 投影）`,
+        summary: `执行 ${String(r.scripts.length)} 个绘图脚本，产出 ${String(r.produced)} 张图`
+          + '（脚本由阶段 5 写，数据全部从铸出的账本读）',
       }
     }
     case 'diagram': {

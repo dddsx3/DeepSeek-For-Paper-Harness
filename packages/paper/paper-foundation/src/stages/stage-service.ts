@@ -48,6 +48,7 @@ import { createUserMessage, type GenerateOptions } from '@deepseek-ai/dsh-llm'
 import { deterministicRunner, type DeterministicOutcome } from './deterministic.ts'
 import { runCodeAndMintResults } from './execute-and-mint.ts'
 import { assembleShards, planCodeShards, planModelingShards } from './code-shard.ts'
+import { assembleFigureAnswers, planShard, scriptShards } from './figure-script-shard.ts'
 import { auditPromptOf, parseAuditVerdict } from './audit.ts'
 import { skillTaskOf } from './briefing.ts'
 import { readPassport } from './handoff.ts'
@@ -341,6 +342,25 @@ export class PaperStageChainService extends Service {
             })
           }
           return assembleShards(shards, answers)
+        }
+        // 阶段 5 **两段式分片**：先出规划（简报 + 配方索引），再逐图内联配方写脚本。
+        // 为什么必须分两段：配方库 350KB+ 全量内联装不下，而**每张图只需要它自己那一条**；
+        // 且模型读不到磁盘（简报是唯一通道），"取配方"只能由 harness 代做。
+        // 与参考的 Step 1 规划 → Step 3 一图一脚本同构。
+        if (spec.id === 'figure-declare') {
+          const plan = planShard(prompt)
+          this.config.onDeterministicOutcome?.({ stage: spec.id, summary: '第 1 段：出作图规划' })
+          const planAnswer = await singleCall(spec, plan.prompt)
+          const shards = scriptShards(prompt, planAnswer)
+          const answers: string[] = []
+          for (const shard of shards) {
+            answers.push(await singleCall(spec, shard.prompt))
+            this.config.onDeterministicOutcome?.({
+              stage: spec.id,
+              summary: `第 ${String(shard.index)}/${String(shard.total)} 段：交付 ${shard.deliverable}`,
+            })
+          }
+          return assembleFigureAnswers(planAnswer, shards, answers)
         }
         return singleCall(spec, prompt)
       },
