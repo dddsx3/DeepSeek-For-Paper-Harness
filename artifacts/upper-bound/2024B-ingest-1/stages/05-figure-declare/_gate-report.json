@@ -4,32 +4,32 @@
   "items": [
     {
       "id": "figure_plan_valid",
-      "ok": false,
-      "detail": "fig_q1_oc_curve_p1：chart_type '折线图（OC 曲线：x=真实次品率 p，y=接收概率 L(p)）' 不在白名单 [line, scatter, bar, grouped_bar, stacked_bar, tornado, waterfall, heatmap, forest, ci_line, radar, box, violin, raincloud, lollipop, dumbbell, pareto, contour, surface3d, residual, gantt, network, sankey, ridge, bland_altman, km, volcano, funnel, calibration, confusion, roc, parallel, table]；fig_q1_sample_size_vs_confidence：chart_type '哑铃图（两面板对照：哑铃两端为两个情形，茎长表示量级差）' 不在白名单 [line, scatter, bar, grouped_bar, stacked_bar, tornado, waterfall, heatmap, forest, ci_line, radar, box, violin, raincloud, lollipop, dumbbell, pareto, contour, surface3d, residual, gantt, network, sankey, ridge, bland_altman, km, volcano, funnel, calibration, confusion, roc, parallel, table]；fig_q1_sprt_boundary：chart_type '二维边界分区图（fill_between 分区 + 水平判定边界线）' 不在白名单 [line, scatter, bar, grouped_bar, stacked_bar, tornado, waterfall, heatmap, forest, ci_line, radar, box, violin, raincloud, lollipop, dumbbell, pareto, contour, surface3d, residual, gantt, network, sankey, ridge, bland_altman, km, volcano, funnel, calibration, confusion, roc, parallel, table]；fig_q1_two_cases_sample_size：chart_type '分组柱状图（每组两柱：n* 与 c*）' 不在白名单 [line, scatter, bar, grouped_bar, stacked_bar, tornado, waterfall, heatmap, forest, ci_line, radar, box, violin, raincloud, lollipop, dumbbell, pareto, contour, surface3d, residual, gantt, network, sankey, ridge, bland_altman, km, volcano, funnel, calibration, confusion, roc, parallel, table]；fig_q2_strategy_cost_heatmap：chart_type '热力图（0-1 决策指示矩阵，imshow + 逐格数值标注）' 不在白名单 [line, scatter, bar, grouped_bar, stacked_bar, tornado, waterfall, heatmap, forest, ci_line, radar, box, violin, raincloud, lollipop, dumbbell, pareto, contour, surface3d, residual, gantt, network, sankey, ridge, bland_altman, km, volcano, funnel, calibration, confusion, roc, parallel, table]；fig_q2_optimal_cost_breakdown：chart_type '瀑布图（成本—利润口径分解，含连接线与柱顶数值）' 不在白名单 [line, scatter, bar, grouped_bar, stacked_bar, tornado, waterfall, heatmap, forest, ci_line, radar, box, violin, raincloud, lollipop, dumbbell, pareto, contour, surface3d, residual, gantt, network, sankey, ridge, bland_altman, km, volcano, funnel, calibration, confusion, roc, parallel, table]",
-      "code": 1
+      "ok": true,
+      "detail": "10 条规划：图型合规、配方齐备、data_refs 全部解析到账本",
+      "code": 0
     },
     {
       "id": "figure_script_quality",
       "ok": true,
-      "detail": "11 个脚本通过代码级 CRITICAL 检查；WARNING（不阻断）：figures/gen_fig_q1_oc_curve_p1.py：手动 `ax.grid()`（参考 WARNING，非阻断）；figures/gen_fig_q1_sample_size_vs_confidence.py：手动 `ax.grid()`（参考 WARNING，非阻断）；figures/gen_fig_q1_two_cases_sample_size.py：手动 `ax.grid()`（参考 WARNING，非阻断）",
+      "detail": "10 个脚本通过代码级 CRITICAL 检查；WARNING（不阻断）：figures/gen_fig_q1_oc_curve_p1.py：手动 `ax.grid()`（参考 WARNING，非阻断）；figures/gen_fig_q1_sample_size_vs_confidence.py：手动 `ax.grid()`（参考 WARNING，非阻断）；figures/gen_fig_q1_two_cases_sample_size.py：手动 `ax.grid()`（参考 WARNING，非阻断）",
       "code": 0
     },
     {
       "id": "figure_script_traced",
-      "ok": true,
-      "detail": "11 个脚本都从账本读数据，未发现硬编码数据串",
-      "code": 0
+      "ok": false,
+      "detail": "figures/gen_fig_q1_sprt_boundary.py：绘图调用里出现成串的**硬编码数据**（-0.5, 0.5, 1.5…，共 3 个）且都不在账本里 —— 图里的数必须从 `results.json` 读，不能写死在脚本里",
+      "code": 1
     },
     {
       "id": "figure_type_match",
       "ok": true,
-      "detail": "没有可判的图型（判不出来一律放行）",
+      "detail": "5 张图的图型与脚本 API 一致",
       "code": 0
     },
     {
       "id": "figure_diversity",
       "ok": true,
-      "detail": "11 张图、11 种图型：无单一图型超过 3 次",
+      "detail": "10 张图、8 种图型：无单一图型超过 3 次",
       "code": 0
     }
   ]

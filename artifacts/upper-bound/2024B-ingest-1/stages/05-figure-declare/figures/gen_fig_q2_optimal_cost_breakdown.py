@@ -1,129 +1,108 @@
-"""fig_q2_optimal_cost_breakdown —— 情况 1 最优策略下单位合格成品的成本—利润口径分解（瀑布图）
+"""
+fig_q2_optimal_cost_breakdown —— 问题 2 表 1 情况 1 最优策略下的成本—利润口径瀑布分解。
 
 本图讲什么：
-    单面板瀑布图。首柱为账本给出的「每件合格成品的期望总成本」，第二柱是在其之上叠加的
-    「最优期望利润」增量柱（浮动柱 bottom=总成本），末柱为两值相加得到的口径合计
-    （单位成品收入口径，派生值只在脚本内相加，不写进题注）。增量柱以浅色带层叠延伸到
-    右端，配阶梯虚线与圆点，柱顶给数值锚点，用于一眼看清成本与利润两块如何拼成收入口径。
+    单 panel 瀑布图。表 1 情况 1 的最优决策 (Z1,Z2,C,D)=(0,0,0,1) 下，把「每件合格成品的
+    售价基准」沿垂直方向拆成两个增量：向下的一截是期望总成本，向上的一截是期望利润，
+    直观展示该情形下企业一单位产品的成本—收益口径。
 
-数据来自账本（results.json，逐条读取，脚本内不写死任何数值）：
-    R-Q2-case1-unit-cost = 34.319615912208505 元/件 → 首柱（期望总成本）
-    R-Q2-case1-profit    = 21.680384087791495 元/件 → 第二柱增量（期望利润）
-    末柱合计 = 上述两个 result_id 的读数在脚本内相加。
+每个 panel 是什么：
+    (a) 唯一 panel：三根柱构成的瀑布 —— 售价基准（合计柱，柱顶锚点）→ −期望总成本
+        （浮柱，自售价基准下落到利润水平）→ =期望利润（落地柱）；柱间用虚线连接线贯通，
+        成本带与利润底座用浅色层带分别延伸到右边界与全宽，阶梯圆点标出累计轨迹。
 
-图型偏差（见 FIGURE_PLAN.plan_deviations）：
-    账本没有采购／检测／装配／拆解／调换损失的分项条目，原「五段堆叠条形图」无法落数，
-    故改用口径分解瀑布图。
+数据来自账本哪些 id：
+    R-Q2-case1-unit-cost  —— 情况 1 最优策略下每件合格成品的期望总成本（元/件），向下增量；
+    R-Q2-case1-profit     —— 同一情况的最优期望利润（元/件），瀑布终点。
+    售价基准 = 上述两项之和，由账本两项在本脚本内直接相加派生，不新造账本条目。
+    账本无采购/检测/装配/拆解/调换损失分项，故本图不拆到分项、不虚构分项数值。
 
-面板：(无多面板) x = 口径节点，y = 元/件。
+关键数值：全部由脚本运行时从 results.json 读出后标注在柱上，脚本内不写任何数据字面量。
 """
+from _figbase import load, save, panel, PALETTE, COLORS, _lighten, cn
 
-from _utils.plot_utils import setup_style, save_fig, PALETTE, COLORS, _lighten
-setup_style()
-
-import json
-import os
-
-import matplotlib.pyplot as plt
-import matplotlib.patches as mpatches
 import numpy as np
-
-try:  # 与其余 gen_fig_*.py 共用同一账本读取入口，避免各脚本各写各的定位方式
-    from _figbase import load_ledger  # type: ignore
-except Exception:  # _figbase 尚未生成时回退到本地同构实现（候选路径与 ledger_source 对齐）
-    def load_ledger():
-        """按 FIGURE_PLAN.ledger_source 声明的相对位置逐候选查找账本，返回 {result_id: value}。"""
-        here = os.path.dirname(os.path.abspath(__file__))
-        candidates = [
-            os.path.join("stages", "04-result-sources", "results.json"),
-            "results.json",
-            os.path.join("..", "..", "stages", "04-result-sources", "results.json"),
-            os.path.join(here, "..", "..", "stages", "04-result-sources", "results.json"),
-            os.path.join(here, "results.json"),
-        ]
-        for path in candidates:
-            if os.path.exists(path):
-                with open(path, "r", encoding="utf-8") as fh:
-                    rows = json.load(fh)["results"]
-                return {r["result_id"]: r["value"] for r in rows}
-        raise FileNotFoundError("results.json 未找到，已尝试: %s" % candidates)
+import matplotlib.pyplot as plt
 
 
-LEDGER = load_ledger()
+def _ledger(path="results.json"):
+    """读取账本：兼容 {"results": [{result_id, value, ...}]} 与已摊平的 {result_id: value}。"""
+    raw = load(path)
+    if isinstance(raw, dict) and isinstance(raw.get("results"), list):
+        return {r["result_id"]: r["value"] for r in raw["results"]}
+    if isinstance(raw, list):
+        return {r["result_id"]: r["value"] for r in raw}
+    out = {}
+    for k, v in raw.items():
+        out[k] = v["value"] if isinstance(v, dict) and "value" in v else v
+    return out
 
-unit_cost = float(LEDGER["R-Q2-case1-unit-cost"])   # 元/件，期望总成本
-profit = float(LEDGER["R-Q2-case1-profit"])         # 元/件，期望利润
-total = unit_cost + profit                          # 元/件，口径合计（脚本内派生）
 
-labels = ["期望总成本", "＋期望利润", "合计（收入口径）"]
-bottoms = [0.0, unit_cost, 0.0]
-heights = [unit_cost, profit, total]
-anchor_vals = [unit_cost, profit, total]
-bar_colors = [PALETTE[0], COLORS["up"], PALETTE[0]]
+def main():
+    V = _ledger()
+    unit_cost = float(V["R-Q2-case1-unit-cost"])
+    profit = float(V["R-Q2-case1-profit"])
+    price = unit_cost + profit          # 售价基准（合计），由账本两项派生
 
-n = len(labels)
-x = np.arange(n)
-half_w = 0.28  # 柱半宽，供连接线留缝
+    xs = np.arange(3)
+    bottoms = np.array([0.0, profit, 0.0])
+    heights = np.array([price, unit_cost, profit])
+    colors = [PALETTE[0], COLORS["down"], COLORS["up"]]
 
-fig, ax = plt.subplots(figsize=(6.0, 3.6))
-ax.grid(axis="y", alpha=0.12, linestyle="-", color=COLORS["grid"])
-ax.set_axisbelow(True)
+    fig, ax = plt.subplots(figsize=(6.0, 3.5))
+    ax.grid(axis="y", alpha=0.12, linestyle="-", color=COLORS["grid"])
+    ax.set_axisbelow(True)
 
-# ── 色带层叠：总成本底层 + 利润增量层带（延伸到最右端，形成"层叠"隐喻）
-ax.fill_between([x[0] - 0.5, x[-1] + 0.5], 0.0, unit_cost,
-                alpha=0.06, color=PALETTE[0], zorder=0)
-ax.fill_between([x[1] - 0.5, x[-1] + 0.5], unit_cost, total,
-                alpha=0.15, color=COLORS["up"], zorder=1)
-ax.plot([x[1], x[-1] + 0.5], [total, total],
-        color=COLORS["up"], linewidth=0.7, linestyle="--", alpha=0.35, zorder=1)
+    # ── 色带层叠：成本带（利润线→售价线）自成本柱延伸到右边界；利润底座全宽浅带
+    ax.fill_between([xs[1] - 0.5, xs[-1] + 0.5], profit, price,
+                    alpha=0.15, color=_lighten(COLORS["down"], 0.45), zorder=1)
+    ax.plot([xs[1] - 0.5, xs[-1] + 0.5], [price, price],
+            color=COLORS["down"], linewidth=0.7, linestyle="--", alpha=0.35, zorder=1)
+    ax.fill_between([xs[0] - 0.5, xs[-1] + 0.5], 0.0, profit,
+                    alpha=0.06, color=PALETTE[0], zorder=0)
 
-# ── 柱体（第二柱为浮动增量柱）
-bars = ax.bar(x, heights, bottom=bottoms, width=2 * half_w,
-              color=bar_colors, edgecolor="white", linewidth=0.9, zorder=5)
+    # ── 瀑布柱：合计柱 / 成本浮柱 / 利润落地柱
+    ax.bar(xs, heights, bottom=bottoms, width=0.54,
+           color=colors, edgecolor="white", linewidth=1.2, zorder=5)
 
-# ── 阶梯连接线：从上一柱顶水平接到下一柱底/顶
-ax.plot([x[0] + half_w, x[1] - half_w], [unit_cost, unit_cost],
-        color=PALETTE[0], linewidth=1.2, linestyle="--", alpha=0.7, zorder=9)
-ax.plot([x[1] + half_w, x[2] - half_w], [total, total],
-        color=COLORS["up"], linewidth=1.2, linestyle="--", alpha=0.7, zorder=9)
+    # ── 阶梯连接线：售价线（柱0→柱1）、利润线（柱1→柱2）
+    ax.plot([xs[0] + 0.27, xs[1] - 0.27], [price, price],
+            color=COLORS["gray"], linewidth=1.1, linestyle=(0, (4, 3)), zorder=6)
+    ax.plot([xs[1] + 0.27, xs[2] - 0.27], [profit, profit],
+            color=COLORS["gray"], linewidth=1.1, linestyle=(0, (4, 3)), zorder=6)
 
-# ── 圆点：标出每步的累计水位
-for xi, level, col in zip(x, [unit_cost, total, total], bar_colors):
-    ax.scatter(xi, level, color=col, s=46, zorder=11,
-               edgecolors="white", linewidths=1.6)
+    # ── 阶梯圆点：累计轨迹 (0, 售价) → (1, 利润) → (2, 利润)
+    ax.scatter([xs[0], xs[1], xs[2]], [price, profit, profit],
+               color=[PALETTE[0], _lighten(COLORS["down"], 0.25), COLORS["up"]],
+               s=64, zorder=7, edgecolors="white", linewidths=1.6)
 
-# ── 数值标注：统一放在柱顶上方（va="bottom"），首尾有边框、中间无边框
-tops = [b + h for b, h in zip(bottoms, heights)]
-for xi, top, val, col in zip(x, tops, anchor_vals, bar_colors):
-    is_end = (xi == x[0] or xi == x[-1])
-    ax.text(xi, top + total * 0.018, f"{val:.2f}", ha="center", va="bottom",
-            fontsize=8.5, fontweight="bold" if is_end else "normal", color=col,
-            bbox=dict(boxstyle="round,pad=0.15", facecolor="white",
-                      edgecolor=col if is_end else "none", alpha=0.9,
-                      linewidth=0.5), zorder=12)
+    # ── 数值标注：全部取自账本读数，端点带边框、浮柱居中
+    ax.text(xs[0], price * 1.02, f"{price:.2f}", ha="center", va="bottom",
+            fontsize=9, fontweight="bold", color=PALETTE[0], zorder=12,
+            bbox=dict(boxstyle="round,pad=0.18", facecolor="white",
+                      edgecolor=PALETTE[0], alpha=0.9, linewidth=0.6))
+    ax.text(xs[1], (price + profit) / 2.0, f"-{unit_cost:.2f}", ha="center", va="center",
+            fontsize=9, fontweight="bold", color=COLORS["down"], zorder=12,
+            bbox=dict(boxstyle="round,pad=0.18", facecolor="white",
+                      edgecolor=COLORS["down"], alpha=0.92, linewidth=0.6))
+    ax.text(xs[2], profit * 1.02, f"{profit:.2f}", ha="center", va="bottom",
+            fontsize=9, fontweight="bold", color=COLORS["up"], zorder=12,
+            bbox=dict(boxstyle="round,pad=0.18", facecolor="white",
+                      edgecolor=COLORS["up"], alpha=0.9, linewidth=0.6))
 
-# ── 图例只承担口径命名，数值锚点已在柱顶给出，避免图面文字冗余
-legend_patches = [
-    mpatches.Patch(facecolor=_lighten(PALETTE[0], 0.4), edgecolor=PALETTE[0],
-                   linewidth=1.2, label=labels[0]),
-    mpatches.Patch(facecolor=_lighten(COLORS["up"], 0.4), edgecolor=COLORS["up"],
-                   linewidth=1.2, label="增量：期望利润"),
-    mpatches.Patch(facecolor="white", edgecolor=PALETTE[0],
-                   linewidth=1.2, label=labels[2]),
-]
-legend = ax.legend(handles=legend_patches, loc="lower right", frameon=False,
-                   labelspacing=0.35, handlelength=1.4, handleheight=1.0,
-                   fontsize=8.0)
-legend.set_zorder(15)
+    ax.set_xticks(xs)
+    ax.set_xticklabels([cn("售价基准"), cn("− 期望总成本"), cn("= 期望利润")], fontsize=9.5)
+    ax.set_xlabel(cn("成本—利润口径"), fontsize=10)
+    ax.set_ylabel(cn("金额（元/件）"), fontsize=10)
+    ax.set_xlim(-0.7, 2.7)
+    ax.set_ylim(0.0, price * 1.18)
+    ax.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)
 
-ax.set_xticks(x)
-ax.set_xticklabels(labels, fontsize=9.0)
-ax.set_xlabel("口径节点", fontsize=9.5)
-ax.set_ylabel("元/件", fontsize=9.5)
-ax.set_xlim(-0.7, n - 0.3)
-ax.set_ylim(0.0, total * 1.16)
-ax.tick_params(axis="y", labelsize=8.5)
-ax.spines["top"].set_visible(False)
-ax.spines["right"].set_visible(False)
-fig.tight_layout()
-save_fig(fig, "figures/fig_q2_optimal_cost_breakdown.png")
+    fig.tight_layout()
+    save(fig, "fig_q2_optimal_cost_breakdown")
+    plt.close(fig)
+
+
+if __name__ == "__main__":
+    main()

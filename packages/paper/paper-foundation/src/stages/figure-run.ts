@@ -104,6 +104,12 @@ export async function runFigureScripts(stagesRoot: string, timeoutMs = 180_000):
   await copyFile(join(PLOTTING_ASSETS_DIR, 'plot_utils.py'), join(dir, '_utils', 'plot_utils.py'))
   await mkdir(join(dir, 'figures', '_utils'), { recursive: true })
   await copyFile(join(PLOTTING_ASSETS_DIR, 'plot_utils.py'), join(dir, 'figures', '_utils', 'plot_utils.py'))
+  // ③ **共用引导模块也由 harness 铺**（`figures/_figbase.py`）。
+  // 参考把它写成"图多于 5 张时**先建**一个"——那是建议，交给执行者自己判断。
+  // 实测代价：同一批 11 张图只有 1 份脚本真的建了它，其余各写各的样板，
+  // 于是参考担心的"各图口径不一致导致论文数字打架"照样发生。
+  // 改成**铺好的资产**之后，"用不用"不再是执行者的自由，而是契约（门禁也据此判）。
+  await copyFile(join(PLOTTING_ASSETS_DIR, '_figbase.py'), join(dir, 'figures', '_figbase.py'))
   // ② 铸出的账本：脚本取数的唯一来源
   const ledger = await readFile(join(stagesRoot, '04-result-sources', 'results.json'), 'utf8').catch(() => null)
   if (ledger === null) {

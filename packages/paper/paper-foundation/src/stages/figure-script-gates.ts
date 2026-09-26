@@ -108,16 +108,23 @@ const TYPE_ALIASES: ReadonlyArray<readonly [string, string]> = [
   ['箱线图', 'box'], ['箱型图', 'box'], ['热力图', 'heatmap'], ['热图', 'heatmap'],
   ['雷达图', 'radar'], ['帕累托', 'pareto'], ['等高线', 'contour'], ['响应面', 'contour'],
   ['曲面图', 'surface3d'], ['三维曲面', 'surface3d'], ['残差诊断', 'residual'],
-  ['甘特图', 'gantt'], ['网络图', 'network'], ['桑基图', 'sankey'], ['校准曲线', 'calibration'],
+  ['甘特图', 'gantt'], ['网络图', 'network'], ['网络结构', 'network'], ['拓扑图', 'network'],
+  ['桑基图', 'sankey'], ['校准曲线', 'calibration'],
+  // 分区/边界族：参考用 fill_between 划判定域，归到 contour（同属"按阈值分区"的表达）
+  ['边界分区', 'contour'], ['判定分区', 'contour'], ['分区图', 'contour'], ['区域划分', 'contour'],
   ['生存曲线', 'km'], ['火山图', 'volcano'], ['漏斗图', 'funnel'], ['三线表', 'table'],
   ['置信带折线', 'ci_line'], ['折线图', 'line'], ['折线', 'line'], ['散点图', 'scatter'],
   ['散点', 'scatter'], ['柱状图', 'bar'], ['条形图', 'bar'], ['饼图', 'bar'],
+  // 裸"点图"（点 + 参考线）落在散点族；放在"散点图"之后，避免抢匹配
+  ['点图', 'scatter'],
   // 英文别名（含模型可能写的变体）
   ['line chart', 'line'], ['bar chart', 'bar'], ['grouped bar', 'grouped_bar'],
   ['stacked bar', 'stacked_bar'], ['scatter plot', 'scatter'], ['box plot', 'box'],
   ['violin plot', 'violin'], ['forest plot', 'forest'], ['tornado chart', 'tornado'],
   ['waterfall chart', 'waterfall'], ['heat map', 'heatmap'], ['radar chart', 'radar'],
   ['3d surface', 'surface3d'], ['gantt chart', 'gantt'], ['roc curve', 'roc'],
+  ['dot plot', 'scatter'], ['decision boundary', 'contour'], ['network diagram', 'network'],
+  ['partition', 'contour'],
 ]
 
 export function normalizeChartType(raw: string): string | null {
@@ -255,6 +262,29 @@ export function figurePlanValid(input: GateInput): ScriptGateVerdict {
  * - 硬编码 hex **>2 处**（#1；≤2 处只 INFO，"允许少量自创协调色作特殊高亮"）；
  * - 缺 `save_fig`/`savefig`（第 3 节 WARNING 提到，但"出不了图"是硬伤，本仓库按 CRITICAL）。
  */
+/**
+ * 脚本建了几个面板（静态判）。
+ *
+ * `subplots(a, b)` 取乘积、`add_subplot` 数个数、`GridSpec` 视为多面板。
+ * 只在**脚本自己建轴**的意义上判——`plt.subplots()` 无参返回单轴，仍算 1。
+ */
+function panelCountOf(code: string): number {
+  let best = 1
+  for (const m of code.matchAll(/subplots\s*\(\s*(\d+)\s*,\s*(\d+)/g)) {
+    const n = Number(m[1]) * Number(m[2])
+    if (n > best) best = n
+  }
+  const added = [...code.matchAll(/add_subplot\s*\(/g)].length
+  if (added > best) best = added
+  if (/GridSpec\s*\(/.test(code)) best = Math.max(best, 2)
+  return best
+}
+
+/** 脚本是否用了 harness 铺好的共用引导模块。 */
+function usesFigbase(code: string): boolean {
+  return /from\s+_figbase\s+import|import\s+_figbase/.test(code)
+}
+
 export function figureScriptQuality(input: GateInput): ScriptGateVerdict {
   const id = 'figure_script_quality'
   const scripts = figureScripts(input)
@@ -264,7 +294,11 @@ export function figureScriptQuality(input: GateInput): ScriptGateVerdict {
   const problems: string[] = []
   const warnings: string[] = []
   for (const [file, code] of scripts) {
-    if (!/setup_style/.test(code)) {
+    // `_figbase` 在**导入时**就调了 `setup_style()`（那是它存在的意义之一），
+    // 所以"用了 _figbase"必须能顶替"脚本里出现 setup_style"——否则会误杀
+    // 恰恰是最规范的那批脚本（它们只 `from _figbase import load, save`）。
+    const base = usesFigbase(code)
+    if (!/setup_style/.test(code) && !base) {
       problems.push(`${file}：缺 \`setup_style()\` —— 会用 matplotlib 默认样式（参考 CRITICAL）`)
     }
     for (const m of code.matchAll(/^\s*(plt\.title|plt\.suptitle|fig\.suptitle)\s*\(/gm)) {
@@ -284,10 +318,40 @@ export function figureScriptQuality(input: GateInput): ScriptGateVerdict {
     if (hexes.length > 2) {
       problems.push(`${file}：硬编码颜色 ${String(hexes.length)} 处（上限 2）—— 绕过 \`PALETTE\` 会造成跨篇撞色`)
     }
-    if (!/save_fig|savefig/.test(code)) problems.push(`${file}：没有 \`save_fig\`/\`savefig\` —— 脚本跑完不落盘`)
+    // 落盘判据同样要认 `_figbase.save()`（它内部就是 `save_fig`）；
+    // 负向后行断言排除 `np.save(` 这类同名调用。
+    if (!/save_fig|savefig|(?<!\.)\bsave\s*\(/.test(code)) {
+      problems.push(`${file}：没有 \`save_fig\`/\`savefig\`/\`_figbase.save\` —— 脚本跑完不落盘`)
+    }
     if (/ax\.grid\s*\(|plt\.grid\s*\(/.test(code)) warnings.push(`${file}：手动 \`ax.grid()\`（参考 WARNING，非阻断）`)
     if (/frameon\s*=\s*True/.test(code)) warnings.push(`${file}：图例带灰框 \`frameon=True\`（参考 WARNING，显土）`)
   }
+
+  // ── 两条**图集层面**的检查（逐脚本查不出来的那类缺陷）────────────────────
+  // 依据是参考的「图表质量跃升清单」：第 1 条讲多 panel 并陈，配套工程习惯讲共用引导模块。
+  // 参考把这两条写成**建议**（"图多于 5 张时先建 `_figbase.py`"、"建议而非强制"），
+  // 交给执行者自己判断——实测的代价是：本仓库上一轮 11 张图**全是单 panel**、
+  // 只有 1 份脚本用了 `_figbase`。契约里写了、却没有任何东西去数它，等于没写。
+  if (scripts.length > 5) {
+    const noBase = scripts.filter(([, code]) => !usesFigbase(code)).map(([f]) => f)
+    if (noBase.length > 0) {
+      problems.push(`${String(noBase.length)}/${String(scripts.length)} 个脚本没有 \`from _figbase import\` —— `
+        + 'harness 已把 `figures/_figbase.py` 铺好（参考："图多于 5 张时先建共用引导模块"，'
+        + '本仓库改成铺好的资产）。不用的脚本各写各的样板，取数口径与缺字替换随之各写各的，'
+        + `正是参考担心的"各图指标口径不一致导致论文数字打架"。例如：${noBase.slice(0, 2).join('、')}`)
+    }
+    // 多面板比例：参考原话"**平庸图的典型特征就是每张都单 panel**"。
+    // 阈值取 1/3（不是"全部"）——留出"某张图本就该单画"的正当空间，
+    // 只挡住"整本图集一张合成图都没有"这种退化。
+    const multi = scripts.filter(([, code]) => panelCountOf(code) >= 2).length
+    const need = Math.ceil(scripts.length / 3)
+    if (multi < need) {
+      problems.push(`多面板合成只有 ${String(multi)}/${String(scripts.length)} 张（要求 ≥${String(need)}，约 1/3）—— `
+        + '参考："平庸图的典型特征就是每张都单 panel"。相关的几件事应并进同一张图的 2-4 个 panel'
+        + '（分布 + 与上限对照、主结果 + 残差诊断、处理前‖处理后），而不是拆成几张孤图。')
+    }
+  }
+
   const tail = warnings.length === 0 ? '' : `；WARNING（不阻断）：${warnings.slice(0, 3).join('；')}`
   return problems.length === 0
     ? { code: 0, items: [{ id, ok: true, detail: `${String(scripts.length)} 个脚本通过代码级 CRITICAL 检查${tail}`, code: 0 }] }
@@ -308,6 +372,27 @@ export function figureScriptQuality(input: GateInput): ScriptGateVerdict {
  *    `facts_audit` 抓的形态（`plt.plot([0,5,10],[1.2,3.4,5.6])`）。
  *    结构性常量（0/1、字号、figsize、alpha、线宽）不在此列。
  */
+/**
+ * 取出 `openIdx` 处 `(` 的配对实参文本（按括号深度配平）。
+ *
+ * 为什么不用一条正则了事：`[^)]*` 无法表达"这一层括号内"，多列表实参时
+ * 只能靠贪婪回溯命中最后一个列表（见 `figureScriptTraced` 里的注释）。
+ * 上限 4000 字符只是防御"括号不配平的畸形脚本"，正常绘图调用远小于此。
+ */
+function callArgs(code: string, openIdx: number): string {
+  let depth = 0
+  const stop = Math.min(code.length, openIdx + 4000)
+  for (let i = openIdx; i < stop; i++) {
+    const ch = code[i]
+    if (ch === '(') depth += 1
+    else if (ch === ')') {
+      depth -= 1
+      if (depth === 0) return code.slice(openIdx + 1, i)
+    }
+  }
+  return code.slice(openIdx + 1, stop)
+}
+
 export function figureScriptTraced(input: GateInput): ScriptGateVerdict {
   const id = 'figure_script_traced'
   const scripts = figureScripts(input)
@@ -333,15 +418,36 @@ export function figureScriptTraced(input: GateInput): ScriptGateVerdict {
     // 是刻度，`(-0.28, 0.11, "right", "bottom")` 是标注偏移表）。参考的 `facts_audit`
     // 抓的是同一个形态——`plt.plot([0,5,10],[1.2,3.4,5.6])`：**数据写死在绘图调用里**。
     // 所以只认"绘图函数调用的实参里出现的数值列表"。
-    const PLOT_CALL = /(?:plot|bar|barh|scatter|fill_between|fill_betweenx|errorbar|hlines|vlines|stem|step|stackplot|imshow|pcolormesh|contourf?|pie|boxplot|violinplot)\s*\([^)]*\[([^\[\]]*\d\.\d[^\[\]]*)\]/g
-    for (const m of code.matchAll(PLOT_CALL)) {
-      const nums = (m[1] ?? '').match(/-?\d+\.\d+/g) ?? []
-      if (nums.length < 3) continue
-      const stray = nums.filter(n => !known.has(n) && !known.has(String(Number(n))))
-      if (stray.length >= 3) {
-        problems.push(`${file}：绘图调用里出现成串的**硬编码数据**（${stray.slice(0, 4).join(', ')}…，共 ${String(stray.length)} 个）`
-          + '且都不在账本里 —— 图里的数必须从 `results.json` 读，不能写死在脚本里')
+    //
+    // 但"绘图调用的实参"里仍然混着**结构性关键字**：实测第三次踩到的是
+    // `ax.contourf(NN, KK, accept, levels=[-0.5, 0.5, 1.5])`——`levels` 是 0/1 指示场的
+    // 分级边界（画在 0 与 1 之间的两条分界线），是**版面**不是数据，
+    // 却因为它带小数点被判成"硬编码数据串"，把一份合规脚本拦了下来。
+    // 参考的 CRITICAL 清单也只查数据、不查分级/范围/样式参数。故先把这些关键字的
+    // 列表实参**抹掉**再找数据串——比"逐个数白名单"更不容易漏。
+    const STRUCTURAL_KWARG = /(?:\b(?:levels|vmin|vmax|bins|range|extent|alpha|zorder|linewidth|lw|markersize|ms|markeredgewidth|fontsize|pad|width|height|figsize|dpi|rotation|ncol|nrow|columnspacing|wspace|hspace|aspect|top|bottom|left|right)\s*=\s*)\[[^\[\]]*\]/g
+    const scan = code.replace(STRUCTURAL_KWARG, '=[]')
+    // 判据落在**该调用括号内的每一个列表**上，而不是"最后一个列表"。
+    // 为什么：原先用一条正则一次只捕获一个列表，`[^)]*` 贪婪回溯后命中的是**最后**一个
+    // `[...]`。于是 `plot([0,5,10],[1.2,3.4,5.6])` 抓得到（数据在后），
+    // 而 `plot([1.2,3.4,5.6],[0,5,10])` 抓不到（最后那个列表是整数刻度）——
+    // 同一个缺陷换个参数顺序就漏。改成先把调用括号配对取出，再逐个列表判。
+    const CALL = /(?:plot|bar|barh|scatter|fill_between|fill_betweenx|errorbar|hlines|vlines|stem|step|stackplot|imshow|pcolormesh|contourf?|pie|boxplot|violinplot)\s*\(/g
+    for (const c of scan.matchAll(CALL)) {
+      const args = callArgs(scan, (c.index ?? 0) + c[0].length - 1)
+      let flagged = false
+      for (const list of args.matchAll(/\[([^\[\]]*)\]/g)) {
+        const nums = (list[1] ?? '').match(/-?\d+\.\d+/g) ?? []
+        if (nums.length < 3) continue
+        const stray = nums.filter(n => !known.has(n) && !known.has(String(Number(n))))
+        if (stray.length >= 3) {
+          problems.push(`${file}：绘图调用里出现成串的**硬编码数据**（${stray.slice(0, 4).join(', ')}…，共 ${String(stray.length)} 个）`
+            + '且都不在账本里 —— 图里的数必须从 `results.json` 读，不能写死在脚本里')
+          flagged = true
+          break // 同一份脚本只报一次，别刷屏
+        }
       }
+      if (flagged) break
     }
   }
   return problems.length === 0

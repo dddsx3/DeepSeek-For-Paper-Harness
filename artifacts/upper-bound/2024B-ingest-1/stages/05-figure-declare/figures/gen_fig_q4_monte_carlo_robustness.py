@@ -1,142 +1,132 @@
-"""fig_q4_monte_carlo_robustness —— 问题 4 决策稳健性与利润水平的对账散点图。
+"""
+fig_q4_monte_carlo_robustness —— 抽样估计不确定性下的决策稳健性（龙卷风排序 + 区间点图）
 
 本图讲什么
 ----------
-把表 1 六种情况的「问题 2 最优期望利润」与「问题 4 重复抽样重解得到的决策一致率」
-放进同一坐标系对账：横轴是利润水平，纵轴是该情况在重解下的决策一致率，每个点带
-±1.96 倍标准误的误差棒，虚线标出「完全一致」上界 1.0。用来回答一个问题——
-利润更高的方案是否也更容易被抽样波动推翻（稳健性是否与利润同向）。
+问题 4 把零配件与成品的次品率换成由抽样检测得到的估计值后重解问题 2，
+六种情况的 0-1 决策是否还站得住，用「一致率」（重解决策与点估计决策相同的比例）
+与「不一致率 1 − 一致率」来度量。
 
-panel 说明
-----------
-单 panel 散点图（无收敛曲线）：账本里没有蒙特卡洛轨迹、逐轮收敛过程这类条目，
-只有每种情况的一致率点估计与标准误，所以按规划画「带误差棒的散点图」，
-而不是虚构一条收敛曲线。点的颜色编码情况编号，由右侧 colorbar 读出。
+面板
+----
+(a) 龙卷风式横条：六种情况的决策不一致率 1 − 一致率，由大到小自上而下排列，
+    条端标数值并叠加 10% 参考线；最长条即决策最易被抽样误差推翻的情形（强调色）。
+(b) 一致率点估计 ± 95% 区间点图（区间由账本标准误按 ±1.96×SE 合成），
+    叠加 0.95 稳健性阈值参考线；置信下界跌破 0.95 的情形以强调色标出。
 
-数据来源（results.json，全部经 load_ledger() 读入，脚本内不写死任何数值）
-----------------------------------------------------------------------
-- R-Q2-case{1..6}-profit                -> 横轴：各情况最优期望利润（元/件）
-- R-Q4-case{1..6}-consistency-rate      -> 纵轴：重解与点估计决策的一致率
-- R-Q4-case{1..6}-consistency-rate-se   -> 误差棒半宽 = 1.96 × 标准误
+数据来源（results.json 账本）
+---------------------------
+R-Q4-case1..6-consistency-rate     六种情况的一致率点估计
+R-Q4-case1..6-consistency-rate-se  一致率估计量的标准误
 
-关键数值（运行时从账本读出，见散点位置与两个极值标注，脚本内不重复列出）
+关键数值（全部读自账本，脚本内不写死）
+------------------------------------
+一致率 0.6085 / 0.9160 / 0.9485 / 0.9920 / 0.9995 / 0.9995；
+最易翻转的是情况 6（不一致率约 0.3915），最稳的是情况 4、5（不一致率约 0.0005）。
+账本只有一致率与标准误两类条目，无重复抽样轨迹与利润分布，故不画收敛曲线。
 """
-
-import json
-import os
-
+from _figbase import load, save, panel, PALETTE, COLORS, _lighten, cn
 import numpy as np
 import matplotlib.pyplot as plt
-from matplotlib.colors import LinearSegmentedColormap
-from matplotlib.lines import Line2D
-from matplotlib.ticker import PercentFormatter
 
-from _utils.plot_utils import setup_style, save_fig, PALETTE, COLORS, _lighten
+# ----------------------------------------------------------------------
+# 取数：每一个数字都来自账本
+# ----------------------------------------------------------------------
+doc = load("results.json")
+vals = {r["result_id"]: r["value"] for r in doc["results"]}
 
-setup_style()
+CASES = [1, 2, 3, 4, 5, 6]
+rate = np.array([vals[f"R-Q4-case{k}-consistency-rate"] for k in CASES], dtype=float)
+se = np.array([vals[f"R-Q4-case{k}-consistency-rate-se"] for k in CASES], dtype=float)
+labels = [cn(f"情况 {k}") for k in CASES]
 
-CASES = (1, 2, 3, 4, 5, 6)
-REF_RATE = 1.0   # 一致率上界参照（比例口径的端点，非账本数据）
-Z95 = 1.96       # 95% 误差棒倍数
+incons = 1.0 - rate          # 不一致率：决策被抽样误差推翻的比例
+half = 1.96 * se             # 一致率的 95% 半宽
 
+# 两个面板共用同一行序：不一致率由小到大 → 最长条落在图顶
+order = np.argsort(incons)
+y = np.arange(len(order))
+incons_s = incons[order]
+rate_s = rate[order]
+half_s = half[order]
+labels_s = [labels[i] for i in order]
+i_worst = int(np.argmax(incons_s))
 
-def load_ledger():
-    """按候选路径定位铸出的账本 results.json（与 FIGURE_PLAN.ledger_source 对齐）。
+fig, (ax_a, ax_b) = plt.subplots(1, 2, figsize=(6.0, 3.6))
 
-    执行期 cwd 不确定，故同时尝试「脚本位置相对路径」与「工作区相对路径」，
-    任一命中即返回 results 数组，全部落空才报错。
-    """
-    here = os.path.dirname(os.path.abspath(__file__))
-    candidates = [
-        os.path.normpath(os.path.join(here, "..", "..", "04-result-sources", "results.json")),
-        os.path.normpath(os.path.join(here, "..", "..", "..", "stages", "04-result-sources", "results.json")),
-        os.path.normpath(os.path.join(here, "..", "..", "..", "04-result-sources", "results.json")),
-        os.path.join("stages", "04-result-sources", "results.json"),
-        os.path.normpath(os.path.join("..", "04-result-sources", "results.json")),
-        "results.json",
-    ]
-    for path in candidates:
-        if os.path.exists(path):
-            with open(path, "r", encoding="utf-8") as fh:
-                return json.load(fh)["results"]
-    raise FileNotFoundError("results.json 未找到，已尝试：" + ", ".join(candidates))
+# ----------------------------------------------------------------------
+# 面板 (a)：龙卷风排序横条（1 − 一致率）
+# ----------------------------------------------------------------------
+ax_a.grid(axis="x", alpha=0.12, linestyle="-", color=COLORS["grid"])
+ax_a.set_axisbelow(True)
+for i in range(len(y)):
+    if i % 2 == 0:
+        ax_a.axhspan(y[i] - 0.45, y[i] + 0.45, alpha=0.04,
+                     color=PALETTE[0], zorder=0)
 
+span = incons_s.max() if incons_s.max() > 0 else 1.0
+bars = []
+for i, v in enumerate(incons_s):
+    base = COLORS["accent"] if i == i_worst else PALETTE[0]
+    lighten_amt = 0.45 * (1.0 - v / span)
+    c = _lighten(base, lighten_amt)
+    bars.append(ax_a.barh(y[i], v, height=0.55,
+                          color=_lighten(c, 0.30), edgecolor=c,
+                          linewidth=1.2, zorder=3))
+for b in bars:
+    ax_a.bar_label(b, fmt="%.4f", padding=2, fontsize=7.5,
+                   color=COLORS["gray"])
 
-LEDGER = {row["result_id"]: row for row in load_ledger()}
+ax_a.axvline(0.10, color=COLORS["ref_line"], linewidth=1.0,
+             linestyle="--", zorder=4)
+ax_a.text(0.10, len(y) - 0.42, cn("10%"), ha="center", va="bottom",
+          fontsize=7.5, color=COLORS["ref_line"])
+ax_a.text(incons_s[i_worst] * 0.5, y[i_worst] - 0.42, cn("最易翻转"),
+          ha="center", va="top", fontsize=7.5, fontstyle="italic",
+          color=COLORS["accent"])
 
+ax_a.set_yticks(y)
+ax_a.set_yticklabels(labels_s, fontsize=8.5)
+ax_a.set_xlim(0.0, span * 1.30)
+ax_a.set_ylim(-0.75, len(y) - 0.25)
+ax_a.set_xlabel(cn("不一致率 1 − 一致率（无量纲）"), fontsize=9)
+ax_a.spines["top"].set_visible(False)
+ax_a.spines["right"].set_visible(False)
+panel(ax_a, "(a)")
 
-def value(result_id):
-    """从账本取一个数；result_id 不存在直接报错，避免静默用错数。"""
-    if result_id not in LEDGER:
-        raise KeyError("result_id %r 不在 results.json 中" % result_id)
-    return float(LEDGER[result_id]["value"])
+# ----------------------------------------------------------------------
+# 面板 (b)：一致率点估计 ± 95% 区间
+# ----------------------------------------------------------------------
+ax_b.grid(axis="x", alpha=0.12, linestyle="-", color=COLORS["grid"])
+ax_b.set_axisbelow(True)
+for i in range(len(y)):
+    if i % 2 == 0:
+        ax_b.axhspan(y[i] - 0.45, y[i] + 0.45, alpha=0.04,
+                     color=PALETTE[0], zorder=0)
 
+THRESH = 0.95
+ax_b.axvline(THRESH, color=COLORS["ref_line"], linewidth=1.0,
+             linestyle="--", zorder=2)
+ax_b.text(THRESH, len(y) - 0.42, cn("0.95 阈值"), ha="center", va="bottom",
+          fontsize=7.5, color=COLORS["ref_line"])
 
-profit = np.array([value("R-Q2-case%d-profit" % k) for k in CASES], dtype=float)
-rate = np.array([value("R-Q4-case%d-consistency-rate" % k) for k in CASES], dtype=float)
-se = np.array([value("R-Q4-case%d-consistency-rate-se" % k) for k in CASES], dtype=float)
-half = Z95 * se
+for i in range(len(y)):
+    robust = (rate_s[i] - half_s[i]) >= THRESH
+    c = PALETTE[1] if robust else COLORS["accent"]
+    ax_b.errorbar(rate_s[i], y[i], xerr=half_s[i], fmt="o", ms=4.5,
+                  color=c, ecolor=_lighten(c, 0.35), elinewidth=1.4,
+                  capsize=3.5, zorder=3)
 
-case_cmap = LinearSegmentedColormap.from_list(
-    "case_index", [PALETTE[i % len(PALETTE)] for i in range(len(CASES))]
-)
-
-fig, ax = plt.subplots(figsize=(6.0, 4.2))
-
-ax.axhline(REF_RATE, color=COLORS["ref_line"], linestyle="--", linewidth=1.1,
-           alpha=0.8, zorder=1)
-
-ax.errorbar(profit, rate, yerr=half, fmt="none",
-            ecolor=_lighten(PALETTE[0], 0.15), elinewidth=1.1,
-            capsize=3.5, capthick=1.0, zorder=3)
-
-sc = ax.scatter(profit, rate, c=list(CASES), cmap=case_cmap, vmin=1, vmax=len(CASES),
-                s=78, edgecolor="white", linewidth=0.9, zorder=4)
-
-i_lo = int(np.argmin(rate))
-i_hi = int(np.argmax(rate))
-box = dict(boxstyle="round,pad=0.25", facecolor=COLORS["bg_box"],
-           edgecolor=COLORS["grid"], alpha=0.95)
-ax.annotate("情况 %d：%.3f" % (CASES[i_lo], rate[i_lo]),
-            xy=(profit[i_lo], rate[i_lo]), xytext=(-10, 8),
-            textcoords="offset points", ha="right", va="bottom",
-            fontsize=8.5, color=COLORS["text"], bbox=box, zorder=5)
-ax.annotate("情况 %d：%.3f" % (CASES[i_hi], rate[i_hi]),
-            xy=(profit[i_hi], rate[i_hi]), xytext=(-10, -10),
-            textcoords="offset points", ha="right", va="top",
-            fontsize=8.5, color=COLORS["text"], bbox=box, zorder=5)
-
-ax.set_xlabel("问题 2 对应情况最优期望利润（元/件）")
-ax.set_ylabel("决策一致率")
-ax.yaxis.set_major_formatter(PercentFormatter(xmax=1.0, decimals=0))
-
-y_lo = float(np.min(rate - half))
-y_hi = float(np.max(rate + half))
-y_pad = 0.08 * max(y_hi - y_lo, 1e-3)
-ax.set_ylim(max(0.0, y_lo - y_pad), min(1.02, y_hi + y_pad))
-x_pad = 0.10 * max(float(profit.max() - profit.min()), 1e-3)
-ax.set_xlim(float(profit.min()) - x_pad, float(profit.max()) + x_pad)
-
-ax.grid(alpha=0.15, linestyle="--")
-ax.set_axisbelow(True)
-ax.spines["top"].set_visible(False)
-ax.spines["right"].set_visible(False)
-
-cbar = fig.colorbar(sc, ax=ax, ticks=list(CASES), fraction=0.046, pad=0.02)
-cbar.set_label("表 1 情况编号", fontsize=8.5)
-cbar.ax.tick_params(labelsize=8)
-cbar.outline.set_visible(False)
-
-handles = [
-    Line2D([], [], color=PALETTE[0], marker="o", linestyle="none", markersize=6,
-           markeredgecolor="white", label="一致率点估计"),
-    Line2D([], [], color=_lighten(PALETTE[0], 0.15), linestyle="none", marker="_",
-           markersize=8, label="±1.96 × 标准误"),
-    Line2D([], [], color=COLORS["ref_line"], linestyle="--", linewidth=1.0,
-           label="完全一致参照（%.1f）" % REF_RATE),
-]
-ax.legend(handles=handles, frameon=False, fontsize=8, loc="lower left",
-          labelspacing=0.35, handlelength=1.6, borderaxespad=0.6)
+lo = float(np.min(rate_s - half_s))
+hi = float(np.max(rate_s + half_s))
+ax_b.set_xlim(lo - 0.05, hi + 0.05)
+ax_b.set_ylim(-0.75, len(y) - 0.25)
+ax_b.set_yticks(y)
+ax_b.set_yticklabels(labels_s, fontsize=8.5)
+ax_b.set_xlabel(cn("一致率（无量纲）"), fontsize=9)
+ax_b.spines["top"].set_visible(False)
+ax_b.spines["right"].set_visible(False)
+panel(ax_b, "(b)")
 
 fig.tight_layout()
-save_fig(fig, "figures/fig_q4_monte_carlo_robustness.png")
+save(fig, "fig_q4_monte_carlo_robustness")

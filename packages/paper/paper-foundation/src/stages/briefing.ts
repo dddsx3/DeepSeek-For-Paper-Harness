@@ -337,8 +337,9 @@ const SKILLS: Readonly<Record<string, StageSkill>> = {
     // 所以这里改成与参考同构：写脚本，但**必须从铸出的账本读数据**。
     ported: false,
     task: '**必须**产出 `FIGURES/gen_fig_*.py`（**一图一脚本**，matplotlib）与 `FIGURE_PLAN.json`。'
-      + '脚本从铸出的 `results.json` 读每一个数，**不得硬编码**；样式必须走 harness 铺好的 '
-      + '`_utils/plot_utils.py`。本阶段**只写脚本，不执行**（执行是下一阶段）。',
+      + '脚本从铸出的 `results.json` 读每一个数，**不得硬编码**；样式与公共引导必须走 harness 铺好的 '
+      + '`figures/_figbase.py`（它再转 `_utils/plot_utils.py`）。'
+      + '本阶段**只写脚本，不执行**（执行是下一阶段）。',
     how: [
       '**先规划，再写脚本**。`FIGURE_PLAN.json` 每条 = `{figure_id, chart_type, recipe: {category, number}, '
         + 'data_refs, caption, x_label, y_label}`。`figure_id` 要逐字沿用阶段 1 的 FIGURE_MANIFEST；'
@@ -359,21 +360,36 @@ const SKILLS: Readonly<Record<string, StageSkill>> = {
         + 'the recipes contain critical styling details that you will miss if you write from memory"*）。'
         + '配方库在 `_utils/figure_recipes_{basic,advanced,academic,competition,empirical}.md`，'
         + '`_utils/get_recipe.py <category> <number>` 按编号取。**照抄骨架，再用账本的真实数据替换 demo 数据。**',
-      '**脚本头固定这么写**（harness 已把样式库铺到 `_utils/`，你不用自己找）：'
-        + '`from _utils.plot_utils import setup_style, save_fig, PALETTE, COLORS, _lighten` + `setup_style()`。'
-        + '`setup_style()` **裸调**——它按工作区名确定性选配色/风格族/中文字体（同篇统一、跨篇各异、重跑不变）。',
-      '**数据只能从账本读**：`results.json` 里有 `{result_id, name, value, unit}` 的数组，'
-        + '`data_refs` 里写的就是这些 `result_id`。脚本用 `json.load(open("results.json"))` 取数，'
+      '**脚本头固定这么写**（harness 已把样式库与共用引导模块都铺好，你不用自己找、也不用自己写）：'
+        + '`from _figbase import load, save, panel, PALETTE, COLORS, _lighten, cn`。'
+        + '`_figbase` 在导入时就调了 `setup_style()`（按工作区名确定性选配色/风格族/中文字体，'
+        + '同篇统一、跨篇各异、重跑不变），并提供 `load("results.json")` 读账本、'
+        + '`save(fig, "fig_q1_xxx")` 落盘到 `figures/fig_q1_xxx.png`、`panel(ax, "(a)")` 面板角标、'
+        + '`cn()` 中文缺字兜底、派生色图 `CMAP_SEQ`/`CMAP_DIV`、`seq_colors(n)`、`log_floor()`。'
+        + '**不要自己另写一份引导模块**——参考把它当建议（"图多于 5 张时先建"），实测结果是一批图里'
+        + '只有零星几份真用了，其余各写各的样板，取数口径随之各写各的（正是参考担心的"论文数字打架"）。',
+      '**色怎么用（照抄，别猜形状——猜错每一份脚本都会崩）**：`PALETTE` 是 **8 色的 list**，'
+        + '按序号取 `PALETTE[0]`；`PALETTE_LIGHT` 是 6 色的 list（同色系浅色，做填充/次要元素）；'
+        + '`COLORS` 是**语义字典**（不是 list！），按名取 `COLORS["primary"]` / `COLORS["secondary"]` / '
+        + '`COLORS["accent"]` / `COLORS["gray"]` / `COLORS["up"]` / `COLORS["down"]` / `COLORS["neutral"]` / '
+        + '`COLORS["highlight"]` / `COLORS["ref_line"]` / `COLORS["grid"]`；'
+        + '多序列折线用 `LINE_COLORS[n]`；连续色阶用 `CMAP_SEQ` / `CMAP_SEQ_R` / `CMAP_DIV` '
+        + '（由 PALETTE 派生，**不要用 `cmap="viridis"` 这类硬编码色图**——与随机配色不同步）。'
+        + '同族深浅用 `_lighten(PALETTE[i], 0.5)`，主色留给主体。',
+      '**数据只能从账本读**：`results.json` 是 `{results: [{result_id, name, value, unit}]}`，'
+        + '`data_refs` 里写的就是这些 `result_id`。脚本用 `from _figbase import load` + '
+        + '`load("results.json")` 取数（或 `values_by_id()` 直接得 `{id: value}`），'
         + '**图里的每一个数都必须来自它**——不得写死在脚本里（门禁 `figure_script_traced` 会审，'
         + '成串的数据字面量如 `plot([0,5,10],[1.2,3.4,5.6])` 一律判失败）。',
-      '**每张图出到 `figures/<figure_id>.png`**：脚本里写 `save_fig(fig, "figures/fig_xxx.png")`。'
+      '**每张图出到 `figures/<figure_id>.png`**：脚本里写 `save(fig, "<figure_id>")`'
+        + '（`_figbase.save` 已带 350 DPI 防中文糊），或等价地 `save_fig(fig, "figures/<figure_id>.png")`。'
         + '文件级 docstring 写清"本图讲什么 → 每个 panel 是什么 → 数据来自账本哪些 id → 关键数值"。',
-      '**图多于 5 张时先建 `figures/_figbase.py` 共用引导模块**（参考原话：*"实测这是高分图集的'
-        + '共同做法：把样板收敛到一处，几十份脚本不再各写各的，也避免各图指标口径不一致导致论文数字打架"*）。'
-        + '把口径函数、公共常量、缺字替换收到一处，各脚本 `from _figbase import ...`。',
-      '**多面板合成在单个图内实现**（参考：*"multi-panel 在单个 PDF 内实现（不是写两张 PDF）"*）：'
-        + '该合成的时候用 `plt.subplots(1, 2)` 或 `plt.subplots(2, 2)`，面板标签用 '
-        + '`ax.set_title("(a)", loc="left", pad=3)`。**panel 数量 ≤ 4**；'
+      '**多面板合成是硬要求，不是可选项**（参考原话：*"**平庸图的典型特征就是每张都单 panel**"*，'
+        + '来自对 94 张真实竞赛图的逐图核对）：相关的几件事放进**同一张图**的 2-4 个 panel——'
+        + '"分布 + 与上限对照"、"主结果 + 残差诊断"、"处理前‖处理后"。用 `plt.subplots(1, 2)` / '
+        + '`plt.subplots(2, 2)`（不等宽不等高用 `GridSpec`），面板标签用 `panel(ax, "(a)")`。'
+        + '**门禁 `figure_script_quality` 会数**：脚本多于 5 份时，多面板的图不得少于总数的 1/3——'
+        + '整本图集一张合成图都没有，就是被点名的那个平庸特征。**panel 数量 ≤ 4**；'
         + '1×2 横排 `figsize=(6.0, 2.8)`、2×2 近方 `(5.0, 4.9)`。',
       '**图内文字三层闸，但不要过度收缩**（参考的原话：*"本条减的是“文字”，不是“信息”和'
         + '“图表能力”。该有的多 panel、置信带、判据线、丰富图型一个都不能少"*）：'

@@ -137,7 +137,8 @@ export const PLOTTING_ASSETS: ReadonlyArray<{
   readonly file: string
   readonly role: string
 }> = [
-  { file: 'plot_utils.py', role: '**样式唯一来源**：`setup_style()` / `PALETTE` / `COLORS` / `_lighten` / `smart_labels` / `auto_legend` / `save_fig`' },
+  { file: 'plot_utils.py', role: '**样式唯一来源**：`setup_style()` / `PALETTE` / `COLORS` / `_lighten` / `smart_labels` / `auto_legend` / `save_fig` / 版式兜底（`set_paper_placement` / `declutter_axes` / `shared_legend` / `dynamic_limits`）' },
+  { file: '_figbase.py', role: '**harness 铺好的共用引导模块**（拷进 `figures/`）：`load()` 读账本、`save()` 出图、`panel()` 面板角标、派生色图、`cn()` 缺字兜底。脚本一律 `from _figbase import ...`，**不要自己另写一份**' },
   { file: 'figure_style_guide.md', role: '风格规范本体：图型决策表、配色禁令、figsize 长宽比档位表、图内文字三层闸' },
   { file: 'get_recipe.py', role: '按 `类别 编号` 取配方代码（`basic|advanced|academic|competition|empirical`）' },
   { file: 'figure_recipes_basic.md', role: '配方库：通用基础图 12 个' },

@@ -16,7 +16,7 @@
 import { describe, expect, it } from 'vitest'
 import { stageBriefing } from '../../src/stages/briefing.ts'
 import { stageOf } from '../../src/stages/registry.ts'
-import { METHODOLOGY_ASSETS, STAGE_TOOLS, methodologyAsset, stageAsset } from '../../src/stages/assets.ts'
+import { METHODOLOGY_ASSETS, PLOTTING_ASSETS, STAGE_TOOLS, methodologyAsset, stageAsset } from '../../src/stages/assets.ts'
 
 describe('稳定迁移 —— 契约里不许有题目词汇', () => {
   const brief = stageBriefing(stageOf('figure-declare'), new Map(), false)
@@ -43,15 +43,33 @@ describe('稳定迁移 —— 契约里不许有题目词汇', () => {
 describe('稳定迁移 —— 四条硬规则必须在契约里（我最初漏掉的那四条）', () => {
   const brief = stageBriefing(stageOf('figure-declare'), new Map(), false)
 
-  it('① 图 >5 张要建共用引导模块（参考：高分图集的共同做法）', () => {
+  it('① 共用引导模块由 **harness 铺好**（不是让模型自己建——实测那样会各写各的）', () => {
     expect(brief).toContain('_figbase')
     expect(brief).toContain('口径')
+    // 语义变了：参考写的是"图多于 5 张时**先建**一个"（建议），
+    // 实测 11 张图只有 1 份真用了它 → 改成铺好的资产 + "不要自己另写"。
+    expect(brief, '必须写明模块是铺好的，不是让模型自己写').toContain('铺好')
+    expect(brief).toContain('不要自己另写')
+    // 资产清单里真的有这个文件（否则契约承诺了、环境里没有 = 又一类"教了但不给"）
+    const asset = PLOTTING_ASSETS.find(a => a.file === '_figbase.py')
+    expect(asset, 'PLOTTING_ASSETS 里必须有 _figbase.py').toBeDefined()
+    expect(asset?.role).toContain('铺好')
   })
 
-  it('② 多面板合成在单个图内实现、panel ≤ 4', () => {
+  it('①b 色板形状写对了（`COLORS` 是 dict 不是 list——猜错每份脚本都崩）', () => {
+    // 实测：`COLORS[0]` → KeyError: 0。契约必须教**真实形状**。
+    expect(brief).toContain('COLORS["primary"]')
+    expect(brief).toContain('语义字典')
+    expect(brief).toContain('PALETTE[0]')
+  })
+
+  it('② 多面板合成是硬要求、panel ≤ 4，且写明门禁会数', () => {
     expect(brief).toContain('多面板')
     expect(brief).toContain('panel 数量 ≤ 4')
     expect(brief).toContain('(a)')
+    // 上一轮 11/11 全是单 panel —— 因为"写了但没人数"。现在门禁会数。
+    expect(brief).toContain('figure_script_quality')
+    expect(brief).toContain('平庸图的典型特征就是每张都单 panel')
   })
 
   it('③ **不要过度收缩**：判据线/极值标注/置信带这些信息性元素该有就有', () => {
@@ -247,5 +265,153 @@ describe('跨阶段固化 —— 阶段 3 的硬规则', () => {
   it('本阶段不画图', () => {
     expect(brief).toContain('不画图')
     expect(brief).toContain('savefig')
+  })
+})
+
+/**
+ * **两条图集层面的判据真的会拦人** —— 用上一轮 11 份真实脚本的形态做夹具。
+ *
+ * 为什么必须测"会拦"：这两条契约（共用引导模块、多面板）**上一轮就写在简报里了**，
+ * 结果 11 张图全是单 panel、只有 1 份用了 `_figbase`。写了不等于会发生——
+ * 没有东西去数它，它就只是建议。这里钉住"数它的那个东西"。
+ */
+describe('图集层面的两条判据（`figure_script_quality`）', () => {
+  /** 造一份脚本：`style` 决定它像不像上一轮那批（单 panel、无 _figbase）。 */
+  const script = (opts: { base: boolean; panels: number }): string => {
+    const head = opts.base
+      ? 'from _figbase import load, save, panel, PALETTE\n'
+      : 'import json\nimport matplotlib.pyplot as plt\nfrom _utils.plot_utils import setup_style, save_fig\nsetup_style()\n'
+    const body = opts.panels >= 2
+      ? `fig, axes = plt.subplots(1, ${String(opts.panels)}, figsize=(6.0, 2.8))\n`
+      : 'fig, ax = plt.subplots(figsize=(6.0, 3.6))\n'
+    const tail = opts.base ? 'save(fig, "fig_x")\n' : 'save_fig(fig, "figures/fig_x.png")\n'
+    return head + body + tail
+  }
+
+  /** 造一个阶段 5 的 GateInput（只放脚本，判据不需要别的）。 */
+  const inputOf = (codes: ReadonlyArray<string>) => ({
+    files: new Map(codes.map((c, i) => [`figures/gen_fig_f${String(i)}.py`, c])),
+    upstream: new Map<string, string>(),
+    problemCount: 4,
+  })
+
+  it('11 份脚本全是单 panel 且不用 _figbase → 判失败（就是上一轮的形态）', async () => {
+    const { figureScriptQuality } = await import('../../src/stages/figure-script-gates.ts')
+    const v = figureScriptQuality(inputOf(Array.from({ length: 11 }, () => script({ base: false, panels: 1 }))))
+    expect(v.code).toBe(1)
+    const detail = v.items.map(i => i.detail).join(' ')
+    expect(detail).toContain('_figbase')
+    expect(detail).toContain('单 panel')
+  })
+
+  it('用 _figbase 且 ≥1/3 多面板 → 通过', async () => {
+    const { figureScriptQuality } = await import('../../src/stages/figure-script-gates.ts')
+    const codes = [
+      ...Array.from({ length: 4 }, () => script({ base: true, panels: 2 })),
+      ...Array.from({ length: 7 }, () => script({ base: true, panels: 1 })),
+    ]
+    const v = figureScriptQuality(inputOf(codes))
+    expect(v.code, v.items.map(i => i.detail).join(' ')).toBe(0)
+  })
+
+  it('脚本 ≤5 份时不数这两条（参考的门槛就是"多于 5 张"）', async () => {
+    const { figureScriptQuality } = await import('../../src/stages/figure-script-gates.ts')
+    const v = figureScriptQuality(inputOf(Array.from({ length: 5 }, () => script({ base: false, panels: 1 }))))
+    expect(v.code).toBe(0)
+  })
+
+  it('`_figbase` 顶替 `setup_style` 与 `save_fig`（导入即生效，不误杀规范脚本）', async () => {
+    const { figureScriptQuality } = await import('../../src/stages/figure-script-gates.ts')
+    // 只 `from _figbase import ...` 的脚本里，`setup_style`/`save_fig` 字样**不出现**——
+    // 旧判据会误杀它，而它恰恰是最规范的那一类。
+    const code = 'from _figbase import load, save\nfig, ax = plt.subplots()\nsave(fig, "fig_a")\n'
+    expect(code).not.toContain('setup_style')
+    expect(code).not.toContain('save_fig')
+    const v = figureScriptQuality(inputOf([code]))
+    expect(v.code, v.items.map(i => i.detail).join(' ')).toBe(0)
+  })
+
+  it('`np.save(` 不算落盘（负向后行断言：别把数组存盘当出图）', async () => {
+    const { figureScriptQuality } = await import('../../src/stages/figure-script-gates.ts')
+    const code = 'from _figbase import load, PALETTE\nimport numpy as np\nnp.save("x.npy", np.zeros(3))\n'
+    const v = figureScriptQuality(inputOf([code]))
+    expect(v.code).toBe(1)
+    expect(v.items.map(i => i.detail).join(' ')).toContain('不落盘')
+  })
+})
+
+/**
+ * **`figure_script_traced` 不误杀结构性参数** —— 用真实闯祸的那一行核。
+ *
+ * 实测（本轮阶段 5）：`ax.contourf(NN, KK, accept, levels=[-0.5, 0.5, 1.5], cmap=CMAP2)`
+ * 被判"绘图调用里出现成串的硬编码数据"。但 `levels` 是 0/1 指示场的**分级边界**，
+ * 是版面不是数据——一份合规脚本被拦下，代价是整个阶段重跑（十几次模型调用）。
+ * 参考自己的 CRITICAL 清单也只查数据、不查分级/范围/样式参数。
+ */
+describe('`figure_script_traced` 的边界（只抓数据，不抓版面）', () => {
+  const LEDGER = JSON.stringify({ results: [
+    { result_id: 'R-A', name: 'a', value: 12.5, unit: '件' },
+    { result_id: 'R-B', name: 'b', value: 3.25, unit: '件' },
+    { result_id: 'R-C', name: 'c', value: 7.75, unit: '件' },
+  ] })
+  const inputOf = (code: string) => ({
+    files: new Map([['figures/gen_fig_f1.py', code]]),
+    upstream: new Map([['results.json', LEDGER]]),
+    problemCount: 1,
+  })
+
+  it('`contourf(levels=[-0.5, 0.5, 1.5])` **不算**硬编码数据（真实误判）', async () => {
+    const { figureScriptTraced } = await import('../../src/stages/figure-script-gates.ts')
+    const code = 'from _figbase import load, PALETTE\nimport matplotlib.pyplot as plt\n'
+      + 'doc = load("results.json")\n'
+      + 'fig, ax = plt.subplots()\n'
+      + 'ax.contourf(NN, KK, accept, levels=[-0.5, 0.5, 1.5], cmap=CMAP2)\n'
+      + 'save(fig, "fig_a")\n'
+    const v = figureScriptTraced(inputOf(code))
+    expect(v.code, v.items.map(i => i.detail).join(' ')).toBe(0)
+  })
+
+  it('其它结构性关键字同样放行（`bins` / `vmin` / `set_xticks`）', async () => {
+    const { figureScriptTraced } = await import('../../src/stages/figure-script-gates.ts')
+    const code = 'from _figbase import load\n'
+      + 'doc = load("results.json")\n'
+      + 'ax.hist(vals, bins=[0.5, 1.5, 2.5, 3.5])\n'
+      + 'ax.imshow(M, vmin=-0.5, vmax=1.5)\n'
+      + 'ax.set_xticks([0.6, 0.7, 0.8, 0.9])\n'
+    const v = figureScriptTraced(inputOf(code))
+    expect(v.code, v.items.map(i => i.detail).join(' ')).toBe(0)
+  })
+
+  it('**真的硬编码数据仍然拦**（`plot([0,5,10],[1.2,3.4,5.6])` 是参考点名的形态）', async () => {
+    const { figureScriptTraced } = await import('../../src/stages/figure-script-gates.ts')
+    const code = 'from _figbase import load\n'
+      + 'doc = load("results.json")\n'
+      + 'ax.plot([0, 5, 10], [1.2, 3.4, 5.6])\n'
+    const v = figureScriptTraced(inputOf(code))
+    expect(v.code).toBe(1)
+    expect(v.items.map(i => i.detail).join(' ')).toContain('硬编码数据')
+  })
+
+  it('账本里真有这些数就不拦（判据是"不在账本里"，不是"带小数点"）', async () => {
+    const { figureScriptTraced } = await import('../../src/stages/figure-script-gates.ts')
+    // 12.5 / 3.25 / 7.75 都在账本里 —— 数值对得上就不该被判硬编码。
+    // 第二个列表用**整数**刻度：`[1.0, 2.0, 3.0]` 自己就是"不在账本里的小数串"，
+    // 会被正确拦下（第一版夹具就栽在这——判据没问题，是夹具造错了）。
+    const code = 'from _figbase import load\n'
+      + 'doc = load("results.json")\n'
+      + 'ax.plot([12.5, 3.25, 7.75], [0, 5, 10])\n'
+    const v = figureScriptTraced(inputOf(code))
+    expect(v.code, v.items.map(i => i.detail).join(' ')).toBe(0)
+  })
+
+  it('数据在**第一个**列表里也抓得到（原先只认最后一个列表 → 漏判）', async () => {
+    const { figureScriptTraced } = await import('../../src/stages/figure-script-gates.ts')
+    // 参数顺序反过来，缺陷就藏起来了：旧正则的 `[^)]*` 贪婪回溯命中的是最后的整数刻度表。
+    const code = 'from _figbase import load\n'
+      + 'doc = load("results.json")\n'
+      + 'ax.plot([1.2, 3.4, 5.6], [0, 5, 10])\n'
+    const v = figureScriptTraced(inputOf(code))
+    expect(v.code).toBe(1)
+    expect(v.items.map(i => i.detail).join(' ')).toContain('硬编码数据')
   })
 })

@@ -2345,3 +2345,80 @@ def subplot_grid(plot_funcs, nrows, ncols, output='figures/fig_grid.pdf',
 
     fig.tight_layout()
     _save(fig, output)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 实验用 shim：参考工作区的 `_figbase.py` 用到 4 个函数，它们只在**更新版**
+# plot_utils（加密分发，289KB）里。这里按新版风格指南的文档语义补上，
+# 以便**原样运行参考自己的 gen_fig_*.py**（这是"直接复用参考原始代码"的前提）。
+# 语义取自指南：set_paper_placement 声明最终上页宽度；declutter_axes 精简轴线与网格；
+# dynamic_limits 数据驱动范围；consolidate_shared_legends 把多面板图例合并到专用区域。
+# ─────────────────────────────────────────────────────────────────────────────
+
+def set_paper_placement(fig, width_in=None):
+    """声明这张图最终在论文里的显示宽度（英寸），供 fig_include_size 反推 include 宽度。"""
+    try:
+        fig._paper_placement_in = float(width_in) if width_in is not None else None
+    except Exception:
+        pass
+    return fig
+
+
+def declutter_axes(ax, grid_axis="y", grid_alpha=0.12):
+    """精简轴线：去掉上/右边框，网格压淡。"""
+    try:
+        for side in ("top", "right"):
+            ax.spines[side].set_visible(False)
+        ax.grid(axis=grid_axis, alpha=grid_alpha, linestyle="-", color=COLORS.get("grid", "#E0E0E0"))
+        ax.set_axisbelow(True)
+    except Exception:
+        pass
+    return ax
+
+
+def dynamic_limits(ax, pad=0.06, axis="y"):
+    """按真实数据范围收紧坐标轴（留 pad 比例余量），避免大段空白。"""
+    try:
+        import numpy as _np
+        vals = []
+        for line in ax.get_lines():
+            yd = _np.asarray(line.get_ydata(), dtype=float)
+            if yd.size:
+                vals.extend(yd[_np.isfinite(yd)].tolist())
+        if not vals:
+            return ax
+        lo, hi = min(vals), max(vals)
+        span = (hi - lo) or 1.0
+        if axis == "y":
+            ax.set_ylim(lo - span * pad, hi + span * pad)
+        else:
+            ax.set_xlim(lo - span * pad, hi + span * pad)
+    except Exception:
+        pass
+    return ax
+
+
+def shared_legend(fig, axes, where="top", ncol=None, **kwargs):
+    """把多个 panel 的图例合并到一个专用区域（不与数据区抢地方）。"""
+    try:
+        handles, labels = [], []
+        for ax in (axes if hasattr(axes, "__iter__") else [axes]):
+            h, l = ax.get_legend_handles_labels()
+            for hh, ll in zip(h, l):
+                if ll not in labels:
+                    handles.append(hh); labels.append(ll)
+        if not labels:
+            return None
+        kw = dict(frameon=False, fontsize=9, labelspacing=0.35, handlelength=1.6)
+        kw.update(kwargs)
+        if where == "top":
+            return fig.legend(handles, labels, loc="lower center", bbox_to_anchor=(0.5, 1.0),
+                              ncol=ncol or len(labels), **kw)
+        return fig.legend(handles, labels, loc="center left", bbox_to_anchor=(1.0, 0.5), **kw)
+    except Exception:
+        return None
+
+
+def consolidate_shared_legends(fig, axes, where="top", **kwargs):
+    """同 `shared_legend`（新版指南里的名字）。"""
+    return shared_legend(fig, axes, where=where, **kwargs)
