@@ -88,16 +88,41 @@ function byteFloor(input: GateInput, id: string, name: string, min: number): Gat
  * **参考的写法是 `RC ≠ 1 算过`，这里不沿用**：`2` 一律不算通过。本实现只做
  * "能看到的"那一半——扫描产物文本里是否出现 ≥0.99 的指标却没有任何去泄漏说明。
  * 真正的去泄漏判定需要看代码与数据划分，属未实现部分。
+ *
+ * ## 判据必须锚在"分类指标"上，不能只看数字大小（第十二处真实误报）
+ *
+ * 原实现 `0\.9[9]\d*|1\.000|100\.0\s*%` 只要文本里**任何地方**出现 ≥0.99 的数就报，
+ * 于是 2024B 阶段 3 被拦：本题**根本没有分类指标**（是抽样方案 + 装配决策 + 期望利润），
+ * 被命中的是两处完全无关的数——灵敏度扫描的置信水平格点 `[0.9, 0.95, 0.99]`、
+ * OC 曲线上的接收概率轴值 `0.99 / 0.995`。这些数越接近 1 越正常，与"模型好得可疑"无关。
+ *
+ * 所以判据改成**同时**要求：① 该行有 ≥0.99 的数；② 该行或邻近行有分类指标词。
+ * 单看①会把置信水平、概率、坐标轴全打成"分类指标"；这正是本项目反复出现的
+ * "数字被当成它不代表的量"的同一个病。
  */
+const CLASSIFICATION_METRIC = /准确率|精确率|精准率|召回率|查全率|查准率|F1|F-1|AUC|ROC|混淆矩阵|分类(?:器|模型|指标|任务|准确|精度)|accuracy|precision|recall|f1[-_ ]?score|confusion|classif/i
+const NEAR_ONE = /0\.9[9]\d*|1\.000|100\.0\s*%/
+
 const leakageAudit: GateFn = (input) => {
   const id = 'leakage_audit'
   const bodies = [...input.files.values()].join('\n')
-  const suspicious = /0\.9[9]\d*|1\.000|100\.0\s*%/.test(bodies)
-  if (!suspicious) return ok(id, '未发现 ≥0.99 的分类指标（无需去泄漏证据）')
+  const lines = bodies.split('\n')
+  // 分类指标词允许出现在**同一行或上下各一行**：markdown 表头与数值常分两行，
+  // 而 JSON 里的裸数字行（`0.99,`）附近不会有指标词，所以不会误伤。
+  const hits: string[] = []
+  lines.forEach((line, i) => {
+    if (!NEAR_ONE.test(line)) return
+    const window = lines.slice(Math.max(0, i - 1), i + 2).join('\n')
+    if (CLASSIFICATION_METRIC.test(window)) hits.push(line.trim().slice(0, 80))
+  })
+  if (hits.length === 0) {
+    return ok(id, '未发现 ≥0.99 的**分类指标**（置信水平 / 概率 / 坐标轴上的大数不算）')
+  }
   const hasEvidence = /去泄漏|de[- ]?leak|泄漏|train[_ ]?test[_ ]?split|划分/.test(bodies)
   return hasEvidence
-    ? ok(id, '出现 ≥0.99 的指标，且产物里有去泄漏说明')
-    : fail(id, '出现 ≥0.99 的分类指标，但产物里没有任何去泄漏证据（参考口径：这是硬失败）')
+    ? ok(id, `出现 ≥0.99 的分类指标（${String(hits.length)} 处），且产物里有去泄漏说明`)
+    : fail(id, `出现 ≥0.99 的分类指标（${String(hits.length)} 处：${hits.slice(0, 3).join(' / ')}），`
+      + '但产物里没有任何去泄漏证据（参考口径：这是硬失败）')
 }
 
 /** 参考 `no_render` 的意图：阶段 3 **不得产出图像字节**（渲染是阶段 4 的事）。 */
