@@ -97,3 +97,64 @@ export function diagramTemplate(file: string): string {
   }
   return readFileSync(join(DIAGRAM_TEMPLATES_DIR, file), 'utf8')
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 作图资产（**原样迁移自参考实现**，见 `assets/plotting/` 的模块注释）
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * 作图资产目录 —— 参考实现里 `skills/shared-scripts/` 的作图部分，原样迁移。
+ *
+ * ## 为什么是"原样迁移"而不是"照着重写"
+ *
+ * 用户口径是"**借鉴与仿制**"。这一层是参考实现的**风格规范本身**
+ * （35 套配色、语义色表、`_lighten`、确定性风格种子、保存时的布局兜底链）
+ * 与**108 个代码配方**。照着重写等于换标准——而"标准"正是这些文件的内容。
+ * 与 `assets.ts` 模块头那条纪律一致：**模板是版式规范本身，引擎是渲染实现本身**。
+ *
+ * ## 它替换掉了什么
+ *
+ * 原来本仓库的作图阶段是**声明驱动**的：模型只写 `{chart_type, data_refs}`，
+ * 由固定渲染器出 SVG（白名单 10 种图型）。那是为了"数不由模型持有"设计的，
+ * 但代价是**水平上不去**——参考实现让模型写 `gen_fig_*.py`（matplotlib），
+ * 拿到的是 108 个配方 + 一整套布局兜底（图例按占用自动选位、标注防重叠、
+ * 刻度防裁切、空白自适应收缩），这些是固定渲染器做不到的。
+ *
+ * **可溯源没有丢**：参考自己也是靠"**必须从 JSON 读数据、不得硬编码**"
+ * （`SKILL.md` 的 Key Rules）来保证图里的数与正文一致，并由
+ * `facts_audit.py --stage figure` 审这一点。本仓库用同一条纪律，只是把
+ * "从 JSON 读"具体化为"从 harness 铸出的 `results.json` 读"。
+ */
+export const PLOTTING_ASSETS_DIR = join(STAGE_ASSETS_DIR.dir, 'plotting')
+
+/**
+ * 作图资产清单。
+ *
+ * `role` 一栏是给**简报与门禁**读的：模型需要知道每个文件是什么、该怎么用；
+ * 门禁需要知道该拿哪个脚本去审代码。
+ */
+export const PLOTTING_ASSETS: ReadonlyArray<{
+  readonly file: string
+  readonly role: string
+}> = [
+  { file: 'plot_utils.py', role: '**样式唯一来源**：`setup_style()` / `PALETTE` / `COLORS` / `_lighten` / `smart_labels` / `auto_legend` / `save_fig`' },
+  { file: 'figure_style_guide.md', role: '风格规范本体：图型决策表、配色禁令、figsize 长宽比档位表、图内文字三层闸' },
+  { file: 'get_recipe.py', role: '按 `类别 编号` 取配方代码（`basic|advanced|academic|competition|empirical`）' },
+  { file: 'figure_recipes_basic.md', role: '配方库：通用基础图 12 个' },
+  { file: 'figure_recipes_advanced.md', role: '配方库：SCI 级高级图型 34 个' },
+  { file: 'figure_recipes_academic.md', role: '配方库：AI/CS 论文 12 个' },
+  { file: 'figure_recipes_competition.md', role: '配方库：数学建模竞赛 29 个' },
+  { file: 'figure_recipes_empirical.md', role: '配方库：实证/计量 21 个' },
+  { file: 'figure_exemplars.md', role: '图例范本（优秀成图的写法参考）' },
+  { file: 'figure_check.sh', role: '**代码级门禁**：只让 CRITICAL 进退出码（缺 setup_style / 默认蓝 / RdYlGn / plt.title / 硬编码色 >2…）' },
+  { file: 'recipe_audit.py', role: '**规划图型 vs 实际代码**的内容级对账（治"规划写等高线、画出来是条形图"）' },
+  { file: 'fig_include_size.py', role: '按 PDF 真实长宽比自动写 latex_includes 的 width/height（figsize 闭环）' },
+]
+
+/** 读一份作图资产（原样返回，不做任何改写）。 */
+export function plottingAsset(file: string): string {
+  if (!PLOTTING_ASSETS.some(a => a.file === file)) {
+    throw new Error(`unknown plotting asset: ${file}（清单：${PLOTTING_ASSETS.map(a => a.file).join('、')}）`)
+  }
+  return readFileSync(join(PLOTTING_ASSETS_DIR, file), 'utf8')
+}
