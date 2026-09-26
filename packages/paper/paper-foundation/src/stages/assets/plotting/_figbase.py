@@ -37,10 +37,27 @@ for _p in (str(ROOT), str(HERE)):
 # 样式库的**唯一**来源。harness 把它铺在 `<stage>/_utils/`（规范位置），
 # 同时在 `<stage>/figures/_utils/` 留一份兜底——Python 只把脚本所在目录加进
 # sys.path，靠环境变量传 cwd 在某些环境下不生效（实测过）。
-from _utils.plot_utils import (setup_style, save_fig, PALETTE, PALETTE_LIGHT, COLORS,
-                               set_paper_placement, declutter_axes, auto_legend,
-                               shared_legend, dynamic_limits, smart_labels,
-                               check_legend_overlap)
+#
+# ⛔ **这份名单是"契约承诺"与"模块实际提供"的交界**：简报与分片提示词里教模型
+# `from _figbase import load, save, panel, PALETTE, COLORS, _lighten, cn`，
+# 少一个名字，**每一份脚本都会 ImportError 而全挂**。实测踩过：第一版漏了
+# `_lighten`（它定义在 plot_utils 里，但没被这里转出），7/7 脚本全挂，
+# 报 `cannot import name '_lighten' from '_figbase'`。
+# 因此下面把脚本真正会用到的名字**逐个转出**，并由测试核对契约里点名的每个名字都在。
+from _utils.plot_utils import (  # noqa: F401  (转出即接口)
+    # 核心：样式、出图、色板
+    setup_style, save_fig, _lighten,
+    PALETTE, PALETTE_LIGHT, COLORS, PALETTES,
+    # 版式兜底（参考的"高分图集"做法）
+    set_paper_placement, declutter_axes, dynamic_limits, shared_legend,
+    consolidate_shared_legends,
+    # 标注与图例
+    smart_labels, auto_legend, check_legend_overlap, auto_truncate_yticklabels,
+    # 现成的整图函数（配方里会直接调用）
+    heatmap, forest_plot, trend_plot, bar_compare, distribution_plot,
+    scatter_plot, residual_diagnostic, multi_line_plot, box_plot, radar_plot,
+    subplot_grid,
+)
 setup_style()
 
 import numpy as np

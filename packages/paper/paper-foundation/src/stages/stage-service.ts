@@ -110,6 +110,14 @@ export interface StageChainConfig {
   /** 题面的子问题数；不给则从 `00-input/problem.txt` 数，数不出给 0（`code_parity` 如实给 `2`）。 */
   readonly problemCount?: number
   /**
+   * **复评**：不重新产出，只重跑门禁与审计（`--stage-regate`）。
+   *
+   * 只在"判据被修好了、产物没变"时用。门禁与审计照跑，不过就是不过——
+   * 它跳过的只是"重新产出"这一步（那一步要花十几次模型调用）。
+   * 留痕在通行证的 `regate` 字段上。
+   */
+  readonly regate?: { readonly reason: string }
+  /**
    * 语料工具开关（与 `PaperExecutorOptions.skillDocs` 同名）。
    *
    * **这条路径只接受 `false`**：阶段链的 `callModel` 没有工具调用回路，挂了开关
@@ -186,7 +194,11 @@ export class PaperStageChainService extends Service {
     const next = await resumePointOf(this.config.stagesRoot)
     if (next === null) return null
     const problemCount = await this.problemCount()
-    const outcomes = await runStages(this.contextOf(), { only: [next], problemCount })
+    const outcomes = await runStages(this.contextOf(), {
+      only: [next],
+      problemCount,
+      ...(this.config.regate === undefined ? {} : { regate: this.config.regate }),
+    })
     const first = outcomes[outcomes.length - 1]
     return first ?? null
   }

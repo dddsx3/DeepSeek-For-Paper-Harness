@@ -184,7 +184,7 @@ async function main(): Promise<number> {
   const positionals = parsed.positionals
   if (positionals.length === 0 && parsed.version === undefined && parsed.help === undefined) {
     console.error('usage: paper-shell run <problem-file> [--tier T1|T2|T3] [--mode fast|strict|exploratory] [--fail-soft|--closed-loop|--strict-tolerance] [--capability-tier S|A|B] [--out <dir>] [--zip]')
-    console.error('       paper-shell run <problem-file> --stages [--ingest <pdf|图片>] [--stage-only a,b] [--stage-pause-after a,b] [--stage-resume] [--stage-problems N]')
+    console.error('       paper-shell run <problem-file> --stages [--ingest <pdf|图片>] [--stage-only a,b] [--stage-pause-after a,b] [--stage-resume] [--stage-problems N] [--stage-regate "<理由>"]')
     console.error('                                     # 走 11 阶段链（每阶段一个技能/产物/门禁/通行证；暂停后续跑见 --stage-resume）')
     console.error('       paper-shell probe [--json]            # L0 能力探针：跑三个可机械判定的任务，产出档位 S/A/B')
     console.error('       paper-shell claims <workspace> [--json]   # L3 符号证据：跑 claims/*.py 并标注证据级别')
@@ -748,11 +748,21 @@ ${String(result.unverifiable.length)} / ${String(result.claims.length)} 条断�
       return 2
     }
     const problemsArg = Number(parsed['stage-problems'])
+    // **`--stage-regate ["理由"]`**：判据修好了、产物没变时，只重跑门禁与审计。
+    // 典型场景（本仓库实测两次）：门禁误判（`contourf(levels=[-0.5,0.5,1.5])` 被判成
+    // 硬编码数据）、审计记账口径（把"有无与上游冲突"当要求条目 → `done:false`）。
+    // 两种情形产物都合格，重跑执行者纯属浪费（十几次模型调用）。复评只跳过"重新产出"，
+    // 门禁与审计照跑——不过就是不过，且会在通行证上留 `regate` 痕。
+    const regateRaw = parsed['stage-regate']
+    const regate = regateRaw === undefined
+      ? undefined
+      : { reason: typeof regateRaw === 'string' && regateRaw.length > 0 ? regateRaw : '判据已修正，产物未变——复评' }
     try {
       await ctx.plugin(PaperStageChainService, {
         stagesRoot,
         ...(only === undefined ? {} : { only }),
         ...(pauseAfter.length === 0 ? {} : { pauseAfter }),
+        ...(regate === undefined ? {} : { regate }),
         ...(Number.isFinite(problemsArg) && problemsArg > 0 ? { problemCount: problemsArg } : {}),
         onDeterministicOutcome: (o) => console.log(`  [deterministic] ${o.stage}: ${o.summary}`),
       })

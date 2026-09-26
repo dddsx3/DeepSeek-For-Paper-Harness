@@ -1,0 +1,9 @@
+[STAGE CHAIN] artifacts\upper-bound\2024B-ingest-1\stages
+  题面问数（数出来的）：4
+[STAGE NEXT] 只跑了 'figure'，到此即停。检查 artifacts\upper-bound\2024B-ingest-1\stages 后，放行 = 再执行一次 --stages --stage-next。
+  ❌ figure: 阶段产出未通过形态检查：7/7 个绘图脚本没跑成 —— 首个 `figures/gen_fig_q1_oc_curve_p1.py`：exit=1，期望产出 figures/fig_q1_oc_curve_p1.png / figures/fig_q1_oc_curve_p1.pdf / figures/fig_q1_oc_curve_p1.svg / figures/fig_q1_oc_curve_p1.jpg / figures/fig_q1_oc_curve_p1.jpeg，实际 （无）；stderr 末尾： File "D:\deepseek modex\deepseek-harness\artifacts\upper-bound\2024B-ingest-1\stages\06-figure\figures\gen_fig_q1_oc_curve_p1.py", line 33, in <module>
+    from _figbase import load, save, panel, PALETTE, COLORS, _lighten, cn
+ImportError: cannot import name '_lighten' from '_figbase' (D:\deepseek modex\deepseek-harness\artifacts\upper-bound\2024B-ingest-1\stages\06-figure\figures\_figbase.py)
+
+
+STAGE CHAIN FAILED — 1 个阶段没通过（产物与通行证在 artifacts\upper-bound\2024B-ingest-1\stages）。

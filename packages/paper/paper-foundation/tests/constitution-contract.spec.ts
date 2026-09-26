@@ -208,7 +208,7 @@ describe('两条沿用下来的不变量', () => {
     // 判据要精确：只抓"**要求模型去读一份文件**"的形态，不抓"读一下拒绝信息"这类
     // 合法表述（那是读模型自己的输出），也不抓"不需要你去读文件"这种否定句。
     const readInstructions = [
-      ...PAPER_CONSTITUTION.matchAll(/read_file\(|read (?:the|this) (?:document|file|doc)|去读 `skills\//g),
+      ...PAPER_CONSTITUTION.matchAll(/read_file\(|read (?:the|this) (?:document|file|doc)\b|去读 `skills\//g),
     ].map(m => m[0])
     expect(readInstructions, `宪法里仍有"去读文件"的指示：${readInstructions.join('、')}`).toEqual([])
   })
