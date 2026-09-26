@@ -286,3 +286,26 @@ describe('阶段链服务 —— 真的接进了 provider 缝', () => {
     expect(STAGES).toHaveLength(13)
   })
 })
+
+/**
+ * 分片的**后续片必须看到前面的产出**。
+ *
+ * 分片把"一次调用"拆成"两次独立调用"，代价是富散文分片看不到 IR 声明分片写了什么。
+ * 实测立刻发生：声明的 `EQ-PLAN-Q1` 已改成 `Pr(X≤c|p_nom) ≤ beta`，报告仍写 `≥ 0.90`，
+ * 审计判"报告与声明冲突"（fatal）。所以第二片的 prompt 必须带上第一片的产出全文。
+ */
+describe('阶段 2 分片 —— 后续片看得见前面的产出（分片换来的新约束）', () => {
+  it('第二片的 prompt 里出现第一片产出的内容，且写明"必须与之保持一致"', async () => {
+    const { ctx, prompts } = await harness({ pauseAfter: ['modeling'] })
+    await ctx.paperStageChain.runUntilPause()
+
+    // 找"分片 2/2 交付 MODELING_REPORT.md"那一次调用（它带分片尾巴）
+    const second = prompts.filter(p => p.includes('分片 2/2') && p.includes('MODELING_REPORT.md'))
+    expect(second.length).toBeGreaterThan(0)
+    const p = second[0] ?? ''
+    expect(p).toContain('本阶段**已产出**的文件')
+    expect(p).toContain('必须与之保持一致')
+    // 第一片交付的是 DECLARATION.json，它的内容（夹具里带 checklist_refs）应出现在第二片
+    expect(p).toContain('checklist_refs')
+  }, 120_000)
+})
