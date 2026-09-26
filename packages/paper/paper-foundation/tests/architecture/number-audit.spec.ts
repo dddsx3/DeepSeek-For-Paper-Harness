@@ -302,3 +302,30 @@ describe('第十一处误报 —— 名词短语 vs 断言（判别力）', () =
     expect(verificationClaims('逐一核对无误。').length).toBeGreaterThan(0)
   })
 })
+
+/**
+ * 第十三处真实误报：**ASCII 直引号**不在元语言剥离表里。
+ *
+ * 阶段 2 的 §1 解释这条纪律时写：
+ *   `任何"已通过 / 已验证 / 全部一致"的完成时声明都比一个错数字更危险`
+ * 它是在**引用被禁的措辞**，而六个引号全是 U+0022——原剥离表只认「」『』``“”，
+ * 于是「全部一致」被判成"声称已执行检验"。引号形式有四种，漏一种就是一个假阳性源。
+ */
+describe('第十三处误报 —— ASCII 直引号也是元语言引号', () => {
+  it('**引用被禁措辞作为反例**不误报（真实形态逐字固化）', () => {
+    const line = '本阶段一次代码都没跑，任何"已通过 / 已验证 / 全部一致"的完成时声明都比一个错数字更危险，因为它给下游传递了"已验证"的假信号。'
+    expect(verificationClaims(line)).toEqual([])
+  })
+
+  it('四种引号形式都要剥（「」『』 `` “” ""）', () => {
+    for (const q of [['「', '」'], ['『', '』'], ['`', '`'], ['“', '”'], ['"', '"']]) {
+      const text = `不得写${q[0]}全部通过${q[1]}这类完成时结论。`
+      expect(verificationClaims(text).length, `引号形式 ${q[0]}${q[1]} 没剥掉`).toBe(0)
+    }
+  })
+
+  it('**判别力**：没被引号包住的同一句话照样抓', () => {
+    expect(verificationClaims('表 1 的六种情况全部通过（容差 1e-6）。').length).toBeGreaterThan(0)
+    expect(verificationClaims('全部一致，无需复核。').length).toBeGreaterThan(0)
+  })
+})
