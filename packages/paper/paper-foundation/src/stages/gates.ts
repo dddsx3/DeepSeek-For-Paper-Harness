@@ -63,9 +63,9 @@ export interface GateInput {
 
 type GateFn = (input: GateInput) => GateVerdict
 
-const ok = (id: string, detail: string): GateVerdict => ({ code: 0, items: [{ id, ok: true, detail }] })
-const fail = (id: string, detail: string): GateVerdict => ({ code: 1, items: [{ id, ok: false, detail }] })
-const cannot = (id: string, detail: string): GateVerdict => ({ code: 2, items: [{ id, ok: false, detail }] })
+const ok = (id: string, detail: string): GateVerdict => ({ code: 0, items: [{ id, ok: true, detail, code: 0 }] })
+const fail = (id: string, detail: string): GateVerdict => ({ code: 1, items: [{ id, ok: false, detail, code: 1 }] })
+const cannot = (id: string, detail: string): GateVerdict => ({ code: 2, items: [{ id, ok: false, detail, code: 2 }] })
 
 /** 取文件文本；缺失返回 null（**不返回空串**——空串会让"文件不存在"和"文件是空的"混为一谈）。 */
 function text(input: GateInput, name: string): string | null {
@@ -1036,7 +1036,7 @@ export const GATES: ReadonlyMap<string, GateFn> = new Map<string, GateFn>([
  * @returns 聚合结论；未登记的 id 记为 `2`（**不放行**）。
  */
 export function runGates(ids: ReadonlyArray<string>, input: GateInput): GateVerdict {
-  const items: Array<{ id: string; ok: boolean; detail: string }> = []
+  const items: Array<{ id: string; ok: boolean; detail: string; code?: 0 | 1 | 2 }> = []
   let worst: 0 | 1 | 2 = 0
   for (const id of ids) {
     const fn = GATES.get(id)

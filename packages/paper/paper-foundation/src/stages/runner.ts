@@ -476,6 +476,47 @@ async function pruneStageDir(dir: string, keep: ReadonlySet<string>): Promise<vo
 }
 
 /**
+ * 读上一轮**门禁硬失败**的条目（用于重跑时投递进简报）。
+ *
+ * 为什么必须有这条：审计 findings 有回路，**门禁失败原来没有**。实测代价——
+ * 阶段 2 因为散文里的反例数字 `63` 未登记编外而硬失败，下一轮拿到的是**同一份简报**，
+ * 模型于是又写了一遍同样的数，又失败一次。这与"审计回路"是同一条纪律：
+ * **重跑不能是盲重试**。
+ *
+ * 只投 `code === 1` 的条目（缺省按 1 算）：`2`（未实现/无法判定）不是执行者能修的，
+ * 投回去等于让它去追一个不存在的任务。
+ *
+ * @param stagesRoot - `stages/` 根目录。
+ * @param spec - 阶段。
+ * @returns 上一轮硬失败的门禁条目（可能为空）。
+ */
+async function priorGateFindings(
+  stagesRoot: string,
+  spec: StageSpec,
+): Promise<ReadonlyArray<BriefingFinding>> {
+  const raw = await readFile(join(stagesRoot, stageDirName(spec), GATE_REPORT_FILE), 'utf8').catch(() => null)
+  if (raw === null) return []
+  try {
+    const parsed: unknown = JSON.parse(raw)
+    if ((parsed as { code?: unknown }).code !== 1) return [] // 上一轮没硬失败
+    const items = (parsed as { items?: unknown }).items
+    if (!Array.isArray(items)) return []
+    return items.flatMap((it): ReadonlyArray<BriefingFinding> => {
+      if (typeof it !== 'object' || it === null) return []
+      const o = it as Record<string, unknown>
+      if (o['ok'] === true) return []
+      if ((o['code'] ?? 1) !== 1) return []
+      const id = typeof o['id'] === 'string' ? o['id'] : '(未具名门禁)'
+      const detail = typeof o['detail'] === 'string' ? o['detail'] : ''
+      if (detail === '') return []
+      return [{ severity: 'fatal', where: `门禁 \`${id}\``, issue: detail, fix: '按上面这段里的补救路径改；改完再提交。' }]
+    })
+  } catch {
+    return []
+  }
+}
+
+/**
  * 跑一条阶段链。
  *
  * 默认从第 1 阶段跑到第 11 阶段；遇到 `blocked` 或 `gate-failed` **立即停**
@@ -510,14 +551,22 @@ export async function runStages(
     let rejectedAnswer: string | undefined
     try {
       if (spec.kind === 'model') {
-        // 重跑时把**上一轮审计的问题**带进简报。没有这一步，重跑就是盲重试：
-        // 同一个模型在同一份简报下再生成一次，指望它自己撞对——审计白跑一趟，
-        // 而用户正是为了"不要用试错代替复核"才加的逐节点审计。
+        // 重跑时把**上一轮的失败**带进简报。没有这一步，重跑就是盲重试：
+        // 同一个模型在同一份简报下再生成一次，指望它自己撞对。
+        //
+        // 两个来源都要带：**审计 findings**（模型层面的判定）与**门禁硬失败**
+        // （机械判定的判定）。实测代价：阶段 2 因为散文里的反例数字 `63` 未登记编外
+        // 而门禁硬失败，但当时只有审计有回路，于是下一轮拿到同一份简报、
+        // 又写了一遍同样的数——**同一条门禁拦了两次**。
+        const prior = [
+          ...await priorGateFindings(ctx.stagesRoot, spec),
+          ...await priorAuditFindings(ctx.stagesRoot, spec),
+        ]
         const prompt = stageBriefing(
           spec,
           await upstreamTextOf(ctx.stagesRoot, spec),
           ctx.toolsMounted?.(spec) === true,
-          await priorAuditFindings(ctx.stagesRoot, spec),
+          prior,
         )
         const answer = await ctx.callModel(spec, prompt)
         rejectedAnswer = answer
