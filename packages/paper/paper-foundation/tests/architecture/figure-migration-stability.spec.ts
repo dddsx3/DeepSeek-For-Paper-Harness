@@ -19,7 +19,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { stageBriefing } from '../../src/stages/briefing.ts'
-import { stageOf } from '../../src/stages/registry.ts'
+import { STAGES, stageOf } from '../../src/stages/registry.ts'
 import { METHODOLOGY_ASSETS, PLOTTING_ASSETS, PLOTTING_ASSETS_DIR, STAGE_TOOLS, methodologyAsset, stageAsset } from '../../src/stages/assets.ts'
 
 describe('稳定迁移 —— 契约里不许有题目词汇', () => {
@@ -491,5 +491,55 @@ describe('`_figbase` 提供的名字 ⊇ 契约点名的名字', () => {
     const probe = `import sys; sys.path.insert(0, 'figures'); from _figbase import ${names.join(', ')}; print('ok')`
     const r = spawnSync('python', ['-c', probe], { cwd: root, encoding: 'utf8', timeout: 180_000 })
     expect(r.stdout ?? '', `python 导入失败：${(r.stderr ?? '').slice(-400)}`).toContain('ok')
+  })
+})
+
+/**
+ * **契约里点名的文件，本阶段必须真的拿得到** —— 否则那段话是空话。
+ *
+ * 实测（本轮）：我在阶段 3 的契约里写"阶段 1 的 `FIGURE_MANIFEST` 已经规划了每张数据图，
+ * 逐张问一句这张图要什么数据"，但阶段 3 的 `consumes` 里**没有 `PROBLEM_ANALYSIS.md`**
+ * ——清单根本不在它的简报里，**那段话无从执行**。阶段 4 同样。
+ *
+ * 这是"契约教的 ≠ 环境给的"的又一形态（与 `_figbase` 导出名单、chart_type 白名单同类）。
+ * 区别在于它更隐蔽：前两者会让脚本**报错**，这一条只会让模型**默默按自己的理解做**，
+ * 最后表现为"图还是画不出来"，而没有任何一处报错指向真正的原因。
+ */
+describe('契约点名的文件必须在本阶段的 `consumes` 里', () => {
+  /** 契约里出现这个标记 → 本阶段必须 consume 这个文件。 */
+  const REQUIRED: ReadonlyArray<readonly [string, string]> = [
+    ['FIGURE_MANIFEST', '01-prob-analysis/PROBLEM_ANALYSIS.md'],
+    ['PROBLEM_FACTS.json', '01-prob-analysis/PROBLEM_FACTS.json'],
+    ['DECLARATION.json', '02-modeling/DECLARATION.json'],
+    ['FIGURE_PLAN.json', '05-figure-declare/FIGURE_PLAN.json'],
+  ]
+
+  it('逐阶段核：契约提到某文件，`consumes` 或 `produces` 里就得有它', () => {
+    const problems: string[] = []
+    // **按 basename 比**：`consumes` 写的是带目录的路径（`02-modeling/DECLARATION.json`），
+    // `produces` 写的是裸名（`DECLARATION.json`）——第一版直接比字符串，
+    // 于是把"本阶段自己产出的文件"也判成"没拿到"（4 条命中里 3 条是假阳性）。
+    // 这里**不用正则**：`replace(/\/$/, ...)` 里的转义斜杠经多层字符串转义会掉成裸 `/`，
+    // 变成非法正则字面量 `//$/` 而整个文件解析失败（本会话第四次栽在这类转义上）。
+    const base = (q: string): string => {
+      const parts = q.split('/').filter(x => x.length > 0)
+      return parts[parts.length - 1] ?? q
+    }
+    for (const spec of STAGES) {
+      // 本阶段自己的产物不算"要拿到"（它自己写出来的）
+      const own = spec.produces.map(q => base(q.file))
+      const has = (file: string): boolean => {
+        const b = base(file)
+        return spec.consumes.some(c => base(c) === b) || own.some(f => f === b || b.startsWith(f))
+      }
+      const brief = stageBriefing(spec, new Map(), false)
+      for (const [marker, file] of REQUIRED) {
+        if (!brief.includes(marker)) continue
+        if (!has(file)) {
+          problems.push(`${spec.id}：契约点名了 \`${marker}\`，但没有 consume \`${file}\` —— 那段话无从执行`)
+        }
+      }
+    }
+    expect(problems, problems.join('；')).toEqual([])
   })
 })

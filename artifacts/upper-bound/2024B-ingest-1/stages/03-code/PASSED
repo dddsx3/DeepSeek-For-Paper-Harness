@@ -3,7 +3,7 @@
   "stage": "code",
   "index": 3,
   "at": "2026-09-26T08:51:35.433Z",
-  "status": "passed",
+  "status": "stale",
   "cleanliness": "unverified-gates",
   "inputDigest": "920a0b1c5afdb349c52a5b4fcab0f90c74f9a660ebe324f6f46df1b8f3e0b10c",
   "artifacts": {
@@ -148,5 +148,6 @@
     "missing": [],
     "model": "glm-5.3-flash-free",
     "at": "2026-09-26T08:51:35.428Z"
-  }
+  },
+  "staleReason": "图集塌半：账本只有标量点值，7 张图无米下锅。已放宽铸数收数组，需补算扫描表/矩阵/样本序列 —— 检查人否决"
 }

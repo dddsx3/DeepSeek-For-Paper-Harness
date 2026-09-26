@@ -126,7 +126,11 @@ export const STAGES: ReadonlyArray<StageSpec> = [
   },
   {
     id: 'code', index: 3, kind: 'model', title: '编程实现', skillId: 'comp-code',
-    consumes: ['02-modeling/MODELING_REPORT.md', '02-modeling/DECLARATION.json', '01-prob-analysis/PROBLEM_FACTS.json'],
+    // **必须看得见图表清单**：本阶段的代码要算出每张图所需的数据形态
+    // （扫描表/矩阵/样本序列）。原来只consume 建模报告与事实表，
+    // 于是"按 FIGURE_MANIFEST 逐张问要什么数据"这条契约**无从执行**——
+    // 实测代价：账本只铸出 49 个标量点值，7 张图无米下锅。
+    consumes: ['02-modeling/MODELING_REPORT.md', '02-modeling/DECLARATION.json', '01-prob-analysis/PROBLEM_FACTS.json', '01-prob-analysis/PROBLEM_ANALYSIS.md'],
     produces: [
       D('code/main.py', 'py', '编排入口：依次跑各问并汇总', 500),
       D('code/', 'dir', '逐问实现：`problem*.py`，文件数 ≥ 题面问数（逐问奇偶校验）'),
@@ -142,7 +146,8 @@ export const STAGES: ReadonlyArray<StageSpec> = [
   },
   {
     id: 'result-sources', index: 4, kind: 'model', title: '数源声明与铸数', skillId: 'comp-result-sources',
-    consumes: ['03-code/RESULTS.md', '03-code/DELIVERABLES.json'],
+    // 同理：声明"数在哪"要照着图表清单来（序列/矩阵各一条，别拆成几十条标量）。
+    consumes: ['03-code/RESULTS.md', '03-code/DELIVERABLES.json', '01-prob-analysis/PROBLEM_ANALYSIS.md'],
     produces: [
       D('RESULT_SOURCES.json', 'json', '**数在哪**：`[{result_id, name, locator, json_path, unit}]`——模型只声明定位，不写数值', 200),
       D('results.json', 'json', '**harness 铸出的数**：真跑代码后按 locator+json_path 从产物字节读出（模型从头到尾不持有数值）', undefined, true),
