@@ -53,8 +53,15 @@ function codeDeliverables(spec: StageSpec): ReadonlyArray<string> {
 export function planCodeShards(spec: StageSpec, prompt: string, problemCount: number): ReadonlyArray<CodeShard> {
   const deliverables = codeDeliverables(spec)
   const entry = 'code/main.py'
+  // **`code/params.py` 必须有自己的一片**。契约明写"题面给定值与模型常数的唯一落点"
+  // 且"其余脚本 `from params import *`"，但分片计划里原来**没有它的位置**——
+  // 于是模型写出 `import params` 却无从交付该文件，阶段 4 真跑代码时
+  // `ModuleNotFoundError: No module named 'params'`，整轮白跑（实测 2024B）。
+  // 这是"契约要求的文件，管线没给它交付槽位"的又一例（与 `_figbase`、阶段 3 看不见
+  // FIGURE_MANIFEST 同类）。**契约要什么，分片计划就得给它一片。**
+  const params = 'code/params.py'
   const perProblem = Array.from({ length: Math.max(problemCount, 0) }, (_, i) => `code/problem${String(i + 1)}.py`)
-  const rest = deliverables.filter(f => f !== entry && !/^code\/problem\d+\.py$/.test(f))
+  const rest = deliverables.filter(f => f !== entry && f !== params && !/^code\/problem\d+\.py$/.test(f))
 
   const shardPrompt = (deliverable: string, i: number, total: number): string =>
     `${prompt}\n\n---\n\n## 本次调用（分片 ${String(i)}/${String(total)}）\n\n`
@@ -68,7 +75,12 @@ export function planCodeShards(spec: StageSpec, prompt: string, problemCount: nu
     const total = 1
     return [{ index: 1, total, deliverable: '*', prompt: shardPrompt('*', 1, total) }]
   }
-  const shards: Array<{ deliverable: string }> = [ { deliverable: entry }, ...perProblem.map(f => ({ deliverable: f })), { deliverable: '*' } ]
+  const shards: Array<{ deliverable: string }> = [
+    { deliverable: entry },
+    { deliverable: params },
+    ...perProblem.map(f => ({ deliverable: f })),
+    { deliverable: '*' },
+  ]
   const total = shards.length
   return shards.map((shard, i) => ({
     index: i + 1,

@@ -14,20 +14,23 @@ const spec = stageOf('code')
 const briefing = '阶段简报……（含逐问模型与上游上下文）'
 
 describe('code-shard —— 分片计划', () => {
-  it('问数 4 → 6 片：入口 1 + 逐问 4 + 收尾信封 1；每片 prompt 都带完整简报与片号', () => {
+  it('问数 4 → 7 片：入口 1 + params 1 + 逐问 4 + 收尾信封 1；每片 prompt 都带完整简报与片号', () => {
     const shards = planCodeShards(spec, briefing, 4)
     expect(shards.map(s => s.deliverable)).toEqual([
-      'code/main.py', 'code/problem1.py', 'code/problem2.py', 'code/problem3.py', 'code/problem4.py', '*',
+      'code/main.py', 'code/params.py', 'code/problem1.py', 'code/problem2.py', 'code/problem3.py', 'code/problem4.py', '*',
     ])
     for (const s of shards) {
-      expect(s.total).toBe(6)
+      expect(s.total).toBe(7)
       expect(s.prompt).toContain(briefing)
       expect(s.prompt).toContain(`分片 ${String(s.index)}/${String(s.total)}`)
     }
     // 单文件片：原文物态；收尾片：JSON 信封物态
     expect(shards[0]?.prompt).toContain('只产出 `code/main.py`')
-    expect(shards[5]?.prompt).toContain('JSON 信封')
-    expect(shards[5]?.prompt).toContain('`RESULTS.md`')
+    // `params.py` 有自己的一片（契约要求它，分片计划就得给它槽位）
+    expect(shards[1]?.deliverable).toBe('code/params.py')
+    expect(shards[1]?.prompt).toContain('只产出 `code/params.py`')
+    expect(shards[6]?.prompt).toContain('JSON 信封')
+    expect(shards[6]?.prompt).toContain('`RESULTS.md`')
   })
 
   it('问数 0 → 单片回退（问数未知时拆片无从拆；code_parity 会如实给 2）', () => {
@@ -38,7 +41,7 @@ describe('code-shard —— 分片计划', () => {
 })
 
 describe('code-shard —— 组装过原契约', () => {
-  it('六片回答组装成 JSON 信封，键与注册表契约一致', () => {
+  it('七片回答组装成 JSON 信封，键与注册表契约一致', () => {
     const shards = planCodeShards(spec, briefing, 2)
     const answers = shards.map(s =>
       s.deliverable === '*'
@@ -47,7 +50,7 @@ describe('code-shard —— 组装过原契约', () => {
     )
     const envelope = JSON.parse(assembleShards(shards, answers)) as { files: Record<string, string> }
     expect(Object.keys(envelope.files).sort()).toEqual([
-      'DELIVERABLES.json', 'RESULTS.md', 'code/main.py', 'code/problem1.py', 'code/problem2.py',
+      'DELIVERABLES.json', 'RESULTS.md', 'code/main.py', 'code/params.py', 'code/problem1.py', 'code/problem2.py',
     ])
   })
 

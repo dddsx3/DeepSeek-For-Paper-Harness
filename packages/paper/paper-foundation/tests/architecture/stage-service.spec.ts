@@ -278,9 +278,12 @@ describe('阶段链服务 —— 真的接进了 provider 缝', () => {
     const modelingPassport = await readPassport(stagesRoot, stageOf('modeling'))
     expect(modelingPassport?.audit?.score).toBeCloseTo(0.85, 5)
     expect(modelingPassport?.audit?.verdict).toBe('pass')
-    // 阶段 3 分片：问数 2 → 4 次调用（入口 + problem1 + problem2 + 收尾信封）
+    // 阶段 3 分片：问数 2 → 5 次调用（入口 + params + problem1 + problem2 + 收尾信封）
+    // `params.py` 自成一档是因为契约要求它（"题面给定值唯一落点"）而原来没有槽位——
+    // 于是 main.py 写了 `import params` 却没人交这个文件，阶段 4 跑代码直接 ModuleNotFoundError。
     const codeCalls = prompts.filter(p => p.includes('stages/03-code/'))
-    expect(codeCalls.length).toBe(4)
+    expect(codeCalls.length).toBe(5)
+    expect(codeCalls.filter(p => p.includes('只产出 `code/params.py`')).length).toBe(1)
     expect(codeCalls.filter(p => p.includes('只产出 `code/problem1.py`')).length).toBe(1)
     // 简报调用要按**分片**数：阶段 2 分 2 片（IR 声明 + 富散文）、阶段 3 分 6 片。
     // 判据落在"每个模型阶段都收到了简报"上（下面那行按目录名核），这里只核总数不为零。
