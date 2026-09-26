@@ -77,7 +77,13 @@ export interface StagePassport {
   readonly audit?: AuditVerdict
 }
 
-const PASSPORT_FILE = 'PASSED'
+/**
+ * 通行证文件名。
+ *
+ * 导出给 runner 的"重跑 = 替换"用：它要能认出哪些是 harness 自己的记账文件、
+ * 不能当"上一轮模型产物"删掉。两份清单各写一个字面量迟早会漂移。
+ */
+export const PASSPORT_FILE = 'PASSED'
 
 /**
  * 签发通行证。
