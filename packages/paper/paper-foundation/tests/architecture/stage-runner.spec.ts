@@ -578,3 +578,60 @@ describe('重跑接线 —— 上一轮审计的问题进简报', () => {
     expect(seen).not.toContain('上一轮审计提出的问题')
   })
 })
+
+/**
+ * 重跑 = **替换**，不是合并（阶段 3 实测换来的教训）。
+ *
+ * 阶段 3 重跑后交付了一个自相矛盾的目录：`code/problem*.py` 是新的，
+ * 而上一轮**执行**留下的 `code/outputs*.json` 还是旧的——同一问两个 `n*`、
+ * 同一策略两个利润。审计员判"账本与代码不是同一版本"（它是对的），
+ * 但那个矛盾是 harness 自己造的，且执行者在阶段内修不了（阶段 3 不跑代码，
+ * 账本由阶段 4 铸）。所以重跑必须把上一轮的残留清掉。
+ */
+describe('重跑 = 替换（清掉上一轮残留）', () => {
+  it('上一轮多出来的文件（含子目录里的）在重跑后被清掉', async () => {
+    const root = await tmp()
+    await runStages(ctxOf(root), { only: ['prob-analysis'], problemCount: 4 })
+    await runStages(ctxOf(root), { only: ['modeling'], problemCount: 4 })
+
+    // 伪造"上一轮执行留下的账本"（阶段 4 会写在这里）
+    const dir = join(root, '02-modeling')
+    await mkdir(join(dir, 'code'), { recursive: true })
+    await writeFile(join(dir, 'code', 'outputs.json'), '{"stale": true}', 'utf8')
+    await writeFile(join(dir, 'stale-extra.md'), '上一轮的残留', 'utf8')
+
+    await runStages(ctxOf(root), { only: ['modeling'], problemCount: 4 })
+
+    await expect(readFile(join(dir, 'code', 'outputs.json'), 'utf8')).rejects.toThrow()
+    await expect(readFile(join(dir, 'stale-extra.md'), 'utf8')).rejects.toThrow()
+    // 本轮产出的还在
+    expect(await readFile(join(dir, 'MODELING_REPORT.md'), 'utf8')).toContain('内容')
+  }, 120_000)
+
+  it('**harness 记账文件不能被当残留删掉**（通行证 / 门禁报告）', async () => {
+    const root = await tmp()
+    await runStages(ctxOf(root), { only: ['prob-analysis'], problemCount: 4 })
+    await runStages(ctxOf(root), { only: ['modeling'], problemCount: 4 })
+    const dir = join(root, '02-modeling')
+    expect(await readFile(join(dir, 'PASSED'), 'utf8')).toContain('passportVersion')
+    expect(await readFile(join(dir, '_gate-report.json'), 'utf8')).toContain('items')
+
+    await runStages(ctxOf(root), { only: ['modeling'], problemCount: 4 })
+
+    expect(await readFile(join(dir, 'PASSED'), 'utf8')).toContain('passportVersion')
+    expect(await readFile(join(dir, '_gate-report.json'), 'utf8')).toContain('items')
+  }, 120_000)
+
+  it('**解析失败时什么都不删**（不把上一轮产物白扔掉）', async () => {
+    const root = await tmp()
+    await runStages(ctxOf(root), { only: ['prob-analysis'], problemCount: 4 })
+    await runStages(ctxOf(root), { only: ['modeling'], problemCount: 4 })
+    const dir = join(root, '02-modeling')
+    const before = await readFile(join(dir, 'MODELING_REPORT.md'), 'utf8')
+
+    await runStages(ctxOf(root, { callModel: async () => '我忘了信封' }),
+      { only: ['modeling'], problemCount: 4 })
+
+    expect(await readFile(join(dir, 'MODELING_REPORT.md'), 'utf8')).toBe(before)
+  }, 120_000)
+})

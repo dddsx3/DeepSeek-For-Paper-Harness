@@ -9,6 +9,7 @@ import {
   answerFormOf,
   isPorted,
   missingSkills,
+  skillTaskOf,
   stageBriefing,
 } from '../../src/stages/briefing.ts'
 import { STAGES, stageOf } from '../../src/stages/registry.ts'
@@ -252,5 +253,42 @@ describe('阶段 2 简报 —— 能力项逐条认领是硬性要求', () => {
     expect(brief).toContain('checklist_refs')
     expect(brief).toContain('逐字出现')
     expect(brief).toContain('不算认领')
+  })
+})
+
+/**
+ * 阶段 3 的契约文本必须与 13 阶段流水线一致。
+ *
+ * 原文本是 11 阶段时代的写法（"并**声明**图……你写 chart_type/data_refs/caption"、
+ * "渲染是阶段 4 的事"）。拆分后：数源声明=阶段 4、图表声明=阶段 5、渲染=阶段 6/7。
+ * 契约没跟着改，后果是实测的：**审计员照任务陈述判"缺图表声明"并记进 missing**，
+ * 而阶段 3 的产出契约里根本没有图表声明，执行者也做不到（它不跑代码、不渲染）。
+ * 契约与流水线不一致，审计就会判一个执行者做不到的要求。
+ */
+describe('阶段 3 契约 —— 与 13 阶段流水线一致', () => {
+  const spec = stageOf('code')
+  const brief = stageBriefing(spec, new Map(), false)
+  const task = skillTaskOf(spec)
+
+  it('任务陈述不再要求"声明图"，并说清各阶段归属', () => {
+    expect(task).not.toContain('chart_type/data_refs/caption')
+    expect(task).toContain('本阶段只写代码')
+    expect(task).toContain('阶段 4')
+    expect(task).toContain('阶段 5')
+  })
+
+  it('产出契约里确实没有图表声明（契约与任务陈述自洽）', () => {
+    const files = spec.produces.map(p => p.file)
+    expect(files).not.toContain('FIGURE_DECLARATIONS.json')
+    expect(brief).not.toContain('`chart_type/data_refs/caption` 形式的图表声明')
+  })
+
+  it('"不得写图表声明"进了 forbidden（把边界写死，而不是留白）', () => {
+    expect(brief).toContain('不得**写图表声明')
+  })
+
+  it('**逐条参数去公式里找它**写进了 how 与 selfCheck（死参数防线）', () => {
+    expect(brief).toContain('逐条参数去目标函数里找它')
+    expect(brief).toContain('参数表里写着、公式里不用')
   })
 })

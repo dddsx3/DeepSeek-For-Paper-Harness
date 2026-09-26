@@ -48,7 +48,7 @@
  * @module @deepseek-ai/dsh-paper-foundation/stages/runner
  */
 
-import { mkdir, readFile, readdir, stat, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, readdir, stat, unlink, writeFile } from 'node:fs/promises'
 import { compressForModeling, shouldCompress } from './context-compression.ts'
 import { dirname, join } from 'node:path'
 import { decideAudit, type AuditVerdict } from './audit.ts'
@@ -57,6 +57,7 @@ import { runGates, type GateInput } from './gates.ts'
 import {
   artifactDigests,
   markStaleFrom,
+  PASSPORT_FILE,
   passportFor,
   readPassport,
   stageReady,
@@ -438,6 +439,43 @@ async function priorAuditFindings(
 }
 
 /**
+ * 重跑一个模型阶段时，清掉上一轮遗留、且不在本次回答里的文件。
+ *
+ * **为什么必须做**：只写不删，重跑就是"合并"。阶段 3 实测撞上：`code/problem*.py`
+ * 换成了新的，而上一轮**执行**留下的 `code/outputs*.json` 还是旧的，于是同一问
+ * 出现两个 `n*`、同一策略出现两个利润——审计员判"账本与代码不是同一版本"，
+ * 而那个矛盾是 harness 自己造的，且执行者在阶段内无法修复（阶段 3 不跑代码）。
+ *
+ * **保留清单**（harness 自己的记账，不属于"模型产物"）：
+ * 通行证、门禁报告、审计结论、被拒回答留档。其余一律按"本次回答没提到 = 上一轮的残留"处理。
+ *
+ * 只在**解析成功之后**调用——解析失败时什么都不删，上一轮产物原样留着。
+ *
+ * @param dir - 阶段目录（绝对路径）。
+ * @param keep - 本次回答产出的相对路径集合。
+ */
+async function pruneStageDir(dir: string, keep: ReadonlySet<string>): Promise<void> {
+  const bookkeeping = new Set<string>([
+    PASSPORT_FILE, GATE_REPORT_FILE, AUDIT_FILE, REJECTED_ANSWER_FILE,
+  ])
+  const walk = async (rel: string): Promise<void> => {
+    const entries = await readdir(join(dir, rel), { withFileTypes: true }).catch(() => null)
+    if (entries === null) return
+    for (const e of entries) {
+      const childRel = rel === '' ? e.name : `${rel}/${e.name}`
+      if (bookkeeping.has(childRel)) continue
+      if (e.isDirectory()) {
+        await walk(childRel)
+        continue
+      }
+      if (keep.has(childRel)) continue
+      await unlink(join(dir, childRel)).catch(() => { /* 删不掉就让门禁去报，不在这里失败 */ })
+    }
+  }
+  await walk('')
+}
+
+/**
  * 跑一条阶段链。
  *
  * 默认从第 1 阶段跑到第 11 阶段；遇到 `blocked` 或 `gate-failed` **立即停**
@@ -483,7 +521,19 @@ export async function runStages(
         )
         const answer = await ctx.callModel(spec, prompt)
         rejectedAnswer = answer
-        for (const [name, body] of parseStageOutput(spec, answer)) {
+        const produced = parseStageOutput(spec, answer)
+        // **重跑是替换，不是合并**（阶段 3 实测换来的教训）。
+        //
+        // 原来只把新产物写上去，上一轮多出来的文件留在原地。阶段 3 因此交付了一个
+        // **自相矛盾的目录**：`code/problem*.py` 是新的，而上一轮执行留下的
+        // `code/outputs*.json` 是旧的——审计员逐条比对，报"账本与代码不是同一版本"
+        // （同一个策略两个利润、同一问两个 n*），这是**真的**自相矛盾，却指向一个
+        // 执行者在阶段内无法完成的动作（阶段 3 不跑代码，账本由阶段 4 铸）。
+        //
+        // 所以重跑时清掉上一轮遗留、且不在本次回答里的文件。放在 `parseStageOutput`
+        // **之后**：解析失败就什么都不删，不会把上一轮产物白扔掉。
+        await pruneStageDir(dir, new Set(produced.keys()))
+        for (const [name, body] of produced) {
           const file = join(dir, name)
           await mkdir(dirname(file), { recursive: true })
           await writeFile(file, body, 'utf8')
