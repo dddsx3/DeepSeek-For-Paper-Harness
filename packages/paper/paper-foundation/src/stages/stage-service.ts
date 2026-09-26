@@ -319,11 +319,22 @@ export class PaperStageChainService extends Service {
         // 阶段 2 **也分片**：注册表的前提就写着"两次调用，不是一次"（2a 只声明 IR、
         // 2b 只写富散文），但分片机制只接在阶段 3 上。实测代价：加进"上一轮审计的问题"
         // 后回答在 47915 字节处被输出天花板截断，整轮重跑作废。
+        // **后续分片要看到前面的产出**：分片把"一次调用"拆成"两次独立调用"，
+        // 于是富散文分片看不到 IR 声明分片写了什么，两边可以自相矛盾——实测立刻发生：
+        // 声明的 `EQ-PLAN-Q1` 已改成 `Pr(X≤c|p_nom) ≤ beta`，而报告仍写 `≥ 0.90`，
+        // 审计判"报告与声明冲突"（fatal）。所以每片的 prompt 追加已产出文件全文，
+        // 并明写"必须与之保持一致"。这是分片换来的新约束，必须补上。
         if (spec.id === 'modeling') {
           const shards = planModelingShards(spec, prompt)
           const answers: string[] = []
           for (const shard of shards) {
-            answers.push(await singleCall(spec, shard.prompt))
+            const prior = answers.length === 0
+              ? ''
+              : '\n\n---\n\n## 本阶段**已产出**的文件（必须与之保持一致，不得互相矛盾）\n\n'
+                + shards.slice(0, answers.length)
+                  .map((s, i) => `### \`${s.deliverable}\`\n\n${answers[i] ?? ''}`)
+                  .join('\n\n')
+            answers.push(await singleCall(spec, shard.prompt + prior))
             this.config.onDeterministicOutcome?.({
               stage: spec.id,
               summary: `分片 ${String(shard.index)}/${String(shard.total)} 交付 ${shard.deliverable}`,
