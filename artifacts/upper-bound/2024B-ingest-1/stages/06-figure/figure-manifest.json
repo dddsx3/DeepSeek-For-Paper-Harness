@@ -43,12 +43,6 @@
       "script": "figures/gen_fig_q4_ci_effect_on_cost.py",
       "file": "figures/fig_q4_ci_effect_on_cost.png",
       "exit_code": 0
-    },
-    {
-      "figure_id": "fig_q4_monte_carlo_robustness",
-      "script": "figures/gen_fig_q4_monte_carlo_robustness.py",
-      "file": "figures/fig_q4_monte_carlo_robustness.png",
-      "exit_code": 0
     }
   ]
 }

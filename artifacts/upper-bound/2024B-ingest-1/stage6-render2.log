@@ -1,0 +1,7 @@
+[STAGE CHAIN] artifacts\upper-bound\2024B-ingest-1\stages
+  题面问数（数出来的）：4
+  [deterministic] figure: 执行 7 个绘图脚本，产出 7 张图（脚本由阶段 5 写，数据全部从铸出的账本读）
+[STAGE NEXT] 只跑了 'figure'，到此即停。检查 artifacts\upper-bound\2024B-ingest-1\stages 后，放行 = 再执行一次 --stages --stage-next。
+  🟡 figure: 门禁全过但**有 1 条无法判定**（figure_style_rules）——已如实记在通行证上（`cleanliness: unverified-gates`）；这些缺口使本阶段不能计入 CLEAN。
+
+STAGE CHAIN OK — 1 个阶段签发通行证（其中 1 个带未判定门禁，缺口已记在 PASSED 上）。产物在 artifacts\upper-bound\2024B-ingest-1\stages

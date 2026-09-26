@@ -1,67 +1,101 @@
 {
   "stage": "figure-declare",
   "verdict": "pass",
-  "score": 0.9,
+  "score": 0.85,
   "structureOk": true,
   "requirementCompliance": [
     {
-      "item": "figures/ 目录，逐图一个绘图脚本 gen_fig_<figure_id>.py（matplotlib）",
+      "item": "figures/ 下逐图一个 matplotlib 脚本 gen_fig_<figure_id>.py（一图一脚本）",
       "done": true,
-      "note": "8 个脚本与 FIGURE_PLAN 的 8 条 figure_id 一一对应：q1_oc_curve_p1、q1_two_cases_sample_size、q2_strategy_cost_heatmap、q2_optimal_cost_breakdown、q2_six_cases_decisions、q3_strategy_cost_compare、q4_ci_effect_on_cost、q4_monte_carlo_robustness，无缺无余，全部 import matplotlib.pyplot 并 save_fig 到 figures/<figure_id>.png。"
+      "note": "7 个脚本：gen_fig_q1_oc_curve_p1.py / gen_fig_q1_two_cases_sample_size.py / gen_fig_q2_optimal_cost_breakdown.py / gen_fig_q2_six_cases_decisions.py / gen_fig_q2_strategy_cost_heatmap.py / gen_fig_q3_strategy_cost_compare.py / gen_fig_q4_ci_effect_on_cost.py；文件名与 FIGURE_PLAN.json 的 7 个 figure_id 一一对应，无孤儿脚本、无缺脚本，均为 matplotlib 实现（save(fig, \"<figure_id>\") 亦逐条对拍一致）。"
     },
     {
-      "item": "脚本从账本 results.json 读每一个数，不得硬编码",
+      "item": "FIGURE_PLAN.json 每图含 figure_id / chart_type / recipe{category,number} / data_refs / caption / x_label / y_label",
       "done": true,
-      "note": "逐脚本核对：每张图的每个数据点都经 result_id 从 results.json 取出（Q1 四条 n/c、Q2 六利润+24 决策+unit-cost、Q3 R-Q3-profit、Q4 六 rate+六 se），未发现写死的数据字面量。写死的只有 NOMINAL_P=0.10（题面标称值）、OC 网格 0–0.50/101 点（FIGURE_PLAN.grid 声明）、1.96 与 [0,1] 截断（FIGURE_PLAN.ci_points.interval 声明），三处均在脚本注释中显式声明来源，且在图中确实被使用（axvline / linspace / errorbar），非死参数。抽查模型自洽性：case1 单位成本 34.32=22+6+调换6与拆解5的二项递归、case6 利润 21.68=56-34.32 用 D=0 手算复现一致，说明所读账本值与图注口径相符。"
+      "note": "可见的 7 条均齐备这 7 个字段：line+basic/3、bar+basic/1、heatmap+basic/5、waterfall+advanced/6、bar+basic/12、lollipop+advanced/1、forest+empirical/1；额外字段 panels/figsize/plan_deviations 属附加信息，不违反契约。文件在 12000 字节处被内联截断，仅对可见部分下判断。"
     },
     {
-      "item": "样式必须走 harness 铺好的 _utils/plot_utils.py",
+      "item": "脚本的数据一律经 _figbase.load 从 results.json 读取，不硬编码账本数值",
       "done": true,
-      "note": "8/8 脚本均 from _utils.plot_utils import setup_style, save_fig, PALETTE, COLORS, _lighten 并在绘图前调用 setup_style()，无自建配色/rcParams。"
+      "note": "7/7 脚本无任何用于绘图的账本数值字面量：柱高/点值全部由 result_id 取值，派生量均为账本数算术（revenue=unit_cost+profit、delta=profit−profit[0]、mean_n=mean(n_vals)、OC 曲线由 (n*,c*) 现算）。例外仅两处非绘图数值：题面给定标称值 NOMINAL_P=0.10（画参考线）与 docstring 内的可读性提示数，已单独记为 findings（不进入任何图元数值）。"
     },
     {
-      "item": "FIGURE_PLAN.json 含 {figure_id, chart_type, recipe:{category,number}, data_refs, caption, x_label, y_label}",
+      "item": "样式与公共引导走 harness 铺好的 figures/_figbase.py",
       "done": true,
-      "note": "8 条逐条核过，七个字段全部齐备（chart_type：line/bar/heatmap/waterfall/bar/bar/forest/scatter；recipe 均带 category+number）；另给出 series/points/ci_points/tick_label_binding/matrix_shape，使 ref→坐标轴映射不依赖字符串猜测。data_refs 与脚本实际取数逐一比对，全部被使用，无申报未用。"
+      "note": "7/7 脚本均 from _figbase import ...，使用 load/save/panel/PALETTE/COLORS/_lighten，禁 plt.title/suptitle 的约束也遵守（面板标签统一走 panel(ax, \"(a)\")）。cn() 使用不一致已在 findings 记 minor。"
+    },
+    {
+      "item": "每图 data_refs 与脚本实际读取的 result_id 一致",
+      "done": true,
+      "note": "逐图核对：q1_oc_curve 4 条、q1_two_cases 5 条、q2_heatmap 24 条（正则 R-Q2-case(\\d+)-decision-(Z1|Z2|C|D) 枚举，与 plan 的 24 条逐字对应）、q2_optimal_cost_breakdown 2 条、q2_six_cases 6 条、q3_compare 7 条、q4_ci 12 条，全部在 plan 中登记，无脚本读了未申报的键。"
+    },
+    {
+      "item": "chart_type 与脚本实际图型一致",
+      "done": true,
+      "note": "line→ax.plot；bar→ax.bar；heatmap→pcolormesh(ListedColormap)+格内标注；waterfall→fill_between 层带+ax.step 阶梯；lollipop→hlines+scatter；forest→errorbar(点估计±1.96se)，逐条吻合，无“申报 A 画 B”的形态。"
     },
     {
       "item": "本阶段只写脚本，不执行",
       "done": true,
-      "note": "产物清单中只有 8 个 .py 与 1 个 .json，无任何 PNG/输出图形，与「执行是下一阶段」一致。"
+      "note": "产物清单中只有 .py 与计划 JSON，无 PNG/SVG 等渲染输出，无运行时缓存或日志。"
     },
     {
-      "item": "与题面对照：四个子问题在图中都有落点",
+      "item": "脚本中不出现题面没有、上游也没有的参数（无凭空参数）",
       "done": true,
-      "note": "问题1 两情形（95% 拒收 / 90% 接收）→ fig_q1_oc_curve_p1 + fig_q1_two_cases_sample_size（用 n*/c* 两条账本条目，标称值 10% 作参考线，方向未混淆）；问题2 表1 六情况决策与指标 → 三张图（利润柱+决策指示热力图+成本-利润瀑布）；问题3 2 工序 8 零配件实例 → fig_q3_strategy_cost_compare（仅 R-Q3-profit=66.09 一项可用）；问题4 次品率抽样不确定性 → 森林图与散点。题面给定值中与作图直接相关的量（标称值 10%、两信度、六情况的售价/调换损失/拆解费口径）在 caption 与轴标签中表述正确，未见与题面冲突的数值。"
+      "note": "图中出现的量只来自 results.json 键（n*/c*/profit/unit-cost/decision-*/consistency-rate/se）与题面给定值（标称值 10%、情形名 95%拒收/90%接收），OC 曲线所用二项分布是问题 1 抽样判定的自然模型，非编外参数。"
     }
   ],
   "findings": [
     {
-      "severity": "minor",
-      "where": "figures/ 中 6/8 脚本（q1_two_cases_sample_size、q2_optimal_cost_breakdown、q2_six_cases_decisions、q3_strategy_cost_compare、q4_ci_effect_on_cost、q4_monte_carlo_robustness）",
-      "issue": "账本定位方式不统一：这 6 个脚本只 open(\"results.json\")（依赖执行期 cwd），另 2 个（q1_oc_curve_p1、q2_strategy_cost_heatmap）带多候选回退路径；而 FIGURE_PLAN.ledger_source 声明为 stages/04-result-sources/results.json，脚本与该声明并未对齐。若下一阶段执行时 cwd 不是账本所在目录，这 6 个脚本会直接 FileNotFoundError，批量出图中断。",
-      "fix": "把账本读取抽成 _utils 里的单一 load_ledger()（候选路径含 FIGURE_PLAN.ledger_source 声明的相对位置），8 个脚本统一调用；或至少把已有的候选路径链复制到全部脚本，保证与 ledger_source 一致。"
+      "severity": "major",
+      "where": "figures/gen_fig_q3_strategy_cost_compare.py + FIGURE_PLAN.json[fig_q3_strategy_cost_compare]",
+      "issue": "题面问题 3 的核心是“2 道工序、8 个零配件”组装树上的节点级决策方案（半成品/成品是否检测、是否拆解），但本图退化为“问题 3 实例 vs 问题 2 六情况”的期望利润量级对照，图集中没有任何一张图承载问题 3 的组装拓扑或节点级决策。计划已在 plan_deviations/upstream_gaps 如实声明（账本仅铸出 R-Q3-profit，未铸 R-Q3-node-decision-*/R-Q3-cost-*），故不判本阶段违约，但论文层面问题 3 的“决策方案+依据”将缺图形支撑。",
+      "fix": "请上游（阶段 04）补铸 R-Q3-node-decision-*（各节点 0-1 决策）与 R-Q3-cost-*，再按原设补绘组装树节点着色图（可保留当前量级对照作辅助图）。"
     },
     {
       "severity": "minor",
-      "where": "FIGURE_PLAN.json 各条 caption",
-      "issue": "caption 内嵌账本数值字面量（368/46/22/0、34.32、21.68、66.09、0.9160±0.0122、0.9485、0.9995 等），与脚本运行时的实际读数没有任何绑定；而 title_policy 又规定下游「图题一律取 caption」。上游一旦重铸 results.json，正文图题会与图形实际内容不一致，且这种不一致不会被任何机械门禁捕获。",
-      "fix": "在渲染阶段用账本回填 caption 中的数值占位（或对 caption 里的数做一次与 results.json 的一致性校验）；至少把 caption 中的数值集中成可检索的占位符，便于重铸后同步。"
+      "where": "figures/gen_fig_q1_oc_curve_p1.py: NOMINAL_P = 0.10",
+      "issue": "题面给定标称值以字面量常量写死在脚本内（脚本 docstring 已自陈“非账本读数”）。虽与题面 F-NOMINAL(10%) 一致、不影响当前图形，但若标称值或口径变更，脚本与 caption 中的“标称值 10%”会一并失效，属可溯源性的薄弱点。",
+      "fix": "将标称值经 _figbase/参数入口读入（或至少在该图的 data_refs/备注中登记其来源为题面 F-NOMINAL），并在 caption 用占位符回填。"
     },
     {
       "severity": "minor",
-      "where": "FIGURE_PLAN.json 的 figure_id 与各脚本内容",
-      "issue": "四个 figure_id 的字面语义与图形内容不符：fig_q4_ci_effect_on_cost 实为六情况决策一致率森林图、fig_q2_strategy_cost_heatmap 实为 6×4 决策 0-1 指示矩阵（非成本色阶）、fig_q3_strategy_cost_compare 实为 Q3 与 Q2 六情况的利润量级对照、fig_q4_monte_carlo_robustness 实为六点对账散点（无 Monte Carlo 轨迹）。风险已由 title_policy 与 plan_deviations 逐条登记，属可控；但下游若按 id 语义取用会误用。",
-      "fix": "保持 id 与阶段1 FIGURE_MANIFEST 逐字对账不变，并确保下游严格以 caption 命名；若后续阶段允许改名，统一改为语义相符的 id。"
+      "where": "figures/gen_fig_q1_two_cases_sample_size.py 模块 docstring（“情形 (1)：n*=368, c*=46, 归一化费用=368 / 情形 (2)：n*=22, c*=0”）",
+      "issue": "账本读数被以“可读性提示”为名内联进注释。数值未进入绘图通道，但与本文件/计划宣称的“账本重铸后自动同步、不脱节”原则相悖：账本重铸后该段注释会静默过期，成为论文写作期的错误数据源。",
+      "fix": "删除这些字面量，或改为只写 result_id（如“情形(1) 取 R-Q1-case1-n / -c / R-Q1-sampling-cost-case1”）；确需示例值时纳入编外登记簿并注明检索路径。"
     },
     {
       "severity": "minor",
-      "where": "FIGURE_PLAN.json 图集覆盖（相对题面问题 3、问题 4）",
-      "issue": "题面问题3 要求给出 2 工序 8 零配件实例的决策方案与指标，问题4 要求在其中「重新完成问题 2 和问题 3」，但图集中问题3 只有 1 张（且是与其他情况的利润量级对照，未可视化其节点级决策），问题4 没有针对问题3 的重解图。根因是账本问题3 侧仅 R-Q3-profit 一项、无节点级决策/成本条目，属上游 stage 4 的数据缺口，本阶段已在 plan_deviations 与 unused_ledger_keys 中如实说明，未虚构图形。",
-      "fix": "本阶段无需改脚本；建议把「Q3 缺节点级决策/成本结果」作为上游（结果铸出阶段）的待补项登记，待其补齐后在下一轮补 fig_q3 的决策可视化与 Q4 的 Q3 重解图。"
+      "where": "figures/gen_fig_q2_six_cases_decisions.py（未 import cn，轴标签/图例为裸字符串）、figures/gen_fig_q4_ci_effect_on_cost.py（import cn 但全篇未调用）",
+      "issue": "7 个脚本中 2 个未把中文文本交给 _figbase 的 cn()，与其余 5 个脚本的公共引导用法不一致；若 cn() 承担字体族/CJK 字形选择，这些图的轴标签、图例、图内文字可能发生字形回退，造成同批图件风格分裂。",
+      "fix": "统一用 cn() 包裹图内中文（至少轴标签、刻度标签、图例文本），或明确 cn() 非必需并在计划中说明，避免两种写法混用。"
+    },
+    {
+      "severity": "minor",
+      "where": "FIGURE_PLAN.json: fig_q2_strategy_cost_heatmap.caption、fig_q4_ci_effect_on_cost.caption",
+      "issue": "两条 caption 以散文断言具体数据事实——“情况 2、4 需检测零配件 1，情况 3、4、5 需检测成品，情况 1、6 完全跳过检测，情况 6 四个环节全不启用、依赖调换兜底”“情况 6 的一致率明显低于其余情况”——却未使用 {result_id} 占位符绑定。这与本文件 title_policy 自述的“账本重铸后占位符自动同步、图题不会与图形实际读数脱节”不一致：占位符覆盖得到的数字会随账本更新，这些结构断言不会。",
+      "fix": "把可量化的断言改写为占位符可回填的表述（如“情况 {R-Q2-case6-decision-C} = …”），或在 caption 内显式标注“结论依本轮账本取值”，确保账本重铸时同步复核。"
+    },
+    {
+      "severity": "minor",
+      "where": "figures/gen_fig_q2_optimal_cost_breakdown.py: deltas = np.array([revenue, -unit_cost, 0.0])",
+      "issue": "deltas 定义后全篇未被使用，属死代码；瀑布图的“增量”语义实际由 levels 承担。后续维护者若按 deltas 修改，极易与绘图逻辑失配。",
+      "fix": "删除该变量，或真正用它驱动阶梯增量与标注，保持语义单一。"
+    },
+    {
+      "severity": "minor",
+      "where": "figures/gen_fig_q1_two_cases_sample_size.py panel (b)",
+      "issue": "panel (b) 同一纵轴混放异量纲量：c*（件）与“按单件检测成本归一的抽样费用”（其值恰等于 n*=368，与 panel (a) 第一根柱是同一数值）。第三根柱与 (a) 重复呈现同一信息，且“归一化费用=368”易被读成独立指标。",
+      "fix": "删去该柱或将其明确改标为“n*×单件检测成本”，并在轴标签/图例注明与 panel (a) 的关系；若需保留，改画为与 (a) 的对照说明而非同轴柱。"
+    },
+    {
+      "severity": "minor",
+      "where": "figures/*.py 对 _figbase 导出的隐含假设（PALETTE[3]、COLORS[\"accent\"/\"up\"/\"down\"/\"gray\"/\"highlight\"/\"ref_line\"/\"grid\"/\"text\"]、cn() 语义）",
+      "issue": "figures/_figbase.py 不在本阶段产物清单中（应由 harness 预置），本轮无法核验这些导出是否存在且长度足够；脚本对其无兜底（如 gen_fig_q3_strategy_cost_compare.py 直接取 PALETTE[3]）。若键缺失，将在下一阶段执行时抛错，而非本阶段可发现的错误。",
+      "fix": "执行前由 harness 保证 _figbase 的导出集合与键名；或在脚本内以 getattr(PALETTE/COLORS, key, 兜底) 形式降级，避免配色键硬依赖。"
     }
   ],
   "missing": [],
   "model": "glm-5.3-flash-free",
-  "at": "2026-09-26T14:46:11.178Z"
+  "at": "2026-09-26T17:45:02.738Z"
 }

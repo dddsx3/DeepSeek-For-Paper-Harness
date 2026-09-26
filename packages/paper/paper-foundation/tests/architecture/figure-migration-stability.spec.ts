@@ -13,10 +13,14 @@
  *
  * 方法论本体在 `assets/methodology/FIGURE-METHOD.md`（原样迁自参考）。
  */
+import { copyFile, mkdir, mkdtemp, readFile } from 'node:fs/promises'
+import { spawnSync } from 'node:child_process'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { stageBriefing } from '../../src/stages/briefing.ts'
 import { stageOf } from '../../src/stages/registry.ts'
-import { METHODOLOGY_ASSETS, PLOTTING_ASSETS, STAGE_TOOLS, methodologyAsset, stageAsset } from '../../src/stages/assets.ts'
+import { METHODOLOGY_ASSETS, PLOTTING_ASSETS, PLOTTING_ASSETS_DIR, STAGE_TOOLS, methodologyAsset, stageAsset } from '../../src/stages/assets.ts'
 
 describe('稳定迁移 —— 契约里不许有题目词汇', () => {
   const brief = stageBriefing(stageOf('figure-declare'), new Map(), false)
@@ -413,5 +417,79 @@ describe('`figure_script_traced` 的边界（只抓数据，不抓版面）', ()
     const v = figureScriptTraced(inputOf(code))
     expect(v.code).toBe(1)
     expect(v.items.map(i => i.detail).join(' ')).toContain('硬编码数据')
+  })
+})
+
+/**
+ * **契约承诺的每个导入名，`_figbase` 必须真的提供** —— 这条守卫是血换来的。
+ *
+ * 实测第三次踩同一个坑：简报与分片提示词教模型
+ * `from _figbase import load, save, panel, PALETTE, COLORS, _lighten, cn`，
+ * 而 `_figbase.py` 转出名单里**漏了 `_lighten`**（它定义在 `plot_utils` 里，
+ * 但没被转出）。后果不是"某张图差一点"，而是**7/7 脚本全部 ImportError**，
+ * 整个阶段白跑（阶段 6 才炸，等于把代价推到了最后）。
+ *
+ * 这与 chart_type 那次是同一类错：**契约教的形态 ≠ 资产实际提供的形态**。
+ * 靠人记得同步两处是防不住的，所以把契约里点名的名字抠出来逐个核。
+ */
+describe('`_figbase` 提供的名字 ⊇ 契约点名的名字', () => {
+  /**
+   * 从 `from _figbase import a, b, c` 这类句子里抠出所有被点名的名字。
+   *
+   * 捕获必须**在第一个非标识符处停下**：简报里那句是
+   * `` `from _figbase import load, save, panel, PALETTE, COLORS, _lighten, cn` ``，
+   * 后面紧跟反引号与中文说明。第一版用 `[^\n；;]*` 一路吃到行尾，
+   * 于是把说明文字也当成名字，抠出 `cn_figbasesetup_style`、`5`、`10` 这类垃圾，
+   * 测试报了 12 个"缺失"——**全是夹具自己的 bug**（判据没问题，是抠名字的方式错了）。
+   */
+  function namedImports(text: string): ReadonlyArray<string> {
+    const out = new Set<string>()
+    for (const m of text.matchAll(/from\s+_figbase\s+import\s+((?:[A-Za-z_]\w*\s*,\s*)*[A-Za-z_]\w*)/g)) {
+      for (const raw of (m[1] ?? '').split(',')) {
+        const name = raw.trim()
+        if (name.length > 0) out.add(name)
+      }
+    }
+    return [...out]
+  }
+
+  it('简报与分片提示词里点名的名字，`_figbase.py` 都有', async () => {
+    const { stageBriefing } = await import('../../src/stages/briefing.ts')
+    const { scriptShards } = await import('../../src/stages/figure-script-shard.ts')
+    const brief = stageBriefing(stageOf('figure-declare'), new Map(), false)
+    // `scriptShards(briefing, rawPlan)`：第二个参数是**第一段的原始回答文本**（规划 JSON）。
+    const planJson = JSON.stringify({ figures: [
+      { figure_id: 'fig_x', chart_type: 'line', recipe: { category: 'basic', number: 1 }, data_refs: [], caption: '', x_label: '', y_label: '' },
+    ] })
+    const shard = scriptShards(brief, planJson).map(s => s.prompt).join('\n')
+    const named = [...new Set([...namedImports(brief), ...namedImports(shard)])]
+    expect(named.length, '契约里应当点名了一批要导入的名字').toBeGreaterThan(4)
+
+    const src = await readFile(join(PLOTTING_ASSETS_DIR, '_figbase.py'), 'utf8')
+    // **不用 `new RegExp('\b' + n + '\b')`**：这条测试第一版就栽在它上面——
+    // 落到文件里成了单反斜杠的 `` `\b${n}\b` ``，JS 读成**退格符 U+0008**，
+    // 于是正则变成 `\x08load\x08`，**一个名字都匹配不上**，报"7 个名字全缺"。
+    // 这是本会话第二次踩同一个坑（第一次在 stage-service 的限额正则上）。
+    // 改成"抠出源码里的全部标识符再查表"：既躲开转义，也比子串匹配更准
+    // （子串匹配会让 `save` 被 `save_fig` 命中而假通过）。
+    const defined = new Set(src.match(/[A-Za-z_]\w*/g) ?? [])
+    const missing = named.filter(n => !defined.has(n))
+    expect(missing, `契约教模型 import 这些名字，但 _figbase.py 没有：${missing.join('、')}`).toEqual([])
+  })
+
+  it('`_figbase.py` 真的能被 python 导入，且这些名字都在（不是靠字符串碰巧出现）', async () => {
+    // 源码里有这个词 ≠ 能 import（可能是注释、可能是 import 失败）。
+    // 所以真跑一次：拷成临时布局 → python -c "from _figbase import ..."。
+    const root = await mkdtemp(join(tmpdir(), 'dsh-figbase-'))
+    await mkdir(join(root, '_utils'), { recursive: true })
+    await mkdir(join(root, 'figures', '_utils'), { recursive: true })
+    await copyFile(join(PLOTTING_ASSETS_DIR, 'plot_utils.py'), join(root, '_utils', 'plot_utils.py'))
+    await copyFile(join(PLOTTING_ASSETS_DIR, '_figbase.py'), join(root, 'figures', '_figbase.py'))
+    const names = ['load', 'save', 'panel', 'PALETTE', 'COLORS', 'PALETTE_LIGHT', '_lighten',
+      'cn', 'CMAP_SEQ', 'CMAP_DIV', 'LINE_COLORS', 'seq_colors', 'log_floor',
+      'smart_labels', 'auto_legend', 'check_legend_overlap', 'values_by_id', 'ledger']
+    const probe = `import sys; sys.path.insert(0, 'figures'); from _figbase import ${names.join(', ')}; print('ok')`
+    const r = spawnSync('python', ['-c', probe], { cwd: root, encoding: 'utf8', timeout: 180_000 })
+    expect(r.stdout ?? '', `python 导入失败：${(r.stderr ?? '').slice(-400)}`).toContain('ok')
   })
 })

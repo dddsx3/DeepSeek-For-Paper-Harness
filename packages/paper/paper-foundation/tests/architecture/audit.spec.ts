@@ -223,3 +223,55 @@ describe('审计提示词 —— 编外登记簿要审', () => {
     expect(prompt).toContain('真的示意数不该被判成错')
   })
 })
+
+/**
+ * **`done` 的极性** —— 一条"负面检查"被写成条目，会随机拦掉整个阶段。
+ *
+ * 实测（2024B 阶段 5 第二次运行）：门禁 5 条全过、审计给 pass/0.82，
+ * 却因为 `requirement_compliance` 里有 `{"item":"与上游冲突/自相矛盾","done":false}`
+ * 被判"1 项要求未完成"而**拒绝签发通行证**。而该条的 `note` 写的是
+ * "**未发现**与 results.json / PROBLEM_ANALYSIS.md 口径冲突的声明"——
+ * 这项检查其实是**干净的**，是审计员把提示词第 3 条那句"有无自相矛盾或与上游冲突？"
+ * 当成了要求条目，而问句的 `done` 没有定义。代价：整个阶段重跑（十几次模型调用）。
+ *
+ * 修法两条：① 契约里把 `done` 的含义与"负面检查要改写成正面句"写死；
+ * ② 拦截信息带上 `note`，让这种自相矛盾一眼可见（而不是只报"1 项未完成"）。
+ */
+describe('审计的 `done` 极性（负面检查不许当要求条目）', () => {
+  const spec = stageOf('figure-declare')
+  const prompt = auditPromptOf({ spec, skillTask: skillTaskOf(spec), artifacts: new Map([['FIGURE_PLAN.json', '{}']]), upstreamNames: [] })
+
+  it('提示词写死 `done` 只有一个含义', () => {
+    expect(prompt).toContain('`done` 只有一个含义')
+    expect(prompt).toContain('当且仅当**这条要求被满足了**')
+  })
+
+  it('提示词点名那个真实反例，并要求改写成正面句', () => {
+    expect(prompt).toContain('不要把"是否存在某类问题"的问句写成条目')
+    expect(prompt).toContain('与上游冲突/自相矛盾')
+    expect(prompt).toContain('产物与上游口径一致（已逐项核对）')
+  })
+
+  it('拿不准时引导到 `findings`，而不是硬拦', () => {
+    expect(prompt).toContain('宁可放进 `findings`')
+    expect(prompt).toContain('只留给"契约明写了、执行者确实没做"的情形')
+  })
+
+  it('第 3 条明说是"找问题的问句"，不是一条要求', () => {
+    expect(prompt).toContain('不是一条要求')
+  })
+
+  it('拦截信息带上依据（极性矛盾一眼可见）', () => {
+    const verdict: AuditVerdict = {
+      stage: 'figure-declare', verdict: 'pass', score: 0.82, structureOk: true,
+      requirementCompliance: [
+        { item: '与上游冲突/自相矛盾', done: false, note: '未发现与 results.json 口径冲突的声明' },
+      ],
+      findings: [], missing: [], model: 'glm-5.3-flash-free', at: '2026-09-27T00:00:00.000Z',
+    }
+    const decision = decideAudit(verdict, { minScore: 0.7 })
+    expect(decision.ok).toBe(false)
+    // 只报条目名时看不出问题；带上 note 就能判定"这是记账口径问题，不是产物缺陷"
+    expect(decision.reason).toContain('未发现与 results.json 口径冲突')
+  })
+})

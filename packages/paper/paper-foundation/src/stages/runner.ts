@@ -528,7 +528,24 @@ async function priorGateFindings(
  */
 export async function runStages(
   ctx: StageRunContext,
-  options: { readonly only?: ReadonlyArray<StageId>; readonly problemCount?: number } = {},
+  options: {
+    readonly only?: ReadonlyArray<StageId>
+    readonly problemCount?: number
+    /**
+     * **复评**：不重新产出，只重跑门禁与审计（产物保持原样）。
+     *
+     * 用途单一而明确：**判据本身被修好了，产物没变**。实测两次代价——阶段 5 的
+     * `figure_script_traced` 误把 `contourf(levels=[-0.5,0.5,1.5])` 判成硬编码数据，
+     * 以及审计把"有无与上游冲突"这句问话当成要求条目而判 `done:false`——
+     * 两次都是产物**全部合格**、只因为我的判据有 bug 被拦，各花掉一次完整重跑
+     * （十几次模型调用、十几分钟）。
+     *
+     * 复评**只跳过"重新产出"，不跳过"判"**：门禁与审计照跑，不过就是不过。
+     * 因此它不会让不合格的产物变合格——它只是不让你为"判据的 bug"重复付产出的钱。
+     * 留痕在通行证的 `regate` 字段上（见 `StagePassport.regate`）。
+     */
+    readonly regate?: { readonly reason: string }
+  } = {},
 ): Promise<ReadonlyArray<StageOutcome>> {
   const outcomes: StageOutcome[] = []
   const targets = options.only === undefined
@@ -549,8 +566,13 @@ export async function runStages(
     const dir = join(ctx.stagesRoot, stageDirName(spec))
     await mkdir(dir, { recursive: true })
     let rejectedAnswer: string | undefined
+    // 复评只作用于**模型阶段**：确定性阶段的执行体不花模型调用，且它的产物
+    // 就是"跑出来的"（阶段 4 铸账本、阶段 6 出图），跳过它反而会拿旧产物冒充新结果。
+    const regate = options.regate !== undefined && spec.kind === 'model'
     try {
-      if (spec.kind === 'model') {
+      if (regate) {
+        // 什么都不产出——产物必须已经在那里（下面的"产物齐备"前置会兜住"没产物"）。
+      } else if (spec.kind === 'model') {
         // 重跑时把**上一轮的失败**带进简报。没有这一步，重跑就是盲重试：
         // 同一个模型在同一份简报下再生成一次，指望它自己撞对。
         //
@@ -594,6 +616,8 @@ export async function runStages(
       }
       // 模型阶段的 harness 侧后处理（阶段 3：真跑代码并铸数）。放在**同一个
       // try** 里——执行失败与产出形态失败是同一类"本阶段没跑成"，都具名失败。
+      // 复评时也跑：它不花模型调用，且账本必须与当前代码一致（跳过它，
+      // 复评就会拿旧账本去判新代码）。
       if (spec.kind === 'model') await ctx.afterModel?.(spec, ctx.stagesRoot)
     } catch (error) {
       const message = String(error instanceof Error ? error.message : error)
@@ -690,6 +714,7 @@ export async function runStages(
           artifacts: await artifactDigests(dir, spec.produces),
           gate: { code: 2, items: [...gate.items, { id: 'stage_audit', ok: false, detail: '审计未跑成（无法判定）' }] },
           unverifiedGates: unverified,
+          ...(options.regate === undefined || !regate ? {} : { regate: options.regate }),
           ...(ctx.now === undefined ? {} : { now: ctx.now() }),
         })
         await writePassport(ctx.stagesRoot, passport)
@@ -723,6 +748,7 @@ export async function runStages(
       gate,
       unverifiedGates: unverified,
       ...(audit === null ? {} : { audit }),
+      ...(options.regate === undefined || !regate ? {} : { regate: options.regate }),
       ...(ctx.now === undefined ? {} : { now: ctx.now() }),
     })
     await writePassport(ctx.stagesRoot, passport)

@@ -714,6 +714,46 @@ describe('源码卫生 —— 不许有控制字符（事故：退格符让正�
     }
     expect(offenders, `含控制字符的源文件：${offenders.join('；')}`).toEqual([])
   })
+
+  /**
+   * **`tests/` 同样要扫** —— 这个坑在本会话又踩了第二次，而且就在测试代码里。
+   *
+   * 事故二：给"契约点名的导入名必须真存在"写守卫时写了
+   * ``new RegExp(`\\b${n}\\b`)``，落到文件里成了单反斜杠的 `` `\b${n}\b` ``，
+   * JS 读成**退格符 U+0008**，正则变成 `\x08load\x08`，于是**一个名字都匹配不上**，
+   * 报"7 个名字全缺"——而它一个都不缺。**守卫自己被同一个坑放倒了**，
+   * 这比原事故更值得防：测试是最后一道判据，它静默失效时没有任何东西会红。
+   */
+  it('`tests/` 下的测试文件也不含控制字符（守卫自己也会踩这个坑）', async () => {
+    const { readdir, readFile } = await import('node:fs/promises')
+    const { fileURLToPath } = await import('node:url')
+    const { join } = await import('node:path')
+    const root = fileURLToPath(new URL('../', import.meta.url))
+    const walk = async (dir: string): Promise<string[]> => {
+      const entries = await readdir(dir, { withFileTypes: true })
+      const out: string[] = []
+      for (const e of entries) {
+        const child = join(dir, e.name)
+        if (e.isDirectory()) out.push(...await walk(child))
+        else if (/\.ts$/.test(e.name)) out.push(child)
+      }
+      return out
+    }
+    const files = await walk(root)
+    expect(files.length).toBeGreaterThan(20)
+    const offenders: string[] = []
+    for (const f of files) {
+      const text = await readFile(f, 'utf8')
+      const bad = [...text].filter(ch => {
+        const c = ch.charCodeAt(0)
+        return (c < 32 && ch !== '\t' && ch !== '\n' && ch !== '\r') || c === 127
+      })
+      if (bad.length > 0) {
+        offenders.push(`${f}：${bad.length} 个（首个 U+${String(bad[0]!.charCodeAt(0).toString(16))}）`)
+      }
+    }
+    expect(offenders, `含控制字符的测试文件：${offenders.join('；')}`).toEqual([])
+  })
 })
 
 /**

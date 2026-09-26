@@ -1,23 +1,23 @@
 {
   "stage": "figure",
-  "code": 1,
+  "code": 2,
   "items": [
     {
       "id": "figure_manifest_reconcile",
-      "ok": false,
-      "detail": "计划里有、但没渲染出来：fig_q1_sample_size_vs_confidence、fig_q1_sprt_boundary、fig_q2_sensitivity_defect_rate、fig_q2_sensitivity_unit_cost、fig_q2_breakeven_contour、fig_q3_assembly_network_cost",
-      "code": 1
+      "ok": true,
+      "detail": "计划 14 张数据图全部有落点（7 处**申报放弃**（fig_q1_sample_size_vs_confidence、fig_q1_sprt_boundary、fig_q2_sensitivity_defect_rate、fig_q2_sensitivity_unit_cost、fig_q2_breakeven_contour、fig_q3_assembly_network_cost、fig_q4_monte_carlo_robustness）；理由见阶段 5 的规划文件）",
+      "code": 0
     },
     {
       "id": "figure_completeness",
       "ok": true,
-      "detail": "8 张数据图：轴标签齐备、成图存在且不小于 3000 字节",
+      "detail": "7 张数据图：轴标签齐备、成图存在且不小于 3000 字节",
       "code": 0
     },
     {
       "id": "figure_size_buckets",
       "ok": true,
-      "detail": "8 个脚本的画布尺寸贴合长宽比档位",
+      "detail": "7 个脚本的画布尺寸贴合长宽比档位",
       "code": 0
     },
     {

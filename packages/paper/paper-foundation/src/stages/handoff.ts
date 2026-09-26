@@ -88,6 +88,18 @@ export interface StagePassport {
    * 成为**交付物的一部分**——下游（与人工检查）读通行证就能看到，不必去翻阶段目录。
    */
   readonly audit?: AuditVerdict
+  /**
+   * **本证是"复评"签发的**（`--stage-regate`）：产物没变，只重跑了门禁与审计。
+   *
+   * 为什么单列一个字段：`status: 'passed'` 只说明"可以往下走"，不说明"产物是哪来的"。
+   * 修掉一条门禁误判（或审计的记账口径）之后，重跑执行者是**纯浪费**——产物一字未动，
+   * 却要再花十几次模型调用。复评让这种情形几秒内放行。但**必须留痕**：
+   * 检查人要能看出这一轮没有重新生成产物，否则"复评"就成了绕过执行的暗道。
+   *
+   * 与 `status` 是两个轴：复评**不会**让不合格的产物变合格——门禁与审计照样跑，
+   * 不过就是不过（它只跳过"重新产出"，不跳过"判"）。
+   */
+  readonly regate?: { readonly reason: string }
 }
 
 /**
@@ -119,6 +131,8 @@ export function passportFor(
     readonly unverifiedGates?: ReadonlyArray<string>
     /** 逐节点审计的结论（有则记进通行证）。 */
     readonly audit?: AuditVerdict
+    /** 本证是复评签发的（产物未重新生成）——见 `StagePassport.regate`。 */
+    readonly regate?: { readonly reason: string }
     readonly now?: string
   },
 ): StagePassport {
@@ -166,6 +180,7 @@ export function passportFor(
       ? {}
       : { unverifiedGates: input.unverifiedGates }),
     ...(input.audit === undefined ? {} : { audit: input.audit }),
+    ...(input.regate === undefined ? {} : { regate: input.regate }),
   }
 }
 

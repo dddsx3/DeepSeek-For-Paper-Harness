@@ -1,110 +1,118 @@
-"""fig_q4_ci_effect_on_cost —— 抽样不确定性下最优决策一致率的区间估计（森林图）
+"""fig_q4_ci_effect_on_cost —— 问题 4 重解决策一致率及其不确定性的森林图合成面板。
 
 本图讲什么
-    当零配件 / 成品次品率由抽样检测估计得到时（问题 4 口径），"重复抽样重解得到的
-    最优决策"与"点估计下的最优决策"的一致率，是衡量决策稳健性的核心指标。只有
-    一致率的点估计无法判断估计精度，故本图用森林图给出表 1 六种情况一致率的
-    点估计与 95% 置信区间（正态近似：点估计 ± 1.96×标准误），并把区间半宽单独
-    配对成条，直接读出"哪种情况的估计最稳"。
+    在“次品率由抽样检测得到”的口径下，重复抽样并重解问题 2，所得最优决策与点估计
+    决策的一致率有多高、这个一致率本身有多准。一致率越低且标准误越大，说明该情况对
+    抽样波动越敏感、决策越容易被翻转。
 
 每个 panel 是什么
-    (a) 森林图：横轴为决策一致率，六行分别对应表 1 情况 1-6；横线为 95% 置信区间
-        （带端点帽），圆点为点估计，点径随精度 1/SE 放大（越准越大），竖虚线为
-        完全一致参考线 1.0，每行右侧给出点估计数值。
-    (b) 区间半宽 1.96×SE 的横条对照，与 (a) 逐行对齐、共用行序；最长条（情况 6）
-        与最短条（情况 4/5）分别用语义色标出，用于比较估计精度。
+    (a) 森林图：表 1 六种情况的一致率点估计与 95% 置信区间（点估计 ± 1.96×标准误），
+        虚线为“完全一致”参考线（=1.0），交替行阴影，另用短标签锚出最低与最高情况。
+    (b) 标准误排序条形图：六种情况的标准误由大到小排列，最大值以强调色标出，
+        数值直接标在条端，反映重解决策的抽样稳定性。
 
-数据来自账本哪些 id
-    R-Q4-case{1..6}-consistency-rate     —— 六种情况的决策一致率点估计
-    R-Q4-case{1..6}-consistency-rate-se  —— 对应标准误，用于合成 95% 置信区间
-    全部数值经 load("results.json") 读入，脚本内不写死任何数据。
+数据来自账本哪些 id（stages/04-result-sources/results.json，经 _figbase.load 读取）
+    R-Q4-case1-consistency-rate / -se … R-Q4-case6-consistency-rate / -se，共 12 个条目；
+    脚本内不出现任何数值字面量式的数据，全部经 result_id 取值。
 
-关键数值（由账本读入）
-    一致率最高的情况 4 / 5（≈0.9995，区间最窄，估计最稳）；最低的情况 6
-    （≈0.61，区间最宽），二者构成稳健性对照的两端。
+关键表达
+    x 轴为决策一致率（比例，0–1 语义，参考线取 1.0）；条形图 x 轴为一致率标准误。
 """
 
 import numpy as np
 import matplotlib.pyplot as plt
-from matplotlib.patches import Patch
 
 from _figbase import load, save, panel, PALETTE, COLORS, _lighten, cn
 
-# ------------------------------------------------------------------ 读账本
+# ---------------------------------------------------------------- 账本读取
 doc = load("results.json")
-_rows = doc["results"] if isinstance(doc, dict) and "results" in doc else doc
-led = {r["result_id"]: r["value"] for r in _rows}
+rows = doc["results"] if isinstance(doc, dict) and "results" in doc else doc
+V = {r["result_id"]: r["value"] for r in rows}
 
-CASES = ("1", "2", "3", "4", "5", "6")
-rate = np.array([led["R-Q4-case%s-consistency-rate" % k] for k in CASES], dtype=float)
-se = np.array([led["R-Q4-case%s-consistency-rate-se" % k] for k in CASES], dtype=float)
+CASES = [1, 2, 3, 4, 5, 6]
+RATE_IDS = ["R-Q4-case%d-consistency-rate" % k for k in CASES]
+SE_IDS = ["R-Q4-case%d-consistency-rate-se" % k for k in CASES]
 
-Z = 1.96                      # 正态近似临界值（统计常数，非账本数据）
-half = Z * se                 # 区间半宽
-low, high = rate - half, rate + half
+rates = np.asarray([V[i] for i in RATE_IDS], dtype=float)
+ses = np.asarray([V[i] for i in SE_IDS], dtype=float)
+half = 1.96 * ses
+lo, hi = rates - half, rates + half
+labels = ["情况 %d" % k for k in CASES]
 
-y = np.arange(len(CASES), dtype=float)
-ylabels = [cn("情况 %s" % k) for k in CASES]
-
-# ------------------------------------------------------------------ 画布
-fig, (ax1, ax2) = plt.subplots(
-    1, 2, figsize=(6.0, 3.4), sharey=True,
-    gridspec_kw={"width_ratios": [1.5, 1.0]},
+# ---------------------------------------------------------------- 画布
+fig, (ax, axb) = plt.subplots(
+    1, 2, figsize=(6.0, 2.8), gridspec_kw={"width_ratios": [1.55, 1.0]}
 )
 
-# ----------------------------------------------------------- (a) 森林图
-row_bg = _lighten(COLORS["gray"], 0.85)
+# ================================================== (a) 一致率森林图
+y = np.arange(len(CASES), dtype=float)
+
+# 交替行阴影（偶数行）
 for i in range(len(CASES)):
     if i % 2 == 0:
-        ax1.axhspan(y[i] - 0.5, y[i] + 0.5, color=row_bg, zorder=0)
+        ax.axhspan(
+            y[i] - 0.5, y[i] + 0.5,
+            color=_lighten(COLORS["gray"], 0.88), zorder=0,
+        )
 
-ax1.axvline(1.0, color=COLORS["ref_line"], linestyle="--", linewidth=1.2, zorder=1)
+# “完全一致”参考线
+ax.axvline(1.0, color=COLORS["ref_line"], linestyle="--", linewidth=1.0, zorder=1)
 
-ax1.errorbar(rate, y, xerr=half, fmt="none", ecolor=COLORS["gray"],
-             elinewidth=1.1, capsize=2.5, capthick=1.0, zorder=2)
+# 点估计 + 95% 置信区间（森林图主体）
+ax.errorbar(
+    rates, y, xerr=half,
+    fmt="o", color=PALETTE[0], ecolor=PALETTE[0],
+    elinewidth=1.2, capsize=2.5, markersize=5.0,
+    markeredgecolor="white", markeredgewidth=0.8, zorder=3,
+)
 
-prec = 1.0 / se
-span = prec.max() - prec.min()
-span = span if span > 0 else 1.0
-msize = 26.0 + 54.0 * (prec - prec.min()) / span          # 点径 ∝ 精度 1/SE
-ax1.scatter(rate, y, s=msize, color=PALETTE[0], zorder=3)
+ax.set_yticks(y)
+ax.set_yticklabels(labels, fontsize=8)
+ax.invert_yaxis()
+ax.set_xlabel("决策一致率（比例）", fontsize=9)
+ax.set_xlim(float(np.min(lo)) - 0.05, float(np.max(hi)) + 0.06)
+ax.grid(axis="x", alpha=0.15, linestyle="--", color=COLORS["grid"])
+ax.spines["top"].set_visible(False)
+ax.spines["right"].set_visible(False)
+ax.tick_params(axis="x", labelsize=8)
 
-x_txt = max(high.max(), 1.0) + 0.014
-for i in range(len(CASES)):
-    ax1.text(x_txt, y[i], "%.4f" % rate[i], ha="left", va="center",
-             fontsize=7, family="monospace", color=COLORS["gray"])
+# 仅两个数据锚点短标签：最低与最高情况
+i_min = int(np.argmin(rates))
+i_max = int(np.argmax(rates))
+ax.annotate(
+    "%.4f" % rates[i_min],
+    xy=(rates[i_min], y[i_min]), xytext=(0, -13),
+    textcoords="offset points", ha="center", va="top",
+    fontsize=7.5, color=COLORS["down"], zorder=4,
+)
+ax.annotate(
+    "%.4f" % rates[i_max],
+    xy=(rates[i_max], y[i_max]), xytext=(0, 13),
+    textcoords="offset points", ha="center", va="bottom",
+    fontsize=7.5, color=COLORS["up"], zorder=4,
+)
+panel(ax, "(a)")
 
-ax1.set_yticks(y)
-ax1.set_yticklabels(ylabels, fontsize=8)
-ax1.set_xlim(low.min() - 0.03, x_txt + 0.062)
-ax1.set_xlabel(cn("决策一致率（无量纲）"), fontsize=8)
-ax1.grid(axis="x", alpha=0.15, linestyle="--", color=COLORS["grid"])
-ax1.invert_yaxis()
+# ================================================== (b) 标准误排序
+order = np.argsort(ses)[::-1]  # 由大到小
+bar_y = np.arange(len(CASES), dtype=float)
+bar_c = [
+    COLORS["accent"] if i == 0 else _lighten(PALETTE[0], 0.35)
+    for i in range(len(order))
+]
+bars = axb.barh(bar_y, ses[order], height=0.62, color=bar_c, zorder=2)
 
-# ------------------------------------------------- (b) 区间半宽对照条
-i_wide, i_narrow = int(np.argmax(half)), int(np.argmin(half))
-bar_colors = [PALETTE[1]] * len(CASES)
-bar_colors[i_narrow] = COLORS["up"]
-bar_colors[i_wide] = COLORS["down"]
+axb.set_yticks(bar_y)
+axb.set_yticklabels([labels[k] for k in order], fontsize=8)
+axb.invert_yaxis()
+axb.set_xlabel("一致率标准误", fontsize=9)
+axb.set_xlim(0.0, float(np.max(ses)) * 1.38)
+axb.grid(axis="x", alpha=0.15, linestyle="--", color=COLORS["grid"])
+axb.spines["top"].set_visible(False)
+axb.spines["right"].set_visible(False)
+axb.tick_params(axis="x", labelsize=8)
+axb.bar_label(bars, fmt="%.4f", padding=2, fontsize=7)
+panel(axb, "(b)")
 
-bars = ax2.barh(y, half, height=0.62, color=bar_colors, zorder=2)
-ax2.bar_label(bars, fmt="%.4f", padding=2, fontsize=7, color=COLORS["gray"])
-
-ax2.set_xlim(0.0, half.max() * 1.35)
-ax2.set_xlabel(cn("区间半宽 1.96×SE（无量纲）"), fontsize=8)
-ax2.grid(axis="x", alpha=0.15, linestyle="--", color=COLORS["grid"])
-ax2.legend(handles=[Patch(facecolor=COLORS["up"], label=cn("区间最窄")),
-                    Patch(facecolor=COLORS["down"], label=cn("区间最宽"))],
-           loc="upper right", fontsize=6.5, frameon=False)
-
-# ------------------------------------------------------------ 统一修饰
-for ax in (ax1, ax2):
-    ax.spines["top"].set_visible(False)
-    ax.spines["right"].set_visible(False)
-    ax.tick_params(axis="x", labelsize=7.5)
-
-panel(ax1, "(a)")
-panel(ax2, "(b)")
-
-fig.tight_layout(pad=0.4)
+fig.tight_layout()
 save(fig, "fig_q4_ci_effect_on_cost")

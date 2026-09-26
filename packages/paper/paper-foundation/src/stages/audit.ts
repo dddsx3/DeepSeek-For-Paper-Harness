@@ -106,7 +106,14 @@ export function decideAudit(verdict: AuditVerdict, input: AuditGateInput): Audit
   }
   const undone = verdict.requirementCompliance.filter(r => !r.done)
   if (undone.length > 0) {
-    problems.push(`${String(undone.length)} 项要求未完成（${undone.slice(0, 3).map(r => r.item.slice(0, 30)).join('、')}）`)
+    // **带上 `note`**：这一条是"硬拦"，而它最容易出的错是**极性问题**——
+    // 审计员把一条"负面检查"写成条目（"与上游冲突/自相矛盾"），
+    // 检查结果是干净的，`note` 写着"未发现冲突"，却给了 `done:false`。
+    // 只报条目名时，看到的是"1 项要求未完成"，看不出它与 note 自相矛盾；
+    // 带上 note，检查人一眼就能判定"这是记账口径问题，不是产物缺陷"。
+    problems.push(`${String(undone.length)} 项要求未完成（`
+      + undone.slice(0, 3).map(r => `${r.item.slice(0, 30)}${r.note === '' ? '' : `——依据：${r.note.slice(0, 60)}`}`).join('；')
+      + '）')
   }
   return problems.length === 0
     ? { ok: true, reason: `审计通过（质量分 ${verdict.score.toFixed(2)}，要求 ${String(verdict.requirementCompliance.length)} 项全部完成）` }
@@ -217,8 +224,25 @@ export function auditPromptOf(input: {
     + '登记齐备的示意数是有出生证明的。')
   L.push('   严重度：漏用/错用一项会改变结论的成本或约束 → `fatal`；不影响结论的 → `major`，'
     + '并在 `fix` 里说清该补在哪。')
-  L.push('3. **交付结构**：产物是否齐备、形态是否正确、有无自相矛盾或与上游冲突？')
+  L.push('3. **交付结构**：产物是否齐备、形态是否正确、有无自相矛盾或与上游冲突？'
+    + '（**这一条是"找问题"的问句，不是一条要求**——查出来的问题写进 `findings`，'
+    + '不要把它当成 `requirement_compliance` 里的一条。见下面 `done` 的口径。）')
   L.push('4. **质量初判**：这一轮产物够不够格进入下一阶段？给一个 0–1 的分。')
+  L.push('')
+  L.push('### ⛔ `requirement_compliance` 的 `done` 只有一个含义')
+  L.push('`done: true` 当且仅当**这条要求被满足了**。因此：')
+  L.push('- 条目必须取自**任务陈述 / 产出契约里的正面要求**（"要产出 X"、"X 必须满足 Y"、'
+    + '"数据只能来自 Z"）。逐条问"执行者做到了吗"。')
+  L.push('- **⛔ 不要把"是否存在某类问题"的问句写成条目**。反例（实测踩过）：'
+    + '把第 3 条的"有无自相矛盾或与上游冲突"写成一条 `{"item":"与上游冲突/自相矛盾","done":false}`'
+    + '——它的 `note` 写的是"**未发现**与上游口径冲突的声明"，即这项检查**是干净的**，'
+    + '却因为 `done:false` 被判成"一项要求未完成"，整个阶段被拦下（十几次模型调用的代价）。'
+    + '这类"负面检查"若要登记，必须改写成**正面句**：'
+    + '`{"item":"产物与上游口径一致（已逐项核对）","done":true,"note":"逐项比对了 results.json 与 '
+    + 'PROBLEM_ANALYSIS.md 的口径，未发现冲突"}`。')
+  L.push('- 判断纪律：**拿不准某条该不该算完成时，宁可放进 `findings`（带 severity）**，'
+    + '不要塞进 `requirement_compliance` 当 `done:false` —— 后者是"硬拦"，'
+    + '只留给"契约明写了、执行者确实没做"的情形。')
   L.push('')
   L.push('## 输出（**只输出一个 JSON 对象，前后不得有任何其它字符**）')
   L.push('```json')
