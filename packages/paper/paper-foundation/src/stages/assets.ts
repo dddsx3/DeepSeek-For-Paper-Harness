@@ -182,6 +182,7 @@ export const METHODOLOGY_ASSETS_DIR = join(STAGE_ASSETS_DIR.dir, 'methodology')
 /** 方法论资产清单（`role` 供简报与门禁读）。 */
 export const METHODOLOGY_ASSETS: ReadonlyArray<{ readonly file: string; readonly role: string }> = [
   { file: 'FIGURE-METHOD.md', role: '**作图方法论骨架**：七步不变流程、题型无关/相关界线、四条稳定性硬规则、跨题迁移验收' },
+  { file: 'STAGE-METHOD.md', role: '**跨阶段方法论索引**：阶段↔资产对照、四个题型无关的结构化契约、建模七件套、logic_audit 七查、复核六类缺口与回滚' },
   { file: 'error-prevention-by-problem-type.md', role: '防错手册（**按题型索引**）：每类题目历史上踩过的坑与对策' },
   { file: 'figure-distribution-exemplars.md', role: '优秀论文的图表分布范例：好论文有几张图、各是什么型' },
   { file: 'capability-checklist-check.md', role: '能力清单结构校验（参考标注为**题型无关**的闸）' },
@@ -198,4 +199,55 @@ export function methodologyAsset(file: string): string {
     throw new Error(`unknown methodology asset: ${file}（清单：${METHODOLOGY_ASSETS.map(a => a.file).join('、')}）`)
   }
   return readFileSync(join(METHODOLOGY_ASSETS_DIR, file), 'utf8')
+}
+
+/**
+ * **各阶段的工具与按题型资料** —— 参考实现里每个阶段的"机械闸 + 查表资产"，原样迁移。
+ *
+ * 用户口径：*"看一下是否还有可以继续固化与迁移的，比如建模阶段，比如问题求解
+ * 或者逻辑复合对抗阶段真正有价值的资产能否固化下来。"*
+ *
+ * 方法论索引见 `methodology/STAGE-METHOD.md`（阶段 ↔ 资产对照、四个题型无关的结构化契约、
+ * 建模七件套、`logic_audit` 七查、复核六类缺口与回滚协议）。
+ */
+export const STAGE_TOOLS_DIR = join(STAGE_ASSETS_DIR.dir, 'stage-tools')
+export const STAGE_REFS_DIR = join(STAGE_ASSETS_DIR.dir, 'stage-refs')
+
+/** 各阶段的机械闸（Python/shell 原样；本仓库的等价判据见 `gates.ts`）。 */
+export const STAGE_TOOLS: ReadonlyArray<{ readonly file: string; readonly role: string }> = [
+  { file: 'logic_audit.py', role: '**建模阶段的逻辑闸**（七查：外推/特征完整性/重复计量/方向界/裕度/自洽/锚点），由 `LOGIC_CONTRACT_MACHINE` 驱动' },
+  { file: 'modeling_coverage_check.py', role: '能力项覆盖（每条 `capabilities[].id` 必须在建模报告里整词出现）' },
+  { file: 'facts_audit.py', role: '题面参数保真（15 个模块：OCR 对撞防虚构、派生值验算、代码裸数字、正文数字溯源…）' },
+  { file: 'claim_code_check.py', role: '**方法声称 vs 代码实现**（`METHOD_CLAIMS_MACHINE` 的 must/forbid 逐条核）' },
+  { file: 'leakage_audit.py', role: '高分举证闸（≥0.99 的分类指标必须有去泄漏举证；物理单位后缀豁免）' },
+  { file: 'delivery_audit.py', role: '交付对账 + 抽样透明（声称的产物必须存在且非空；真抽样必须声明口径）' },
+  { file: 'cross_problem_check.py', role: '**跨问对撞**（`CROSS_PROBLEM_LEDGER.json` 的 must_le/must_ge 越界即报）' },
+  { file: 'data_ingest_check.py', role: '数据摄入（裸 `read_excel` 无 `sheet_name=` 即硬失败）' },
+  { file: 'capability_audit.py', role: '能力清单最终验收（`CAPABILITY_VERDICT.json`）' },
+  { file: 'capability_check.py', role: '能力清单结构校验' },
+  { file: 'stats_utils.py', role: '三线表工具（回归/描述性/相关矩阵，按后缀出 tex 或 md）' },
+  { file: 'paper_claim_check.py', role: '正文结论 vs 上游落地' },
+  { file: 'bib_authenticity_check.py', role: '参考文献真实性' },
+  { file: 'data_profile.py', role: '数据建档（用户数据的权威台账）' },
+  { file: 'table_slim.py', role: '表格瘦身（列数/行数上限）' },
+  { file: 'normalize_cjk_quotes.py', role: '中文引号归一' },
+  { file: 'count_subproblems.sh', role: '题面问数的**唯一权威口径**（只数标题行，防全文松匹配虚高）' },
+  { file: 'error_prevention.md', role: '防错手册（130KB，**按题型 + 按机制**双索引）' },
+]
+
+/** 按题型/按图型的**查表资产**（这些是被查的资料，不是写进契约的规则）。 */
+export const STAGE_REFS: ReadonlyArray<{ readonly dir: string; readonly role: string }> = [
+  { dir: 'modeling', role: '建模阶段参考：`SKILL.md`（工作流与七件套）+ `methods_table.md`（方法族 → 常用方法/库）' },
+  { dir: 'code/checks', role: '**按题型**的编码自检分册：`optimization` / `prediction` / `evaluation` / `physical` / `consistency` / `sanity_check`' },
+  { dir: 'code', role: '编码阶段参考：`SKILL.md` + `error_prevention_code.md`（按题型的防错）' },
+  { dir: 'review', role: '复核阶段参考：`SKILL.md`（六类缺口 + `COMP_REVIEW_VERDICT.json` 协议 + fatal 回滚）' },
+]
+
+/** 读一份阶段工具/参考资料（原样返回；只允许清单内的文件，防路径穿越）。 */
+export function stageAsset(file: string): string {
+  // 反斜杠 → 正斜杠（Windows 路径容忍）
+  const rel = file.split(String.fromCharCode(92)).join('/')
+  const known = STAGE_TOOLS.some(t => t.file === rel) || STAGE_REFS.some(r => rel === r.dir || rel.startsWith(r.dir + '/'))
+  if (!known) throw new Error(`unknown stage asset: ${file}`)
+  return readFileSync(join(STAGE_ASSETS_DIR.dir, STAGE_TOOLS.some(t => t.file === rel) ? 'stage-tools' : 'stage-refs', rel), 'utf8')
 }
