@@ -30,6 +30,37 @@ const routes = {
 }
 
 /** 每个阶段一段**合规**的回答（单产出取原文，多产出取 JSON 信封）。 */
+let figureDeclareCalls = 0
+
+/** 与 `stage-runner.spec` 同一份脚本文本：真写一张像样的 PNG（只用 stdlib）。 */
+function genFigScriptText(): string {
+  return [
+    '\"\"\"夹具脚本：数据来自 results.json 的 RES-A/RES-B。\"\"\"',
+    'try:',
+    '    from _utils.plot_utils import setup_style, save_fig, PALETTE, COLORS, _lighten',
+    '    setup_style()',
+    'except Exception:',
+    '    pass',
+    'import json, os, struct, zlib',
+    'with open("results.json", encoding="utf-8") as f:',
+    '    ledger = json.load(f)',
+    'os.makedirs("figures", exist_ok=True)',
+    'W, H = 400, 300',
+    'raw = bytes([0]) * 0',
+    'for y in range(H):',
+    '    raw += bytes([0]) + bytes(v for x in range(W) for v in (x % 256, y % 256, 128))',
+    'def chunk(tag, data):',
+    '    return struct.pack(">I", len(data)) + tag + data + struct.pack(">I", zlib.crc32(tag + data) & 0xFFFFFFFF)',
+    'png = (bytes([137, 80, 78, 71, 13, 10, 26, 10])',
+    '       + chunk(b"IHDR", struct.pack(">IIBBBBB", W, H, 8, 2, 0, 0, 0))',
+    '       + chunk(b"IDAT", zlib.compress(raw, 6)) + chunk(b"IEND", b""))',
+    'with open("figures/fig_a.png", "wb") as f:',
+    '    f.write(png)',
+    'print("wrote", len(png), "bytes for", len(ledger.get("results", [])))',
+    '',
+  ].join(String.fromCharCode(10))
+}
+
 function answerFor(stage: string): string {
   const envelope = (files: Record<string, string>): string => JSON.stringify({ files })
   const analysis = [
@@ -91,15 +122,22 @@ function answerFor(stage: string): string {
           { result_id: 'RES-B', name: '指标B', locator: 'outputs.json', json_path: 'b', unit: '%' },
         ],
       })
-    case 'figure-declare':
-      // 单产出 → 原文。只声明结构；数在阶段 3 铸出的账本里。
-      return JSON.stringify({
-        figures: [
-          // 轴标签两个都要有（参考红线：Both set_xlabel and set_ylabel are mandatory）
-          { figure_id: 'fig_a', chart_type: 'bar', data_refs: ['RES-A', 'RES-B'], caption: '指标对照',
-            x_label: '指标', y_label: '占比 / %' },
-        ],
-      })
+    case 'figure-declare': {
+      // **阶段 5 现在是两段式分片调用**（先出规划、再逐图内联配方写脚本），
+      // 所以夹具必须**有状态**：第一次回答给规划，之后每次给一个脚本。
+      figureDeclareCalls += 1
+      if (figureDeclareCalls === 1) {
+        return JSON.stringify({
+          figures: [
+            // 轴标签两个都要有（参考红线：Both set_xlabel and set_ylabel are mandatory）
+            { figure_id: 'fig_a', chart_type: 'bar', recipe: { category: 'basic', number: 1 },
+              data_refs: ['RES-A', 'RES-B'], caption: '指标对照',
+              x_label: '指标', y_label: '占比 / %' },
+          ],
+        })
+      }
+      return genFigScriptText()
+    }
     case 'review':
       return envelope({
         'COMP_REVIEW.md': '复核……'.repeat(40),
@@ -133,6 +171,10 @@ function answerFor(stage: string): string {
 }
 
 async function harness(options: { readonly pauseAfter?: ReadonlyArray<string>; readonly skillDocs?: boolean; readonly problemCount?: number } = {}) {
+  // **每个 harness 都要重置分片计数器**：阶段 5 的夹具是"第一次给规划、之后给脚本"，
+  // 模块级计数器跨测试泄漏会让下一个测试的第一次调用拿到脚本而不是规划
+  // （实测：续跑用例只跑了两段就断，报"第一段没有产出可用的 figures 数组"）。
+  figureDeclareCalls = 0
   const stagesRoot = await mkdtemp(join(tmpdir(), 'dsh-stage-svc-'))
   const ctx = new Context()
   const prompts: string[] = []
@@ -214,7 +256,10 @@ describe('阶段链服务 —— 真的接进了 provider 缝', () => {
 
     // 确定性阶段不是"没挂上"：图真的在磁盘上（阶段 5 渲染、阶段 6 架构图）。
     const figureDir = join(stagesRoot, '06-figure', 'figures')
-    await expect(readFile(join(figureDir, 'fig_a.svg'), 'utf8')).resolves.toContain('<svg')
+    // PNG 是二进制：核 PNG 魔数，不要按 utf8 读再查 `<svg`
+    const png = await readFile(join(figureDir, 'fig_a.png'))
+    expect(png.subarray(0, 8).toString('hex')).toBe('89504e470d0a1a0a')
+    expect(png.byteLength).toBeGreaterThan(3000)
     await expect(readFile(join(stagesRoot, '07-diagram', 'figures', 'fig_roadmap.svg'), 'utf8')).resolves.toContain('<svg')
     // 账本是 harness 铸的（真跑了 python main.py），不是模型文本里抄来的。
     const ledger = JSON.parse(await readFile(join(stagesRoot, '04-result-sources', 'results.json'), 'utf8')) as {

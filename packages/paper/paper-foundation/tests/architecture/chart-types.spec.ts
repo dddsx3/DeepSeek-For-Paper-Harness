@@ -13,8 +13,9 @@
  */
 import { describe, expect, it } from 'vitest'
 import {
-  FIGURE_CHART_TYPES, FIGURE_STYLE_PROFILE, renderFigureSvg, type RenderInput,
+  FIGURE_STYLE_PROFILE, renderFigureSvg, type RenderInput,
 } from '../../src/figure/renderer.ts'
+import { FIGURE_TYPES } from '../../src/stages/figure-script-gates.ts'
 
 const base = {
   style_profile: FIGURE_STYLE_PROFILE,
@@ -204,16 +205,21 @@ describe('判据线 —— 参考：有阈值/上限/约束时必画', () => {
  * 靠人记得同步两处是防不住的，所以遍历简报里的图型名逐个核。
  */
 describe('简报 ↔ 白名单一致（防"契约教了、解析器不认"）', () => {
-  it('简报提到的每个 chart_type 都在 FIGURE_CHART_TYPES 里', async () => {
+  // 白名单从「固定渲染器的图型」换成「脚本世界的规划图型」（`FIGURE_TYPES`）——
+  // 约束换成「模型写脚本」之后，简报承诺的图型要能在**规划**里写出来。
+  it('简报提到的每个 chart_type 都在规划白名单里', async () => {
     const { stageBriefing } = await import('../../src/stages/briefing.ts')
     const { stageOf } = await import('../../src/stages/registry.ts')
     const brief = stageBriefing(stageOf('figure-declare'), new Map(), false)
-    const known = ['line', 'scatter', 'bar', 'grouped', 'table', 'ci_line',
-      'tornado', 'waterfall', 'heatmap', 'forest']
-    const named = known.filter(t => brief.includes('`' + t + '`'))
-    expect(named.length).toBeGreaterThan(6) // 简报确实点名了一批图型
+    // 简报里**用反引号点名的**那些图型（换约束后点名的是决策表里那几类）
+    const known = ['ci_line', 'tornado', 'waterfall', 'heatmap', 'forest',
+      'grouped_bar', 'stacked_bar', 'lollipop', 'dumbbell', 'radar', 'pareto']
+    // 简报里是**直接写图型名**（不一定加反引号）——按子串找，
+    // 否则“简报点名了但没加反引号”会让这条守卫静默失效。
+    const named = known.filter(t => brief.includes(t))
+    expect(named.length).toBeGreaterThan(3) // 简报确实点名了一批图型
     for (const t of named) {
-      expect(FIGURE_CHART_TYPES as readonly string[], `简报点名了 ${t} 但白名单没有`).toContain(t)
+      expect(FIGURE_TYPES as readonly string[], `简报点名了 ${t} 但白名单没有`).toContain(t)
     }
   })
 

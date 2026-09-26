@@ -173,8 +173,11 @@ export async function runDocxExportStage(stagesRoot: string): Promise<DocxExport
     throw new Error(`导出前校核有 ${String(fatal.length)} 项致命项：${fatal.join('；')}`)
   }
 
-  // ── 段 2：图栅格化（引擎只嵌位图） ─────────────────────────────────────
-  if (!depSummary.ready) {
+  // ── 段 2：图入包（引擎只嵌位图；SVG 需先栅格化，PNG 直接嵌） ─────────────
+  // **只有确实有 SVG 要栅格化时才需要 cairosvg**：数据图现在是 matplotlib 出的 PNG
+  // （直接嵌入），没有 SVG 却因缺 cairosvg 拒绝导出，是拿旧世界的前提拦新世界的产物。
+  const hasSvgLink = figureLinksOf(markdown).some(l => /\.svg$/i.test(l))
+  if (!depSummary.ready && hasSvgLink) {
     await writeFile(join(ownDir, DOCX_EXPORT_REPORT), report([
       '## 结论', '',
       `❌ **拒绝导出**：栅格化依赖缺失（${depSummary.missing.join('、')}）。`
@@ -199,8 +202,12 @@ export async function runDocxExportStage(stagesRoot: string): Promise<DocxExport
       rewrites.set(link, `figures/${targetName}`)
       continue
     }
-    // 已经是位图：拷进导出工作区，引擎按 workspace 相对路径找得到。
-    await writeFile(target, await readFile(source))
+    // 已经是位图（数据图现在是 matplotlib 出的 PNG）：拷进导出工作区，引擎按
+    // workspace 相对路径找得到。**也要记进报告**——报告是"哪些图真的进了包"的证据，
+    // 只记被栅格化的 SVG 会让 PNG 一条都不出现（实测：导出报告里查不到 figures/fig_a.png）。
+    const copied = await readFile(source)
+    await writeFile(target, copied)
+    rasterized.push({ from: basename, to: `figures/${targetName}`, bytes: copied.byteLength })
     rewrites.set(link, `figures/${targetName}`)
   }
 
