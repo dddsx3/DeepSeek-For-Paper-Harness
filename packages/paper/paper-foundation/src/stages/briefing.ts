@@ -613,7 +613,15 @@ export function stageBriefing(
   // 原本只写在 runner.ts 的模块头——那是给人看的，模型看不见。2024B-stages-1 的
   // 第一次真实运行撞在这里：模型产出 270KB 推理 + 四个独立的围栏代码块，
   // **没有一个 JSON 信封**，于是"信封不是合法 JSON"。规则没投递，就不是模型不守约。
-  L.push('', `- **回答形态（硬性）**：${answerFormOf(spec)}`)
+  // 分片阶段（阶段 2/3/5）的回答形态**由每段的指示决定**，不能在这里写死：
+  // 简报说"发 `{"files": {...}}` 信封"而分片 prompt 说"只产出这一个文件"——
+  // 两个说法同时在场，模型会挑一个，实测两段都因此出过问题（脚本被写成 JSON、
+  // 规划被包成信封导致解析不到 `figures`）。
+  const sharded = spec.id === 'modeling' || spec.id === 'code' || spec.id === 'figure-declare'
+  L.push('', sharded
+    ? '- **回答形态（硬性）**：本阶段**分片调用**，每次调用只交付一个文件——'
+      + '形态以**每次调用末尾那段「本次调用」**里的指示为准，不要套信封、不要加围栏。'
+    : `- **回答形态（硬性）**：${answerFormOf(spec)}`)
 
   sec(BRIEFING_SECTIONS[2])
   if (upstreamText.size === 0) {
