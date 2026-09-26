@@ -1,0 +1,3 @@
+[STAGE CHAIN] artifacts\upper-bound\2024B-ingest-1\stages
+  题面问数（数出来的）：4
+[ROLLBACK] 已作废 3 个阶段的通行证（含下游）：result-sources、figure-declare、figure
