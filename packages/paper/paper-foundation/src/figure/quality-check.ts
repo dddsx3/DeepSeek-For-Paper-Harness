@@ -97,7 +97,16 @@ export function checkFigureQuality(svg: string): ReadonlyArray<QualityViolation>
   }
 
   // --- contrast: text fill vs the white background (figures have white bg) ---
+  //
+  // **例外：自带底色自适应的文字**（`data-bg-adaptive="1"`）。热力图的格内数值
+  // 是参考明确要求的"深底白字、浅底黑字"（亮度公式 `0.299r+0.587g+0.114b`，
+  // `<0.5` 用白字），它的**有效背景是那个格子**，不是白底。拿白底去量它，
+  // 白字必然判成"对比度 1.00"——那是**检查的假设错了**，不是图错了。
+  // 豁免是显式标记而不是"看到热力图就跳过"：标记由渲染器打在那些文字上，
+  // 别处（真正的白底文字）照旧受检。
   for (const m of svg.matchAll(/<text[^>]*fill="([^"]+)"[^>]*>([^<]*)<\/text>/g)) {
+    const tag = m[0]
+    if (tag.includes('data-bg-adaptive="1"')) continue
     const fill = m[1] ?? ''
     const text = m[2] ?? ''
     if (text.trim().length === 0) continue

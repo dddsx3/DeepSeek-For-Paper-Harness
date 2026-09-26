@@ -290,7 +290,9 @@ export function renderHeatmapSvg(input: RenderInput, recipe: DataFigureRecipe): 
       // 格内数值：格子太小时不标（参考对热力图的口径："格子太小就不标数值"）
       if (cw >= 26 && ch >= 16) {
         const fs = Math.max(8, Math.min(recipe.font_size - 2, cw / 4, ch / 2.2))
-        parts.push(`<text x="${fmt(x + cw / 2)}" y="${fmt(y + ch / 2 + 4)}" text-anchor="middle" font-family="monospace" font-size="${fmt(fs)}" fill="${readableInkOn(fill)}">${fmtTick(v)}</text>`)
+        // `data-bg-adaptive="1"`：告诉风格门禁"这条文字的有效背景是那个格子，
+        // 不是白底"——否则白字会被按白底量成对比度 1.00（实测被拦）。
+        parts.push(`<text x="${fmt(x + cw / 2)}" y="${fmt(y + ch / 2 + 4)}" data-bg-adaptive="1" text-anchor="middle" font-family="monospace" font-size="${fmt(fs)}" fill="${readableInkOn(fill)}">${fmtTick(v)}</text>`)
       }
     }
   }
