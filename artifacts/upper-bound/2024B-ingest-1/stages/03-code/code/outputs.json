@@ -1943,7 +1943,7 @@
       "R-Q1-sampling-cost": "sampling_cost"
     },
     "_desc": "问题1：检测次数尽可能少的抽样检测方案（两点设计 + 整数样本量搜索）",
-    "_seconds": 2.538,
+    "_seconds": 4.41,
     "_ok": true
   },
   "problem2": {
@@ -6972,7 +6972,7 @@
       "flip_points": []
     },
     "_desc": "问题2：四元0-1决策 (Z1,Z2,C,D) 下的期望利润最大化（16 组合全枚举）",
-    "_seconds": 0.048,
+    "_seconds": 0.044,
     "_ok": true
   },
   "problem3": {
@@ -25838,7 +25838,7 @@
     ],
     "seed": 202409,
     "_desc": "问题3：装配树上的节点级等效成本聚合与节点二值决策",
-    "_seconds": 0.675,
+    "_seconds": 0.723,
     "_ok": true
   },
   "problem4": {
@@ -32354,13 +32354,13 @@
       "high": 0.14140640530321333
     },
     "_desc": "问题4：次品率带抽样误差时的重解与稳健性（区间传播 + 重抽样一致率）",
-    "_seconds": 3.799,
+    "_seconds": 3.642,
     "_ok": true
   },
   "meta": {
     "stage": "03-code",
     "role": "orchestration-entry",
-    "generated_at": "2026-09-26T21:23:34.245936+00:00",
+    "generated_at": "2026-09-26T21:38:20.245264+00:00",
     "python_version": "3.14.2",
     "platform": "Windows-11-10.0.26200-SP0",
     "working_dir": "D:\\deepseek modex\\deepseek-harness\\artifacts\\upper-bound\\2024B-ingest-1\\stages\\03-code\\code",
@@ -32373,7 +32373,7 @@
       "problem4"
     ],
     "n_problem_modules": 4,
-    "elapsed_seconds": 7.096,
+    "elapsed_seconds": 8.851,
     "errors": {},
     "n_errors": 0,
     "summaries": {

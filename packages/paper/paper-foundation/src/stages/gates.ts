@@ -352,6 +352,44 @@ const anchorPresence: GateFn = (input) => {
   return ok(id, `假设锚点 ${String(assumptions)} 条、需求锚点 ${String(requirements)} 条`)
 }
 
+/**
+ * `ledger_keys_declared` —— **阶段 3 必须公布"我到底写了哪些键"**（阶段 4 的取数依据）。
+ *
+ * 为什么必须新增这一条：阶段 4 的 `json_path` 是**预测**代码会写出什么路径，
+ * 而它能读到的只有 `RESULTS.md` 与 `DELIVERABLES.json`——**两者都不含具体键名**。
+ * 实测（2024B）：模型于是自己编了一套命名（`problem1.case1.n`），
+ * 而代码写的是 `problem1.case95.n`，**102 条声明里 100 条解析到 undefined**，
+ * 铸数整轮失败。反复重跑不会收敛——因为**它没有可依据的事实**，只能猜。
+ *
+ * 所以把"路径"变成阶段 3 的交付物：`DELIVERABLES.json.ledger_keys` =
+ * `[{json_path, name, unit}]`，**逐字**写出它写进账本的每个键。
+ * 阶段 4 只许照抄，不许自推（见 `result_sources_valid` 的交叉核对）。
+ */
+const ledgerKeysDeclared: GateFn = (input) => {
+  const id = 'ledger_keys_declared'
+  const raw = text(input, 'DELIVERABLES.json')
+  if (raw === null) return fail(id, 'DELIVERABLES.json 不存在')
+  let parsed: { ledger_keys?: unknown }
+  try {
+    parsed = JSON.parse(raw) as { ledger_keys?: unknown }
+  } catch (error) {
+    return fail(id, `DELIVERABLES.json 不是合法 JSON：${String(error).slice(0, 80)}`)
+  }
+  const keys = parsed.ledger_keys
+  if (!Array.isArray(keys) || keys.length === 0) {
+    return fail(id, 'DELIVERABLES.json 缺 `ledger_keys`（或为空）—— 阶段 4 只能靠猜键名，'
+      + '实测 102 条声明里 100 条落空。请逐条列出你写进账本的每个键：'
+      + '`ledger_keys: [{"json_path": "problem1.case95.n", "name": "…", "unit": "件"}]`，'
+      + '**路径逐字照抄你在 JSON 里写的键**，不要改写成你以为更规整的名字。')
+  }
+  const bad = keys.filter(k => typeof (k as { json_path?: unknown }).json_path !== 'string'
+    || ((k as { json_path?: string }).json_path ?? '').trim() === '')
+  if (bad.length > 0) {
+    return fail(id, `ledger_keys 里有 ${String(bad.length)} 条缺 \`json_path\`（或为空）`)
+  }
+  return ok(id, `已公布 ${String(keys.length)} 个账本键 —— 阶段 4 照抄即可，不必猜`)
+}
+
 /** 阶段 8 的终止条件（round-5 的两条）。 */
 const improveTerminated: GateFn = (input) => {
   const id = 'improve_terminated'
@@ -1182,6 +1220,7 @@ export const GATES: ReadonlyMap<string, GateFn> = new Map<string, GateFn>([
     + '可机械化的那几项（逐问数、目标/公式/约束非零、符号表存在、灵敏度计划）待实现。')],
   // ── 阶段 3 ────────────────────────────────────────────────────────────
   ['code_parity', codeParity],
+  ['ledger_keys_declared', ledgerKeysDeclared],
   // 阶段 3 同样不许写没有出生证明的数字（此时还没有账本，所以只能写锚点）
   ['numbers_traced', numbersTraced],
   // 阶段 3 的数由 harness 铸出（runCodeAndMintResults）：账本存在、非空、
@@ -1195,7 +1234,33 @@ export const GATES: ReadonlyMap<string, GateFn> = new Map<string, GateFn>([
       const ids = sources.map(s2 => s2.result_id)
       const dupes = ids.filter((x, k) => ids.indexOf(x) !== k)
       if (dupes.length > 0) return fail(id, `重复的 result_id：${[...new Set(dupes)].join('、')}`)
-      return ok(id, `${String(sources.length)} 条数源声明，id 唯一、locator/json_path 齐备`)
+      // **交叉核对：声明的 json_path 必须是阶段 3 公布过的键**。
+      //
+      // 这一条把"猜键名"的失败从**铸数之后**（跑完代码才发现）提前到**声明当场**，
+      // 而且给出的是可执行的修法（照抄哪一份清单），不是一句"undefined"。
+      // 阶段 3 没公布时给 `2`（无法判定）——那说明阶段 3 漏了 `ledger_keys`，
+      // 由 `ledger_keys_declared` 在那边报。
+      const declared = i.upstream.get('DELIVERABLES.json') ?? null
+      if (declared !== null) {
+        try {
+          const keys = (JSON.parse(declared) as { ledger_keys?: unknown }).ledger_keys
+          if (Array.isArray(keys) && keys.length > 0) {
+            const known = new Set(keys
+              .map(k => (k as { json_path?: unknown }).json_path)
+              .filter((p): p is string => typeof p === 'string'))
+            const stray = sources.map(s2 => s2.json_path).filter(p => !known.has(p))
+            if (stray.length > 0) {
+              return fail(id, `${String(stray.length)}/${String(sources.length)} 条声明的 \`json_path\` `
+                + `**不在阶段 3 公布的账本键里**（${[...new Set(stray)].slice(0, 3).join('、')}…）—— `
+                + '`json_path` 必须**逐字照抄** `DELIVERABLES.json` 的 `ledger_keys`，不得自己推路径。'
+                + '实测代价：模型自编命名（`problem1.case1.n`）而代码写的是 `problem1.case95.n`，'
+                + '102 条里 100 条落空，铸数整轮失败。')
+            }
+          }
+        } catch { /* 上游 DELIVERABLES.json 坏了由阶段 3 的门禁报，这里不重复报 */ }
+      }
+      return ok(id, `${String(sources.length)} 条数源声明，id 唯一、locator/json_path 齐备`
+        + '，且 json_path 全部来自阶段 3 公布的账本键')
     } catch (error) {
       return fail(id, String(error instanceof Error ? error.message : error).slice(0, 200))
     }

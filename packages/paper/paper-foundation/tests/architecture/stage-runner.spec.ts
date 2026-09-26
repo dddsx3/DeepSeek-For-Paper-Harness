@@ -219,6 +219,13 @@ function fakeDeliverable(spec: StageSpec, file: string): string {
         { file: 'code/main.py', kind: 'other', min_bytes: 500, desc: '编排入口：依次跑问题1-4' },
         { file: 'RESULTS.md', kind: 'md', min_bytes: 1024, desc: '结果说明' },
       ],
+      // **阶段 3 必须公布"它到底写了哪些键"**：阶段 4 的 `json_path` 只能照抄这里，
+      // 不许自推（实测自推的代价：102 条声明 100 条落空）。夹具的 RESULT_SOURCES
+      // 声明的是 `outputs.json` 的 `a` / `b`，所以这里逐字公布它们。
+      ledger_keys: [
+        { json_path: 'a', name: '指标A', unit: '%' },
+        { json_path: 'b', name: '指标B', unit: '%' },
+      ],
     })
   }
   // 阶段 2 的 IR 声明：**逐条认领阶段 1 的能力项**（门禁 `modeling_coverage` 按 id 逐字核）。
