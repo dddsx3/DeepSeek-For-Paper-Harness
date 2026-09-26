@@ -124,6 +124,10 @@ const SKILLS: Readonly<Record<string, StageSkill>> = {
         + '装不进去的推理写进 2b。',
       '**每个子问题一个 ModelSpec**，其 `problem_refs` 指向该子问题。逐问覆盖是硬判据'
         + '（"虎头蛇尾"要治的就是这个）。',
+      '**阶段 1 的能力项要逐条认领**：`CAPABILITY_CHECKLIST.json` 里的每个 `C-*` id，'
+        + '都要在某个 `ModelSpec.checklist_refs` 里**逐字出现**——门禁 `modeling_coverage` 按 id '
+        + '逐条核，缺一条就硬失败（缺一条 = 那一问没有建模落地，而报告照样能写得很长）。'
+        + '换个说法（"抽样方案"代替 `C-Q1-PLAN`）不算认领。',
       '**假设必须被使用**：每条 `AssumptionSpec` 至少要被某个 `ModelSpec.assumption_refs` 引用。'
         + '声明了却不用的假设是记账噪声。',
       '**跨子问题引用有两条合法路线，二选一**：① 在该假设/方程上写 `"shared": true`；'

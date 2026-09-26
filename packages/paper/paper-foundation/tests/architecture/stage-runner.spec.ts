@@ -111,6 +111,17 @@ function fakeDeliverable(spec: StageSpec, file: string): string {
       ],
     })
   }
+  // 阶段 2 的 IR 声明：**逐条认领阶段 1 的能力项**（门禁 `modeling_coverage` 按 id 逐字核）。
+  if (file === 'DECLARATION.json') {
+    return JSON.stringify({
+      symbols: [], assumptions: [], equations: [],
+      models: [
+        { id: 'MS-1', problem_refs: ['P1'], checklist_refs: ['CAP-1'] },
+        { id: 'MS-3', problem_refs: ['P3'], checklist_refs: ['CAP-2'] },
+      ],
+      model_constants: [],
+    })
+  }
   if (file === 'COMP_REVIEW_VERDICT.json') return JSON.stringify({ findings: [], fatal_count: 0 })
   if (file === 'PAPER_IMPROVEMENT_STATE.json') {
     return JSON.stringify({ rounds: [{ defects: 3 }, { defects: 1 }, { defects: 0 }], termination: 'approved' })

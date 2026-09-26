@@ -324,7 +324,9 @@ describe('未实现的判据给 2，**绝不给 0**', () => {
     // S5b 删掉了 5 条：figure_manifest_reconcile / figure_declaration_complete /
     // diagram_manifest_reconcile / diagram_geometry / docx_precheck（它们要的输入
     // ——机器可读的清单、声明、SVG 字节——现在都由阶段 4/5/11 真的产出了）。
-    const unimplemented = ['capability_check', 'modeling_coverage', 'modeling_self_check',
+    // S6 删掉了 `modeling_coverage`：它要的输入（能力项 id 的引用）现在由阶段 2 的
+    // `ModelSpec.checklist_refs` 真的产出，判据落在"id 逐字命中"上——不再是"待定义形态"。
+    const unimplemented = ['capability_check', 'modeling_self_check',
       'delivery_audit', 'paper_claim_check']
     for (const id of unimplemented) {
       const v = run(id, input({}))
@@ -402,5 +404,77 @@ describe('numbers_traced —— 声明常数取自本阶段目录（不只上游
     const v = run('numbers_traced', input({ 'MODELING_REPORT.md': '随便 42。' }, {}))
     expect(v.code).toBe(2)
     expect(v.items[0]?.detail).toContain('出生证明来源')
+  })
+})
+
+/**
+ * `modeling_coverage` —— 阶段 1 立的能力项，阶段 2 必须逐条认领。
+ *
+ * 这条门禁长期挂在"未实现 → 2"，因为"落地"的机器可读形态没定义。现在定义了：
+ * 能力项 id 的**逐字引用**（阶段 2 的 `ModelSpec.checklist_refs` 挂 `C-*`）。
+ * 2024B 实测这一版模型 20/20 全部认领，所以判据不是凭空发明的要求。
+ */
+describe('modeling_coverage —— 能力项逐条认领', () => {
+  const checklist = JSON.stringify({
+    stage: '01-prob-analysis',
+    capabilities: [
+      { id: 'C-Q1-PLAN', required_output: '抽样检测方案' },
+      { id: 'C-Q2-EXCHANGE', required_output: '调换损失入账' },
+      { id: 'C-Q4-REDO', required_output: '问题 4 重做' },
+    ],
+  })
+
+  it('全部认领 → 0', () => {
+    const v = run('modeling_coverage', input(
+      { 'DECLARATION.json': '{"models":[{"checklist_refs":["C-Q1-PLAN","C-Q2-EXCHANGE","C-Q4-REDO"]}]}' },
+      { 'CAPABILITY_CHECKLIST.json': checklist },
+    ))
+    expect(v.code).toBe(0)
+    expect(v.items[0]?.detail).toContain('3 条能力项全部被认领')
+  })
+
+  it('**缺一条 → 硬失败并点名是哪一条**（"报告很长但某问没建模"正是要抓的）', () => {
+    const v = run('modeling_coverage', input(
+      { 'DECLARATION.json': '{"models":[{"checklist_refs":["C-Q1-PLAN","C-Q4-REDO"]}]}' },
+      { 'CAPABILITY_CHECKLIST.json': checklist },
+    ))
+    expect(v.code).toBe(1)
+    expect(v.items[0]?.detail).toContain('C-Q2-EXCHANGE')
+    expect(v.items[0]?.detail).not.toContain('C-Q1-PLAN')
+  })
+
+  it('**换个说法不算认领**（id 必须逐字出现）', () => {
+    const v = run('modeling_coverage', input(
+      { 'MODELING_REPORT.md': '问题 1 给出了抽样检测方案，问题 2 计入了调换损失，问题 4 已重做。' },
+      { 'CAPABILITY_CHECKLIST.json': checklist },
+    ))
+    expect(v.code).toBe(1)
+    expect(v.items[0]?.detail).toContain('3/3 条能力项**没有被认领**')
+  })
+
+  it('写在哪一份产物里都可以（不把形态规定死）', () => {
+    const v = run('modeling_coverage', input(
+      { 'MODELING_REPORT.md': '认领：C-Q1-PLAN、C-Q2-EXCHANGE、C-Q4-REDO。' },
+      { 'CAPABILITY_CHECKLIST.json': checklist },
+    ))
+    expect(v.code).toBe(0)
+  })
+
+  it('上游没有对照表 → 2（不是 0）；对照表为空 → 硬失败', () => {
+    expect(run('modeling_coverage', input({ 'DECLARATION.json': '{}' })).code).toBe(2)
+    const empty = run('modeling_coverage', input(
+      { 'DECLARATION.json': '{}' },
+      { 'CAPABILITY_CHECKLIST.json': JSON.stringify({ capabilities: [] }) },
+    ))
+    expect(empty.code).toBe(1)
+  })
+
+  it('对照表坏 JSON / 没有 capabilities → 硬失败并说清', () => {
+    expect(run('modeling_coverage', input(
+      { 'DECLARATION.json': '{}' }, { 'CAPABILITY_CHECKLIST.json': '{ 坏' },
+    )).items[0]?.detail).toContain('不是合法 JSON')
+    expect(run('modeling_coverage', input(
+      { 'DECLARATION.json': '{}' }, { 'CAPABILITY_CHECKLIST.json': '{"stage":"x"}' },
+    )).items[0]?.detail).toContain('capabilities')
   })
 })
