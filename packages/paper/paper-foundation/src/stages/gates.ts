@@ -339,7 +339,10 @@ function declaredDeviations(input: GateInput): ReadonlyArray<{ readonly from: st
       const o = d as Record<string, unknown>
       const from = typeof o['from'] === 'string' ? o['from'] : ''
       const to = typeof o['to'] === 'string' ? o['to'] : ''
-      if (from === '' || to === '') return []
+      // **`to` 为空是"申报放弃"**（不是坏条目）——这里若把它过滤掉，
+      // 下游的放行逻辑就永远匹配不到，6 张诚实的放弃会被一直判成漏渲染（实测踩过）。
+      // 只要求 `from` 非空。
+      if (from === '') return []
       return [{ from, to, reason: typeof o['reason'] === 'string' ? o['reason'] : '' }]
     })
   } catch {
