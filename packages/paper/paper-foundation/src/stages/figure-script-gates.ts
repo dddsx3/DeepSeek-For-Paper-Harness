@@ -64,7 +64,10 @@ const TYPE_API: Readonly<Record<string, RegExp>> = {
   dumbbell: /\.hlines\(|\.barh\(|\.scatter\(/,
   tornado: /\.barh\(/,
   waterfall: /\.bar\(|\.barh\(|Rectangle|fill_between/,
-  forest: /\.errorbar\(|\.hlines\(/,
+  // 森林图的区间线**不一定**用 errorbar/hlines：参考的配方就是
+  // `ax.plot([lo, hi], [y, y])` + 两端短竖线当端帽 + `plot(est, y, marker="o")`。
+  // 只认 errorbar/hlines 会把**真森林图**判成“退化”（实测踩过，与棒棒糖同一类）。
+  forest: /\.errorbar\(|\.hlines\(|\.vlines\(|\.plot\(/,
   violin: /violinplot/,
   raincloud: /violinplot|fill_betweenx|gaussian_kde|\.fill\(/,
   ridge: /fill_between|\.fill\(/,
@@ -278,17 +281,19 @@ export function figureScriptTraced(input: GateInput): ScriptGateVerdict {
       continue
     }
     // 成串的数据字面量：同一个列表里 ≥3 个带小数的数
-    // 逐行扫，**排除坐标轴刻度/范围**这类结构性列表（`set_xticks([0.6, 0.7, …])`、
-    // `set_xlim(...)`）——那是版面参数，不是图里的数（实测：把刻度当数据会误杀）。
-    const dataLines = code.split(String.fromCharCode(10))
-      .filter(l => !/set_[xy]ticks|set_[xy]lim|set_[xy]ticklabels|axhline|axvline|figsize|tight_layout/.test(l))
-      .join(String.fromCharCode(10))
-    for (const m of dataLines.matchAll(/\[([^\[\]]*\d\.\d[^\[\]]*)\]/g)) {
+    // **只在绘图调用的参数里找数据串** —— 那才是"硬编码的数据"。
+    //
+    // 判据要窄：宽判据会把版面参数也当成数据（实测踩过两次：`set_xticks([0.6, 0.7, …])`
+    // 是刻度，`(-0.28, 0.11, "right", "bottom")` 是标注偏移表）。参考的 `facts_audit`
+    // 抓的是同一个形态——`plt.plot([0,5,10],[1.2,3.4,5.6])`：**数据写死在绘图调用里**。
+    // 所以只认"绘图函数调用的实参里出现的数值列表"。
+    const PLOT_CALL = /(?:plot|bar|barh|scatter|fill_between|fill_betweenx|errorbar|hlines|vlines|stem|step|stackplot|imshow|pcolormesh|contourf?|pie|boxplot|violinplot)\s*\([^)]*\[([^\[\]]*\d\.\d[^\[\]]*)\]/g
+    for (const m of code.matchAll(PLOT_CALL)) {
       const nums = (m[1] ?? '').match(/-?\d+\.\d+/g) ?? []
       if (nums.length < 3) continue
       const stray = nums.filter(n => !known.has(n) && !known.has(String(Number(n))))
       if (stray.length >= 3) {
-        problems.push(`${file}：出现成串的**硬编码数据**（${stray.slice(0, 4).join(', ')}…，共 ${String(stray.length)} 个）`
+        problems.push(`${file}：绘图调用里出现成串的**硬编码数据**（${stray.slice(0, 4).join(', ')}…，共 ${String(stray.length)} 个）`
           + '且都不在账本里 —— 图里的数必须从 `results.json` 读，不能写死在脚本里')
       }
     }
