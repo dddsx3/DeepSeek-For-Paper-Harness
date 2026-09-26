@@ -3,7 +3,7 @@
   "stage": "code",
   "index": 3,
   "at": "2026-09-26T21:13:55.504Z",
-  "status": "passed",
+  "status": "stale",
   "cleanliness": "unverified-gates",
   "inputDigest": "920a0b1c5afdb349c52a5b4fcab0f90c74f9a660ebe324f6f46df1b8f3e0b10c",
   "artifacts": {
@@ -121,5 +121,6 @@
     "missing": [],
     "model": "glm-5.3-flash-free",
     "at": "2026-09-26T21:13:55.501Z"
-  }
+  },
+  "staleReason": "阶段 4 只能猜 json_path（102 条里 100 条落空）；新增 ledger_keys 契约与门禁 —— 检查人否决"
 }
