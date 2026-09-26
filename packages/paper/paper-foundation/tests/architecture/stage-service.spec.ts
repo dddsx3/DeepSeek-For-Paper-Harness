@@ -144,7 +144,11 @@ function answerFor(stage: string): string {
         'code/problem1.py': 'print(1)\n',
         'code/problem2.py': 'print(2)\n',
         'RESULTS.md': '结果说明……'.repeat(90),
-        'DELIVERABLES.json': JSON.stringify({ deliverables: [{ file: 'code/main.py', kind: 'other', min_bytes: 500, desc: '编排入口' }] }),
+        'DELIVERABLES.json': JSON.stringify({
+          deliverables: [{ file: 'code/main.py', kind: 'other', min_bytes: 500, desc: '编排入口' }],
+          // 阶段 3 公布账本键 —— 阶段 4 的 json_path 只能照抄这里（见 ledger_keys_declared）
+          ledger_keys: [{ json_path: 'a', name: '指标A', unit: '%' }, { json_path: 'b', name: '指标B', unit: '%' }],
+        }),
       })
     case 'result-sources':
       // 单产出 → 原文。只声明"数在哪"，不写数值。

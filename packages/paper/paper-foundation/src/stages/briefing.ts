@@ -275,6 +275,15 @@ const SKILLS: Readonly<Record<string, StageSkill>> = {
       '`RESULTS.md` 写结果说明：四问的关键数值、校核证据、归因、诚实边界。'
         + '散文里可以引用账本里的数（它们来自真实执行），但**不得**出现代码没产出的数。',
       '每个被声明为输出的量，都要真的写进声明的输出文件。**声明的输出必须存在且非空**。',
+      '**⛔ `DELIVERABLES.json` 必须公布 `ledger_keys`（阶段 4 的唯一取数依据）**：'
+        + '逐条列出你**真的写进账本**的每个键——`{"json_path": "problem1.case95.n", "name": "…", "unit": "件"}`。'
+        + '`json_path` **逐字照抄你在 JSON 里写的键**（用 `.` 分隔嵌套、`[i]` 索引数组，'
+        + '如 `problem2.cases[0].profit`、`problem1.oc_curve.accept_prob`）——'
+        + '**不要改写成你以为更规整的名字**。'
+        + '为什么是硬要求：阶段 4 要声明"数在哪"，而它能读到的只有 `RESULTS.md` 与 `DELIVERABLES.json`。'
+        + '实测代价（2024B）：两者都不含具体键名，模型只好自己编了一套（`problem1.case1.n`），'
+        + '而代码写的是 `problem1.case95.n`——**102 条声明里 100 条解析到 undefined，铸数整轮失败**。'
+        + '门禁 `ledger_keys_declared` 会核这一条。',
       '**数字只有两个合法来源**：题面给定值，或代码真跑出来的值。散文里不许出现自算数字。',
       '**数值常数一律从契约取，不许裸数字**：把 `PROBLEM_FACTS.json` 展开成 `code/params.py`，'
         + '其余脚本 `from params import *`（白名单只留 `0/1/2/-1` 与 π、e）。'
@@ -344,6 +353,14 @@ const SKILLS: Readonly<Record<string, StageSkill>> = {
       '上游是你在阶段 3 交的代码与 `DELIVERABLES.json`。逐个要进论文的量，回答三件事：'
         + '哪个文件（`locator`，相对 `code/`）、文件内哪个路径（`json_path`，如 `problem1.n_star`）、'
         + '单位是什么。',
+      '**⛔ `json_path` 逐字照抄 `DELIVERABLES.json` 的 `ledger_keys`，不得自己推路径**。'
+        + '那份清单是阶段 3 公布的"它到底写了哪些键"，是**唯一**的事实来源——'
+        + '你手上的 `RESULTS.md` 只有结果编号（`{R-Q1-c-case95}`），**没有 JSON 路径**。'
+        + '实测代价（2024B）：模型照着编号自编命名（`problem1.case1.n`），'
+        + '而代码写的是 `problem1.case95.n`，**102 条声明里 100 条解析到 undefined，铸数整轮失败**；'
+        + '反复重跑不会收敛——因为没有可依据的事实，只能猜。'
+        + '门禁 `result_sources_valid` 会逐条核对：声明的 `json_path` 必须在公布的键里，'
+        + '越界当场失败（不必等跑完代码才发现）。',
       '**`locator` 的写法给死，不要自己推**：它是**相对 `code/`** 的路径——'
         + '写 `outputs.json`（正例），**不要**写 `code/outputs.json`。'
         + '后者会被解析成 `code/code/outputs.json`，整轮铸数全落空。'
