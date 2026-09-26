@@ -85,36 +85,74 @@ export interface MintedResultsFile {
  *
  * 为什么要有这个字段而不是让下游自己 `Array.isArray`：
  * ① 门禁要能机械地回答"**账本里有没有能画那张图的数据**"——
- *    `figure_data_shapes` 就是按它判的（标量画不出热力图，这是硬事实）；
+ *    `figure_plan_valid` 就是按它判的（标量画不出热力图，这是硬事实）；
  * ② 审计要能核"阶段 3 是否铸了足够结构"，而不是只数条数。
+ *
+ * 七种形态都来自**实测中代码真正写出来的东西**（不是先验设计）：
+ * 2024B 放宽标量限制后，阶段 4 一口气声明了 134 条，其中就有
+ * `{"purchase":22,"inspection_part":0,…}`（成本分项）与
+ * `[{"Z1":0,"Z2":0,…,"profit":21.68}, …]`（16 种候选策略）——
+ * 第一版只收"平的数值数组"，于是 35 条被判非法。**这两种恰恰是画图最需要的**：
+ * 瀑布图的分项名、热力图的横纵轴标签，都得靠 record 的字段名承载。
  */
-export type NumericShape = 'scalar' | 'series' | 'matrix' | 'tensor'
+export type NumericShape =
+  /** 一个有限数。 */
+  | 'scalar'
+  /** 布尔（判定结果，0/1 语义）。 */
+  | 'flag'
+  /** 一维数值序列（参数扫描表、样本、收敛序列）。 */
+  | 'series'
+  /** 二维数值矩阵（组合成本表、混淆矩阵）。 */
+  | 'matrix'
+  /** ≥3 维数值张量（参数网格上的指标场）。 */
+  | 'tensor'
+  /** 具名字段集（`{purchase: 22, inspection_part: 0}`）——字段名就是图上的标签。 */
+  | 'record'
+  /** 记录数组（`[{Z1:0, profit:21.68}, …]`）——每行一条记录，天然是"表/热力图数据"。 */
+  | 'table'
 
 /**
- * 判定值的形态；**元素必须全是有限数**，否则返回 `null`（不合法）。
+ * 判定值的形态；**叶子必须是有限数、布尔、或（仅限 record 字段的）字符串标签**，
+ * 否则返回 `null`（不合法）。
  *
  * 严格性是刻意的：`NaN`/`Infinity` 画到图上会静默变成空白或断线，
- * 而"账本里有个坏数"在下游极难定位。字符串与对象一律拒绝
- * （它们是"标签"或"结构"，不该混进数值账本）。
+ * 而"账本里有个坏数"在下游极难定位。
+ *
+ * 两处**刻意的不对称**：
+ * - **字符串只允许出现在 record 的字段值上**（那是标签，如成本项名）。
+ *   数值数组里出现字符串说明它是"标签列表"而不是数据——拒掉，
+ *   否则图上会出现"某条曲线的一个点是 '采购'"这种说不清的东西。
+ * - **混合形态的数组拒掉**（既有标量又有 record）：说不清它是什么，
+ *   图也就画不出确定的东西。要混合就先在代码里拆成两条账目。
  */
 export function numericShapeOf(value: unknown): NumericShape | null {
   if (typeof value === 'number') return Number.isFinite(value) ? 'scalar' : null
-  if (!Array.isArray(value) || value.length === 0) return null
-  // **外层数组本身算第 1 维**，元素从第 2 维起数。
-  // 第一版把元素当第 1 维，于是 `[[1,2],[3,4]]` 被判成 `series`（矩阵被误判成序列），
-  // 而形态判据是"标量画不出热力图"的依据——误判成 series 会让热力图蒙混过关。
-  let depth = 1
-  const walk = (v: unknown, d: number): boolean => {
-    if (typeof v === 'number') return Number.isFinite(v)
-    if (Array.isArray(v)) {
-      if (v.length === 0) return false
-      if (d > depth) depth = d
-      return v.every(x => walk(x, d + 1))
-    }
-    return false
+  if (typeof value === 'boolean') return 'flag'
+  if (Array.isArray(value)) {
+    if (value.length === 0) return null
+    const inner = value.map(numericShapeOf)
+    if (inner.some(s => s === null)) return null
+    // 元素形态必须一致：一列里既有标量又有记录 = 说不清是什么
+    const only = inner[0]
+    if (inner.some(s => s !== only)) return null
+    if (only === 'record') return 'table'
+    if (only === 'scalar' || only === 'flag') return 'series'
+    if (only === 'series') return 'matrix'
+    if (only === 'matrix' || only === 'tensor') return 'tensor'
+    if (only === 'table') return 'table'
+    return null
   }
-  if (!value.every(v => walk(v, 2))) return null
-  return depth >= 3 ? 'tensor' : depth === 2 ? 'matrix' : 'series'
+  if (typeof value === 'object' && value !== null) {
+    const vals = Object.values(value as Record<string, unknown>)
+    if (vals.length === 0) return null
+    const ok = vals.every(v =>
+      typeof v === 'string' ? true // 标签（不是数，但它可溯源到代码产物本身）
+        : typeof v === 'number' ? Number.isFinite(v)
+          : typeof v === 'boolean' ? true
+            : numericShapeOf(v) !== null)
+    return ok ? 'record' : null
+  }
+  return null
 }
 
 /** 一次执行 + 铸造的结果。 */

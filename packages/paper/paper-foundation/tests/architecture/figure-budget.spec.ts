@@ -180,20 +180,39 @@ describe('账本收得下数组 —— 这是"多画几张图"的前提', () => 
     expect(numericShapeOf([[[1]], [[2]]])).toBe('tensor')
   })
 
+  it('**record 与 table 也合法** —— 实测里代码真的写出这两种（放宽标量后一口气声明 134 条）', () => {
+    // 成本分项：字段名就是瀑布图上的标签
+    expect(numericShapeOf({ purchase: 22, inspection_part: 0, assembly: 8.23 })).toBe('record')
+    // 16 种候选策略：天然是"表"，热力图/散点直接吃
+    expect(numericShapeOf([{ Z1: 0, profit: 21.68 }, { Z1: 1, profit: 20.88 }])).toBe('table')
+    // record 的字段值可以是**字符串标签**（成本项名）——标签不是数，但它可溯源到代码产物
+    expect(numericShapeOf({ label: '采购', value: 22 })).toBe('record')
+    // record 的字段值也可以是序列
+    expect(numericShapeOf({ name: '扫描', values: [1, 2, 3] })).toBe('record')
+  })
+
+  it('布尔是 flag（判定结果，0/1 语义）', () => {
+    expect(numericShapeOf(true)).toBe('flag')
+    expect(numericShapeOf([true, false, true])).toBe('series')
+  })
+
   it('**元素坏了一律拒绝**（NaN/Infinity 画到图上是静默失败）', () => {
     expect(numericShapeOf(Number.NaN)).toBeNull()
     expect(numericShapeOf(Number.POSITIVE_INFINITY)).toBeNull()
     expect(numericShapeOf([1, Number.NaN, 3])).toBeNull()
     expect(numericShapeOf([[1, 2], [3, Number.POSITIVE_INFINITY]])).toBeNull()
+    expect(numericShapeOf({ a: 1, b: Number.NaN })).toBeNull()
   })
 
-  it('空数组、字符串、对象、混合数组都拒绝', () => {
+  it('空值、裸字符串、混合形态都拒绝', () => {
     expect(numericShapeOf([])).toBeNull()
     expect(numericShapeOf([[]])).toBeNull()
-    expect(numericShapeOf('abc')).toBeNull()
-    expect(numericShapeOf({ a: 1 })).toBeNull()
-    expect(numericShapeOf([1, 'x'])).toBeNull()
+    expect(numericShapeOf('abc')).toBeNull() // 顶层字符串：不是数
+    expect(numericShapeOf({})).toBeNull()
+    expect(numericShapeOf([1, 'x'])).toBeNull() // 数值数组里混字符串 = 标签列表，不是数据
     expect(numericShapeOf(null)).toBeNull()
+    // 混合形态（既有标量又有 record）：说不清是什么，图也画不出确定的东西
+    expect(numericShapeOf([1, { a: 2 }])).toBeNull()
   })
 })
 
