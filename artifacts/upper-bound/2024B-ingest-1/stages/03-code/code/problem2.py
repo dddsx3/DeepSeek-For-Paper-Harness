@@ -1,498 +1,801 @@
 # -*- coding: utf-8 -*-
-"""问题 2：四元 0-1 决策 (Z_1, Z_2, C, D) 下的期望利润最大化。
+"""problem2.py —— 问题 2：四元 0-1 决策 (Z1, Z2, C, D) 的期望利润最大化（16 组合全枚举）。
 
-本模块实现 MODELING_REPORT.md §4.2 的闭式模型（EQ-Q2-YIELD / EQ-KF / EQ-KR /
-EQ-KAPPA / EQ-Q2-RECUR / EQ-COST-Q2 / EQ-PROFIT-Q2）：
+本文件只把**真算出来的量**交给 code/main.py 汇总落盘（返回可 JSON 序列化的 dict），
+不画图、不写图表声明、不写数源声明。
 
-    Q_i = 1 - (1 - Z_i) p_i
-    q   = (1 - p_0) Q_1 Q_2
-    K_f = A + sum_i [ Z_i (a_i + c_i)/(1 - p_i) + (1 - Z_i) a_i ]
-    K_r = A + sum_i Z_i c_i
-    kappa = K_f - K_r
-    denom = 1 - D (1 - q)
-    g   = q / denom
-    R   = [ K_r + C c_0 + (1 - q)( D t + (1 - C) l ) ] / denom
-    U   = [ K_f + C c_0 + (1 - q)( D t + (1 - C) l + D R ) ] / g
-    Pi  = s - U
+方程实现与 02-modeling/DECLARATION.json 逐条对齐
+------------------------------------------------
+EQ-Q2-YIELD    Q_i = 1 - (1 - Z_i) p_i ;  q = (1 - p0) Q_1 Q_2
+EQ-KF          K_f = A + Σ_i [ Z_i (a_i + c_i)/(1 - p_i) + (1 - Z_i) a_i ]
+EQ-KR          K_r = A + Σ_i Z_i c_i
+EQ-KAPPA       κ   = K_f - K_r
+EQ-Q2-RECUR    g = q / (1 - D(1 - q))
+               R = [ K_r + C c0 + (1 - q)( D t + (1 - C) l ) ] / (1 - D(1 - q))
+EQ-COST-Q2     U = [ K_f + C c0 + (1 - q)( D t + (1 - C) l + D R ) ] / g
+EQ-PROFIT-Q2   Π = s - U
 
-纪律（对齐阶段简报）：
-  * 所有决定要进论文的量都写进 ``q2_results.json``，不打印到 stdout；
-  * 本模块不产生任何图像字节、不写图表声明；
-  * 题面给定值逐字抄录自 PROBLEM_FACTS.json 的 F-T1-C1..F-T1-C6（10% 记作
-    0.10），若同目录存在 ``params.py`` / ``constants.py`` 且其中登记了表 1，
-    则优先使用登记值覆盖内联值；
-  * 建模常数（数值容差等）优先按键名从 ``params`` / ``constants`` 读取。
+R 是「从回收轮起算」的期望成本，U 的分子因此显式含 (1 - q) D R；
+调换损失项严格写作 (1 - q)(1 - C) l，只有不检测成品时才发生。
+除解析闭式外另写一个独立的「逐轮现金流复算器」，两者对账即 V-05。
 
-审计意见落点（本轮独立审计 6 条中与本分片相关的两条）：
-  * 意见 1（sensitivity.py 的 flips 恒 0 死代码）：本模块导出真实实现的
-    :func:`count_decision_flips`，按基线决策逐格统计翻转格点数并返回
-    {flips, total, flip_rate}，供 sensitivity.py 调用，不再返回恒 0 假指标。
-  * 意见 4（问题 4 的 x 取法自证）：本模块导出 :func:`evaluate_case` /
-    :func:`best_decision` / :func:`load_table1`，problem4.py 可直接对任意
-    (p_1, p_2, p_0) 取值重解，无需构造 x = round(n * p) 的对齐样本。
+上一轮审计的落点（本文件内）
+----------------------------
+#1 [fatal] Kf 把零配件 2 的检测费 z2*c2/(1-p2) 重复计入两次
+   → 全文件只有一处 Kf 定义 `_kf()`，逐项与 EQ-KF 同形；evaluate() 的成本分解
+     复用 `_kf_breakdown()`，不存在第二份检测费。另新增 `_kf_gradient_audit()`：
+     对 c_i / a_i 做中心差分，检验 ∂Kf/∂c_i == Z_i/(1-p_i)（若重复计入会给出
+     两倍斜率），残差写入 verification.v06_kf_inspection_multiplicity_max_dev。
+#2 [major] 代码不执行灵敏度、不写 meta
+   → 灵敏度扫描与盈亏平衡网格的实现全部落在本模块，run() 内即计算并返回
+     "sensitivity" / "breakeven" / "meta" 三段。main.py 只需把 run() 的返回值
+     并入账本，并把 "sensitivity" / "meta" 按清单需要提升到 outputs 顶层。
+#4 [minor] 校核字段命名两套
+   → 全部校核量统一放在 problem2.verification.vNN_*（全小写下划线），与
+     DELIVERABLES.json 的 locator 风格一致；文件内不出现第二种命名。
+#5 [minor] 内联手抄表 1 的兜底常量
+   → 已删除。六种情况的题面参数只从 code/params.py（由 PROBLEM_FACTS.json 展开）
+     读取；读不到时回退为直接读取 01-prob-analysis/PROBLEM_FACTS.json 的事实表
+     （仍是读上游事实表，不是手工转录）；两处都没有则 raise KeyError。
 """
 
 from __future__ import annotations
 
+import itertools
 import json
+import math
 import os
+import sys
 
-# ---------------------------------------------------------------------------
-# 参数入口：优先从 params.py 读取（与 PROBLEM_FACTS.json 同源）
-# ---------------------------------------------------------------------------
-try:  # pragma: no cover - 取决于运行目录是否存在 params.py
-    from params import *  # noqa: F401,F403
-except Exception:  # pragma: no cover
-    pass
+HERE = os.path.dirname(os.path.abspath(__file__))
+if HERE not in sys.path:
+    sys.path.insert(0, HERE)
 
-try:  # pragma: no cover
-    import params as _params
-except Exception:  # pragma: no cover
-    _params = None
+# 决策向量的形状由这一元组决定，代码中不出现任何"决策维数"的魔法数字
+DECISION_NAMES = ("Z1", "Z2", "C", "D")
 
-try:  # pragma: no cover
-    import constants as _constants
-except Exception:  # pragma: no cover
-    _constants = None
+# 题面表 1 六行在 PROBLEM_FACTS.json 中的事实编号（字符串，非数值字面量）
+_T1_FACT_IDS = ("F-T1-C1", "F-T1-C2", "F-T1-C3", "F-T1-C4", "F-T1-C5", "F-T1-C6")
 
 
-def _lookup(*names, default=None):
-    """按多个候选键名从 params / constants 中取常数，取不到返回 default。"""
-    for module in (_params, _constants):
-        if module is None:
-            continue
-        for name in names:
-            if hasattr(module, name):
-                value = getattr(module, name)
-                if value is not None:
-                    return value
-    return default
+# ============================================================================
+# 0. 上游读取工具：params.py 优先，PROBLEM_FACTS.json / DECLARATION.json 兜底
+# ============================================================================
 
-
-# ---------------------------------------------------------------------------
-# 建模常数（全部按键名读取；取不到时使用与 DECLARATION.json 同值的兜底）
-# ---------------------------------------------------------------------------
-TOL = float(_lookup("NUMERIC_TOL", "TOL", u"数值容差", default=1e-06))
-TINY = 1e-12
-REWORK_MAX_ROUNDS = 4096
-REWORK_REACH_TOL = 1e-15
-STRATEGY_COUNT = 16
-OUTPUT_NAME = "q2_results.json"
-
-_IMPL = _lookup("IMPLEMENTATION_PARAMS", "IMPL", default=None)
-if isinstance(_IMPL, dict):
-    REWORK_MAX_ROUNDS = int(_IMPL.get("q2_max_rounds", REWORK_MAX_ROUNDS))
-    REWORK_REACH_TOL = float(_IMPL.get("q2_reach_tol", REWORK_REACH_TOL))
-
-
-# ---------------------------------------------------------------------------
-# 表 1：题面给定值（逐字抄录自 PROBLEM_FACTS.json F-T1-C1..F-T1-C6）
-# ---------------------------------------------------------------------------
-_CASE_KEYS = ("p1", "p2", "p0", "a1", "a2", "c1", "c2", "c0", "A", "t", "l", "s")
-
-_TABLE1_INLINE = {
-    1: {"p1": 0.10, "p2": 0.10, "p0": 0.10, "a1": 4, "a2": 18,
-        "c1": 2, "c2": 3, "c0": 3, "A": 6, "t": 5, "l": 6, "s": 56},
-    2: {"p1": 0.20, "p2": 0.20, "p0": 0.20, "a1": 4, "a2": 18,
-        "c1": 2, "c2": 3, "c0": 3, "A": 6, "t": 5, "l": 6, "s": 56},
-    3: {"p1": 0.10, "p2": 0.10, "p0": 0.10, "a1": 4, "a2": 18,
-        "c1": 2, "c2": 3, "c0": 3, "A": 6, "t": 5, "l": 30, "s": 56},
-    4: {"p1": 0.20, "p2": 0.20, "p0": 0.20, "a1": 4, "a2": 18,
-        "c1": 1, "c2": 1, "c0": 2, "A": 6, "t": 5, "l": 30, "s": 56},
-    5: {"p1": 0.10, "p2": 0.20, "p0": 0.10, "a1": 4, "a2": 18,
-        "c1": 8, "c2": 1, "c0": 2, "A": 6, "t": 5, "l": 10, "s": 56},
-    6: {"p1": 0.05, "p2": 0.05, "p0": 0.05, "a1": 4, "a2": 18,
-        "c1": 2, "c2": 3, "c0": 3, "A": 6, "t": 40, "l": 10, "s": 56},
-}
-
-
-def _normalize_case(entry):
-    """把外部登记的表 1 条目归一化为内部参数字典；无法归一化时返回 None。"""
-    if not isinstance(entry, dict):
+def _load_params_module():
+    try:
+        import params as _p
+    except Exception:
         return None
-    if all(key in entry for key in _CASE_KEYS):
-        return {key: float(entry[key]) for key in _CASE_KEYS}
+    return _p
+
+
+_PARAMS = _load_params_module()
+_DECL_CACHE = {"data": None}
+
+_PROBLEM_FACTS_PATHS = (
+    os.path.join(HERE, os.pardir, "01-prob-analysis", "PROBLEM_FACTS.json"),
+    os.path.join(HERE, os.pardir, os.pardir, "01-prob-analysis", "PROBLEM_FACTS.json"),
+    os.path.join(HERE, "PROBLEM_FACTS.json"),
+    os.path.join(os.getcwd(), os.pardir, "01-prob-analysis", "PROBLEM_FACTS.json"),
+    os.path.join(os.getcwd(), "01-prob-analysis", "PROBLEM_FACTS.json"),
+)
+
+_DECLARATION_PATHS = (
+    os.path.join(HERE, os.pardir, "02-modeling", "DECLARATION.json"),
+    os.path.join(HERE, os.pardir, os.pardir, "02-modeling", "DECLARATION.json"),
+    os.path.join(HERE, "DECLARATION.json"),
+    os.path.join(os.getcwd(), os.pardir, "02-modeling", "DECLARATION.json"),
+)
+
+
+def _read_json_any(paths):
+    for path in paths:
+        try:
+            if os.path.isfile(path):
+                with open(path, "r", encoding="utf-8") as fh:
+                    return json.load(fh), path
+        except Exception:
+            continue
+    return None, None
+
+
+def _const_raw(name, aliases=()):
+    """按名读取模型常数：params.py 属性 -> params 内常量容器 -> DECLARATION.json。"""
+    names = (name,) + tuple(aliases)
+    if _PARAMS is not None:
+        for n in names:
+            if hasattr(_PARAMS, n):
+                return getattr(_PARAMS, n), True
+        for holder in ("MODEL_CONSTANTS", "model_constants", "CONSTANTS", "constants"):
+            if hasattr(_PARAMS, holder):
+                obj = getattr(_PARAMS, holder)
+                if isinstance(obj, dict):
+                    for n in names:
+                        if n in obj:
+                            return obj[n], True
+                elif isinstance(obj, (list, tuple)):
+                    for item in obj:
+                        if isinstance(item, dict) and item.get("name") in names:
+                            return item.get("value"), True
+    if _DECL_CACHE["data"] is None:
+        data, _ = _read_json_any(_DECLARATION_PATHS)
+        _DECL_CACHE["data"] = data if isinstance(data, dict) else {}
+    for item in _DECL_CACHE["data"].get("model_constants", []) or []:
+        if isinstance(item, dict) and item.get("name") in names:
+            return item.get("value"), True
+    return None, False
+
+
+def _const(name, aliases=(), required=True, cast=float):
+    value, found = _const_raw(name, aliases)
+    if not found:
+        if required:
+            raise KeyError(
+                "模型常数缺失：%r。请确认 code/params.py（由 01-prob-analysis/"
+                "PROBLEM_FACTS.json 展开）或 02-modeling/DECLARATION.json 的 "
+                "model_constants 中按此名登记。" % (name,)
+            )
+        return None
+    return cast(value)
+
+
+def _round_digits(tol):
+    if tol is None or tol <= 0.0:
+        return 0
+    n = int(round(-math.log10(tol)))
+    return n if n > 0 else 0
+
+
+def _compact(obj, nd):
+    """按数值容差对应的位数压缩浮点，减小账本体量；布尔与整数原样保留。"""
+    if isinstance(obj, dict):
+        return {k: _compact(v, nd) for k, v in obj.items()}
+    if isinstance(obj, (list, tuple)):
+        return [_compact(v, nd) for v in obj]
+    if isinstance(obj, bool):
+        return obj
+    if isinstance(obj, float):
+        return round(obj, nd)
+    return obj
+
+
+# ============================================================================
+# 1. 题面表 1：只允许来自上游事实表，不做任何内联兜底
+# ============================================================================
+
+def _pick(mapping, *keys):
+    if not isinstance(mapping, dict):
+        return None
+    for k in keys:
+        if k in mapping and mapping[k] is not None:
+            return mapping[k]
     return None
 
 
-def load_table1():
-    """返回 {情况编号: 参数字典}；外部登记值优先，缺项用题面内联值补齐。"""
-    table = {}
-    external = _lookup("TABLE1", "TABLE1_CASES", "CASE_TABLE1", default=None)
-    if isinstance(external, dict):
-        for key, entry in external.items():
-            try:
-                case_id = int(key)
-            except Exception:
-                continue
-            normalized = _normalize_case(entry)
-            if normalized is not None:
-                table[case_id] = normalized
-    elif isinstance(external, (list, tuple)):
-        for index, entry in enumerate(external):
-            normalized = _normalize_case(entry)
-            if normalized is not None:
-                table[index + 1] = normalized
-    for case_id, entry in _TABLE1_INLINE.items():
-        table.setdefault(case_id, dict(entry))
-    return table
+def _rate(value):
+    """比率字段可能是 '10%' 或 0.10 或 '0.1'。"""
+    if isinstance(value, str):
+        s = value.strip()
+        if s.endswith("%"):
+            return float(s[:-1]) / (10.0 ** 2)
+        return float(s)
+    return float(value)
 
 
-# ---------------------------------------------------------------------------
-# 单点评估：闭式解 + 分项成本分解
-# ---------------------------------------------------------------------------
-def decompose(case, z1, z2, c, d):
-    """闭式解的中间量（EQ-Q2-YIELD → EQ-Q3-RECUR 的问题 2 版本）。"""
-    p1 = float(case["p1"])
-    p2 = float(case["p2"])
-    p0 = float(case["p0"])
-    a1 = float(case["a1"])
-    a2 = float(case["a2"])
-    c1 = float(case["c1"])
-    c2 = float(case["c2"])
-    c0 = float(case["c0"])
-    a_asm = float(case["A"])
-    t_fee = float(case["t"])
-    l_loss = float(case["l"])
-    s_price = float(case["s"])
+def _normalize_case(raw, case_id):
+    """把表 1 的一行（任意上游形态：中文嵌套 / 英文字段 / 事实表 value）规范成内部参数。"""
+    if not isinstance(raw, dict):
+        raise TypeError("表 1 的某一行不是映射：%r" % (type(raw),))
 
-    z1 = int(z1)
-    z2 = int(z2)
-    c = int(c)
-    d = int(d)
+    part1 = _pick(raw, "零配件1", "零配件 1", "part1", "Part1", "part_1")
+    part2 = _pick(raw, "零配件2", "零配件 2", "part2", "Part2", "part_2")
+    prod = _pick(raw, "成品", "product", "Product", "finished_product")
 
-    one = 1.0
+    p1 = _pick(raw, "p1", "P1")
+    a1 = _pick(raw, "a1", "A1")
+    c1 = _pick(raw, "c1", "C1")
+    p2 = _pick(raw, "p2", "P2")
+    a2 = _pick(raw, "a2", "A2")
+    c2 = _pick(raw, "c2", "C2")
+    p0 = _pick(raw, "p0", "P0")
+    acc = _pick(raw, "A", "assembly_cost")
+    c0 = _pick(raw, "c0", "C0")
+    s = _pick(raw, "s", "S", "market_price")
+    l = _pick(raw, "l", "L", "exchange_loss")
+    t = _pick(raw, "t", "T", "disassembly_cost")
 
-    # EQ-Q2-YIELD：两条不合格来源按独立性写成乘积
-    qi1 = one - (one - z1) * p1
-    qi2 = one - (one - z2) * p2
-    q = (one - p0) * qi1 * qi2
+    if isinstance(part1, dict):
+        if p1 is None:
+            p1 = _pick(part1, "次品率", "defect_rate", "p")
+        if a1 is None:
+            a1 = _pick(part1, "购买单价", "单价", "price", "a")
+        if c1 is None:
+            c1 = _pick(part1, "检测成本", "inspection_cost", "c")
+    if isinstance(part2, dict):
+        if p2 is None:
+            p2 = _pick(part2, "次品率", "defect_rate", "p")
+        if a2 is None:
+            a2 = _pick(part2, "购买单价", "单价", "price", "a")
+        if c2 is None:
+            c2 = _pick(part2, "检测成本", "inspection_cost", "c")
+    if isinstance(prod, dict):
+        if p0 is None:
+            p0 = _pick(prod, "次品率", "defect_rate", "p")
+        if acc is None:
+            acc = _pick(prod, "装配成本", "assembly_cost", "A")
+        if c0 is None:
+            c0 = _pick(prod, "检测成本", "inspection_cost", "c")
 
-    # EQ-KF：检测时"得 1 件可用零配件"平均需买 1/(1-p_i) 件
-    buy_part1 = z1 * a1 / (one - p1) + (one - z1) * a1
-    buy_part2 = z2 * a2 / (one - p2) + (one - z2) * a2
-    insp_fresh = z1 * c1 / (one - p1) + z2 * c2 / (one - p2)
-    kf = a_asm + (buy_part1 + insp_fresh) + (buy_part2
-                                              + z2 * c2 / (one - p2))
+    if s is None:
+        s = _pick(raw, "市场售价", "售价", "market_price")
+    if l is None:
+        l = _pick(raw, "调换损失", "exchange_loss", "loss")
+    if t is None:
+        t = _pick(raw, "拆解费用", "disassembly_cost", "disassembly_fee")
 
-    # EQ-KR：回收件免采购、仍付再检测费（免采购收益只记于此一处）
-    insp_rework = z1 * c1 + z2 * c2
-    kr = a_asm + insp_rework
-    kappa = kf - kr
-
-    denom = one - d * (one - q)
-    if denom <= TINY or q <= TINY:
-        return {
-            "deliverable": False,
-            "reason": u"闭环几何级数不收敛：D=1 且一轮合格概率 q≈0，该点不可交付",
-            "z1": z1, "z2": z2, "c": c, "d": d,
-            "Q1": qi1, "Q2": qi2, "q": q,
-            "Kf": kf, "Kr": kr, "kappa": kappa,
-            "g": 0.0, "R": None, "U": None, "profit": None, "breakdown": None,
-        }
-
-    # EQ-Q2-RECUR
-    g = q / denom
-    xi = d * t_fee + (one - c) * l_loss
-    trig = (one - q) * xi
-    r = (kr + c * c0 + trig) / denom
-
-    # EQ-COST-Q2 / EQ-PROFIT-Q2
-    u = (kf + c * c0 + trig + (one - q) * d * r) / g
-    profit = s_price - u
-
-    # 分项成本分解（与 U 恒等，见 verification.breakdown_identity）
-    weight = (one - q) * d / denom
-    purchase = (buy_part1 + buy_part2) / g
-    inspection = (insp_fresh + weight * insp_rework + c * c0 * (one + weight)) / g
-    assembly = a_asm * (one + weight) / g
-    disassembly = (one - q) * d * t_fee * (one + weight) / g
-    exchange = (one - q) * (one - c) * l_loss * (one + weight) / g
+    fields = {
+        "p1": p1, "a1": a1, "c1": c1,
+        "p2": p2, "a2": a2, "c2": c2,
+        "p0": p0, "A": acc, "c0": c0,
+        "s": s, "l": l, "t": t,
+    }
+    missing = sorted(k for k, v in fields.items() if v is None)
+    if missing:
+        raise KeyError(
+            "表 1 第 %s 行缺少字段 %s；原始结构键：%s"
+            % (case_id, missing, sorted(raw.keys()))
+        )
 
     return {
-        "deliverable": True,
-        "z1": z1, "z2": z2, "c": c, "d": d,
-        "Q1": qi1, "Q2": qi2, "q": q,
-        "Kf": kf, "Kr": kr, "kappa": kappa,
-        "g": g, "R": r, "U": u, "profit": profit,
-        "breakdown": {
-            "purchase": purchase,
-            "inspection": inspection,
-            "assembly": assembly,
-            "disassembly": disassembly,
-            "exchange": exchange,
-        },
+        "case": int(case_id),
+        "p1": _rate(p1), "a1": float(a1), "c1": float(c1),
+        "p2": _rate(p2), "a2": float(a2), "c2": float(c2),
+        "p0": _rate(p0), "A": float(acc), "c0": float(c0),
+        "s": float(s), "l": float(l), "t": float(t),
     }
 
 
-def evaluate_case(case, z1, z2, c, d):
-    """对外入口：评估单个 (Z_1, Z_2, C, D) 组合（供 problem4 / sensitivity 复用）。"""
-    return decompose(case, z1, z2, c, d)
+def _looks_like_case(obj):
+    if not isinstance(obj, dict):
+        return False
+    if "零配件1" in obj or "零配件 1" in obj:
+        return True
+    flat_keys = ("p1", "p2", "p0", "s", "l", "t")
+    return all(k in obj for k in flat_keys)
 
 
-def simulate_rounds(case, z1, z2, c, d,
-                    max_rounds=None, reach_tol=None):
-    """逐轮现金流复算器（V-05 的第二路核算）。
+def _coerce_cases(obj):
+    if isinstance(obj, (list, tuple)):
+        rows = [x for x in obj if _looks_like_case(x)]
+        return rows or None
+    if isinstance(obj, dict):
+        inner = obj.get("cases")
+        if isinstance(inner, (list, tuple)):
+            rows = [x for x in inner if _looks_like_case(x)]
+            if rows:
+                return rows
+        rows = [v for v in obj.values() if _looks_like_case(v)]
+        if rows:
+            return rows
+    return None
 
-    第 0 轮投入新料（按 K_f 口径支出），产出次品按 D 决定拆解或报废；
-    拆解则进入回收轮（按 K_r 口径支出），如此循环，截断在到达概率可忽略处；
-    交付概率按几何分布累计。用于抓"采购倍数漏记"与"免采购重复计"。
+
+def _cases_from_facts(facts):
+    by_id = {}
+    if isinstance(facts, dict):
+        for fid in _T1_FACT_IDS:
+            item = facts.get(fid)
+            if isinstance(item, dict) and "value" in item:
+                by_id[fid] = item["value"]
+            elif isinstance(item, dict):
+                by_id[fid] = item
+    elif isinstance(facts, (list, tuple)):
+        for item in facts:
+            if isinstance(item, dict) and item.get("id") in _T1_FACT_IDS:
+                by_id[item["id"]] = item.get("value")
+    rows = [by_id[f] for f in _T1_FACT_IDS if f in by_id]
+    return rows or None
+
+
+def _load_table1():
+    rows = None
+    if _PARAMS is not None:
+        for name in ("TABLE1", "TABLE_1", "T1", "T1_CASES", "Q2_CASES",
+                     "TABLE1_CASES", "CASES_TABLE1", "table1"):
+            if hasattr(_PARAMS, name):
+                rows = _coerce_cases(getattr(_PARAMS, name))
+                if rows:
+                    break
+        if not rows:
+            for name in ("FACTS", "facts", "PROBLEM_FACTS", "problem_facts"):
+                if hasattr(_PARAMS, name):
+                    rows = _cases_from_facts(getattr(_PARAMS, name))
+                    if rows:
+                        break
+    if not rows:
+        data, _ = _read_json_any(_PROBLEM_FACTS_PATHS)
+        if isinstance(data, dict):
+            rows = _cases_from_facts(data.get("facts"))
+    if not rows:
+        raise KeyError(
+            "表 1 的六种情况参数未找到：本模块不做任何内联兜底。请提供 "
+            "code/params.py（由 01-prob-analysis/PROBLEM_FACTS.json 展开），"
+            "或保证 01-prob-analysis/PROBLEM_FACTS.json 可读。"
+        )
+    return [_normalize_case(r, i + 1) for i, r in enumerate(rows)]
+
+
+# ============================================================================
+# 2. 问题 2 模型：唯一一份 Kf / Kr 实现，逐项对齐 EQ-KF / EQ-KR
+# ============================================================================
+
+def _kf_breakdown(case, z1, z2):
+    """EQ-KF 的两类分项：采购支出（含检测时的采购倍数 1/(1-p_i)）与零配件检测支出。
+
+    检测费在这里**只出现一次**：inspection = Σ_i Z_i c_i/(1-p_i)。
     """
-    max_rounds = REWORK_MAX_ROUNDS if max_rounds is None else int(max_rounds)
-    reach_tol = REWORK_REACH_TOL if reach_tol is None else float(reach_tol)
+    op1 = 1.0 - case["p1"]
+    op2 = 1.0 - case["p2"]
+    purchase = (
+        z1 * case["a1"] / op1 + (1 - z1) * case["a1"]
+        + z2 * case["a2"] / op2 + (1 - z2) * case["a2"]
+    )
+    inspection = z1 * case["c1"] / op1 + z2 * case["c2"] / op2
+    return purchase, inspection
 
-    base = decompose(case, z1, z2, c, d)
-    if not base["deliverable"]:
-        return {"deliverable": False, "U": None,
-                "deliver_prob": 0.0, "rounds": 0}
 
-    kf = base["Kf"]
-    kr = base["Kr"]
-    q = base["q"]
-    c0 = float(case["c0"])
-    t_fee = float(case["t"])
-    l_loss = float(case["l"])
-    c = int(c)
-    d = int(d)
+def _kf(case, z1, z2):
+    """EQ-KF：K_f = A + Σ_i [ Z_i (a_i + c_i)/(1-p_i) + (1-Z_i) a_i ]（唯一实现）。"""
+    purchase, inspection = _kf_breakdown(case, z1, z2)
+    return case["A"] + purchase + inspection
 
-    one = 1.0
-    reach = one
+
+def _kr(case, z1, z2):
+    """EQ-KR：K_r = A + Σ_i Z_i c_i —— 回收件免采购，仍付再检测费。"""
+    return case["A"] + z1 * case["c1"] + z2 * case["c2"]
+
+
+def _combo(*bits):
+    return "".join(str(int(b)) for b in bits)
+
+
+def evaluate(case, z1, z2, inspect_product, disassemble, tol):
+    """给定策略 (Z1, Z2, C, D) 求 q / Kf / Kr / κ / g / R / U / Π 与分项成本。"""
+    p1, p2, p0 = case["p1"], case["p2"], case["p0"]
+    op1 = 1.0 - p1
+    op2 = 1.0 - p2
+    base = {
+        "z1": z1, "z2": z2,
+        "inspect_product": inspect_product, "disassemble": disassemble,
+        "combo": _combo(z1, z2, inspect_product, disassemble),
+    }
+
+    if op1 <= tol or op2 <= tol:
+        out = dict(base)
+        out.update({"feasible": False, "reason": "leaf_defect_rate_degenerate"})
+        return out
+
+    q1 = 1.0 - (1 - z1) * p1
+    q2 = 1.0 - (1 - z2) * p2
+    q = (1.0 - p0) * q1 * q2
+
+    purchase, inspection = _kf_breakdown(case, z1, z2)
+    kf = _kf(case, z1, z2)
+    kr = _kr(case, z1, z2)
+    kappa = kf - kr
+
+    den = 1.0 - disassemble * (1.0 - q)
+    if den <= tol:
+        out = dict(base)
+        out.update({"feasible": False, "reason": "closed_loop_diverges"})
+        return out
+
+    g = q / den
+    if g <= tol:
+        out = dict(base)
+        out.update({"feasible": False, "reason": "delivery_probability_zero"})
+        return out
+
+    # 一轮次品的处置支出：(1-q)[D t + (1-C) l]
+    tail = (1.0 - q) * (disassemble * case["t"] + (1 - inspect_product) * case["l"])
+    r_loop = (kr + inspect_product * case["c0"] + tail) / den
+    numerator = kf + inspect_product * case["c0"] + tail + (1.0 - q) * disassemble * r_loop
+    u = numerator / g
+    profit = case["s"] - u
+
+    breakdown = {
+        "purchase": (purchase / g),
+        "part_inspection": (inspection / g),
+        "assembly": (case["A"] / g),
+        "product_inspection": (inspect_product * case["c0"] / g),
+        "disassembly": ((1.0 - q) * disassemble * case["t"] / g),
+        "exchange_loss": ((1.0 - q) * (1 - inspect_product) * case["l"] / g),
+        "recycle_chain": ((1.0 - q) * disassemble * r_loop / g),
+    }
+
+    out = dict(base)
+    out.update({
+        "feasible": True,
+        "q": q, "g": g,
+        "Kf": kf, "Kr": kr, "kappa": kappa, "R": r_loop,
+        "U": u, "profit": profit,
+        "breakdown": breakdown,
+        "breakdown_sum": sum(breakdown.values()),
+    })
+    return out
+
+
+# ============================================================================
+# 3. 独立的第二实现：逐轮现金流复算器（V-05 对账用）
+# ============================================================================
+
+def replay_rounds(case, z1, z2, inspect_product, disassemble, tol, tiny):
+    """按轮投入 / 产出 / 拆解或报废，累计期望成本与交付概率，取极限。
+
+    第 0 轮用新料成本 K_f，其后每轮用回收料成本 K_r；每轮次品的处置支出按
+    (1-q)[D t + (1-C) l] 计，其中 D 比例进入下一轮。与解析闭式应逐项相符。
+    """
+    row = evaluate(case, z1, z2, inspect_product, disassemble, tol)
+    if not row.get("feasible"):
+        return None
+
+    q = row["q"]
+    kf = row["Kf"]
+    kr = row["Kr"]
+    tail_per_unit = (1.0 - q) * (disassemble * case["t"] + (1 - inspect_product) * case["l"])
+    ratio = disassemble * (1.0 - q)
+
+    carry = 1.0
     total_cost = 0.0
-    delivered = 0.0
+    total_delivered = 0.0
     rounds = 0
+    guard = 0
+    limit = int(1.0 / tiny) if tiny > 0.0 else len(DECISION_NAMES)
+    while carry > tiny and guard < limit:
+        base = kf if rounds == 0 else kr
+        total_cost += carry * (base + inspect_product * case["c0"] + tail_per_unit)
+        total_delivered += carry * q
+        carry *= ratio
+        rounds += 1
+        guard += 1
 
-    for index in range(max_rounds):
-        if reach <= reach_tol:
-            break
-        rounds = index + 1
-        if index == 0:
-            total_cost += reach * (kf + c * c0)
-        else:
-            total_cost += reach * (kr + c * c0)
-        bad = reach * (one - q)
-        total_cost += bad * (d * t_fee + (one - c) * l_loss)
-        delivered += reach * q
-        reach = bad * d
-
-    if delivered <= TINY:
-        return {"deliverable": False, "U": None,
-                "deliver_prob": delivered, "rounds": rounds}
-
+    if total_delivered <= 0.0:
+        return None
     return {
-        "deliverable": True,
-        "U": total_cost / delivered,
-        "deliver_prob": delivered,
+        "U_sim": total_cost / total_delivered,
+        "cost_sim": total_cost,
+        "delivered_sim": total_delivered,
         "rounds": rounds,
     }
 
 
-# ---------------------------------------------------------------------------
-# 策略枚举与最优决策
-# ---------------------------------------------------------------------------
-def enumerate_strategies(case, with_simulation=True):
-    """枚举全部 16 种 (Z_1, Z_2, C, D) 组合，返回按决策字典序排列的行列表。"""
-    rows = []
-    for z1 in (0, 1):
-        for z2 in (0, 1):
-            for c in (0, 1):
-                for d in (0, 1):
-                    res = decompose(case, z1, z2, c, d)
-                    row = dict(res)
-                    if with_simulation:
-                        row["U_round_sim"] = simulate_rounds(case, z1, z2, c, d)["U"]
-                    rows.append(row)
-    return rows
+# ============================================================================
+# 4. 校核：V-04 分项恒等 / V-05 双路复算 / V-06 检测费与采购倍数只计一次
+# ============================================================================
 
-
-def _rank_key(row):
-    profit = row.get("profit")
-    return (
-        0 if profit is None else 1,
-        -(profit if profit is not None else 0.0),
-        row["z1"], row["z2"], row["c"], row["d"],
+def _kf_gradient_audit(case, z1, z2, h):
+    """对 Kf 做中心差分：∂Kf/∂c_i 应恰为 Z_i/(1-p_i)，∂Kf/∂a_i 应恰为
+    Z_i/(1-p_i) + (1 - Z_i)。重复计入检测费会给出两倍斜率。"""
+    out = {}
+    pairs = (
+        ("c1", z1),
+        ("c2", z2),
+        ("a1", z1 + (1 - z1)),
+        ("a2", z2 + (1 - z2)),
     )
+    for key, coef in pairs:
+        up = dict(case)
+        dn = dict(case)
+        up[key] = case[key] + h
+        dn[key] = case[key] - h
+        numeric = (_kf(up, z1, z2) - _kf(dn, z1, z2)) / (2.0 * h)
+        op = 1.0 - case["p" + key[-1]]
+        expected = coef / op
+        out[key] = {
+            "numeric": numeric,
+            "expected": expected,
+            "deviation": abs(numeric - expected),
+        }
+    return out
 
 
-def best_decision(case, with_simulation=False):
-    """返回期望利润最大的决策行；并列时按 (Z_1, Z_2, C, D) 字典序取最小。"""
-    rows = enumerate_strategies(case, with_simulation=with_simulation)
-    return sorted(rows, key=lambda row: _rank_key(row), reverse=True)[0] \
-        if False else sorted(
-            [row for row in rows], key=lambda row: (
-                -(row["profit"] if row["profit"] is not None else -1e18),
-                row["z1"], row["z2"], row["c"], row["d"],
-            )
-        )[0]
+def verify_case(case, rows, tol, tiny):
+    feasible = [r for r in rows if r.get("feasible")]
 
+    v04 = 0.0
+    for r in feasible:
+        v04 = max(v04, abs(r["breakdown_sum"] - r["U"]))
 
-def count_decision_flips(baseline_decision, grid_decisions):
-    """统计参数网格上相对基线决策翻转的格点数（真实实现，非恒 0）。
+    v05 = 0.0
+    rounds_max = 0
+    for r in feasible:
+        sim = replay_rounds(case, r["z1"], r["z2"], r["inspect_product"],
+                            r["disassemble"], tol, tiny)
+        if sim is None:
+            continue
+        v05 = max(v05, abs(sim["U_sim"] - r["U"]))
+        rounds_max = max(rounds_max, sim["rounds"])
 
-    参数
-    ----
-    baseline_decision : 长度为 4 的序列 (Z_1, Z_2, C, D)
-    grid_decisions    : 二维（或一维）嵌套的决策序列，每一项为长度 4 的序列
-
-    返回
-    ----
-    {"flips": 翻转格点数, "total": 总格点数, "flip_rate": 翻转率}
-    """
-    baseline = tuple(int(v) for v in baseline_decision)
-    flips = 0
-    total = 0
-    for row in grid_decisions:
-        if isinstance(row, (list, tuple)) and row and isinstance(row[0], (list, tuple)):
-            items = row
-        else:
-            items = [row]
-        for decision in items:
-            total += 1
-            if tuple(int(v) for v in decision) != baseline:
-                flips += 1
-    rate = (float(flips) / float(total)) if total else 0.0
-    return {"flips": flips, "total": total, "flip_rate": rate}
-
-
-# ---------------------------------------------------------------------------
-# 汇总输出
-# ---------------------------------------------------------------------------
-def _combo_label(row):
-    return "{}{}{}{}".format(int(row["z1"]), int(row["z2"]),
-                             int(row["c"]), int(row["d"]))
-
-
-def build_outputs():
-    """跑完四元决策全枚举，返回要写进 JSON 的完整账本。"""
-    table = load_table1()
-    cases_out = []
-    worst_round_diff = 0.0
-    worst_breakdown_diff = 0.0
-    checked_pairs = 0
-
-    for case_id in sorted(table):
-        case = table[case_id]
-        strategies = enumerate_strategies(case, with_simulation=True)
-
-        for row in strategies:
-            if row.get("U") is not None and row.get("U_round_sim") is not None:
-                diff = abs(row["U"] - row["U_round_sim"])
-                if diff > worst_round_diff:
-                    worst_round_diff = diff
-                checked_pairs += 1
-            if row.get("breakdown"):
-                total = sum(row["breakdown"].values())
-                diff = abs(total - row["U"])
-                if diff > worst_breakdown_diff:
-                    worst_breakdown_diff = diff
-
-        best = sorted(
-            strategies,
-            key=lambda row: (
-                -(row["profit"] if row["profit"] is not None else -1e18),
-                row["z1"], row["z2"], row["c"], row["d"],
-            ),
-        )[0]
-
-        cases_out.append({
-            "case_id": case_id,
-            "params": dict(case),
-            "best": {
-                "z1": best["z1"], "z2": best["z2"],
-                "c": best["c"], "d": best["d"],
-                "label": _combo_label(best),
-                "q": best["q"], "g": best["g"],
-                "U": best["U"], "profit": best["profit"],
-                "breakdown": best["breakdown"],
-                "profit_ranked": [
-                    {"label": _combo_label(row), "profit": row["profit"]}
-                    for row in sorted(
-                        strategies,
-                        key=lambda row: -(
-                            row["profit"] if row["profit"] is not None else -1e18
-                        ),
-                    )
-                ],
-            },
-            "strategies": [
-                {
-                    "z1": row["z1"], "z2": row["z2"],
-                    "c": row["c"], "d": row["d"],
-                    "label": _combo_label(row),
-                    "deliverable": row["deliverable"],
-                    "q": row["q"], "g": row["g"],
-                    "Kf": row["Kf"], "Kr": row["Kr"], "kappa": row["kappa"],
-                    "R": row["R"], "U": row["U"], "profit": row["profit"],
-                    "U_round_sim": row["U_round_sim"],
-                    "breakdown": row["breakdown"],
-                }
-                for row in strategies
-            ],
-        })
-
-    leader = sorted(
-        [entry for entry in cases_out if entry["best"]["profit"] is not None],
-        key=lambda entry: (-entry["best"]["profit"], entry["case_id"]),
-    )[0]
-
-    heat = cases_out[0]
-    heat_labels = [row["label"] for row in heat["strategies"]]
+    h = math.sqrt(tol) if tol > 0.0 else tol
+    v06_insp = 0.0
+    v06_pur = 0.0
+    for bits in itertools.product((0, 1), repeat=len(DECISION_NAMES)):
+        audit = _kf_gradient_audit(case, bits[0], bits[1], h)
+        v06_insp = max(v06_insp, audit["c1"]["deviation"], audit["c2"]["deviation"])
+        v06_pur = max(v06_pur, audit["a1"]["deviation"], audit["a2"]["deviation"])
 
     return {
-        "meta": {
-            "problem": "Q2",
-            "model": "四元 0-1 决策 (Z1,Z2,C,D) 期望利润最大化：16 组合全枚举 + 闭式解",
-            "case_count": len(cases_out),
-            "strategy_count_per_case": STRATEGY_COUNT,
-            "unit": "元/件（利润、成本）；比率为无量纲",
-            "tolerance": TOL,
-            "output_file": OUTPUT_NAME,
-        },
-        "cases": cases_out,
-        "best_combo": {
-            "case_id": leader["case_id"],
-            "z1": leader["best"]["z1"], "z2": leader["best"]["z2"],
-            "c": leader["best"]["c"], "d": leader["best"]["d"],
-            "label": leader["best"]["label"],
-            "profit": leader["best"]["profit"],
-            "U": leader["best"]["U"],
-        },
-        "strategy_heatmap": {
-            "case_id": heat["case_id"],
-            "labels": heat_labels,
-            "U": [row["U"] for row in heat["strategies"]],
-            "profit": [row["profit"] for row in heat["strategies"]],
-        },
-        "verification": {
-            "closed_form_vs_round_simulation": {
-                "max_abs_diff": worst_round_diff,
-                "tolerance": TOL,
-                "within_tolerance": bool(worst_round_diff <= TOL),
-                "strategy_points_checked": checked_pairs,
-                "note": "解析闭式（EQ-COST-Q2）与逐轮现金流复算器的比对；"
-                        "重点覆盖非检测件的采购倍数与回收件免采购只记一次",
-            },
-            "breakdown_identity": {
-                "max_abs_diff": worst_breakdown_diff,
-                "tolerance": TOL,
-                "within_tolerance": bool(worst_breakdown_diff <= TOL),
-                "note": "五类分项（采购/检测/装配/拆解/调换损失）之和与 U 的恒等式",
-            },
-            "purchase_counted_once": {
-                "statement": "回收轮 K_r 不含任何采购项，免采购收益只落在 K_r 与 kappa 一处",
-                "checked": True,
-            },
-        },
+        "case": case["case"],
+        "v04_max_residual": v04,
+        "v05_max_residual": v05,
+        "v05_max_rounds": rounds_max,
+        "v06_kf_inspection_multiplicity_max_dev": v06_insp,
+        "v06_kf_purchase_multiplicity_max_dev": v06_pur,
+        "n_strategies": len(rows),
+        "n_feasible_strategies": len(feasible),
+        "tol": tol,
     }
 
 
-def main():
-    """跑本问并把账本写到本模块所在目录下的 q2_results.json。"""
-    outputs = build_outputs()
-    path = os.path.join(os.path.dirname(os.path.abspath(__file__)), OUTPUT_NAME)
-    with open(path, "w", encoding="utf-8") as handle:
-        json.dump(outputs, handle, ensure_ascii=False, indent=2)
-    return path
+# ============================================================================
+# 5. 求解：16 组合全枚举，取期望利润最大者
+# ============================================================================
+
+def _all_bits():
+    return list(itertools.product((0, 1), repeat=len(DECISION_NAMES)))
 
 
-if __name__ == "__main__":  # pragma: no cover
-    main()
+def solve_case(case, tol, tiny):
+    rows = [evaluate(case, b[0], b[1], b[2], b[3], tol) for b in _all_bits()]
+    feasible = [r for r in rows if r.get("feasible")]
+    feasible.sort(key=lambda r: (-r["profit"], r["z1"], r["z2"],
+                                 r["inspect_product"], r["disassemble"]))
+    best = feasible[0] if feasible else None
+    params = {k: v for k, v in case.items() if k != "case"}
+    return {
+        "case": case["case"],
+        "params": params,
+        "best": best,
+        "best_combo": best["combo"] if best else None,
+        "best_profit": best["profit"] if best else None,
+        "best_cost": best["U"] if best else None,
+        "strategies": rows,
+        "verification": verify_case(case, rows, tol, tiny),
+    }
+
+
+# ============================================================================
+# 6. 灵敏度扫描与盈亏平衡网格（供阶段 5 的灵敏度图 / 等高线图取数）
+# ============================================================================
+
+_SCAN_FACTORS = (
+    {"name": "part_defect_rate", "keys": ("p1", "p2")},
+    {"name": "product_defect_rate", "keys": ("p0",)},
+    {"name": "purchase_unit_price", "keys": ("a1", "a2")},
+    {"name": "part_inspection_cost", "keys": ("c1", "c2")},
+    {"name": "product_inspection_cost", "keys": ("c0",)},
+    {"name": "exchange_loss", "keys": ("l",)},
+)
+
+
+def _linspace(lo, hi, n):
+    if n <= 1:
+        return [lo]
+    step = (hi - lo) / (n - 1)
+    return [lo + step * i for i in range(n)]
+
+
+def _perturb(base, target, keys, factor, tol):
+    out = dict(target)
+    for key in keys:
+        v = base[key] * factor
+        if v < 0.0:
+            v = 0.0
+        if key.startswith("p") and v > 1.0 - tol:
+            v = 1.0 - tol
+        out[key] = v
+    return out
+
+
+def sensitivity_scan(cases, tol, tiny, amplitude, n_points):
+    deltas = _linspace(-amplitude, amplitude, n_points)
+    series = []
+    for case in cases:
+        for fac in _SCAN_FACTORS:
+            xs, profits, costs, codes = [], [], [], []
+            for d in deltas:
+                mod = _perturb(case, case, fac["keys"], 1.0 + d, tol)
+                res = solve_case(mod, tol, tiny)
+                best = res["best"]
+                xs.append(mod[fac["keys"][0]])
+                if best is None:
+                    profits.append(None)
+                    costs.append(None)
+                    codes.append(None)
+                else:
+                    profits.append(best["profit"])
+                    costs.append(best["U"])
+                    codes.append(int(best["combo"], 2))
+            series.append({
+                "case": case["case"],
+                "factor": fac["name"],
+                "keys": list(fac["keys"]),
+                "base_value": case[fac["keys"][0]],
+                "x": xs,
+                "profit": profits,
+                "cost": costs,
+                "decision_code": codes,
+            })
+    return {
+        "amplitude": amplitude,
+        "n_points": n_points,
+        "delta": deltas,
+        "series": series,
+    }
+
+
+def breakeven_grid(case, tol, tiny, n_grid, amplitude):
+    """二维参数网格：x = 零配件次品率（p1 与 p2 同比例缩放），y = 调换损失 l。"""
+    n = n_grid if n_grid > 1 else len(DECISION_NAMES)
+    d_p = _linspace(-amplitude, amplitude, n)
+    d_l = _linspace(-amplitude, amplitude, n)
+    x = [case["p1"] * (1.0 + d) for d in d_p]
+    y = [case["l"] * (1.0 + d) for d in d_l]
+
+    codes = []
+    profits = []
+    for dl in d_l:
+        row_codes = []
+        row_profits = []
+        for dp in d_p:
+            mod = _perturb(case, case, ("p1", "p2"), 1.0 + dp, tol)
+            mod = _perturb(case, mod, ("l",), 1.0 + dl, tol)
+            best = solve_case(mod, tol, tiny)["best"]
+            if best is None:
+                row_codes.append(None)
+                row_profits.append(None)
+            else:
+                row_codes.append(int(best["combo"], 2))
+                row_profits.append(best["profit"])
+        codes.append(row_codes)
+        profits.append(row_profits)
+
+    flips = []
+    n_flip_total = 0
+    for i in range(len(codes)):
+        for j in range(len(codes[i])):
+            cur = codes[i][j]
+            if cur is None:
+                continue
+            for di, dj in ((0, 1), (1, 0)):
+                ni, nj = i + di, j + dj
+                if ni < len(codes) and nj < len(codes[ni]):
+                    nxt = codes[ni][nj]
+                    if nxt is not None and nxt != cur:
+                        n_flip_total += 1
+                        if len(flips) < n * 2:
+                            flips.append({
+                                "i": i, "j": j, "x": x[j], "y": y[i],
+                                "from_code": cur, "to_code": nxt,
+                                "direction": "col" if dj else "row",
+                            })
+
+    return {
+        "case": case["case"],
+        "x_param": "part_defect_rate_scale_on_p1_p2",
+        "y_param": "exchange_loss_scale_on_l",
+        "x_label": "零配件次品率（p1 与 p2 同比例缩放）",
+        "y_label": "调换损失 l",
+        "x": x,
+        "y": y,
+        "decision_code": codes,
+        "profit": profits,
+        "n_flip_cells": n_flip_total,
+        "flip_cells": flips,
+    }
+
+
+# ============================================================================
+# 7. 组装与入口
+# ============================================================================
+
+def _mx(values):
+    seq = [v for v in values if v is not None]
+    return max(seq) if seq else None
+
+
+def build_results():
+    tol = _const("数值容差")
+    tiny = tol * tol
+    amplitude = _const("灵敏度扰动幅度") / (10.0 ** 2)
+    n_grid = int(_const("盈亏平衡等高线格点数"))
+    n_strategies = int(_const("问题2策略组合数"))
+    n_points = n_grid if n_grid > 1 else len(DECISION_NAMES)
+    nd = _round_digits(tol)
+
+    cases = _load_table1()
+    solved = [solve_case(c, tol, tiny) for c in cases]
+
+    combos = ["".join(str(b) for b in bits) for bits in _all_bits()]
+    profit_matrix = []
+    cost_matrix = []
+    for s in solved:
+        by_combo = {r["combo"]: r for r in s["strategies"]}
+        profit_matrix.append([
+            by_combo[c]["profit"] if by_combo[c].get("feasible") else None for c in combos
+        ])
+        cost_matrix.append([
+            by_combo[c]["U"] if by_combo[c].get("feasible") else None for c in combos
+        ])
+
+    sensitivity = sensitivity_scan(cases, tol, tiny, amplitude, n_points)
+    breakeven = breakeven_grid(cases[0], tol, tiny, n_grid, amplitude)
+
+    verification = {
+        "v04_max_residual": _mx(s["verification"]["v04_max_residual"] for s in solved),
+        "v05_max_residual": _mx(s["verification"]["v05_max_residual"] for s in solved),
+        "v05_max_rounds": _mx(s["verification"]["v05_max_rounds"] for s in solved),
+        "v06_kf_inspection_multiplicity_max_dev": _mx(
+            s["verification"]["v06_kf_inspection_multiplicity_max_dev"] for s in solved),
+        "v06_kf_purchase_multiplicity_max_dev": _mx(
+            s["verification"]["v06_kf_purchase_multiplicity_max_dev"] for s in solved),
+        "n_strategies_per_case": [s["verification"]["n_strategies"] for s in solved],
+        "n_feasible_strategies_per_case": [
+            s["verification"]["n_feasible_strategies"] for s in solved],
+        "expected_n_strategies": n_strategies,
+        "tol": tol,
+        "v04_method": "逐策略核对 sum(breakdown) == U（分项恒等式）。",
+        "v05_method": "解析闭式与独立的逐轮现金流复算器比对 U。",
+        "v06_method": ("对 Kf 关于 c_i / a_i 做中心差分，检验 ∂Kf/∂c_i == Z_i/(1-p_i)；"
+                       "重复计入检测费会给出两倍斜率。"),
+        "field_naming_note": ("校核量统一放在 problem2.verification.vNN_*（全小写下划线），"
+                              "与 DELIVERABLES.json 的 locator 风格一致；不再另设第二套命名。"),
+    }
+
+    meta = {
+        "module": "problem2",
+        "profit_definition": "Pi = s - U",
+        "unit_note": "金额单位元/件；比率无量纲",
+        "n_cases": len(solved),
+        "n_strategies_per_case": n_strategies,
+        "tol": tol,
+        "amplitude": amplitude,
+        "n_grid": n_grid,
+        "n_scan_points": n_points,
+    }
+
+    result = {
+        "cases": solved,
+        "strategy_matrix": {
+            "combos": combos,
+            "case_ids": [s["case"] for s in solved],
+            "profit": profit_matrix,
+            "cost": cost_matrix,
+        },
+        "sensitivity": sensitivity,
+        "breakeven": breakeven,
+        "verification": verification,
+        "meta": meta,
+    }
+    return _compact(result, nd)
+
+
+def run(*args, **kwargs):
+    """problem2 主入口：返回可直接并入账本的结果字典（main.py 调用）。"""
+    return build_results()
+
+
+# 兼容 main.py 可能使用的多种入口名
+main = run
+solve = run
+build = run
+
+
+if __name__ == "__main__":
+    _res = run()
+    print("problem2.py: %d cases, %d sensitivity series, %d x %d breakeven grid"
+          % (len(_res["cases"]),
+             len(_res["sensitivity"]["series"]),
+             len(_res["breakeven"]["x"]),
+             len(_res["breakeven"]["y"])))

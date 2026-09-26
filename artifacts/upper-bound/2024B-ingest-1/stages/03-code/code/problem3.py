@@ -1,931 +1,764 @@
-```python
 # -*- coding: utf-8 -*-
-"""问题 3 编程实现：m 道工序、n 个零配件的节点级装配树决策模型。
+"""问题 3：m 工序 / n 零配件装配树上的节点级决策模型（EQ-Q3-*，MS-Q3）。
 
-覆盖 DECLARATION.json 的 MS-Q3 全部方程：
-    EQ-Q3-ASSY      q_v = (1 - p_v) * prod_{u in ch(v)} Q_u
-    EQ-Q3-NODE      Q_v = Z_v + (1 - Z_v) * q_v
-    EQ-Q3-COST      叶节点 U_v = Z_v (a_v + c_v)/(1 - p_v) + (1 - Z_v) a_v
-    EQ-Q3-KF        K_f(v) = A_v + Z_v c_v + sum_{u in ch(v)} U_u ; K_r(v) = K_f(v) - kappa_v
-    EQ-Q3-KAPPA     kappa_v = sum_{u in ch(v)} (U_u - Z_u c_u)
-    EQ-Q3-XI        h_v = Z_v or 1{v 是成品节点} ; xi_v = h_v D_v t_v + (1 - Z_v) l_v
-    EQ-Q3-RECUR     g_v = q_v / (1 - h_v D_v (1 - q_v))
-                    R_v = (K_r(v) + (1 - q_v) xi_v) / (1 - h_v D_v (1 - q_v))
-    EQ-Q3-UNITCOST  U_v = (K_f(v) + (1 - q_v)(xi_v + h_v D_v R_v)) / g_v
-                        （Z_v = 1，或 v 为成品节点）
-                    U_v = K_f(v)  （Z_v = 0 且 v 非成品节点：子件缺陷上递）
-    EQ-Q3-PROFIT    Pi = s - U_f
+本脚本只负责“算”与“把量写进 JSON”，不画任何图、不做数源声明、不做图表声明。
 
-递推方向纪律（MODELING_REPORT §1.3 / §4.3.4 的统一表述）：
-    成本与合格率自底向上聚合（叶 -> 根）；
-    交付需求量自顶向下折算（根 -> 叶）。
-单件口径（ASM-04）下需求量恒为 1，本模块只需实现前者。
+模型要点
+--------
+* 拓扑（DECLARATION.json 的 ASM-09 显式假设；图 1 原件未随简报下传，故此常量
+  是“假设”不是“题面数字”，并把敏感性交给 topology_scan() 显式量化）：
+      {1,2,3} -> 半成品 1，{4,5,6} -> 半成品 2，{7,8} -> 半成品 3，
+      三个半成品 -> 成品。
+* 方向：成本与合格率自底向上聚合（U_u, Q_u -> K_f(v), q_v, U_v），
+  交付需求量按“每件合格成品”单位化（ASM-04），单位化口径下折算系数为 1。
+* 决策：每个节点两个二值决策 Z_v（是否检测）与 D_v（不合格件是否拆解）。
+  零配件节点无子件可拆解，D_v 恒取 0（在 decision_table 中显式写出，不静默省略）。
+* 搜索：自底向上的 (U, Q) 帕累托前沿枚举。父节点 U_v 关于子件 U_u 单调递增、
+  关于子件 Q_u 单调递减，故帕累托剪枝不丢全局最优，无需启发式。
+* 可达性保护：几何级数分母 1 - h_v D_v (1 - q_v) 恒 >= q_v > 0；仍保留不可交付
+  分支返回 feasible=False，而不是 inf。
+* 与问题 2 的退化一致性：两零配件一成品时逐项收敛到 EQ-Q2-YIELD / EQ-KF /
+  EQ-KR / EQ-Q2-RECUR / EQ-COST-Q2，由 degenerate_check() 对表 1 六种情况
+  的全部 16 个 (Z1,Z2,C,D) 组合双路复算核验。
 
-拓扑纪律（ASM-09）：图 1 原件未随阶段简报下传，连接关系取自
-constants.TABLE2 的 semi_children 键，属常量级假设。本模块同时输出
-拓扑扰动扫描（q3_topology_robust）对该假设的影响边界。
-
-所有数值常数来自 params（题面给定值）与 constants（实现参数 / 模型常数），
-函数体内不写死任何题面数值。结果一律写入工作目录下的 q3_results.json。
+输出（供 main.py 汇总进 outputs.json 的 problem3 段）：
+  meta / decision_table / unit_cost / profit / node_cost / strategy_compare /
+  topology_robust / tree / demand_fold / verification
 """
 
 from __future__ import annotations
 
-from params import *  # noqa: F401,F403  题面给定值（表 2 / 图 1 规模）
-
 import itertools
 import json
-import random
+import os
 
-import constants as _constants
+# --------------------------------------------------------------------------- #
+# 一、题面给定值与模型常数的读取                                                #
+#   唯一落点：params.py（若存在）-> PROBLEM_FACTS.json / DECLARATION.json。     #
+#   脚本内不手工转录任何题面数值；缺失即报错，不做兜底内联。                     #
+# --------------------------------------------------------------------------- #
 
+_HERE = os.path.dirname(os.path.abspath(__file__))
+_PARENT = os.path.dirname(_HERE)
+_ROOT = os.path.dirname(_PARENT)
 
-TABLE2 = getattr(_constants, "TABLE2", None)
-IMPLEMENTATION_PARAMS = getattr(_constants, "IMPLEMENTATION_PARAMS", None) or {}
-MODEL_CONSTANTS = getattr(_constants, "MODEL_CONSTANTS", None) or {}
+try:  # 统一常数入口
+    import params as _params
+except Exception:  # pragma: no cover - params.py 缺失时回落到契约文件
+    _params = None
 
-OUTPUT_FILE = "q3_results.json"
-EPSILON = 1e-12
-
-_RECORD_KEYS = (
-    "id", "kind", "p", "Z", "D", "q", "Q", "U",
-    "K_f", "K_r", "kappa", "xi", "h", "g", "R", "c_own",
+_FACT_FILES = (
+    os.path.join(_HERE, "PROBLEM_FACTS.json"),
+    os.path.join(_PARENT, "01-prob-analysis", "PROBLEM_FACTS.json"),
+    os.path.join(_ROOT, "01-prob-analysis", "PROBLEM_FACTS.json"),
+)
+_MODEL_FILES = (
+    os.path.join(_HERE, "DECLARATION.json"),
+    os.path.join(_PARENT, "02-modeling", "DECLARATION.json"),
+    os.path.join(_ROOT, "02-modeling", "DECLARATION.json"),
 )
 
+_FACT_CACHE = {}
+_CONST_CACHE = {}
 
-# --------------------------------------------------------------------------
-# 通用取值工具
-# --------------------------------------------------------------------------
 
-def _to_float(value):
-    """把题面给定值（可能是 '10%' 形式的字符串）转成 float。"""
+def _first_file(paths):
+    for path in paths:
+        if os.path.isfile(path):
+            return path
+    return None
+
+
+def _facts_table():
+    if not _FACT_CACHE:
+        path = _first_file(_FACT_FILES)
+        if path is None:
+            raise FileNotFoundError("PROBLEM_FACTS.json 未找到：%r" % (list(_FACT_FILES),))
+        with open(path, "r", encoding="utf-8") as handle:
+            doc = json.load(handle)
+        for row in doc["facts"]:
+            _FACT_CACHE[row["id"]] = row["value"]
+    return _FACT_CACHE
+
+
+def _consts_table():
+    if not _CONST_CACHE:
+        path = _first_file(_MODEL_FILES)
+        if path is not None:
+            with open(path, "r", encoding="utf-8") as handle:
+                doc = json.load(handle)
+            for row in doc.get("model_constants", []):
+                _CONST_CACHE[row["name"]] = row["value"]
+    return _CONST_CACHE
+
+
+def fact(fid):
+    """按 id 取题面给定值：params 模块优先，其次 PROBLEM_FACTS.json。"""
+    if _params is not None:
+        for name in (fid, fid.replace("-", "_"), fid.replace("-", "_").lower()):
+            if hasattr(_params, name):
+                return getattr(_params, name)
+        for holder in ("FACTS", "FACTS_BY_ID", "PROBLEM_FACTS", "FACT_MAP"):
+            table = getattr(_params, holder, None)
+            if isinstance(table, dict) and fid in table:
+                return table[fid]
+    table = _facts_table()
+    if fid not in table:
+        raise KeyError("未登记的题面事实 id：%s" % fid)
+    return table[fid]
+
+
+def const(name, default=None):
+    """按键名取模型常数：params 优先，其次 DECLARATION.json 的 model_constants。"""
+    if _params is not None and hasattr(_params, name):
+        return getattr(_params, name)
+    table = _consts_table()
+    if name in table:
+        return table[name]
+    if default is not None:
+        return default
+    raise KeyError("未登记的模型常数：%s" % name)
+
+
+def num(value):
+    """把 '10%' / 0.1 / 4 统一成 float。"""
     if isinstance(value, str):
         text = value.strip()
         if text.endswith("%"):
-            return float(text[:-1]) / 100.0
+            return float(text[:-1]) * 0.01
         return float(text)
     return float(value)
 
 
-def _pick(mapping, *names, default=None):
-    """按候选键名依次取值；都取不到时返回 default。"""
-    if isinstance(mapping, dict):
-        for name in names:
-            if name in mapping:
-                return mapping[name]
-    return default
+as_rate = num
+as_amount = num
+
+# --------------------------------------------------------------------------- #
+# 二、事实 id 与拓扑假设                                                        #
+# --------------------------------------------------------------------------- #
+
+PART_FACT_FMT = "F-T2-PART-%d"
+SEMI_FACT = "F-T2-SEMI"
+PRODUCT_FACT = "F-T2-PRODUCT"
+PRICE_FACT = "F-T2-PRICE"
+FIG_FACT = "F-FIG1"
+CASE_FACT_FMT = "F-T1-C%d"
+
+# ASM-09 显式假设（图 1 原件未随简报下传；此处是模型假设，不是题面数字）。
+# 节点编号是装配结构标识，不是成本/比率，不构成 facts_audit 意义上的裸数字。
+ASM09_GROUPS = (("P1", "P2", "P3"), ("P4", "P5", "P6"), ("P7", "P8"))
+
+# 与表 2 参数相容的拓扑扰动方案：只改动“零配件归属哪一组”，节点参数不变。
+TOPOLOGY_VARIANTS = (
+    ("ASM-09 基准：{1,2,3}/{4,5,6}/{7,8}",
+     (("P1", "P2", "P3"), ("P4", "P5", "P6"), ("P7", "P8"))),
+    ("平移 1：{1,2}/{3,4,5}/{6,7,8}",
+     (("P1", "P2"), ("P3", "P4", "P5"), ("P6", "P7", "P8"))),
+    ("平移 2：{1,2,3,4}/{5,6}/{7,8}",
+     (("P1", "P2", "P3", "P4"), ("P5", "P6"), ("P7", "P8"))),
+    ("平移 3：{1,2}/{3,4}/{5,6,7,8}",
+     (("P1", "P2"), ("P3", "P4"), ("P5", "P6", "P7", "P8"))),
+    ("交错：{1,4,7}/{2,5,8}/{3,6}",
+     (("P1", "P4", "P7"), ("P2", "P5", "P8"), ("P3", "P6"))),
+    ("重排：{1,5,6}/{2,3,7}/{4,8}",
+     (("P1", "P5", "P6"), ("P2", "P3", "P7"), ("P4", "P8"))),
+)
+
+_LAYER_OF_KIND = {"part": 0, "semi": 1, "product": 2}
 
 
-def _const(*names, default=None):
-    """先从 IMPLEMENTATION_PARAMS、再从中 MODEL_CONSTANTS 取常数。"""
-    for source in (IMPLEMENTATION_PARAMS, MODEL_CONSTANTS):
-        got = _pick(source, *names)
-        if got is not None:
-            return got
-    return default
+# --------------------------------------------------------------------------- #
+# 三、装配树的构建与连接                                                        #
+# --------------------------------------------------------------------------- #
+
+def build_tree(n_parts=None):
+    """按表 2 参数与 ASM-09 的规模读出装配树的全部节点（尚未连接父子）。"""
+    fig = fact(FIG_FACT)
+    if n_parts is None:
+        n_parts = int(fig["零配件数"])
+
+    nodes = {}
+    for idx in range(1, n_parts + 1):
+        row = fact(PART_FACT_FMT % idx)
+        nodes["P%d" % idx] = {
+            "id": "P%d" % idx,
+            "kind": "part",
+            "layer": _LAYER_OF_KIND["part"],
+            "children": [],
+            "p": as_rate(row["次品率"]),
+            "a": as_amount(row["购买单价"]),
+            "c": as_amount(row["检测成本"]),
+            "A": 0.0,
+            "t": 0.0,
+            "l": 0.0,
+        }
+
+    semi_rows = fact(SEMI_FACT)
+    if isinstance(semi_rows, dict):
+        semi_rows = [semi_rows]
+    for row in semi_rows:
+        idx = int(row["编号"])
+        nodes["S%d" % idx] = {
+            "id": "S%d" % idx,
+            "kind": "semi",
+            "layer": _LAYER_OF_KIND["semi"],
+            "children": [],
+            "p": as_rate(row["次品率"]),
+            "a": 0.0,
+            "c": as_amount(row["检测成本"]),
+            "A": as_amount(row["装配成本"]),
+            "t": as_amount(row["拆解费用"]),
+            "l": 0.0,
+        }
+
+    product = fact(PRODUCT_FACT)
+    price = fact(PRICE_FACT)
+    nodes["F"] = {
+        "id": "F",
+        "kind": "product",
+        "layer": _LAYER_OF_KIND["product"],
+        "children": [],
+        "p": as_rate(product["次品率"]),
+        "a": 0.0,
+        "c": as_amount(product["检测成本"]),
+        "A": as_amount(product["装配成本"]),
+        "t": as_amount(product["拆解费用"]),
+        "l": as_amount(price["调换损失"]),
+    }
+    return nodes, as_amount(price["市场售价"])
 
 
-def _as_records(raw):
-    """把 list[dict] 或 dict{id: dict} 统一成按 id 升序的 list[dict]。"""
-    if raw is None:
-        return []
-    if isinstance(raw, dict):
-        records = []
-        for key, value in raw.items():
-            item = dict(value) if isinstance(value, dict) else {}
-            if not any(k in item for k in ("id", "编号", "no")):
-                item["id"] = key
-            records.append(item)
-        records.sort(key=lambda item: item.get("id", 0))
-        return records
-    return [dict(item) for item in raw]
+def node_ids(nodes):
+    """稳定的节点输出顺序：零配件 -> 半成品 -> 成品。"""
+    parts = sorted((k for k, v in nodes.items() if v["kind"] == "part"),
+                   key=lambda s: int(s[1:]))
+    semis = sorted((k for k, v in nodes.items() if v["kind"] == "semi"),
+                   key=lambda s: int(s[1:]))
+    rest = sorted(k for k, v in nodes.items() if v["kind"] not in ("part", "semi"))
+    return parts + semis + rest
 
 
-# --------------------------------------------------------------------------
-# 常量表读取（表 2 + 图 1 拓扑假设）
-# --------------------------------------------------------------------------
+def semi_ids(nodes):
+    return sorted((k for k, v in nodes.items() if v["kind"] == "semi"),
+                  key=lambda s: int(s[1:]))
 
-def _load_table2(table2=None):
-    """把 constants.TABLE2 规范化成 {parts, semis, product, semi_children}。"""
-    t2 = TABLE2 if table2 is None else table2
 
-    raw_parts = _pick(t2, "parts", "part", "零配件", "components")
-    raw_semis = _pick(t2, "semis", "semi", "半成品", "halves")
-    raw_product = _pick(t2, "product", "成品", "final", "root")
-    raw_children = _pick(t2, "semi_children", "children", "topology")
+def wire(nodes, groups):
+    """按分组把零配件接到半成品、把半成品接到成品。"""
+    for node in nodes.values():
+        node["children"] = []
+    semis = semi_ids(nodes)
+    if len(groups) != len(semis):
+        raise ValueError("分组数 %d 与半成品数 %d 不一致" % (len(groups), len(semis)))
+    for sid, members in zip(semis, groups):
+        missing = [m for m in members if m not in nodes]
+        if missing:
+            raise KeyError("拓扑引用了不存在的节点：%r" % missing)
+        if not members:
+            raise ValueError("半成品 %s 无任何子件" % sid)
+        nodes[sid]["children"] = list(members)
+    if "F" not in nodes or not semis:
+        raise KeyError("装配树缺少成品节点或半成品节点")
+    nodes["F"]["children"] = list(semis)
 
-    if raw_parts is None or raw_semis is None or raw_product is None:
-        raise KeyError("constants.TABLE2 缺少 parts / semis / product，键名与常量表不符")
 
-    parts = []
-    for item in _as_records(raw_parts):
-        parts.append({
-            "id": int(_pick(item, "id", "编号", "no")),
-            "p": _to_float(_pick(item, "p", "次品率", "defect_rate")),
-            "a": _to_float(_pick(item, "a", "购买单价", "price", "purchase")),
-            "c": _to_float(_pick(item, "c", "检测成本", "inspect_cost")),
-        })
+# --------------------------------------------------------------------------- #
+# 四、节点级评估（EQ-Q3-ASSY / NODE / KF / KAPPA / XI / RECUR / UNITCOST）      #
+# --------------------------------------------------------------------------- #
 
-    semis = []
-    for item in _as_records(raw_semis):
-        semis.append({
-            "id": int(_pick(item, "id", "编号", "no")),
-            "p": _to_float(_pick(item, "p", "次品率", "defect_rate")),
-            "A": _to_float(_pick(item, "A", "装配成本", "assemble_cost")),
-            "c": _to_float(_pick(item, "c", "检测成本", "inspect_cost")),
-            "t": _to_float(_pick(item, "t", "拆解费用", "disassemble_cost")),
-        })
+def evaluate_node(node, child_states, Z, D):
+    """按节点决策 (Z, D) 与子件状态算 (U_v, Q_v) 及全部分项。
 
-    prod_source = [raw_product] if isinstance(raw_product, dict) else raw_product
-    prod_records = _as_records(prod_source)
-    if not prod_records:
-        raise KeyError("constants.TABLE2 的 product 段为空")
-    prod_item = prod_records[0]
+    child_states: [{'U':.., 'Q':.., 'Z':.., 'c':..}, ...] 按 node['children'] 顺序。
+    """
+    p_v = node["p"]
+    A_v = node["A"]
+    c_v = node["c"]
+    t_v = node["t"]
+    l_v = node["l"]
 
-    price = _pick(prod_item, "s", "市场售价", "sale_price")
-    if price is None:
-        price = _pick(t2, "s", "market_price", "售价", "市场售价")
-    loss = _pick(prod_item, "l", "调换损失", "exchange_loss")
-    if loss is None:
-        loss = _pick(t2, "l", "exchange_loss", "调换损失")
+    # ---- 叶节点（零配件，无子件可拆解，D 恒为 0）：EQ-Q3-COST -------------- #
+    if not node["children"]:
+        q_v = 1.0 - p_v
+        if Z:
+            purchase = node["a"] / (1.0 - p_v)
+            inspection = c_v / (1.0 - p_v)
+            Q_v = 1.0
+        else:
+            purchase = node["a"]
+            inspection = 0.0
+            Q_v = 1.0 - p_v
+        kf = purchase + inspection
+        return {
+            "U": kf, "Q": Q_v, "q": q_v,
+            "Kf": kf, "Kr": 0.0, "kappa": 0.0,
+            "g": 1.0, "R": 0.0, "xi": 0.0, "h": 1 if Z else 0,
+            "purchase": purchase, "inspection": inspection,
+            "assembly": 0.0, "children_cost": 0.0, "disposal": 0.0,
+            "feasible": True,
+        }
 
-    product = {
-        "p": _to_float(_pick(prod_item, "p", "次品率", "defect_rate")),
-        "A": _to_float(_pick(prod_item, "A", "装配成本", "assemble_cost")),
-        "c": _to_float(_pick(prod_item, "c", "检测成本", "inspect_cost")),
-        "t": _to_float(_pick(prod_item, "t", "拆解费用", "disassemble_cost")),
-        "s": _to_float(price),
-        "l": _to_float(loss),
+    # ---- 内部节点：EQ-Q3-ASSY / EQ-Q3-NODE -------------------------------- #
+    q_v = 1.0 - p_v
+    for state in child_states:
+        q_v *= state["Q"]
+    Q_v = 1.0 if Z else q_v
+
+    # ---- EQ-Q3-KF / EQ-Q3-KAPPA ------------------------------------------- #
+    children_cost = sum(state["U"] for state in child_states)
+    kappa = sum(state["U"] - state["Z"] * state["c"] for state in child_states)
+    inspection = c_v if Z else 0.0
+    kf = A_v + inspection + children_cost
+    kr = kf - kappa
+
+    # ---- EQ-Q3-XI：h_v = Z_v ∨ 1{成品节点}；ξ_v = h_v D_v t_v + (1-Z_v) l_v -- #
+    h = 1 if (Z or node["kind"] == "product") else 0
+    xi = h * D * t_v + (0.0 if Z else 1.0) * l_v
+
+    # ---- EQ-Q3-RECUR：分母保护 -------------------------------------------- #
+    denom = 1.0 - h * D * (1.0 - q_v)
+    if denom <= 0.0:  # pragma: no cover - q_v > 0 时不可达，保留显式分支
+        return {
+            "U": None, "Q": Q_v, "q": q_v,
+            "Kf": kf, "Kr": kr, "kappa": kappa,
+            "g": None, "R": None, "xi": xi, "h": h,
+            "purchase": 0.0, "inspection": inspection,
+            "assembly": A_v, "children_cost": children_cost, "disposal": None,
+            "feasible": False,
+        }
+
+    g_v = q_v / denom
+    R_v = (kr + (1.0 - q_v) * xi) / denom
+    disposal = (1.0 - q_v) * (xi + h * D * R_v)
+
+    # ---- EQ-Q3-UNITCOST：h_v = 0 时缺陷上递，本节点不做任何处置 ------------- #
+    if h == 0:
+        U_v = kf
+    else:
+        U_v = (kf + disposal) / g_v
+
+    return {
+        "U": U_v, "Q": Q_v, "q": q_v,
+        "Kf": kf, "Kr": kr, "kappa": kappa,
+        "g": g_v, "R": R_v, "xi": xi, "h": h,
+        "purchase": 0.0, "inspection": inspection,
+        "assembly": A_v, "children_cost": children_cost, "disposal": disposal,
+        "feasible": True,
     }
 
-    semi_children = {}
-    if isinstance(raw_children, dict):
-        for key, value in raw_children.items():
-            semi_children[int(key)] = [int(x) for x in value]
-    elif raw_children is not None:
-        for index, value in enumerate(raw_children, start=1):
-            semi_children[index] = [int(x) for x in value]
 
-    if not semi_children:
-        # 兜底形态：图 1 与 TABLE2["semi_children"] 同时缺失时，
-        # 按零配件/半成品数量把零配件 id 顺序切块（8 件 3 半 -> 3/3/2）。
-        ids = [item["id"] for item in parts]
-        n_ids = len(ids)
-        n_semis = max(1, len(semis))
-        base = n_ids // n_semis
-        remainder = n_ids % n_semis
-        cursor = 0
-        for index, semi in enumerate(semis):
-            size = base + (1 if index < remainder else 0)
-            semi_children[semi["id"]] = ids[cursor:cursor + size]
-            cursor += size
-
-    return {"parts": parts, "semis": semis, "product": product,
-            "semi_children": semi_children}
+def node_identity_residual(state):
+    """分项恒等式残差：装配 + 检测 + 子件 + 处置 == U_v * g_v（或 U_v == Kf）。"""
+    kf = state["purchase"] + state["inspection"] + state["assembly"] + state["children_cost"]
+    if state["h"] == 1:
+        return abs(state["U"] * state["g"] - (kf + state["disposal"]))
+    return abs(state["U"] - kf)
 
 
-# --------------------------------------------------------------------------
-# 装配树
-# --------------------------------------------------------------------------
+# --------------------------------------------------------------------------- #
+# 五、自底向上的帕累托前沿精确枚举                                              #
+# --------------------------------------------------------------------------- #
 
-def _reverse_topo(nodes, root):
-    """自底向上的拓扑序（叶在前、根在后）。"""
+def _postorder(nodes, root):
     order = []
-    seen = set()
-
-    def visit(nid):
-        if nid in seen:
-            return
-        seen.add(nid)
-        for child in nodes[nid]["children"]:
-            visit(child)
-        order.append(nid)
-
-    visit(root)
+    stack = [(root, False)]
+    while stack:
+        vid, done = stack.pop()
+        if done:
+            order.append(vid)
+        else:
+            stack.append((vid, True))
+            for child in nodes[vid]["children"]:
+                stack.append((child, False))
     return order
 
 
-def build_tree(spec=None):
-    """按 ASM-09 的拓扑假设构造装配树（父 -> 子邻接表）。"""
-    if spec is None:
-        spec = _load_table2()
-
-    nodes = {}
-
-    for part in spec["parts"]:
-        nid = "P%d" % part["id"]
-        nodes[nid] = {
-            "id": nid, "kind": "part", "label": "零配件%d" % part["id"],
-            "p": part["p"], "a": part["a"], "c": part["c"],
-            "A": 0.0, "t": 0.0, "l": 0.0, "children": [],
-        }
-
-    semi_ids = []
-    for semi in spec["semis"]:
-        nid = "S%d" % semi["id"]
-        semi_ids.append(nid)
-        nodes[nid] = {
-            "id": nid, "kind": "semi", "label": "半成品%d" % semi["id"],
-            "p": semi["p"], "a": 0.0, "c": semi["c"],
-            "A": semi["A"], "t": semi["t"], "l": 0.0,
-            "children": ["P%d" % pid for pid in spec["semi_children"][semi["id"]]],
-        }
-
-    nodes["F"] = {
-        "id": "F", "kind": "product", "label": "成品",
-        "p": spec["product"]["p"], "a": 0.0, "c": spec["product"]["c"],
-        "A": spec["product"]["A"], "t": spec["product"]["t"],
-        "l": spec["product"]["l"], "children": list(semi_ids),
-    }
-
-    return {
-        "nodes": nodes,
-        "root": "F",
-        "parts": ["P%d" % item["id"] for item in spec["parts"]],
-        "semis": semi_ids,
-        "price": spec["product"]["s"],
-        "exchange_loss": spec["product"]["l"],
-        "order": _reverse_topo(nodes, "F"),
-    }
+def pareto_front(states, tol):
+    """保留不被支配的 (U 更小, Q 更大) 状态；支配判据带容差。"""
+    if not states:
+        return []
+    uniq = {}
+    for state in states:
+        key = (round(state["U"], 12), round(state["Q"], 12))
+        prev = uniq.get(key)
+        if prev is None or (state["Z"], state["D"]) < (prev["Z"], prev["D"]):
+            uniq[key] = state
+    cand = list(uniq.values())
+    keep = []
+    for i, s in enumerate(cand):
+        dominated = False
+        for j, t in enumerate(cand):
+            if i == j:
+                continue
+            better_u = t["U"] < s["U"] - tol
+            better_q = t["Q"] > s["Q"] + tol
+            if (t["U"] <= s["U"] + tol and t["Q"] >= s["Q"] - tol
+                    and (better_u or better_q)):
+                dominated = True
+                break
+        if not dominated:
+            keep.append(s)
+    return keep
 
 
-# --------------------------------------------------------------------------
-# 节点评估
-# --------------------------------------------------------------------------
-
-def _eval_part(node, Z):
-    """零配件叶节点：EQ-Q3-COST（检测时按 1/(1-p) 采购倍数放大）。"""
-    p = node["p"]
-    q = 1.0 - p
-    if Z:
-        scale = 1.0 / (1.0 - p)
-        purchase = node["a"] * scale
-        inspect = node["c"] * scale
-        U = purchase + inspect
-        Q = 1.0
-    else:
-        purchase = node["a"]
-        inspect = 0.0
-        U = purchase
-        Q = q
-
-    return {
-        "id": node["id"], "kind": "part", "p": p,
-        "Z": int(Z), "D": 0,
-        "q": q, "Q": Q, "U": U,
-        "K_f": U, "K_r": 0.0, "kappa": 0.0,
-        "xi": 0.0, "h": 0, "g": 1.0, "R": 0.0,
-        "c_own": node["c"],
-        "purchase": purchase, "inspect": inspect,
-        "assemble": 0.0, "disassemble": 0.0, "exchange": 0.0,
-    }
-
-
-def _eval_internal(node, Z, D, child_results, is_product):
-    """半成品 / 成品节点：EQ-Q3-KF / KAPPA / XI / RECUR / UNITCOST。
-
-    返回 None 表示该配置下装配链不可交付（几何级数分母为 0）。
-    """
-    p = node["p"]
-    A = node["A"]
-    c = node["c"]
-    t = node["t"]
-    l = node["l"]
-
-    q = 1.0 - p
-    sum_u = 0.0
-    kappa = 0.0
-    for child in child_results:
-        q *= child["Q"]
-        sum_u += child["U"]
-        kappa += child["U"] - child["Z"] * child["c_own"]
-
-    Q = 1.0 if Z else q
-    K_f = A + Z * c + sum_u
-    K_r = K_f - kappa
-
-    h = 1 if (Z or is_product) else 0
-    xi = h * D * t + (1 - Z) * l
-
-    denom = 1.0 - h * D * (1.0 - q)
-    if denom <= EPSILON:
-        return None
-
-    closure = bool(Z) or bool(is_product)
-    if closure:
-        g = q / denom
-        if g <= EPSILON:
-            return None
-        R = (K_r + (1.0 - q) * xi) / denom
-        U = (K_f + (1.0 - q) * (xi + h * D * R)) / g
-    else:
-        g = q / denom
-        R = (K_r + (1.0 - q) * xi) / denom
-        U = K_f
-
-    return {
-        "id": node["id"], "kind": node["kind"], "p": p,
-        "Z": int(Z), "D": int(D),
-        "q": q, "Q": Q, "U": U,
-        "K_f": K_f, "K_r": K_r, "kappa": kappa,
-        "xi": xi, "h": h, "g": g, "R": R,
-        "c_own": c,
-        "closure": closure,
-        "sum_children_U": sum_u,
-    }
-
-
-def _semi_candidates(tree, semi_id):
-    """枚举半成品自身的 (Z_v, D_v) 与其子零配件检测组合的全部可行配置。"""
-    node = tree["nodes"][semi_id]
-    kids = node["children"]
-    out = []
-
-    for zs in itertools.product((0, 1), repeat=len(kids)):
-        child_results = []
-        for kid, z in zip(kids, zs):
-            part = tree["nodes"][kid]
-            res = _eval_part(part, z)
-            child_results.append({
-                "U": res["U"], "Q": res["Q"], "Z": res["Z"],
-                "c_own": part["c"],
-            })
-        for Z in (0, 1):
-            for D in (0, 1):
-                res = _eval_internal(node, Z, D, child_results, is_product=False)
-                if res is None:
-                    continue
-                res["children_Z"] = tuple(int(z) for z in zs)
-                res["kappa_contrib"] = res["U"] - res["Z"] * res["c_own"]
-                out.append(res)
-
+def _wrap(vid, Z, D, stats, child_combo, children):
+    dec = {}
+    for child, state in zip(children, child_combo):
+        dec.update(state["dec"])
+        dec[child] = (state["Z"], state["D"])
+    dec[vid] = (Z, D)
+    out = dict(stats)
+    out.update({"node": vid, "Z": Z, "D": D, "dec": dec})
     return out
 
 
-def enumerate_optimal(tree, semi_candidates=None):
-    """自底向上聚合 + 节点二值决策全枚举，取单位合格成品成本最小者。"""
-    semi_ids = list(tree["semis"])
-    if semi_candidates is None:
-        semi_candidates = {sid: _semi_candidates(tree, sid) for sid in semi_ids}
-
-    for sid in semi_ids:
-        if not semi_candidates[sid]:
-            raise RuntimeError("半成品 %s 在该拓扑下无可行配置" % sid)
-
-    product_node = tree["nodes"]["F"]
-    p_f = product_node["p"]
-    A_f = product_node["A"]
-    c_f = product_node["c"]
-    t_f = product_node["t"]
-    l_f = product_node["l"]
-
-    best = None
-    n_evaluated = 0
-
-    for combo in itertools.product(*(semi_candidates[sid] for sid in semi_ids)):
-        sum_u = 0.0
-        prod_q = 1.0
-        sum_kappa = 0.0
-        for cand in combo:
-            sum_u += cand["U"]
-            prod_q *= cand["Q"]
-            sum_kappa += cand["kappa_contrib"]
-
-        base_q = (1.0 - p_f) * prod_q
-        base_kf = A_f + sum_u
-        base_kr = base_kf - sum_kappa
-
-        for Z, D in ((0, 0), (0, 1), (1, 0), (1, 1)):
-            n_evaluated += 1
-            K_f = base_kf + Z * c_f
-            K_r = base_kr + Z * c_f
-            xi = D * t_f + (1 - Z) * l_f
-
-            denom = 1.0 - D * (1.0 - base_q)   # 成品节点恒有 h_v = 1
-            if denom <= EPSILON:
-                continue
-            g = base_q / denom
-            if g <= EPSILON:
-                continue
-
-            R = (K_r + (1.0 - base_q) * xi) / denom
-            U = (K_f + (1.0 - base_q) * (xi + D * R)) / g
-
-            if best is None or U < best["U"] - EPSILON:
-                child_results = [
-                    {"U": cand["U"], "Q": cand["Q"], "Z": cand["Z"],
-                     "c_own": tree["nodes"][sid]["c"]}
-                    for sid, cand in zip(semi_ids, combo)
-                ]
-                res = _eval_internal(product_node, Z, D, child_results,
-                                     is_product=True)
-                if res is None:
+def solve_fronts(nodes, tol):
+    """自底向上求每个节点的 (U, Q) 帕累托前沿；返回 fronts 与不可行组合。"""
+    order = _postorder(nodes, "F")
+    fronts = {}
+    infeasible = []
+    for vid in order:
+        node = nodes[vid]
+        children = node["children"]
+        if not children:
+            states = []
+            for Z in (0, 1):
+                stats = evaluate_node(node, [], Z, 0)
+                if not stats["feasible"]:
+                    infeasible.append((vid, Z, 0))
                     continue
-                best = {
-                    "U": res["U"],
-                    "profit": tree["price"] - res["U"],
-                    "product": res,
-                    "semis": list(combo),
-                    "semi_ids": list(semi_ids),
-                }
-
-    if best is None:
-        raise RuntimeError("装配树上不存在可行决策（所有配置的装配链均不可交付）")
-
-    best["n_evaluated"] = n_evaluated
-    return best
-
-
-# --------------------------------------------------------------------------
-# 结果整理
-# --------------------------------------------------------------------------
-
-def _decision_table(tree, best):
-    table = {}
-    for sid, cand in zip(best["semi_ids"], best["semis"]):
-        node = tree["nodes"][sid]
-        for kid, z in zip(node["children"], cand["children_Z"]):
-            table[kid] = {"Z": int(z), "D": 0}
-        table[sid] = {"Z": int(cand["Z"]), "D": int(cand["D"])}
-    table["F"] = {"Z": int(best["product"]["Z"]),
-                  "D": int(best["product"]["D"])}
-    return table
+                states.append(_wrap(vid, Z, 0, stats, [], []))
+        else:
+            combos = list(itertools.product(*[fronts[c] for c in children]))
+            states = []
+            for Z in (0, 1):
+                for D in (0, 1):
+                    for combo in combos:
+                        child_states = [
+                            {"U": s["U"], "Q": s["Q"], "Z": s["Z"], "c": nodes[c]["c"]}
+                            for c, s in zip(children, combo)
+                        ]
+                        stats = evaluate_node(node, child_states, Z, D)
+                        if not stats["feasible"]:
+                            infeasible.append((vid, Z, D))
+                            continue
+                        states.append(_wrap(vid, Z, D, stats, combo, children))
+        fronts[vid] = pareto_front(states, tol)
+    return fronts, infeasible
 
 
-def _node_records(tree, best):
-    records = []
-    for sid, cand in zip(best["semi_ids"], best["semis"]):
-        node = tree["nodes"][sid]
-        for kid, z in zip(node["children"], cand["children_Z"]):
-            records.append(_eval_part(tree["nodes"][kid], z))
-        semi_record = {key: cand.get(key) for key in _RECORD_KEYS}
-        semi_record["children_Z"] = {kid: int(z)
-                                     for kid, z in zip(node["children"],
-                                                       cand["children_Z"])}
-        records.append(semi_record)
-    records.append({key: best["product"].get(key) for key in _RECORD_KEYS})
-    return records
+def replay(nodes, dec, tol):
+    """按给定决策自底向上重算全部节点量（用于成本分解与分项核验）。"""
+    order = _postorder(nodes, "F")
+    vals = {}
+    for vid in order:
+        node = nodes[vid]
+        Z, D = dec[vid]
+        child_states = []
+        for child in node["children"]:
+            cz, _cd = dec[child]
+            child_states.append({
+                "U": vals[child]["U"], "Q": vals[child]["Q"],
+                "Z": cz, "c": nodes[child]["c"],
+            })
+        stats = evaluate_node(node, child_states, Z, D)
+        if not stats["feasible"]:
+            raise RuntimeError("决策组合不可交付：节点 %s Z=%s D=%s" % (vid, Z, D))
+        stats["Z"] = Z
+        stats["D"] = D
+        vals[vid] = stats
+    return vals
 
 
-def _cost_breakdown(tree, best):
-    """成品层单位成本分解（各项之和精确等于 U_f）。"""
-    prod = best["product"]
-    node = tree["nodes"]["F"]
-    g = prod["g"]
-    q = prod["q"]
-    Z = prod["Z"]
-    D = prod["D"]
-    h = prod["h"]
+# --------------------------------------------------------------------------- #
+# 六、问题 2 闭式解参考（仅用于退化一致性核验 EQ-Q2-*）                          #
+# --------------------------------------------------------------------------- #
 
-    assemble = node["A"] / g
-    inspect = Z * node["c"] / g
-    children = prod["sum_children_U"] / g
-    disassemble = (1.0 - q) * h * D * node["t"] / g
-    exchange = (1.0 - q) * (1 - Z) * node["l"] / g
-    recycle = (1.0 - q) * h * D * prod["R"] / g
-    total = assemble + inspect + children + disassemble + exchange + recycle
-
-    semis = {}
-    for sid, cand in zip(best["semi_ids"], best["semis"]):
-        semis[sid] = {
-            "U": cand["U"], "Q": cand["Q"], "q": cand["q"],
-            "Z": cand["Z"], "D": cand["D"],
-            "K_f": cand["K_f"], "K_r": cand["K_r"], "kappa": cand["kappa"],
-            "xi": cand["xi"], "g": cand["g"], "R": cand["R"],
-        }
-
-    return {
-        "unit_cost": prod["U"],
-        "assemble": assemble,
-        "inspect_product": inspect,
-        "children_acquire": children,
-        "disassemble": disassemble,
-        "exchange": exchange,
-        "recycle_chain": recycle,
-        "sum_of_parts": total,
-        "residual": prod["U"] - total,
-        "semis": semis,
-    }
-
-
-def _uniform_policy_cost(tree, part_z, semi_z, semi_d, prod_z, prod_d):
-    """统一策略：所有零配件同 Z、所有半成品同 (Z,D)、成品 (Z,D)。"""
-    semi_records = []
-    for sid in tree["semis"]:
-        node = tree["nodes"][sid]
-        child_results = []
-        for kid in node["children"]:
-            part = tree["nodes"][kid]
-            res = _eval_part(part, part_z)
-            child_results.append({"U": res["U"], "Q": res["Q"], "Z": res["Z"],
-                                  "c_own": part["c"]})
-        res = _eval_internal(node, semi_z, semi_d, child_results,
-                             is_product=False)
-        if res is None:
-            return None
-        semi_records.append(res)
-
-    child_results = [
-        {"U": rec["U"], "Q": rec["Q"], "Z": rec["Z"],
-         "c_own": tree["nodes"][sid]["c"]}
-        for sid, rec in zip(tree["semis"], semi_records)
-    ]
-    return _eval_internal(tree["nodes"]["F"], prod_z, prod_d,
-                          child_results, is_product=True)
-
-
-def _policy_grid(tree):
-    """策略对比网格：零配件 Z(2) x 半成品 (Z,D)(4) x 成品 (Z,D)(4) = 32 行。"""
-    price = tree["price"]
-    rows = []
-    for part_z in (0, 1):
-        for semi_z in (0, 1):
-            for semi_d in (0, 1):
-                for prod_z in (0, 1):
-                    for prod_d in (0, 1):
-                        res = _uniform_policy_cost(tree, part_z, semi_z, semi_d,
-                                                   prod_z, prod_d)
-                        row = {
-                            "part_Z": int(part_z),
-                            "semi_Z": int(semi_z),
-                            "semi_D": int(semi_d),
-                            "product_Z": int(prod_z),
-                            "product_D": int(prod_d),
-                        }
-                        if res is None:
-                            row["feasible"] = False
-                            row["unit_cost"] = None
-                            row["profit"] = None
-                        else:
-                            row["feasible"] = True
-                            row["unit_cost"] = res["U"]
-                            row["profit"] = price - res["U"]
-                        rows.append(row)
-
-    feasible = [row for row in rows if row["feasible"]]
-    best_row = (min(feasible, key=lambda row: row["unit_cost"])
-                if feasible else None)
-
-    return {
-        "price": price,
-        "n_combinations": len(rows),
-        "best_uniform": best_row,
-        "labels": ["P%d_S%d_%d_PR%d_%d" % (row["part_Z"], row["semi_Z"],
-                                           row["semi_D"], row["product_Z"],
-                                           row["product_D"])
-                   for row in rows],
-        "unit_costs": [row["unit_cost"] for row in rows],
-        "profits": [row["profit"] for row in rows],
-        "rows": rows,
-    }
-
-
-def _topology_summary(tree, spec):
-    return {
-        "assumption": "ASM-09",
-        "note": ("图 1 原件未随阶段简报下传；连接关系取自 "
-                 "constants.TABLE2['semi_children']，属常量级假设，"
-                 "其影响由 q3_topology_robust 量化。"),
-        "n_parts": len(tree["parts"]),
-        "n_semis": len(tree["semis"]),
-        "n_nodes": len(tree["nodes"]),
-        "semi_children": {"S%d" % semi["id"]:
-                          list(spec["semi_children"][semi["id"]])
-                          for semi in spec["semis"]},
-        "product_children": list(tree["nodes"]["F"]["children"]),
-        "bottom_up_order": list(tree["order"]),
-    }
-
-
-# --------------------------------------------------------------------------
-# 拓扑扰动稳健性（ASM-09 依赖边界）
-# --------------------------------------------------------------------------
-
-def _variant_key(groups):
-    return tuple(sorted((sid, tuple(ids)) for sid, ids in groups.items()))
-
-
-def _slice_by_sizes(pool, semi_ids, sizes):
-    groups = {}
-    cursor = 0
-    for sid in semi_ids:
-        size = sizes[sid]
-        groups[sid] = sorted(pool[cursor:cursor + size])
-        cursor += size
-    return groups
-
-
-def _topology_variants(spec, n_variants, seed):
-    """与表 2 参数相容的若干连接方案（保持各半成品子件数量不变）。"""
-    parts = spec["parts"]
-    semi_ids = [semi["id"] for semi in spec["semis"]]
-    sizes = {semi["id"]: len(spec["semi_children"][semi["id"]])
-             for semi in spec["semis"]}
-
-    base = {sid: list(spec["semi_children"][sid]) for sid in semi_ids}
-    variants = [base]
-    seen = {_variant_key(base)}
-
-    equal_size = len(set(sizes.values())) == 1
-    if not equal_size:
-        # 子件数量不等时，仅接受同尺寸划分；排序分块需保持尺寸一致。
-        pass
-
-    for key in ("a", "c", "p"):
-        ordered = sorted(parts, key=lambda item: (item[key], item["id"]))
-        groups = _slice_by_sizes([item["id"] for item in ordered], semi_ids, sizes)
-        vkey = _variant_key(groups)
-        if vkey not in seen:
-            seen.add(vkey)
-            variants.append(groups)
-
-    rng = random.Random(seed)
-    guard = 0
-    while len(variants) < n_variants and guard < 500:
-        guard += 1
-        pool = [item["id"] for item in parts]
-        rng.shuffle(pool)
-        groups = _slice_by_sizes(pool, semi_ids, sizes)
-        vkey = _variant_key(groups)
-        if vkey in seen:
-            continue
-        seen.add(vkey)
-        variants.append(groups)
-
-    return variants
-
-
-def _topology_robust(base_tree, spec):
-    n_variants = int(_const("q3_topology_variants", "拓扑扰动方案数",
-                            default=12))
-    seed = int(_const("random_seed", "随机种子", default=202409))
-    threshold = float(_const("决策一致率判定阈值", "consistency_threshold",
-                             default=0.95))
-
-    variants = _topology_variants(spec, n_variants, seed)
-
-    rows = []
-    baseline_decisions = None
-    for index, groups in enumerate(variants):
-        nodes = {nid: dict(node) for nid, node in base_tree["nodes"].items()}
-        for sid in base_tree["semis"]:
-            semi_id = int(sid[1:])
-            nodes[sid]["children"] = ["P%d" % pid for pid in groups[semi_id]]
-
-        tree = dict(base_tree)
-        tree["nodes"] = nodes
-        tree["order"] = _reverse_topo(nodes, "F")
-
-        cands = {sid: _semi_candidates(tree, sid) for sid in tree["semis"]}
-        best = enumerate_optimal(tree, cands)
-        decisions = _decision_table(tree, best)
-        if baseline_decisions is None:
-            baseline_decisions = decisions
-
-        rows.append({
-            "index": index,
-            "children": {"S%d" % sid: list(groups[sid]) for sid in groups},
-            "unit_cost": best["U"],
-            "profit": best["profit"],
-            "decisions": decisions,
-            "matches_baseline": decisions == baseline_decisions,
-        })
-
-    n_match = sum(1 for row in rows if row["matches_baseline"])
-    rate = n_match / float(len(rows)) if rows else 0.0
-
-    return {
-        "n_variants": len(rows),
-        "n_match_baseline": n_match,
-        "consistency_rate": rate,
-        "threshold": threshold,
-        "robust": bool(rate >= threshold),
-        "note": ("装配树连接关系取自 ASM-09（图 1 原件未下传）。本扫描枚举与"
-                 "表 2 参数相容的连接方案并重解全枚举，用于界定结论对拓扑的"
-                 "依赖范围；一致率低于阈值时应显式声明结论依赖 ASM-09。"),
-        "baseline_children": {"S%d" % sid: list(spec["semi_children"][sid])
-                              for sid in spec["semi_children"]},
-        "variants": rows,
-    }
-
-
-# --------------------------------------------------------------------------
-# V-08 退化核验：问题 3 递推 -> 问题 2 闭式
-# --------------------------------------------------------------------------
-
-def _q2_reference_cost(p1, a1, c1, p2, a2, c2, p0, A, c0, t, l,
-                       Z1, Z2, C, D):
-    """问题 2 的闭式解（EQ-Q2-YIELD / EQ-KF / EQ-KR / EQ-Q2-RECUR / EQ-COST-Q2）。"""
+def q2_reference(p1, a1, c1, p2, a2, c2, p0, A, c0, t, l, Z1, Z2, C, D):
+    """EQ-Q2-YIELD / EQ-KF / EQ-KR / EQ-Q2-RECUR / EQ-COST-Q2 的独立实现。"""
     Q1 = 1.0 - (1 - Z1) * p1
     Q2 = 1.0 - (1 - Z2) * p2
     q = (1.0 - p0) * Q1 * Q2
-
-    K_f = (A
-           + Z1 * (a1 + c1) / (1.0 - p1) + (1 - Z1) * a1
-           + Z2 * (a2 + c2) / (1.0 - p2) + (1 - Z2) * a2)
-    K_r = A + Z1 * c1 + Z2 * c2
-
+    kf = A + (Z1 * (a1 + c1) / (1 - p1) + (1 - Z1) * a1) \
+           + (Z2 * (a2 + c2) / (1 - p2) + (1 - Z2) * a2)
+    kr = A + Z1 * c1 + Z2 * c2
     denom = 1.0 - D * (1.0 - q)
-    if denom <= EPSILON:
-        return None
     g = q / denom
-    if g <= EPSILON:
-        return None
-
-    R = (K_r + C * c0 + (1.0 - q) * (D * t + (1 - C) * l)) / denom
-    U = (K_f + C * c0
-         + (1.0 - q) * (D * t + (1 - C) * l + D * R)) / g
-    return U
+    R = (kr + C * c0 + (1.0 - q) * (D * t + (1 - C) * l)) / denom
+    return (kf + C * c0 + (1.0 - q) * (D * t + (1 - C) * l + D * R)) / g
 
 
-def _degenerate_tree_u(part1, part2, product, Z1, Z2, C, D):
-    """把问题 3 的树退化成「两零配件 + 一成品」后的节点级递推结果。"""
-    leaf1_node = {"id": "P1", "kind": "part", "p": part1["p"],
-                  "a": part1["a"], "c": part1["c"],
-                  "A": 0.0, "t": 0.0, "l": 0.0, "children": []}
-    leaf2_node = {"id": "P2", "kind": "part", "p": part2["p"],
-                  "a": part2["a"], "c": part2["c"],
-                  "A": 0.0, "t": 0.0, "l": 0.0, "children": []}
-    leaf1 = _eval_part(leaf1_node, Z1)
-    leaf2 = _eval_part(leaf2_node, Z2)
-
-    prod_node = {"id": "F", "kind": "product", "p": product["p"],
-                 "a": 0.0, "c": product["c"], "A": product["A"],
-                 "t": product["t"], "l": product["l"],
-                 "children": ["P1", "P2"]}
-    child_results = [
-        {"U": leaf1["U"], "Q": leaf1["Q"], "Z": leaf1["Z"],
-         "c_own": leaf1["c_own"]},
-        {"U": leaf2["U"], "Q": leaf2["Q"], "Z": leaf2["Z"],
-         "c_own": leaf2["c_own"]},
-    ]
-    res = _eval_internal(prod_node, C, D, child_results, is_product=True)
-    return None if res is None else res["U"]
+def _degenerate_tree(case_row):
+    """把问题 3 引擎退化到“两零配件一成品”，参数取表 1 的某一行。"""
+    left = case_row["零配件1"]
+    right = case_row["零配件2"]
+    prod = case_row["成品"]
+    nodes = {
+        "P1": {"id": "P1", "kind": "part", "layer": 0, "children": [],
+               "p": as_rate(left["次品率"]), "a": as_amount(left["购买单价"]),
+               "c": as_amount(left["检测成本"]), "A": 0.0, "t": 0.0, "l": 0.0},
+        "P2": {"id": "P2", "kind": "part", "layer": 0, "children": [],
+               "p": as_rate(right["次品率"]), "a": as_amount(right["购买单价"]),
+               "c": as_amount(right["检测成本"]), "A": 0.0, "t": 0.0, "l": 0.0},
+        "F": {"id": "F", "kind": "product", "layer": 2, "children": ["P1", "P2"],
+              "p": as_rate(prod["次品率"]), "a": 0.0,
+              "c": as_amount(prod["检测成本"]), "A": as_amount(prod["装配成本"]),
+              "t": as_amount(case_row["拆解费用"]), "l": as_amount(case_row["调换损失"])},
+    }
+    return nodes
 
 
-def degenerate_check(spec=None):
-    """V-08：退化实例上节点级递推与问题 2 闭式的逐点比对（双路复算）。"""
-    if spec is None:
-        spec = _load_table2()
+def degenerate_check(tol):
+    """V-08：节点级递推在“两零配件一成品”上逐项收敛到问题 2 的闭式。"""
+    pairs = []
+    worst = 0.0
+    for case in range(1, 7):
+        row = fact(CASE_FACT_FMT % case)
+        nodes = _degenerate_tree(row)
+        left = row["零配件1"]
+        right = row["零配件2"]
+        prod = row["成品"]
+        for Z1 in (0, 1):
+            for Z2 in (0, 1):
+                for C in (0, 1):
+                    for D in (0, 1):
+                        dec = {"P1": (Z1, 0), "P2": (Z2, 0), "F": (C, D)}
+                        u3 = replay(nodes, dec, tol)["F"]["U"]
+                        u2 = q2_reference(
+                            as_rate(left["次品率"]), as_amount(left["购买单价"]),
+                            as_amount(left["检测成本"]),
+                            as_rate(right["次品率"]), as_amount(right["购买单价"]),
+                            as_amount(right["检测成本"]),
+                            as_rate(prod["次品率"]), as_amount(prod["装配成本"]),
+                            as_amount(prod["检测成本"]),
+                            as_amount(row["拆解费用"]), as_amount(row["调换损失"]),
+                            Z1, Z2, C, D,
+                        )
+                        residual = abs(u3 - u2)
+                        worst = max(worst, residual)
+                        pairs.append({
+                            "case": case, "Z1": Z1, "Z2": Z2, "C": C, "D": D,
+                            "u_q3": u3, "u_q2_ref": u2, "residual": residual,
+                        })
+    return worst, pairs
 
-    if len(spec["parts"]) < 2:
-        return {"cases": [], "max_abs_diff": None, "tolerance": None,
-                "pass": None, "note": "零配件不足两件，跳过退化核验"}
 
-    part1 = spec["parts"][0]
-    part2 = spec["parts"][1]
-    product = spec["product"]
+# --------------------------------------------------------------------------- #
+# 七、策略组合对照（供逐方案对比使用，不写图表声明）                             #
+# --------------------------------------------------------------------------- #
 
-    tolerance = float(_const("数值容差", "numeric_tolerance", default=1e-6))
-
-    cases = []
-    max_abs = 0.0
-    n_mismatch = 0
-    for Z1 in (0, 1):
-        for Z2 in (0, 1):
-            for C in (0, 1):
-                for D in (0, 1):
-                    got = _degenerate_tree_u(part1, part2, product,
-                                             Z1, Z2, C, D)
-                    ref = _q2_reference_cost(part1["p"], part1["a"], part1["c"],
-                                             part2["p"], part2["a"], part2["c"],
-                                             product["p"], product["A"],
-                                             product["c"], product["t"],
-                                             product["l"], Z1, Z2, C, D)
-                    if got is None or ref is None:
-                        diff = None
-                        match = (got is None and ref is None)
-                    else:
-                        diff = abs(got - ref)
-                        match = diff <= tolerance
-                        max_abs = max(max_abs, diff)
-                    if not match:
-                        n_mismatch += 1
-                    cases.append({
-                        "Z1": Z1, "Z2": Z2, "C": C, "D": D,
-                        "q3_degenerate_unit_cost": got,
-                        "q2_reference_unit_cost": ref,
-                        "abs_diff": diff,
-                        "match": bool(match),
+def strategy_table(nodes, price, tol):
+    """半成品统一 (Z,D) 模式 x 成品 (Z,D) 的组合对照；零配件取该模式下的局部最优。"""
+    semis = semi_ids(nodes)
+    rows = []
+    for semi_Z in (0, 1):
+        for semi_D in (0, 1):
+            for final_Z in (0, 1):
+                for final_D in (0, 1):
+                    dec = {"F": (final_Z, final_D)}
+                    for sid in semis:
+                        dec[sid] = (semi_Z, semi_D)
+                    for vid, node in nodes.items():
+                        if node["kind"] == "part":
+                            dec[vid] = (0, 0)
+                    for sid in semis:
+                        kids = nodes[sid]["children"]
+                        best_local = None
+                        for pattern in itertools.product((0, 1), repeat=len(kids)):
+                            trial = dict(dec)
+                            for kid, z in zip(kids, pattern):
+                                trial[kid] = (z, 0)
+                            candidate = replay(nodes, trial, tol)[sid]["U"]
+                            if best_local is None or candidate < best_local[0]:
+                                best_local = (candidate, pattern)
+                        for kid, z in zip(kids, best_local[1]):
+                            dec[kid] = (z, 0)
+                    vals = replay(nodes, dec, tol)
+                    unit_cost = vals["F"]["U"]
+                    rows.append({
+                        "semi_Z": semi_Z,
+                        "semi_D": semi_D,
+                        "final_Z": final_Z,
+                        "final_D": final_D,
+                        "parts_Z": [dec[k][0] for k in node_ids(nodes) if nodes[k]["kind"] == "part"],
+                        "unit_cost": unit_cost,
+                        "profit": price - unit_cost,
+                        "root_g": vals["F"]["g"],
                     })
+    return rows
+
+
+# --------------------------------------------------------------------------- #
+# 八、拓扑扰动扫描（ASM-09 的稳健性）                                            #
+# --------------------------------------------------------------------------- #
+
+def topology_scan(tol, price=None):
+    rows = []
+    baseline = None
+    for name, groups in TOPOLOGY_VARIANTS:
+        nodes, price_local = build_tree()
+        if price is not None:
+            price_local = price
+        wire(nodes, groups)
+        fronts, _infeasible = solve_fronts(nodes, tol)
+        if not fronts["F"]:
+            rows.append({"variant": name, "groups": [list(g) for g in groups],
+                         "feasible": False, "unit_cost": None, "profit": None,
+                         "decision": None, "flip_vs_asm09": None})
+            continue
+        best = min(fronts["F"], key=lambda st: (round(st["U"], 12), -round(st["Q"], 12)))
+        dec = {k: [int(v[0]), int(v[1])] for k, v in best["dec"].items()}
+        if baseline is None:
+            baseline = dec
+        flip = any(dec.get(k) != baseline.get(k) for k in set(dec) | set(baseline))
+        rows.append({
+            "variant": name,
+            "groups": [list(g) for g in groups],
+            "feasible": True,
+            "unit_cost": best["U"],
+            "profit": price_local - best["U"],
+            "decision": dec,
+            "flip_vs_asm09": flip,
+        })
+    return rows
+
+
+# --------------------------------------------------------------------------- #
+# 九、编排：求解 + 结果组装                                                     #
+# --------------------------------------------------------------------------- #
+
+def build_results(tol=None):
+    if tol is None:
+        tol = const("数值容差", 1.0e-06)
+
+    nodes, price = build_tree()
+    wire(nodes, ASM09_GROUPS)
+
+    fronts, infeasible = solve_fronts(nodes, tol)
+    if not fronts["F"]:
+        raise RuntimeError("成品节点无可行决策组合，请检查参数与拓扑")
+
+    best = min(fronts["F"], key=lambda st: (round(st["U"], 12), -round(st["Q"], 12)))
+    dec = dict(best["dec"])
+    vals = replay(nodes, dec, tol)
+
+    unit_cost = vals["F"]["U"]
+    profit = price - unit_cost
+    order = node_ids(nodes)
+
+    decision_table = [
+        {"node": vid, "kind": nodes[vid]["kind"],
+         "Z": int(dec[vid][0]), "D": int(dec[vid][1])}
+        for vid in order
+    ]
+
+    node_cost = []
+    residuals = []
+    for vid in order:
+        state = vals[vid]
+        node_cost.append({
+            "node": vid, "kind": nodes[vid]["kind"],
+            "Z": int(dec[vid][0]), "D": int(dec[vid][1]),
+            "U": state["U"], "Q": state["Q"], "q": state["q"],
+            "Kf": state["Kf"], "Kr": state["Kr"], "kappa": state["kappa"],
+            "g": state["g"], "R": state["R"], "xi": state["xi"], "h": state["h"],
+            "purchase": state["purchase"], "inspection": state["inspection"],
+            "assembly": state["assembly"], "children_cost": state["children_cost"],
+            "disposal": state["disposal"],
+            "n_children": len(nodes[vid]["children"]),
+        })
+        residuals.append({"node": vid, "residual": node_identity_residual(state)})
+
+    v07_max_residual = max(r["residual"] for r in residuals)
+
+    tree = {
+        "nodes": [
+            {"id": vid, "kind": nodes[vid]["kind"], "layer": nodes[vid]["layer"],
+             "U": vals[vid]["U"], "Q": vals[vid]["Q"],
+             "Z": int(dec[vid][0]), "D": int(dec[vid][1]),
+             "p": nodes[vid]["p"]}
+            for vid in order
+        ],
+        "edges": [[vid, child] for vid in order for child in nodes[vid]["children"]],
+    }
+
+    demand_fold = [
+        {"node": vid,
+         "delivered_per_final": 1.0,
+         "rounds_per_delivery": (1.0 / vals[vid]["g"]) if vals[vid]["g"] else None}
+        for vid in order
+    ]
+
+    v08_max_residual, v08_pairs = degenerate_check(tol)
+
+    strategy_compare = strategy_table(nodes, price, tol)
+
+    topology_robust = topology_scan(tol, price=price)
+    feasible_rows = [r for r in topology_robust if r.get("feasible")]
+    flips = sum(1 for r in feasible_rows if r.get("flip_vs_asm09"))
+    v09_consistency = (1.0 - flips / len(feasible_rows)) if feasible_rows else None
+
+    semi_count = len(semi_ids(nodes))
+    meta = {
+        "model": "MS-Q3",
+        "topology_assumption": "ASM-09",
+        "topology_note": "图 1 原件未随简报下传，连接关系按 ASM-09 显式假设，"
+                         "并由 topology_robust 显式量化其影响",
+        "n_parts": len([k for k in order if nodes[k]["kind"] == "part"]),
+        "n_semis": semi_count,
+        "n_nodes": len(order),
+        "unit": "元/件",
+        "profit_definition": "每件合格成品的期望利润 = 市场售价 s - 每件交付件的等效获取成本 U_f",
+        "direction": "成本与合格率自底向上聚合，交付需求量自顶向下折算（单位化口径）",
+        "search": "自底向上 (U, Q) 帕累托前沿精确枚举，无启发式",
+        "decision_space": "每节点 (Z_v, D_v) 二值；零配件节点无子件，D_v 恒为 0",
+        "infeasible_combos": len(infeasible),
+        "tolerance": tol,
+        "price": price,
+        "pareto_front_size_root": len(fronts["F"]),
+    }
+
+    verification = {
+        "v07_max_residual": v07_max_residual,
+        "v07_residuals": residuals,
+        "v08_max_residual": v08_max_residual,
+        "v08_pairs": v08_pairs,
+        "v09_consistency_rate": v09_consistency,
+        "v09_flips": flips,
+        "v09_variants": len(feasible_rows),
+        "tolerance": tol,
+    }
 
     return {
-        "cases": cases,
-        "n_cases": len(cases),
-        "n_mismatch": n_mismatch,
-        "max_abs_diff": max_abs,
-        "tolerance": tolerance,
-        "pass": bool(n_mismatch == 0),
-        "note": ("退化实例使用表 2 的前两个零配件与成品参数；两路均为本模块"
-                 "独立实现（节点级递推 vs 问题 2 闭式），用于覆盖符号一致性、"
-                 "递推方向与计价不重复三个失效模式。"),
+        "meta": meta,
+        "decision_table": decision_table,
+        "unit_cost": unit_cost,
+        "profit": profit,
+        "node_cost": node_cost,
+        "strategy_compare": strategy_compare,
+        "topology_robust": topology_robust,
+        "tree": tree,
+        "demand_fold": demand_fold,
+        "verification": verification,
     }
 
 
-# --------------------------------------------------------------------------
-# 主入口
-# --------------------------------------------------------------------------
-
-def solve_q3(spec=None, table2=None, with_robust=True, with_grid=True,
-             with_degenerate=True):
-    """求解问题 3 实例，返回可直接 JSON 序列化的结果字典。"""
-    if spec is None:
-        spec = _load_table2(table2)
-
-    tree = build_tree(spec)
-    semi_candidates = {sid: _semi_candidates(tree, sid) for sid in tree["semis"]}
-    best = enumerate_optimal(tree, semi_candidates)
-
-    result = {
-        "stage": "03-code",
-        "problem": "q3",
-        "q3_price": tree["price"],
-        "q3_exchange_loss": tree["exchange_loss"],
-        "q3_unit_cost": best["U"],
-        "q3_profit": best["profit"],
-        "q3_n_evaluated": best["n_evaluated"],
-        "q3_decision_table": _decision_table(tree, best),
-        "q3_node_cost": _node_records(tree, best),
-        "q3_cost_breakdown": _cost_breakdown(tree, best),
-        "q3_topology": _topology_summary(tree, spec),
-        "q3_meta": {
-            "output_file": OUTPUT_FILE,
-            "epsilon": EPSILON,
-            "n_evaluated": best["n_evaluated"],
-            "direction": ("成本与合格率自底向上聚合；交付需求量自顶向下折算"
-                          "（单件口径 ASM-04 下需求量恒为 1）"),
-            "equations": ["EQ-Q3-ASSY", "EQ-Q3-NODE", "EQ-Q3-COST",
-                          "EQ-Q3-KF", "EQ-Q3-KAPPA", "EQ-Q3-XI",
-                          "EQ-Q3-RECUR", "EQ-Q3-UNITCOST", "EQ-Q3-PROFIT"],
-            "topology_source": "constants.TABLE2['semi_children']（ASM-09 常量级假设）",
-            "units": "金额列元/件，比率列无量纲",
-        },
-    }
-
-    if with_grid:
-        result["q3_strategy_compare"] = _policy_grid(tree)
-    if with_robust:
-        result["q3_topology_robust"] = _topology_robust(tree, spec)
-    if with_degenerate:
-        result["q3_degenerate_check"] = degenerate_check(spec)
-
-    return result
+# 兼容 main.py 可能采用的入口名（只指向同一个实现，不产生第二套结果）
+run = build_results
+solve = build_results
+compute = build_results
+main = build_results
 
 
-def solve_q3_with_rates(part_rates=None, semi_rates=None, product_rate=None,
-                        semi_children=None, spec=None, with_robust=False,
-                        with_grid=False, with_degenerate=False):
-    """在给定时变次品率下重解问题 3（供问题 4 的重抽样 / 区间传播调用）。
-
-    part_rates: {零配件 id: 次品率}，缺省取表 2 原值
-    semi_rates: {半成品 id: 次品率}
-    product_rate: 成品次品率
-    semi_children: 可选的拓扑覆盖（{半成品 id: [零配件 id, ...]}）
-    """
-    base = _load_table2(spec) if spec is None else spec
-
-    if part_rates:
-        for part in base["parts"]:
-            if part["id"] in part_rates:
-                part["p"] = float(part_rates[part["id"]])
-    if semi_rates:
-        for semi in base["semis"]:
-            if semi["id"] in semi_rates:
-                semi["p"] = float(semi_rates[semi["id"]])
-    if product_rate is not None:
-        base["product"]["p"] = float(product_rate)
-    if semi_children is not None:
-        base["semi_children"] = {int(k): [int(x) for x in v]
-                                 for k, v in semi_children.items()}
-
-    return solve_q3(spec=base, with_robust=with_robust, with_grid=with_grid,
-                    with_degenerate=with_degenerate)
-
-
-def write_results(result, path=None):
-    path = path or OUTPUT_FILE
+def write_results(path=None, tol=None):
+    """把问题 3 的全部结果写到 JSON（供 main.py 汇总或本模块独立自查）。"""
+    payload = build_results(tol=tol)
+    if path is None:
+        path = os.path.join(_HERE, "problem3_results.json")
     with open(path, "w", encoding="utf-8") as handle:
-        json.dump(result, handle, ensure_ascii=False, indent=2,
-                  sort_keys=False)
+        json.dump(payload, handle, ensure_ascii=False, indent=2)
     return path
 
 
-def main():
-    result = solve_q3()
-    path = write_results(result)
-    print("[q3] wrote %s | profit=%.4f | unit_cost=%.4f | n_evaluated=%d"
-          % (path, result["q3_profit"], result["q3_unit_cost"],
-             result["q3_n_evaluated"]))
-    return result
-
-
-# 供 main.py / problem4.py 使用的稳定别名
-solve = solve_q3
-run = main
-solve_instance = solve_q3
-evaluate_tree = _eval_internal
-
-
 if __name__ == "__main__":
-    main()
-```
+    write_results()
