@@ -347,3 +347,48 @@ describe('阶段 2 简报 —— 编外登记簿这条通道', () => {
     expect(brief).toContain('绕过零数字通道')
   })
 })
+
+/**
+ * **简报教的形态 = 解析器要的形态**，对**每一个阶段**都成立。
+ *
+ * 原来这条纪律只有一个笼统的测试，没覆盖"有 harness 铸出产物"的阶段。实测代价
+ * （第十六处缺陷）：阶段 4 声明两份产出（`RESULT_SOURCES.json` + harness 铸的 `results.json`），
+ * `answerFormOf` 按 `spec.produces.length === 1` 判 → 教模型"发 JSON 信封、键恰好是这两个"，
+ * 而 `parseStageOutput` 排除 harness 铸的之后只有 1 份 → 按**原文**取。
+ * 于是模型**照契约**发了信封，runner 把整个信封当成 `RESULT_SOURCES.json` 的内容，
+ * 报"缺 sources 数组"——模型没错，是 harness 自相矛盾。
+ *
+ * 所以判据要**遍历阶段表**，两边口径逐个对齐；靠人记得某处特例是防不住的。
+ */
+describe('回答形态 —— 简报与解析器逐个阶段对齐（防自相矛盾）', () => {
+  it('**每个模型阶段**：`answerFormOf` 说的形态 = `parseStageOutput` 的期望', () => {
+    for (const spec of STAGES) {
+      if (spec.kind !== 'model') continue
+      const owned = spec.produces.filter(p => p.harnessMinted !== true)
+      const form = answerFormOf(spec)
+      if (owned.length === 1) {
+        // 原文形态：必须点名那一个文件，且**不得**教它发信封
+        expect(form, `${spec.id} 应是原文形态`).toContain(`\`${owned[0]!.file}\` 的完整内容本身`)
+        expect(form, `${spec.id} 不该教信封`).not.toContain('{"files"')
+      } else {
+        // 信封形态：键**恰好**是模型自己拥有的那几份（不含 harness 铸的）
+        expect(form, `${spec.id} 应是信封形态`).toContain('{"files"')
+        for (const p of owned) {
+          if (p.kind === 'dir') continue
+          expect(form, `${spec.id} 的信封键漏了 ${p.file}`).toContain(`\`${p.file}\``)
+        }
+        for (const p of spec.produces.filter(p => p.harnessMinted === true)) {
+          expect(form, `${spec.id} 不该把 harness 铸的 ${p.file} 当成交付键`).not.toContain(`\`${p.file}\``)
+        }
+      }
+    }
+  })
+
+  it('**阶段 4 是这条纪律的活样本**（harness 铸的产物不进回答）', () => {
+    const spec = stageOf('result-sources')
+    expect(spec.produces.filter(p => p.harnessMinted === true).map(p => p.file)).toEqual(['results.json'])
+    const form = answerFormOf(spec)
+    expect(form).toContain('`RESULT_SOURCES.json` 的完整内容本身')
+    expect(form).toContain('不要**出现在你的回答里')
+  })
+})
