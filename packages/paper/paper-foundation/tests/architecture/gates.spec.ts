@@ -478,3 +478,46 @@ describe('modeling_coverage —— 能力项逐条认领', () => {
     )).items[0]?.detail).toContain('capabilities')
   })
 })
+
+/**
+ * 第十二处真实误报：`leakage_audit` 把**任何** ≥0.99 的数当成分类指标。
+ *
+ * 2024B 阶段 3 被拦，但本题根本没有分类指标（抽样方案 + 装配决策 + 期望利润）。
+ * 被命中的两处完全无关：
+ * - 灵敏度扫描的置信水平格点 `[0.9, 0.95, 0.99]`；
+ * - OC 曲线上的接收概率轴值 `0.99 / 0.995`（这些数越接近 1 越正常）。
+ *
+ * 判据必须锚在"分类指标"上：该行要有 ≥0.99 的数**且**邻近有指标词。
+ */
+describe('leakage_audit —— 只看分类指标，不把大数一律当指标', () => {
+  it('**置信水平格点与 OC 轴值不误报**（真实形态逐字固化）', () => {
+    const v = run('leakage_audit', input({
+      'common.py': '"灵敏度扫描置信水平": [0.9, 0.95, 0.99],\n"接收概率": [0.9, 0.95, 0.99, 0.995],',
+      'outputs_q1.json': '[\n  0.99,\n  0.995,\n]',
+    }))
+    expect(v.code).toBe(0)
+    expect(v.items[0]?.detail).toContain('置信水平')
+  })
+
+  it('**判别力**：真的出现 ≥0.99 的分类指标且无去泄漏证据 → 硬失败', () => {
+    const v = run('leakage_audit', input({ 'RESULTS.md': '| 准确率 | 0.995 |' }))
+    expect(v.code).toBe(1)
+    expect(v.items[0]?.detail).toContain('准确率')
+  })
+
+  it('有分类指标 + 有去泄漏说明 → 通过（不因噎废食）', () => {
+    const v = run('leakage_audit', input({
+      'RESULTS.md': '| 准确率 | 0.995 |\n\n数据划分：按时间切分 train/test，无泄漏。',
+    }))
+    expect(v.code).toBe(0)
+  })
+
+  it('分类指标词与数值分两行（markdown 表头）也能抓到', () => {
+    const v = run('leakage_audit', input({ 'RESULTS.md': '| 指标 | 值 |\n| F1 | 0.99 |' }))
+    expect(v.code).toBe(1)
+  })
+
+  it('没到 0.99 的分类指标不报（阈值就是阈值）', () => {
+    expect(run('leakage_audit', input({ 'RESULTS.md': '| 准确率 | 0.97 |' })).code).toBe(0)
+  })
+})
