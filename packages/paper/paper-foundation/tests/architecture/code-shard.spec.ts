@@ -7,7 +7,7 @@
  */
 
 import { describe, expect, it } from 'vitest'
-import { assembleShards, planCodeShards } from '../../src/stages/code-shard.ts'
+import { assembleShards, planCodeShards, planModelingShards } from '../../src/stages/code-shard.ts'
 import { stageOf } from '../../src/stages/registry.ts'
 
 const spec = stageOf('code')
@@ -55,5 +55,43 @@ describe('code-shard —— 组装过原契约', () => {
     const shards = planCodeShards(spec, briefing, 1)
     const answers = shards.map(s => (s.deliverable === 'code/main.py' ? '' : s.deliverable === '*' ? '{"files":{}}' : 'x'))
     expect(() => assembleShards(shards, answers)).toThrow(/code\/main.py.*回答是空的/)
+  })
+})
+
+/**
+ * 阶段 2 的分片计划 —— 注册表写着"两次调用，不是一次"，这里把它接上线。
+ *
+ * 2024B 实测代价：不分片时，加进"上一轮审计的问题"后回答在 47915 字节处被输出
+ * 天花板截断，断在逐条回应第 5 条的中途（`Unterminated string in JSON`），整轮作废。
+ */
+describe('阶段 2 分片计划 —— 每个交付物一次调用', () => {
+  const spec = stageOf('modeling')
+  const shards = planModelingShards(spec, '（完整简报）')
+
+  it('分片数 = 交付物数（2：IR 声明 + 富散文）', () => {
+    expect(shards).toHaveLength(2)
+    expect(shards.map(s => s.deliverable)).toEqual(['DECLARATION.json', 'MODELING_REPORT.md'])
+  })
+
+  it('每片都点名**只产出那一个文件**，且说清其余分片负责别的', () => {
+    for (const s of shards) {
+      expect(s.prompt).toContain(`只产出 \`${s.deliverable}\` 的完整内容`)
+      expect(s.prompt).toContain('其余交付物由其它分片负责')
+      expect(s.prompt).toContain('（完整简报）') // 简报本体要在，分片只加尾巴
+    }
+  })
+
+  it('JSON 片要求"必须是合法 JSON 对象本身"，散文片要求"不要包 JSON"', () => {
+    expect(shards[0]?.prompt).toContain('必须是合法 JSON 对象本身')
+    expect(shards[1]?.prompt).toContain('不要包 JSON')
+  })
+
+  it('组装回 JSON 信封（runner 不感知分片，仍按原契约解析）', () => {
+    const env = assembleShards(shards, ['{"a":1}', '# 建模报告'])
+    expect(JSON.parse(env)).toEqual({ files: { 'DECLARATION.json': '{"a":1}', 'MODELING_REPORT.md': '# 建模报告' } })
+  })
+
+  it('**某片空回答 → 具名失败**（没内容就是没交付，不静默跳过）', () => {
+    expect(() => assembleShards(shards, ['{"a":1}', '   '])).toThrow(/空的/)
   })
 })
