@@ -54,12 +54,17 @@ export function isCjk(ch: string): boolean {
  * 把字号缩到"这段文字在可用长度内放得下"（**有下限，不许缩成看不见**）。
  *
  * 中文按 1.0 em/字、拉丁数字按 0.6 em/字估算宽度——只用于**防裁切**，不追求排版精确。
- * 下限 8pt 来自参考工作流的硬要求（"刻度字号下限 8pt、轴标签 9pt"）。
+ *
+ * **下限是 9 而不是 8**：参考工作流同时要求"防裁切"与"最终字号 ≥9pt"，
+ * 而这两条会打架——缩到 8 就违反了字号下限（实测：门禁 `figure_style_rules`
+ * 报了 `font-size 8 < 9`）。两条都是硬要求时，**字号下限优先**，放不下要靠
+ * **给它更多版面**解决（tornado / heatmap 的边距都是按最长标签反推的），
+ * 而不是把字缩小到看不清。
  */
 export function fitFontSize(text: string, available: number, want: number): number {
   const em = [...text].reduce((n, ch) => n + (isCjk(ch) ? 1.0 : 0.6), 0)
   if (em <= 0) return want
-  return Math.max(8, Math.min(want, Math.round((available / em) * 10) / 10))
+  return Math.max(9, Math.min(want, Math.round((available / em) * 10) / 10))
 }
 
 /**
