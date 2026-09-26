@@ -1,0 +1,99 @@
+{
+  "stage": "code",
+  "verdict": "pass",
+  "score": 0.82,
+  "structureOk": true,
+  "requirementCompliance": [
+    {
+      "item": "code/main.py（py，≥500 字节）编排入口，依次跑各问并汇总",
+      "done": true,
+      "note": "3943 字节；import problem1~4 + sensitivity，依次 solve() 并 json.dump 到同目录 outputs.json，另含自检段与 anchor_index。"
+    },
+    {
+      "item": "code/ 目录含 problem*.py，文件数 ≥ 题面问数（4）",
+      "done": true,
+      "note": "problem1.py/problem2.py/problem3.py/problem4.py 恰为 4 个，逐问一一对应；另有 constants.py、numeric.py、sensitivity.py 支撑。"
+    },
+    {
+      "item": "RESULTS.md（md，≥1024 字节）结果说明",
+      "done": true,
+      "note": "8442 字节，分节说明代码结构、四问方法、校核证据、灵敏度与诚实边界，未越界写数源/图表声明。"
+    },
+    {
+      "item": "DELIVERABLES.json（json）机器可校验清单（kind/min_bytes/desc）",
+      "done": true,
+      "note": "含 stage/upstream/run/artifacts（kind,min_bytes,desc）/result_keys/audit_responses，结构完整。"
+    },
+    {
+      "item": "数字由真跑代码产生（outputs.json 账本）",
+      "done": true,
+      "note": "main.py 写 code/outputs.json，result_keys 与 anchor_index 的键路径可对上；numbers_traced 门禁已过。"
+    },
+    {
+      "item": "不写渲染代码、不产出图像字节（no_render）",
+      "done": true,
+      "note": "全代码无 matplotlib/PIL/绘图，OC 曲线与网格以数据点形式输出。"
+    },
+    {
+      "item": "问题1 两情形分别实现且判定方向不同",
+      "done": true,
+      "note": "case1 控 P(X≥c+1|p_nom)≤0.05 且 p_alt 功效≥0.9；case2 控 P(X≤c|p_nom)≤0.10（等价单侧上置信界≤p_nom）；两情形拒绝域/接收域不互换，反向口径降级为具名对照。"
+    },
+    {
+      "item": "问题2 四元决策 16 组合全枚举，含调换损失 l",
+      "done": true,
+      "note": "l 进入 R/disposal 及 breakdown['exchange_loss']，非死参数；成本分解残差在容差内。"
+    },
+    {
+      "item": "问题3 装配树节点级 DP 决策",
+      "done": true,
+      "note": "12 节点（8 零配件+3 半成品+1 成品），自底向上聚合 U/Q，自顶向下折算需求量，含拓扑扰动扫描。"
+    },
+    {
+      "item": "问题4 重解（问题2 与问题3 均覆盖）",
+      "done": true,
+      "note": "q4.q2.cases 为按情形编号的 6 项列表，另 q4.q3 对 12 节点装配树单独一套。"
+    }
+  ],
+  "findings": [
+    {
+      "severity": "minor",
+      "where": "code/sensitivity.py:q2_breakeven",
+      "issue": "存在死代码：flips 变量恒为 0（从不自增），且 `if sig != [1,1,1,1] and sig != [0,0,0,0]: pass` 为空分支；返回的 flips 字段给出恒 0 的假指标。",
+      "fix": "删除 flips 与空 if 分支，或改为按基线决策统计翻转格点数后真正返回。"
+    },
+    {
+      "severity": "minor",
+      "where": "RESULTS.md 第二节 / DELIVERABLES.json audit_responses[0] 与 result_keys",
+      "issue": "文中两处引用 `R-Q1-case2-n` / `R-Q1-case2-c`，但 result_keys 实际 ID 为 `R-Q1-n-case90` / `R-Q1-c-case90`，标识符对不上（正文与清单不自洽）。",
+      "fix": "统一锚点 ID：把正文引用改为 R-Q1-n-case90 / R-Q1-c-case90，或在 result_keys 内补上同义别名。"
+    },
+    {
+      "severity": "minor",
+      "where": "code/problem1.py:case2_accept 与 case1_reject 的设计不对称",
+      "issue": "情形(1) 用两点设计（H0 控 α1 + p_alt 功效约束），情形(2) 的 p_alt 误收约束在本例中非紧（c=0 时 n≥14 即满足，而 H0 约束要到 n=22），因此 case2 实际只由单条置信上界约束决定（n=22,c=0），两种情形的约束体系不对称；另外该口径下 n=22 却对 p=10% 的好批拒收率≈90%（生产者风险极高）。",
+      "fix": "在 RESULTS.md 明确写出该不对称是有意为之（不同题面语义对应不同被控尾），并把生产者风险数值一并登记，便于阶段 8 复核时不再被视为口径混用。"
+    },
+    {
+      "severity": "minor",
+      "where": "code/constants.py IMPLEMENTATION_PARAMS.q4_sample_size 与 code/problem4.py:_q2_case/_q3",
+      "issue": "问题4 取 n=100 且观测次品数 x=round(n*标称值)，使 p_hat 恰等于题面标称值，于是问题4 点估计决策与问题2/3 完全重合，重解几近恒等；样本量与 x 取法虽已在 IMPLEMENTATION_PARAMS 与 output 注释中登记，但口径选择偏自证。",
+      "fix": "至少补一组 x 偏离标称值（如 ±1 个次品）的对照结果，或按二项抽样给出 x 的随机一次实现，证明结论不是由 x=round(n*p) 人为对齐全等造成的。"
+    },
+    {
+      "severity": "minor",
+      "where": "DELIVERABLES.json run",
+      "issue": "run.command 为 \"python code/main.py\" 而 run.working_dir 为 \"code/\"，二者按字面组合会得到 code/code/main.py 的自相矛盾路径。",
+      "fix": "二者取其一保持一致（如 working_dir 改为 \".\"，或 command 改为 \"python main.py\"）。"
+    },
+    {
+      "severity": "minor",
+      "where": "code/constants.py TABLE2['semi_children'] / code/problem3.py:build_tree",
+      "issue": "问题3 的连接关系（{P1,P2,P3}->S1、{P4,P5,P6}->S2、{P7,P8}->S3）来自 ASM-09 假设而题面正文未给图 1，无法从给定值事实表核验。",
+      "fix": "保留即可，但需在 RESULTS.md/下一阶段显式标注该拓扑为常量级假设；q3.topology_robust 已量化依赖，建议在阶段 8 复核时一并核对 00-input 中图 1 原件。"
+    }
+  ],
+  "missing": [],
+  "model": "glm-5.3-flash-free",
+  "at": "2026-09-26T08:51:35.428Z"
+}

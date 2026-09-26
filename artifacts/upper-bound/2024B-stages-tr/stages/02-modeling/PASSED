@@ -1,0 +1,36 @@
+{
+  "passportVersion": 1,
+  "stage": "modeling",
+  "index": 2,
+  "at": "2026-09-25T19:08:46.460Z",
+  "status": "passed",
+  "inputDigest": "fff91c502b14e0faf423774d4fc405add4f6ceb546fa1cef72fc89d990d0f98b",
+  "artifacts": {
+    "DECLARATION.json": "801af4cd00e6518411ea580f29d06d675e456bb2a76f3131ba2d9c7586640624",
+    "MODELING_REPORT.md": "f1426bd3c11d7da2f0fd3c25d36a0676c8569a6964c3058fef3ac4883cbeb285"
+  },
+  "gate": {
+    "code": 2,
+    "items": [
+      {
+        "id": "modeling_floor",
+        "ok": true,
+        "detail": "MODELING_REPORT.md 39572 字节 ≥ 1500"
+      },
+      {
+        "id": "modeling_coverage",
+        "ok": false,
+        "detail": "未实现：参考的 modeling_coverage_check.py 要核对 CAPABILITY_CHECKLIST.json 的每条能力项在 MODELING_REPORT.md 里都有建模落地。需要先定义\"落地\"的机器可读形态（能力项 id 的引用）。"
+      },
+      {
+        "id": "modeling_self_check",
+        "ok": false,
+        "detail": "未实现：参考的 9 项自检含\"问题递进性检查\"（参考自己标注为\"最关键\"且是人工项）。可机械化的那几项（逐问数、目标/公式/约束非零、符号表存在、灵敏度计划）待实现。"
+      }
+    ]
+  },
+  "unverifiedGates": [
+    "modeling_coverage",
+    "modeling_self_check"
+  ]
+}

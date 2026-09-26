@@ -1,0 +1,9 @@
+[STAGE CHAIN] artifacts\upper-bound\2024B-ingest-1\stages
+  题面问数（数出来的）：4
+  [deterministic] modeling: 分片 1/2 交付 DECLARATION.json
+  [deterministic] modeling: 分片 2/2 交付 MODELING_REPORT.md
+  [deterministic] modeling: 逐节点审计（glm-5.3-flash-free）：fail，质量分 0.72，要求 7/7 项完成，9 条 findings
+[STAGE NEXT] 只跑了 'modeling'，到此即停。检查 artifacts\upper-bound\2024B-ingest-1\stages 后，放行 = 再执行一次 --stages --stage-next。
+  ❌ modeling: 逐节点审计未通过：审计未通过：交付结构不完整（缺：问题 3 内部节点（半成品 / 成品）拆解回收收益 kappa_v 的定义式：EQ-Q3-RECUR 引用了 kappa_v，但 equations 段只有问题 2 的 EQ-KAPPA，symbols 段也无 kappa_v，D_v 决策因此无判据） —— 低于阈值不允许交付（审计结论见 _audit.json）
+
+STAGE CHAIN FAILED — 1 个阶段没通过（产物与通行证在 artifacts\upper-bound\2024B-ingest-1\stages）。

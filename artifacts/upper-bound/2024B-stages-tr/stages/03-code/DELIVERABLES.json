@@ -1,0 +1,64 @@
+{
+  "stage": "03-code",
+  "problem": "2024 CUMCM B 题 生产过程中的决策问题",
+  "generated_by": "code/main.py",
+  "run_cmd": "cd code && python main.py",
+  "items": [
+    {
+      "path": "code/main.py",
+      "kind": "python",
+      "min_bytes": 500,
+      "desc": "编排入口：依次运行问题1-4并汇总，写出 results.json 与 chart_specs.json"
+    },
+    {
+      "path": "code/problem1.py",
+      "kind": "python",
+      "min_bytes": 1000,
+      "desc": "问题1：最小样本量抽样检测方案（二项分布精确计算、两情形分别择优）"
+    },
+    {
+      "path": "code/problem2.py",
+      "kind": "python",
+      "min_bytes": 1500,
+      "desc": "问题2：16 种 0/1 决策全枚举与拆解回路更新方程，含三条灵敏度扫描"
+    },
+    {
+      "path": "code/problem3.py",
+      "kind": "python",
+      "min_bytes": 1500,
+      "desc": "问题3：分层装配网络节点算子递推、27648 组合全枚举与成本分项"
+    },
+    {
+      "path": "code/problem4.py",
+      "kind": "python",
+      "min_bytes": 1000,
+      "desc": "问题4：Beta 后验蒙特卡洛、利润分布分位数、决策保持率与期望后悔"
+    },
+    {
+      "path": "code/results.json",
+      "kind": "json",
+      "min_bytes": 1024,
+      "desc": "四问全部数值结果（账本），由 code/main.py 真实运行写出"
+    },
+    {
+      "path": "code/RESULT_SOURCES.json",
+      "kind": "json",
+      "min_bytes": 512,
+      "desc": "结果定位声明：locator + json_path + unit，数值由 harness 从产物字节读出"
+    },
+    {
+      "path": "code/chart_specs.json",
+      "kind": "json",
+      "min_bytes": 1024,
+      "desc": "图表声明（chart_type / data_refs / caption），只声明不渲染"
+    },
+    {
+      "path": "RESULTS.md",
+      "kind": "markdown",
+      "min_bytes": 1024,
+      "desc": "结果说明：四问关键数值、校核证据、归因与诚实边界"
+    }
+  ],
+  "source_count": 41,
+  "no_render": true
+}

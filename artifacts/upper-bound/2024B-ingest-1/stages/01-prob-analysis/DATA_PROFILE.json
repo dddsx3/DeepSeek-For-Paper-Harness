@@ -1,0 +1,69 @@
+{
+  "stage": "01-prob-analysis",
+  "source": "00-input/attachments.json",
+  "source_pdf": "problem.pdf",
+  "standalone_data_files": [],
+  "has_standalone_data_file": false,
+  "note": "本题没有独立附件数据文件；全部参数内嵌于题面表 1、表 2 与图 1，下游阶段的数据来源即题面文本与结构化表格。",
+  "data_carriers": [
+    {
+      "id": "table-1",
+      "type": "table",
+      "page": 1,
+      "shape": "8×13",
+      "header_rows": 2,
+      "record_rows": 6,
+      "role": "问题 2 的六种情况参数表",
+      "columns": ["情况", "零配件1次品率", "零配件1购买单价", "零配件1检测成本", "零配件2次品率", "零配件2购买单价", "零配件2检测成本", "成品次品率", "成品装配成本", "成品检测成本", "市场售价", "调换损失", "拆解费用"],
+      "value_types": "比率为百分数字符串，其余为整数金额",
+      "unit": "元/件（比率列除外）",
+      "missing": "无缺失值",
+      "covers": "问题 2 情况 1-6",
+      "machine_readable": true
+    },
+    {
+      "id": "table-2",
+      "type": "table",
+      "page": 2,
+      "shape": "9×9",
+      "role": "问题 3 实例（2 工序、8 零配件）的参数表",
+      "structure": "复合表：左部 8 行为零配件编号与其次品率/购买单价/检测成本；中部 3 行为半成品 1-3 与其次品率/装配成本/检测成本/拆解费用；右下部为成品行（次品率/装配成本/检测成本/拆解费用）与成品市场售价、调换损失",
+      "record_rows": 8,
+      "semi_product_rows": 3,
+      "unit": "元/件（比率列除外）",
+      "missing": "零配件 4-8 行在“半成品”列上为空（属于排版留白，非缺失数据）",
+      "covers": "问题 3 实例参数",
+      "machine_readable": true
+    },
+    {
+      "id": "fig-1",
+      "type": "figure",
+      "page": 2,
+      "file": "figures/fig-1.png",
+      "transcription": "figures/fig-1.md",
+      "role": "2 道工序、8 个零配件的组装拓扑结构",
+      "nodes": "8 个零配件节点、3 个半成品节点、1 个成品节点",
+      "machine_readable": false,
+      "extraction_requirement": "拓扑（零配件→半成品→成品的连接关系）必须人工或 OCR 转录为邻接表后才能进入计算，是问题 3 唯一的非结构化输入"
+    }
+  ],
+  "parameter_summary": {
+    "问题1": {"标称值": "10%", "信度": ["95%", "90%"], "可调变量": "样本量 n 与判定界值 c（由企业设计）"},
+    "问题2": {"情况数": 6, "决策维度": ["Z1", "Z2", "C", "D"], "策略空间": 16},
+    "问题3": {"工序数": 2, "零配件数": 8, "半成品数": 3, "成品数": 1},
+    "问题4": {"输入变化": "问题 2/3 的次品率不再是给定常数，而是抽样检测的估计值"}
+  },
+  "data_quality": {
+    "completeness": "题面参数完整，表 1 与表 2 无缺失值",
+    "consistency": "表 1 六种情况参数行与题面描述一致；表 2 中全部零配件、半成品次品率均为 10%",
+    "unit_conflict": "无；金额统一为元/件，比率为百分数，需在建模时转为小数",
+    "precision": "给定值为精确常数（非测量值），问题 4 才引入抽样误差",
+    "risks": ["表 2 为复合排版，逐行解析时易错把半成品列错位到零配件行", "图 1 结构需从图像转录，存在识别偏差风险"]
+  },
+  "downstream_contract": {
+    "used_by": ["02-model", "03-solve", "04-verify", "05-paper", "06-review"],
+    "facts_source": "PROBLEM_FACTS.json（题面给定值，含 raw_quote）",
+    "no_self_computed_numbers": "本阶段不产生自算数字；所有派生量必须由后续阶段脚本生成并落盘",
+    "figure_contract": "图名必须以 fig_ / tikz_ 开头，且出现在 PROBLEM_ANALYSIS.md 的 FIGURE_MANIFEST 中"
+  }
+}

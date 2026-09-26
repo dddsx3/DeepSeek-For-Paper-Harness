@@ -1,0 +1,116 @@
+{
+  "passportVersion": 1,
+  "stage": "figure-declare",
+  "index": 5,
+  "at": "2026-09-26T14:46:11.181Z",
+  "status": "stale",
+  "cleanliness": "clean",
+  "inputDigest": "08d0339aed06eae248a7bbce609b86d3e1863501e3b02e615b4c5961ac112b61",
+  "artifacts": {
+    "figures/": "dir:8",
+    "FIGURE_PLAN.json": "4722f386df7d07d2ed3ca768cb5e288bdf80230b64f53f0d0b19ce60be07b922"
+  },
+  "gate": {
+    "code": 0,
+    "items": [
+      {
+        "id": "figure_plan_valid",
+        "ok": true,
+        "detail": "8 条规划：图型合规、配方齐备、data_refs 全部解析到账本",
+        "code": 0
+      },
+      {
+        "id": "figure_script_quality",
+        "ok": true,
+        "detail": "8 个脚本通过代码级 CRITICAL 检查；WARNING（不阻断）：figures/gen_fig_q1_oc_curve_p1.py：手动 `ax.grid()`（参考 WARNING，非阻断）；figures/gen_fig_q1_two_cases_sample_size.py：手动 `ax.grid()`（参考 WARNING，非阻断）；figures/gen_fig_q2_optimal_cost_breakdown.py：手动 `ax.grid()`（参考 WARNING，非阻断）",
+        "code": 0
+      },
+      {
+        "id": "figure_script_traced",
+        "ok": true,
+        "detail": "8 个脚本都从账本读数据，未发现硬编码数据串",
+        "code": 0
+      },
+      {
+        "id": "figure_type_match",
+        "ok": true,
+        "detail": "3 张图的图型与脚本 API 一致",
+        "code": 0
+      },
+      {
+        "id": "figure_diversity",
+        "ok": true,
+        "detail": "8 张图、6 种图型：无单一图型超过 3 次",
+        "code": 0
+      }
+    ]
+  },
+  "audit": {
+    "stage": "figure-declare",
+    "verdict": "pass",
+    "score": 0.9,
+    "structureOk": true,
+    "requirementCompliance": [
+      {
+        "item": "figures/ 目录，逐图一个绘图脚本 gen_fig_<figure_id>.py（matplotlib）",
+        "done": true,
+        "note": "8 个脚本与 FIGURE_PLAN 的 8 条 figure_id 一一对应：q1_oc_curve_p1、q1_two_cases_sample_size、q2_strategy_cost_heatmap、q2_optimal_cost_breakdown、q2_six_cases_decisions、q3_strategy_cost_compare、q4_ci_effect_on_cost、q4_monte_carlo_robustness，无缺无余，全部 import matplotlib.pyplot 并 save_fig 到 figures/<figure_id>.png。"
+      },
+      {
+        "item": "脚本从账本 results.json 读每一个数，不得硬编码",
+        "done": true,
+        "note": "逐脚本核对：每张图的每个数据点都经 result_id 从 results.json 取出（Q1 四条 n/c、Q2 六利润+24 决策+unit-cost、Q3 R-Q3-profit、Q4 六 rate+六 se），未发现写死的数据字面量。写死的只有 NOMINAL_P=0.10（题面标称值）、OC 网格 0–0.50/101 点（FIGURE_PLAN.grid 声明）、1.96 与 [0,1] 截断（FIGURE_PLAN.ci_points.interval 声明），三处均在脚本注释中显式声明来源，且在图中确实被使用（axvline / linspace / errorbar），非死参数。抽查模型自洽性：case1 单位成本 34.32=22+6+调换6与拆解5的二项递归、case6 利润 21.68=56-34.32 用 D=0 手算复现一致，说明所读账本值与图注口径相符。"
+      },
+      {
+        "item": "样式必须走 harness 铺好的 _utils/plot_utils.py",
+        "done": true,
+        "note": "8/8 脚本均 from _utils.plot_utils import setup_style, save_fig, PALETTE, COLORS, _lighten 并在绘图前调用 setup_style()，无自建配色/rcParams。"
+      },
+      {
+        "item": "FIGURE_PLAN.json 含 {figure_id, chart_type, recipe:{category,number}, data_refs, caption, x_label, y_label}",
+        "done": true,
+        "note": "8 条逐条核过，七个字段全部齐备（chart_type：line/bar/heatmap/waterfall/bar/bar/forest/scatter；recipe 均带 category+number）；另给出 series/points/ci_points/tick_label_binding/matrix_shape，使 ref→坐标轴映射不依赖字符串猜测。data_refs 与脚本实际取数逐一比对，全部被使用，无申报未用。"
+      },
+      {
+        "item": "本阶段只写脚本，不执行",
+        "done": true,
+        "note": "产物清单中只有 8 个 .py 与 1 个 .json，无任何 PNG/输出图形，与「执行是下一阶段」一致。"
+      },
+      {
+        "item": "与题面对照：四个子问题在图中都有落点",
+        "done": true,
+        "note": "问题1 两情形（95% 拒收 / 90% 接收）→ fig_q1_oc_curve_p1 + fig_q1_two_cases_sample_size（用 n*/c* 两条账本条目，标称值 10% 作参考线，方向未混淆）；问题2 表1 六情况决策与指标 → 三张图（利润柱+决策指示热力图+成本-利润瀑布）；问题3 2 工序 8 零配件实例 → fig_q3_strategy_cost_compare（仅 R-Q3-profit=66.09 一项可用）；问题4 次品率抽样不确定性 → 森林图与散点。题面给定值中与作图直接相关的量（标称值 10%、两信度、六情况的售价/调换损失/拆解费口径）在 caption 与轴标签中表述正确，未见与题面冲突的数值。"
+      }
+    ],
+    "findings": [
+      {
+        "severity": "minor",
+        "where": "figures/ 中 6/8 脚本（q1_two_cases_sample_size、q2_optimal_cost_breakdown、q2_six_cases_decisions、q3_strategy_cost_compare、q4_ci_effect_on_cost、q4_monte_carlo_robustness）",
+        "issue": "账本定位方式不统一：这 6 个脚本只 open(\"results.json\")（依赖执行期 cwd），另 2 个（q1_oc_curve_p1、q2_strategy_cost_heatmap）带多候选回退路径；而 FIGURE_PLAN.ledger_source 声明为 stages/04-result-sources/results.json，脚本与该声明并未对齐。若下一阶段执行时 cwd 不是账本所在目录，这 6 个脚本会直接 FileNotFoundError，批量出图中断。",
+        "fix": "把账本读取抽成 _utils 里的单一 load_ledger()（候选路径含 FIGURE_PLAN.ledger_source 声明的相对位置），8 个脚本统一调用；或至少把已有的候选路径链复制到全部脚本，保证与 ledger_source 一致。"
+      },
+      {
+        "severity": "minor",
+        "where": "FIGURE_PLAN.json 各条 caption",
+        "issue": "caption 内嵌账本数值字面量（368/46/22/0、34.32、21.68、66.09、0.9160±0.0122、0.9485、0.9995 等），与脚本运行时的实际读数没有任何绑定；而 title_policy 又规定下游「图题一律取 caption」。上游一旦重铸 results.json，正文图题会与图形实际内容不一致，且这种不一致不会被任何机械门禁捕获。",
+        "fix": "在渲染阶段用账本回填 caption 中的数值占位（或对 caption 里的数做一次与 results.json 的一致性校验）；至少把 caption 中的数值集中成可检索的占位符，便于重铸后同步。"
+      },
+      {
+        "severity": "minor",
+        "where": "FIGURE_PLAN.json 的 figure_id 与各脚本内容",
+        "issue": "四个 figure_id 的字面语义与图形内容不符：fig_q4_ci_effect_on_cost 实为六情况决策一致率森林图、fig_q2_strategy_cost_heatmap 实为 6×4 决策 0-1 指示矩阵（非成本色阶）、fig_q3_strategy_cost_compare 实为 Q3 与 Q2 六情况的利润量级对照、fig_q4_monte_carlo_robustness 实为六点对账散点（无 Monte Carlo 轨迹）。风险已由 title_policy 与 plan_deviations 逐条登记，属可控；但下游若按 id 语义取用会误用。",
+        "fix": "保持 id 与阶段1 FIGURE_MANIFEST 逐字对账不变，并确保下游严格以 caption 命名；若后续阶段允许改名，统一改为语义相符的 id。"
+      },
+      {
+        "severity": "minor",
+        "where": "FIGURE_PLAN.json 图集覆盖（相对题面问题 3、问题 4）",
+        "issue": "题面问题3 要求给出 2 工序 8 零配件实例的决策方案与指标，问题4 要求在其中「重新完成问题 2 和问题 3」，但图集中问题3 只有 1 张（且是与其他情况的利润量级对照，未可视化其节点级决策），问题4 没有针对问题3 的重解图。根因是账本问题3 侧仅 R-Q3-profit 一项、无节点级决策/成本条目，属上游 stage 4 的数据缺口，本阶段已在 plan_deviations 与 unused_ledger_keys 中如实说明，未虚构图形。",
+        "fix": "本阶段无需改脚本；建议把「Q3 缺节点级决策/成本结果」作为上游（结果铸出阶段）的待补项登记，待其补齐后在下一轮补 fig_q3 的决策可视化与 Q4 的 Q3 重解图。"
+      }
+    ],
+    "missing": [],
+    "model": "glm-5.3-flash-free",
+    "at": "2026-09-26T14:46:11.178Z"
+  },
+  "staleReason": "作图契约新增四条稳定性硬规则（共用 _figbase 模块 / 多面板合成 / 不要过度收缩 / 从账本读）+ 换用捕获到的更新版配方库；按新契约重跑 —— 检查人否决"
+}

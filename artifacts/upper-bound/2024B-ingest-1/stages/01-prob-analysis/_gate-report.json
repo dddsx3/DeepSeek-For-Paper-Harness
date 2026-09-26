@@ -1,0 +1,21 @@
+{
+  "stage": "prob-analysis",
+  "code": 2,
+  "items": [
+    {
+      "id": "prob_analysis_floor",
+      "ok": true,
+      "detail": "PROBLEM_ANALYSIS.md 17442 字节 ≥ 1500"
+    },
+    {
+      "id": "figure_manifest_anchors",
+      "ok": true,
+      "detail": "FIGURE_MANIFEST 锚点完整，条目全部以 fig_/tikz_ 开头"
+    },
+    {
+      "id": "capability_check",
+      "ok": false,
+      "detail": "未实现：参考的 capability_check.py 要跨 PROBLEM_ANALYSIS.md 的逐句表与 CAPABILITY_CHECKLIST.json 逐条比对（每条\"决策/目标/机制\"句必须被某个能力项的 source_sentence 认领）。实现它需要先定义逐句表的机器可读形态。"
+    }
+  ]
+}

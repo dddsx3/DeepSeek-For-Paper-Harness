@@ -1,0 +1,18 @@
+[STAGE CHAIN] artifacts\upper-bound\2024B-ingest-1\stages
+  题面问数（数出来的）：4
+  [deterministic] figure-declare: 第 1 段：出作图规划
+  [deterministic] figure-declare: 第 2/12 段：交付 figures/gen_fig_q1_oc_curve_p1.py
+  [deterministic] figure-declare: 第 3/12 段：交付 figures/gen_fig_q1_sample_size_vs_confidence.py
+  [deterministic] figure-declare: 第 4/12 段：交付 figures/gen_fig_q1_sprt_boundary.py
+  [deterministic] figure-declare: 第 5/12 段：交付 figures/gen_fig_q1_two_cases_sample_size.py
+  [deterministic] figure-declare: 第 6/12 段：交付 figures/gen_fig_q2_strategy_cost_heatmap.py
+  [deterministic] figure-declare: 第 7/12 段：交付 figures/gen_fig_q2_optimal_cost_breakdown.py
+  [deterministic] figure-declare: 第 8/12 段：交付 figures/gen_fig_q2_six_cases_decisions.py
+  [deterministic] figure-declare: 第 9/12 段：交付 figures/gen_fig_q3_assembly_network_cost.py
+  [deterministic] figure-declare: 第 10/12 段：交付 figures/gen_fig_q3_strategy_cost_compare.py
+  [deterministic] figure-declare: 第 11/12 段：交付 figures/gen_fig_q4_ci_effect_on_cost.py
+  [deterministic] figure-declare: 第 12/12 段：交付 figures/gen_fig_q4_monte_carlo_robustness.py
+[STAGE NEXT] 只跑了 'figure-declare'，到此即停。检查 artifacts\upper-bound\2024B-ingest-1\stages 后，放行 = 再执行一次 --stages --stage-next。
+  ❌ figure-declare: 门禁 code 1（0=通过 1=硬失败 2=无法判定）：figure_plan_valid
+
+STAGE CHAIN FAILED — 1 个阶段没通过（产物与通行证在 artifacts\upper-bound\2024B-ingest-1\stages）。

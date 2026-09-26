@@ -1,0 +1,350 @@
+{
+  "stage": "04-result-sources",
+  "locator_base": "code/",
+  "note": "本文件只声明每个量“数在哪”，不包含任何数值。locator 为相对 code/ 的路径，harness 执行 code/main.py 后会按 locator + json_path 从产物字节中读出数值并铸入 results.json。所有金额单位为元/件，比率为无量纲，与上游 C-UNIT-DEF 一致。",
+  "sources": [
+    {
+      "result_id": "R-Q1-case1-n",
+      "name": "问题1 情形(1)（控制拒收侧第一类错误）最小检测次数 n*",
+      "locator": "outputs.json",
+      "json_path": "q1.case1_reject.n_star",
+      "unit": "件"
+    },
+    {
+      "result_id": "R-Q1-case1-c",
+      "name": "问题1 情形(1) 接收判定临界次品数 c*",
+      "locator": "outputs.json",
+      "json_path": "q1.case1_reject.c_star",
+      "unit": "件"
+    },
+    {
+      "result_id": "R-Q1-case2-n",
+      "name": "问题1 情形(2)（单侧置信上界口径）最小检测次数 n*",
+      "locator": "outputs.json",
+      "json_path": "q1.case2_accept.n_star",
+      "unit": "件"
+    },
+    {
+      "result_id": "R-Q1-case2-c",
+      "name": "问题1 情形(2) 接收判定临界次品数 c*",
+      "locator": "outputs.json",
+      "json_path": "q1.case2_accept.c_star",
+      "unit": "件"
+    },
+    {
+      "result_id": "R-Q1-sampling-cost-case1",
+      "name": "问题1 情形(1) 方案在企业侧折出的抽样检测费用（按单件检测成本归一）",
+      "locator": "outputs.json",
+      "json_path": "q1.sampling_cost.case1_cost",
+      "unit": "元/件"
+    },
+    {
+      "result_id": "R-Q2-case1-profit",
+      "name": "问题2 表1 情况1 最优期望利润",
+      "locator": "outputs.json",
+      "json_path": "q2.cases[0].best.profit",
+      "unit": "元/件"
+    },
+    {
+      "result_id": "R-Q2-case1-decision-Z1",
+      "name": "问题2 表1 情况1 最优决策中的零配件1检测指示 Z1",
+      "locator": "outputs.json",
+      "json_path": "q2.cases[0].best.decision[0]",
+      "unit": "0-1 指示（无量纲）"
+    },
+    {
+      "result_id": "R-Q2-case1-decision-Z2",
+      "name": "问题2 表1 情况1 最优决策中的零配件2检测指示 Z2",
+      "locator": "outputs.json",
+      "json_path": "q2.cases[0].best.decision[1]",
+      "unit": "0-1 指示（无量纲）"
+    },
+    {
+      "result_id": "R-Q2-case1-decision-C",
+      "name": "问题2 表1 情况1 最优决策中的成品检测指示 C",
+      "locator": "outputs.json",
+      "json_path": "q2.cases[0].best.decision[2]",
+      "unit": "0-1 指示（无量纲）"
+    },
+    {
+      "result_id": "R-Q2-case1-decision-D",
+      "name": "问题2 表1 情况1 最优决策中的不合格成品拆解指示 D",
+      "locator": "outputs.json",
+      "json_path": "q2.cases[0].best.decision[3]",
+      "unit": "0-1 指示（无量纲）"
+    },
+    {
+      "result_id": "R-Q2-case1-unit-cost",
+      "name": "问题2 表1 情况1 最优策略下每件合格成品的期望总成本（利润口径的成本侧）",
+      "locator": "outputs.json",
+      "json_path": "q2.cases[0].best.unit_cost",
+      "unit": "元/件"
+    },
+    {
+      "result_id": "R-Q2-case2-profit",
+      "name": "问题2 表1 情况2 最优期望利润",
+      "locator": "outputs.json",
+      "json_path": "q2.cases[1].best.profit",
+      "unit": "元/件"
+    },
+    {
+      "result_id": "R-Q2-case2-decision-Z1",
+      "name": "问题2 表1 情况2 最优决策中的零配件1检测指示 Z1",
+      "locator": "outputs.json",
+      "json_path": "q2.cases[1].best.decision[0]",
+      "unit": "0-1 指示（无量纲）"
+    },
+    {
+      "result_id": "R-Q2-case2-decision-Z2",
+      "name": "问题2 表1 情况2 最优决策中的零配件2检测指示 Z2",
+      "locator": "outputs.json",
+      "json_path": "q2.cases[1].best.decision[1]",
+      "unit": "0-1 指示（无量纲）"
+    },
+    {
+      "result_id": "R-Q2-case2-decision-C",
+      "name": "问题2 表1 情况2 最优决策中的成品检测指示 C",
+      "locator": "outputs.json",
+      "json_path": "q2.cases[1].best.decision[2]",
+      "unit": "0-1 指示（无量纲）"
+    },
+    {
+      "result_id": "R-Q2-case2-decision-D",
+      "name": "问题2 表1 情况2 最优决策中的不合格成品拆解指示 D",
+      "locator": "outputs.json",
+      "json_path": "q2.cases[1].best.decision[3]",
+      "unit": "0-1 指示（无量纲）"
+    },
+    {
+      "result_id": "R-Q2-case3-profit",
+      "name": "问题2 表1 情况3 最优期望利润",
+      "locator": "outputs.json",
+      "json_path": "q2.cases[2].best.profit",
+      "unit": "元/件"
+    },
+    {
+      "result_id": "R-Q2-case3-decision-Z1",
+      "name": "问题2 表1 情况3 最优决策中的零配件1检测指示 Z1",
+      "locator": "outputs.json",
+      "json_path": "q2.cases[2].best.decision[0]",
+      "unit": "0-1 指示（无量纲）"
+    },
+    {
+      "result_id": "R-Q2-case3-decision-Z2",
+      "name": "问题2 表1 情况3 最优决策中的零配件2检测指示 Z2",
+      "locator": "outputs.json",
+      "json_path": "q2.cases[2].best.decision[1]",
+      "unit": "0-1 指示（无量纲）"
+    },
+    {
+      "result_id": "R-Q2-case3-decision-C",
+      "name": "问题2 表1 情况3 最优决策中的成品检测指示 C",
+      "locator": "outputs.json",
+      "json_path": "q2.cases[2].best.decision[2]",
+      "unit": "0-1 指示（无量纲）"
+    },
+    {
+      "result_id": "R-Q2-case3-decision-D",
+      "name": "问题2 表1 情况3 最优决策中的不合格成品拆解指示 D",
+      "locator": "outputs.json",
+      "json_path": "q2.cases[2].best.decision[3]",
+      "unit": "0-1 指示（无量纲）"
+    },
+    {
+      "result_id": "R-Q2-case4-profit",
+      "name": "问题2 表1 情况4 最优期望利润",
+      "locator": "outputs.json",
+      "json_path": "q2.cases[3].best.profit",
+      "unit": "元/件"
+    },
+    {
+      "result_id": "R-Q2-case4-decision-Z1",
+      "name": "问题2 表1 情况4 最优决策中的零配件1检测指示 Z1",
+      "locator": "outputs.json",
+      "json_path": "q2.cases[3].best.decision[0]",
+      "unit": "0-1 指示（无量纲）"
+    },
+    {
+      "result_id": "R-Q2-case4-decision-Z2",
+      "name": "问题2 表1 情况4 最优决策中的零配件2检测指示 Z2",
+      "locator": "outputs.json",
+      "json_path": "q2.cases[3].best.decision[1]",
+      "unit": "0-1 指示（无量纲）"
+    },
+    {
+      "result_id": "R-Q2-case4-decision-C",
+      "name": "问题2 表1 情况4 最优决策中的成品检测指示 C",
+      "locator": "outputs.json",
+      "json_path": "q2.cases[3].best.decision[2]",
+      "unit": "0-1 指示（无量纲）"
+    },
+    {
+      "result_id": "R-Q2-case4-decision-D",
+      "name": "问题2 表1 情况4 最优决策中的不合格成品拆解指示 D",
+      "locator": "outputs.json",
+      "json_path": "q2.cases[3].best.decision[3]",
+      "unit": "0-1 指示（无量纲）"
+    },
+    {
+      "result_id": "R-Q2-case5-profit",
+      "name": "问题2 表1 情况5 最优期望利润",
+      "locator": "outputs.json",
+      "json_path": "q2.cases[4].best.profit",
+      "unit": "元/件"
+    },
+    {
+      "result_id": "R-Q2-case5-decision-Z1",
+      "name": "问题2 表1 情况5 最优决策中的零配件1检测指示 Z1",
+      "locator": "outputs.json",
+      "json_path": "q2.cases[4].best.decision[0]",
+      "unit": "0-1 指示（无量纲）"
+    },
+    {
+      "result_id": "R-Q2-case5-decision-Z2",
+      "name": "问题2 表1 情况5 最优决策中的零配件2检测指示 Z2",
+      "locator": "outputs.json",
+      "json_path": "q2.cases[4].best.decision[1]",
+      "unit": "0-1 指示（无量纲）"
+    },
+    {
+      "result_id": "R-Q2-case5-decision-C",
+      "name": "问题2 表1 情况5 最优决策中的成品检测指示 C",
+      "locator": "outputs.json",
+      "json_path": "q2.cases[4].best.decision[2]",
+      "unit": "0-1 指示（无量纲）"
+    },
+    {
+      "result_id": "R-Q2-case5-decision-D",
+      "name": "问题2 表1 情况5 最优决策中的不合格成品拆解指示 D",
+      "locator": "outputs.json",
+      "json_path": "q2.cases[4].best.decision[3]",
+      "unit": "0-1 指示（无量纲）"
+    },
+    {
+      "result_id": "R-Q2-case6-profit",
+      "name": "问题2 表1 情况6 最优期望利润",
+      "locator": "outputs.json",
+      "json_path": "q2.cases[5].best.profit",
+      "unit": "元/件"
+    },
+    {
+      "result_id": "R-Q2-case6-decision-Z1",
+      "name": "问题2 表1 情况6 最优决策中的零配件1检测指示 Z1",
+      "locator": "outputs.json",
+      "json_path": "q2.cases[5].best.decision[0]",
+      "unit": "0-1 指示（无量纲）"
+    },
+    {
+      "result_id": "R-Q2-case6-decision-Z2",
+      "name": "问题2 表1 情况6 最优决策中的零配件2检测指示 Z2",
+      "locator": "outputs.json",
+      "json_path": "q2.cases[5].best.decision[1]",
+      "unit": "0-1 指示（无量纲）"
+    },
+    {
+      "result_id": "R-Q2-case6-decision-C",
+      "name": "问题2 表1 情况6 最优决策中的成品检测指示 C",
+      "locator": "outputs.json",
+      "json_path": "q2.cases[5].best.decision[2]",
+      "unit": "0-1 指示（无量纲）"
+    },
+    {
+      "result_id": "R-Q2-case6-decision-D",
+      "name": "问题2 表1 情况6 最优决策中的不合格成品拆解指示 D",
+      "locator": "outputs.json",
+      "json_path": "q2.cases[5].best.decision[3]",
+      "unit": "0-1 指示（无量纲）"
+    },
+    {
+      "result_id": "R-Q3-profit",
+      "name": "问题3 装配树实例在最优节点级决策下的单位成品期望利润",
+      "locator": "outputs.json",
+      "json_path": "q3.profit",
+      "unit": "元/件"
+    },
+    {
+      "result_id": "R-Q4-case1-consistency-rate",
+      "name": "问题4 表1 情况1 重复抽样下重解所得最优决策与点估计决策的一致率",
+      "locator": "outputs.json",
+      "json_path": "q4.q2.cases[0].consistency_rate",
+      "unit": "无量纲（比例）"
+    },
+    {
+      "result_id": "R-Q4-case1-consistency-rate-se",
+      "name": "问题4 表1 情况1 一致率估计量的标准误",
+      "locator": "outputs.json",
+      "json_path": "q4.q2.cases[0].rate_standard_error",
+      "unit": "无量纲（比例）"
+    },
+    {
+      "result_id": "R-Q4-case2-consistency-rate",
+      "name": "问题4 表1 情况2 重复抽样下重解所得最优决策与点估计决策的一致率",
+      "locator": "outputs.json",
+      "json_path": "q4.q2.cases[1].consistency_rate",
+      "unit": "无量纲（比例）"
+    },
+    {
+      "result_id": "R-Q4-case2-consistency-rate-se",
+      "name": "问题4 表1 情况2 一致率估计量的标准误",
+      "locator": "outputs.json",
+      "json_path": "q4.q2.cases[1].rate_standard_error",
+      "unit": "无量纲（比例）"
+    },
+    {
+      "result_id": "R-Q4-case3-consistency-rate",
+      "name": "问题4 表1 情况3 重复抽样下重解所得最优决策与点估计决策的一致率",
+      "locator": "outputs.json",
+      "json_path": "q4.q2.cases[2].consistency_rate",
+      "unit": "无量纲（比例）"
+    },
+    {
+      "result_id": "R-Q4-case3-consistency-rate-se",
+      "name": "问题4 表1 情况3 一致率估计量的标准误",
+      "locator": "outputs.json",
+      "json_path": "q4.q2.cases[2].rate_standard_error",
+      "unit": "无量纲（比例）"
+    },
+    {
+      "result_id": "R-Q4-case4-consistency-rate",
+      "name": "问题4 表1 情况4 重复抽样下重解所得最优决策与点估计决策的一致率",
+      "locator": "outputs.json",
+      "json_path": "q4.q2.cases[3].consistency_rate",
+      "unit": "无量纲（比例）"
+    },
+    {
+      "result_id": "R-Q4-case4-consistency-rate-se",
+      "name": "问题4 表1 情况4 一致率估计量的标准误",
+      "locator": "outputs.json",
+      "json_path": "q4.q2.cases[3].rate_standard_error",
+      "unit": "无量纲（比例）"
+    },
+    {
+      "result_id": "R-Q4-case5-consistency-rate",
+      "name": "问题4 表1 情况5 重复抽样下重解所得最优决策与点估计决策的一致率",
+      "locator": "outputs.json",
+      "json_path": "q4.q2.cases[4].consistency_rate",
+      "unit": "无量纲（比例）"
+    },
+    {
+      "result_id": "R-Q4-case5-consistency-rate-se",
+      "name": "问题4 表1 情况5 一致率估计量的标准误",
+      "locator": "outputs.json",
+      "json_path": "q4.q2.cases[4].rate_standard_error",
+      "unit": "无量纲（比例）"
+    },
+    {
+      "result_id": "R-Q4-case6-consistency-rate",
+      "name": "问题4 表1 情况6 重复抽样下重解所得最优决策与点估计决策的一致率",
+      "locator": "outputs.json",
+      "json_path": "q4.q2.cases[5].consistency_rate",
+      "unit": "无量纲（比例）"
+    },
+    {
+      "result_id": "R-Q4-case6-consistency-rate-se",
+      "name": "问题4 表1 情况6 一致率估计量的标准误",
+      "locator": "outputs.json",
+      "json_path": "q4.q2.cases[5].rate_standard_error",
+      "unit": "无量纲（比例）"
+    }
+  ]
+}

@@ -1,0 +1,137 @@
+{
+  "passportVersion": 1,
+  "stage": "prob-analysis",
+  "index": 1,
+  "at": "2026-09-25T21:50:08.395Z",
+  "status": "passed",
+  "cleanliness": "unverified-gates",
+  "inputDigest": "ba3eaeb0c4cb0631ab6bb138178646f1bc0f3d6e0646a24bfe55542ae8d65566",
+  "artifacts": {
+    "PROBLEM_ANALYSIS.md": "de3ce85e3ed69f0484aa560bd38a7df37e6a64caba33db7aa70bedf61f30dca5",
+    "CAPABILITY_CHECKLIST.json": "9d15d1fb95752d6a60abeb5424c7a5937bbfbfbd5b3623daa18c33369a5ffc14",
+    "PROBLEM_FACTS.json": "53684c5afa3ff640a2457bad53b6035c4877fbc33ac2a704c8af9db926169fba",
+    "DATA_PROFILE.json": "53b3eb9ecf0142e826f454546c01bce19cfa05cff6a07ac9a7531253754f169e"
+  },
+  "gate": {
+    "code": 2,
+    "items": [
+      {
+        "id": "prob_analysis_floor",
+        "ok": true,
+        "detail": "PROBLEM_ANALYSIS.md 17442 字节 ≥ 1500"
+      },
+      {
+        "id": "figure_manifest_anchors",
+        "ok": true,
+        "detail": "FIGURE_MANIFEST 锚点完整，条目全部以 fig_/tikz_ 开头"
+      },
+      {
+        "id": "capability_check",
+        "ok": false,
+        "detail": "未实现：参考的 capability_check.py 要跨 PROBLEM_ANALYSIS.md 的逐句表与 CAPABILITY_CHECKLIST.json 逐条比对（每条\"决策/目标/机制\"句必须被某个能力项的 source_sentence 认领）。实现它需要先定义逐句表的机器可读形态。"
+      }
+    ]
+  },
+  "unverifiedGates": [
+    "capability_check"
+  ],
+  "audit": {
+    "stage": "prob-analysis",
+    "verdict": "pass",
+    "score": 0.9,
+    "structureOk": true,
+    "requirementCompliance": [
+      {
+        "item": "PROBLEM_ANALYSIS.md（md，≥1500 字节）",
+        "done": true,
+        "note": "17442 字节，远超门槛；文件头明确声明本阶段不产生自算数字，数值统一指向 PROBLEM_FACTS.json。"
+      },
+      {
+        "item": "逐句表（题面每句 → 类型 + 认领能力项）",
+        "done": true,
+        "note": "第 1 节 S01–S22 逐句给出原句、类型（决策/目标/机制/数据/约束/输出）与认领能力项，覆盖题首背景、问题 1–4 与附录三条说明句。"
+      },
+      {
+        "item": "硬约束清单（题面原文抄录）",
+        "done": true,
+        "note": "第 2 节 HC-01…HC-12 逐条抄录题面关键句，含 95%/90% 信度、次品传导、拆解无损有费、量纲统一等，均为可对账的硬约束。"
+      },
+      {
+        "item": "FIGURE_MANIFEST + 渲染声明",
+        "done": true,
+        "note": "第 6 节 BEGIN/END 标记内含 16 个图名：DATA=14（fig_q1×4、fig_q2×6、fig_q3×2、fig_q4×2）、DRAWIO=1（fig_decision_pipeline）、TIKZ=1（tikz_process_route）、GPTIMG=0，14+1+1+0=ALL=16，计数自洽；第 7 节对 16 个图名逐一给出图表类型说明，满足锚点要求。"
+      },
+      {
+        "item": "假设锚点 / 需求锚点（门禁 B3 / B4 的行首锚）",
+        "done": true,
+        "note": "第 4 节给出 [[ASSUMPTION: A-001…A-008]]，第 5 节给出 [[REQUIREMENT: R-Q1…R-Q4, R-OUT]]，格式可直接被门禁正则命中，且 R-Q* 与四问逐问对应。"
+      },
+      {
+        "item": "CAPABILITY_CHECKLIST.json（required_output / machine_check / source_sentence）",
+        "done": true,
+        "note": "19 条能力项，字段三元组齐全且机器可判：Q1 三情形均给出 n、c 的整数取值验证条件（p=0.10 处拒收概率≤0.05 / 接收概率≥0.90），Q2 要求 16 组合期望利润对照表并逐情况标最优，Q3 要求拓扑连接关系表 + 节点决策表。无空壳项，无“复述要求当完成”。"
+      },
+      {
+        "item": "PROBLEM_FACTS.json（题面给定值事实表）",
+        "done": true,
+        "note": "27 条事实，覆盖标称值 10%、两情形信度、表 1 六种情况全参数、表 2 的零配件/半成品/成品/售价与调换损失、以及附录三条定义；每条带 raw_quote 与 unit。"
+      },
+      {
+        "item": "DATA_PROFILE.json（附件数据画像）",
+        "done": true,
+        "note": "正确指出本题无独立附件数据文件，列 data_carriers 三类（表 1、表 2、图 1），给出 shape/列名/缺失说明/单位冲突与识别风险，并声明图 1 拓扑必须转录后方可进入计算，下游契约 used_by 明确。"
+      },
+      {
+        "item": "与上游一致（problem.txt / attachments.json）",
+        "done": true,
+        "note": "表 1 六情况参数与题面取值一致（情况 3 调换损失 30、情况 5 检测成本 8/1、情况 6 拆解费用 40 等差异点均未串行）；表 2 参数与图 1 规模（2 工序 8 零配件）一致；DATA_PROFILE 的 source 指向 00-input/attachments.json，无冲突。"
+      },
+      {
+        "item": "不越界（本阶段不产生自算数字）",
+        "done": true,
+        "note": "正文仅出现结构性计数（决策空间 2^4=16、图数 16），无任何结果性数值；派生量显式留给后续阶段脚本。"
+      }
+    ],
+    "findings": [
+      {
+        "severity": "minor",
+        "where": "PROBLEM_ANALYSIS.md 第 8 节 ARCH_DECLARATION",
+        "issue": "审计副本在该节被截断（仅见注释起始标记），无法核验该声明是否完整非空。",
+        "fix": "确认该注释块在磁盘文件中已闭合且含实质内容（架构/渲染声明），否则补全。"
+      },
+      {
+        "severity": "minor",
+        "where": "PROBLEM_FACTS.json F-T2-SEMI",
+        "issue": "raw_quote 仅为表头“半成品 次品率 装配成本 检测成本 拆解费用”，未包含 8/4/6 取值行，与“逐字定位给定值”的自述定位强度不符（取值实际锚在 F-T2-PART-1..3 的合并行里）。",
+        "fix": "为半成品 1–3 各补一条含取值的 raw_quote，或将 F-T2-SEMI 的 raw_quote 指向含取值的原始行。"
+      },
+      {
+        "severity": "minor",
+        "where": "PROBLEM_FACTS.json F-T2-PART-1/2/3",
+        "issue": "raw_quote 把零配件行与半成品行拼成同一串（如 \"1 10% 2 1 1 10% 8 4 6\"），若题面原文的空白/换行与该复现串不完全一致，逐字定位校验可能失败。",
+        "fix": "改为按原始行的连续子串引用，或注明这是去空白后的规范化串。"
+      },
+      {
+        "severity": "minor",
+        "where": "PROBLEM_ANALYSIS.md 第 1 节末注",
+        "issue": "注中把 S14、S22 归类为“由 required_output 覆盖”，但二者实际上正是 C-Q2-EXCHANGE、C-UNIT-DEF 的 source_sentence 原文，表述与实际情况不一致（无害但易误导后续对账）。",
+        "fix": "修正为“作为 source_sentence 被逐字认领”。"
+      },
+      {
+        "severity": "minor",
+        "where": "PROBLEM_ANALYSIS.md 第 3 节“统一指标”",
+        "issue": "阶段 1 预置了 EΠ 表达式（售价×合格交付率 − 采购 − 检测 − 装配 − 拆解 − 调换损失），与 CAPABILITY_CHECKLIST 的 C-Q2-MODEL machine_check（五项成本的期望利润表达式）存在口径漂移风险，尤其拆解/调换损失与“合格交付率”的乘算关系未说清。",
+        "fix": "在阶段 2 建模时显式对齐两处口径，或在第 3 节标注“口径草案，以 02-model 的最终表达式为准”。"
+      },
+      {
+        "severity": "minor",
+        "where": "DATA_PROFILE.json data_carriers[1]",
+        "issue": "table-2 未给出 columns 列表（table-1 有），复合表结构仅以文字描述，下游解析时缺机器可读的列约束。",
+        "fix": "补 columns 字段，明确零配件/半成品/成品三段的列名与列宽。"
+      }
+    ],
+    "missing": [],
+    "model": "glm-5.3-flash-free",
+    "at": "2026-09-25T21:50:08.392Z"
+  }
+}

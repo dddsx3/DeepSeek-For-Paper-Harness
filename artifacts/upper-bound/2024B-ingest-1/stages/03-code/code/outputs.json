@@ -1,0 +1,2863 @@
+{
+  "q1": {
+    "method": "单侧二项检验两点设计 + 整数样本量最小化搜索",
+    "p_nom": 0.1,
+    "p_alt": 0.15000000000000002,
+    "delta": 0.05,
+    "n_max": 1000,
+    "case1_reject": {
+      "reading": "在 1-alpha1 信度下认定 p > p_nom 才拒收；控制 P(X>=c+1|p_nom)<=alpha1，且 p_alt 处功效>=1-beta",
+      "n_star": 368,
+      "c_star": 46,
+      "reject_prob_at_p_nom": 0.04964485262694085,
+      "reject_prob_at_p_alt": 0.9000671838547158,
+      "alpha": 0.05,
+      "power_floor": 0.9,
+      "one_sided_upper_conf_bound_at_c_star": 0.15698857941774091,
+      "constraint_ok": true
+    },
+    "case2_accept": {
+      "reading": "在 1-alpha2 信度下认定 p <= p_nom 才接收；单侧上置信界<=p_nom 等价于 P(X<=c|p_nom)<=alpha2，且 p_alt 处误收<=beta",
+      "n_star": 22,
+      "c_star": 0,
+      "accept_prob_at_p_nom": 0.0984770902183611,
+      "accept_prob_at_p_alt": 0.02800376120856161,
+      "alpha": 0.1,
+      "one_sided_upper_conf_bound_at_c_star": 0.09937197978872148,
+      "constraint_ok": true
+    },
+    "case2_accept_supplier_risk_reading": {
+      "reading": "具名对照（供应方风险口径）：仅控 P(X<=c|p_nom)>=1-alpha2，不施加功效约束；该口径退化为极小样本，与题面“以信度认定不超过标称值”的语义相反，不作为主答案",
+      "n_star": 1,
+      "c_star": 0,
+      "accept_prob_at_p_nom": 0.9,
+      "one_sided_upper_conf_bound_at_c_star": 0.8999999999999999,
+      "bound_exceeds_nominal": true
+    },
+    "sampling_cost": {
+      "bearer": "企业",
+      "unit_cost_basis": 1.0,
+      "case1_cost": 368.0,
+      "case2_cost": 22.0,
+      "note": "题面未给单件检测费金额，按每件单价归一化；因费用线性可缩放，比较结论与单价无关"
+    },
+    "oc_curve": {
+      "n": 368,
+      "c": 46,
+      "points": [
+        {
+          "p": 0.0,
+          "L": 1.0
+        },
+        {
+          "p": 0.01,
+          "L": 1.0
+        },
+        {
+          "p": 0.02,
+          "L": 1.0
+        },
+        {
+          "p": 0.030000000000000006,
+          "L": 0.9999999999999999
+        },
+        {
+          "p": 0.04,
+          "L": 0.9999999999960634
+        },
+        {
+          "p": 0.05,
+          "L": 0.999999994561581
+        },
+        {
+          "p": 0.06000000000000001,
+          "L": 0.9999989217058792
+        },
+        {
+          "p": 0.07,
+          "L": 0.9999442310658849
+        },
+        {
+          "p": 0.08,
+          "L": 0.9989232411479264
+        },
+        {
+          "p": 0.09,
+          "L": 0.9901921950627811
+        },
+        {
+          "p": 0.1,
+          "L": 0.9503551473730592
+        },
+        {
+          "p": 0.11000000000000001,
+          "L": 0.8421976903081569
+        },
+        {
+          "p": 0.12000000000000002,
+          "L": 0.6527341075172686
+        },
+        {
+          "p": 0.13,
+          "L": 0.42495051337855283
+        },
+        {
+          "p": 0.14,
+          "L": 0.22772037326028705
+        },
+        {
+          "p": 0.15,
+          "L": 0.09993281614528485
+        },
+        {
+          "p": 0.16,
+          "L": 0.03604164936159576
+        },
+        {
+          "p": 0.17,
+          "L": 0.01076477925587606
+        },
+        {
+          "p": 0.18,
+          "L": 0.002686899698518908
+        },
+        {
+          "p": 0.19,
+          "L": 0.0005656293385875989
+        },
+        {
+          "p": 0.2,
+          "L": 0.00010129951584124283
+        },
+        {
+          "p": 0.21000000000000002,
+          "L": 1.5555980271729193e-05
+        },
+        {
+          "p": 0.22000000000000003,
+          "L": 2.0627507652983123e-06
+        },
+        {
+          "p": 0.23000000000000004,
+          "L": 2.3764593073046975e-07
+        },
+        {
+          "p": 0.24000000000000005,
+          "L": 2.391527424000128e-08
+        },
+        {
+          "p": 0.25,
+          "L": 2.111978624528067e-09
+        },
+        {
+          "p": 0.26,
+          "L": 1.643201738217081e-10
+        },
+        {
+          "p": 0.27,
+          "L": 1.1301491667368475e-11
+        },
+        {
+          "p": 0.28,
+          "L": 6.890395758716355e-13
+        },
+        {
+          "p": 0.29000000000000004,
+          "L": 3.732693062845437e-14
+        },
+        {
+          "p": 0.3,
+          "L": 1.8000397834055315e-15
+        },
+        {
+          "p": 0.31,
+          "L": 7.7385268868572e-17
+        },
+        {
+          "p": 0.32,
+          "L": 2.969084513862285e-18
+        },
+        {
+          "p": 0.33,
+          "L": 1.017409570300548e-19
+        },
+        {
+          "p": 0.34,
+          "L": 3.11500265054051e-21
+        },
+        {
+          "p": 0.35,
+          "L": 8.522335077328128e-23
+        },
+        {
+          "p": 0.36,
+          "L": 2.083144641164055e-24
+        },
+        {
+          "p": 0.37,
+          "L": 4.547202445054212e-26
+        },
+        {
+          "p": 0.38,
+          "L": 8.857706177586492e-28
+        },
+        {
+          "p": 0.39,
+          "L": 1.538247755777888e-29
+        },
+        {
+          "p": 0.4,
+          "L": 2.378621195703874e-31
+        }
+      ]
+    },
+    "sample_size_vs_confidence": [
+      {
+        "confidence": 0.9,
+        "n_case1_reject": 288,
+        "c_case1_reject": 35,
+        "n_case2_accept": 22,
+        "c_case2_accept": 0
+      },
+      {
+        "confidence": 0.95,
+        "n_case1_reject": 368,
+        "c_case1_reject": 46,
+        "n_case2_accept": 29,
+        "c_case2_accept": 0
+      },
+      {
+        "confidence": 0.99,
+        "n_case1_reject": 555,
+        "c_case1_reject": 72,
+        "n_case2_accept": 44,
+        "c_case2_accept": 0
+      }
+    ],
+    "normal_approx": {
+      "threshold": 5,
+      "case1_n_times_p_nom": 36.800000000000004,
+      "case1_n_times_one_minus_p_nom": 331.2,
+      "case1_normal_approx_ok": true
+    }
+  },
+  "q2": {
+    "method": "16 组合全枚举 + 期望利润闭式比较",
+    "strategy_count": 16,
+    "cases": [
+      {
+        "case": 1,
+        "params": {
+          "p1": 0.1,
+          "p2": 0.1,
+          "p0": 0.1,
+          "a1": 4.0,
+          "c1": 2.0,
+          "a2": 18.0,
+          "c2": 3.0,
+          "A": 6.0,
+          "c0": 3.0,
+          "s": 56.0,
+          "l": 6.0,
+          "t": 5.0
+        },
+        "best": {
+          "decision": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "Z1": 0,
+          "Z2": 0,
+          "C": 0,
+          "D": 1,
+          "profit": 21.680384087791495,
+          "unit_cost": 34.319615912208505,
+          "q": 0.7290000000000001,
+          "Kf": 28.0,
+          "Kr": 6.0,
+          "kappa": 22.0,
+          "cost_breakdown": {
+            "procurement": 22.0,
+            "inspection": 0.0,
+            "assembly": 8.23045267489712,
+            "product_inspection": 0.0,
+            "disassembly": 1.8587105624142652,
+            "exchange_loss": 2.2304526748971183
+          },
+          "breakdown_residual": 0.0
+        },
+        "strategies": [
+          {
+            "decision": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "unit_cost": 40.639231824417,
+            "profit": 15.360768175582997,
+            "breakdown_residual": 0.0
+          },
+          {
+            "decision": [
+              0,
+              0,
+              0,
+              1
+            ],
+            "unit_cost": 34.319615912208505,
+            "profit": 21.680384087791495,
+            "breakdown_residual": 0.0
+          },
+          {
+            "decision": [
+              0,
+              0,
+              1,
+              0
+            ],
+            "unit_cost": 42.52400548696844,
+            "profit": 13.475994513031559,
+            "breakdown_residual": 7.105427357601002e-15
+          },
+          {
+            "decision": [
+              0,
+              0,
+              1,
+              1
+            ],
+            "unit_cost": 36.204389574759944,
+            "profit": 19.795610425240056,
+            "breakdown_residual": 0.0
+          },
+          {
+            "decision": [
+              0,
+              1,
+              0,
+              0
+            ],
+            "unit_cost": 42.559670781893004,
+            "profit": 13.440329218106996,
+            "breakdown_residual": -7.105427357601002e-15
+          },
+          {
+            "decision": [
+              0,
+              1,
+              0,
+              1
+            ],
+            "unit_cost": 38.02469135802469,
+            "profit": 17.97530864197531,
+            "breakdown_residual": 0.0
+          },
+          {
+            "decision": [
+              0,
+              1,
+              1,
+              0
+            ],
+            "unit_cost": 44.8559670781893,
+            "profit": 11.144032921810698,
+            "breakdown_residual": -7.105427357601002e-15
+          },
+          {
+            "decision": [
+              0,
+              1,
+              1,
+              1
+            ],
+            "unit_cost": 40.32098765432099,
+            "profit": 15.679012345679013,
+            "breakdown_residual": 0.0
+          },
+          {
+            "decision": [
+              1,
+              0,
+              0,
+              0
+            ],
+            "unit_cost": 39.267489711934154,
+            "profit": 16.732510288065846,
+            "breakdown_residual": 0.0
+          },
+          {
+            "decision": [
+              1,
+              0,
+              0,
+              1
+            ],
+            "unit_cost": 35.123456790123456,
+            "profit": 20.876543209876544,
+            "breakdown_residual": 0.0
+          },
+          {
+            "decision": [
+              1,
+              0,
+              1,
+              0
+            ],
+            "unit_cost": 41.563786008230444,
+            "profit": 14.436213991769556,
+            "breakdown_residual": 7.105427357601002e-15
+          },
+          {
+            "decision": [
+              1,
+              0,
+              1,
+              1
+            ],
+            "unit_cost": 37.419753086419746,
+            "profit": 18.580246913580254,
+            "breakdown_residual": 7.105427357601002e-15
+          },
+          {
+            "decision": [
+              1,
+              1,
+              0,
+              0
+            ],
+            "unit_cost": 40.666666666666664,
+            "profit": 15.333333333333336,
+            "breakdown_residual": 0.0
+          },
+          {
+            "decision": [
+              1,
+              1,
+              0,
+              1
+            ],
+            "unit_cost": 38.44444444444444,
+            "profit": 17.555555555555557,
+            "breakdown_residual": 0.0
+          },
+          {
+            "decision": [
+              1,
+              1,
+              1,
+              0
+            ],
+            "unit_cost": 43.333333333333336,
+            "profit": 12.666666666666664,
+            "breakdown_residual": 0.0
+          },
+          {
+            "decision": [
+              1,
+              1,
+              1,
+              1
+            ],
+            "unit_cost": 41.111111111111114,
+            "profit": 14.888888888888886,
+            "breakdown_residual": -7.105427357601002e-15
+          }
+        ]
+      },
+      {
+        "case": 2,
+        "params": {
+          "p1": 0.2,
+          "p2": 0.2,
+          "p0": 0.2,
+          "a1": 4.0,
+          "c1": 2.0,
+          "a2": 18.0,
+          "c2": 3.0,
+          "A": 6.0,
+          "c0": 3.0,
+          "s": 56.0,
+          "l": 6.0,
+          "t": 5.0
+        },
+        "best": {
+          "decision": [
+            1,
+            0,
+            0,
+            1
+          ],
+          "Z1": 1,
+          "Z2": 0,
+          "C": 0,
+          "D": 1,
+          "profit": 13.812500000000007,
+          "unit_cost": 42.18749999999999,
+          "q": 0.6400000000000001,
+          "Kf": 31.5,
+          "Kr": 8.0,
+          "kappa": 23.5,
+          "cost_breakdown": {
+            "procurement": 23.0,
+            "inspection": 3.624999999999999,
+            "assembly": 9.374999999999996,
+            "product_inspection": 0.0,
+            "disassembly": 2.8124999999999982,
+            "exchange_loss": 3.374999999999998
+          },
+          "breakdown_residual": 0.0
+        },
+        "strategies": [
+          {
+            "decision": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "unit_cost": 60.40624999999998,
+            "profit": -4.406249999999979,
+            "breakdown_residual": 7.105427357601002e-15
+          },
+          {
+            "decision": [
+              0,
+              0,
+              0,
+              1
+            ],
+            "unit_cost": 44.20312499999999,
+            "profit": 11.796875000000007,
+            "breakdown_residual": 0.0
+          },
+          {
+            "decision": [
+              0,
+              0,
+              1,
+              0
+            ],
+            "unit_cost": 60.546874999999986,
+            "profit": -4.546874999999986,
+            "breakdown_residual": 0.0
+          },
+          {
+            "decision": [
+              0,
+              0,
+              1,
+              1
+            ],
+            "unit_cost": 44.34374999999999,
+            "profit": 11.656250000000007,
+            "breakdown_residual": 0.0
+          },
+          {
+            "decision": [
+              0,
+              1,
+              0,
+              0
+            ],
+            "unit_cost": 60.015624999999986,
+            "profit": -4.015624999999986,
+            "breakdown_residual": 0.0
+          },
+          {
+            "decision": [
+              0,
+              1,
+              0,
+              1
+            ],
+            "unit_cost": 47.49999999999999,
+            "profit": 8.500000000000007,
+            "breakdown_residual": 0.0
+          },
+          {
+            "decision": [
+              0,
+              1,
+              1,
+              0
+            ],
+            "unit_cost": 61.328124999999986,
+            "profit": -5.328124999999986,
+            "breakdown_residual": 0.0
+          },
+          {
+            "decision": [
+              0,
+              1,
+              1,
+              1
+            ],
+            "unit_cost": 48.81249999999999,
+            "profit": 7.187500000000007,
+            "breakdown_residual": 0.0
+          },
+          {
+            "decision": [
+              1,
+              0,
+              0,
+              0
+            ],
+            "unit_cost": 52.593749999999986,
+            "profit": 3.406250000000014,
+            "breakdown_residual": 0.0
+          },
+          {
+            "decision": [
+              1,
+              0,
+              0,
+              1
+            ],
+            "unit_cost": 42.18749999999999,
+            "profit": 13.812500000000007,
+            "breakdown_residual": 0.0
+          },
+          {
+            "decision": [
+              1,
+              0,
+              1,
+              0
+            ],
+            "unit_cost": 53.90624999999999,
+            "profit": 2.093750000000007,
+            "breakdown_residual": 0.0
+          },
+          {
+            "decision": [
+              1,
+              0,
+              1,
+              1
+            ],
+            "unit_cost": 43.49999999999999,
+            "profit": 12.500000000000007,
+            "breakdown_residual": 0.0
+          },
+          {
+            "decision": [
+              1,
+              1,
+              0,
+              0
+            ],
+            "unit_cost": 51.1875,
+            "profit": 4.8125,
+            "breakdown_residual": 0.0
+          },
+          {
+            "decision": [
+              1,
+              1,
+              0,
+              1
+            ],
+            "unit_cost": 45.25,
+            "profit": 10.75,
+            "breakdown_residual": 0.0
+          },
+          {
+            "decision": [
+              1,
+              1,
+              1,
+              0
+            ],
+            "unit_cost": 53.4375,
+            "profit": 2.5625,
+            "breakdown_residual": 0.0
+          },
+          {
+            "decision": [
+              1,
+              1,
+              1,
+              1
+            ],
+            "unit_cost": 47.5,
+            "profit": 8.5,
+            "breakdown_residual": 0.0
+          }
+        ]
+      },
+      {
+        "case": 3,
+        "params": {
+          "p1": 0.1,
+          "p2": 0.1,
+          "p0": 0.1,
+          "a1": 4.0,
+          "c1": 2.0,
+          "a2": 18.0,
+          "c2": 3.0,
+          "A": 6.0,
+          "c0": 3.0,
+          "s": 56.0,
+          "l": 30.0,
+          "t": 5.0
+        },
+        "best": {
+          "decision": [
+            0,
+            0,
+            1,
+            1
+          ],
+          "Z1": 0,
+          "Z2": 0,
+          "C": 1,
+          "D": 1,
+          "profit": 19.795610425240056,
+          "unit_cost": 36.204389574759944,
+          "q": 0.7290000000000001,
+          "Kf": 28.0,
+          "Kr": 6.0,
+          "kappa": 22.0,
+          "cost_breakdown": {
+            "procurement": 22.0,
+            "inspection": 0.0,
+            "assembly": 8.23045267489712,
+            "product_inspection": 4.11522633744856,
+            "disassembly": 1.8587105624142652,
+            "exchange_loss": 0.0
+          },
+          "breakdown_residual": 0.0
+        },
+        "strategies": [
+          {
+            "decision": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "unit_cost": 49.56104252400547,
+            "profit": 6.438957475994528,
+            "breakdown_residual": 7.105427357601002e-15
+          },
+          {
+            "decision": [
+              0,
+              0,
+              0,
+              1
+            ],
+            "unit_cost": 43.241426611796975,
+            "profit": 12.758573388203025,
+            "breakdown_residual": 0.0
+          },
+          {
+            "decision": [
+              0,
+              0,
+              1,
+              0
+            ],
+            "unit_cost": 42.52400548696844,
+            "profit": 13.475994513031559,
+            "breakdown_residual": 7.105427357601002e-15
+          },
+          {
+            "decision": [
+              0,
+              0,
+              1,
+              1
+            ],
+            "unit_cost": 36.204389574759944,
+            "profit": 19.795610425240056,
+            "breakdown_residual": 0.0
+          },
+          {
+            "decision": [
+              0,
+              1,
+              0,
+              0
+            ],
+            "unit_cost": 48.18930041152263,
+            "profit": 7.81069958847737,
+            "breakdown_residual": -7.105427357601002e-15
+          },
+          {
+            "decision": [
+              0,
+              1,
+              0,
+              1
+            ],
+            "unit_cost": 43.65432098765432,
+            "profit": 12.345679012345677,
+            "breakdown_residual": -7.105427357601002e-15
+          },
+          {
+            "decision": [
+              0,
+              1,
+              1,
+              0
+            ],
+            "unit_cost": 44.8559670781893,
+            "profit": 11.144032921810698,
+            "breakdown_residual": -7.105427357601002e-15
+          },
+          {
+            "decision": [
+              0,
+              1,
+              1,
+              1
+            ],
+            "unit_cost": 40.32098765432099,
+            "profit": 15.679012345679013,
+            "breakdown_residual": 0.0
+          },
+          {
+            "decision": [
+              1,
+              0,
+              0,
+              0
+            ],
+            "unit_cost": 44.89711934156377,
+            "profit": 11.102880658436227,
+            "breakdown_residual": 7.105427357601002e-15
+          },
+          {
+            "decision": [
+              1,
+              0,
+              0,
+              1
+            ],
+            "unit_cost": 40.75308641975308,
+            "profit": 15.246913580246918,
+            "breakdown_residual": 0.0
+          },
+          {
+            "decision": [
+              1,
+              0,
+              1,
+              0
+            ],
+            "unit_cost": 41.563786008230444,
+            "profit": 14.436213991769556,
+            "breakdown_residual": 7.105427357601002e-15
+          },
+          {
+            "decision": [
+              1,
+              0,
+              1,
+              1
+            ],
+            "unit_cost": 37.419753086419746,
+            "profit": 18.580246913580254,
+            "breakdown_residual": 7.105427357601002e-15
+          },
+          {
+            "decision": [
+              1,
+              1,
+              0,
+              0
+            ],
+            "unit_cost": 43.333333333333336,
+            "profit": 12.666666666666664,
+            "breakdown_residual": 0.0
+          },
+          {
+            "decision": [
+              1,
+              1,
+              0,
+              1
+            ],
+            "unit_cost": 41.111111111111114,
+            "profit": 14.888888888888886,
+            "breakdown_residual": -7.105427357601002e-15
+          },
+          {
+            "decision": [
+              1,
+              1,
+              1,
+              0
+            ],
+            "unit_cost": 43.333333333333336,
+            "profit": 12.666666666666664,
+            "breakdown_residual": 0.0
+          },
+          {
+            "decision": [
+              1,
+              1,
+              1,
+              1
+            ],
+            "unit_cost": 41.111111111111114,
+            "profit": 14.888888888888886,
+            "breakdown_residual": -7.105427357601002e-15
+          }
+        ]
+      },
+      {
+        "case": 4,
+        "params": {
+          "p1": 0.2,
+          "p2": 0.2,
+          "p0": 0.2,
+          "a1": 4.0,
+          "c1": 1.0,
+          "a2": 18.0,
+          "c2": 1.0,
+          "A": 6.0,
+          "c0": 2.0,
+          "s": 56.0,
+          "l": 30.0,
+          "t": 5.0
+        },
+        "best": {
+          "decision": [
+            1,
+            0,
+            1,
+            1
+          ],
+          "Z1": 1,
+          "Z2": 0,
+          "C": 1,
+          "D": 1,
+          "profit": 15.875000000000007,
+          "unit_cost": 40.12499999999999,
+          "q": 0.6400000000000001,
+          "Kf": 30.25,
+          "Kr": 7.0,
+          "kappa": 23.25,
+          "cost_breakdown": {
+            "procurement": 23.0,
+            "inspection": 1.8124999999999996,
+            "assembly": 9.374999999999996,
+            "product_inspection": 3.124999999999999,
+            "disassembly": 2.8124999999999982,
+            "exchange_loss": 0.0
+          },
+          "breakdown_residual": 0.0
+        },
+        "strategies": [
+          {
+            "decision": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "unit_cost": 83.28124999999999,
+            "profit": -27.281249999999986,
+            "breakdown_residual": -1.4210854715202004e-14
+          },
+          {
+            "decision": [
+              0,
+              0,
+              0,
+              1
+            ],
+            "unit_cost": 67.07812499999997,
+            "profit": -11.078124999999972,
+            "breakdown_residual": 1.4210854715202004e-14
+          },
+          {
+            "decision": [
+              0,
+              0,
+              1,
+              0
+            ],
+            "unit_cost": 58.593749999999986,
+            "profit": -2.593749999999986,
+            "breakdown_residual": 0.0
+          },
+          {
+            "decision": [
+              0,
+              0,
+              1,
+              1
+            ],
+            "unit_cost": 42.39062499999999,
+            "profit": 13.609375000000007,
+            "breakdown_residual": 0.0
+          },
+          {
+            "decision": [
+              0,
+              1,
+              0,
+              0
+            ],
+            "unit_cost": 69.60937499999999,
+            "profit": -13.609374999999986,
+            "breakdown_residual": 0.0
+          },
+          {
+            "decision": [
+              0,
+              1,
+              0,
+              1
+            ],
+            "unit_cost": 57.374999999999986,
+            "profit": -1.3749999999999858,
+            "breakdown_residual": 0.0
+          },
+          {
+            "decision": [
+              0,
+              1,
+              1,
+              0
+            ],
+            "unit_cost": 55.859374999999986,
+            "profit": 0.1406250000000142,
+            "breakdown_residual": 7.105427357601002e-15
+          },
+          {
+            "decision": [
+              0,
+              1,
+              1,
+              1
+            ],
+            "unit_cost": 43.62499999999999,
+            "profit": 12.375000000000007,
+            "breakdown_residual": 0.0
+          },
+          {
+            "decision": [
+              1,
+              0,
+              0,
+              0
+            ],
+            "unit_cost": 64.14062499999999,
+            "profit": -8.140624999999986,
+            "breakdown_residual": 0.0
+          },
+          {
+            "decision": [
+              1,
+              0,
+              0,
+              1
+            ],
+            "unit_cost": 53.874999999999986,
+            "profit": 2.125000000000014,
+            "breakdown_residual": 0.0
+          },
+          {
+            "decision": [
+              1,
+              0,
+              1,
+              0
+            ],
+            "unit_cost": 50.39062499999999,
+            "profit": 5.609375000000007,
+            "breakdown_residual": 0.0
+          },
+          {
+            "decision": [
+              1,
+              0,
+              1,
+              1
+            ],
+            "unit_cost": 40.12499999999999,
+            "profit": 15.875000000000007,
+            "breakdown_residual": 0.0
+          },
+          {
+            "decision": [
+              1,
+              1,
+              0,
+              0
+            ],
+            "unit_cost": 52.5,
+            "profit": 3.5,
+            "breakdown_residual": 0.0
+          },
+          {
+            "decision": [
+              1,
+              1,
+              0,
+              1
+            ],
+            "unit_cost": 46.75,
+            "profit": 9.25,
+            "breakdown_residual": 0.0
+          },
+          {
+            "decision": [
+              1,
+              1,
+              1,
+              0
+            ],
+            "unit_cost": 47.5,
+            "profit": 8.5,
+            "breakdown_residual": 0.0
+          },
+          {
+            "decision": [
+              1,
+              1,
+              1,
+              1
+            ],
+            "unit_cost": 41.75,
+            "profit": 14.25,
+            "breakdown_residual": 0.0
+          }
+        ]
+      },
+      {
+        "case": 5,
+        "params": {
+          "p1": 0.1,
+          "p2": 0.2,
+          "p0": 0.1,
+          "a1": 4.0,
+          "c1": 8.0,
+          "a2": 18.0,
+          "c2": 1.0,
+          "A": 6.0,
+          "c0": 2.0,
+          "s": 56.0,
+          "l": 10.0,
+          "t": 5.0
+        },
+        "best": {
+          "decision": [
+            0,
+            0,
+            1,
+            1
+          ],
+          "Z1": 0,
+          "Z2": 0,
+          "C": 1,
+          "D": 1,
+          "profit": 18.93827160493828,
+          "unit_cost": 37.06172839506172,
+          "q": 0.6480000000000001,
+          "Kf": 28.0,
+          "Kr": 6.0,
+          "kappa": 22.0,
+          "cost_breakdown": {
+            "procurement": 22.0,
+            "inspection": 0.0,
+            "assembly": 9.259259259259258,
+            "product_inspection": 3.0864197530864192,
+            "disassembly": 2.716049382716048,
+            "exchange_loss": 0.0
+          },
+          "breakdown_residual": 7.105427357601002e-15
+        },
+        "strategies": [
+          {
+            "decision": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "unit_cost": 48.64197530864197,
+            "profit": 7.3580246913580325,
+            "breakdown_residual": 0.0
+          },
+          {
+            "decision": [
+              0,
+              0,
+              0,
+              1
+            ],
+            "unit_cost": 39.407407407407405,
+            "profit": 16.592592592592595,
+            "breakdown_residual": 0.0
+          },
+          {
+            "decision": [
+              0,
+              0,
+              1,
+              0
+            ],
+            "unit_cost": 46.29629629629628,
+            "profit": 9.703703703703717,
+            "breakdown_residual": 7.105427357601002e-15
+          },
+          {
+            "decision": [
+              0,
+              0,
+              1,
+              1
+            ],
+            "unit_cost": 37.06172839506172,
+            "profit": 18.93827160493828,
+            "breakdown_residual": 7.105427357601002e-15
+          },
+          {
+            "decision": [
+              0,
+              1,
+              0,
+              0
+            ],
+            "unit_cost": 44.01234567901234,
+            "profit": 11.987654320987659,
+            "breakdown_residual": 7.105427357601002e-15
+          },
+          {
+            "decision": [
+              0,
+              1,
+              0,
+              1
+            ],
+            "unit_cost": 38.910493827160494,
+            "profit": 17.089506172839506,
+            "breakdown_residual": 0.0
+          },
+          {
+            "decision": [
+              0,
+              1,
+              1,
+              0
+            ],
+            "unit_cost": 44.1358024691358,
+            "profit": 11.864197530864203,
+            "breakdown_residual": 7.105427357601002e-15
+          },
+          {
+            "decision": [
+              0,
+              1,
+              1,
+              1
+            ],
+            "unit_cost": 39.03395061728395,
+            "profit": 16.96604938271605,
+            "breakdown_residual": 0.0
+          },
+          {
+            "decision": [
+              1,
+              0,
+              0,
+              0
+            ],
+            "unit_cost": 55.740740740740726,
+            "profit": 0.25925925925927373,
+            "breakdown_residual": 0.0
+          },
+          {
+            "decision": [
+              1,
+              0,
+              0,
+              1
+            ],
+            "unit_cost": 48.6111111111111,
+            "profit": 7.3888888888889,
+            "breakdown_residual": 7.105427357601002e-15
+          },
+          {
+            "decision": [
+              1,
+              0,
+              1,
+              0
+            ],
+            "unit_cost": 54.62962962962962,
+            "profit": 1.370370370370381,
+            "breakdown_residual": 0.0
+          },
+          {
+            "decision": [
+              1,
+              0,
+              1,
+              1
+            ],
+            "unit_cost": 47.49999999999999,
+            "profit": 8.500000000000007,
+            "breakdown_residual": 0.0
+          },
+          {
+            "decision": [
+              1,
+              1,
+              0,
+              0
+            ],
+            "unit_cost": 48.981481481481474,
+            "profit": 7.018518518518526,
+            "breakdown_residual": 7.105427357601002e-15
+          },
+          {
+            "decision": [
+              1,
+              1,
+              0,
+              1
+            ],
+            "unit_cost": 46.41666666666666,
+            "profit": 9.583333333333343,
+            "breakdown_residual": 7.105427357601002e-15
+          },
+          {
+            "decision": [
+              1,
+              1,
+              1,
+              0
+            ],
+            "unit_cost": 50.09259259259259,
+            "profit": 5.907407407407412,
+            "breakdown_residual": 7.105427357601002e-15
+          },
+          {
+            "decision": [
+              1,
+              1,
+              1,
+              1
+            ],
+            "unit_cost": 47.52777777777777,
+            "profit": 8.472222222222229,
+            "breakdown_residual": 7.105427357601002e-15
+          }
+        ]
+      },
+      {
+        "case": 6,
+        "params": {
+          "p1": 0.05,
+          "p2": 0.05,
+          "p0": 0.05,
+          "a1": 4.0,
+          "c1": 2.0,
+          "a2": 18.0,
+          "c2": 3.0,
+          "A": 6.0,
+          "c0": 3.0,
+          "s": 56.0,
+          "l": 10.0,
+          "t": 40.0
+        },
+        "best": {
+          "decision": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "Z1": 0,
+          "Z2": 0,
+          "C": 0,
+          "D": 0,
+          "profit": 21.6786703601108,
+          "unit_cost": 34.3213296398892,
+          "q": 0.8573749999999999,
+          "Kf": 28.0,
+          "Kr": 6.0,
+          "kappa": 22.0,
+          "cost_breakdown": {
+            "procurement": 25.659717159935852,
+            "inspection": 0.0,
+            "assembly": 6.9981046799825055,
+            "product_inspection": 0.0,
+            "disassembly": 0.0,
+            "exchange_loss": 1.6635077999708427
+          },
+          "breakdown_residual": 0.0
+        },
+        "strategies": [
+          {
+            "decision": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "unit_cost": 34.3213296398892,
+            "profit": 21.6786703601108,
+            "breakdown_residual": 0.0
+          },
+          {
+            "decision": [
+              0,
+              0,
+              0,
+              1
+            ],
+            "unit_cost": 37.31564367983672,
+            "profit": 18.684356320163282,
+            "breakdown_residual": 0.0
+          },
+          {
+            "decision": [
+              0,
+              0,
+              1,
+              0
+            ],
+            "unit_cost": 36.156874179909614,
+            "profit": 19.843125820090386,
+            "breakdown_residual": -7.105427357601002e-15
+          },
+          {
+            "decision": [
+              0,
+              0,
+              1,
+              1
+            ],
+            "unit_cost": 39.15118821985713,
+            "profit": 16.848811780142867,
+            "breakdown_residual": 0.0
+          },
+          {
+            "decision": [
+              0,
+              1,
+              0,
+              0
+            ],
+            "unit_cost": 36.65403119988337,
+            "profit": 19.34596880011663,
+            "breakdown_residual": 0.0
+          },
+          {
+            "decision": [
+              0,
+              1,
+              0,
+              1
+            ],
+            "unit_cost": 38.47922437673131,
+            "profit": 17.52077562326869,
+            "breakdown_residual": 0.0
+          },
+          {
+            "decision": [
+              0,
+              1,
+              1,
+              0
+            ],
+            "unit_cost": 38.89779851290276,
+            "profit": 17.10220148709724,
+            "breakdown_residual": 0.0
+          },
+          {
+            "decision": [
+              0,
+              1,
+              1,
+              1
+            ],
+            "unit_cost": 40.7229916897507,
+            "profit": 15.2770083102493,
+            "breakdown_residual": 0.0
+          },
+          {
+            "decision": [
+              1,
+              0,
+              0,
+              0
+            ],
+            "unit_cost": 34.671234873888324,
+            "profit": 21.328765126111676,
+            "breakdown_residual": 0.0
+          },
+          {
+            "decision": [
+              1,
+              0,
+              0,
+              1
+            ],
+            "unit_cost": 36.581717451523545,
+            "profit": 19.418282548476455,
+            "breakdown_residual": 0.0
+          },
+          {
+            "decision": [
+              1,
+              0,
+              1,
+              0
+            ],
+            "unit_cost": 36.91500218690771,
+            "profit": 19.084997813092293,
+            "breakdown_residual": 7.105427357601002e-15
+          },
+          {
+            "decision": [
+              1,
+              0,
+              1,
+              1
+            ],
+            "unit_cost": 38.825484764542935,
+            "profit": 17.174515235457065,
+            "breakdown_residual": 0.0
+          },
+          {
+            "decision": [
+              1,
+              1,
+              0,
+              0
+            ],
+            "unit_cost": 36.7590027700831,
+            "profit": 19.2409972299169,
+            "breakdown_residual": 0.0
+          },
+          {
+            "decision": [
+              1,
+              1,
+              0,
+              1
+            ],
+            "unit_cost": 37.631578947368425,
+            "profit": 18.368421052631575,
+            "breakdown_residual": 0.0
+          },
+          {
+            "decision": [
+              1,
+              1,
+              1,
+              0
+            ],
+            "unit_cost": 39.390581717451525,
+            "profit": 16.609418282548475,
+            "breakdown_residual": 0.0
+          },
+          {
+            "decision": [
+              1,
+              1,
+              1,
+              1
+            ],
+            "unit_cost": 40.26315789473684,
+            "profit": 15.736842105263158,
+            "breakdown_residual": 7.105427357601002e-15
+          }
+        ]
+      }
+    ],
+    "best_combo": {
+      "case": 1,
+      "decision": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "profit": 21.680384087791495
+    },
+    "max_breakdown_residual": 7.105427357601002e-15
+  },
+  "q3": {
+    "method": "装配树节点级 DP：成本与合格率自底向上聚合、交付需求量自顶向下折算",
+    "node_count": 12,
+    "decision_table": [
+      {
+        "node": "P1",
+        "kind": "part",
+        "Z": 1,
+        "D": 0,
+        "U": 3.333333333333333,
+        "Q": 1.0,
+        "q": 0.9
+      },
+      {
+        "node": "P2",
+        "kind": "part",
+        "Z": 1,
+        "D": 0,
+        "U": 10.0,
+        "Q": 1.0,
+        "q": 0.9
+      },
+      {
+        "node": "P3",
+        "kind": "part",
+        "Z": 1,
+        "D": 0,
+        "U": 15.555555555555555,
+        "Q": 1.0,
+        "q": 0.9
+      },
+      {
+        "node": "S1",
+        "kind": "semi",
+        "Z": 0,
+        "D": 0,
+        "U": 36.888888888888886,
+        "Q": 0.9,
+        "q": 0.9
+      },
+      {
+        "node": "P4",
+        "kind": "part",
+        "Z": 1,
+        "D": 0,
+        "U": 3.333333333333333,
+        "Q": 1.0,
+        "q": 0.9
+      },
+      {
+        "node": "P5",
+        "kind": "part",
+        "Z": 1,
+        "D": 0,
+        "U": 10.0,
+        "Q": 1.0,
+        "q": 0.9
+      },
+      {
+        "node": "P6",
+        "kind": "part",
+        "Z": 1,
+        "D": 0,
+        "U": 15.555555555555555,
+        "Q": 1.0,
+        "q": 0.9
+      },
+      {
+        "node": "S2",
+        "kind": "semi",
+        "Z": 0,
+        "D": 0,
+        "U": 36.888888888888886,
+        "Q": 0.9,
+        "q": 0.9
+      },
+      {
+        "node": "P7",
+        "kind": "part",
+        "Z": 1,
+        "D": 0,
+        "U": 10.0,
+        "Q": 1.0,
+        "q": 0.9
+      },
+      {
+        "node": "P8",
+        "kind": "part",
+        "Z": 1,
+        "D": 0,
+        "U": 15.555555555555555,
+        "Q": 1.0,
+        "q": 0.9
+      },
+      {
+        "node": "S3",
+        "kind": "semi",
+        "Z": 0,
+        "D": 0,
+        "U": 33.55555555555556,
+        "Q": 0.9,
+        "q": 0.9
+      },
+      {
+        "node": "F",
+        "kind": "product",
+        "Z": 1,
+        "D": 1,
+        "U": 133.91312299954274,
+        "Q": 1.0,
+        "q": 0.6561000000000001
+      }
+    ],
+    "unit_cost_root": 133.91312299954274,
+    "profit": 66.08687700045726,
+    "node_cost": {
+      "P1": {
+        "U": 3.333333333333333,
+        "Q": 1.0,
+        "Kf": 3.333333333333333,
+        "Kr": 0.0,
+        "kappa": 0.0,
+        "xi": 0.0
+      },
+      "P2": {
+        "U": 10.0,
+        "Q": 1.0,
+        "Kf": 10.0,
+        "Kr": 0.0,
+        "kappa": 0.0,
+        "xi": 0.0
+      },
+      "P3": {
+        "U": 15.555555555555555,
+        "Q": 1.0,
+        "Kf": 15.555555555555555,
+        "Kr": 0.0,
+        "kappa": 0.0,
+        "xi": 0.0
+      },
+      "S1": {
+        "U": 36.888888888888886,
+        "Q": 0.9,
+        "Kf": 36.888888888888886,
+        "Kr": 11.999999999999996,
+        "kappa": 24.88888888888889,
+        "xi": 0.0
+      },
+      "P4": {
+        "U": 3.333333333333333,
+        "Q": 1.0,
+        "Kf": 3.333333333333333,
+        "Kr": 0.0,
+        "kappa": 0.0,
+        "xi": 0.0
+      },
+      "P5": {
+        "U": 10.0,
+        "Q": 1.0,
+        "Kf": 10.0,
+        "Kr": 0.0,
+        "kappa": 0.0,
+        "xi": 0.0
+      },
+      "P6": {
+        "U": 15.555555555555555,
+        "Q": 1.0,
+        "Kf": 15.555555555555555,
+        "Kr": 0.0,
+        "kappa": 0.0,
+        "xi": 0.0
+      },
+      "S2": {
+        "U": 36.888888888888886,
+        "Q": 0.9,
+        "Kf": 36.888888888888886,
+        "Kr": 11.999999999999996,
+        "kappa": 24.88888888888889,
+        "xi": 0.0
+      },
+      "P7": {
+        "U": 10.0,
+        "Q": 1.0,
+        "Kf": 10.0,
+        "Kr": 0.0,
+        "kappa": 0.0,
+        "xi": 0.0
+      },
+      "P8": {
+        "U": 15.555555555555555,
+        "Q": 1.0,
+        "Kf": 15.555555555555555,
+        "Kr": 0.0,
+        "kappa": 0.0,
+        "xi": 0.0
+      },
+      "S3": {
+        "U": 33.55555555555556,
+        "Q": 0.9,
+        "Kf": 33.55555555555556,
+        "Kr": 11.0,
+        "kappa": 22.555555555555557,
+        "xi": 0.0
+      },
+      "F": {
+        "U": 133.91312299954274,
+        "Q": 1.0,
+        "Kf": 121.33333333333333,
+        "Kr": 14.0,
+        "kappa": 107.33333333333333,
+        "xi": 10.0
+      }
+    },
+    "root_decision": {
+      "Z": 1,
+      "D": 1
+    },
+    "topology_robust": {
+      "variants": [
+        {
+          "variant": "baseline",
+          "semi_children": [
+            [
+              "P1",
+              "P2",
+              "P3"
+            ],
+            [
+              "P4",
+              "P5",
+              "P6"
+            ],
+            [
+              "P7",
+              "P8"
+            ]
+          ],
+          "profit": 66.08687700045726,
+          "root_decision": {
+            "Z": 1,
+            "D": 1
+          },
+          "detected_nodes": 9,
+          "disassembled_nodes": 1,
+          "decision_identical_to_baseline": true
+        },
+        {
+          "variant": "swap_3_4",
+          "semi_children": [
+            [
+              "P1",
+              "P2",
+              "P4"
+            ],
+            [
+              "P3",
+              "P5",
+              "P6"
+            ],
+            [
+              "P7",
+              "P8"
+            ]
+          ],
+          "profit": 66.08687700045724,
+          "root_decision": {
+            "Z": 1,
+            "D": 1
+          },
+          "detected_nodes": 9,
+          "disassembled_nodes": 1,
+          "decision_identical_to_baseline": false
+        },
+        {
+          "variant": "col_split",
+          "semi_children": [
+            [
+              "P1",
+              "P4",
+              "P7"
+            ],
+            [
+              "P2",
+              "P5",
+              "P8"
+            ],
+            [
+              "P3",
+              "P6"
+            ]
+          ],
+          "profit": 66.08687700045724,
+          "root_decision": {
+            "Z": 1,
+            "D": 1
+          },
+          "detected_nodes": 9,
+          "disassembled_nodes": 1,
+          "decision_identical_to_baseline": false
+        },
+        {
+          "variant": "cheap_grouped",
+          "semi_children": [
+            [
+              "P1",
+              "P4"
+            ],
+            [
+              "P2",
+              "P5",
+              "P3"
+            ],
+            [
+              "P6",
+              "P7",
+              "P8"
+            ]
+          ],
+          "profit": 66.08687700045724,
+          "root_decision": {
+            "Z": 1,
+            "D": 1
+          },
+          "detected_nodes": 9,
+          "disassembled_nodes": 1,
+          "decision_identical_to_baseline": false
+        },
+        {
+          "variant": "size_4_2_2",
+          "semi_children": [
+            [
+              "P1",
+              "P2",
+              "P3",
+              "P4"
+            ],
+            [
+              "P5",
+              "P6"
+            ],
+            [
+              "P7",
+              "P8"
+            ]
+          ],
+          "profit": 66.08687700045724,
+          "root_decision": {
+            "Z": 1,
+            "D": 1
+          },
+          "detected_nodes": 9,
+          "disassembled_nodes": 1,
+          "decision_identical_to_baseline": false
+        }
+      ],
+      "agreement_rate": 0.2
+    }
+  },
+  "q4": {
+    "method": "点估计重解 + Clopper-Pearson 区间在决策固定下传播 + 蒙特卡洛重抽样一致率",
+    "confidence_level": 0.95,
+    "sample_size": 100,
+    "sample_size_note": "题面未给问题 4 的样本量；实现取 n=100、按各情形标称次品率取整观测次品数（p_hat 与标称值一致），口径见 IMPLEMENTATION_PARAMS",
+    "consistency_threshold": 0.95,
+    "q2": {
+      "cases": [
+        {
+          "case": 1,
+          "sample_size": 100,
+          "x": [
+            10,
+            10,
+            10
+          ],
+          "p_hat": [
+            0.1,
+            0.1,
+            0.1
+          ],
+          "ci": [
+            [
+              0.04900468922148614,
+              0.17622259774002214
+            ],
+            [
+              0.04900468922148614,
+              0.17622259774002214
+            ],
+            [
+              0.04900468922148614,
+              0.17622259774002214
+            ]
+          ],
+          "point_decision": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "point_profit": 21.680384087791495,
+          "point_unit_cost": 34.319615912208505,
+          "profit_range": [
+            14.58979844989382,
+            25.234227387828646
+          ],
+          "consistency_rate": 0.916,
+          "reps": 2000,
+          "rate_standard_error": 0.006202580108309766
+        },
+        {
+          "case": 2,
+          "sample_size": 100,
+          "x": [
+            20,
+            20,
+            20
+          ],
+          "p_hat": [
+            0.2,
+            0.2,
+            0.2
+          ],
+          "ci": [
+            [
+              0.12665555210195617,
+              0.29184268908862754
+            ],
+            [
+              0.12665555210195617,
+              0.29184268908862754
+            ],
+            [
+              0.12665555210195617,
+              0.29184268908862754
+            ]
+          ],
+          "point_decision": [
+            1,
+            0,
+            0,
+            1
+          ],
+          "point_profit": 13.812500000000007,
+          "point_unit_cost": 42.18749999999999,
+          "profit_range": [
+            4.639966332358895,
+            19.219356767269836
+          ],
+          "consistency_rate": 0.9485,
+          "reps": 2000,
+          "rate_standard_error": 0.004942051699446293
+        },
+        {
+          "case": 3,
+          "sample_size": 100,
+          "x": [
+            10,
+            10,
+            10
+          ],
+          "p_hat": [
+            0.1,
+            0.1,
+            0.1
+          ],
+          "ci": [
+            [
+              0.04900468922148614,
+              0.17622259774002214
+            ],
+            [
+              0.04900468922148614,
+              0.17622259774002214
+            ],
+            [
+              0.04900468922148614,
+              0.17622259774002214
+            ]
+          ],
+          "point_decision": [
+            0,
+            0,
+            1,
+            1
+          ],
+          "point_profit": 19.795610425240056,
+          "point_unit_cost": 36.204389574759944,
+          "profit_range": [
+            13.956304605794912,
+            22.722304907623588
+          ],
+          "consistency_rate": 0.992,
+          "reps": 2000,
+          "rate_standard_error": 0.001991983935678198
+        },
+        {
+          "case": 4,
+          "sample_size": 100,
+          "x": [
+            20,
+            20,
+            20
+          ],
+          "p_hat": [
+            0.2,
+            0.2,
+            0.2
+          ],
+          "ci": [
+            [
+              0.12665555210195617,
+              0.29184268908862754
+            ],
+            [
+              0.12665555210195617,
+              0.29184268908862754
+            ],
+            [
+              0.12665555210195617,
+              0.29184268908862754
+            ]
+          ],
+          "point_decision": [
+            1,
+            0,
+            1,
+            1
+          ],
+          "point_profit": 15.875000000000007,
+          "point_unit_cost": 40.12499999999999,
+          "profit_range": [
+            9.022434570286023,
+            19.919775536278415
+          ],
+          "consistency_rate": 0.9995,
+          "reps": 2000,
+          "rate_standard_error": 0.000499874984371065
+        },
+        {
+          "case": 5,
+          "sample_size": 100,
+          "x": [
+            10,
+            20,
+            10
+          ],
+          "p_hat": [
+            0.1,
+            0.2,
+            0.1
+          ],
+          "ci": [
+            [
+              0.04900468922148614,
+              0.17622259774002214
+            ],
+            [
+              0.12665555210195617,
+              0.29184268908862754
+            ],
+            [
+              0.04900468922148614,
+              0.17622259774002214
+            ]
+          ],
+          "point_decision": [
+            0,
+            0,
+            1,
+            1
+          ],
+          "point_profit": 18.93827160493828,
+          "point_unit_cost": 37.06172839506172,
+          "profit_range": [
+            11.948343718430515,
+            22.54109124289279
+          ],
+          "consistency_rate": 0.9995,
+          "reps": 2000,
+          "rate_standard_error": 0.000499874984371065
+        },
+        {
+          "case": 6,
+          "sample_size": 100,
+          "x": [
+            5,
+            5,
+            5
+          ],
+          "p_hat": [
+            0.05,
+            0.05,
+            0.05
+          ],
+          "ci": [
+            [
+              0.01643187918205203,
+              0.11283491110546201
+            ],
+            [
+              0.01643187918205203,
+              0.11283491110546201
+            ],
+            [
+              0.01643187918205203,
+              0.11283491110546201
+            ]
+          ],
+          "point_decision": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "point_profit": 21.6786703601108,
+          "point_unit_cost": 34.3213296398892,
+          "profit_range": [
+            11.578530269746878,
+            26.06347577150714
+          ],
+          "consistency_rate": 0.6085,
+          "reps": 2000,
+          "rate_standard_error": 0.010913930318634071
+        }
+      ]
+    },
+    "q3": {
+      "sample_size": 100,
+      "x": {
+        "P1": 10,
+        "P2": 10,
+        "P3": 10,
+        "P4": 10,
+        "P5": 10,
+        "P6": 10,
+        "P7": 10,
+        "P8": 10,
+        "S1": 10,
+        "S2": 10,
+        "S3": 10,
+        "F": 10
+      },
+      "p_hat": {
+        "P1": 0.1,
+        "P2": 0.1,
+        "P3": 0.1,
+        "P4": 0.1,
+        "P5": 0.1,
+        "P6": 0.1,
+        "P7": 0.1,
+        "P8": 0.1,
+        "S1": 0.1,
+        "S2": 0.1,
+        "S3": 0.1,
+        "F": 0.1
+      },
+      "ci": {
+        "P1": [
+          0.04900468922148614,
+          0.17622259774002214
+        ],
+        "P2": [
+          0.04900468922148614,
+          0.17622259774002214
+        ],
+        "P3": [
+          0.04900468922148614,
+          0.17622259774002214
+        ],
+        "P4": [
+          0.04900468922148614,
+          0.17622259774002214
+        ],
+        "P5": [
+          0.04900468922148614,
+          0.17622259774002214
+        ],
+        "P6": [
+          0.04900468922148614,
+          0.17622259774002214
+        ],
+        "P7": [
+          0.04900468922148614,
+          0.17622259774002214
+        ],
+        "P8": [
+          0.04900468922148614,
+          0.17622259774002214
+        ],
+        "S1": [
+          0.04900468922148614,
+          0.17622259774002214
+        ],
+        "S2": [
+          0.04900468922148614,
+          0.17622259774002214
+        ],
+        "S3": [
+          0.04900468922148614,
+          0.17622259774002214
+        ],
+        "F": [
+          0.04900468922148614,
+          0.17622259774002214
+        ]
+      },
+      "point_decision": {
+        "P1": [
+          1,
+          0
+        ],
+        "P2": [
+          1,
+          0
+        ],
+        "P3": [
+          1,
+          0
+        ],
+        "S1": [
+          0,
+          0
+        ],
+        "P4": [
+          1,
+          0
+        ],
+        "P5": [
+          1,
+          0
+        ],
+        "P6": [
+          1,
+          0
+        ],
+        "S2": [
+          0,
+          0
+        ],
+        "P7": [
+          1,
+          0
+        ],
+        "P8": [
+          1,
+          0
+        ],
+        "S3": [
+          0,
+          0
+        ],
+        "F": [
+          1,
+          1
+        ]
+      },
+      "point_profit": 66.08687700045726,
+      "profit_range": [
+        42.83990732973484,
+        81.18315935330735
+      ],
+      "consistency_rate": 0.39,
+      "reps": 500,
+      "rate_standard_error": 0.02181284025522582
+    },
+    "decision_diff": [
+      {
+        "scope": "q2_case_1",
+        "point_decision": [
+          0,
+          0,
+          0,
+          1
+        ],
+        "consistency_rate": 0.916,
+        "robust": false
+      },
+      {
+        "scope": "q2_case_2",
+        "point_decision": [
+          1,
+          0,
+          0,
+          1
+        ],
+        "consistency_rate": 0.9485,
+        "robust": false
+      },
+      {
+        "scope": "q2_case_3",
+        "point_decision": [
+          0,
+          0,
+          1,
+          1
+        ],
+        "consistency_rate": 0.992,
+        "robust": true
+      },
+      {
+        "scope": "q2_case_4",
+        "point_decision": [
+          1,
+          0,
+          1,
+          1
+        ],
+        "consistency_rate": 0.9995,
+        "robust": true
+      },
+      {
+        "scope": "q2_case_5",
+        "point_decision": [
+          0,
+          0,
+          1,
+          1
+        ],
+        "consistency_rate": 0.9995,
+        "robust": true
+      },
+      {
+        "scope": "q2_case_6",
+        "point_decision": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "consistency_rate": 0.6085,
+        "robust": false
+      },
+      {
+        "scope": "q3_tree",
+        "consistency_rate": 0.39,
+        "robust": false
+      }
+    ]
+  },
+  "sensitivity": {
+    "q1_sample_size_vs_confidence": [
+      {
+        "confidence": 0.9,
+        "n_case1_reject": 288,
+        "c_case1_reject": 35,
+        "n_case2_accept": 22,
+        "c_case2_accept": 0
+      },
+      {
+        "confidence": 0.95,
+        "n_case1_reject": 368,
+        "c_case1_reject": 46,
+        "n_case2_accept": 29,
+        "c_case2_accept": 0
+      },
+      {
+        "confidence": 0.99,
+        "n_case1_reject": 555,
+        "c_case1_reject": 72,
+        "n_case2_accept": 44,
+        "c_case2_accept": 0
+      }
+    ],
+    "q2_one_way": {
+      "amplitude": 0.2,
+      "baseline_case": 1,
+      "baseline_decision": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "baseline_profit": 21.680384087791495,
+      "scans": [
+        {
+          "param": "p1",
+          "direction": "minus",
+          "baseline_value": 0.1,
+          "perturbed_value": 0.08000000000000002,
+          "optimal_profit": 22.18733225979603,
+          "optimal_decision": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "decision_flipped": false
+        },
+        {
+          "param": "p1",
+          "direction": "plus",
+          "baseline_value": 0.1,
+          "perturbed_value": 0.12,
+          "optimal_profit": 21.150392817059483,
+          "optimal_decision": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "decision_flipped": false
+        },
+        {
+          "param": "p2",
+          "direction": "minus",
+          "baseline_value": 0.1,
+          "perturbed_value": 0.08000000000000002,
+          "optimal_profit": 22.18733225979603,
+          "optimal_decision": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "decision_flipped": false
+        },
+        {
+          "param": "p2",
+          "direction": "plus",
+          "baseline_value": 0.1,
+          "perturbed_value": 0.12,
+          "optimal_profit": 21.150392817059483,
+          "optimal_decision": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "decision_flipped": false
+        },
+        {
+          "param": "p0",
+          "direction": "minus",
+          "baseline_value": 0.1,
+          "perturbed_value": 0.08000000000000002,
+          "optimal_profit": 22.18733225979603,
+          "optimal_decision": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "decision_flipped": false
+        },
+        {
+          "param": "p0",
+          "direction": "plus",
+          "baseline_value": 0.1,
+          "perturbed_value": 0.12,
+          "optimal_profit": 21.150392817059483,
+          "optimal_decision": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "decision_flipped": false
+        },
+        {
+          "param": "a1",
+          "direction": "minus",
+          "baseline_value": 4.0,
+          "perturbed_value": 3.2,
+          "optimal_profit": 22.4803840877915,
+          "optimal_decision": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "decision_flipped": false
+        },
+        {
+          "param": "a1",
+          "direction": "plus",
+          "baseline_value": 4.0,
+          "perturbed_value": 4.8,
+          "optimal_profit": 20.880384087791498,
+          "optimal_decision": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "decision_flipped": false
+        },
+        {
+          "param": "a2",
+          "direction": "minus",
+          "baseline_value": 18.0,
+          "perturbed_value": 14.4,
+          "optimal_profit": 25.2803840877915,
+          "optimal_decision": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "decision_flipped": false
+        },
+        {
+          "param": "a2",
+          "direction": "plus",
+          "baseline_value": 18.0,
+          "perturbed_value": 21.599999999999998,
+          "optimal_profit": 18.0803840877915,
+          "optimal_decision": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "decision_flipped": false
+        },
+        {
+          "param": "c1",
+          "direction": "minus",
+          "baseline_value": 2.0,
+          "perturbed_value": 1.6,
+          "optimal_profit": 21.680384087791495,
+          "optimal_decision": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "decision_flipped": false
+        },
+        {
+          "param": "c1",
+          "direction": "plus",
+          "baseline_value": 2.0,
+          "perturbed_value": 2.4,
+          "optimal_profit": 21.680384087791495,
+          "optimal_decision": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "decision_flipped": false
+        },
+        {
+          "param": "c2",
+          "direction": "minus",
+          "baseline_value": 3.0,
+          "perturbed_value": 2.4000000000000004,
+          "optimal_profit": 21.680384087791495,
+          "optimal_decision": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "decision_flipped": false
+        },
+        {
+          "param": "c2",
+          "direction": "plus",
+          "baseline_value": 3.0,
+          "perturbed_value": 3.5999999999999996,
+          "optimal_profit": 21.680384087791495,
+          "optimal_decision": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "decision_flipped": false
+        },
+        {
+          "param": "c0",
+          "direction": "minus",
+          "baseline_value": 3.0,
+          "perturbed_value": 2.4000000000000004,
+          "optimal_profit": 21.680384087791495,
+          "optimal_decision": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "decision_flipped": false
+        },
+        {
+          "param": "c0",
+          "direction": "plus",
+          "baseline_value": 3.0,
+          "perturbed_value": 3.5999999999999996,
+          "optimal_profit": 21.680384087791495,
+          "optimal_decision": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "decision_flipped": false
+        },
+        {
+          "param": "A",
+          "direction": "minus",
+          "baseline_value": 6.0,
+          "perturbed_value": 4.800000000000001,
+          "optimal_profit": 23.326474622770917,
+          "optimal_decision": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "decision_flipped": false
+        },
+        {
+          "param": "A",
+          "direction": "plus",
+          "baseline_value": 6.0,
+          "perturbed_value": 7.199999999999999,
+          "optimal_profit": 20.034293552812073,
+          "optimal_decision": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "decision_flipped": false
+        },
+        {
+          "param": "t",
+          "direction": "minus",
+          "baseline_value": 5.0,
+          "perturbed_value": 4.0,
+          "optimal_profit": 22.05212620027435,
+          "optimal_decision": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "decision_flipped": false
+        },
+        {
+          "param": "t",
+          "direction": "plus",
+          "baseline_value": 5.0,
+          "perturbed_value": 6.0,
+          "optimal_profit": 21.308641975308646,
+          "optimal_decision": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "decision_flipped": false
+        },
+        {
+          "param": "l",
+          "direction": "minus",
+          "baseline_value": 6.0,
+          "perturbed_value": 4.800000000000001,
+          "optimal_profit": 22.12647462277092,
+          "optimal_decision": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "decision_flipped": false
+        },
+        {
+          "param": "l",
+          "direction": "plus",
+          "baseline_value": 6.0,
+          "perturbed_value": 7.199999999999999,
+          "optimal_profit": 21.234293552812076,
+          "optimal_decision": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "decision_flipped": false
+        },
+        {
+          "param": "s",
+          "direction": "minus",
+          "baseline_value": 56.0,
+          "perturbed_value": 44.800000000000004,
+          "optimal_profit": 10.4803840877915,
+          "optimal_decision": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "decision_flipped": false
+        },
+        {
+          "param": "s",
+          "direction": "plus",
+          "baseline_value": 56.0,
+          "perturbed_value": 67.2,
+          "optimal_profit": 32.8803840877915,
+          "optimal_decision": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "decision_flipped": false
+        }
+      ],
+      "flip_count": 0
+    },
+    "q2_breakeven": {
+      "grid_points_per_axis": 41,
+      "amplitude": 0.2,
+      "decision_counts": {
+        "0,0,0,1": 1681
+      },
+      "total_points": 1681,
+      "flips": 0
+    },
+    "q2_mc_check": {
+      "reps": 10000,
+      "decision": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "mc_unit_cost": 34.1897,
+      "analytic_unit_cost": 34.319615912208505,
+      "abs_diff": 0.12991591220850296
+    }
+  },
+  "verification": {
+    "q1_case1_constraint_ok": true,
+    "q1_case2_constraint_ok": true,
+    "q2_max_breakdown_residual": 7.105427357601002e-15,
+    "q2_breakdown_ok": true,
+    "q2_strategy_count_ok": true,
+    "q3_node_count_ok": true,
+    "q3_semi_count_ok": true,
+    "q4_covers_all_q2_cases": true,
+    "q4_ci_brackets_point": true,
+    "q4_profit_range_ordered": true,
+    "normal_approx_threshold_used": 5,
+    "implementation_params": {
+      "q4_sample_size": 100,
+      "q3_mc_reps": 500,
+      "q1_unit_inspection_cost": 1.0
+    }
+  },
+  "anchor_index": {
+    "R-Q1-n-case95": "q1.case1_reject.n_star",
+    "R-Q1-c-case95": "q1.case1_reject.c_star",
+    "R-Q1-n-case90": "q1.case2_accept.n_star",
+    "R-Q1-c-case90": "q1.case2_accept.c_star",
+    "R-Q1-sampling-cost": "q1.sampling_cost.case1_cost",
+    "R-Q2-best-combo": "q2.best_combo",
+    "R-Q3-profit": "q3.profit",
+    "R-Q3-decision-table": "q3.decision_table",
+    "R-Q3-node-cost": "q3.node_cost",
+    "R-Q3-topology-robust": "q3.topology_robust",
+    "R-Q4-ci-part1": "q4.q2.cases[0].ci",
+    "R-Q4-profit-range": "q4.q2.cases[0].profit_range",
+    "R-Q4-consistency-rate": "q4.q2.cases[0].consistency_rate",
+    "R-Q4-decision-diff": "q4.decision_diff",
+    "R-OUT-profit-def": "q2.cases[0].best.unit_cost"
+  }
+}

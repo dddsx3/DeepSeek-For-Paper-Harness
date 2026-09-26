@@ -1,0 +1,103 @@
+{
+  "passportVersion": 1,
+  "stage": "result-sources",
+  "index": 4,
+  "at": "2026-09-26T09:35:19.672Z",
+  "status": "passed",
+  "cleanliness": "clean",
+  "inputDigest": "609a9c7e85456a06e7eded4266899391b653b4c3782a0efc7d52f33aa7c81b15",
+  "artifacts": {
+    "RESULT_SOURCES.json": "64a0eaf6739a11c7ff22dc66c8e2221c9c001534e9e81a20419369b6ed524000",
+    "results.json": "4b429bec2c560dec3b69a7298ef83959794afbef81afd0f242fae06b115e36a8"
+  },
+  "gate": {
+    "code": 0,
+    "items": [
+      {
+        "id": "result_sources_valid",
+        "ok": true,
+        "detail": "49 条数源声明，id 唯一、locator/json_path 齐备",
+        "code": 0
+      },
+      {
+        "id": "results_minted",
+        "ok": true,
+        "detail": "账本 49 条，全部是来自真实执行的有限数",
+        "code": 0
+      }
+    ]
+  },
+  "audit": {
+    "stage": "result-sources",
+    "verdict": "pass",
+    "score": 0.78,
+    "structureOk": true,
+    "requirementCompliance": [
+      {
+        "item": "产出 RESULT_SOURCES.json（json，≥200 字节）",
+        "done": true,
+        "note": "文件存在，13080 字节，可解析 JSON。"
+      },
+      {
+        "item": "每条只写 {result_id,name,locator,json_path,unit}，不得写任何数值",
+        "done": true,
+        "note": "sources 49 条，逐条恰好含这 5 个键；全文未出现任何被铸量的数值（出现的数字仅为 问题1/情况1/零配件1 一类标识名与 'code/'），模型确实只持有定位。"
+      },
+      {
+        "item": "locator + json_path 指向真跑产物的字节位置",
+        "done": true,
+        "note": "locator 统一为 outputs.json，json_path 形如 q2.cases[i].best.decision[j]、q4.q2.cases[i].consistency_rate；harness 门禁 result_sources_valid 已通过。"
+      },
+      {
+        "item": "results.json 为 harness 铸出的数，与数源声明一一对应",
+        "done": true,
+        "note": "49 条 result_id 与 sources 完全同名同数（Q1 5 条、Q2 31 条、Q3 1 条、Q4 12 条），逐条含 value/unit/uncertainty；无孤儿、无缺铸。"
+      },
+      {
+        "item": "与题面相符：给定参数确实进入模型（非死参数）",
+        "done": true,
+        "note": "按表 1 反算可复现：情况1 成本=22+6/q+11(1/q−1)=34.319615912208505（q=0.729）、情况3=22+9/q+5(1/q−1)=36.2043896、情况5=22+8/q+5(1/q−1)（q=0.648）、情况6=28/q+10(1/q−1)=34.3213296，均与 results.json 精确吻合；调换损失 6/10/30 与拆解费用 5/40 均实际进入成本并改变最优决策（情况1 ce=6 选 C=0/D=1，情况3 ce=30 改选 C=1；情况6 拆解费用 40 使 D=0），无 'ce 写了不用' 的形态。问题1 亦复现：0.9^22=0.0985≤0.10 → n*=22,c*=0。Q3 利润 66.086877 与题面口径真值 66.09 一致。"
+      },
+      {
+        "item": "与上游一致、无自相矛盾",
+        "done": true,
+        "note": "单位口径统一（金额 元/件、比率无量纲），一致率与标准误自洽：如 0.916 的 SE=sqrt(0.916×0.084/2000)=0.00620258，0.6085 的 SE=0.0109139，均与所报值吻合（n=2000 的 k/2000 形式）。"
+      }
+    ],
+    "findings": [
+      {
+        "severity": "major",
+        "where": "RESULT_SOURCES.json / sources（Q3 段）",
+        "issue": "问题3 只登记了 R-Q3-profit 一个量，未登记节点级决策（8 个零配件/3 个半成品/成品的检测与拆解 0-1 变量）。同一份账本对问题2 的同类决策变量却逐项登记（6×4=24 条），内部标准不一致；而题面问题3 明确要求'给出具体的决策方案'，若论文引用这些 0/1 值将无账本可溯。",
+        "fix": "在 sources 中补 q3 决策向量的 locator（例如 q3.decision.parts[i].inspect/disassemble、q3.decision.semis[j].…、q3.decision.product.…），json_path 指向 outputs.json 中对应字段，由 harness 铸入 results.json。"
+      },
+      {
+        "severity": "major",
+        "where": "RESULT_SOURCES.json / sources（Q4 段）",
+        "issue": "问题4 的登记只覆盖 q4.q2.cases[*].consistency_rate 与 rate_standard_error（问题2 的重解），题面要求'请重新完成问题 2 和问题 3'，问题3 在抽样次品率下的重解在产物中没有任何落点（既无一致率也无重解后的利润/决策）。",
+        "fix": "若代码已产出（如 q4.q3.*），补对应 locator 并铸数；若代码确实未算，需回溯上游补齐问题4 的问题3 分支后再铸，否则论文问题4 只能作答一半、或被迫使用无账本数字。"
+      },
+      {
+        "severity": "minor",
+        "where": "RESULT_SOURCES.json 顶层",
+        "issue": "产出契约给出的顶层形态是数组 [{result_id,name,locator,json_path,unit}]，实际为对象 {stage, locator_base, note, sources:[...]}。机械门禁 result_sources_valid 已通过，不阻断流转，但形态与契约字面不一致，下游解析必须知道到 sources 字段取数组。",
+        "fix": "在 note 中显式写明'sources 即契约要求的数组'，或直接改成顶层数组 + 侧车元数据文件。"
+      },
+      {
+        "severity": "minor",
+        "where": "RESULT_SOURCES.json / R-Q1-sampling-cost-case1 与 results.json 对应项",
+        "issue": "该量名为'抽样检测费用（按单件检测成本归一）'、单位'元/件'，值为 368，实际是 n* 的等比复制；题面问题1 并未给出检测成本数值，此单位容易被误读为真实费用支出。",
+        "fix": "改为无量纲表述（如'归一化检测次数 n*'）并注明单件检测成本取 1 的归一约定来源，或从账本移除。"
+      },
+      {
+        "severity": "minor",
+        "where": "RESULT_SOURCES.json / sources（Q2 段）",
+        "issue": "问题2 六个情况中仅情况1 登记了 unit_cost（期望总成本），情况2-6 只有 profit，同一类指标在账本内覆盖不一致。",
+        "fix": "六个情况统一登记 unit_cost（或统一不登记），保持同名指标口径一致。"
+      }
+    ],
+    "missing": [],
+    "model": "glm-5.3-flash-free",
+    "at": "2026-09-26T09:35:19.670Z"
+  }
+}

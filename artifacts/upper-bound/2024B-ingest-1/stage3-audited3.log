@@ -1,0 +1,13 @@
+[STAGE CHAIN] artifacts\upper-bound\2024B-ingest-1\stages
+  题面问数（数出来的）：4
+  [deterministic] code: 分片 1/6 交付 code/main.py
+  [deterministic] code: 分片 2/6 交付 code/problem1.py
+  [deterministic] code: 分片 3/6 交付 code/problem2.py
+  [deterministic] code: 分片 4/6 交付 code/problem3.py
+  [deterministic] code: 分片 5/6 交付 code/problem4.py
+  [deterministic] code: 分片 6/6 交付 *
+  [deterministic] code: 逐节点审计（glm-5.3-flash-free）：fail，质量分 0.55，要求 6/7 项完成，5 条 findings
+[STAGE NEXT] 只跑了 'code'，到此即停。检查 artifacts\upper-bound\2024B-ingest-1\stages 后，放行 = 再执行一次 --stages --stage-next。
+  ❌ code: 逐节点审计未通过：审计未通过：1 条 fatal（code/problem1.py :: solve() case2_accept（主答案 P(X<=c|p_nom) >= 1-beta）：题面情形(2)是“在 90% 的信度下认定零配件次品率不超过标称值，则接收”，即）；质量分 0.55 < 阈值 0.70；交付结构不完整（缺：问题4 对问题2 表 1 情形 2–6 的重算结果（Clopper-Pearson 区间、端点/点估计决策比对、利润区间、蒙特卡洛决策一致率））；1 项要求未完成（题面覆盖：问题4 要求“重新完成问题 2 和问题 3”） —— 低于阈值不允许交付（审计结论见 _audit.json）
+
+STAGE CHAIN FAILED — 1 个阶段没通过（产物与通行证在 artifacts\upper-bound\2024B-ingest-1\stages）。

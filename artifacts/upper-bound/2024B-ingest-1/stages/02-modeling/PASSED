@@ -1,0 +1,127 @@
+{
+  "passportVersion": 1,
+  "stage": "modeling",
+  "index": 2,
+  "at": "2026-09-26T08:17:13.589Z",
+  "status": "passed",
+  "cleanliness": "unverified-gates",
+  "inputDigest": "fff91c502b14e0faf423774d4fc405add4f6ceb546fa1cef72fc89d990d0f98b",
+  "artifacts": {
+    "DECLARATION.json": "aabf7a60ba89cf1f0410e6e401b80daf377d7686672b7ecfb89fc3a751701e37",
+    "MODELING_REPORT.md": "e124a12b9149b1058b46d62fe1cebaee50440e24baeabe7368fb1c59e438eb08"
+  },
+  "gate": {
+    "code": 2,
+    "items": [
+      {
+        "id": "modeling_floor",
+        "ok": true,
+        "detail": "MODELING_REPORT.md 54258 字节 ≥ 1500",
+        "code": 0
+      },
+      {
+        "id": "numbers_traced",
+        "ok": true,
+        "detail": "1 个文本产物的 380 个数字全部有出生证明（题面给定值 / 声明的常数 / 编外登记 1 条）",
+        "code": 0
+      },
+      {
+        "id": "no_claimed_verification",
+        "ok": true,
+        "detail": "没有\"已执行检验\"类声明（检验方案都写成待执行；代码注释也干净）",
+        "code": 0
+      },
+      {
+        "id": "modeling_coverage",
+        "ok": true,
+        "detail": "20 条能力项全部被认领（逐字命中 id）",
+        "code": 0
+      },
+      {
+        "id": "modeling_self_check",
+        "ok": false,
+        "detail": "未实现：参考的 9 项自检含\"问题递进性检查\"（参考自己标注为\"最关键\"且是人工项）。可机械化的那几项（逐问数、目标/公式/约束非零、符号表存在、灵敏度计划）待实现。",
+        "code": 2
+      }
+    ]
+  },
+  "unverifiedGates": [
+    "modeling_self_check"
+  ],
+  "audit": {
+    "stage": "modeling",
+    "verdict": "pass",
+    "score": 0.9,
+    "structureOk": true,
+    "requirementCompliance": [
+      {
+        "item": "产出 DECLARATION.json（IR：Symbol/Assumption/Equation/ModelSpec）",
+        "done": true,
+        "note": "文件存在（28231B），四段齐备：symbols（~50 条）、assumptions（ASM-01..16）、equations（EQ-OC…EQ-Q4-ROBUST）、model_specs（MS-Q1/MS-Q2/MS-Q3/MS-Q4/MS-GLOBAL）"
+      },
+      {
+        "item": "产出 MODELING_REPORT.md（md，≥1500 字节）",
+        "done": true,
+        "note": "54258 字节，远超下限；含 §0 写作纪律、§1 逐问归因、§2 假设、§3 符号、§4 逐问模型、§5 检验方案、§6 灵敏度（后段被截断未内联，不判缺）"
+      },
+      {
+        "item": "两次调用分离（2a 仅 IR / 2b 仅富散文）",
+        "done": true,
+        "note": "IR 落在 DECLARATION.json，散文落在 MODELING_REPORT.md，报告显式标注『02-modeling（分片 2b，富散文正文）』，未见单文件合成痕迹"
+      },
+      {
+        "item": "本阶段禁止写最终数值结论，须用结果锚点",
+        "done": true,
+        "note": "全文未出现算出来的数；报结果处一律为 {R-Q1-n-case95}/{R-Q2-case1-profit}/{R-Q3-decision-table}/{R-Q4-ci-part1} 等锚点；正文出现的具体数字仅为题面给定值（10%/95%/90%/56/200/拆解费6与10 等）或已登记常数"
+      },
+      {
+        "item": "不得声称检验通过（no_claimed_verification）",
+        "done": true,
+        "note": "5 条 model_specs[*].verification_plan 全部以『待执行：』开头（可见证据），报告 §0 明写检验规范；audit_response #1 evidence 亦自证此点"
+      },
+      {
+        "item": "四问覆盖 + 全局口径",
+        "done": true,
+        "note": "MS-Q1（两点设计二项检验最小 n）、MS-Q2（16 组合全枚举闭式）、MS-Q3（装配树节点级 U_v 聚合+拓扑）、MS-Q4（Clopper-Pearson 区间传播+一致率 ρ）、MS-GLOBAL（单位/费用归类）"
+      },
+      {
+        "item": "与上游/题面事实一致",
+        "done": true,
+        "note": "F-NOMINAL/F-CONF-REJECT/F-CONF-ACCEPT 对应 p_nom、α1=0.05、α2=0.10；表1六组 F-T1-C1..C6 映射到 (p1,p2,p0,a1,a2,c1,c2,c0,A,t,l,s)；表2 F-T2-* 映射到 (a_v,c_v,A_v,t_v,l_v,s)；均见 §4 推导"
+      },
+      {
+        "item": "给定参数不得是死参数",
+        "done": true,
+        "note": "逐条回溯：调换损失 l→EQ-Q2-RECUR/EQ-COST-Q2 的 (1-C)l 与 EQ-Q3-XI；拆解费 t→D t 项；装配成本 A→EQ-KF/EQ-Q3-KF 的 A_v；售价 s→EQ-PROFIT-Q2/EQ-Q3-PROFIT 的 s-U；检测成本 c_i/c_0/c_v→采购倍数与工序检测项；采购单价 a_i/a_v→EQ-KF/EQ-Q3-COST。均进入公式，无仅登记不入式者"
+      },
+      {
+        "item": "闭式解自洽",
+        "done": true,
+        "note": "复核 EQ-KAPPA=K_f-K_r 的分项展开、EQ-Q2-RECUR 的几何级数（g=q/(1-D(1-q))、R=[K_r+Cc0+(1-q)(Dt+(1-C)l)]/(1-D(1-q))）与 EQ-COST-Q2 分母归一 U=(…)/g，与逐轮现金流等价，未见回收免采购重复抵扣"
+      }
+    ],
+    "findings": [
+      {
+        "severity": "minor",
+        "where": "DECLARATION.json 顶层 audit_responses",
+        "issue": "该字段是执行者对上一轮审计的回执（含 severity/gate/action/partial_refute），不属于本阶段契约要求的 IR 四段，混在交付物顶层属元信息冗余；其中 #2 自述『已删除 data 与 output_artifacts』因文件被截断无法核验全量",
+        "fix": "将审计回执移出交付物（另存日志），DECLARATION.json 顶层只保留 IR 四段及被正文显式引用的 model_constants/illustrative_numbers；若保留则确保删除声明可被机械核验"
+      },
+      {
+        "severity": "minor",
+        "where": "DECLARATION.json ASM-09 / MS-Q3.structure_map",
+        "issue": "图1原件未随简报下传，{1,2,3}→半1、{4,5,6}→半2、{7,8}→半3、三半→成品 的拓扑是读表2行分组的推断而非图证；执行者已显式登记为 data_gap 并排了 {R-Q3-topology-robust}，但这是问题3全部结论的结构性前提，风险等级高于一般假设",
+        "fix": "阶段3除拓扑扰动扫描外，应至少给出一个替代连接（如半成品输入数不同）的解对照表，把拓扑不确定对最优决策的影响量化后再定稿"
+      },
+      {
+        "severity": "minor",
+        "where": "DECLARATION.json model_constants『Q1可识别超标幅度Δ』=0.05",
+        "issue": "Δ为设计量而非题面给定，直接决定 n^(1)/n^(2) 的具体取值，属影响问题1答案的自由参数；已登记但未见其取值的敏感性安排",
+        "fix": "在阶段3对 Δ∈{0.02,0.05,0.10} 各跑一遍最小 n 与临界 c_r，报告结果对 Δ 的依赖，避免用单一 Δ 当作唯一答案"
+      }
+    ],
+    "missing": [],
+    "model": "glm-5.3-flash-free",
+    "at": "2026-09-26T08:17:13.587Z"
+  }
+}

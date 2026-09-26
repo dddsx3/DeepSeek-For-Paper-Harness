@@ -1,0 +1,7 @@
+[STAGE CHAIN] artifacts\upper-bound\2024B-ingest-1\stages
+  题面问数（数出来的）：4
+  [deterministic] figure-declare: 逐节点审计（glm-5.3-flash-free）：fail，质量分 0.55，要求 7/7 项完成，11 条 findings
+[STAGE NEXT] 只跑了 'figure-declare'，到此即停。检查 artifacts\upper-bound\2024B-ingest-1\stages 后，放行 = 再执行一次 --stages --stage-next。
+  ❌ figure-declare: 逐节点审计未通过：审计未通过：2 条 fatal（FIGURE_DECLARATIONS.json → fig_q2_breakeven_contour：声明为'检测与拆解决策翻转的盈亏平衡边界'，x_label 写为'参数扰动水平'；FIGURE_DECLARATIONS.json → fig_q1_sprt_boundary：声明为'序贯抽样的接收与拒收边界'，x_label'累计抽样件数'、y_labe）；质量分 0.55 < 阈值 0.70 —— 低于阈值不允许交付（审计结论见 _audit.json）
+
+STAGE CHAIN FAILED — 1 个阶段没通过（产物与通行证在 artifacts\upper-bound\2024B-ingest-1\stages）。

@@ -1,0 +1,14 @@
+[STAGE CHAIN] artifacts\upper-bound\2024B-ingest-1\stages
+  题面问数（数出来的）：4
+  [deterministic] figure-declare: 第 1 段：出作图规划
+  [deterministic] figure-declare: 第 2/8 段：交付 figures/gen_fig_q1_two_cases_sample_size.py
+  [deterministic] figure-declare: 第 3/8 段：交付 figures/gen_fig_q1_case_boundary_points.py
+  [deterministic] figure-declare: 第 4/8 段：交付 figures/gen_fig_q2_q3_profit_ranking.py
+  [deterministic] figure-declare: 第 5/8 段：交付 figures/gen_fig_q2_decision_indicator_heatmap.py
+  [deterministic] figure-declare: 第 6/8 段：交付 figures/gen_fig_q2_case1_price_decomposition.py
+  [deterministic] figure-declare: 第 7/8 段：交付 figures/gen_fig_q4_decision_consistency_ci.py
+  [deterministic] figure-declare: 第 8/8 段：交付 figures/gen_fig_q4_consistency_vs_se.py
+[STAGE NEXT] 只跑了 'figure-declare'，到此即停。检查 artifacts\upper-bound\2024B-ingest-1\stages 后，放行 = 再执行一次 --stages --stage-next。
+  ❌ figure-declare: 门禁 code 1（0=通过 1=硬失败 2=无法判定）：figure_type_match
+
+STAGE CHAIN FAILED — 1 个阶段没通过（产物与通行证在 artifacts\upper-bound\2024B-ingest-1\stages）。

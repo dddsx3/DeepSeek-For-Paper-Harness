@@ -1,0 +1,12 @@
+[STAGE CHAIN] artifacts\upper-bound\2024B-ingest-1\stages
+  题面问数（数出来的）：4
+  [deterministic] code: 分片 1/6 交付 code/main.py
+  [deterministic] code: 分片 2/6 交付 code/problem1.py
+  [deterministic] code: 分片 3/6 交付 code/problem2.py
+  [deterministic] code: 分片 4/6 交付 code/problem3.py
+  [deterministic] code: 分片 5/6 交付 code/problem4.py
+  [deterministic] code: 分片 6/6 交付 *
+[STAGE NEXT] 只跑了 'code'，到此即停。检查 artifacts\upper-bound\2024B-ingest-1\stages 后，放行 = 再执行一次 --stages --stage-next。
+  ❌ code: 门禁 code 1（0=通过 1=硬失败 2=无法判定）：delivery_audit、leakage_audit
+
+STAGE CHAIN FAILED — 1 个阶段没通过（产物与通行证在 artifacts\upper-bound\2024B-ingest-1\stages）。

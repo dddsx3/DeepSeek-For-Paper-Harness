@@ -1,0 +1,6 @@
+[STAGE CHAIN] artifacts\upper-bound\2024B-ingest-1\stages
+  题面问数（数出来的）：4
+[STAGE NEXT] 只跑了 'modeling'，到此即停。检查 artifacts\upper-bound\2024B-ingest-1\stages 后，放行 = 再执行一次 --stages --stage-next。
+  ❌ modeling: 阶段产出未通过形态检查：stage 'modeling' declares 2 deliverables, so the answer must be a JSON envelope {"files": {...}} —— 没有一个候选能解析出信封：[整个回答] SyntaxError: Unterminated string in JSON at position 31357 (line 1 column 31358)；[契约锚到文本末尾（偏移 0）] SyntaxError: Unterminated string in JSON at position 31357 (line 1 column 31358)；[第一个 { 到最后一个 }（0…31081）] SyntaxError: Unterminated string in JSON at position 31082 (line 1 column 31083)（原始回答已留档：_rejected-answer.txt）
+
+STAGE CHAIN FAILED — 1 个阶段没通过（产物与通行证在 artifacts\upper-bound\2024B-ingest-1\stages）。

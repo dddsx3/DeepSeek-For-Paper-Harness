@@ -1,0 +1,307 @@
+<!-- 拒绝原因：铸数失败（43/43 条声明没能从真实产物里解析出有限数）：R-Q1-n-case95：locator 'code/outputs.json' 不存在 —— 代码没有写出声明的产物；R-Q1-c-case95：locator 'code/outputs.json' 不存在 —— 代码没有写出声明的产物；R-Q1-n-case90：locator 'code/outputs.json' 不存在 —— 代码没有写出声明的产物；R-Q1-c-case90：locator 'code/outputs.json' 不存在 —— 代码没有写出声明的产物；R-Q1-sampling-cost：locator 'code/outputs.json' 不存在 —— 代码没有写出声明的产物；R-Q2-case1-profit：locator 'code/outputs.json' 不存在 —— 代码没有写出声明的产物 -->
+
+{
+  "sources": [
+    {
+      "result_id": "R-Q1-n-case95",
+      "name": "问题1 情形(1) 控制拒收侧第一类错误下的最小检测次数 n",
+      "locator": "code/outputs.json",
+      "json_path": "q1.case1_reject.n_star",
+      "unit": "件"
+    },
+    {
+      "result_id": "R-Q1-c-case95",
+      "name": "问题1 情形(1) 接收判定临界次品数 c",
+      "locator": "code/outputs.json",
+      "json_path": "q1.case1_reject.c_star",
+      "unit": "件"
+    },
+    {
+      "result_id": "R-Q1-n-case90",
+      "name": "问题1 情形(2) 单侧置信上界口径下的最小检测次数 n",
+      "locator": "code/outputs.json",
+      "json_path": "q1.case2_accept.n_star",
+      "unit": "件"
+    },
+    {
+      "result_id": "R-Q1-c-case90",
+      "name": "问题1 情形(2) 接收判定临界次品数 c",
+      "locator": "code/outputs.json",
+      "json_path": "q1.case2_accept.c_star",
+      "unit": "件"
+    },
+    {
+      "result_id": "R-Q1-sampling-cost",
+      "name": "问题1 情形(1) 方案在企业侧折出的抽样检测费用（按单件检测费用归一）",
+      "locator": "code/outputs.json",
+      "json_path": "q1.sampling_cost.case1_cost",
+      "unit": "元/件"
+    },
+    {
+      "result_id": "R-Q2-case1-profit",
+      "name": "表1 情况1 最优策略下单件期望利润",
+      "locator": "code/outputs.json",
+      "json_path": "q2.cases[0].best.profit",
+      "unit": "元/件"
+    },
+    {
+      "result_id": "R-Q2-case2-profit",
+      "name": "表1 情况2 最优策略下单件期望利润",
+      "locator": "code/outputs.json",
+      "json_path": "q2.cases[1].best.profit",
+      "unit": "元/件"
+    },
+    {
+      "result_id": "R-Q2-case3-profit",
+      "name": "表1 情况3 最优策略下单件期望利润",
+      "locator": "code/outputs.json",
+      "json_path": "q2.cases[2].best.profit",
+      "unit": "元/件"
+    },
+    {
+      "result_id": "R-Q2-case4-profit",
+      "name": "表1 情况4 最优策略下单件期望利润",
+      "locator": "code/outputs.json",
+      "json_path": "q2.cases[3].best.profit",
+      "unit": "元/件"
+    },
+    {
+      "result_id": "R-Q2-case5-profit",
+      "name": "表1 情况5 最优策略下单件期望利润",
+      "locator": "code/outputs.json",
+      "json_path": "q2.cases[4].best.profit",
+      "unit": "元/件"
+    },
+    {
+      "result_id": "R-Q2-case6-profit",
+      "name": "表1 情况6 最优策略下单件期望利润",
+      "locator": "code/outputs.json",
+      "json_path": "q2.cases[5].best.profit",
+      "unit": "元/件"
+    },
+    {
+      "result_id": "R-Q2-case1-decision-z1",
+      "name": "表1 情况1 最优决策分量 Z1（是否检测零配件1）",
+      "locator": "code/outputs.json",
+      "json_path": "q2.cases[0].best.decision[0]",
+      "unit": "0/1"
+    },
+    {
+      "result_id": "R-Q2-case1-decision-z2",
+      "name": "表1 情况1 最优决策分量 Z2（是否检测零配件2）",
+      "locator": "code/outputs.json",
+      "json_path": "q2.cases[0].best.decision[1]",
+      "unit": "0/1"
+    },
+    {
+      "result_id": "R-Q2-case1-decision-c",
+      "name": "表1 情况1 最优决策分量 C（是否检测成品）",
+      "locator": "code/outputs.json",
+      "json_path": "q2.cases[0].best.decision[2]",
+      "unit": "0/1"
+    },
+    {
+      "result_id": "R-Q2-case1-decision-d",
+      "name": "表1 情况1 最优决策分量 D（是否拆解不合格成品）",
+      "locator": "code/outputs.json",
+      "json_path": "q2.cases[0].best.decision[3]",
+      "unit": "0/1"
+    },
+    {
+      "result_id": "R-Q2-case2-decision-z1",
+      "name": "表1 情况2 最优决策分量 Z1（是否检测零配件1）",
+      "locator": "code/outputs.json",
+      "json_path": "q2.cases[1].best.decision[0]",
+      "unit": "0/1"
+    },
+    {
+      "result_id": "R-Q2-case2-decision-z2",
+      "name": "表1 情况2 最优决策分量 Z2（是否检测零配件2）",
+      "locator": "code/outputs.json",
+      "json_path": "q2.cases[1].best.decision[1]",
+      "unit": "0/1"
+    },
+    {
+      "result_id": "R-Q2-case2-decision-c",
+      "name": "表1 情况2 最优决策分量 C（是否检测成品）",
+      "locator": "code/outputs.json",
+      "json_path": "q2.cases[1].best.decision[2]",
+      "unit": "0/1"
+    },
+    {
+      "result_id": "R-Q2-case2-decision-d",
+      "name": "表1 情况2 最优决策分量 D（是否拆解不合格成品）",
+      "locator": "code/outputs.json",
+      "json_path": "q2.cases[1].best.decision[3]",
+      "unit": "0/1"
+    },
+    {
+      "result_id": "R-Q2-case3-decision-z1",
+      "name": "表1 情况3 最优决策分量 Z1（是否检测零配件1）",
+      "locator": "code/outputs.json",
+      "json_path": "q2.cases[2].best.decision[0]",
+      "unit": "0/1"
+    },
+    {
+      "result_id": "R-Q2-case3-decision-z2",
+      "name": "表1 情况3 最优决策分量 Z2（是否检测零配件2）",
+      "locator": "code/outputs.json",
+      "json_path": "q2.cases[2].best.decision[1]",
+      "unit": "0/1"
+    },
+    {
+      "result_id": "R-Q2-case3-decision-c",
+      "name": "表1 情况3 最优决策分量 C（是否检测成品）",
+      "locator": "code/outputs.json",
+      "json_path": "q2.cases[2].best.decision[2]",
+      "unit": "0/1"
+    },
+    {
+      "result_id": "R-Q2-case3-decision-d",
+      "name": "表1 情况3 最优决策分量 D（是否拆解不合格成品）",
+      "locator": "code/outputs.json",
+      "json_path": "q2.cases[2].best.decision[3]",
+      "unit": "0/1"
+    },
+    {
+      "result_id": "R-Q2-case4-decision-z1",
+      "name": "表1 情况4 最优决策分量 Z1（是否检测零配件1）",
+      "locator": "code/outputs.json",
+      "json_path": "q2.cases[3].best.decision[0]",
+      "unit": "0/1"
+    },
+    {
+      "result_id": "R-Q2-case4-decision-z2",
+      "name": "表1 情况4 最优决策分量 Z2（是否检测零配件2）",
+      "locator": "code/outputs.json",
+      "json_path": "q2.cases[3].best.decision[1]",
+      "unit": "0/1"
+    },
+    {
+      "result_id": "R-Q2-case4-decision-c",
+      "name": "表1 情况4 最优决策分量 C（是否检测成品）",
+      "locator": "code/outputs.json",
+      "json_path": "q2.cases[3].best.decision[2]",
+      "unit": "0/1"
+    },
+    {
+      "result_id": "R-Q2-case4-decision-d",
+      "name": "表1 情况4 最优决策分量 D（是否拆解不合格成品）",
+      "locator": "code/outputs.json",
+      "json_path": "q2.cases[3].best.decision[3]",
+      "unit": "0/1"
+    },
+    {
+      "result_id": "R-Q2-case5-decision-z1",
+      "name": "表1 情况5 最优决策分量 Z1（是否检测零配件1）",
+      "locator": "code/outputs.json",
+      "json_path": "q2.cases[4].best.decision[0]",
+      "unit": "0/1"
+    },
+    {
+      "result_id": "R-Q2-case5-decision-z2",
+      "name": "表1 情况5 最优决策分量 Z2（是否检测零配件2）",
+      "locator": "code/outputs.json",
+      "json_path": "q2.cases[4].best.decision[1]",
+      "unit": "0/1"
+    },
+    {
+      "result_id": "R-Q2-case5-decision-c",
+      "name": "表1 情况5 最优决策分量 C（是否检测成品）",
+      "locator": "code/outputs.json",
+      "json_path": "q2.cases[4].best.decision[2]",
+      "unit": "0/1"
+    },
+    {
+      "result_id": "R-Q2-case5-decision-d",
+      "name": "表1 情况5 最优决策分量 D（是否拆解不合格成品）",
+      "locator": "code/outputs.json",
+      "json_path": "q2.cases[4].best.decision[3]",
+      "unit": "0/1"
+    },
+    {
+      "result_id": "R-Q2-case6-decision-z1",
+      "name": "表1 情况6 最优决策分量 Z1（是否检测零配件1）",
+      "locator": "code/outputs.json",
+      "json_path": "q2.cases[5].best.decision[0]",
+      "unit": "0/1"
+    },
+    {
+      "result_id": "R-Q2-case6-decision-z2",
+      "name": "表1 情况6 最优决策分量 Z2（是否检测零配件2）",
+      "locator": "code/outputs.json",
+      "json_path": "q2.cases[5].best.decision[1]",
+      "unit": "0/1"
+    },
+    {
+      "result_id": "R-Q2-case6-decision-c",
+      "name": "表1 情况6 最优决策分量 C（是否检测成品）",
+      "locator": "code/outputs.json",
+      "json_path": "q2.cases[5].best.decision[2]",
+      "unit": "0/1"
+    },
+    {
+      "result_id": "R-Q2-case6-decision-d",
+      "name": "表1 情况6 最优决策分量 D（是否拆解不合格成品）",
+      "locator": "code/outputs.json",
+      "json_path": "q2.cases[5].best.decision[3]",
+      "unit": "0/1"
+    },
+    {
+      "result_id": "R-OUT-profit-def",
+      "name": "表1 情况1 最优策略下每件合格成品的期望总成本（利润口径的成本侧）",
+      "locator": "code/outputs.json",
+      "json_path": "q2.cases[0].best.unit_cost",
+      "unit": "元/件"
+    },
+    {
+      "result_id": "R-Q3-profit",
+      "name": "问题3 装配树实例下单位成品的期望利润",
+      "locator": "code/outputs.json",
+      "json_path": "q3.profit",
+      "unit": "元/件"
+    },
+    {
+      "result_id": "R-Q4-consistency-rate-case1",
+      "name": "表1 情况1 重复抽样下重解最优决策与点估计决策一致的比例",
+      "locator": "code/outputs.json",
+      "json_path": "q4.q2.cases[0].consistency_rate",
+      "unit": "比例"
+    },
+    {
+      "result_id": "R-Q4-consistency-rate-case2",
+      "name": "表1 情况2 重复抽样下重解最优决策与点估计决策一致的比例",
+      "locator": "code/outputs.json",
+      "json_path": "q4.q2.cases[1].consistency_rate",
+      "unit": "比例"
+    },
+    {
+      "result_id": "R-Q4-consistency-rate-case3",
+      "name": "表1 情况3 重复抽样下重解最优决策与点估计决策一致的比例",
+      "locator": "code/outputs.json",
+      "json_path": "q4.q2.cases[2].consistency_rate",
+      "unit": "比例"
+    },
+    {
+      "result_id": "R-Q4-consistency-rate-case4",
+      "name": "表1 情况4 重复抽样下重解最优决策与点估计决策一致的比例",
+      "locator": "code/outputs.json",
+      "json_path": "q4.q2.cases[3].consistency_rate",
+      "unit": "比例"
+    },
+    {
+      "result_id": "R-Q4-consistency-rate-case5",
+      "name": "表1 情况5 重复抽样下重解最优决策与点估计决策一致的比例",
+      "locator": "code/outputs.json",
+      "json_path": "q4.q2.cases[4].consistency_rate",
+      "unit": "比例"
+    },
+    {
+      "result_id": "R-Q4-consistency-rate-case6",
+      "name": "表1 情况6 重复抽样下重解最优决策与点估计决策一致的比例",
+      "locator": "code/outputs.json",
+      "json_path": "q4.q2.cases[5].consistency_rate",
+      "unit": "比例"
+    }
+  ]
+}

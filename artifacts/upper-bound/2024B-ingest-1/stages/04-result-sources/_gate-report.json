@@ -1,0 +1,18 @@
+{
+  "stage": "result-sources",
+  "code": 0,
+  "items": [
+    {
+      "id": "result_sources_valid",
+      "ok": true,
+      "detail": "49 条数源声明，id 唯一、locator/json_path 齐备",
+      "code": 0
+    },
+    {
+      "id": "results_minted",
+      "ok": true,
+      "detail": "账本 49 条，全部是来自真实执行的有限数",
+      "code": 0
+    }
+  ]
+}

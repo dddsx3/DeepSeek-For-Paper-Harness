@@ -1,0 +1,24 @@
+{
+  "source": "problem.pdf",
+  "attachment_files": [],
+  "tables": [
+    {
+      "id": "table-1",
+      "page": 1,
+      "shape": "8×13"
+    },
+    {
+      "id": "table-2",
+      "page": 2,
+      "shape": "9×9"
+    }
+  ],
+  "figures": [
+    {
+      "id": "fig-1",
+      "file": "figures/fig-1.png",
+      "page": 2
+    }
+  ],
+  "note": "表格与图由 scripts/ingest-problem.py 从题面 PDF 结构化摄取；表格全文见 tables.json，图见 figures/（转录见同目录 .md）。"
+}

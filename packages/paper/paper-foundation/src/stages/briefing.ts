@@ -349,6 +349,7 @@ const SKILLS: Readonly<Record<string, StageSkill>> = {
         + '`figure-distribution-exemplars.md` 给出**好论文的图表分布**（几张、各什么型）作参照；'
         + '`error-prevention-by-problem-type.md` 是**按题型索引**的防错手册——'
         + '先在里面找本题属于哪一类，那一类历史上踩过的坑直接避开。',
+      '`chart_type` 写**白名单里的裸标识符**（`line` / `waterfall` / `heatmap` / `forest` / `tornado` …），**不要把中文说明写进去**——说明放 `caption`。（门禁容忍中文图型名，但契约以裸标识符为准。）',
       '**图型按决策表选，不要默认柱状图**。`_utils/figure_style_guide.md` 里有一张「数据形态 → 推荐图型 → 避免什么」'
         + '的表。几条它明确否掉的退化：灵敏度排序**不要用 grouped bar**（用 tornado，柱状图会丢掉排序）；'
         + '成本构成**不要用 bar chart**（用 waterfall）；带重复的趋势**不要只画一条均值线**（用折线+置信带）；'

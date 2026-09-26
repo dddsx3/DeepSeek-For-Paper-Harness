@@ -1,0 +1,7 @@
+[STAGE CHAIN] artifacts\upper-bound\2024B-ingest-1\stages
+  题面问数（数出来的）：4
+  [deterministic] figure-declare: 逐节点审计（glm-5.3-flash-free）：pass，质量分 0.80，要求 5/5 项完成，5 条 findings
+[STAGE NEXT] 只跑了 'figure-declare'，到此即停。检查 artifacts\upper-bound\2024B-ingest-1\stages 后，放行 = 再执行一次 --stages --stage-next。
+  ✅ figure-declare: 门禁全过，已签发通行证
+
+STAGE CHAIN OK — 1 个阶段签发通行证（其中 0 个带未判定门禁，缺口已记在 PASSED 上）。产物在 artifacts\upper-bound\2024B-ingest-1\stages
