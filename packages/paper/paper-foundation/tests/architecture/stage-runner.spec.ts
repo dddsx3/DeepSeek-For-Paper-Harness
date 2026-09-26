@@ -635,3 +635,84 @@ describe('重跑 = 替换（清掉上一轮残留）', () => {
     expect(await readFile(join(dir, 'MODELING_REPORT.md'), 'utf8')).toBe(before)
   }, 120_000)
 })
+
+/**
+ * **门禁硬失败也要进重跑简报**（原来只有审计 findings 有回路）。
+ *
+ * 实测代价：阶段 2 因为散文里的反例数字 `63` 未登记编外而门禁硬失败，
+ * 但当时只有审计有回路，于是下一轮拿到**同一份简报**、又写了一遍同样的数
+ * ——同一条门禁拦了两次。这与"审计回路"是同一条纪律：重跑不能是盲重试。
+ */
+describe('重跑接线 —— 门禁硬失败也进简报', () => {
+  it('`_gate-report.json` 里有硬失败条目 → 本次 prompt 里出现它', async () => {
+    const root = await tmp()
+    await runStages(ctxOf(root), { only: ['prob-analysis'], problemCount: 4 })
+    const dir = join(root, '02-modeling')
+    await mkdir(dir, { recursive: true })
+    await writeFile(join(dir, '_gate-report.json'), JSON.stringify({
+      code: 1,
+      items: [{
+        id: 'numbers_traced', ok: false, code: 1,
+        detail: '有 1 个文件出现**没有出生证明**的数字 —— MODELING_REPORT.md：1 处（去重 1：63）',
+      }],
+    }), 'utf8')
+
+    let seen = ''
+    await runStages(ctxOf(root, {
+      callModel: async (spec, prompt) => {
+        if (spec.id === 'modeling') seen = prompt
+        return fakeCallModel()(spec, prompt)
+      },
+    }), { only: ['modeling'], problemCount: 4 })
+
+    expect(seen).toContain('上一轮审计提出的问题')
+    expect(seen).toContain('numbers_traced')
+    expect(seen).toContain('去重 1：63')
+  })
+
+  it('**只投 `1`（硬失败），不投 `2`（未实现/无法判定）**——后者执行者修不了', async () => {
+    const root = await tmp()
+    await runStages(ctxOf(root), { only: ['prob-analysis'], problemCount: 4 })
+    const dir = join(root, '02-modeling')
+    await mkdir(dir, { recursive: true })
+    await writeFile(join(dir, '_gate-report.json'), JSON.stringify({
+      code: 1,
+      items: [
+        { id: 'numbers_traced', ok: false, code: 1, detail: '没有出生证明的数字：63' },
+        { id: 'modeling_self_check', ok: false, code: 2, detail: '未实现：参考的 9 项自检……' },
+      ],
+    }), 'utf8')
+
+    let seen = ''
+    await runStages(ctxOf(root, {
+      callModel: async (spec, prompt) => {
+        if (spec.id === 'modeling') seen = prompt
+        return fakeCallModel()(spec, prompt)
+      },
+    }), { only: ['modeling'], problemCount: 4 })
+
+    expect(seen).toContain('numbers_traced')
+    expect(seen).not.toContain('modeling_self_check')
+  })
+
+  it('上一轮**没硬失败**（聚合 code ≠ 1）→ 不投门禁条目', async () => {
+    const root = await tmp()
+    await runStages(ctxOf(root), { only: ['prob-analysis'], problemCount: 4 })
+    const dir = join(root, '02-modeling')
+    await mkdir(dir, { recursive: true })
+    await writeFile(join(dir, '_gate-report.json'), JSON.stringify({
+      code: 2,
+      items: [{ id: 'modeling_self_check', ok: false, code: 2, detail: '未实现：……' }],
+    }), 'utf8')
+
+    let seen = ''
+    await runStages(ctxOf(root, {
+      callModel: async (spec, prompt) => {
+        if (spec.id === 'modeling') seen = prompt
+        return fakeCallModel()(spec, prompt)
+      },
+    }), { only: ['modeling'], problemCount: 4 })
+
+    expect(seen).not.toContain('上一轮审计提出的问题')
+  })
+})

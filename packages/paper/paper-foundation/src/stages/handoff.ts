@@ -31,7 +31,20 @@ import { STAGES, stageDirName, type StageId, type StageSpec } from './registry.t
 /** 门禁结论。0 = 通过；1 = 硬失败；2 = **无法判定**（不算通过）。 */
 export interface GateVerdict {
   readonly code: 0 | 1 | 2
-  readonly items: ReadonlyArray<{ readonly id: string; readonly ok: boolean; readonly detail: string }>
+  readonly items: ReadonlyArray<{
+    readonly id: string
+    readonly ok: boolean
+    readonly detail: string
+    /**
+     * 这一条自己的判定码（0/1/2）。**不能只看聚合的 `code`**：重跑时要把
+     * "这一轮到底哪几条硬失败"投递回简报，而 `2`（未实现/无法判定）不是执行者
+     * 能修的东西——把 `2` 也投回去，等于让它去追一个不存在的任务。
+     *
+     * 可选：缺省按 `1`（硬失败）算。手写的条目都出现在失败分支里（`stage_audit`
+     * 之类），而 `ok`/`fail`/`cannot` 三个构造器都会显式带上。
+     */
+    readonly code?: 0 | 1 | 2
+  }>
 }
 
 /** 一个阶段的通行证（`PASSED` 文件的内容）。 */
