@@ -158,3 +158,44 @@ export function plottingAsset(file: string): string {
   }
   return readFileSync(join(PLOTTING_ASSETS_DIR, file), 'utf8')
 }
+
+/**
+ * **方法论资产目录** —— 参考实现里"与题型无关"的那一层，原样迁移。
+ *
+ * 用户口径：*"把方法论与思想提炼固化下来，因为后续不能只跑一种类型的题目，
+ * 如果无法保证稳定迁移就不能算成功。"*
+ *
+ * 这里放的都是**不依赖具体题目**的东西：
+ * - `FIGURE-METHOD.md` —— 骨架本身（七步不变流程 + 题型无关/相关的界线 + 四条稳定性硬规则）；
+ * - `error-prevention-by-problem-type.md`（107KB）—— 参考的防错手册，**按题型索引**；
+ * - `figure-distribution-exemplars.md`（42KB）—— 优秀论文的图表分布范例（几张、什么型）；
+ * - `capability-checklist-check.md` / `data-provenance-ledger.md` —— 参考自己标注为
+ *   "**题型无关**"的两道闸的地基；
+ * - `writing-rules.md`（63KB）/ `tikz-rules.md`（21KB）—— 写作与示意图的规范；
+ * - `fidelity-audit.md`（46KB）—— 题面参数保真度审计；
+ * - `answer-accuracy-patch.md`（22KB）—— 答案准确性补丁。
+ *
+ * 迁入时**逐份核过编码（UTF-8-sig）与体量**，不改写内容。
+ */
+export const METHODOLOGY_ASSETS_DIR = join(STAGE_ASSETS_DIR.dir, 'methodology')
+
+/** 方法论资产清单（`role` 供简报与门禁读）。 */
+export const METHODOLOGY_ASSETS: ReadonlyArray<{ readonly file: string; readonly role: string }> = [
+  { file: 'FIGURE-METHOD.md', role: '**作图方法论骨架**：七步不变流程、题型无关/相关界线、四条稳定性硬规则、跨题迁移验收' },
+  { file: 'error-prevention-by-problem-type.md', role: '防错手册（**按题型索引**）：每类题目历史上踩过的坑与对策' },
+  { file: 'figure-distribution-exemplars.md', role: '优秀论文的图表分布范例：好论文有几张图、各是什么型' },
+  { file: 'capability-checklist-check.md', role: '能力清单结构校验（参考标注为**题型无关**的闸）' },
+  { file: 'data-provenance-ledger.md', role: '数据建档：用户数据的权威台账（参考的第 6 道闸地基）' },
+  { file: 'writing-rules.md', role: '写作规范（论文正文口径）' },
+  { file: 'tikz-rules.md', role: 'TikZ 学术示意图规则：语义驱动、自适应布局、可验证成品' },
+  { file: 'fidelity-audit.md', role: '题面参数保真度审计（给定值 vs 代码实际使用）' },
+  { file: 'answer-accuracy-patch.md', role: '答案准确性补丁（机理与优化类题目的常见错法）' },
+]
+
+/** 读一份方法论资产（原样返回）。 */
+export function methodologyAsset(file: string): string {
+  if (!METHODOLOGY_ASSETS.some(a => a.file === file)) {
+    throw new Error(`unknown methodology asset: ${file}（清单：${METHODOLOGY_ASSETS.map(a => a.file).join('、')}）`)
+  }
+  return readFileSync(join(METHODOLOGY_ASSETS_DIR, file), 'utf8')
+}

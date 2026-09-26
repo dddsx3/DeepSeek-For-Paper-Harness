@@ -1,10 +1,97 @@
 # 数学建模竞赛 专用图表代码范例
 
 适用于数学建模竞赛（国赛/美赛/MathorCup/统计建模等）。包含收敛曲线、灵敏度分析、Pareto 前沿、雷达图、甘特图、网络路径等竞赛高频图表。
-所有范例假设已执行 `from _utils.plot_utils import setup_style, save_fig, PALETTE, COLORS, _lighten; setup_style()`。
+所有范例假设已执行 `from _utils.plot_utils import setup_style, save_fig, auto_legend, PALETTE, COLORS, _lighten; setup_style()`。
 
-⚠ **图例位置规则**：所有图表统一使用 `loc='best'`，不要硬编码 `'upper right'`。如果数据在右上角会遮挡图例。
+⚠ **图例位置规则**：使用 `auto_legend(ax)` 按真实数据、填充带和标注占用选择位置。安全的原位置优先保留，图内其他位置也放不下才移到测量后的紧凑顶部/右侧区域；不随机选位置、不默认固定顶部栏或横向撑满。不要把 `loc='best'` 当作已经完成遮挡验证，也不因图例面积大但实际不遮挡而强制移动。
 ⚠ **标注边界规则**：`ax.annotate` 的 `xytext` 不要超出 `ax.get_xlim()/get_ylim()` 范围。`plot_utils._clamp_texts_to_axes` 会在 savefig 时自动裁剪超出的标注，但最好从源头避免。
+
+**配方默认使用新出版接口**：多面板共享系列用 `consolidate_shared_legends`，随机试验用 `uncertainty_band`，新图用 `set_paper_placement` 声明最终宽度，带字热力图用 `draw_vector_heatmap`，数据范围和轴线分别用 `dynamic_limits` / `declutter_axes`。这些是布局与可读性约定，不改变用户选定的色系。
+
+**旧片段现代化覆盖规则（复制任何下方配方时强制执行）**：本文件保留了部分早期 `ax.legend(loc='best')`、
+`fig.tight_layout()` 和 `inset_axes` 示例用于展示图型语法，它们不是成品版式。落地脚本必须把单轴图例换成
+`auto_legend`，把多面板重复图例换成 `consolidate_shared_legends`；多面板/边际分布/inset/colorbar 使用
+`layout='constrained'` + GridSpec 专用区域，不再调用 `tight_layout()`。同一 panel 若已有 inset、统计框、
+图例中的任意一个，第二个覆盖层必须移到专用区域。对数轴跨多个 decade 时只保留每 decade 的 2、5
+次刻度。白色 `bbox` 只能改善对比度，不能盖住曲线或数据点。配方里的旧调用与本段冲突时，以本段为准。
+
+⛔⛔ **图内标注只准「数值」或「短锚点标签」—— 不许写说明与结论**（`figure_check.sh` 的「图内标注体检」闸**进退出码**，违规必须改）
+
+**分界线：给东西【起名】放行，【下判断】拦掉。** 阐述、口径、结论写进图前后的正文；caption 只留简短图名。
+
+| ✅ 放行 | ❌ 违规 |
+|---|---|
+| `8188.06`、`45%`、`-0.5 pp` | `全区间贴死下限 → ROI 始终绑定`（结论+箭头） |
+| `1007 张`、`3271 元`、`30 人` | `因此最优解取 8 个点`（含「因此」） |
+| `n=30`、`ROI=3.0`、`p<0.001` | `题给 $B$=500000 元 → 在图右`（导读） |
+| `45%\n(9/20)`（多行数值） | 任何成句的话（有句号/分号） |
+| 公式 `$\eta_{\rm struct}$`、`$q^*$=0.47` | `样本仅 530 条，说明高估`（含「说明」） |
+| panel 标号 `a` `b` `c`（不加框不加句点） | 数据来源、口径备注、结论陈述 |
+| **短锚点标签**：`最优解`、`预算绑定区`、`ROI 下限 3.0`、`肘部拐点 $k$=8`、`膝点 $B^\ast\approx$3.2 万元`、`Youden: J=0.42, θ*=0.31`、`加权 R²=0.87 / RMSE=1.2` | `最优解 · 收敛区间 · 预算上限 3271 元`（**单个虽短，堆在一起仍是文字块**；只留能定位对象的一个，其余移入正文） |
+| `边际 GMV/人\n0.12 → 0.03 元`（箭头在行中=数值区间） | `末两检查点 差 0.001\n→ 200k 时隙已收敛`（箭头在行首=推导） |
+
+**短锚点标签的放行判据**（`figure_text_budget.py` 里 `is_short_anchor`）：
+
+- ≤45 显示宽 & ≤3 行 & 汉字总数 ≤12
+- 每行「有数字」**或**「汉字 ≤5」（无数字的长中文行 = 叙述句的签名）
+- 无结论/因果词（`始终 / 因此 / 可见 / 表明 / 须 / 劣 / 全落在 / 不可行` 等）
+- 无中文逗号、分号、冒号、句号、问叹号；括号内不得藏完整中文解释
+- 箭头不在行首、后面不紧跟中文
+- 同一行最多一段「有中文但无数字」的片段（防多标签堆叠）
+- `cn(...)`、`panel(...)` 等包装调用仍按最终显示文字检查，不能绕过
+
+⛔ **为什么留这一档**：阈值线不说明是什么线、最优点不标是最优点，图就没法读了 ——
+Nature 正刊也这么标。实测 17 个真实工作区 523 处违规里 **335 处（64%）是这类合法标签**，
+一律拦掉会逼 AI 把图删成残图（那是另一种违规，anti-broken 检查会抓）。
+
+⛔ **改判据前先跑自测**：`python _utils/figure_text_budget.py --selftest`（56 项，全过才算对）。
+
+**第二档：轴标签 / 标题 / 图例系列名 / 刻度标签 —— 允许有文字，但 ≤18 汉字且不许有句号分号**
+
+`set_xlabel` / `set_ylabel` / `set_title` / `suptitle` / `legend(title=)` / `label=` / `set_xticklabels`
+这些是图的必备构件（**图例尤其不能省**，少了它读者分不清哪条线是哪条），但不能拿来塞说明：
+
+```python
+# ❌ 违规：把口径说明塞进轴标签（宽 70）
+ax.set_xlabel('相对 baseline 的改进百分比 (%，右为更优；误差棒为两端 95% CI 的保守组合)')
+
+# ✅ 合规：轴标签只写「量名（单位）」，口径写进论文正文
+ax.set_xlabel('相对改进（%）')
+```
+
+✅ 放行样例：`迭代次数`、`峰值冲击力 $F_{peak}$ (体重倍数 BW)`、`假阳性率 FPR (1 - 特异度)`
+
+⛔ **18 汉字这个上限是量出来的，不是拍的**：25 个真实工作区 `set_xlabel` n=491 中位 15、
+P95=36 显示宽；`label=` n=476 中位 12、P95=24。定在 36 显示宽只抓尾部 5%，
+正常的"轴名 + 单位 + 口径括注"全部放行。
+
+⛔ **换 API 绕不过去**：闸同时扫 `plt.text` / `plt.figtext` / `AnchoredText` /
+`bar_label(labels=)`，以及"先赋值给变量再传"「列表 + 循环取值」这类间接写法
+（实测 13 条规避路径已全部堵住）。
+
+**想说明"这条线是什么"→ 用图例，不要在线旁边写字：**
+
+```python
+# ❌ 违规：判据线旁边写说明
+ax.axhline(3.0, ls='--'); ax.text(x, 3.0, 'ROI 阈值线', fontsize=7)
+
+# ✅ 合规：线的语义进图例，图上只留数值
+ax.axhline(3.0, ls='--', lw=0.8, color=COLORS['grid'], label='ROI 阈值 3.0')
+ax.text(x_right, 3.0, '3.0', fontsize=7, va='bottom', ha='right')
+auto_legend(ax, frameon=False)
+```
+
+⛔ **`fig.text` 只用于 panel 编号**（`fig.text(0.012, 0.965, 'a', fontweight='bold')`）。
+实测 25 个工作区的 `fig.text` 中位显示宽 **69**（≈35 汉字）、64% 是成句长文 ——
+它画在画布底部，正好压住 x 轴标签（实测 44 处）。
+
+⛔ **别靠引擎兜底。** `plot_utils` 会检测文字与曲线/点/箭头/柱边界，以及图例与数据/文字的
+渲染后冲突，但密集场景仍可能没有合法空位；保存失败时必须减字或重构 GridSpec，不能反复缩字号。
+**源头不写字，比任何算法都有效。**
+
+★ 砍掉图内文字**不会掉分**：对 94 张真实竞赛图逐图核对的结论是
+「高分图与平庸图的差距在多 panel / 判据线 / 不确定性 / 图型丰富度，**不在图内文字多少**」。
+要提信息量就加 panel、加判据线、加置信带，不要加字。
 
 ## ⛔⛔ 抄本文件代码前必读：`figsize` 按「长宽比档位」收窄（不是一刀切）
 
@@ -87,12 +174,12 @@ ax.annotate('收敛点', xy=(iters[conv_idx], ours[conv_idx]),
 ax.scatter([iters[conv_idx]], [ours[conv_idx]], color=COLORS['down'], s=50, zorder=5, edgecolors='white')
 
 ax.set_xlabel('迭代次数', fontsize=11); ax.set_ylabel('目标函数值', fontsize=11)
-# ★ 图例用 loc='best' 自适应，不要硬编码 'upper right'（避免数据在右上角时遮挡图例）
-ax.legend(frameon=False, labelspacing=0.35, handlelength=1.6, fontsize=9, loc='best')
+# ★ 同时测量图例与数据、注释的实际边界；无安全角落时自动建立图外区域
+from _utils.plot_utils import auto_legend
+auto_legend(ax, frameon=False, labelspacing=0.35, handlelength=1.6, fontsize=9)
 ax.set_xlim(0, 520)
 ax.spines['top'].set_visible(False)
 ax.spines['right'].set_visible(False)
-fig.tight_layout()
 save_fig(fig, 'figures/fig_convergence.pdf')
 ```
 
@@ -101,11 +188,7 @@ save_fig(fig, 'figures/fig_convergence.pdf')
 # 1. 终点数值标注用 smart_labels()，多条曲线终点值接近时自动推开防重叠
 # 2. 收敛点标注箭头要指向曲线的拐点区域，方向朝空白处
 # 3. 本文算法的填充区域 alpha 用 0.10（太深会遮挡其他曲线）
-# 4. 收敛曲线的下降趋势：图例放 'upper right' 可能遮挡
-#    - 最小化问题（曲线从高到低）：图例放 'upper right' 右上空
-#    - 最大化问题（曲线从低到高）：图例放 'lower right' 右下空
-#    - 不确定方向时用 loc='best' 让 matplotlib 自动选择
-#    - 或者把图例放到图外：bbox_to_anchor=(1.02, 1), loc='upper left'
+# 4. 不根据“曲线大概往哪走”猜图例位置；统一交给 auto_legend 实测数据与文字占用。
 # 5. 曲线数 >4 条时，考虑本文方法用粗线 alpha=1.0 突出，其他用细线 alpha=0.55 降低视觉权重
 # 6. 标注文字不要和图例重叠（标注放在曲线空白处，图例在另一侧）
 ```
