@@ -171,7 +171,7 @@ export const STAGES: ReadonlyArray<StageSpec> = [
       D('figures/', 'dir', '按声明渲染的图（声明驱动，不写渲染代码）'),
       D('figure-manifest.json', 'json', '渲染清单：图 id → 文件 → 数据引用 → 渲染哈希'),
     ],
-    gates: ['figure_manifest_reconcile', 'figure_style_rules'],
+    gates: ['figure_manifest_reconcile', 'figure_completeness', 'figure_style_rules'],
     contractRules: [], rollbackTo: ['figure-declare', 'code'],
     premise: '**渲染是 harness 的事**：模型只声明 `chart_type/data_refs/caption`，'
       + '图里的每个数都必须先作为 Result 存在。这一条由 `figure_declaration_complete`'

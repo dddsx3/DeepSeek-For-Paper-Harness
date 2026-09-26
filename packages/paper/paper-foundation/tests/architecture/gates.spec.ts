@@ -664,3 +664,119 @@ describe('figure_style_rules —— 中文字体必须点名', () => {
     expect(run1(ascii).code).toBe(0)
   })
 })
+
+/**
+ * `figure_completeness` —— 参考工作流的"最高优先级"红线。
+ *
+ * 它的原话是 *prevents "broken / partial" figures*，三条硬规矩：
+ * ① 值轴必须有数值刻度（"稀疏 3–5 个可以，空的禁止"）；
+ * ② xlabel 与 ylabel 都必须有、且带单位；
+ * ③ 隐藏刻度就必须直接标注数据，两者都没有 = 残图。
+ *
+ * 为什么单独立一条而不并进 `figure_style_rules`：那张图量的是**风格**。
+ * 一张配色完全合规的图完全可以没有刻度、没有轴标签——看上去像个漂浮的色块。
+ * 实测就是这样：旧运行那张六根柱子的图，配色合规、无图内标题、字号合格，
+ * 但**一根柱子上没有任何标注、横轴没有任何标签**，根本读不出哪根是什么。
+ */
+describe('figure_completeness —— 残图红线（有风格 ≠ 能读）', () => {
+  const decl = (over: Record<string, unknown> = {}): string => JSON.stringify({
+    figures: [{ figure_id: 'fig_a', chart_type: 'bar', data_refs: ['RES-A'],
+      caption: '六种情况对照', x_label: '表 1 的情况', y_label: '期望利润（元）', ...over }],
+  })
+  const svgOk = (): string => [
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 680 420">',
+    ...[5, 4, 3, 2, 1].map((i, k) =>
+      `<text x="40" y="${20 + k * 40}" font-family="monospace" font-size="11">${String(i * 5)}</text>`),
+    '<text x="100" y="400" font-family="X" font-size="11">情况1</text>',
+    '<text x="200" y="400" font-family="X" font-size="11">情况2</text>',
+    '</svg>',
+  ].join('')
+  const run1 = (svg: string, d: string) => run('figure_completeness', input(
+    { 'figures/fig_a.svg': svg, 'FIGURE_DECLARATIONS.json': d },
+    { 'FIGURE_DECLARATIONS.json': d },
+  ))
+
+  it('齐备 → 0（轴标签 + 值轴刻度 + 类别标签）', () => {
+    expect(run1(svgOk(), decl()).code).toBe(0)
+  })
+
+  it('**缺 `x_label` / `y_label` → 硬失败**（"裸轴不可接受"）', () => {
+    const v = run1(svgOk(), decl({ x_label: '', y_label: '' }))
+    expect(v.code).toBe(1)
+    expect(v.items[0]?.detail).toContain('x_label')
+    expect(v.items[0]?.detail).toContain('裸轴')
+  })
+
+  it('**值轴刻度为空 → 硬失败**（"没有刻度的轴不可读"）', () => {
+    const noTicks = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 680 420">'
+      + '<text x="100" y="400" font-family="X">情况1</text></svg>'
+    const v = run1(noTicks, decl())
+    expect(v.code).toBe(1)
+    expect(v.items[0]?.detail).toContain('刻度')
+    expect(v.items[0]?.detail).toContain('不可读')
+  })
+
+  it('**柱状图既无类别标签也无数值标注 → 硬失败**（"隐藏刻度又不标注 = 残图"）', () => {
+    // 只有值轴刻度、没有类别名、也没有柱顶数值
+    const bare = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 680 420">'
+      + [5, 4, 3, 2].map((i, k) => `<text x="40" y="${20 + k * 40}">${String(i * 5)}</text>`).join('')
+      + '</svg>'
+    const v = run1(bare, decl())
+    expect(v.code).toBe(1)
+    expect(v.items[0]?.detail).toContain('残图')
+  })
+
+  it('没有声明 / 没有 SVG → **2**（不是 0：没有对象可核）', () => {
+    expect(run('figure_completeness', input({ 'figures/fig_a.svg': svgOk() })).code).toBe(2)
+    expect(run('figure_completeness', input({ 'FIGURE_DECLARATIONS.json': decl() })).code).toBe(2)
+  })
+
+  it('只有表格图 → 2（表格不是"数据图"，不套这条红线）', () => {
+    const t = JSON.stringify({ figures: [{ figure_id: 'fig_t', chart_type: 'table', data_refs: ['RES-A'] }] })
+    expect(run1(svgOk(), t).code).toBe(2)
+  })
+})
+
+/**
+ * 源码里**不许有控制字符** —— 刚才就是它让一条门禁静默失效。
+ *
+ * 事故：用 shell heredoc 写文件时，`\b` 被解释成退格符（U+0008），于是
+ * `/<text\b[^>]*>/` 变成了 `/<text` + 退格 + `[^>]*>/`——**正则永远匹配不到**，
+ * 门禁静默判"值轴 0 个刻度"。typecheck 过、所有既有测试过，没有任何东西会红。
+ * 这类错误只能靠"扫字节"发现，所以立一条守卫：`src/` 下任何文件都不许含控制字符
+ * （`\t`/`\n`/`\r` 除外）。
+ */
+describe('源码卫生 —— 不许有控制字符（事故：退格符让正则静默失效）', () => {
+  it('`src/` 下的源文件都不含控制字符（\t \n \r 除外）', async () => {
+    const { readdir, readFile } = await import('node:fs/promises')
+    const { fileURLToPath } = await import('node:url')
+    const { join } = await import('node:path')
+    // 用 fileURLToPath 而不是 URL.pathname：后者在 Windows 上给出
+    // `D:\D:\...` 这种带盘符重复与前导斜杠的路径（实测踩过）。
+    const root = fileURLToPath(new URL('../../src/', import.meta.url))
+    const walk = async (dir: string): Promise<string[]> => {
+      const entries = await readdir(dir, { withFileTypes: true })
+      const out: string[] = []
+      for (const e of entries) {
+        const child = join(dir, e.name)
+        if (e.isDirectory()) out.push(...await walk(child))
+        else if (/\.ts$/.test(e.name)) out.push(child)
+      }
+      return out
+    }
+    const files = await walk(root)
+    expect(files.length).toBeGreaterThan(50)
+    const offenders: string[] = []
+    for (const f of files) {
+      const text = await readFile(f, 'utf8')
+      const bad = [...text].filter(ch => {
+        const c = ch.charCodeAt(0)
+        return (c < 32 && ch !== '\t' && ch !== '\n' && ch !== '\r') || c === 127
+      })
+      if (bad.length > 0) {
+        offenders.push(`${f}：${bad.length} 个（首个 U+${String(bad[0]!.charCodeAt(0).toString(16))}）`)
+      }
+    }
+    expect(offenders, `含控制字符的源文件：${offenders.join('；')}`).toEqual([])
+  })
+})

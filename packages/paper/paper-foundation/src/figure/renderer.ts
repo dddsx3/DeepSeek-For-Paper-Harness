@@ -101,7 +101,52 @@ export const DATA_FIGURE_RECIPES: Readonly<Record<string, DataFigureRecipe>> = {
     grid_color: '#E0E0E0',
     ink: '#111111',
   },
+  // ── 以下配方**移植自参考工作流的配色库**（`skills/shared-scripts/plot_utils.py`
+  //    的 PALETTES，2347 行、约 30 套经审美验证的配色）。只搬了 6 套最常用的：
+  //    全部低饱和、灰度可辨、且**都不是**参考明令禁用的那几套（tab10 / RdYlGn /
+  //    RdBu_r / jet / dark_background）。
+  //    为什么配色是"数据"而不是"架构"：`DATA_FIGURE_RECIPES` 已经是现成的扩展点，
+  //    加一套配色不该动渲染逻辑。
+  // 'npg'（Nature 出版集团）—— 鲜明对比，适合方法/组间对比
+  'npg-v1': {
+    name: 'npg-v1',
+    palette: ['#E64B35', '#4DBBD5', '#00A087', '#3C5488', '#F39B7F', '#8491B4'],
+    font_size: 12, stroke_width: 2, grid_color: '#DCDCDC', ink: '#222222',
+  },
+  // 'nejm'（新英格兰医学杂志）—— 柔和优雅，适合统计/成本类
+  'nejm-v1': {
+    name: 'nejm-v1',
+    palette: ['#BC3C29', '#0072B5', '#E18727', '#20854E', '#7876B1', '#6F99AD'],
+    font_size: 12, stroke_width: 2, grid_color: '#DCDCDC', ink: '#222222',
+  },
+  // 'science'（SciencePlots 经典）—— 工程/优化类
+  'science-v1': {
+    name: 'science-v1',
+    palette: ['#0C5DA5', '#00B945', '#FF9500', '#FF2C00', '#845B97', '#474747'],
+    font_size: 12, stroke_width: 2, grid_color: '#DCDCDC', ink: '#222222',
+  },
+  // 'journal'（顶刊低饱和莫兰迪）—— SCI 投稿首选，灰度下也能分辨
+  'journal-muted-v1': {
+    name: 'journal-muted-v1',
+    palette: ['#4A90B8', '#E8927C', '#7BC8A4', '#B8B8B8', '#F7D097', '#9B8EC4'],
+    font_size: 12, stroke_width: 2, grid_color: '#E2E2E2', ink: '#333333',
+  },
+  // 'elegant'（参考库的默认色）—— 柔和通透，适合统计建模/经管
+  'elegant-v1': {
+    name: 'elegant-v1',
+    palette: ['#7AAEC8', '#E8945A', '#7BC8A4', '#9B8EC4', '#E0A0A0', '#F0C05A'],
+    font_size: 12, stroke_width: 2, grid_color: '#E4E4E4', ink: '#3A3A3A',
+  },
+  // 'tol_muted'（Tol 柔和，色盲安全）—— 多组对比且要印刷友好时
+  'tol-muted-v1': {
+    name: 'tol-muted-v1',
+    palette: ['#4477AA', '#CC6677', '#228833', '#CCBB44', '#66CCEE', '#AA3377'],
+    font_size: 12, stroke_width: 2, grid_color: '#DCDCDC', ink: '#222222',
+  },
 }
+
+/** 数据图配方名（供声明侧选择；顺序即"确定性轮换"的顺序）。 */
+export const DATA_FIGURE_RECIPE_NAMES: ReadonlyArray<string> = Object.keys(DATA_FIGURE_RECIPES)
 
 /** The canonical render input the figure's bytes are derived from. */
 export interface RenderInput {
@@ -420,12 +465,19 @@ function renderSeries2DSvg(input: RenderInput): string {
     const gv = yMax - ((yMax - yMin) / gridRows) * row
     parts.push(`<text x="${L - 8}" y="${gy + 4}" text-anchor="end" font-family="monospace" font-size="${recipe.font_size - 1}" fill="${recipe.ink}">${fmtTick(gv)}</text>`)
   }
+  // **类别轴上不画数值刻度**（第四个实测缺陷）。
+  // 分类轴（`xLabels`）的刻度位置是 1..n 的序号，画出来就是 `0.8 / 1.8 / 2.8…`
+  // 与类别名**压在同一行**（用户看图能看到「0.8情况1」叠字）。
+  // 参考工作流的完整性红线说得直接："隐藏刻度就必须直接标注数据"——反过来说，
+  // 已经用类别名标注了，再叠一层无意义的序号刻度就是噪声。
   const gridCols = 5
-  for (let col = 0; col <= gridCols; col += 1) {
-    const gx = L + (plotW / gridCols) * col
-    const gv = xMin + ((xMax - xMin) / gridCols) * col
-    parts.push(`<line x1="${gx}" y1="${T}" x2="${gx}" y2="${T + plotH}" stroke="${recipe.grid_color}" stroke-width="1"/>`)
-    parts.push(`<text x="${gx}" y="${T + plotH + 16}" text-anchor="middle" font-family="monospace" font-size="${recipe.font_size - 1}" fill="${recipe.ink}">${fmtTick(gv)}</text>`)
+  if (!categorical) {
+    for (let col = 0; col <= gridCols; col += 1) {
+      const gx = L + (plotW / gridCols) * col
+      const gv = xMin + ((xMax - xMin) / gridCols) * col
+      parts.push(`<line x1="${gx}" y1="${T}" x2="${gx}" y2="${T + plotH}" stroke="${recipe.grid_color}" stroke-width="1"/>`)
+      parts.push(`<text x="${gx}" y="${T + plotH + 16}" text-anchor="middle" font-family="monospace" font-size="${recipe.font_size - 1}" fill="${recipe.ink}">${fmtTick(gv)}</text>`)
+    }
   }
   // axes spines
   parts.push(`<line x1="${L}" y1="${T}" x2="${L}" y2="${T + plotH}" stroke="${recipe.ink}" stroke-width="1"/>`)
@@ -454,10 +506,25 @@ function renderSeries2DSvg(input: RenderInput): string {
     if (input.chart_type === 'bar') {
       // bar width derived from spacing so multi-series bars don't overlap
       const bw = Math.max(4, plotW / (xs.length * series2d.length + 1) * 0.7)
+      // 参考工作流的两条硬规矩，原来都没做：
+      // ① **"浅色填充 + 主色描边"**（原来只有 0.85 不透明填充、无描边）；
+      // ② **柱顶直接标数值**（`ax.bar_label` 的等价物）——否则读图的人得拿眼睛
+      //    去比刻度，而"隐藏刻度又不直接标注"在参考里直接判**残图**。
+      // 柱太多时（> 12 根）不标，避免糊成一片（参考对热力图也是这个口径：
+      // "如果格子太小就不标数值"）。
+      const labelEveryBar = xs.length * series2d.length <= 12
       xs.forEach((xv, i) => {
         const yv = sr.y[i] ?? 0
         const bx = sx(xv) - (series2d.length / 2 - si) * bw
-        parts.push(`<rect x="${fmt(bx - bw / 2)}" y="${fmt(sy(yv))}" width="${fmt(bw)}" height="${fmt(Math.max(0, T + plotH - sy(yv)))}" fill="${c}" fill-opacity="0.85"/>`)
+        const top = sy(yv)
+        const base = sy(Math.max(yMin, 0))
+        const y0 = Math.min(top, base)
+        const h = Math.max(1, Math.abs(base - top))
+        parts.push(`<rect x="${fmt(bx - bw / 2)}" y="${fmt(y0)}" width="${fmt(bw)}" height="${fmt(h)}" fill="${c}" fill-opacity="0.42" stroke="${c}" stroke-width="1.2"/>`)
+        if (labelEveryBar) {
+          const above = yv >= 0
+          parts.push(`<text x="${fmt(bx)}" y="${fmt(above ? y0 - 4 : y0 + h + 11)}" text-anchor="middle" font-family="monospace" font-size="${recipe.font_size - 2}" fill="${recipe.ink}">${fmtTick(yv)}</text>`)
+        }
       })
       return
     }
@@ -501,14 +568,35 @@ function renderSeries2DSvg(input: RenderInput): string {
     })
   }
 
+  // 轴标签：**放不下就缩字号**，不许被画布裁掉。
+  // 实测缺陷（用户看图发现）：`单位期望利润（元）` 旋转后长度超过上边距，
+  // 顶部的「元）」被裁在画布外——而裁掉的正好是单位，等于把图读成无单位的数。
+  // 参考工作流的红线写得很直白：轴标签必须带单位、且"Axis tick labels cut off"是必修项。
+  // 摆位也一并改成**居中在绘图区内**（原来固定在 `L-50`，标签一长就往画布外跑）。
   if (input.y_label !== undefined) {
-    parts.push(`<text x="${T / 2}" y="${L - 50}" transform="rotate(-90 ${T / 2} ${L - 50})" text-anchor="middle" font-family="${CJK_FONT_STACK}" font-size="${recipe.font_size}" fill="${recipe.ink}">${escapeXml(input.y_label)}</text>`)
+    const fs = fitFontSize(input.y_label, plotH, recipe.font_size)
+    const cy = T + plotH / 2
+    parts.push(`<text x="${fmt(T / 2)}" y="${fmt(cy)}" transform="rotate(-90 ${fmt(T / 2)} ${fmt(cy)})" text-anchor="middle" font-family="${CJK_FONT_STACK}" font-size="${fs}" fill="${recipe.ink}">${escapeXml(input.y_label)}</text>`)
   }
   if (input.x_label !== undefined) {
-    parts.push(`<text x="${L + plotW / 2}" y="${H - 10}" text-anchor="middle" font-family="${CJK_FONT_STACK}" font-size="${recipe.font_size}" fill="${recipe.ink}">${escapeXml(input.x_label)}</text>`)
+    const fs = fitFontSize(input.x_label, plotW, recipe.font_size)
+    parts.push(`<text x="${fmt(L + plotW / 2)}" y="${H - 10}" text-anchor="middle" font-family="${CJK_FONT_STACK}" font-size="${fs}" fill="${recipe.ink}">${escapeXml(input.x_label)}</text>`)
   }
   parts.push('</svg>')
   return parts.join('\n') + '\n'
+}
+
+/**
+ * 把字号缩到"这段文字在可用长度内放得下"（**有下限，不许缩成看不见**）。
+ *
+ * 中文按 1.0 em/字、拉丁数字按 0.6 em/字估算宽度——只用于**防裁切**，
+ * 不追求排版精确。下限 8pt 来自参考工作流的硬要求（"刻度字号下限 8pt、轴标签 9pt"）。
+ */
+function fitFontSize(text: string, available: number, want: number): number {
+  const em = [...text].reduce((n, ch) => n + (/[　-鿿＀-￯]/.test(ch) ? 1.0 : 0.6), 0)
+  if (em <= 0) return want
+  const fits = available / em
+  return Math.max(8, Math.min(want, Math.round(fits * 10) / 10))
 }
 
 /** Tick formatter: compact, deterministic, no exponent surprises. */

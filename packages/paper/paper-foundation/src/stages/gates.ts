@@ -472,6 +472,85 @@ const CJK_CAPABLE_FONT = /(?:YaHei|SimHei|SimSun|PingFang|Noto Sans CJK|Source H
  * 3. **图内不得有标题**：声明的题注不得作为文本出现在 SVG 里（`plt.title` 的等价物；
  *    题注由正文给）。
  */
+/**
+ * **图完整性**（参考工作流的"最高优先级"红线，原话：*prevents "broken / partial" figures*）。
+ *
+ * 为什么单独立一条：`figure_style_rules` 量的是**风格**（字号/配色/图内标题），
+ * 而"这张图能不能读"是另一回事——一张配色完全合规的图完全可以**没有刻度、
+ * 没有轴标签**，看上去像个漂浮的色块。参考工作流把它放在最高优先级，原话三条：
+ * 1. *"Y-axis MUST keep numeric ticks. Never call set_yticks([]) on a data plot —
+ *    an axis with no scale is unreadable. Sparse (3–5 ticks) is fine, empty is forbidden."*
+ * 2. *"Both set_xlabel(...) and set_ylabel(...) are mandatory, with units. No bare/unlabeled axes."*
+ * 3. *"If you hide x-ticks, you MUST directly label the data. Hiding ticks WITHOUT
+ *    direct labels = broken figure."*
+ * 还有一条验收动作：*"Open each figure and confirm it is not just floating color blocks."*
+ *
+ * 判据全部落在**已渲染的 SVG + 声明**上（机械可核）：
+ * - 声明里每张数据图都要有非空的 `x_label` 与 `y_label`；
+ * - SVG 里值轴要有 ≥3 个数值刻度标签（"稀疏可以，空的不行"）；
+ * - 柱状图必须有**类别标签或数值标注**之一（否则是"隐藏刻度又不标注"的残图）。
+ */
+const figureCompleteness: GateFn = (input) => {
+  const id = 'figure_completeness'
+  const declRaw = input.files.get('FIGURE_DECLARATIONS.json') ?? null
+  if (declRaw === null) return cannot(id, 'FIGURE_DECLARATIONS.json 不在 —— 没有声明就无从对账')
+  let figures: ReadonlyArray<Record<string, unknown>>
+  try {
+    const parsed: unknown = JSON.parse(declRaw)
+    const list = (parsed as { figures?: unknown }).figures
+    if (!Array.isArray(list)) return fail(id, 'FIGURE_DECLARATIONS.json 里没有 `figures` 数组')
+    figures = list as ReadonlyArray<Record<string, unknown>>
+  } catch {
+    return fail(id, 'FIGURE_DECLARATIONS.json 不是合法 JSON')
+  }
+  const dataFigures = figures.filter(f => f['chart_type'] !== 'table')
+  if (dataFigures.length === 0) return cannot(id, '声明里没有数据图（只有表格）—— 没有可核对象')
+  const svgs = renderedSvgFiles(input)
+  if (svgs.length === 0) return cannot(id, '本阶段没有产出任何 SVG —— 没有可核对象')
+  const problems: string[] = []
+  for (const f of dataFigures) {
+    const fid = String(f['figure_id'] ?? '?')
+    for (const key of ['x_label', 'y_label'] as const) {
+      const v = f[key]
+      if (typeof v !== 'string' || v.trim() === '') {
+        problems.push(`${fid}：缺 \`${key}\` —— 参考红线"轴标签必须有、且带单位；裸轴不可接受"`)
+      }
+    }
+  }
+  for (const file of svgs) {
+    const svg = input.files.get(file) ?? ''
+    const numericLabels = [...svg.matchAll(/<text\b[^>]*>([^<]*)<\/text>/g)]
+      .map(m => (m[1] ?? '').trim())
+      .filter(t => t !== '' && Number.isFinite(Number(t)))
+    if (numericLabels.length < 3) {
+      problems.push(`${file}：值轴只有 ${String(numericLabels.length)} 个数值刻度 —— `
+        + '参考红线"没有刻度的轴不可读；稀疏（3–5 个）可以，空的禁止"')
+    }
+    const declOfThis = figures.find(f => String(f['figure_id'] ?? '') === figureIdOf(file))
+    if (declOfThis !== undefined && declOfThis['chart_type'] === 'bar') {
+      // 柱状图：要么有类别标签，要么有柱顶数值标注，否则是残图。
+      //
+      // 判据**不能靠正则猜"哪种 text 像类别名"**（试过：按 font-size 猜，一改字号就误判）。
+      // 用门禁已经掌握的信息排除：声明里的 `x_label` / `y_label` / `caption` 是**已知的长文本**，
+      // 把它们去掉之后，剩下的非数值文本就是类别名/图例/标注。
+      const known = new Set([declOfThis['x_label'], declOfThis['y_label'], declOfThis['caption']]
+        .filter((v): v is string => typeof v === 'string' && v !== '').map(v => v.trim()))
+      const otherTexts = [...svg.matchAll(/<text\b[^>]*>([^<]*)<\/text>/g)]
+        .map(m => (m[1] ?? '').trim())
+        .filter(t => t !== '' && !Number.isFinite(Number(t)) && !known.has(t))
+      // 值轴刻度按"值轴上的刻度数"估：常规图 4–5 个；柱顶标注会让数值文本明显变多
+      const hasValueLabels = numericLabels.length > 6
+      if (otherTexts.length === 0 && !hasValueLabels) {
+        problems.push(`${file}：柱状图既没有类别标签也没有数值标注 —— `
+          + '参考红线"隐藏刻度就必须直接标注数据；两者都没有 = 残图（漂浮的色块）"')
+      }
+    }
+  }
+  return problems.length === 0
+    ? ok(id, `${String(dataFigures.length)} 张数据图：轴标签齐备、值轴刻度 ≥3、柱状图有标注`)
+    : fail(id, problems.slice(0, 6).join('；'))
+}
+
 const figureStyleRules: GateFn = (input) => {
   const id = 'figure_style_rules'
   const svgs = renderedSvgFiles(input)
@@ -1004,6 +1083,7 @@ export const GATES: ReadonlyMap<string, GateFn> = new Map<string, GateFn>([
   ['figure_declaration_complete', figureDeclarationComplete],
   // 风格门禁 —— `adaptation.ts` 里那条 `missing`（Python 绘图库的规范）的补齐项：
   // 规范本身早已在仓库里（语料 + 简报的禁令），缺的是**可核的判据**，这就是它。
+  ['figure_completeness', figureCompleteness],
   ['figure_style_rules', figureStyleRules],
   ['diagram_manifest_reconcile', diagramManifestReconcile],
   ['diagram_geometry', diagramGeometry],
