@@ -1,0 +1,35 @@
+===== 第 1 次 --stage-next =====
+[STAGE CHAIN] artifacts\upper-bound\2024B-ingest-1\stages
+  题面问数（数出来的）：4
+  [deterministic] code: 分片 1/7 交付 code/main.py
+  [deterministic] code: 分片 2/7 交付 code/params.py
+  [deterministic] code: 分片 3/7 交付 code/problem1.py
+  [deterministic] code: 分片 4/7 交付 code/problem2.py
+  [deterministic] code: 分片 5/7 交付 code/problem3.py
+  [deterministic] code: 分片 6/7 交付 code/problem4.py
+  [deterministic] code: 分片 7/7 交付 *
+[STAGE NEXT] 只跑了 'code'，到此即停。检查 artifacts\upper-bound\2024B-ingest-1\stages 后，放行 = 再执行一次 --stages --stage-next。
+  ❌ code: 门禁 code 1（0=通过 1=硬失败 2=无法判定）：numbers_traced、delivery_audit
+
+STAGE CHAIN FAILED — 1 个阶段没通过（产物与通行证在 artifacts\upper-bound\2024B-ingest-1\stages）。
+===== 第 2 次 --stage-next =====
+[STAGE CHAIN] artifacts\upper-bound\2024B-ingest-1\stages
+  题面问数（数出来的）：4
+  [deterministic] code: 分片 1/7 交付 code/main.py
+  [deterministic] code: 分片 2/7 交付 code/params.py
+  [deterministic] code: 分片 3/7 交付 code/problem1.py
+  [deterministic] code: 分片 4/7 交付 code/problem2.py
+  [deterministic] code: 分片 5/7 交付 code/problem3.py
+  [deterministic] code: 分片 6/7 交付 code/problem4.py
+  [deterministic] code: 分片 7/7 交付 *
+[STAGE NEXT] 只跑了 'code'，到此即停。检查 artifacts\upper-bound\2024B-ingest-1\stages 后，放行 = 再执行一次 --stages --stage-next。
+  ❌ code: 阶段产出未通过形态检查：stage 'code' envelope does not match its contract — missing: DELIVERABLES.json; expected exactly: code/main.py、RESULTS.md、DELIVERABLES.json（或 code/ 之下的任意文件）（原始回答已留档：_rejected-answer.txt）
+
+STAGE CHAIN FAILED — 1 个阶段没通过（产物与通行证在 artifacts\upper-bound\2024B-ingest-1\stages）。
+===== 第 3 次 --stage-next =====
+[STAGE CHAIN] artifacts\upper-bound\2024B-ingest-1\stages
+  题面问数（数出来的）：4
+  [deterministic] code: 分片 1/7 交付 code/main.py
+  [deterministic] code: 分片 2/7 交付 code/params.py
+  [deterministic] code: 分片 3/7 交付 code/problem1.py
+  [deterministic] code: 分片 4/7 交付 code/problem2.py

@@ -100,5 +100,5 @@
     "model": "glm-5.3-flash-free",
     "at": "2026-09-26T09:35:19.670Z"
   },
-  "staleReason": "分片计划缺 code/params.py 槽位，main.py 的 import params 无从落地；已补该分片 —— 检查人回滚"
+  "staleReason": "阶段 'code' 门禁未通过（code 1）—— 下游前提不成立"
 }
