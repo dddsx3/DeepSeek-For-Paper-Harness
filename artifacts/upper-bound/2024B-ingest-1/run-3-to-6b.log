@@ -7,25 +7,12 @@
   [deterministic] code: 分片 4/6 交付 code/problem3.py
   [deterministic] code: 分片 5/6 交付 code/problem4.py
   [deterministic] code: 分片 6/6 交付 *
+  [deterministic] code: 逐节点审计（glm-5.3-flash-free）：fail，质量分 0.40，要求 7/7 项完成，6 条 findings
 [STAGE NEXT] 只跑了 'code'，到此即停。检查 artifacts\upper-bound\2024B-ingest-1\stages 后，放行 = 再执行一次 --stages --stage-next。
-  ❌ code: 阶段产出未通过形态检查：Unexpected token '`', "```json
-{""... is not valid JSON
+  ❌ code: 逐节点审计未通过：审计未通过：1 条 fatal（code/problem2.py :: decompose()（Kf 计算，约 18914 字节内可见段）：Kf 把零配件 2 的检测费 z2*c2/(1-p2) 重复计入两次：`insp）；质量分 0.40 < 阈值 0.70 —— 低于阈值不允许交付（审计结论见 _audit.json）
 
 STAGE CHAIN FAILED — 1 个阶段没通过（产物与通行证在 artifacts\upper-bound\2024B-ingest-1\stages）。
 ===== 第 2 次 --stage-next =====
-[STAGE CHAIN] artifacts\upper-bound\2024B-ingest-1\stages
-  题面问数（数出来的）：4
-  [deterministic] code: 分片 1/6 交付 code/main.py
-  [deterministic] code: 分片 2/6 交付 code/problem1.py
-  [deterministic] code: 分片 3/6 交付 code/problem2.py
-  [deterministic] code: 分片 4/6 交付 code/problem3.py
-  [deterministic] code: 分片 5/6 交付 code/problem4.py
-  [deterministic] code: 分片 6/6 交付 *
-[STAGE NEXT] 只跑了 'code'，到此即停。检查 artifacts\upper-bound\2024B-ingest-1\stages 后，放行 = 再执行一次 --stages --stage-next。
-  ❌ code: 阶段产出未通过形态检查：Unexpected non-whitespace character after JSON at position 13318 (line 1 column 13319)
-
-STAGE CHAIN FAILED — 1 个阶段没通过（产物与通行证在 artifacts\upper-bound\2024B-ingest-1\stages）。
-===== 第 3 次 --stage-next =====
 [STAGE CHAIN] artifacts\upper-bound\2024B-ingest-1\stages
   题面问数（数出来的）：4
   [deterministic] code: 分片 1/6 交付 code/main.py
@@ -40,4 +27,8 @@ STAGE CHAIN FAILED — 1 个阶段没通过（产物与通行证在 artifacts\up
 "... is not valid JSON
 
 STAGE CHAIN FAILED — 1 个阶段没通过（产物与通行证在 artifacts\upper-bound\2024B-ingest-1\stages）。
-===== 第 4 次 --stage-next =====
+===== 第 3 次 --stage-next =====
+[STAGE CHAIN] artifacts\upper-bound\2024B-ingest-1\stages
+  题面问数（数出来的）：4
+  [deterministic] code: 分片 1/6 交付 code/main.py
+  [deterministic] code: 分片 2/6 交付 code/problem1.py

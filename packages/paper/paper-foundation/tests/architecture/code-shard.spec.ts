@@ -95,3 +95,67 @@ describe('阶段 2 分片计划 —— 每个交付物一次调用', () => {
     expect(() => assembleShards(shards, ['{"a":1}', '   '])).toThrow(/空的/)
   })
 })
+
+/**
+ * **一层围栏要剥掉** —— 契约明写"不要包围栏"，但实测模型照包，代价是一整轮白跑。
+ *
+ * 事故（2024B 阶段 3 第 2 轮）：末片的 JSON 信封被套了一层 ```` ```json ````，
+ * `JSON.parse` 直接抛 `Unexpected token '`'`，于是**6 次模型调用、十几分钟全废**。
+ * 那是纯粹的书写惯性（内容完整、JSON 合法），不是内容缺失——按参考"形态宽容，
+ * 但**内容**必须真的在"的口径，剥一层即可，剥完仍要过全部内容判据。
+ *
+ * 同一条也适用于 `.py` 分片：带围栏落盘后是**语法错**（围栏行不是 Python）。
+ */
+describe('code-shard —— 一层围栏剥掉（内容判据一条不放松）', () => {
+  const BT = String.fromCharCode(96, 96, 96)
+
+  it('末片信封带 ```json 围栏 → 照常组装', () => {
+    const shards = planCodeShards(spec, briefing, 1)
+    const answers = shards.map(s =>
+      s.deliverable === '*'
+        ? BT + 'json\n' + JSON.stringify({ files: { 'RESULTS.md': '结果', 'DELIVERABLES.json': '{}' } }) + '\n' + BT
+        : '# ' + s.deliverable,
+    )
+    const env = JSON.parse(assembleShards(shards, answers)) as { files: Record<string, string> }
+    expect(env.files['RESULTS.md']).toBe('结果')
+    expect(env.files['code/main.py']).toBe('# code/main.py')
+  })
+
+  it('`.py` 分片带围栏 → 剥掉后落盘（不把围栏行写进 Python）', () => {
+    const shards = planCodeShards(spec, briefing, 1)
+    const answers = shards.map(s =>
+      s.deliverable === '*'
+        ? JSON.stringify({ files: {} })
+        : s.deliverable.endsWith('.py')
+          ? BT + 'python\nprint(1)\n' + BT
+          : '散文',
+    )
+    const env = JSON.parse(assembleShards(shards, answers)) as { files: Record<string, string> }
+    expect(env.files['code/main.py']).toBe('print(1)')
+    expect(env.files['code/main.py']).not.toContain(BT)
+  })
+
+  it('**空回答照旧具名失败**（剥围栏不是放行空内容）', () => {
+    const shards = planCodeShards(spec, briefing, 1)
+    const answers = shards.map(s => (s.deliverable === '*' ? JSON.stringify({ files: {} }) : BT + '\n' + BT))
+    // 只有围栏、里面什么都没有 → 剥完是空串 → 必须仍然报"回答是空的"
+    expect(() => assembleShards(shards, answers)).toThrow(/空的/)
+  })
+
+  it('**内容坏了照旧报错**（剥围栏不掩盖坏 JSON）', () => {
+    const shards = planCodeShards(spec, briefing, 1)
+    const answers = shards.map(s =>
+      s.deliverable === '*' ? BT + 'json\n{ "files": ' + BT : '散文',
+    )
+    expect(() => assembleShards(shards, answers)).toThrow()
+  })
+
+  it('多层围栏不剥（形态本身有问题，该报错而不是猜）', () => {
+    const shards = planCodeShards(spec, briefing, 1)
+    const inner = JSON.stringify({ files: {} })
+    const answers = shards.map(s =>
+      s.deliverable === '*' ? BT + '\n' + BT + 'json\n' + inner + '\n' + BT + '\n' + BT : '散文',
+    )
+    expect(() => assembleShards(shards, answers)).toThrow()
+  })
+})
