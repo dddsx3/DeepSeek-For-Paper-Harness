@@ -15,6 +15,16 @@ import {
 import { STAGES, stageOf } from '../../src/stages/registry.ts'
 
 const empty = new Map<string, string>()
+
+/**
+ * **分片调用的阶段**：阶段 2（建模，2a/2b）、阶段 3（代码，逐问）、阶段 5（作图，规划 + 逐图）。
+ *
+ * 它们的回答形态由**每段的「本次调用」指示**决定，简报里只说明"本阶段分片"。
+ * 简报若写死"发 `{"files": {...}}` 信封"，会和分片 prompt 的"只产出这一个文件"打架——
+ * 实测两段都因此出过问题（脚本被写成 JSON、规划被包成信封导致解析不到 `figures`）。
+ * 所以下面所有"简报形态 = answerFormOf"的断言都跳过它们。
+ */
+const SHARDED = new Set(['modeling', 'code', 'figure-declare'])
 const brief = (id: Parameters<typeof stageOf>[0], tool = false) => stageBriefing(stageOf(id), empty, tool)
 
 describe('简报 —— 装配完整性', () => {
@@ -82,21 +92,30 @@ describe('简报 —— 回答形态必须教给模型（2024B-stages-1 真实�
     for (const s of STAGES) {
       const text = brief(s.id)
       expect(text, `${s.id} 的简报没写回答形态`).toContain('回答形态（硬性）')
+      // **分片阶段例外**：它们的形态由每段的「本次调用」指示决定，简报里只说明这件事。
+      if (SHARDED.has(s.id)) {
+        expect(text).toContain('分片调用')
+        continue
+      }
       expect(text).toContain(answerFormOf(s))
     }
   })
 
   it('多产出阶段点名**每一个**文件名，单产出阶段点名那一个文件', () => {
+    // 分片阶段（阶段 2/3/5）的回答形态由每段指示决定 —— 简报改为说明这一点。
     const modeling = brief('modeling')
+    expect(modeling).toContain('分片调用')
     for (const f of ['DECLARATION.json', 'MODELING_REPORT.md']) expect(modeling).toContain(f)
-    expect(modeling).toContain('{"files"')
+    // 信封那句话**不该**出现在分片阶段的简报里（它与分片 prompt 打架）
+    expect(modeling).not.toContain('{"files"')
     const paper = brief('paper')
     expect(paper).toContain('paper/main.md')
     expect(paper).not.toContain('{"files"')
   })
 
   it('多产出阶段明说"除这一个 JSON 对象外不得有任何其它字符"', () => {
-    expect(brief('code')).toContain('不得有任何其它字符')
+    // `code` 已改成分片阶段（形态由每段指示决定）→ 换一个非分片的多产出阶段来核
+    expect(brief('prob-analysis')).toContain('不得有任何其它字符')
   })
 })
 
@@ -364,6 +383,7 @@ describe('回答形态 —— 简报与解析器逐个阶段对齐（防自相�
   it('**每个模型阶段**：`answerFormOf` 说的形态 = `parseStageOutput` 的期望', () => {
     for (const spec of STAGES) {
       if (spec.kind !== 'model') continue
+      if (SHARDED.has(spec.id)) continue
       const owned = spec.produces.filter(p => p.harnessMinted !== true)
       const form = answerFormOf(spec)
       if (owned.length === 1) {

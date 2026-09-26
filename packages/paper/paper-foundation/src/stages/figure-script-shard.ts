@@ -52,7 +52,20 @@ export function extractPlanObject(raw: string): { figures?: unknown } | null {
     const b = text.lastIndexOf('}')
     if (a === -1 || b <= a) continue
     try {
-      return JSON.parse(text.slice(a, b + 1)) as { figures?: unknown }
+      const parsed = JSON.parse(text.slice(a, b + 1)) as { figures?: unknown; files?: Record<string, unknown> }
+      if (Array.isArray(parsed.figures)) return parsed
+      // **模型可能按简报的"信封形态"回答**（`{"files": {"FIGURE_PLAN.json": "…"}}`）——
+      // 信封里没有 `figures`，直接判"没有规划"就错了。把内层再解析一次。
+      // 实测踩过：第一段的回答是信封，而这里只找顶层 `figures`。
+      const inner = parsed.files?.['FIGURE_PLAN.json']
+      if (typeof inner === 'string') {
+        const c = inner.indexOf('{')
+        const d = inner.lastIndexOf('}')
+        if (c !== -1 && d > c) {
+          const deep = JSON.parse(inner.slice(c, d + 1)) as { figures?: unknown }
+          if (Array.isArray(deep.figures)) return deep
+        }
+      }
     } catch { /* 试下一个候选 */ }
   }
   return null
@@ -79,7 +92,8 @@ export function scriptShards(briefing: string, rawPlan: string): ReadonlyArray<F
   const parsed = extractPlanObject(rawPlan)
   const list = parsed?.figures
   if (!Array.isArray(list) || list.length === 0) {
-    throw new Error('第一段没有产出可用的 `figures` 数组 —— 没有规划就无法逐图内联配方')
+    throw new Error('第一段没有产出可用的 `figures` 数组 —— 没有规划就无法逐图内联配方。'
+      + `回答开头：${rawPlan.trim().slice(0, 300)}`)
   }
   const entries = list as ReadonlyArray<PlanEntry>
   const total = entries.length + 1
