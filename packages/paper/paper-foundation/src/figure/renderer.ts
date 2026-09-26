@@ -23,6 +23,23 @@ export const FIGURE_STYLE_PROFILE = 'okabe-ito-v1'
 export const FIGURE_CHART_TYPES = ['line', 'scatter', 'bar', 'table'] as const
 export type FigureChartType = (typeof FIGURE_CHART_TYPES)[number]
 
+/**
+ * 承载**中文**的字体栈 —— 必须点名，不能写裸 `sans-serif`。
+ *
+ * 为什么这是硬要求而不是风格偏好：图最终要经 `cairosvg` 栅格化进 docx/PDF，
+ * 而 `sans-serif` 在 cairosvg 的解析下会落到一个**不含中日韩字形**的默认字体上，
+ * 于是每一个中文标签都渲染成豆腐块（`□□□□`）。浏览器里看不出问题
+ * （浏览器会把 `sans-serif` 解析到系统中文字体），**只有栅格化那条路上才暴露**——
+ * 也就是说，坏掉的正好是交付物。
+ *
+ * 2024B 实测：旧的 11 阶段运行渲染出的 18 张图，**每一张的中文轴标签/系列名都是豆腐块**
+ * （`fig_p1_oc_curve.svg` 的 `接收概率` / `真实次品率`）。只把这一行换成下面这个栈，
+ * 同一张图立刻正常——已验证。
+ *
+ * 与 `figure/architecture.ts` 用同一个栈：两处各写一份迟早漂移。
+ */
+export const CJK_FONT_STACK = "'Microsoft YaHei', 'PingFang SC', 'Noto Sans CJK SC', sans-serif"
+
 /** Okabe–Ito palette (colourblind-safe). */
 const SERIES_COLORS = ['#0072B2', '#E69F00', '#009E73', '#D55E00', '#CC79A7', '#56B4E9']
 const INK = '#222222'
@@ -308,10 +325,10 @@ export function renderFigureSvg(input: RenderInput): string {
     parts.push(`<polyline points="${points}" fill="none" stroke="${color(0)}" stroke-width="2"/>`)
   }
   if (input.y_label !== undefined) {
-    parts.push(`<text x="${T / 2}" y="${L - 46}" transform="rotate(-90 ${T / 2} ${L - 46})" text-anchor="middle" font-family="sans-serif" font-size="12" fill="${INK}">${escapeXml(input.y_label)}</text>`)
+    parts.push(`<text x="${T / 2}" y="${L - 46}" transform="rotate(-90 ${T / 2} ${L - 46})" text-anchor="middle" font-family="${CJK_FONT_STACK}" font-size="12" fill="${INK}">${escapeXml(input.y_label)}</text>`)
   }
   if (input.x_label !== undefined) {
-    parts.push(`<text x="${L + plotW / 2}" y="${H - 12}" text-anchor="middle" font-family="sans-serif" font-size="12" fill="${INK}">${escapeXml(input.x_label)}</text>`)
+    parts.push(`<text x="${L + plotW / 2}" y="${H - 12}" text-anchor="middle" font-family="${CJK_FONT_STACK}" font-size="12" fill="${INK}">${escapeXml(input.x_label)}</text>`)
   }
   // W9-B4 —— 数据图**不写图内标题**（`plt.title` 的等价物）。题注由交付物正文给
   // （`report-v2.ts` 输出独立的题注行），图里再写一遍是噪声，也会被
@@ -424,9 +441,9 @@ function renderSeries2DSvg(input: RenderInput): string {
     for (const p of catPlan.labels) {
       const gx = sx(p.index + 1)
       if (!p.rotate) {
-        parts.push(`<text x="${fmt(gx)}" y="${T + plotH + 16}" text-anchor="middle" font-family="sans-serif" font-size="${tickFont}" fill="${recipe.ink}">${escapeXml(p.label)}</text>`)
+        parts.push(`<text x="${fmt(gx)}" y="${T + plotH + 16}" text-anchor="middle" font-family="${CJK_FONT_STACK}" font-size="${tickFont}" fill="${recipe.ink}">${escapeXml(p.label)}</text>`)
       } else {
-        parts.push(`<text x="${fmt(gx)}" y="${T + plotH + 12}" text-anchor="end" font-family="sans-serif" font-size="${tickFont}" fill="${recipe.ink}" transform="rotate(-45 ${fmt(gx)} ${T + plotH + 12})">${escapeXml(p.label)}</text>`)
+        parts.push(`<text x="${fmt(gx)}" y="${T + plotH + 12}" text-anchor="end" font-family="${CJK_FONT_STACK}" font-size="${tickFont}" fill="${recipe.ink}" transform="rotate(-45 ${fmt(gx)} ${T + plotH + 12})">${escapeXml(p.label)}</text>`)
       }
     }
   }
@@ -480,15 +497,15 @@ function renderSeries2DSvg(input: RenderInput): string {
       const c = color(si)
       const ry = ly + 10 + si * (recipe.font_size + 6)
       parts.push(`<line x1="${fmt(lx + 8)}" y1="${fmt(ry + recipe.font_size / 2)}" x2="${fmt(lx + 26)}" y2="${fmt(ry + recipe.font_size / 2)}" stroke="${c}" stroke-width="${recipe.stroke_width + 1}"/>`)
-      parts.push(`<text x="${fmt(lx + 32)}" y="${fmt(ry + recipe.font_size)}" font-family="sans-serif" font-size="${recipe.font_size}" fill="${recipe.ink}">${escapeXml(sr.label)}</text>`)
+      parts.push(`<text x="${fmt(lx + 32)}" y="${fmt(ry + recipe.font_size)}" font-family="${CJK_FONT_STACK}" font-size="${recipe.font_size}" fill="${recipe.ink}">${escapeXml(sr.label)}</text>`)
     })
   }
 
   if (input.y_label !== undefined) {
-    parts.push(`<text x="${T / 2}" y="${L - 50}" transform="rotate(-90 ${T / 2} ${L - 50})" text-anchor="middle" font-family="sans-serif" font-size="${recipe.font_size}" fill="${recipe.ink}">${escapeXml(input.y_label)}</text>`)
+    parts.push(`<text x="${T / 2}" y="${L - 50}" transform="rotate(-90 ${T / 2} ${L - 50})" text-anchor="middle" font-family="${CJK_FONT_STACK}" font-size="${recipe.font_size}" fill="${recipe.ink}">${escapeXml(input.y_label)}</text>`)
   }
   if (input.x_label !== undefined) {
-    parts.push(`<text x="${L + plotW / 2}" y="${H - 10}" text-anchor="middle" font-family="sans-serif" font-size="${recipe.font_size}" fill="${recipe.ink}">${escapeXml(input.x_label)}</text>`)
+    parts.push(`<text x="${L + plotW / 2}" y="${H - 10}" text-anchor="middle" font-family="${CJK_FONT_STACK}" font-size="${recipe.font_size}" fill="${recipe.ink}">${escapeXml(input.x_label)}</text>`)
   }
   parts.push('</svg>')
   return parts.join('\n') + '\n'
@@ -529,7 +546,7 @@ function renderTableSvg(input: RenderInput): string {
   parts.push(`<rect x="0" y="0" width="${W}" height="${H}" fill="#FFFFFF"/>`)
   const header = ['量名', '数值', '单位', '不确定度']
   header.forEach((label, i) => {
-    parts.push(`<text x="${cols[i]}" y="20" text-anchor="start" font-family="sans-serif" font-size="12" font-weight="600" fill="${INK}">${escapeXml(label)}</text>`)
+    parts.push(`<text x="${cols[i]}" y="20" text-anchor="start" font-family="${CJK_FONT_STACK}" font-size="12" font-weight="600" fill="${INK}">${escapeXml(label)}</text>`)
   })
   parts.push(`<line x1="8" y1="${headerH - 4}" x2="${W - 8}" y2="${headerH - 4}" stroke="${INK}" stroke-width="1"/>`)
   input.series.forEach((s, row) => {

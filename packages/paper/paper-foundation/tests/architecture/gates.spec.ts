@@ -6,6 +6,7 @@
 
 import { describe, expect, it } from 'vitest'
 import { GATES, runGates, type GateInput } from '../../src/stages/gates.ts'
+import { CJK_FONT_STACK } from '../../src/figure/renderer.ts'
 import { STAGES } from '../../src/stages/registry.ts'
 
 function input(files: Record<string, string>, upstream: Record<string, string> = {}, problemCount = 4): GateInput {
@@ -205,7 +206,10 @@ describe('阶段 4 的风格门禁 —— `setup_style` 规范的可核形态', 
     + `<rect x="0" y="0" width="200" height="100" fill="#FFFFFF"/>\n${text}\n</svg>\n`
 
   it('健康图 → 0（字号/边界/对比度 + 配色 + 无图内标题）', () => {
-    const ok = svg('<text x="100" y="50" text-anchor="middle" font-family="serif" font-size="12" fill="#222222">占比</text>')
+    // 字体用点名中文的栈：这条夹具原来写 `font-family="serif"`，而中文"占比"在
+    // `serif` 下栅格化就是豆腐块——**夹具把那个缺陷当成了"健康"**。
+    // 这条测试量的是字号/边界/对比度，字体不该成为它隐含的前提。
+    const ok = svg(`<text x="100" y="50" text-anchor="middle" font-family="${CJK_FONT_STACK}" font-size="12" fill="#222222">占比</text>`)
     expect(run('figure_style_rules', input({ 'figures/fig_a.svg': ok }, { 'FIGURE_DECLARATIONS.json': decls('两项指标对照') })).code).toBe(0)
   })
 
@@ -612,5 +616,51 @@ describe('编外登记簿 —— 可以有编外，但不能不可追溯', () =>
     ))
     expect(v.code).toBe(1)
     expect(v.items[0]?.detail).toContain('137')
+  })
+})
+
+/**
+ * **中文标签必须点名可渲染的中文字体**（否则栅格化后是豆腐块）。
+ *
+ * 这条为什么必须落在门禁上：裸 `sans-serif` 在浏览器里看起来**完全正常**
+ * （浏览器会解析到系统中文字体），只有 `cairosvg` 那条路（docx/PDF）才暴露
+ * ——坏掉的正好是交付物，而所有"用浏览器看一眼"的检查都会漏掉它。
+ *
+ * 实测：旧的 11 阶段运行渲染出的 18 张图，中文轴标签全是 `□□□□`
+ * （`fig_p1_oc_curve.svg` 的 `接收概率`/`真实次品率`）。只把 `font-family`
+ * 换成点名中文的栈，同一张图立刻正常——已用 cairosvg 验证过。
+ */
+describe('figure_style_rules —— 中文字体必须点名', () => {
+  const svgWith = (family: string): string => [
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 680 420">',
+    `<text x="10" y="20" font-family="${family}" font-size="12" fill="#222222">接收概率</text>`,
+    `<text x="10" y="40" font-family="monospace" font-size="11" fill="#222222">0.6412</text>`,
+    '<rect x="0" y="0" width="10" height="10" fill="#0072B2"/>',
+    '</svg>',
+  ].join('')
+  const run1 = (svg: string) => run('figure_style_rules', input(
+    { 'figures/fig_a.svg': svg },
+    { 'FIGURE_DECLARATIONS.json': JSON.stringify({ figures: [] }) },
+  ))
+
+  it('**裸 `sans-serif` 的中文标签 → 硬失败并说清后果**', () => {
+    const v = run1(svgWith('sans-serif'))
+    expect(v.code).toBe(1)
+    expect(v.items[0]?.detail).toContain('接收概率')
+    expect(v.items[0]?.detail).toContain('豆腐块')
+    expect(v.items[0]?.detail).toContain('Microsoft YaHei')
+  })
+
+  it('点名了中文字体 → 通过（含 generic 兜底也合格）', () => {
+    expect(run1(svgWith("'Microsoft YaHei', 'PingFang SC', sans-serif")).code).toBe(0)
+    expect(run1(svgWith('SimHei')).code).toBe(0)
+  })
+
+  it('**纯数字/拉丁标签用 `monospace` 不受影响**（别把这条修成"字体必须含中文"）', () => {
+    const ascii = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 680 420">'
+      + '<text x="10" y="20" font-family="monospace" font-size="11" fill="#222222">0.6412</text>'
+      + '<text x="10" y="40" font-family="sans-serif" font-size="12" fill="#222222">Sample size n</text>'
+      + '</svg>'
+    expect(run1(ascii).code).toBe(0)
   })
 })
