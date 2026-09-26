@@ -780,3 +780,46 @@ describe('源码卫生 —— 不许有控制字符（事故：退格符让正�
     expect(offenders, `含控制字符的源文件：${offenders.join('；')}`).toEqual([])
   })
 })
+
+/**
+ * `figure_diversity` —— 参考工作流的硬规则：
+ * *"do not use the same chart type more than 2 times in one paper"*、
+ * *"If < 4 unique types for a paper with ≥6 figures, go back and swap"*。
+ *
+ * 为什么不是审美洁癖：一整篇全是柱状图时，读者无法从**图型**上分辨
+ * "这是灵敏度排序"还是"这是成本构成"——而那正是图型本身要承载的信息。
+ */
+describe('figure_diversity —— 同型别重复、图型要够多', () => {
+  const decl = (types: ReadonlyArray<string>): string =>
+    JSON.stringify({ figures: types.map((t, i) => ({ figure_id: `f${String(i)}`, chart_type: t, data_refs: ['RES-A'] })) })
+  const run1 = (types: ReadonlyArray<string>) => run('figure_diversity', input(
+    { 'FIGURE_DECLARATIONS.json': decl(types) },
+    { 'FIGURE_DECLARATIONS.json': decl(types) },
+  ))
+
+  it('四种图型、无单一型超过 3 次 → 0', () => {
+    expect(run1(['line', 'line', 'bar', 'bar', 'tornado', 'tornado', 'forest']).code).toBe(0)
+  })
+
+  it('**同一种图型超过 3 次 → 硬失败并点名**', () => {
+    const v = run1(['bar', 'bar', 'bar', 'bar', 'line'])
+    expect(v.code).toBe(1)
+    expect(v.items[0]?.detail).toContain("'bar' 用了 4 次")
+    expect(v.items[0]?.detail).toContain('tornado')  // 补救里点出该换什么型
+  })
+
+  it('**≥6 张图却只有 3 种图型 → 硬失败**（参考：应 ≥4 种）', () => {
+    // 8 张图、只有 3 种图型（且没有单一型超过 3 次，所以只触第二条规则）
+    const v = run1(['line', 'line', 'line', 'bar', 'bar', 'bar', 'tornado', 'tornado'])
+    expect(v.code).toBe(1)
+    expect(v.items[0]?.detail).toContain('unique 图型应 ≥4')
+  })
+
+  it('≥6 张图但图型够多 → 0', () => {
+    expect(run1(['line', 'line', 'bar', 'bar', 'tornado', 'tornado', 'forest', 'heatmap']).code).toBe(0)
+  })
+
+  it('没有声明 → **2**（不是 0：没有对象可统计）', () => {
+    expect(run('figure_diversity', input({})).code).toBe(2)
+  })
+})

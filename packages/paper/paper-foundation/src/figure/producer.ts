@@ -18,17 +18,25 @@
  */
 
 import { IR_SCHEMAS } from '../ir/schema.ts'
-import { FIGURE_STYLE_PROFILE, figureRenderInput, renderFigureSvg } from './renderer.ts'
+import { FIGURE_STYLE_PROFILE, figureRenderInput, renderFigureSvg, type FigureChartType } from './renderer.ts'
 import { ModelingIr } from '../ir/store.ts'
 
 export interface FigureDeclaration {
   readonly figure_id: string
-  readonly chart_type?: 'line' | 'scatter' | 'bar' | 'table'
+  /** 图型；白名单见 `renderer.ts` 的 `FIGURE_CHART_TYPES`（含参考决策表补入的图型）。 */
+  readonly chart_type?: FigureChartType
   readonly data_refs: ReadonlyArray<string>
   readonly claim_refs?: ReadonlyArray<string>
   readonly caption?: string
   readonly x_label?: string
   readonly y_label?: string
+  /** 参考决策表补入的图型的结构化声明（字段里写的是 **Result id**，不是数值）。 */
+  readonly ref_lines?: ReadonlyArray<{ readonly axis: 'x' | 'y'; readonly value_ref: string; readonly label?: string }>
+  readonly tornado?: ReadonlyArray<{ readonly label: string; readonly low_ref: string; readonly high_ref: string; readonly low_label?: string; readonly high_label?: string }>
+  readonly waterfall?: ReadonlyArray<{ readonly label: string; readonly value_ref: string; readonly kind?: 'delta' | 'total' }>
+  readonly forest?: ReadonlyArray<{ readonly label: string; readonly estimate_ref: string; readonly low_ref: string; readonly high_ref: string }>
+  readonly heatmap?: { readonly rows: ReadonlyArray<string>; readonly cols: ReadonlyArray<string>; readonly value_refs: ReadonlyArray<ReadonlyArray<string>> }
+  readonly baseline_ref?: string
 }
 
 export type FigureProductionVerdict =
