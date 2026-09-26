@@ -1,0 +1,51 @@
+===== 第 1 次 --stage-next =====
+[STAGE CHAIN] artifacts\upper-bound\2024B-ingest-1\stages
+  题面问数（数出来的）：4
+  [deterministic] code: 分片 1/7 交付 code/main.py
+  [deterministic] code: 分片 2/7 交付 code/params.py
+  [deterministic] code: 分片 3/7 交付 code/problem1.py
+  [deterministic] code: 分片 4/7 交付 code/problem2.py
+  [deterministic] code: 分片 5/7 交付 code/problem3.py
+  [deterministic] code: 分片 6/7 交付 code/problem4.py
+  [deterministic] code: 分片 7/7 交付 *
+  [deterministic] code: 逐节点审计（glm-5.3-flash-free）：pass，质量分 0.80，要求 7/7 项完成，4 条 findings
+[STAGE NEXT] 只跑了 'code'，到此即停。检查 artifacts\upper-bound\2024B-ingest-1\stages 后，放行 = 再执行一次 --stages --stage-next。
+  🟡 code: 门禁全过但**有 1 条无法判定**（delivery_audit）——已如实记在通行证上（`cleanliness: unverified-gates`）；这些缺口使本阶段不能计入 CLEAN。
+
+STAGE CHAIN OK — 1 个阶段签发通行证（其中 1 个带未判定门禁，缺口已记在 PASSED 上）。产物在 artifacts\upper-bound\2024B-ingest-1\stages
+===== 第 2 次 --stage-next =====
+[STAGE CHAIN] artifacts\upper-bound\2024B-ingest-1\stages
+  题面问数（数出来的）：4
+[STAGE NEXT] 只跑了 'result-sources'，到此即停。检查 artifacts\upper-bound\2024B-ingest-1\stages 后，放行 = 再执行一次 --stages --stage-next。
+  ❌ result-sources: 阶段产出未通过形态检查：RESULT_SOURCES.json 缺 "sources" 数组 —— 模型必须声明每个数在哪个产物的哪个路径（原始回答已留档：_rejected-answer.txt）
+
+STAGE CHAIN FAILED — 1 个阶段没通过（产物与通行证在 artifacts\upper-bound\2024B-ingest-1\stages）。
+===== 第 3 次 --stage-next =====
+[STAGE CHAIN] artifacts\upper-bound\2024B-ingest-1\stages
+  题面问数（数出来的）：4
+[STAGE NEXT] 只跑了 'result-sources'，到此即停。检查 artifacts\upper-bound\2024B-ingest-1\stages 后，放行 = 再执行一次 --stages --stage-next。
+  ❌ result-sources: 阶段产出未通过形态检查：铸数失败（98/107 条声明没能从真实产物里解析出有限数）：R-Q1-c-case95：json_path 'problem1.case95.c' 在 'outputs.json' 里 解析到 undefined —— 既不是有限数，也不是有限数构成的数组（允许：标量 / 一维序列 / 二维矩阵 / 三维张量；元素必须都是有限数）；R-Q1-c-case90：json_path 'problem1.case90.c' 在 'outputs.json' 里 解析到 undefined —— 既不是有限数，也不是有限数构成的数组（允许：标量 / 一维序列 / 二维矩阵 / 三维张量；元素必须都是有限数）；R-Q1-oc-p：json_path 'problem1.oc_curve.p' 在 'outputs.json' 里 解析到 undefined —— 既不是有限数，也不是有限数构成的数组（允许：标量 / 一维序列 / 二维矩阵 / 三维张量；元素必须都是有限数）；R-Q1-oc-accept：json_path 'problem1.oc_curve.accept_prob' 在 'outputs.json' 里 解析到 undefined —— 既不是有限数，也不是有限数构成的数组（允许：标量 / 一维序列 / 二维矩阵 / 三维张量；元素必须都是有限数）；R-Q1-assumed-unit-detection-cost：json_path 'problem1.sampling_cost.assumed_unit_cost' 在 'outputs.json' 里 解析到 undefined —— 既不是有限数，也不是有限数构成的数组（允许：标量 / 一维序列 / 二维矩阵 / 三维张量；元素必须都是有限数）；R-Q2-case1-z1：json_path 'problem2.cases.0.decision.z1' 在 'outputs.json' 里 解析到 undefined —— 既不是有限数，也不是有限数构成的数组（允许：标量 / 一维序列 / 二维矩阵 / 三维张量；元素必须都是有限数）（原始回答已留档：_rejected-answer.txt）
+
+STAGE CHAIN FAILED — 1 个阶段没通过（产物与通行证在 artifacts\upper-bound\2024B-ingest-1\stages）。
+===== 第 4 次 --stage-next =====
+[STAGE CHAIN] artifacts\upper-bound\2024B-ingest-1\stages
+  题面问数（数出来的）：4
+[STAGE NEXT] 只跑了 'result-sources'，到此即停。检查 artifacts\upper-bound\2024B-ingest-1\stages 后，放行 = 再执行一次 --stages --stage-next。
+  ❌ result-sources: 阶段产出未通过形态检查：RESULT_SOURCES.json 缺 "sources" 数组 —— 模型必须声明每个数在哪个产物的哪个路径（原始回答已留档：_rejected-answer.txt）
+
+STAGE CHAIN FAILED — 1 个阶段没通过（产物与通行证在 artifacts\upper-bound\2024B-ingest-1\stages）。
+===== 第 5 次 --stage-next =====
+[STAGE CHAIN] artifacts\upper-bound\2024B-ingest-1\stages
+  题面问数（数出来的）：4
+[STAGE NEXT] 只跑了 'result-sources'，到此即停。检查 artifacts\upper-bound\2024B-ingest-1\stages 后，放行 = 再执行一次 --stages --stage-next。
+  ❌ result-sources: 阶段产出未通过形态检查：RESULT_SOURCES.json 缺 "sources" 数组 —— 模型必须声明每个数在哪个产物的哪个路径（原始回答已留档：_rejected-answer.txt）
+
+STAGE CHAIN FAILED — 1 个阶段没通过（产物与通行证在 artifacts\upper-bound\2024B-ingest-1\stages）。
+===== 第 6 次 --stage-next =====
+[STAGE CHAIN] artifacts\upper-bound\2024B-ingest-1\stages
+  题面问数（数出来的）：4
+[STAGE NEXT] 只跑了 'result-sources'，到此即停。检查 artifacts\upper-bound\2024B-ingest-1\stages 后，放行 = 再执行一次 --stages --stage-next。
+  ❌ result-sources: 阶段产出未通过形态检查：铸数失败（106/116 条声明没能从真实产物里解析出有限数）：R-Q1-c-case95：json_path 'problem1.case95.c' 在 'outputs.json' 里 解析到 undefined —— 既不是有限数，也不是有限数构成的数组（允许：标量 / 一维序列 / 二维矩阵 / 三维张量；元素必须都是有限数）；R-Q1-c-case90：json_path 'problem1.case90.c' 在 'outputs.json' 里 解析到 undefined —— 既不是有限数，也不是有限数构成的数组（允许：标量 / 一维序列 / 二维矩阵 / 三维张量；元素必须都是有限数）；R-Q1-oc-accept-prob：json_path 'problem1.oc_curve.accept_prob' 在 'outputs.json' 里 解析到 undefined —— 既不是有限数，也不是有限数构成的数组（允许：标量 / 一维序列 / 二维矩阵 / 三维张量；元素必须都是有限数）；R-Q1-verify-residual：json_path 'problem1.verify.tail_residual' 在 'outputs.json' 里 解析到 undefined —— 既不是有限数，也不是有限数构成的数组（允许：标量 / 一维序列 / 二维矩阵 / 三维张量；元素必须都是有限数）；R-Q1-sampling-cost-case95：json_path 'problem1.sampling_cost.case95' 在 'outputs.json' 里 解析到 undefined —— 既不是有限数，也不是有限数构成的数组（允许：标量 / 一维序列 / 二维矩阵 / 三维张量；元素必须都是有限数）；R-Q1-sampling-cost-case90：json_path 'problem1.sampling_cost.case90' 在 'outputs.json' 里 解析到 undefined —— 既不是有限数，也不是有限数构成的数组（允许：标量 / 一维序列 / 二维矩阵 / 三维张量；元素必须都是有限数）（原始回答已留档：_rejected-answer.txt）
+
+STAGE CHAIN FAILED — 1 个阶段没通过（产物与通行证在 artifacts\upper-bound\2024B-ingest-1\stages）。
+===== 第 7 次 --stage-next =====

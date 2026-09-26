@@ -1,113 +1,81 @@
 {
   "stage": "03-code",
-  "generated_by": "code/main.py",
-  "run": {
-    "command": "python code/main.py",
-    "working_dir_any": true,
-    "ledger": "code/outputs.json",
-    "note": "账本路径由 main.py 的 __file__ 定位，不依赖 cwd；stdout 不被采集，一切数值写入账本文件"
-  },
-  "files": [
+  "produced_by": "python code/main.py",
+  "workdir": "code/",
+  "ledger": "outputs.json",
+  "run_log": "run_log.json",
+  "deliverables": [
     {
-      "path": "code/main.py",
-      "kind": "file",
+      "locator": "code/main.py",
+      "json_path": null,
+      "kind": "code",
+      "min_rows": 1,
       "min_bytes": 500,
-      "desc": "编排入口：依次执行 problem1..problem4 + sensitivity + verification，汇总写 code/outputs.json"
+      "desc": "编排入口：依次运行问题一至问题四的求解入口，汇总写 outputs.json 与 run_log.json。题面问数为四，code/ 下逐问脚本 problem1..problem4 保证代码文件数不少于题面问数；入口对任一问的失败不中止整体、以零码退出。"
     },
     {
-      "path": "code/",
-      "kind": "dir",
-      "min_files": 6,
-      "desc": "逐问实现 problem1..problem4（文件数 4 >= 题面问数 4）+ params/common/sensitivity/verification"
-    },
-    {
-      "path": "RESULTS.md",
-      "kind": "file",
+      "locator": "outputs.json",
+      "json_path": "outputs.json#/",
+      "kind": "json_object",
+      "min_rows": 4,
       "min_bytes": 1024,
-      "desc": "结果说明：算法、复算通道、校核表、数组型数据、防泄漏说明、诚实边界、审计落点"
+      "desc": "唯一账本，落于 code/ 工作目录。顶层键 problem1..problem4 各为一问的完整结果字典，另有 meta 段记录成功求解的问数；问题三附带 topology 子字典。"
     },
     {
-      "path": "DELIVERABLES.json",
-      "kind": "file",
-      "desc": "本清单（不含图表声明；data_arrays 仅为数据可用性）"
+      "locator": "run_log.json",
+      "json_path": "run_log.json#/",
+      "kind": "json_object",
+      "min_rows": 4,
+      "min_bytes": 128,
+      "desc": "运行日志：每问的状态、入口函数名、顶层键名集合，params.py 的常数快照，以及「已登记未启用常数」的显式注解（如正态近似适用下界）。"
+    },
+    {
+      "locator": "problem1",
+      "json_path": "outputs.json#/problem1",
+      "kind": "json_object",
+      "min_rows": 1,
+      "min_bytes": 32,
+      "desc": "问题一账本段：两种信度情形各自的最小样本量与判定临界值、OC 曲线数据序列（真实次品率序列＋接收概率序列）、抽样检测费用（含假设单价的 assumed_ 前缀字段与 source 注明）。"
+    },
+    {
+      "locator": "problem2",
+      "json_path": "outputs.json#/problem2",
+      "kind": "json_object",
+      "min_rows": 1,
+      "min_bytes": 32,
+      "desc": "问题二账本段：题面表一全部情况的最优决策组合与期望利润、全部候选决策组合的期望成本矩阵（供热力图）、最优策略的成本分解数组、次品率与单价/检测成本/调换损失的灵敏度扫描表、盈亏平衡二维网格与翻转点坐标、解析式与逐轮现金流复算的残差。"
+    },
+    {
+      "locator": "problem3",
+      "json_path": "outputs.json#/problem3",
+      "kind": "json_object",
+      "min_rows": 1,
+      "min_bytes": 32,
+      "desc": "问题三账本段：节点级决策表、各节点等效获取成本数组、期望利润、装配拓扑结构、拓扑扰动扫描结果的决策一致率与翻转点。"
+    },
+    {
+      "locator": "problem3.topology.nodes",
+      "json_path": "outputs.json#/problem3/topology/nodes",
+      "kind": "json_array",
+      "min_rows": 1,
+      "min_bytes": 16,
+      "desc": "装配树节点数组（ASM-09 显式假设的拓扑落成数据），供阶段五绘制组装网络图与拓扑扰动说明。"
+    },
+    {
+      "locator": "problem3.topology.groups",
+      "json_path": "outputs.json#/problem3/topology/groups",
+      "kind": "json_array",
+      "min_rows": 1,
+      "min_bytes": 16,
+      "desc": "装配树分组数组（零配件集→半成品→成品），与 nodes 一一对应，供阶段五按层绘制并叠加各节点成本流。"
+    },
+    {
+      "locator": "problem4",
+      "json_path": "outputs.json#/problem4",
+      "kind": "json_object",
+      "min_rows": 1,
+      "min_bytes": 32,
+      "desc": "问题四账本段：次品率点估计与精确二项置信区间端点、决策固定下的利润区间、蒙特卡洛逐轮一致率序列与利润样本序列（供收敛曲线）、与问题二/问题三点估计决策的差异表。"
     }
-  ],
-  "result_keys": [
-    {"locator": "outputs.json:meta.profit_definition", "kind": "string", "min_rows": 1, "desc": "全局利润口径 Pi = s - U"},
-    {"locator": "outputs.json:problem1.case95.n", "kind": "scalar", "min_rows": 1, "desc": "情形(1) 95%拒收的最小检测次数 n"},
-    {"locator": "outputs.json:problem1.case95.c", "kind": "scalar", "min_rows": 1, "desc": "情形(1) 接收判定临界次品数 c_r"},
-    {"locator": "outputs.json:problem1.case95.type1_error_at_pnom", "kind": "scalar", "min_rows": 1, "desc": "情形(1) 标称点处拒收侧错误率"},
-    {"locator": "outputs.json:problem1.case95.power_at_palt", "kind": "scalar", "min_rows": 1, "desc": "情形(1) 备择点处功效"},
-    {"locator": "outputs.json:problem1.case90.n", "kind": "scalar", "min_rows": 1, "desc": "情形(2) 90%接收的最小检测次数 n"},
-    {"locator": "outputs.json:problem1.case90.c", "kind": "scalar", "min_rows": 1, "desc": "情形(2) 接收判定临界次品数 c_r"},
-    {"locator": "outputs.json:problem1.case90.accept_prob_at_pnom", "kind": "scalar", "min_rows": 1, "desc": "情形(2) 标称点接收概率"},
-    {"locator": "outputs.json:problem1.case90.accept_prob_at_palt", "kind": "scalar", "min_rows": 1, "desc": "情形(2) 备择点误收概率"},
-    {"locator": "outputs.json:problem1.sampling_cost.unit_inspect_cost", "kind": "scalar", "min_rows": 1, "desc": "问题1 检测费的元/件折算单价（表1情况1零配件1检测成本）"},
-    {"locator": "outputs.json:problem1.sampling_cost.cost_case95", "kind": "scalar", "min_rows": 1, "desc": "情形(1) 方案的期望检测费用"},
-    {"locator": "outputs.json:problem1.sampling_cost.cost_case90", "kind": "scalar", "min_rows": 1, "desc": "情形(2) 方案的期望检测费用"},
-    {"locator": "outputs.json:problem2.best_combo.case", "kind": "scalar", "min_rows": 1, "desc": "六种情况中期望利润最高的情况编号"},
-    {"locator": "outputs.json:problem2.best_combo.profit", "kind": "scalar", "min_rows": 1, "desc": "该情况下的单位成品期望利润"},
-    {"locator": "outputs.json:problem2.cases[0].breakdown.purchase", "kind": "scalar", "min_rows": 1, "desc": "情况1 最优策略的采购成本分项"},
-    {"locator": "outputs.json:problem2.cases[0].breakdown.inspection", "kind": "scalar", "min_rows": 1, "desc": "情况1 最优策略的检测成本分项"},
-    {"locator": "outputs.json:problem2.cases[0].breakdown.assembly", "kind": "scalar", "min_rows": 1, "desc": "情况1 最优策略的装配成本分项"},
-    {"locator": "outputs.json:problem2.cases[0].breakdown.disassembly", "kind": "scalar", "min_rows": 1, "desc": "情况1 最优策略的拆解费用分项"},
-    {"locator": "outputs.json:problem2.cases[0].breakdown.exchange_loss", "kind": "scalar", "min_rows": 1, "desc": "情况1 最优策略的调换损失分项"},
-    {"locator": "outputs.json:problem3.profit", "kind": "scalar", "min_rows": 1, "desc": "问题3 实例的单位成品期望利润"},
-    {"locator": "outputs.json:problem3.unit_cost_root", "kind": "scalar", "min_rows": 1, "desc": "问题3 成品节点的等效获取成本 U_f"},
-    {"locator": "outputs.json:problem3.topology_robust.min_agreement", "kind": "scalar", "min_rows": 1, "desc": "拓扑扰动下最优决策的一致率最小值"},
-    {"locator": "outputs.json:problem4.ci_part1.p_hat", "kind": "scalar", "min_rows": 1, "desc": "零配件1 次品率的抽样点估计"},
-    {"locator": "outputs.json:problem4.ci_part1.ci_low", "kind": "scalar", "min_rows": 1, "desc": "零配件1 的 Clopper-Pearson 下端点"},
-    {"locator": "outputs.json:problem4.ci_part1.ci_high", "kind": "scalar", "min_rows": 1, "desc": "零配件1 的 Clopper-Pearson 上端点"},
-    {"locator": "outputs.json:problem4.profit_range.low", "kind": "scalar", "min_rows": 1, "desc": "决策固定下次品率取置信区间端点时的最低利润"},
-    {"locator": "outputs.json:problem4.profit_range.high", "kind": "scalar", "min_rows": 1, "desc": "决策固定下次品率取置信区间端点时的最高利润"},
-    {"locator": "outputs.json:problem4.consistency.rate", "kind": "scalar", "min_rows": 1, "desc": "问题2 情况1 的重抽样最优决策一致率"},
-    {"locator": "outputs.json:problem4.consistency_q3.rate", "kind": "scalar", "min_rows": 1, "desc": "问题3 实例的重抽样最优决策一致率"},
-    {"locator": "outputs.json:verification.v01_max_violation", "kind": "scalar", "min_rows": 1, "desc": "V-01 情形(1) 尾约束最大违反量"},
-    {"locator": "outputs.json:verification.v02_max_violation", "kind": "scalar", "min_rows": 1, "desc": "V-02 情形(2) 尾约束最大违反量"},
-    {"locator": "outputs.json:verification.v03_residual", "kind": "scalar", "min_rows": 1, "desc": "V-03 检测费用分账残差"},
-    {"locator": "outputs.json:verification.v04_max_residual", "kind": "scalar", "min_rows": 1, "desc": "V-04 六种情况分项恒等式最大残差"},
-    {"locator": "outputs.json:verification.v05_max_residual", "kind": "scalar", "min_rows": 1, "desc": "V-05 闭式 vs 逐轮复算最大残差"},
-    {"locator": "outputs.json:verification.v06_recycle_purchase_residual", "kind": "scalar", "min_rows": 1, "desc": "V-06 回收轮成本不含采购项的残差"},
-    {"locator": "outputs.json:verification.v07_max_residual", "kind": "scalar", "min_rows": 1, "desc": "V-07 问题3 节点分项恒等式最大残差"},
-    {"locator": "outputs.json:verification.v08_degenerate_residual", "kind": "scalar", "min_rows": 1, "desc": "V-08 退化到问题2 闭式的残差"},
-    {"locator": "outputs.json:verification.v09_topology_min_agreement", "kind": "scalar", "min_rows": 1, "desc": "V-09 拓扑扰动决策一致率最小值"},
-    {"locator": "outputs.json:verification.v10_cover_ok", "kind": "scalar", "min_rows": 1, "desc": "V-10 区间覆盖点估计标志（1/0）"},
-    {"locator": "outputs.json:verification.v10_width_shrink", "kind": "scalar", "min_rows": 1, "desc": "V-10 样本量翻倍后的区间宽度变化"},
-    {"locator": "outputs.json:verification.v11_conv_gap", "kind": "scalar", "min_rows": 1, "desc": "V-11 一致率收敛曲线尾批与总体之差（问题2）"},
-    {"locator": "outputs.json:verification.v12_diff_rows", "kind": "scalar", "min_rows": 1, "desc": "V-12 决策差异表行数"},
-    {"locator": "outputs.json:verification.v13_unit_scan_pass", "kind": "scalar", "min_rows": 1, "desc": "V-13 量纲与结构扫描标志"},
-    {"locator": "outputs.json:verification.v14_duplicate_inspection_cost", "kind": "scalar", "min_rows": 1, "desc": "V-14 问题1 检测费用重复计入量"}
-  ],
-  "data_arrays": [
-    {"locator": "outputs.json:problem1.oc_curve.p", "kind": "array", "min_rows": 121, "desc": "OC 曲线横轴：真实次品率网格"},
-    {"locator": "outputs.json:problem1.oc_curve.L_case95", "kind": "array", "min_rows": 121, "desc": "情形(1) 方案的接收概率序列"},
-    {"locator": "outputs.json:problem1.oc_curve.L_case90", "kind": "array", "min_rows": 121, "desc": "情形(2) 方案的接收概率序列"},
-    {"locator": "outputs.json:problem1.sample_size_vs_confidence.confidence", "kind": "array", "min_rows": 10, "desc": "判别信度序列（含登记对照值 0.99）"},
-    {"locator": "outputs.json:problem1.sample_size_vs_confidence.n_reject_side", "kind": "array", "min_rows": 10, "desc": "各信度下拒收侧最小样本量序列（-1 表示上界内不可行）"},
-    {"locator": "outputs.json:problem1.sample_size_vs_confidence.n_accept_side", "kind": "array", "min_rows": 10, "desc": "各信度下接收侧最小样本量序列"},
-    {"locator": "outputs.json:problem1.two_cases_sample_size.n", "kind": "array", "min_rows": 2, "desc": "两情形样本量并列对比"},
-    {"locator": "outputs.json:problem1.sprt_boundary.m", "kind": "array", "min_rows": 60, "desc": "序贯对照方案的抽样件数轴"},
-    {"locator": "outputs.json:problem1.sprt_boundary.accept_line", "kind": "array", "min_rows": 60, "desc": "序贯对照方案的接受边界（累积次品数）"},
-    {"locator": "outputs.json:problem1.sprt_boundary.reject_line", "kind": "array", "min_rows": 60, "desc": "序贯对照方案的拒收边界（累积次品数）"},
-    {"locator": "outputs.json:problem2.strategy_matrix.profit", "kind": "matrix", "min_rows": 6, "desc": "6 情况 × 16 组合的期望利润矩阵"},
-    {"locator": "outputs.json:problem2.strategy_matrix.unit_cost", "kind": "matrix", "min_rows": 6, "desc": "6 情况 × 16 组合的单位成本矩阵"},
-    {"locator": "outputs.json:problem2.six_cases.profit", "kind": "array", "min_rows": 6, "desc": "表 1 六种情况的最优期望利润序列"},
-    {"locator": "outputs.json:problem2.six_cases.decision_labels", "kind": "array", "min_rows": 6, "desc": "表 1 六种情况的最优决策标签序列"},
-    {"locator": "outputs.json:problem2.cost_breakdown.values", "kind": "matrix", "min_rows": 6, "desc": "6 情况 × 5 成本分项（采购/检测/装配/拆解/调换损失）"},
-    {"locator": "outputs.json:problem2.cases[0].all_strategies", "kind": "array", "min_rows": 16, "desc": "情况1 的 16 种策略逐条明细（其余情况同结构）"},
-    {"locator": "outputs.json:problem3.decision_table", "kind": "array", "min_rows": 12, "desc": "12 个节点的是否检测 / 是否拆解决策表"},
-    {"locator": "outputs.json:problem3.node_cost", "kind": "array", "min_rows": 12, "desc": "逐节点的 Kf/Kr/kappa/q/Q/U/xi/h/g/R 与分项成本"},
-    {"locator": "outputs.json:problem3.strategy_compare.unit_cost", "kind": "array", "min_rows": 32, "desc": "半成品决策组合 × U_f 的逐组合对比"},
-    {"locator": "outputs.json:problem3.topology_robust.variants", "kind": "array", "min_rows": 5, "desc": "拓扑扰动变体各自的利润、一致率与决策向量"},
-    {"locator": "outputs.json:problem4.ci_nodes", "kind": "array", "min_rows": 12, "desc": "12 个节点各自的抽样点估计与 Clopper-Pearson 区间"},
-    {"locator": "outputs.json:problem4.ci_effect_curve.p", "kind": "array", "min_rows": 21, "desc": "置信区间内次品率扫描序列"},
-    {"locator": "outputs.json:problem4.ci_effect_curve.profit", "kind": "array", "min_rows": 21, "desc": "决策固定下的利润随次品率变化序列"},
-    {"locator": "outputs.json:problem4.consistency.convergence", "kind": "array", "min_rows": 20, "desc": "问题2 一致率的逐批收敛序列"},
-    {"locator": "outputs.json:problem4.consistency_q3.convergence", "kind": "array", "min_rows": 2, "desc": "问题3 一致率的逐批收敛序列"},
-    {"locator": "outputs.json:problem4.decision_diff", "kind": "array", "min_rows": 7, "desc": "问题2 六情况 + 问题3 的决策差异与翻转标志表"},
-    {"locator": "outputs.json:sensitivity.defect_rate.profit", "kind": "matrix", "min_rows": 3, "desc": "次品率（p1/p2/p0）扰动下的期望利润曲线，每条 9 点"},
-    {"locator": "outputs.json:sensitivity.unit_cost.profit", "kind": "matrix", "min_rows": 6, "desc": "成本参数（a1/a2/c1/c2/c0/l）扰动下的期望利润曲线，每条 9 点"},
-    {"locator": "outputs.json:sensitivity.breakeven.decision_code_grid", "kind": "matrix", "min_rows": 41, "desc": "(p1, l) 参数平面 41×41 网格上的最优决策码"},
-    {"locator": "outputs.json:sensitivity.breakeven.flip_points", "kind": "array", "min_rows": 1, "desc": "决策翻转点坐标与前后决策码（最多 400 条，总数见 flip_count）"}
   ]
 }

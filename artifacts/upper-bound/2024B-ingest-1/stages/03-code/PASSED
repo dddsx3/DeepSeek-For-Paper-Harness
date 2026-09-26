@@ -2,15 +2,15 @@
   "passportVersion": 1,
   "stage": "code",
   "index": 3,
-  "at": "2026-09-26T20:19:26.634Z",
+  "at": "2026-09-26T21:13:55.504Z",
   "status": "passed",
   "cleanliness": "unverified-gates",
   "inputDigest": "920a0b1c5afdb349c52a5b4fcab0f90c74f9a660ebe324f6f46df1b8f3e0b10c",
   "artifacts": {
-    "code/main.py": "b0a22f4e7c532f175372d4a1d16923b46803eb092cfa373118de01a5862608fa",
-    "code/": "dir:9",
-    "RESULTS.md": "f08289f50b4fb8ab64028f3b2cfa163943d1ed9195e74d13b9a692a8f954d8e0",
-    "DELIVERABLES.json": "17fc32f2a5d5424dab67af72c8562e786e1bc7e7da9ee588de56d392d47bd7e6"
+    "code/main.py": "981a70b9d5ed40a3279d3651db3b04ac0f5a765355ce3c7feff2497f253b893e",
+    "code/": "dir:7",
+    "RESULTS.md": "dabc9dadefb7e1bc3d6c5e30139084b1c65fa3b9891a5bf90ccebbe22d0a85fb",
+    "DELIVERABLES.json": "bc91b29e5f8cf50656c304249b53d5cc72d8c7da9b410373ed7f80a29352923e"
   },
   "gate": {
     "code": 2,
@@ -24,7 +24,7 @@
       {
         "id": "numbers_traced",
         "ok": true,
-        "detail": "1 个文本产物的 144 个数字全部有出生证明（题面给定值 / 声明的常数 / 编外登记 1 条）",
+        "detail": "1 个文本产物的 14 个数字全部有出生证明（题面给定值 / 声明的常数 / 编外登记 1 条）",
         "code": 0
       },
       {
@@ -36,7 +36,7 @@
       {
         "id": "leakage_audit",
         "ok": true,
-        "detail": "出现 ≥0.99 的分类指标（1 处），且产物里有去泄漏说明",
+        "detail": "未发现 ≥0.99 的**分类指标**（置信水平 / 概率 / 坐标轴上的大数不算）",
         "code": 0
       },
       {
@@ -53,99 +53,73 @@
   "audit": {
     "stage": "code",
     "verdict": "pass",
-    "score": 0.85,
+    "score": 0.8,
     "structureOk": true,
     "requirementCompliance": [
       {
-        "item": "code/main.py 存在、≥500 字节，且是依次跑各问并汇总的编排入口",
+        "item": "code/main.py 存在且 ≥500 字节，作为编排入口依次跑各问并汇总写盘",
         "done": true,
-        "note": "main.py 4174 字节；顺序调用 problem1.run()/problem2.run()/problem3.run()/problem4.run(...)/sensitivity.run()，组装 ledger 后 json.dump 到 code/outputs.json，并打印四问关键量摘要。"
+        "note": "main.py 共 8746 字节；PROBLEM_MODULES 依次 importlib 导入 problem1..problem4 并调用 run()/main()，把各问返回字典汇总为 ledger 后原子写 code/outputs.json，并回读自检"
       },
       {
-        "item": "code/ 含逐问实现 problem*.py，文件数 ≥ 题面问数（4）",
+        "item": "code/ 下逐问实现 problem*.py，文件数 ≥ 题面问数（4）",
         "done": true,
-        "note": "problem1.py / problem2.py / problem3.py / problem4.py 共 4 个，与题面 4 问一一对应；params.py 与 sensitivity.py 不参与计数也不冒充逐问实现。"
+        "note": "可见 problem1.py(22344B) / problem2.py(15532B) / problem3.py(41372B) / problem4.py(42536B) 各对应题面四问，另有 params.py 作为唯一常数来源"
       },
       {
-        "item": "RESULTS.md 存在且 ≥1024 字节",
+        "item": "RESULTS.md 存在且 ≥1024 字节，说明结果",
         "done": true,
-        "note": "16803 字节；含四问实现说明、账本键位索引表、校核证据表与防泄漏说明。"
+        "note": "RESULTS.md 15956 字节，逐问给出方法归因、结果锚点、校核执行与诚实边界，并声明不手抄代码算出的数值"
       },
       {
-        "item": "DELIVERABLES.json 存在，登记 kind/min_rows/min_bytes/desc",
+        "item": "DELIVERABLES.json 存在，含 kind/min_rows/min_bytes/desc 的机器可校验清单",
         "done": true,
-        "note": "13851 字节，entries 每条含 key/kind/min_rows/min_bytes/desc；条目阈值与 params.py 中 GRID_N=41(→1681 行)、SPRT_M_MAX=200、Q4_REPS=2000、CONF_SCAN(8) 等自洽。"
+        "note": "DELIVERABLES.json 3711 字节，9 条交付项均带 locator/json_path/kind/min_rows/min_bytes/desc，覆盖 outputs.json 及 problem1..4 分段"
       },
       {
-        "item": "数字由真跑出来的代码产生（无手写结果数）",
+        "item": "题面四问在代码中均有落点",
         "done": true,
-        "note": "问题1 用 scipy.stats.binom 精确搜索 (n,c)，问题2 闭式全枚举 16 策略，问题3 自底向上 DP + brute_force 交叉核验，问题4 用 numpy 随机数重抽样；RESULTS.md 明确不抄写任何算出的数值，只给账本键名。"
+        "note": "Q1 单侧二项两点设计+整数样本量精确搜索（problem1）；Q2 四元0-1决策 16 组合全枚举（problem2）；Q3 装配树节点级决策（problem3）；Q4 精确二项置信区间+重抽样一致率（problem4）"
       },
       {
-        "item": "本阶段只写代码与结果说明：无渲染代码、无图表声明、无图像字节",
+        "item": "题面给定值经统一常数表转录、代码不重复内嵌",
         "done": true,
-        "note": "可见代码无 matplotlib/savefig 调用；DELIVERABLES.json 显式声明不含 chart_type/data_refs/caption 字段，与 no_render 门禁口径一致。"
+        "note": "params.py 逐条标注 F-T1-C1..C6 / F-T2-* / F-NOMINAL 来源；problem2 显式从 params 读 TABLE1，problem3/4 有 params→PROBLEM_FACTS.json 的回退链；problem1 仅在 params 缺失时启用受保护兜底"
       },
       {
-        "item": "题面给定值全部有落点且真正进入公式/约束（无死参数）",
+        "item": "本阶段不产出图像字节、不写渲染代码",
         "done": true,
-        "note": "逐条核对：F-NOMINAL→P_NOMINAL 进 binom 检验；F-CONF-REJECT/ACCEPT→Q1_ALPHA1=0.05 / Q1_ALPHA2=0.10 进可行域约束；表1 六情况 p1,a1,c1,p2,a2,c2,p0,A,c0,s,l,t 全部出现在 evaluate() 的 Q1/Q2/q/Kf/Kr/xi/U/profit=s-U 中（调换损失 l 经 xi=D*t+(1-C)*l 进入成本，非死参数）；表2 八零配件 (p,a,c)、三半成品 (p,A,c,t)、成品 (p,A,c,t,l) 全部进入 problem3 节点递推；T2_PRICE=200 与 T2_EXCHANGE_LOSS=40 分别进入 profit 与 ξ。无凭空多出的题面外参数。"
-      },
-      {
-        "item": "问题 1 针对两种情形分别给出检测次数尽可能少的方案",
-        "done": true,
-        "note": "情形(1) n/c 由 P(X>c|p_nom)≤0.05 与 P(X>c|p_alt)≥0.9 的整数最小 n 搜索给出，附 c 可行区间 [c_lo,c_hi]；情形(2) 独立构造 P(X≤c|p_nom)≥0.90 与 P(X≤c|p_alt)≤0.10，两情形不共用 (n,c)；并附 n−1 不可行的最小性核验与 OC 曲线。"
-      },
-      {
-        "item": "问题 2 覆盖题面 (1)(2)(3)(4) 四类决策",
-        "done": true,
-        "note": "策略空间 (Z1,Z2,C,D)∈{0,1}^4 全枚举 16 组，对应零配件检测/成品检测/不合格成品拆解；无条件调换由 xi 中的 (1-C)*l 承担，退回件按 D 进入回收轮（K_r 免采购、再检测费仍付）。"
-      },
-      {
-        "item": "问题 3 按 m 工序 n 零配件给出节点级决策方案",
-        "done": true,
-        "note": "build_tree 建 8 零配件+3 半成品+1 成品共 12 节点（Q3_N_NODES=12 对应），node_options 自底向上压缩求最优，brute_force 做 2^8×4^3×4 全枚举交叉核验，并含拓扑扰动稳健性扫描。"
-      },
-      {
-        "item": "问题 4 用抽样得到的次品率重做问题 2 与问题 3",
-        "done": true,
-        "note": "以问题1 情形(1) 的最小 n 为样本量算 p_hat，Clopper-Pearson 精确区间，重解 Q2 六情况与 Q3 节点决策，并给出决策固定下的利润区间、蒙特卡洛一致率 ρ 与决策差异表。"
+        "note": "可见的 main.py 与各 problem*.py 中未出现 plt/savefig/*.png/*.svg 调用，产物段仅含 JSON 结果字典；no_render 门禁已由 harness 跑过"
       }
     ],
     "findings": [
       {
-        "severity": "minor",
-        "where": "code/params.py（NORMAL_APPROX_MIN=5，另疑似 MC_REPS=10000、Q3_N_SEMI=3）",
-        "issue": "这些常数在可见代码中找不到任何引用点：问题1 走的是精确二项搜索，未做正态近似（RESULTS.md 亦称其『为登记下界』）；问题4 的重复次数用的是 Q4_REPS=2000 而非 MC_REPS。属于『声明了但没进任何公式/判定』的登记性常数（非题面给定值，故不动摇结论）。Q3_N_SEMI/Q3_N_NODES 可能在 problem3.py 被截断的 run() 尾部被使用，无法从可见部分判死。",
-        "fix": "若确实未被使用，二选一：或在 problem1 中以 NORMAL_APPROX_MIN 作为正态近似的适用性判定（如小 n 时回退精确解）与搜索初值，或在注释中明确标注『登记值，当前实现未启用』，避免下一阶段把它当成有效约束引用。"
+        "severity": "major",
+        "where": "code/main.py vs DELIVERABLES.json(/run_log) / RESULTS.md 第一节",
+        "issue": "DELIVERABLES.json 以 produced_by=\"python code/main.py\" 声明 run_log.json 为独立交付物（json_path run_log.json#/），RESULTS.md 也把 run_log.json 描述为『每问状态、入口函数名、顶层键名、常数快照、已登记未启用常数注解』，但 main.py 全文只有 _write_json(OUTPUT_FILE=outputs.json) 一处落盘，没有任何代码路径写出 run_log.json，meta 段也不含入口函数名与 constant_notes。下游阶段四按该 json_path 登记数源会落空。",
+        "fix": "要么在 main.py 的 main() 里把 meta（并可补 entry_function/constant_notes）另存为 run_log.json 再返回，要么从 DELIVERABLES.json 与 RESULTS.md 中删除 run_log.json 条目，改为引用 outputs.json#/meta"
       },
       {
         "severity": "minor",
-        "where": "code/problem4.py",
-        "issue": "存在死代码与无效计算：(a) `zr = 0 if True else 1` 恒真分支，结果未被使用；(b) Q3 利润区间循环内对 4096 个置信箱角点都调用 problem3.node_options(...) 并把返回值 opts 丢弃，只用 eval_config 复算——多算一遍全树 DP，属浪费且一旦 node_options 在极端角点抛错会误伤本来正确的区间计算。",
-        "fix": "删去 zr 行；把循环内的 node_options 调用移除（区间传播是『决策固定』，本来也不需要重解最优决策）。"
+        "where": "code/problem1.py（run/_solve_* 内的 default 参数）",
+        "issue": "problem1.run() 在录入 p_nom/conf_reject/conf_accept/BETA/DELTA 时，把 0.10/0.95/0.90/0.10/0.05 写成函数体内的兜底默认值，与『数值只在本阶段 params.py 出现一次』的纪律存在张力；当前因 params 可导入而未启用，但一旦 params 缺失即产生脱离 F-* 出处的裸题面值。",
+        "fix": "把兜底改为显式登记为 ASM 的假设值（带 ASSUMED_ 前缀与 source 字段），或在 params 缺失时直接 raise 而非静默回落"
       },
       {
         "severity": "minor",
-        "where": "code/main.py 末尾 print 与 DELIVERABLES.json 的 problem3.topology 条目",
-        "issue": "main.py 打印读取 ledger['problem3']['topology']['n_nodes']，而 DELIVERABLES.json 登记的是 problem3.topology.groups 与 problem3.topology.nodes（数组），未登记 n_nodes。若 run() 返回的拓扑字典用的是 nodes 而无 n_nodes，该 print 会在账本写盘之后抛 KeyError、以非零码退出。problem3.py 被截断，无法从可见部分证伪。",
-        "fix": "统一键名：或在 problem3.run() 返回 topology 时同时给出 n_nodes 并在 DELIVERABLES.json 补登该键，或把 print 改为 len(ledger['problem3']['topology']['nodes'])。"
+        "where": "code/main.py main() 返回值",
+        "issue": "任一问抛错时只记录进 meta.errors 并继续，仅当四问全部失败才返回非零码；单问失败仍以零码退出，下游若不检查 meta.errors/_ok 会把不完整的账本当成完整结果。",
+        "fix": "保留不中止策略的同时，在 outputs.json#/meta 增加布尔 ok_all 与失败问清单，并在 RESULTS.md 运行节显式提示下游必须先读该字段"
       },
       {
         "severity": "minor",
-        "where": "code/problem1.py 的 sampling_cost 段（unit1=TABLE1[0]['c1']=2, unit2=TABLE1[0]['c2']=3）",
-        "issue": "问题 1 题面只说明抽样检测费由企业承担，并未给出单位检测成本；这里借用表 1 情况 1 的零配件 1/2 检测成本作为单价。这是自定口径（RESULTS.md 已声明），但账本字段名 'unit_cost_part1' 未标注它是『假设值而非题面给定值』，在下一阶段铸数时存在被当作题面给定值引用的风险。",
-        "fix": "在担当数源声明的阶段把该单价显式标为 ASM（假设）并注明来源为表 1 情况 1，或改名为 assumed_unit_cost_part1 以自证其非题面给定。"
-      },
-      {
-        "severity": "minor",
-        "where": "code/problem4.py 的 p_hat 生成方式",
-        "issue": "点估计 p_hat 由 x=int(round(n*p_真实)) 反推得到，即 p_hat 恰等于题面给定次品率，抽样误差仅体现在后续蒙特卡洛重抽样；这样 ρ 度量的是『以真值为中心的重抽样下决策稳定性』，不含点估计本身的偏差。口径已在 RESULTS.md 声明、不违反契约，但结论中对『次品率由抽样得到』的刻画是理想化的。",
-        "fix": "在数源声明/正文中显式写明 p_hat≡真值这一设定，或补一组『x 由 Binomial(n,p_真) 实际抽得』的对照，使 ρ 的含义与题面『次品率均通过抽样检测方法得到』更贴。"
+        "where": "上游 DECLARATION.json（未随本阶段产物提供）",
+        "issue": "本轮审计可见的上游内容只内联了 PROBLEM_FACTS.json，DECLARATION.json 的 model_constants 与 illustrative_numbers 编外登记簿原文不可见，无法逐条核对 quote 是否在正文存在、是否存在『把计算结果塞进编外』的伪装。代码侧对 ASM-09/模型常数键名的引用无法与登记簿逐字对齐。",
+        "fix": "阶段四交付时随附 DECLARATION.json 原文，并逐条核对 params.py 中的 MODEL_CONSTANTS 键名/取值与登记值一致"
       }
     ],
     "missing": [],
     "model": "glm-5.3-flash-free",
-    "at": "2026-09-26T20:19:26.630Z"
+    "at": "2026-09-26T21:13:55.501Z"
   }
 }
