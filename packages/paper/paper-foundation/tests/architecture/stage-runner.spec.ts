@@ -716,3 +716,40 @@ describe('重跑接线 —— 门禁硬失败也进简报', () => {
     expect(seen).not.toContain('上一轮审计提出的问题')
   })
 })
+
+/**
+ * `locator` 的两种读法都指向同一个文件 —— 为路径前缀的读法差异让整轮重跑作废，
+ * 是把**契约的表述问题**算在执行者头上。
+ *
+ * 实测：阶段 4 的 43 条声明全部写 `locator: "code/outputs.json"`（相对阶段目录的读法），
+ * 而解析按"相对 `code/`"拼成 `code/code/outputs.json` → 43/43 铸数落空、整轮作废。
+ * 契约侧已加正例（写 `outputs.json`），解析侧同时容错这一种误读。
+ */
+describe('铸数 —— locator 相对 `code/`，并容错 `code/` 前缀', () => {
+  it('`outputs.json` 与 `code/outputs.json` 都能铸出同一个数', async () => {
+    for (const locator of ['outputs.json', 'code/outputs.json']) {
+      const root = await tmp()
+      await runStages(ctxOf(root), { only: ['prob-analysis', 'modeling', 'code'], problemCount: 4 })
+      const dir = join(root, '04-result-sources')
+      await mkdir(dir, { recursive: true })
+      await writeFile(join(dir, 'RESULT_SOURCES.json'), JSON.stringify({
+        sources: [{ result_id: 'RES-A', name: '指标A', locator, json_path: 'a', unit: '%' }],
+      }), 'utf8')
+
+      const outcome = await runCodeAndMintResults(root)
+      expect(outcome.minted, `locator=${locator} 应当铸出 1 条`).toBe(1)
+    }
+  }, 180_000)
+
+  it('**判别力**：真的不存在的 locator 照样具名失败（容错不等于放行）', async () => {
+    const root = await tmp()
+    await runStages(ctxOf(root), { only: ['prob-analysis', 'modeling', 'code'], problemCount: 4 })
+    const dir = join(root, '04-result-sources')
+    await mkdir(dir, { recursive: true })
+    await writeFile(join(dir, 'RESULT_SOURCES.json'), JSON.stringify({
+      sources: [{ result_id: 'RES-X', name: '不存在', locator: 'nope.json', json_path: 'a', unit: '%' }],
+    }), 'utf8')
+
+    await expect(runCodeAndMintResults(root)).rejects.toThrow(/nope\.json/)
+  }, 180_000)
+})
