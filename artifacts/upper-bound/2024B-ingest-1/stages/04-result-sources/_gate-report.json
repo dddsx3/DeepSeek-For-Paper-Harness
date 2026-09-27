@@ -5,13 +5,13 @@
     {
       "id": "result_sources_valid",
       "ok": true,
-      "detail": "104 条数源声明，id 唯一、locator/json_path 齐备，且每一条都经铸数按真实产物解析过",
+      "detail": "121 条数源声明，id 唯一、locator/json_path 齐备，且每一条都经铸数按真实产物解析过",
       "code": 0
     },
     {
       "id": "results_minted",
       "ok": true,
-      "detail": "账本 113 条，全部来自真实执行；形态：scalar 89、series 12、flag 5、table 7",
+      "detail": "账本 121 条，全部来自真实执行；形态：scalar 89、series 12、flag 5、table 10、record 5",
       "code": 0
     }
   ]

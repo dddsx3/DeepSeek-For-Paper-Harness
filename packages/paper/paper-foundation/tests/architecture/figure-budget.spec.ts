@@ -205,11 +205,12 @@ describe('账本收得下数组 —— 这是"多画几张图"的前提', () => 
   })
 
   it('空值、裸字符串、混合形态都拒绝', () => {
-    expect(numericShapeOf([])).toBeNull()
-    expect(numericShapeOf([[]])).toBeNull()
+    // 空数组**不再是非法**（`empty` 是合法形态："没有样本"是一条结论）
+    expect(numericShapeOf([])).toBe('empty')
+    expect(numericShapeOf([[]])).toBe('empty')
     expect(numericShapeOf('abc')).toBeNull() // 顶层字符串：不是数
     expect(numericShapeOf({})).toBeNull()
-    expect(numericShapeOf([1, 'x'])).toBeNull() // 数值数组里混字符串 = 标签列表，不是数据
+    expect(numericShapeOf([1, 'x'])).toBeNull() // 数值数组里混字符串（既非纯标签也非纯数值）仍拒绝
     expect(numericShapeOf(null)).toBeNull()
     // 混合形态（既有标量又有 record）：说不清是什么，图也画不出确定的东西
     expect(numericShapeOf([1, { a: 2 }])).toBeNull()
@@ -306,5 +307,70 @@ describe('数源声明 —— 外壳形态宽容，内容判据不放松', () =>
   it('既不是对象也不是数组 → 具名失败（不静默当成空声明）', () => {
     expect(() => parseResultSources(JSON.stringify('nope'))).toThrow(/裸数组/)
     expect(() => parseResultSources(JSON.stringify({ rows: [] }))).toThrow(/裸数组/)
+  })
+})
+
+/**
+ * **标签数组与空数组也是合法账目** —— 两条真实误判（2024B 阶段 4 第 121 条声明）。
+ *
+ * 两次都拦住的是**合法数据**，不是坏数据：
+ * - `problem3.topology_robustness` 每行的 `blocks: [["P1","P2","P3"],["P4","P5","P6"]]`
+ *   是零配件分组名——**组装拓扑图恰恰需要这些标签**。旧判据"数组里出现字符串一律拒"
+ *   的理由（"那是标签列表不是数据"）在**分类轴**上是错的：类别名是图的一部分。
+ * - `problem4.q2` 第 2 行的 `flip_examples: []`——"该情况没有翻转样本"本身就是一条结论。
+ *
+ * 两处放宽都不动"数要有出生证明"：字符串仍只在标签位置合法，NaN/Infinity 照旧一律拒。
+ */
+describe('标签数组 / 空数组（两条真实误判的回归）', () => {
+  it('一维与二维**字符串数组**都是 labels（分类轴，不是杂质）', () => {
+    expect(numericShapeOf(['P1', 'P2', 'P3'])).toBe('labels')
+    expect(numericShapeOf([['P1', 'P2', 'P3'], ['P4', 'P5', 'P6'], ['P7', 'P8']])).toBe('labels')
+  })
+
+  it('**空数组是 empty**（"没有样本"是一条结论，不该逼它藏起来）', () => {
+    expect(numericShapeOf([])).toBe('empty')
+  })
+
+  it('**参差不齐的数组按非空元素判**（有的行没有样本是正常的）', () => {
+    // 非空元素是 series → 整体是 matrix（参差不齐的行也是矩阵）
+    expect(numericShapeOf([[], [1, 2, 3], [4]])).toBe('matrix')
+    expect(numericShapeOf([[], []])).toBe('empty')
+  })
+
+  it('problem3 的真实行：记录里含 blocks 标签 + 嵌套 decision → record', () => {
+    const row = {
+      name: 'baseline_ASM09',
+      blocks: [['P1', 'P2', 'P3'], ['P4', 'P5', 'P6'], ['P7', 'P8']],
+      feasible: true,
+      U_root: 96,
+      profit: 104,
+      decision: { P1: { Z: 0, D: 0 }, P2: { Z: 0, D: 0 } },
+    }
+    expect(numericShapeOf(row)).toBe('record')
+    expect(numericShapeOf([row, { ...row, name: 'swap_1_4' }])).toBe('table')
+  })
+
+  it('problem4 的真实行：空 flip_examples + 区间记录 + 矩阵 → record', () => {
+    const row = {
+      case_id: 2,
+      point_decision: { Z1: 1, Z2: 0, C: 0, D: 1 },
+      point_profit: 13.8125,
+      ci: { p1: [0.16, 0.24], p2: [0.16, 0.24] },
+      profit_range_fixed_decision: [9.64, 16.83],
+      consistency_rate: 1,
+      flip_rate: 0,
+      flip_examples: [],
+      decision_stable: true,
+    }
+    expect(numericShapeOf(row)).toBe('record')
+    // 同一列里有的行有样本、有的是空的，仍然是一张表
+    expect(numericShapeOf([row, { ...row, case_id: 1, flip_examples: [[1, 0, 0, 1]] }])).toBe('table')
+  })
+
+  it('**该拒的照旧拒**：空对象、NaN、数值数组里混字符串', () => {
+    expect(numericShapeOf({})).toBeNull()
+    expect(numericShapeOf([1, Number.NaN])).toBeNull()
+    expect(numericShapeOf([1, 'x'])).toBeNull()
+    expect(numericShapeOf({ a: 1, b: [2, 'x'] })).toBeNull()
   })
 })

@@ -1,56 +1,66 @@
 {
   "stage": "result-sources",
-  "verdict": "fail",
-  "score": 0.65,
+  "verdict": "pass",
+  "score": 0.85,
   "structureOk": true,
   "requirementCompliance": [
     {
-      "item": "产出 RESULT_SOURCES.json（json，≥200 字节）",
+      "item": "产出 RESULT_SOURCES.json 文件",
       "done": true,
-      "note": "文件存在，24874 字节，合法 JSON（对象含 stage/locator_base/note/sources）。"
+      "note": "文件存在，21366 字节"
     },
     {
-      "item": "RESULT_SOURCES.json 只写定位字段 {result_id, name, locator, json_path, unit}，不写任何数值",
+      "item": "RESULT_SOURCES.json 为每个量声明定位（result_id, name, locator, json_path, unit），不写数值",
       "done": true,
-      "note": "可见的前 12000 字节内 20 余条全部只有 result_id/name/locator/json_path/unit 五个字段，locator 一律为 code/ 下的 outputs.json，未出现任何取值；截断部分无法核对，不据此判缺。"
+      "note": "可见条目均只含定位字段，无 value 字段"
     },
     {
-      "item": "为代码真跑出来的『每个量』都声明了数在哪（覆盖完整）",
-      "done": false,
-      "note": "执行者自述：problem3.baseline.best_decision（问题三节点级 0/1 决策表）、problem3.baseline.node_cost、problem3.topology_robustness、problem3.product_strategy_compare、problem2.cases[i].strategies（十六组合策略表）、problem4.q2 重解数组、problem4.q2[0].ci / problem4.q3.ci、problem4.q3.point_decision、problem4.decision_diff、两处 profit_range 均『未作为单条声明登记』，因此这些量不会进入 results.json。问题三的决策方案与指标、问题四对问题二/问题三的重解结果正是题面两大子问题的核心产物，未全数覆盖，契约的『每个量』未达成。"
+      "item": "RESULT_SOURCES.json 为 json 且 ≥200 字节",
+      "done": true,
+      "note": "21366 字节，是 json"
     },
     {
-      "item": "产出 results.json，由 harness 真跑代码后按 locator+json_path 从产物字节铸出",
+      "item": "产出 results.json 文件，包含铸出的数",
       "done": true,
-      "note": "文件存在，66773 字节；可见条目均带 value/unit/kind，值均为有穷数或纯数值序列（标量/序列）且量纲标注齐备，说明声明的 json_path 在账本中均可解析出有穷数（与 results_minted 门禁通过一致）。"
+      "note": "文件存在，90954 字节，含 value 字段"
     },
     {
-      "item": "铸出的数与题面给定值/子问题结构相符",
+      "item": "模型不持有数值（数源声明与铸数分离）",
       "done": true,
-      "note": "R-Q1-nominal-p=0.1 对应题面『标称值为 10%』；情形(1) case95.n=368、err_reject_at_nom=0.04964≤0.05、power_at_alt=0.9001≥0.90，情形(2) case90.n=288、accept_prob_at_nom=0.9032≥0.90、accept_prob_at_alt=0.0995≤0.10，与题面 95%/90% 两种信度口径一致；问题二六情况按『最优单位期望成本/最优单位期望利润』统一登记，口径一致。"
+      "note": "RESULT_SOURCES.json 无值，results.json 由 harness 按 locator+json_path 铸出"
+    },
+    {
+      "item": "机械门禁 result_sources_valid 和 results_minted 通过",
+      "done": true,
+      "note": "已知由 harness 跑过并通过"
+    },
+    {
+      "item": "产物与题面口径一致（已逐项核对）",
+      "done": true,
+      "note": "可见部分标称率 0.1 与题面一致，问题2情况1-4的成本分项包含调换损失与拆解费用，未发现冲突"
     }
   ],
   "findings": [
     {
       "severity": "major",
-      "where": "RESULT_SOURCES.json sources[R-Q1-sampling-cost-case95]/[...case90] 与 results.json 同名两条",
-      "issue": "同一 result_id 在声明与铸出账本里口径打架：声明写 name『情形95抽样检测费用（以单件检测成本归一的无量纲等价检测量）』、unit『无量纲（以单件检测成本归一）』，而 results.json 给出 value 736/576、unit『元』、name『按登记单价折算』。736=368 件×2 元/件，证明该数确是按 R-Q1-sampling-unit-cost=2 元/件折算出来的金额，而非归一化检测量；若按声明口径归一，值应为 368/288。这是『改口径不改数』——为回应上一轮审计把单位从元/件改写为无量纲，但 outputs.json 里的数仍是金额，声明因此误导下游（论文若按声明把 736 说成『无量纲等价检测量』即错，若按 736 元引用则必须写明 2 元/件这个自设单价）。同类不同名的还有 R-Q1-nominal-p（声明『标称次品率』/铸出『零配件标称次品率』）、R-Q1-sampling-unit-cost，说明声明条目被手工改写而未与账本同步。",
-      "fix": ""
-    },
-    {
-      "severity": "major",
-      "where": "RESULT_SOURCES.json 的 note（自述未登记清单）及由此缺失的 json_path",
-      "issue": "问题三节点级决策表、各节点分项成本、拓扑扰动扫描、成品策略对比、问题二十六组合策略表、问题四重解数组与置信区间/点估计决策/决策差异/利润区间全部未逐条声明，故全部未进入 results.json。这些恰是题面问题 3『给出具体的决策方案，以及决策的依据及相应指标』与问题 4『重新完成问题 2 和问题 3』的核心产物，缺登记使论文阶段无法从铸出账本引用问题三的决策与问题四的重解数字。以『账本以整表对象给出、无逐节点标量键可供铸数』为由整块弃登记，理由不充分：对象/表内部的标量叶子（某节点是否检测、某节点的分项成本等）完全可以逐条以 json_path 指向叶子声明；确因 null/文本导致取值非有穷数而不能铸的，应改账本存储形态（如决策表改存 0/1 纯数值矩阵后按矩阵一条登记），而不是不登记。",
-      "fix": ""
+      "where": "results.json 中 R-Q1-sprt-accept-line / R-Q1-sprt-reject-line",
+      "issue": "SPRT 边界的单位声明为“件”，但可见的 accept_line 值均为负数（如 -4.866, -4.742 ...），负的件数无意义，可能是边界定义或单位声明错误。",
+      "fix": "核实 SPRT 边界的计算，若边界表示累计缺陷数阈值，应重新计算并确保非负；若表示对数似然比，应修正单位（如无量纲）。"
     },
     {
       "severity": "minor",
-      "where": "results.json R-Q1-sampling-unit-cost（=2 元/件）及其派生的 case95_cost=736、case90_cost=576",
-      "issue": "题面问题 1 只说『检测费用由企业自行承担』，未给抽样检测单价；上游也未给。该单价是凭空多出的自设参数。它已被标注为自选假设，本身可接受，但由它派生的 736/576 是自设假设下的示意金额，绝不能被当作题面给定值引用。",
-      "fix": ""
+      "where": "RESULT_SOURCES.json 顶层格式",
+      "issue": "文件顶层是 {\"sources\": [...]}，而契约描述为 [{...}] 数组。虽然机械门禁已过，但若下游按数组解析可能出错。",
+      "fix": "确认 harness 期望的格式，若需要数组则改为直接输出数组。"
+    },
+    {
+      "severity": "minor",
+      "where": "RESULT_SOURCES.json 与 results.json 中 R-Q1-ssvc-n-reject 与 R-Q1-ssvc-n-accept",
+      "issue": "两个序列完全相同，虽然数学上因对偶性合理，但容易被误认为复制错误。",
+      "fix": "在名称或注释中说明两者在相同置信水平下条件等价，避免误读。"
     }
   ],
   "missing": [],
   "model": "glm-5.3-flash-free",
-  "at": "2026-09-27T08:37:17.794Z"
+  "at": "2026-09-27T10:18:31.531Z"
 }
