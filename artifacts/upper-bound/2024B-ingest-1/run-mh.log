@@ -10,3 +10,47 @@ STAGE CHAIN FAILED — 1 个阶段没通过（产物与通行证在 artifacts\up
 [STAGE CHAIN] artifacts\upper-bound\2024B-ingest-1\stages
   题面问数（数出来的）：4
   [deterministic] figure-declare: 第 1 段：出作图规划
+  [deterministic] figure-declare: 第 2/14 段：交付 figures/gen_fig_q1_oc_curve_p1.py
+  [deterministic] figure-declare: 第 3/14 段：交付 figures/gen_fig_q1_sample_size_vs_confidence.py
+  [deterministic] figure-declare: 第 4/14 段：交付 figures/gen_fig_q1_sprt_boundary.py
+  [deterministic] figure-declare: 第 5/14 段：交付 figures/gen_fig_q1_two_cases_sample_size.py
+  [deterministic] figure-declare: 第 6/14 段：交付 figures/gen_fig_q2_strategy_cost_heatmap.py
+  [deterministic] figure-declare: 第 7/14 段：交付 figures/gen_fig_q2_optimal_cost_breakdown.py
+  [deterministic] figure-declare: 第 8/14 段：交付 figures/gen_fig_q2_six_cases_decisions.py
+  [deterministic] figure-declare: 第 9/14 段：交付 figures/gen_fig_q2_sensitivity_defect_rate.py
+  [deterministic] figure-declare: 第 10/14 段：交付 figures/gen_fig_q2_sensitivity_unit_cost.py
+  [deterministic] figure-declare: 第 11/14 段：交付 figures/gen_fig_q3_assembly_network_cost.py
+  [deterministic] figure-declare: 第 12/14 段：交付 figures/gen_fig_q3_strategy_cost_compare.py
+  [deterministic] figure-declare: 第 13/14 段：交付 figures/gen_fig_q4_ci_effect_on_cost.py
+  [deterministic] figure-declare: 第 14/14 段：交付 figures/gen_fig_q4_monte_carlo_robustness.py
+[STAGE NEXT] 只跑了 'figure-declare'，到此即停。检查 artifacts\upper-bound\2024B-ingest-1\stages 后，放行 = 再执行一次 --stages --stage-next。
+  ❌ figure-declare: 门禁 code 1（0=通过 1=硬失败 2=无法判定）：figure_diversity
+
+STAGE CHAIN FAILED — 1 个阶段没通过（产物与通行证在 artifacts\upper-bound\2024B-ingest-1\stages）。
+===== 第 3 次 --stage-next（mhcoding/gpt-6-luna）=====
+[STAGE CHAIN] artifacts\upper-bound\2024B-ingest-1\stages
+  题面问数（数出来的）：4
+  [deterministic] figure-declare: 第 1 段：出作图规划
+  [deterministic] figure-declare: 第 2/15 段：交付 figures/gen_fig_q1_oc_curve_p1.py
+  [deterministic] figure-declare: 第 3/15 段：交付 figures/gen_fig_q1_sample_size_vs_confidence.py
+  [deterministic] figure-declare: 第 4/15 段：交付 figures/gen_fig_q1_sprt_boundary.py
+  [deterministic] figure-declare: 第 5/15 段：交付 figures/gen_fig_q1_two_cases_sample_size.py
+  [deterministic] figure-declare: 第 6/15 段：交付 figures/gen_fig_q2_strategy_cost_heatmap.py
+  [deterministic] figure-declare: 第 7/15 段：交付 figures/gen_fig_q2_optimal_cost_breakdown.py
+  [deterministic] figure-declare: 第 8/15 段：交付 figures/gen_fig_q2_six_cases_decisions.py
+  [deterministic] figure-declare: 第 9/15 段：交付 figures/gen_fig_q2_sensitivity_defect_rate.py
+  [deterministic] figure-declare: 第 10/15 段：交付 figures/gen_fig_q2_sensitivity_unit_cost.py
+  [deterministic] figure-declare: 第 11/15 段：交付 figures/gen_fig_q2_breakeven_contour.py
+[STAGE NEXT] 只跑了 'figure-declare'，到此即停。检查 artifacts\upper-bound\2024B-ingest-1\stages 后，放行 = 再执行一次 --stages --stage-next。
+  ❌ figure-declare: 阶段产出未通过形态检查：fetch failed
+
+STAGE CHAIN FAILED — 1 个阶段没通过（产物与通行证在 artifacts\upper-bound\2024B-ingest-1\stages）。
+===== 第 4 次 --stage-next（mhcoding/gpt-6-luna）=====
+[STAGE CHAIN] artifacts\upper-bound\2024B-ingest-1\stages
+  题面问数（数出来的）：4
+  [deterministic] figure-declare: 第 1 段：出作图规划
+[STAGE NEXT] 只跑了 'figure-declare'，到此即停。检查 artifacts\upper-bound\2024B-ingest-1\stages 后，放行 = 再执行一次 --stages --stage-next。
+  ❌ figure-declare: 阶段产出未通过形态检查：fetch failed
+
+STAGE CHAIN FAILED — 1 个阶段没通过（产物与通行证在 artifacts\upper-bound\2024B-ingest-1\stages）。
+===== LOOP DONE =====
