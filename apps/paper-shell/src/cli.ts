@@ -106,6 +106,19 @@ export function parseArgs(argv: string[]): Record<string, unknown> & { positiona
  *  TASK-2026-09-09 E5: `display` carries the REAL resolved provider/model —
  *  the settings snapshot labels usage accounting and request events, so the
  *  old `deepseek-official/placeholder` placeholder mislabeled every real run. */
+/**
+ * 单次模型调用的超时（毫秒）。
+ *
+ * **为什么可配**：默认 60s 对"关闭思考的快速模型"够用，但**开了思考的模型 + 大简报会远超它**
+ * ——实测（2024B 阶段 5 规划请求）60s 被 abort，报出来的只有一句 `fetch failed`，
+ * 看不出是超时。而用户对建模质量有硬约束（不能因中转原因关闭思考），
+ * 所以必须允许把超时放大：`PAPER_PROBE_TIMEOUT_MS`。
+ */
+const requestTimeoutMs = ((): number => {
+  const raw = Number.parseInt(process.env['PAPER_PROBE_TIMEOUT_MS'] ?? '', 10)
+  return Number.isFinite(raw) && raw > 0 ? raw : 60_000
+})()
+
 async function buildContext(shellRoot: string, display?: { provider: string; model: string }): Promise<{
   ctx: Context
   baseRoot: string
@@ -125,7 +138,7 @@ async function buildContext(shellRoot: string, display?: { provider: string; mod
   const displayRole = display === undefined
     ? { provider: 'deepseek-official', model: 'placeholder' }
     : { provider: display.provider, model: display.model }
-  const roleRoute = { ...displayRole, credentialRef: 'PAPER_PROBE_API_KEY', timeoutMs: 60_000 }
+  const roleRoute = { ...displayRole, credentialRef: 'PAPER_PROBE_API_KEY', timeoutMs: requestTimeoutMs }
   await ctx.plugin(PaperSettingsService, {
     executor: { ...roleRoute },
     reviewer: { ...roleRoute },
@@ -1396,7 +1409,7 @@ function createRealProvider(
 ): ProviderFace {
   return {
     resolveRole: async () => ({
-      route: { role: 'executor', provider: route.provider, model: route.model, credentialRef: 'PAPER_PROBE_API_KEY', timeoutMs: 60_000 },
+      route: { role: 'executor', provider: route.provider, model: route.model, credentialRef: 'PAPER_PROBE_API_KEY', timeoutMs: requestTimeoutMs },
       model: { provider: route.provider, id: route.model, name: route.model, context: { contextWindow: 128_000 }, inputModalities: ['text'] },
     }),
     stream: options => recordOrPassthrough(recorder, options, adapterStream(route, adapter, options)),
