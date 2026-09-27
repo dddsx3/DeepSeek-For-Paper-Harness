@@ -1,0 +1,30 @@
+===== 第 1 次 --stage-next =====
+[STAGE CHAIN] artifacts\upper-bound\2024B-ingest-1\stages
+  题面问数（数出来的）：4
+  [deterministic] result-sources: 执行 code/main.py（exit 0），按声明铸出 106 条账目
+[STAGE NEXT] 只跑了 'result-sources'，到此即停。检查 artifacts\upper-bound\2024B-ingest-1\stages 后，放行 = 再执行一次 --stages --stage-next。
+  ❌ result-sources: 门禁 code 1（0=通过 1=硬失败 2=无法判定）：result_sources_valid、results_minted
+
+STAGE CHAIN FAILED — 1 个阶段没通过（产物与通行证在 artifacts\upper-bound\2024B-ingest-1\stages）。
+===== 第 2 次 --stage-next =====
+[STAGE CHAIN] artifacts\upper-bound\2024B-ingest-1\stages
+  题面问数（数出来的）：4
+[STAGE NEXT] 只跑了 'result-sources'，到此即停。检查 artifacts\upper-bound\2024B-ingest-1\stages 后，放行 = 再执行一次 --stages --stage-next。
+  ❌ result-sources: 阶段产出未通过形态检查：铸数失败（106/106 条声明没能从真实产物里解析出有限数）：R-Q1-nominal-p：json_path 'problem1.nominal_p' 在 'problem1.json' 里 解析到 undefined —— 既不是有限数，也不是有限数构成的数组（允许：标量 / 一维序列 / 二维矩阵 / 三维张量；元素必须都是有限数）；R-Q1-p-alt：json_path 'problem1.p_alt' 在 'problem1.json' 里 解析到 undefined —— 既不是有限数，也不是有限数构成的数组（允许：标量 / 一维序列 / 二维矩阵 / 三维张量；元素必须都是有限数）；R-Q1-case95-n：json_path 'problem1.case95.n' 在 'problem1.json' 里 解析到 undefined —— 既不是有限数，也不是有限数构成的数组（允许：标量 / 一维序列 / 二维矩阵 / 三维张量；元素必须都是有限数）；R-Q1-case95-c：json_path 'problem1.case95.c' 在 'problem1.json' 里 解析到 undefined —— 既不是有限数，也不是有限数构成的数组（允许：标量 / 一维序列 / 二维矩阵 / 三维张量；元素必须都是有限数）；R-Q1-case95-err-reject-nom：json_path 'problem1.case95.err_reject_at_nom' 在 'problem1.json' 里 解析到 undefined —— 既不是有限数，也不是有限数构成的数组（允许：标量 / 一维序列 / 二维矩阵 / 三维张量；元素必须都是有限数）；R-Q1-case95-power-alt：json_path 'problem1.case95.power_at_alt' 在 'problem1.json' 里 解析到 undefined —— 既不是有限数，也不是有限数构成的数组（允许：标量 / 一维序列 / 二维矩阵 / 三维张量；元素必须都是有限数）（原始回答已留档：_rejected-answer.txt）
+
+STAGE CHAIN FAILED — 1 个阶段没通过（产物与通行证在 artifacts\upper-bound\2024B-ingest-1\stages）。
+===== 第 3 次 --stage-next =====
+[STAGE CHAIN] artifacts\upper-bound\2024B-ingest-1\stages
+  题面问数（数出来的）：4
+[STAGE NEXT] 只跑了 'result-sources'，到此即停。检查 artifacts\upper-bound\2024B-ingest-1\stages 后，放行 = 再执行一次 --stages --stage-next。
+  ❌ result-sources: 阶段产出未通过形态检查：铸数失败（3/113 条声明没能从真实产物里解析出有限数）：R-OUT-ok-all：json_path 'outputs.meta.ok_all' 在 'outputs.json' 里 解析到 undefined —— 既不是有限数，也不是有限数构成的数组（允许：标量 / 一维序列 / 二维矩阵 / 三维张量；元素必须都是有限数）；R-OUT-elapsed-sec：json_path 'outputs.meta.elapsed_sec' 在 'outputs.json' 里 解析到 undefined —— 既不是有限数，也不是有限数构成的数组（允许：标量 / 一维序列 / 二维矩阵 / 三维张量；元素必须都是有限数）；R-OUT-seed：json_path 'outputs.meta.seed' 在 'outputs.json' 里 解析到 undefined —— 既不是有限数，也不是有限数构成的数组（允许：标量 / 一维序列 / 二维矩阵 / 三维张量；元素必须都是有限数）（原始回答已留档：_rejected-answer.txt）
+
+STAGE CHAIN FAILED — 1 个阶段没通过（产物与通行证在 artifacts\upper-bound\2024B-ingest-1\stages）。
+===== 第 4 次 --stage-next =====
+[STAGE CHAIN] artifacts\upper-bound\2024B-ingest-1\stages
+  题面问数（数出来的）：4
+[STAGE NEXT] 只跑了 'result-sources'，到此即停。检查 artifacts\upper-bound\2024B-ingest-1\stages 后，放行 = 再执行一次 --stages --stage-next。
+  ❌ result-sources: 阶段产出未通过形态检查：铸数失败（3/104 条声明没能从真实产物里解析出有限数）：R-META-ok-all：json_path 'outputs.meta.ok_all' 在 'outputs.json' 里 解析到 undefined —— 既不是有限数，也不是有限数构成的数组（允许：标量 / 一维序列 / 二维矩阵 / 三维张量；元素必须都是有限数）；R-META-elapsed-sec：json_path 'outputs.meta.elapsed_sec' 在 'outputs.json' 里 解析到 undefined —— 既不是有限数，也不是有限数构成的数组（允许：标量 / 一维序列 / 二维矩阵 / 三维张量；元素必须都是有限数）；R-META-seed：json_path 'outputs.meta.seed' 在 'outputs.json' 里 解析到 undefined —— 既不是有限数，也不是有限数构成的数组（允许：标量 / 一维序列 / 二维矩阵 / 三维张量；元素必须都是有限数）（原始回答已留档：_rejected-answer.txt）
+
+STAGE CHAIN FAILED — 1 个阶段没通过（产物与通行证在 artifacts\upper-bound\2024B-ingest-1\stages）。
+===== 第 5 次 --stage-next =====

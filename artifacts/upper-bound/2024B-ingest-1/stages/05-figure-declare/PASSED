@@ -149,5 +149,5 @@
   "regate": {
     "reason": "figure_script_traced 误判(levels=)与审计 done 极性已修正，产物未变"
   },
-  "staleReason": "阶段 'code' 门禁未通过（code 1）—— 下游前提不成立"
+  "staleReason": "阶段 'result-sources' 逐节点审计未通过 —— 下游前提不成立"
 }

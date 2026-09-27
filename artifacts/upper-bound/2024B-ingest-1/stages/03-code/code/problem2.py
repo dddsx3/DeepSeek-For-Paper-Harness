@@ -1,177 +1,168 @@
-# -*- coding: utf-8 -*-
-"""问题 2：四元 0-1 决策 (Z1, Z2, C, D) 的期望利润最大化（16 组合全枚举）。
+"""问题 2：四元 0-1 决策 (Z1, Z2, C, D) 下的期望利润最大化（全枚举）。
 
-闭式解（EQ-Q2-YIELD / EQ-KF / EQ-KR / EQ-Q2-RECUR / EQ-COST-Q2 / EQ-PROFIT-Q2）：
-  Q_i = 1 - (1-Z_i) p_i，q = (1-p_0) Q_1 Q_2
-  K_f = A + Σ[ Z_i (a_i+c_i)/(1-p_i) + (1-Z_i) a_i ]   （检测时采购倍数 1/(1-p_i)）
-  K_r = A + Σ Z_i c_i                                   （回收件免采购，只记于此）
+模型（MS-Q2）：
+  Q_i = 1 - (1-Z_i) p_i                (i=1,2)
+  q   = (1-p_0) Q_1 Q_2
+  K_f = A + Σ [ Z_i (a_i+c_i)/(1-p_i) + (1-Z_i) a_i ]
+  K_r = A + Σ Z_i c_i                  （免采购只记于此，ASM-12）
+  κ   = K_f - K_r
   g   = q / (1 - D(1-q))
   R   = [ K_r + C c_0 + (1-q)( D t + (1-C) l ) ] / (1 - D(1-q))
   U   = [ K_f + C c_0 + (1-q)( D t + (1-C) l + D R ) ] / g
   Π   = s - U
 """
-from params import TABLE1, TOL, SENS_GRID_STEPS, SENS_AMPLITUDE, BREAKEVEN_GRID, BREAKEVEN_X_RANGE, BREAKEVEN_Y_RANGE
 
-DECISION_GRID = [(z1, z2, c, d)
-                 for z1 in (0, 1) for z2 in (0, 1)
-                 for c in (0, 1) for d in (0, 1)]
+import itertools
+import params as P
 
 
-def decision_code(z1, z2, c, d):
-    return z1 * 8 + z2 * 4 + c * 2 + d
+# ------------------------------------------------------------------
+# 解析闭式
+# ------------------------------------------------------------------
+def evaluate(p, Z1, Z2, C, D):
+    """给定参数与四元决策，返回 U / Π 及各中间量。"""
+    p1, p2, p0 = p['p1'], p['p2'], p['p0']
+    a1, a2 = p['a1'], p['a2']
+    c1, c2, c0 = p['c1'], p['c2'], p['c0']
+    A, t, l, s = p['A'], p['t'], p['l'], p['s']
 
-
-def evaluate(params, z1, z2, c, d):
-    """给定参数与决策，返回 U、Π 与分项成本分解；不可交付返回 None。"""
-    p1, a1, c1 = params["p1"], params["a1"], params["c1"]
-    p2, a2, c2 = params["p2"], params["a2"], params["c2"]
-    p0, A, c0 = params["p0"], params["A"], params["c0"]
-    s, l, t = params["s"], params["l"], params["t"]
-
-    Q1 = 1.0 - (1 - z1) * p1
-    Q2 = 1.0 - (1 - z2) * p2
+    Q1 = 1.0 - (1 - Z1) * p1
+    Q2 = 1.0 - (1 - Z2) * p2
     q = (1.0 - p0) * Q1 * Q2
 
-    purchase = (z1 * a1 / (1.0 - p1) + (1 - z1) * a1
-                + z2 * a2 / (1.0 - p2) + (1 - z2) * a2)
-    insp_f = z1 * c1 / (1.0 - p1) + z2 * c2 / (1.0 - p2)
-    insp_r = z1 * c1 + z2 * c2
-    Kf = A + purchase + insp_f
-    Kr = A + insp_r
+    K_f = (A
+           + Z1 * (a1 + c1) / (1.0 - p1) + (1 - Z1) * a1
+           + Z2 * (a2 + c2) / (1.0 - p2) + (1 - Z2) * a2)
+    K_r = A + Z1 * c1 + Z2 * c2
+    kappa = K_f - K_r
 
-    denom = 1.0 - d * (1.0 - q)
-    if denom <= TOL or q <= TOL:
+    denom = 1.0 - D * (1.0 - q)
+    if denom <= P.TOL:
         return None
-
     g = q / denom
-    R = (Kr + c * c0 + (1.0 - q) * (d * t + (1 - c) * l)) / denom
-    U = (Kf + c * c0 + (1.0 - q) * (d * t + (1 - c) * l + d * R)) / g
-    profit = s - U
-
-    if d == 1:
-        B = (1.0 - q) * d / denom
-    else:
-        B = 0.0
-    scale = (1.0 + B) / g
-    breakdown = {
-        "assembly": A * scale,
-        "procurement": purchase * scale,
-        "inspection": (insp_f * (1.0 + B) + B * insp_r + c * c0 * (1.0 + B)) / g,
-        "disassembly": (1.0 - q) * d * t * (1.0 + B) / g,
-        "exchange_loss": (1.0 - q) * (1 - c) * l * (1.0 + B) / g,
-    }
-    breakdown["total"] = sum(breakdown.values())
-
-    return {
-        "Z1": z1, "Z2": z2, "C": c, "D": d,
-        "code": decision_code(z1, z2, c, d),
-        "Q1": Q1, "Q2": Q2, "q": q, "Kf": Kf, "Kr": Kr,
-        "kappa": Kf - Kr, "g": g, "R": R, "U": U, "profit": profit,
-        "breakdown": breakdown,
-    }
+    R = (K_r + C * c0 + (1.0 - q) * (D * t + (1 - C) * l)) / denom
+    U = (K_f + C * c0 + (1.0 - q) * (D * t + (1 - C) * l + D * R)) / g
+    return {'q': q, 'K_f': K_f, 'K_r': K_r, 'kappa': kappa,
+            'g': g, 'R': R, 'U': U, 'profit': s - U}
 
 
-def optimize(params):
-    best = None
-    all_res = []
-    for (z1, z2, c, d) in DECISION_GRID:
-        r = evaluate(params, z1, z2, c, d)
+# ------------------------------------------------------------------
+# 逐轮现金流复算（傻瓜版；用于与解析式对账）
+# ------------------------------------------------------------------
+def cost_breakdown_walk(p, Z1, Z2, C, D, n_rounds=2000):
+    """逐轮展开的期望成本分解（每件交付合格成品口径）。
+
+    分解项互不重叠：
+      purchase        = 采购（检测件的 1/(1-p_i) 倍数 / 非检测件 1 倍）
+      inspect         = 零配件检测（检测件按 1/(1-p_i) 倍数；回收轮按 Z_i c_i）
+      assembly        = 装配
+      product_inspect = 成品检测
+      disassemble     = 拆解
+      exchange        = 调换损失
+    六项之和应等于解析闭式的 U。
+    """
+    p1, p2, p0 = p['p1'], p['p2'], p['p0']
+    a1, a2 = p['a1'], p['a2']
+    c1, c2, c0 = p['c1'], p['c2'], p['c0']
+    A, t, l = p['A'], p['t'], p['l']
+
+    Q1 = 1.0 - (1 - Z1) * p1
+    Q2 = 1.0 - (1 - Z2) * p2
+    q = (1.0 - p0) * Q1 * Q2
+
+    parts = {'purchase': 0.0, 'inspect': 0.0, 'assembly': 0.0,
+             'product_inspect': 0.0, 'disassemble': 0.0, 'exchange': 0.0}
+
+    arrive = 1.0
+    total_deliver = 0.0
+    round_idx = 0
+    while arrive > 1e-15 and round_idx < n_rounds:
+        if round_idx == 0:
+            buy = (Z1 * a1 / (1.0 - p1) + (1 - Z1) * a1
+                   + Z2 * a2 / (1.0 - p2) + (1 - Z2) * a2)
+            insp = Z1 * c1 / (1.0 - p1) + Z2 * c2 / (1.0 - p2)
+        else:
+            buy = 0.0
+            insp = Z1 * c1 + Z2 * c2
+        parts['purchase'] += arrive * buy
+        parts['inspect'] += arrive * insp
+        parts['assembly'] += arrive * A
+        parts['product_inspect'] += arrive * C * c0
+        defect = arrive * (1.0 - q)
+        parts['disassemble'] += defect * D * t
+        parts['exchange'] += defect * (1 - C) * l
+        total_deliver += arrive * q
+        arrive *= (1.0 - q) * D
+        round_idx += 1
+
+    if total_deliver <= P.TOL:
+        return None
+    for k in parts:
+        parts[k] /= total_deliver
+    return parts
+
+
+# ------------------------------------------------------------------
+def enumerate_strategies(p):
+    """16 种 (Z1, Z2, C, D) 组合逐一求 U 与 Π。"""
+    out = []
+    for Z1, Z2, C, D in itertools.product((0, 1), repeat=4):
+        r = evaluate(p, Z1, Z2, C, D)
         if r is None:
             continue
-        all_res.append(r)
-        if best is None or r["profit"] > best["profit"]:
-            best = r
-    return best, all_res
-
-
-def _scale(params, keys, factor):
-    out = dict(params)
-    for k in keys:
-        out[k] = params[k] * factor
+        row = {'Z1': Z1, 'Z2': Z2, 'C': C, 'D': D}
+        row.update(r)
+        out.append(row)
     return out
-
-
-def _sensitivity_factors():
-    lo = 1.0 - SENS_AMPLITUDE
-    hi = 1.0 + SENS_AMPLITUDE
-    steps = SENS_GRID_STEPS
-    return [lo + (hi - lo) * i / (steps - 1) for i in range(steps)]
-
-
-def _sensitivity_curve(params, keys):
-    factors = _sensitivity_factors()
-    profits = []
-    for f in factors:
-        b, _ = optimize(_scale(params, keys, f))
-        profits.append(b["profit"] if b else None)
-    return factors, profits
-
-
-def _breakeven_grid(params):
-    x0, x1 = BREAKEVEN_X_RANGE
-    y0, y1 = BREAKEVEN_Y_RANGE
-    npts = BREAKEVEN_GRID
-    xs = [x0 + (x1 - x0) * i / (npts - 1) for i in range(npts)]
-    ys = [y0 + (y1 - y0) * i / (npts - 1) for i in range(npts)]
-    grid = []
-    for y in ys:
-        row = []
-        for x in xs:
-            p = dict(params)
-            p["l"] = x
-            p["t"] = y
-            b, _ = optimize(p)
-            row.append(b["code"] if b else -1)
-        grid.append(row)
-    return xs, ys, grid
 
 
 def run():
     cases = []
-    best_overall = None
-    for params in TABLE1:
-        best, all_res = optimize(params)
+    identity_max_diff = 0.0
+    for case in P.CASE_PARAMS:
+        strats = enumerate_strategies(case)
+        if not strats:
+            raise RuntimeError('情况 %s 无可行策略' % case['id'])
+        best = max(strats, key=lambda r: r['profit'])
+
+        # 恒等式守卫：对每一可行组合都核验 分项和 == U
+        bd = cost_breakdown_walk(case, best['Z1'], best['Z2'], best['C'], best['D'])
+        local_max = 0.0
+        for s in strats:
+            parts = cost_breakdown_walk(case, s['Z1'], s['Z2'], s['C'], s['D'])
+            if parts is None:
+                continue
+            diff = abs(sum(parts.values()) - s['U'])
+            local_max = max(local_max, diff)
+        identity_max_diff = max(identity_max_diff, local_max)
+
+        best_out = {
+            'Z1': best['Z1'], 'Z2': best['Z2'], 'C': best['C'], 'D': best['D'],
+            'U': best['U'], 'profit': best['profit'],
+            'q': best['q'], 'K_f': best['K_f'], 'K_r': best['K_r'],
+            'kappa': best['kappa'], 'g': best['g'], 'R': best['R'],
+            'cost_breakdown': bd,
+        }
         cases.append({
-            "case": params["case"],
-            "params": params,
-            "optimal": best,
-            "strategies": all_res,
+            'id': case['id'],
+            'params': case,
+            'best': best_out,
+            'strategies': strats,
         })
-        if best_overall is None or best["profit"] > best_overall[1]["profit"]:
-            best_overall = (params["case"], best)
 
-    base = TABLE1[0]
-    f_defect, p_defect = _sensitivity_curve(base, ["p1", "p2", "p0"])
-    f_proc, p_proc = _sensitivity_curve(base, ["a1", "a2"])
-    f_insp, p_insp = _sensitivity_curve(base, ["c1", "c2", "c0"])
-    f_exch, p_exch = _sensitivity_curve(base, ["l"])
+    if identity_max_diff > 1e-4:
+        raise RuntimeError('问题2 分项恒等式守卫触发：max_diff=%.3e' % identity_max_diff)
 
-    xs, ys, grid = _breakeven_grid(base)
-
+    # 全局最优组合（六种情况横向比较）
+    global_best = max(cases, key=lambda c: c['best']['profit'])
     return {
-        "cases": cases,
-        "best_case": best_overall[0],
-        "best_profit": best_overall[1]["profit"],
-        "best_combo": {"Z1": best_overall[1]["Z1"], "Z2": best_overall[1]["Z2"],
-                       "C": best_overall[1]["C"], "D": best_overall[1]["D"]},
-        "sensitivity_defect_rate": {"factors": f_defect, "profits": p_defect},
-        "sensitivity_unit_cost": {
-            "factors": f_proc,
-            "procurement": p_proc,
-            "inspection": p_insp,
-            "exchange_loss": p_exch,
-            "factors_inspection": f_insp,
-            "factors_exchange": f_exch,
-        },
-        "breakeven": {
-            "x_name": "调换损失 l", "y_name": "拆解费用 t",
-            "x_values": xs, "y_values": ys, "grid": grid,
-        },
+        'cases': cases,
+        'identity_max_diff': identity_max_diff,
+        'global_best_case_id': global_best['id'],
+        'strategy_count': P.Q2_STRATEGY_COUNT,
     }
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     import json
-    out = run()
-    out.pop("cases")
-    print(json.dumps(out, ensure_ascii=False, indent=2))
+    print(json.dumps(run(), ensure_ascii=False, indent=2))

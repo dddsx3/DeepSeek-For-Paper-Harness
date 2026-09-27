@@ -1,154 +1,171 @@
-# -*- coding: utf-8 -*-
 """问题 1：检测次数尽可能少的抽样检测方案。
 
-方法：单侧二项检验的两点设计 + 整数样本量最小化精确枚举。
-  EQ-Q1-REJECT：n^(1) = min{ n : ∃ c_r, P(X>=c_r+1|p_nom) <= α1 且 P(X>=c_r+1|p_alt) >= 1-β }
-  EQ-Q1-ACCEPT：n^(2) = min{ n : ∃ c_r, P(X<=c_r|p_nom) >= 1-α2 且 P(X<=c_r|p_alt) <= β }
-两个情形的尾侧不同，方案不可互换。
+方法（MS-Q1）：单侧二项检验的两点设计 + 整数样本量最小化精确枚举。
+  情形(1) 95% 信度拒收：P(X >= c_r+1 | p_nom) <= alpha1 且 P(X >= c_r+1 | p_alt) >= 1-beta
+  情形(2) 90% 信度接收：P(X <= c_r | p_nom) >= 1-alpha2 且 P(X <= c_r | p_alt) <= beta
 """
-from math import exp, log
 
-from params import (
-    P_NOMINAL, CONF_REJECT, CONF_ACCEPT,
-    Q1_DELTA, Q1_ALPHA1, Q1_ALPHA2, Q1_BETA, Q1_N_MAX, TOL,
-    OC_GRID_POINTS, OC_P_MAX, CONF_SWEEP, SENS_CONF_CONTRAST, TABLE1,
-)
+from scipy.stats import binom
+
+import params as P
 
 
-def binom_cdf_table(n, p):
-    """返回长度 n+1 的列表 tab，tab[k] = P(X <= k)，X ~ B(n, p)。递推构造，避免阶乘溢出。"""
-    tab = [0.0] * (n + 1)
-    if p <= 0.0:
-        return [1.0] * (n + 1)
-    if p >= 1.0:
-        return [0.0] * n + [1.0]
-    ratio = p / (1.0 - p)
-    pmf = exp(n * log(1.0 - p))
-    cum = 0.0
-    for k in range(n + 1):
-        cum += pmf
-        tab[k] = cum if cum < 1.0 else 1.0
-        pmf = pmf * (n - k) * ratio / (k + 1)
-    return tab
+def _sf(k, n, p):
+    """P(X > k) for X ~ Binomial(n, p)。"""
+    return float(binom.sf(k, n, p))
 
 
-def binom_cdf(n, cr, p):
-    """P(X <= cr)，单点求值。"""
-    if cr < 0:
-        return 0.0
-    if cr >= n:
-        return 1.0
-    if p <= 0.0:
-        return 1.0
-    if p >= 1.0:
-        return 0.0
-    ratio = p / (1.0 - p)
-    pmf = exp(n * log(1.0 - p))
-    cum = 0.0
-    for k in range(cr + 1):
-        cum += pmf
-        pmf = pmf * (n - k) * ratio / (k + 1)
-    return cum if cum < 1.0 else 1.0
+def _cdf(k, n, p):
+    """P(X <= k) for X ~ Binomial(n, p)。"""
+    return float(binom.cdf(k, n, p))
 
 
-def solve_case_reject(p_nom, p_alt, alpha, beta, n_max):
-    """情形(1)：95% 信度下认定超标即拒收。判据 X >= c_r+1 时拒收。"""
+def min_n_reject(p_nom, p_alt, alpha, beta, n_max):
+    """情形(1)：95% 信度拒收情形的最小 n 与临界次品数 c_r。
+
+    判定规则：X >= c_r + 1 时拒收。
+    返回 (n, c_r, err_at_nom, power_at_alt)；无解返回 (None, None, None, None)。
+    """
     for n in range(1, n_max + 1):
-        cdf_nom = binom_cdf_table(n, p_nom)
-        cdf_alt = binom_cdf_table(n, p_alt)
-        for cr in range(0, n + 1):
-            if (1.0 - cdf_nom[cr]) <= alpha + TOL and (1.0 - cdf_alt[cr]) >= (1.0 - beta) - TOL:
-                return n, cr
-    return None, None
+        for c in range(0, n + 1):
+            err = _sf(c, n, p_nom)       # 拒收侧第一类错误
+            power = _sf(c, n, p_alt)     # 备择点处功效
+            if err <= alpha + P.TOL and power >= 1.0 - beta - P.TOL:
+                return n, c, err, power
+    return None, None, None, None
 
 
-def solve_case_accept(p_nom, p_alt, alpha, beta, n_max):
-    """情形(2)：90% 信度下认定不超标即接收。判据 X <= c_r 时接收。"""
+def min_n_accept(p_nom, p_alt, alpha, beta, n_max):
+    """情形(2)：90% 信度接收情形的最小 n 与接收临界次品数 c_r。
+
+    判定规则：X <= c_r 时接收。
+    返回 (n, c_r, accept_prob_at_nom, accept_prob_at_alt)。
+    """
     for n in range(1, n_max + 1):
-        cdf_nom = binom_cdf_table(n, p_nom)
-        cdf_alt = binom_cdf_table(n, p_alt)
-        for cr in range(0, n + 1):
-            if cdf_nom[cr] >= (1.0 - alpha) - TOL and cdf_alt[cr] <= beta + TOL:
-                return n, cr
-    return None, None
+        for c in range(0, n + 1):
+            acc_nom = _cdf(c, n, p_nom)  # 接收侧置信水平
+            acc_alt = _cdf(c, n, p_alt)  # 备择点处误收概率
+            if acc_nom >= 1.0 - alpha - P.TOL and acc_alt <= beta + P.TOL:
+                return n, c, acc_nom, acc_alt
+    return None, None, None, None
 
 
-def oc_curve(n, cr, p_grid):
-    """EQ-OC：L(p) = P(X <= c_r | p)。"""
-    return [binom_cdf(n, cr, p) for p in p_grid]
+def oc_curve(n, c, p_grid):
+    """接收特性曲线 L(p) = P(X <= c | n, p)。"""
+    return [_cdf(c, n, float(p)) for p in p_grid]
+
+
+def sprt_boundary(p_nom, p_alt, alpha, beta, m_grid):
+    """Wald 序贯概率比检验的接受/拒收边界（仅作对照，见 ASM-11）。"""
+    import math
+    if p_nom <= 0 or p_nom >= 1 or p_alt <= 0 or p_alt >= 1:
+        return None
+    slope = math.log((1.0 - p_nom) / (1.0 - p_alt)) / \
+            math.log((p_alt * (1.0 - p_nom)) / (p_nom * (1.0 - p_alt)))
+    lr = math.log((p_alt * (1.0 - p_nom)) / (p_nom * (1.0 - p_alt)))
+    h_accept = math.log((1.0 - beta) / alpha) / lr    # 拒收上界
+    h_reject = math.log(beta / (1.0 - alpha)) / lr    # 接收下界
+    accept_line = [slope * m + h_reject for m in m_grid]
+    reject_line = [slope * m + h_accept for m in m_grid]
+    return accept_line, reject_line
 
 
 def run():
-    p_nom = P_NOMINAL
-    p_alt = p_nom + Q1_DELTA
+    p_nom = P.NOMINAL_P
+    p_alt = p_nom + P.Q1_DELTA
+    alpha1 = P.ALPHA1
+    alpha2 = P.ALPHA2
+    beta = P.BETA
+    nmax = P.Q1_NMAX
 
-    n95, c95 = solve_case_reject(p_nom, p_alt, Q1_ALPHA1, Q1_BETA, Q1_N_MAX)
-    n90, c90 = solve_case_accept(p_nom, p_alt, Q1_ALPHA2, Q1_BETA, Q1_N_MAX)
-    if n95 is None or n90 is None:
-        raise RuntimeError("问题 1 未在搜索上界内找到可行解")
+    # ---- 情形 (1) 95% 信度拒收 ----
+    n1, c1, err1, pow1 = min_n_reject(p_nom, p_alt, alpha1, beta, nmax)
+    if n1 is None:
+        raise RuntimeError('情形(1) 在搜索上界内无可行解，请上调 Q1样本量搜索上界')
+    # 真实约束距离（非空转）：max(拒收侧超出量, 功效缺口, 0)
+    verify_gap1 = max(err1 - alpha1, beta - pow1, 0.0)
 
-    # 规划式两端复核值
+    # ---- 情形 (2) 90% 信度接收 ----
+    n2, c2, acc2, acc_alt2 = min_n_accept(p_nom, p_alt, alpha2, beta, nmax)
+    if n2 is None:
+        raise RuntimeError('情形(2) 在搜索上界内无可行解，请上调 Q1样本量搜索上界')
+    verify_gap2 = max((1.0 - alpha2) - acc2, acc_alt2 - beta, 0.0)
 
-    t1_err = 1.0 - binom_cdf(n95, c95, p_nom)
-    t1_pow = 1.0 - binom_cdf(n95, c95, p_alt)
-    t2_acc_nom = binom_cdf(n90, c90, p_nom)
-    t2_acc_alt = binom_cdf(n90, c90, p_alt)
+    # ---- OC 曲线（用情形(1)的 (n, c)）----
+    p_grid = [round(0.005 * i, 4) for i in range(0, 81)]  # 0.000 ~ 0.400
+    oc = oc_curve(n1, c1, p_grid)
 
-    # OC 曲线数据（折线图：横轴真实次品率 p，纵轴接收概率 L(p)）
-    p_grid = [OC_P_MAX * i / (OC_GRID_POINTS - 1) for i in range(OC_GRID_POINTS)]
-    L = oc_curve(n90, c90, p_grid)
+    # ---- 样本量—判别信度关系 ----
+    conf_grid = list(P.CONFIDENCE_GRID)
+    n_rej, c_rej, n_acc, c_acc = [], [], [], []
+    for conf in conf_grid:
+        a = 1.0 - conf
+        nn, cc, _, _ = min_n_reject(p_nom, p_alt, a, beta, nmax)
+        n_rej.append(nn if nn is not None else -1)
+        c_rej.append(cc if cc is not None else -1)
+        nn2, cc2, _, _ = min_n_accept(p_nom, p_alt, a, beta, nmax)
+        n_acc.append(nn2 if nn2 is not None else -1)
+        c_acc.append(cc2 if cc2 is not None else -1)
 
-    # 样本量—判别信度关系（折线图）
-    conf_list = list(CONF_SWEEP)
-    if SENS_CONF_CONTRAST not in conf_list:
-        conf_list.append(SENS_CONF_CONTRAST)
-    conf_list = sorted(set(conf_list))
-    n95_sweep = []
-    n90_sweep = []
-    for c in conf_list:
-        a = 1.0 - c
-        m1, _ = solve_case_reject(p_nom, p_alt, a, Q1_BETA, Q1_N_MAX)
-        m2, _ = solve_case_accept(p_nom, p_alt, a, Q1_BETA, Q1_N_MAX)
-        n95_sweep.append(m1)
-        n90_sweep.append(m2)
+    # ---- SPRT 对照边界 ----
+    m_grid = list(range(0, 121))
+    sb = sprt_boundary(p_nom, p_alt, alpha1, beta, m_grid)
+    if sb is None:
+        accept_line, reject_line = [], []
+    else:
+        accept_line, reject_line = sb
 
-    # 检测费用归属：企业承担（F-MECH-INSPECT-COST），按表 1 情况 1 的单件检测成本折算
-    c_part1 = TABLE1[0]["c1"]
-    c_part2 = TABLE1[0]["c2"]
+    # ---- 正态近似适用性（登记常数 NORMAL_APPROX_BOUND 的下界核验）----
+    n_at_nom_ok = n1 * p_nom >= P.NORMAL_APPROX_BOUND and n1 * (1 - p_nom) >= P.NORMAL_APPROX_BOUND
+    n_at_alt_ok = n1 * p_alt >= P.NORMAL_APPROX_BOUND and n1 * (1 - p_alt) >= P.NORMAL_APPROX_BOUND
+
+    # ---- 检测费用归属（企业承担；与问题2/3工序检测成本分开入账）----
+    unit_cost = P.SAMPLING_UNIT_COST
 
     return {
-        "case95": {
-            "n": n95, "c_r": c95, "p_nom": p_nom, "p_alt": p_alt,
-            "alpha": Q1_ALPHA1, "beta": Q1_BETA, "confidence": CONF_REJECT,
-            "reject_prob_at_nom": t1_err, "power_at_alt": t1_pow,
+        'nominal_p': p_nom,
+        'p_alt': p_alt,
+        'case95': {
+            'n': int(n1), 'c': int(c1),
+            'err_reject_at_nom': err1,
+            'power_at_alt': pow1,
+            'verify_gap': verify_gap1,
         },
-        "case90": {
-            "n": n90, "c_r": c90, "p_nom": p_nom, "p_alt": p_alt,
-            "alpha": Q1_ALPHA2, "beta": Q1_BETA, "confidence": CONF_ACCEPT,
-            "accept_prob_at_nom": t2_acc_nom, "accept_prob_at_alt": t2_acc_alt,
+        'case90': {
+            'n': int(n2), 'c': int(c2),
+            'accept_prob_at_nom': acc2,
+            'accept_prob_at_alt': acc_alt2,
+            'verify_gap': verify_gap2,
         },
-        "oc_curve": {
-            "n": n90, "c_r": c90,
-            "p_grid": p_grid, "accept_prob": L,
-            "L_at_p_nom": binom_cdf(n90, c90, p_nom),
-            "L_at_p_alt": binom_cdf(n90, c90, p_alt),
+        'sampling_cost': {
+            'unit_cost': unit_cost,
+            'case95_cost': unit_cost * n1,
+            'case90_cost': unit_cost * n2,
+            'note': P.SAMPLING_UNIT_COST_NOTE,
         },
-        "confidence_sweep": {
-            "confidence": conf_list,
-            "n_case95": n95_sweep,
-            "n_case90": n90_sweep,
+        'oc_curve': {
+            'p_grid': p_grid,
+            'accept_prob': oc,
+            'n': int(n1), 'c': int(c1),
         },
-        "sampling_cost": {
-            "unit_cost_part1": c_part1,
-            "unit_cost_part2": c_part2,
-            "case95_cost_part1": n95 * c_part1,
-            "case95_cost_part2": n95 * c_part2,
-            "case90_cost_part1": n90 * c_part1,
-            "case90_cost_part2": n90 * c_part2,
+        'sample_size_vs_confidence': {
+            'confidence': conf_grid,
+            'n_reject': n_rej, 'c_reject': c_rej,
+            'n_accept': n_acc, 'c_accept': c_acc,
+        },
+        'sprt_boundary': {
+            'm': m_grid,
+            'accept_line': accept_line,
+            'reject_line': reject_line,
+        },
+        'normal_approx': {
+            'n_at_nom': int(n1),
+            'n_at_alt_ok': bool(n_at_alt_ok),
+            'ok': bool(n_at_nom_ok and n_at_alt_ok),
         },
     }
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     import json
     print(json.dumps(run(), ensure_ascii=False, indent=2))
