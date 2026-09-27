@@ -2,13 +2,13 @@
   "passportVersion": 1,
   "stage": "figure",
   "index": 6,
-  "at": "2026-09-27T16:06:09.509Z",
+  "at": "2026-09-27T16:31:59.461Z",
   "status": "passed",
   "cleanliness": "unverified-gates",
   "inputDigest": "f5d97b3f0e698f3d5a59aecb08e8ba5e1f2d462e8cf326928e2e9f731b04de12",
   "artifacts": {
-    "figures/": "dir:29",
-    "figure-manifest.json": "79d569a8aa0fd2838f1a2459aec4190dc0fff41ac748b8781653b7693e8ade31"
+    "figures/": "dir:31",
+    "figure-manifest.json": "09dae3426a0f8f862e673e7d11975a87925cb5d3290e71c601161f7e2828f54e"
   },
   "gate": {
     "code": 2,
@@ -16,19 +16,19 @@
       {
         "id": "figure_manifest_reconcile",
         "ok": true,
-        "detail": "计划 14 张数据图全部有落点（1 处**申报放弃**（fig_q2_breakeven_contour）；理由见阶段 5 的规划文件）",
+        "detail": "计划 14 张数据图全部有落点（3 处换名/改型（fig_q2_sensitivity_defect_rate→fig_q2_quality_profit_scatter、fig_q2_sensitivity_unit_cost→fig_q2_recovery_cost_compare、fig_q2_breakeven_contour→fig_q3_node_cost_profile）；理由见阶段 5 的规划文件）",
         "code": 0
       },
       {
         "id": "figure_completeness",
         "ok": true,
-        "detail": "13 张数据图：轴标签齐备、成图存在且不小于 3000 字节",
+        "detail": "14 张数据图：轴标签齐备、成图存在且不小于 3000 字节",
         "code": 0
       },
       {
         "id": "figure_size_buckets",
         "ok": true,
-        "detail": "12 个脚本的画布尺寸贴合长宽比档位",
+        "detail": "13 个脚本的画布尺寸贴合长宽比档位",
         "code": 0
       },
       {

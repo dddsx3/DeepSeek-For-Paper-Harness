@@ -1,154 +1,304 @@
-"""成品节点各 (Z,D) 策略的根节点单位成本与单位利润成对比较。
+"""问题3节点级决策与成品策略经济性的双面板对照。
 
-Panel (a)：纵向哑铃连接同一成品策略的单位成本与单位利润端点，
-空心圆表示根节点单位成本，实心菱形表示单位利润，端点数值由账本逐行标注。
-数据仅来自账本 R-Q3-product-strategy-compare；策略标签、U_root 与 profit
-均由该表的对应记录读取，不在脚本中写入结果数值。
+面板(a)按装配节点展开基准拓扑中的 Z、D 决策，并标注节点局部成本 U。
+面板(b)以哑铃图连接四种成品 (Z,D) 策略的根节点成本与单位期望利润，
+同时突出账本给出的基准策略。
+数据来自账本 R-Q3-baseline-best-decision、R-Q3-baseline-node-cost、
+R-Q3-product-strategy-compare、R-Q3-baseline-U-root 和
+R-Q3-baseline-profit；全部数值在运行时读取，不在脚本中固化。
 """
+
 from _figbase import load, save, panel, PALETTE, COLORS, _lighten, cn
 
 import matplotlib.pyplot as plt
 import numpy as np
 
 
+REQUIRED_RESULT_IDS = (
+    "R-Q3-baseline-best-decision",
+    "R-Q3-baseline-node-cost",
+    "R-Q3-product-strategy-compare",
+    "R-Q3-baseline-U-root",
+    "R-Q3-baseline-profit",
+)
+
+
 def main():
     doc = load("results.json")
-    if not isinstance(doc, dict) or not isinstance(doc.get("results"), list):
-        raise ValueError("results.json 缺少合法的 results 列表")
+    results = doc.get("results", [])
+    if not isinstance(results, list):
+        raise ValueError("results.json 缺少合法的 results 数组")
 
-    result_values = {
-        item["result_id"]: item["value"]
-        for item in doc["results"]
-        if isinstance(item, dict) and "result_id" in item
-    }
-    rows = result_values["R-Q3-product-strategy-compare"]
-    if not isinstance(rows, list) or not rows:
-        raise ValueError("R-Q3-product-strategy-compare 必须是非空数组")
+    ledger = {}
+    for item in results:
+        result_id = item.get("result_id")
+        if result_id is not None:
+            ledger[result_id] = item.get("value")
 
-    required_fields = {"Z", "D", "U_root", "profit"}
-    if any(not required_fields.issubset(row) for row in rows):
-        raise ValueError("成品策略记录缺少 Z、D、U_root 或 profit 字段")
+    missing = [
+        result_id
+        for result_id in REQUIRED_RESULT_IDS
+        if result_id not in ledger
+    ]
+    if missing:
+        raise KeyError(f"results.json 缺少绘图所需账本项：{missing}")
 
-    labels = [f"(Z={row['Z']}, D={row['D']})" for row in rows]
-    unit_cost = np.asarray([row["U_root"] for row in rows], dtype=float)
-    unit_profit = np.asarray([row["profit"] for row in rows], dtype=float)
-    x = np.arange(len(rows))
+    node_decisions = ledger["R-Q3-baseline-best-decision"]
+    node_costs = ledger["R-Q3-baseline-node-cost"]
+    strategies = ledger["R-Q3-product-strategy-compare"]
+    baseline_u = float(ledger["R-Q3-baseline-U-root"])
+    baseline_profit = float(ledger["R-Q3-baseline-profit"])
 
-    fig, ax = plt.subplots(figsize=(6.0, 3.6))
-    connector_halo = _lighten(PALETTE[2], 0.55)
+    if not isinstance(node_decisions, dict) or not node_decisions:
+        raise ValueError("基准节点决策记录为空")
+    if not isinstance(node_costs, dict):
+        raise ValueError("节点成本记录格式错误")
+    if not isinstance(strategies, list) or not strategies:
+        raise ValueError("成品策略比较表为空")
 
-    for xi, cost, profit in zip(x, unit_cost, unit_profit):
-        lower = min(cost, profit)
-        upper = max(cost, profit)
-        ax.vlines(
-            xi,
-            lower,
-            upper,
-            color=connector_halo,
-            linewidth=5.0,
-            alpha=0.65,
+    nodes = list(node_decisions)
+    missing_costs = [node for node in nodes if node not in node_costs]
+    if missing_costs:
+        raise KeyError(f"以下节点缺少成本记录：{missing_costs}")
+
+    local_costs = np.asarray(
+        [float(node_costs[node]["U"]) for node in nodes],
+        dtype=float,
+    )
+    z_values = np.asarray(
+        [int(node_decisions[node]["Z"]) for node in nodes],
+        dtype=float,
+    )
+    d_values = np.asarray(
+        [int(node_decisions[node]["D"]) for node in nodes],
+        dtype=float,
+    )
+
+    cost_span = float(np.ptp(local_costs))
+    cost_min = float(np.min(local_costs))
+    if cost_span > 0:
+        cost_norm = (local_costs - cost_min) / cost_span
+    else:
+        cost_norm = np.full_like(local_costs, 0.5)
+    cost_sizes = 64.0 + 156.0 * cost_norm
+
+    product_decision = node_decisions.get("F")
+    if not isinstance(product_decision, dict):
+        raise KeyError("基准记录缺少成品节点 F")
+
+    baseline_indices = [
+        index
+        for index, row in enumerate(strategies)
+        if int(row["Z"]) == int(product_decision["Z"])
+        and int(row["D"]) == int(product_decision["D"])
+    ]
+    if len(baseline_indices) != 1:
+        raise ValueError("无法在成品策略比较表中唯一定位基准 (Z,D)")
+    baseline_index = baseline_indices[0]
+
+    u_values = []
+    profit_values = []
+    strategy_labels = []
+    for index, row in enumerate(strategies):
+        table_u = float(row["U_root"])
+        table_profit = float(row["profit"])
+
+        if index == baseline_index:
+            if not np.isclose(table_u, baseline_u):
+                raise ValueError("成品策略表与账本基准 U_root 不一致")
+            if not np.isclose(table_profit, baseline_profit):
+                raise ValueError("成品策略表与账本基准利润不一致")
+            u = baseline_u
+            profit = baseline_profit
+        else:
+            u = table_u
+            profit = table_profit
+
+        u_values.append(u)
+        profit_values.append(profit)
+        strategy_labels.append(
+            f"({int(row['Z'])}, {int(row['D'])})"
+        )
+
+    u_values = np.asarray(u_values, dtype=float)
+    profit_values = np.asarray(profit_values, dtype=float)
+
+    fig, (ax_nodes, ax_econ) = plt.subplots(
+        1,
+        2,
+        figsize=(5.0, 4.8),  # r=0.96 落在 <=1.20 档 → 该档宽写 5.0in（门禁 figure_size_buckets）
+        gridspec_kw={"width_ratios": [1.08, 1.32]},
+    )
+
+    node_y = np.arange(len(nodes), dtype=float)
+    column_x = np.arange(3, dtype=float)
+    column_labels = ("Z", "D", "U")
+
+    ax_nodes.scatter(
+        # scatter 不做标量广播（matplotlib 3.10：x 与 y 尺寸必须一致）——显式铺开成一列
+        np.full_like(node_y, column_x[0]), node_y, s=72, marker="o",
+        color=PALETTE[0], edgecolors="white", linewidths=0.8, zorder=3,
+    )
+    ax_nodes.scatter(
+        np.full_like(node_y, column_x[1]), node_y, s=72, marker="s",
+        color=PALETTE[1], edgecolors="white", linewidths=0.8, zorder=3,
+    )
+
+    for index, node in enumerate(nodes):
+        u_color = _lighten(
+            PALETTE[2],
+            0.25 + 0.55 * float(cost_norm[index]),
+        )
+        ax_nodes.scatter(
+            column_x[2], node_y[index], s=float(cost_sizes[index]),
+            marker="D", color=u_color,
+            edgecolors=COLORS["text"], linewidths=0.5, zorder=3,
+        )
+        ax_nodes.text(
+            column_x[0], node_y[index], cn(f"{int(z_values[index])}"),
+            ha="center", va="center", fontsize=7.5,
+            color=COLORS["text"], zorder=4,
+        )
+        ax_nodes.text(
+            column_x[1], node_y[index], cn(f"{int(d_values[index])}"),
+            ha="center", va="center", fontsize=7.5,
+            color=COLORS["text"], zorder=4,
+        )
+        ax_nodes.text(
+            column_x[2], node_y[index], cn(f"{local_costs[index]:.2f}"),
+            ha="center", va="center", fontsize=6.8,
+            color=COLORS["text"], zorder=4,
+        )
+
+    ax_nodes.set_yticks(node_y)
+    ax_nodes.set_yticklabels(nodes)
+    ax_nodes.set_xticks(column_x)
+    ax_nodes.set_xticklabels(column_labels)
+    ax_nodes.set_ylim(len(nodes) - 0.5, -0.5)
+    ax_nodes.set_xlim(-0.5, len(column_labels) - 0.5)
+    ax_nodes.set_xlabel(cn("节点决策与局部成本"))
+    ax_nodes.set_ylabel(cn("装配节点"))
+    ax_nodes.grid(axis="y", color=COLORS["grid"], linewidth=0.7, alpha=0.55)
+    ax_nodes.set_axisbelow(True)
+    ax_nodes.tick_params(axis="x", length=0)
+    ax_nodes.spines["top"].set_visible(False)
+    ax_nodes.spines["right"].set_visible(False)
+    panel(ax_nodes, "(a)")
+
+    x = np.arange(len(strategies), dtype=float)
+    for index, (u, profit) in enumerate(zip(u_values, profit_values)):
+        is_baseline = index == baseline_index
+        connector_color = (
+            COLORS["highlight"] if is_baseline else _lighten(PALETTE[2], 0.25)
+        )
+        connector_width = 3.2 if is_baseline else 2.0
+
+        ax_econ.plot(
+            [x[index], x[index]],
+            [u, profit],
+            color=connector_color,
+            linewidth=connector_width,
+            solid_capstyle="round",
             zorder=1,
         )
-        ax.vlines(
-            xi,
-            lower,
-            upper,
-            color=PALETTE[2],
-            linewidth=1.8,
-            zorder=2,
+        ax_econ.scatter(
+            x[index], u,
+            s=92 if is_baseline else 78,
+            marker="o", color=PALETTE[0],
+            edgecolors=COLORS["highlight"] if is_baseline else "white",
+            linewidths=1.4 if is_baseline else 0.9,
+            zorder=3,
+            label=cn("根节点成本 U_root") if index == 0 else None,
+        )
+        ax_econ.scatter(
+            x[index], profit,
+            s=92 if is_baseline else 78,
+            marker="D", color=PALETTE[1],
+            edgecolors=COLORS["highlight"] if is_baseline else "white",
+            linewidths=1.4 if is_baseline else 0.9,
+            zorder=3,
+            label=cn("单位期望利润") if index == 0 else None,
         )
 
-    ax.scatter(
-        unit_cost,
-        x,
-        s=92,
-        marker="o",
-        facecolors="white",
-        edgecolors=PALETTE[3],
-        linewidths=2.0,
-        zorder=3,
-        label=cn(r"根节点单位成本 $U_{root}$"),
-    )
-    ax.scatter(
-        unit_profit,
-        x,
-        s=66,
-        marker="D",
-        color=PALETTE[0],
-        edgecolors="white",
-        linewidths=0.8,
-        zorder=4,
-        label=cn("单位利润"),
-    )
-
-    for xi, cost, profit in zip(x, unit_cost, unit_profit):
-        ax.annotate(
-            f"{cost:.2f}",
-            xy=(xi, cost),
-            xytext=(-11, 8),
+        ax_econ.annotate(
+            cn(f"{u:.2f}"),
+            xy=(x[index], u),
+            xytext=(-8, 0),
             textcoords="offset points",
             ha="right",
-            va="bottom",
-            fontsize=8.5,
-            color=PALETTE[3],
-            fontweight="bold",
+            va="center",
+            fontsize=7.5,
+            color=PALETTE[0],
         )
-        ax.annotate(
-            f"{profit:.2f}",
-            xy=(xi, profit),
-            xytext=(11, -8),
+        ax_econ.annotate(
+            cn(f"{profit:.2f}"),
+            xy=(x[index], profit),
+            xytext=(8, 0),
             textcoords="offset points",
             ha="left",
-            va="top",
-            fontsize=8.5,
-            color=PALETTE[0],
-            fontweight="bold",
+            va="center",
+            fontsize=7.5,
+            color=PALETTE[1],
         )
 
-    finite_values = np.concatenate([unit_cost, unit_profit])
-    lower_limit = float(np.min(finite_values))
-    upper_limit = float(np.max(finite_values))
-    value_span = upper_limit - lower_limit
-    value_padding = value_span * 0.18
-    ax.set_ylim(lower_limit - value_padding, upper_limit + value_padding)
-    ax.set_xlim(-0.65, len(rows) - 0.05)
+        difference = profit - u
+        if np.isclose(u, 0.0):
+            gap_text = cn(f"Δ={difference:+.2f}")
+        else:
+            relative_gap = difference / abs(u) * 100.0
+            gap_text = cn(f"Δ={difference:+.2f}\n({relative_gap:+.1f}%)")
 
-    ax.axvline(
-        0.0,
-        color=COLORS["ref_line"],
-        linestyle="--",
-        linewidth=1.0,
-        alpha=0.8,
-        zorder=0,
+        midpoint = (u + profit) / 2.0
+        ax_econ.text(
+            x[index] + 0.27,
+            midpoint,
+            gap_text,
+            ha="left",
+            va="center",
+            fontsize=6.8,
+            color=COLORS["text"],
+            linespacing=1.0,
+        )
+
+    endpoints = np.concatenate([u_values, profit_values])
+    endpoint_min = float(np.min(endpoints))
+    endpoint_max = float(np.max(endpoints))
+    endpoint_span = endpoint_max - endpoint_min
+    endpoint_scale = float(np.max(np.abs(endpoints)))
+    padding = max(endpoint_span * 0.16, endpoint_scale * 0.04)
+    if padding <= 0:
+        padding = 1.0
+
+    right_margin = max(0.55, len(strategies) * 0.18)
+    ax_econ.set_xlim(-0.5, len(strategies) - 0.5 + right_margin)
+    ax_econ.set_ylim(endpoint_min - padding, endpoint_max + padding)
+    ax_econ.axhline(
+        0.0, color=COLORS["ref_line"], linewidth=0.8, alpha=0.65, zorder=0,
     )
-    ax.grid(
-        axis="y",
-        color=COLORS["grid"],
-        linestyle="-",
-        linewidth=0.8,
-        alpha=0.35,
-    )
-    ax.set_axisbelow(True)
-
-    ax.set_xticks(x)
-    ax.set_xticklabels(labels, fontsize=9.5)
-    ax.set_xlabel(cn("成品策略 (Z,D)"), fontsize=11)
-    ax.set_ylabel(cn("金额（元/件）"), fontsize=11)
-    ax.tick_params(axis="both", labelsize=9)
-
-    ax.legend(
+    ax_econ.set_xticks(x)
+    ax_econ.set_xticklabels(strategy_labels)
+    ax_econ.set_xlabel(cn("成品策略（Z,D）"))
+    ax_econ.set_ylabel(cn("根节点成本 U_root 与单位期望利润（元/件）"))
+    ax_econ.grid(axis="y", color=COLORS["grid"], linewidth=0.7, alpha=0.55)
+    ax_econ.set_axisbelow(True)
+    ax_econ.legend(
         loc="lower right",
         frameon=False,
-        fontsize=8.8,
+        fontsize=7.5,
         handlelength=1.5,
         labelspacing=0.35,
     )
-    panel(ax, "(a)")
+    ax_econ.spines["top"].set_visible(False)
+    ax_econ.spines["right"].set_visible(False)
 
-    ax.spines["top"].set_visible(False)
-    ax.spines["right"].set_visible(False)
-    fig.tight_layout()
+    baseline_tick = ax_econ.get_xticklabels()[baseline_index]
+    baseline_tick.set_fontweight("bold")
+    baseline_tick.set_color(COLORS["highlight"])
+    panel(ax_econ, "(b)")
+
+    fig.tight_layout(w_pad=1.4)
     save(fig, "fig_q3_strategy_cost_compare")
+    plt.close(fig)
 
 
 if __name__ == "__main__":

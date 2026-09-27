@@ -1,270 +1,222 @@
-"""展示问题2情况1最优策略的单位期望成本分解。
+"""展示问题2情况1最优策略的单位期望成本瀑布分解。
 
-面板(a)为成本累积瀑布图：六个成本分项逐项累加，并以独立总成本柱汇总。
-面板(b)为各成本分项金额及其占单位期望总成本的比重。
-全部绘图数值来自 results.json 中的 R-Q2-case1-cost-purchase、
-R-Q2-case1-cost-inspect、R-Q2-case1-cost-assembly、
-R-Q2-case1-cost-product-inspect、R-Q2-case1-cost-disassemble、
-R-Q2-case1-cost-exchange、R-Q2-case1-U 和 R-Q2-case1-profit。
-关键数值由账本动态注入，本文件不预置或复制任何结果值。
+单面板依次给出采购、零配件检测、装配、成品检测、拆解和调换损失六个
+成本分项，以累计阶梯和色带连接至单位期望总成本，并在右上角补充单位
+期望利润。数据来自账本 R-Q2-case1-U、R-Q2-case1-profit 及六个
+R-Q2-case1-cost-* 条目；所有金额、累计值与贡献比例均在运行时读取。
 """
-
 from _figbase import load, save, panel, PALETTE, COLORS, _lighten, cn
 
 import matplotlib.pyplot as plt
+import matplotlib.patches as mpatches
 import numpy as np
-from matplotlib.ticker import PercentFormatter
 
 
 doc = load("results.json")
-values = {
-    row["result_id"]: row["value"]
-    for row in doc["results"]
-}
+values = {item["result_id"]: item["value"] for item in doc["results"]}
 
-component_ids = [
-    "R-Q2-case1-cost-purchase",
-    "R-Q2-case1-cost-inspect",
-    "R-Q2-case1-cost-assembly",
-    "R-Q2-case1-cost-product-inspect",
-    "R-Q2-case1-cost-disassemble",
-    "R-Q2-case1-cost-exchange",
-]
-required_ids = component_ids + [
-    "R-Q2-case1-U",
-    "R-Q2-case1-profit",
-]
-
-missing = [result_id for result_id in required_ids if result_id not in values]
-if missing:
-    raise KeyError(f"results.json 缺少作图所需 result_id: {missing}")
-
-component_costs = np.asarray(
-    [float(values[result_id]) for result_id in component_ids],
+deltas = np.array(
+    [
+        float(values["R-Q2-case1-cost-purchase"]),
+        float(values["R-Q2-case1-cost-inspect"]),
+        float(values["R-Q2-case1-cost-assembly"]),
+        float(values["R-Q2-case1-cost-product-inspect"]),
+        float(values["R-Q2-case1-cost-disassemble"]),
+        float(values["R-Q2-case1-cost-exchange"]),
+    ],
     dtype=float,
 )
-total_cost = float(values["R-Q2-case1-U"])
+unit_cost = float(values["R-Q2-case1-U"])
 unit_profit = float(values["R-Q2-case1-profit"])
 
-component_labels = [
+cost_names = [
     cn("采购"),
-    cn("零配件\n检测"),
+    cn("零配件检测"),
     cn("装配"),
-    cn("成品\n检测"),
+    cn("成品检测"),
     cn("拆解"),
     cn("调换损失"),
 ]
-all_labels = component_labels + [cn("单位\n总成本")]
-component_colors = [
-    PALETTE[index % len(PALETTE)]
-    for index in range(component_costs.size)
+labels = cost_names + [cn("总成本")]
+component_levels = np.cumsum(deltas)
+levels = np.append(component_levels, unit_cost)
+layer_colors = [
+    COLORS["up"] if delta >= 0 else COLORS["down"] for delta in deltas
 ]
+point_colors = [PALETTE[0], *layer_colors, PALETTE[1]]
+n = len(labels)
 
-fig, (ax_cost, ax_share) = plt.subplots(
-    1,
-    2,
-    figsize=(6.0, 2.8),
-    gridspec_kw={"width_ratios": [1.45, 1.0]},
+fig, ax = plt.subplots(figsize=(6.0, 3.8))
+ax.grid(axis="y", alpha=0.12, linestyle="-", color=COLORS["grid"])
+ax.set_axisbelow(True)
+
+x_positions = np.arange(n)
+right_edge = x_positions[-1] + 0.5
+
+ax.fill_between(
+    [x_positions[0] - 0.5, right_edge],
+    0.0,
+    levels[0],
+    alpha=0.06,
+    color=PALETTE[0],
+    zorder=0,
 )
-
-x_positions = np.arange(component_costs.size + 1)
-total_index = component_costs.size
-origin = 0.0
-cumulative = np.cumsum(component_costs)
-running_levels = np.concatenate(([origin], cumulative))
-waterfall_levels = np.concatenate((cumulative, [total_cost]))
-bar_width = 0.62
-bar_half = bar_width / 2.0
-
-ax_cost.grid(
-    axis="y",
-    alpha=0.18,
-    linestyle="-",
-    color=COLORS["grid"],
-)
-ax_cost.set_axisbelow(True)
-
-for index, (cost, color) in enumerate(zip(component_costs, component_colors)):
-    lower = running_levels[index]
-    upper = running_levels[index + 1]
-
-    if cost > origin:
-        ax_cost.fill_between(
-            [x_positions[index] - bar_half, x_positions[-1] + bar_half],
-            lower,
-            upper,
-            alpha=0.13,
-            color=color,
-            zorder=1 + index,
-        )
-        ax_cost.plot(
-            [x_positions[index] - bar_half, x_positions[-1] + bar_half],
-            [upper, upper],
-            color=color,
-            linewidth=0.7,
-            linestyle="--",
-            alpha=0.32,
-            zorder=1 + index,
-        )
-
-    ax_cost.bar(
-        x_positions[index],
-        upper - lower,
-        bottom=lower,
-        width=bar_width,
+for i in range(1, len(deltas)):
+    color = layer_colors[i - 1]
+    bottom = min(levels[i - 1], levels[i])
+    top = max(levels[i - 1], levels[i])
+    ax.fill_between(
+        [x_positions[i] - 0.5, right_edge],
+        bottom,
+        top,
+        alpha=0.15,
         color=color,
-        edgecolor="white",
-        linewidth=0.8,
-        alpha=0.92,
-        zorder=5,
+        zorder=i,
+    )
+    ax.plot(
+        [x_positions[i] - 0.5, right_edge],
+        [levels[i], levels[i]],
+        color=color,
+        linewidth=0.7,
+        linestyle="--",
+        alpha=0.35,
+        zorder=i,
     )
 
-ax_cost.bar(
-    x_positions[total_index],
-    total_cost - origin,
-    bottom=origin,
+bar_width = 0.56
+for i, delta in enumerate(deltas):
+    bottom = 0.0 if i == 0 else levels[i - 1]
+    height = levels[i] - bottom
+    color = PALETTE[0] if i == 0 else layer_colors[i - 1]
+    ax.bar(
+        x_positions[i],
+        height,
+        bottom=bottom,
+        width=bar_width,
+        color=_lighten(color, 0.35),
+        edgecolor=color,
+        linewidth=1.0,
+        zorder=4,
+    )
+
+ax.bar(
+    x_positions[-1],
+    unit_cost,
+    bottom=0.0,
     width=bar_width,
-    color=_lighten(PALETTE[0], 0.48),
-    edgecolor=COLORS["primary"],
+    color=_lighten(PALETTE[1], 0.35),
+    edgecolor=PALETTE[1],
     linewidth=1.2,
-    alpha=0.95,
-    zorder=5,
+    zorder=4,
 )
 
-ax_cost.step(
+ax.step(
     x_positions,
-    waterfall_levels,
+    levels,
     where="mid",
-    color=COLORS["primary"],
+    color=PALETTE[0],
     linewidth=2.4,
     zorder=6,
 )
 
-marker_colors = component_colors + [COLORS["primary"]]
-for index, (level, color) in enumerate(zip(waterfall_levels, marker_colors)):
-    ax_cost.scatter(
-        x_positions[index],
-        level,
+value_span = float(np.max(levels) - np.min(levels))
+label_offset = value_span * 0.025
+label_values = np.append(deltas, unit_cost)
+for i, value in enumerate(label_values):
+    color = point_colors[i]
+    ax.scatter(
+        x_positions[i],
+        levels[i],
         color=color,
-        s=52,
+        s=70,
+        zorder=8,
         edgecolors="white",
-        linewidths=1.4,
-        zorder=7,
+        linewidths=1.8,
     )
-
-y_upper = max(total_cost, float(cumulative[-1])) * 1.20
-label_offset = y_upper * 0.015
-for index, (level, color) in enumerate(zip(waterfall_levels, marker_colors)):
-    endpoint = index in (0, total_index)
-    ax_cost.text(
-        x_positions[index],
-        level + label_offset,
-        f"{level:.2f}",
+    ax.text(
+        x_positions[i],
+        levels[i] + label_offset,
+        f"{value:.2f}",
         ha="center",
         va="bottom",
-        fontsize=6.7,
-        fontweight="bold" if endpoint else "normal",
+        fontsize=8.0,
+        fontweight="bold" if i in (0, n - 1) else "normal",
         color=color,
-        bbox=(
-            {
-                "boxstyle": "round,pad=0.14",
-                "facecolor": "white",
-                "edgecolor": color if endpoint else "none",
-                "alpha": 0.92,
-                "linewidth": 0.6,
-            }
-            if endpoint
-            else None
-        ),
-        zorder=8,
+        bbox={
+            "boxstyle": "round,pad=0.15",
+            "facecolor": "white",
+            "edgecolor": color if i in (0, n - 1) else "none",
+            "alpha": 0.9,
+            "linewidth": 0.5,
+        },
+        zorder=9,
     )
 
-profit_note = (
-    f"{cn('单位利润')} {unit_profit:.2f} {cn('元/件')}"
-)
-ax_cost.text(
-    0.02,
-    0.97,
-    profit_note,
-    transform=ax_cost.transAxes,
+ax.text(
+    0.03,
+    0.95,
+    cn(f"总成本：{unit_cost:.2f}\n单位利润：{unit_profit:.2f}"),
+    transform=ax.transAxes,
+    fontsize=8.5,
     ha="left",
     va="top",
-    fontsize=7.2,
     fontweight="bold",
-    color=COLORS["accent"],
+    color=COLORS["primary"],
     bbox={
-        "boxstyle": "round,pad=0.3",
+        "boxstyle": "round,pad=0.35",
         "facecolor": "white",
-        "edgecolor": COLORS["accent"],
+        "edgecolor": COLORS["primary"],
         "alpha": 0.92,
-        "linewidth": 0.8,
+        "linewidth": 0.9,
     },
     zorder=10,
 )
 
-ax_cost.set_xticks(x_positions)
-ax_cost.set_xticklabels(
-    all_labels,
-    rotation=28,
-    ha="right",
-    rotation_mode="anchor",
-    fontsize=6.8,
-)
-ax_cost.set_xlabel(cn("成本构成"), fontsize=8.5)
-ax_cost.set_ylabel(cn("单位期望成本（元/件）"), fontsize=8.5)
-ax_cost.set_xlim(-bar_width, x_positions[-1] + bar_width)
-ax_cost.set_ylim(origin, y_upper)
-ax_cost.tick_params(axis="y", labelsize=7.2)
-ax_cost.spines["top"].set_visible(False)
-ax_cost.spines["right"].set_visible(False)
-panel(ax_cost, "(a)")
-
-shares = component_costs / total_cost
-y_positions = np.arange(component_costs.size)
-
-ax_share.barh(
-    y_positions,
-    shares,
-    height=0.58,
-    color=component_colors,
-    edgecolor="white",
-    linewidth=0.8,
-    alpha=0.9,
-)
-ax_share.set_yticks(y_positions)
-ax_share.set_yticklabels(component_labels, fontsize=7.0)
-ax_share.invert_yaxis()
-
-share_span = float(np.max(shares))
-share_offset = share_span * 0.018
-for y_position, cost, share in zip(y_positions, component_costs, shares):
-    ax_share.text(
-        share + share_offset,
-        y_position,
-        f"{cost:.2f} / {share:.1%}",
-        ha="left",
-        va="center",
-        fontsize=6.8,
-        color=COLORS["gray"],
+legend_patches = []
+for name, delta in zip(cost_names, deltas):
+    color = layer_colors[cost_names.index(name)]
+    sign = "+" if delta >= 0 else ""
+    share = abs(delta) / abs(unit_cost) * 100 if unit_cost else 0.0
+    legend_patches.append(
+        mpatches.Patch(
+            facecolor=_lighten(color, 0.4),
+            edgecolor=color,
+            linewidth=1.1,
+            label=cn(f"{name}  {sign}{delta:.2f} ({share:.0f}%)"),
+        )
     )
 
-ax_share.set_xlim(origin, share_span * 1.38)
-ax_share.xaxis.set_major_formatter(PercentFormatter(xmax=1.0))
-ax_share.set_xlabel(cn("占总成本比重"), fontsize=8.5)
-ax_share.set_ylabel(cn("成本构成"), fontsize=8.5)
-ax_share.tick_params(axis="x", labelsize=7.0)
-ax_share.grid(
-    axis="x",
-    alpha=0.18,
-    linestyle="-",
-    color=COLORS["grid"],
+legend = ax.legend(
+    handles=legend_patches,
+    loc="lower right",
+    frameon=False,
+    labelspacing=0.30,
+    handlelength=1.5,
+    handleheight=0.9,
+    fontsize=7.4,
+    title=cn("分项贡献"),
+    title_fontsize=8.0,
 )
-ax_share.set_axisbelow(True)
-ax_share.spines["top"].set_visible(False)
-ax_share.spines["right"].set_visible(False)
-ax_share.spines["left"].set_visible(False)
-panel(ax_share, "(b)")
+legend.set_zorder(11)
 
-fig.tight_layout(pad=0.8)
+ax.set_xticks(x_positions)
+ax.set_xticklabels(
+    labels,
+    rotation=22,
+    ha="right",
+    rotation_mode="anchor",
+    fontsize=8.2,
+)
+ax.set_xlabel(cn("成本构成"), fontsize=10)
+ax.set_ylabel(cn("单位期望成本（元/件）"), fontsize=10)
+ax.set_xlim(-0.7, n - 0.3)
+
+y_min = min(0.0, float(np.min(levels)))
+y_max = max(0.0, float(np.max(levels)))
+y_padding = max(value_span * 0.12, abs(y_max) * 0.02)
+ax.set_ylim(y_min, y_max + y_padding)
+
+ax.spines["top"].set_visible(False)
+ax.spines["right"].set_visible(False)
+fig.tight_layout()
 save(fig, "fig_q2_optimal_cost_breakdown")
-plt.close(fig)

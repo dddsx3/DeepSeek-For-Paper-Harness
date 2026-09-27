@@ -1,296 +1,287 @@
-"""绘制固定接收规则下的 OC 曲线与关键点局部放大。
+"""绘制问题1固定样本量抽样方案的接收特性曲线。
 
-面板 (a) 展示完整 OC 曲线，并在图内标出抽样规则及最大接收概率。
-面板 (b) 放大标称次品率与备择次品率附近的接收概率差异。
-全部数据取自 results.json 中的 R-Q1-oc-curve-p-grid、
-R-Q1-oc-curve-accept-prob、R-Q1-nominal-p、R-Q1-p-alt、
-R-Q1-oc-curve-n 与 R-Q1-oc-curve-c；脚本不内嵌账本数值。
+Panel (a) 展示 OC 曲线、标称次品率与备择点，并标注抽样方案对应的
+样本量和临界次品数。Panel (b) 展示两种情形在各自判定点上的误差率、
+功效或接收概率。
+数据来自账本 result_id：R-Q1-nominal-p、R-Q1-p-alt、
+R-Q1-oc-curve-p-grid、R-Q1-oc-curve-accept-prob、R-Q1-oc-curve-n、
+R-Q1-oc-curve-c、R-Q1-case95-err-reject-at-nom、
+R-Q1-case95-power-at-alt、R-Q1-case90-accept-prob-at-nom、
+R-Q1-case90-accept-prob-at-alt。关键数值均在运行时读取，不在注释中固化。
 """
 
 from _figbase import load, save, panel, PALETTE, COLORS, _lighten, cn
-
-import matplotlib.pyplot as plt
 import numpy as np
-from matplotlib.ticker import MultipleLocator, PercentFormatter
+import matplotlib.pyplot as plt
+from matplotlib.ticker import PercentFormatter
 
 
 doc = load("results.json")
-records = {item["result_id"]: item["value"] for item in doc["results"]}
+if isinstance(doc, dict) and "results" in doc:
+    records = doc["results"]
+else:
+    records = doc
 
-p_grid = np.asarray(records["R-Q1-oc-curve-p-grid"], dtype=float)
-accept_prob = np.asarray(records["R-Q1-oc-curve-accept-prob"], dtype=float)
-nominal_p = float(records["R-Q1-nominal-p"])
-alternative_p = float(records["R-Q1-p-alt"])
-sample_size = records["R-Q1-oc-curve-n"]
-critical_count = records["R-Q1-oc-curve-c"]
+if isinstance(records, dict):
+    values = records
+else:
+    values = {item["result_id"]: item["value"] for item in records}
 
-if p_grid.ndim != 1 or accept_prob.ndim != 1:
-    raise ValueError("OC 曲线横纵轴必须是一维序列")
-if len(p_grid) != len(accept_prob):
-    raise ValueError("OC 曲线横纵轴长度不一致")
-if not np.all(np.diff(p_grid) > 0):
-    raise ValueError("OC 曲线横轴必须严格递增")
+required_ids = (
+    "R-Q1-nominal-p",
+    "R-Q1-p-alt",
+    "R-Q1-oc-curve-p-grid",
+    "R-Q1-oc-curve-accept-prob",
+    "R-Q1-oc-curve-n",
+    "R-Q1-oc-curve-c",
+    "R-Q1-case95-err-reject-at-nom",
+    "R-Q1-case95-power-at-alt",
+    "R-Q1-case90-accept-prob-at-nom",
+    "R-Q1-case90-accept-prob-at-alt",
+)
+missing_ids = [result_id for result_id in required_ids if result_id not in values]
+if missing_ids:
+    raise KeyError(f"results.json 缺少绘图所需 result_id: {missing_ids}")
 
+nominal_p = float(values["R-Q1-nominal-p"])
+alternative_p = float(values["R-Q1-p-alt"])
+p_grid = np.asarray(values["R-Q1-oc-curve-p-grid"], dtype=float)
+accept_prob = np.asarray(values["R-Q1-oc-curve-accept-prob"], dtype=float)
+sample_size = int(values["R-Q1-oc-curve-n"])
+critical_count = int(values["R-Q1-oc-curve-c"])
 
-def nearest_index(target):
-    """返回与账本参考点最接近的曲线网格索引。"""
-    return int(np.argmin(np.abs(p_grid - target)))
+if p_grid.ndim != 1 or accept_prob.ndim != 1 or p_grid.size != accept_prob.size:
+    raise ValueError("OC 曲线横纵序列必须等长且均为一维序列")
 
-
-def interpolate_accept_probability(target):
-    """仅利用账本曲线插值得到参考点处的接收概率。"""
-    return float(np.interp(target, p_grid, accept_prob))
-
-
-nominal_idx = nearest_index(nominal_p)
-alternative_idx = nearest_index(alternative_p)
-nominal_accept = interpolate_accept_probability(nominal_p)
-alternative_accept = interpolate_accept_probability(alternative_p)
-
-p_step = float(np.median(np.diff(p_grid)))
-p_min = float(np.min(p_grid))
-p_max = float(np.max(p_grid))
-accept_min = float(np.min(accept_prob))
-accept_max = float(np.max(accept_prob))
-probability_scale = max(accept_max, p_max)
-y_floor = min(0.0, accept_min)
-y_ceiling = accept_max + (accept_max - accept_min) * 0.04
-
-zoom_left = max(p_min, min(nominal_p, alternative_p) - p_step)
-zoom_right = min(p_max, max(nominal_p, alternative_p) + p_step)
-if zoom_right <= zoom_left:
-    raise ValueError("标称点与备择点未形成有效的局部放大区间")
-
-n_text = str(int(sample_size))
-c_text = str(int(critical_count))
-rule_text = cn(f"抽样规则：n*={n_text} 件，c*={c_text} 件")
-curve_label = cn("OC 接收概率")
-
-fig, axes = plt.subplots(
+fig, (ax_curve, ax_metrics) = plt.subplots(
     1,
     2,
-    figsize=(6.0, 3.0),
-    sharey=True,
-    gridspec_kw={"width_ratios": [1.15, 1.0]},
+    figsize=(6.0, 2.8),
+    gridspec_kw={"width_ratios": (1.55, 1.0)},
 )
-ax_full, ax_zoom = axes
 
-
-def style_axis(ax, locator_multiple):
-    ax.grid(
-        True,
-        which="major",
-        axis="both",
-        color=COLORS["grid"],
-        alpha=0.28,
-        linestyle="--",
-        linewidth=0.7,
-    )
-    ax.set_axisbelow(True)
-    ax.spines["top"].set_visible(False)
-    ax.spines["right"].set_visible(False)
-    ax.spines["left"].set_color(COLORS["grid"])
-    ax.spines["bottom"].set_color(COLORS["grid"])
-    ax.tick_params(labelsize=8, colors=COLORS["gray"])
-    ax.xaxis.set_major_locator(MultipleLocator(p_step * locator_multiple))
-    ax.xaxis.set_major_formatter(PercentFormatter(xmax=probability_scale))
-    ax.yaxis.set_major_formatter(PercentFormatter(xmax=probability_scale))
-    ax.set_xlabel(cn("真实次品率 $p$"), fontsize=9.5)
-    ax.set_ylabel(cn("接收概率 $L(p)$"), fontsize=9.5)
-
-
-style_axis(ax_full, 10)
-style_axis(ax_zoom, 2)
-
-ax_full.axhspan(
-    y_floor,
-    y_ceiling,
-    alpha=0.02,
-    color=PALETTE[0],
-    zorder=0,
-)
-for alpha in (0.15, 0.08, 0.03):
-    ax_full.fill_between(
+for alpha, light_amount in ((0.05, 0.72), (0.07, 0.52), (0.10, 0.32)):
+    ax_curve.fill_between(
         p_grid,
-        y_floor,
         accept_prob,
+        0.0,
+        color=_lighten(PALETTE[0], light_amount),
         alpha=alpha,
-        color=PALETTE[0],
         linewidth=0,
         zorder=1,
     )
-ax_full.plot(
+
+ax_curve.plot(
     p_grid,
     accept_prob,
     color=PALETTE[0],
-    linewidth=2.2,
-    marker="o",
-    markersize=2.8,
-    markeredgecolor="white",
-    markeredgewidth=0.7,
-    label=curve_label,
+    linewidth=2.4,
+    label=cn(
+        f"OC 曲线（n*={sample_size:.0f}，c*={critical_count:.0f}）"
+    ),
     zorder=4,
 )
+ax_curve.axvline(
+    nominal_p,
+    color=COLORS["ref_line"],
+    linestyle="--",
+    linewidth=1.5,
+    label=cn(f"标称点 p₀={nominal_p:.1%}"),
+    zorder=3,
+)
+ax_curve.axvline(
+    alternative_p,
+    color=COLORS["accent"],
+    linestyle=":",
+    linewidth=1.7,
+    label=cn(f"备择点 p₁={alternative_p:.1%}"),
+    zorder=3,
+)
 
-for reference_p, color in (
-    (nominal_p, PALETTE[1]),
-    (alternative_p, PALETTE[2]),
-):
-    ax_full.axvline(
-        reference_p,
-        color=_lighten(color, 0.35),
-        linewidth=1.1,
-        linestyle="--",
-        alpha=0.8,
-        zorder=2,
-    )
+nominal_index = int(np.argmin(np.abs(p_grid - nominal_p)))
+alternative_index = int(np.argmin(np.abs(p_grid - alternative_p)))
+nominal_accept_prob = float(np.interp(nominal_p, p_grid, accept_prob))
+alternative_accept_prob = float(
+    np.interp(alternative_p, p_grid, accept_prob)
+)
 
-max_candidates = np.flatnonzero(accept_prob == accept_max)
-max_idx = int(max_candidates[np.argmin(np.abs(p_grid[max_candidates] - nominal_p))])
-ax_full.scatter(
-    p_grid[max_idx],
-    accept_prob[max_idx],
-    s=90,
+ax_curve.scatter(
+    [p_grid[nominal_index]],
+    [accept_prob[nominal_index]],
     marker="*",
-    color=PALETTE[1],
+    s=130,
+    color=PALETTE[0],
     edgecolor="white",
-    linewidth=1.2,
+    linewidth=1.1,
     zorder=6,
 )
-ax_full.annotate(
-    cn(f"★ 最高接收概率 {accept_prob[max_idx]:.1%}"),
-    xy=(p_grid[max_idx], accept_prob[max_idx]),
-    xytext=(alternative_p, accept_max - (accept_max - accept_min) * 0.12),
-    ha="center",
-    va="center",
-    fontsize=7.5,
-    color=PALETTE[1],
+ax_curve.scatter(
+    [p_grid[alternative_index]],
+    [accept_prob[alternative_index]],
+    marker="D",
+    s=55,
+    color=PALETTE[2],
+    edgecolor="white",
+    linewidth=1.0,
+    zorder=6,
+)
+ax_curve.annotate(
+    cn(
+        f"标称点：L={nominal_accept_prob:.1%}"
+    ),
+    xy=(p_grid[nominal_index], accept_prob[nominal_index]),
+    xytext=(12, -30),
+    textcoords="offset points",
+    fontsize=8,
+    fontweight="bold",
+    color=PALETTE[0],
     arrowprops={
         "arrowstyle": "->",
-        "color": PALETTE[1],
-        "lw": 1.0,
-        "shrinkA": 3,
-        "shrinkB": 3,
+        "color": PALETTE[0],
+        "lw": 1.1,
     },
     bbox={
         "boxstyle": "round,pad=0.25",
         "facecolor": "white",
-        "edgecolor": PALETTE[1],
-        "alpha": 0.92,
+        "edgecolor": PALETTE[0],
+        "alpha": 0.9,
     },
     zorder=7,
 )
-ax_full.text(
-    0.03,
-    0.08,
-    rule_text,
-    transform=ax_full.transAxes,
-    ha="left",
-    va="bottom",
-    fontsize=7.5,
-    color=COLORS["gray"],
+ax_curve.annotate(
+    cn(
+        f"备择点：L={alternative_accept_prob:.1%}"
+    ),
+    xy=(p_grid[alternative_index], accept_prob[alternative_index]),
+    xytext=(-82, 22),
+    textcoords="offset points",
+    fontsize=8,
+    fontweight="bold",
+    color=PALETTE[2],
+    arrowprops={
+        "arrowstyle": "->",
+        "color": PALETTE[2],
+        "lw": 1.1,
+    },
     bbox={
         "boxstyle": "round,pad=0.25",
         "facecolor": "white",
-        "edgecolor": COLORS["grid"],
+        "edgecolor": PALETTE[2],
         "alpha": 0.9,
     },
+    zorder=7,
 )
-ax_full.set_xlim(p_min, p_max)
-ax_full.set_ylim(y_floor, y_ceiling)
-ax_full.legend(
-    loc="upper right",
+
+ax_curve.set_xlim(float(np.min(p_grid)), float(np.max(p_grid)))
+ax_curve.set_ylim(0.0, 1.0)
+ax_curve.xaxis.set_major_formatter(PercentFormatter(1.0, decimals=0))
+ax_curve.yaxis.set_major_formatter(PercentFormatter(1.0, decimals=0))
+ax_curve.set_xlabel(cn("真实次品率 p"))
+ax_curve.set_ylabel(cn("接收概率 L(p)"))
+ax_curve.grid(
+    True,
+    alpha=0.14,
+    linestyle="--",
+    linewidth=0.8,
+    color=COLORS["grid"],
+)
+ax_curve.set_axisbelow(True)
+ax_curve.legend(
     frameon=False,
-    fontsize=8,
+    fontsize=7.5,
+    loc="lower left",
     handlelength=1.8,
+    labelspacing=0.3,
 )
+ax_curve.spines["top"].set_visible(False)
+ax_curve.spines["right"].set_visible(False)
+panel(ax_curve, "(a)")
 
-ax_zoom.fill_between(
-    p_grid,
-    y_floor,
-    accept_prob,
-    color=_lighten(PALETTE[0], 0.72),
-    alpha=0.35,
-    linewidth=0,
-    zorder=1,
+metric_ids = (
+    "R-Q1-case95-err-reject-at-nom",
+    "R-Q1-case95-power-at-alt",
+    "R-Q1-case90-accept-prob-at-nom",
+    "R-Q1-case90-accept-prob-at-alt",
 )
-ax_zoom.plot(
-    p_grid,
-    accept_prob,
-    color=PALETTE[0],
-    linewidth=2.3,
-    marker="o",
-    markersize=2.8,
-    markeredgecolor="white",
-    markeredgewidth=0.7,
-    zorder=4,
+metric_values = np.asarray([values[result_id] for result_id in metric_ids], dtype=float)
+metric_labels = (
+    cn("情形一·标称点拒收侧错误率"),
+    cn("情形一·备择点功效"),
+    cn("情形二·标称点接收概率"),
+    cn("情形二·备择点误收概率"),
 )
+metric_colors = (
+    PALETTE[0],
+    PALETTE[0],
+    PALETTE[1],
+    PALETTE[1],
+)
+metric_markers = ("o", "D", "o", "D")
+metric_y = np.arange(metric_values.size)[::-1]
 
-reference_points = (
-    (
-        nominal_p,
-        nominal_accept,
-        PALETTE[1],
-        cn(f"标称点 $p_0$={nominal_p:.1%}\n接收概率 {nominal_accept:.1%}"),
-        (12, 10),
-        "left",
-    ),
-    (
-        alternative_p,
-        alternative_accept,
-        PALETTE[2],
-        cn(f"备择点 $p_1$={alternative_p:.1%}\n接收概率 {alternative_accept:.1%}"),
-        (-12, -18),
-        "right",
-    ),
-)
-for reference_p, reference_y, color, text, offset, alignment in reference_points:
-    ax_zoom.axvline(
-        reference_p,
-        color=_lighten(color, 0.35),
-        linewidth=1.1,
-        linestyle="--",
-        alpha=0.85,
+for y_pos, value, color, marker in zip(
+    metric_y,
+    metric_values,
+    metric_colors,
+    metric_markers,
+):
+    ax_metrics.hlines(
+        y_pos,
+        0.0,
+        value,
+        color=color,
+        linewidth=2.0,
+        alpha=0.45,
         zorder=2,
     )
-    ax_zoom.scatter(
-        reference_p,
-        reference_y,
-        s=72,
+    ax_metrics.scatter(
+        value,
+        y_pos,
+        s=58,
+        marker=marker,
         color=color,
         edgecolor="white",
-        linewidth=1.4,
-        zorder=6,
+        linewidth=1.0,
+        zorder=4,
     )
-    ax_zoom.annotate(
-        text,
-        xy=(reference_p, reference_y),
-        xytext=offset,
+    ax_metrics.annotate(
+        f"{value:.1%}",
+        xy=(value, y_pos),
+        xytext=(0, 8),
         textcoords="offset points",
-        ha=alignment,
-        va="center",
-        fontsize=7.3,
+        ha="center",
+        va="bottom",
+        fontsize=8,
+        fontweight="bold",
         color=color,
-        arrowprops={
-            "arrowstyle": "->",
-            "color": color,
-            "lw": 1.0,
-            "shrinkA": 3,
-            "shrinkB": 3,
-        },
         bbox={
-            "boxstyle": "round,pad=0.25",
+            "boxstyle": "round,pad=0.18",
             "facecolor": "white",
-            "edgecolor": color,
-            "alpha": 0.92,
+            "edgecolor": "none",
+            "alpha": 0.88,
         },
-        zorder=7,
+        zorder=5,
     )
 
-ax_zoom.set_xlim(zoom_left, zoom_right)
-ax_zoom.set_ylim(y_floor, y_ceiling)
+ax_metrics.set_xlim(0.0, 1.0)
+ax_metrics.set_ylim(-0.5, metric_values.size - 0.5)
+ax_metrics.xaxis.set_major_formatter(PercentFormatter(1.0, decimals=0))
+ax_metrics.set_yticks(metric_y)
+ax_metrics.set_yticklabels(metric_labels, fontsize=8)
+ax_metrics.set_xlabel(cn("判定点概率"))
+ax_metrics.grid(
+    axis="x",
+    alpha=0.14,
+    linestyle="--",
+    linewidth=0.8,
+    color=COLORS["grid"],
+)
+ax_metrics.set_axisbelow(True)
+ax_metrics.tick_params(axis="y", length=0)
+ax_metrics.spines["top"].set_visible(False)
+ax_metrics.spines["right"].set_visible(False)
+ax_metrics.spines["left"].set_visible(False)
+panel(ax_metrics, "(b)")
 
-panel(ax_full, "(a)")
-panel(ax_zoom, "(b)")
-fig.tight_layout(w_pad=1.1)
+fig.tight_layout(w_pad=2.0)
 save(fig, "fig_q1_oc_curve_p1")

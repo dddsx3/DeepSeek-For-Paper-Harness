@@ -799,3 +799,75 @@ describe('figure_diversity —— 同型别重复、图型要够多', () => {
     expect(run('figure_diversity', input({})).code).toBe(2)
   })
 })
+
+/**
+ * `figure_manifest_reconcile` —— **申报过的改名要放行**。
+ *
+ * 事故（2024B 阶段 6）：阶段 5 申报了 3 处改名（账本没有次品率扫描序列、
+ * 单因素扰动网格、二维搜索网格，于是改用横断面关联图、成本结构对照、节点成本剖面，
+ * 每一条都写明了理由），却被判"3 张漏渲染"。
+ *
+ * 根因是**判据写成了一个恒假条件**：`accepted` 要求
+ * `untracked.includes(d.to)`，而改名后的新 id **必然在规划的 `declared` 里**
+ * （它就是从规划里来的），`untracked` 永远不会包含它——**申报了也照旧判漏渲染**。
+ * 正确判据是"新 id 真的渲染出来了"。
+ */
+describe('figure_manifest_reconcile —— 改名的申报判据', () => {
+  const manifest = (names: ReadonlyArray<string>): string => [
+    '<!-- BEGIN FIGURE_MANIFEST -->',
+    `DATA=${String(names.length)}`,
+    ...names,
+    'DRAWIO=0',
+    'TIKZ=0',
+    'GPTIMG=0',
+    `ALL=${String(names.length)}`,
+    '<!-- END FIGURE_MANIFEST -->',
+  ].join('\n')
+  const plan = (figures: ReadonlyArray<string>, deviations: ReadonlyArray<Record<string, string>>): string =>
+    JSON.stringify({
+      figures: figures.map(id => ({ figure_id: id, chart_type: 'bar', data_refs: ['R-A'] })),
+      plan_deviations: deviations,
+    })
+  const run1 = (rendered: ReadonlyArray<string>, planText: string, planned: ReadonlyArray<string>) =>
+    run('figure_manifest_reconcile', {
+      files: new Map<string, string>([['FIGURE_PLAN.json', planText]]),
+      sizes: new Map(rendered.map(f => [`figures/${f}.png`, 9000])),
+      upstream: new Map<string, string>([
+        ['PROBLEM_ANALYSIS.md', manifest(planned)],
+        ['FIGURE_PLAN.json', planText],
+      ]),
+      problemCount: 4,
+    })
+
+  it('**申报改名 + 新 id 真的渲染了 → 放行**（事故的正面用例）', () => {
+    const v = run1(
+      ['fig_new'],
+      plan(['fig_new'], [{ from: 'fig_old', to: 'fig_new', reason: '账本没有扫描序列，改用横断面关联图' }]),
+      ['fig_old'],
+    )
+    expect(v.code, v.items[0]?.detail).toBe(0)
+    expect(v.items[0]?.detail).toContain('换名/改型')
+  })
+
+  it('**申报了改名但新 id 没渲染出来 → 照旧拦**（申报不是免死金牌）', () => {
+    const v = run1(
+      [],
+      plan(['fig_new'], [{ from: 'fig_old', to: 'fig_new', reason: '理由' }]),
+      ['fig_old'],
+    )
+    expect(v.code).toBe(1)
+    expect(v.items[0]?.detail).toContain('没渲染出来')
+  })
+
+  it('**没申报的改名 → 拦**（静默改名的对账必失败）', () => {
+    const v = run1(['fig_new'], plan(['fig_new'], []), ['fig_old'])
+    expect(v.code).toBe(1)
+  })
+
+  it('申报放弃（to 为空 + 理由）仍放行；无理由的放弃仍拦', () => {
+    const dropped = run1([], plan([], [{ from: 'fig_old', to: '', reason: '账本只有两个点，连曲线会虚构趋势' }]), ['fig_old'])
+    expect(dropped.code, dropped.items[0]?.detail).toBe(0)
+    const noReason = run1([], plan([], [{ from: 'fig_old', to: '', reason: '' }]), ['fig_old'])
+    expect(noReason.code).toBe(1)
+  })
+})

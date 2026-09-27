@@ -33,15 +33,15 @@
       "exit_code": 0
     },
     {
-      "figure_id": "fig_q2_sensitivity_defect_rate",
-      "script": "figures/gen_fig_q2_sensitivity_defect_rate.py",
-      "file": "figures/fig_q2_sensitivity_defect_rate.png",
+      "figure_id": "fig_q2_quality_profit_scatter",
+      "script": "figures/gen_fig_q2_quality_profit_scatter.py",
+      "file": "figures/fig_q2_quality_profit_scatter.png",
       "exit_code": 0
     },
     {
-      "figure_id": "fig_q2_sensitivity_unit_cost",
-      "script": "figures/gen_fig_q2_sensitivity_unit_cost.py",
-      "file": "figures/fig_q2_sensitivity_unit_cost.png",
+      "figure_id": "fig_q2_recovery_cost_compare",
+      "script": "figures/gen_fig_q2_recovery_cost_compare.py",
+      "file": "figures/fig_q2_recovery_cost_compare.png",
       "exit_code": 0
     },
     {
@@ -60,6 +60,12 @@
       "figure_id": "fig_q3_assembly_network_cost",
       "script": "figures/gen_fig_q3_assembly_network_cost.py",
       "file": "figures/fig_q3_assembly_network_cost.png",
+      "exit_code": 0
+    },
+    {
+      "figure_id": "fig_q3_node_cost_profile",
+      "script": "figures/gen_fig_q3_node_cost_profile.py",
+      "file": "figures/fig_q3_node_cost_profile.png",
       "exit_code": 0
     },
     {

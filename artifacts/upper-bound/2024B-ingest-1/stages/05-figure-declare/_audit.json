@@ -1,47 +1,47 @@
 {
   "stage": "figure-declare",
   "verdict": "pass",
-  "score": 0.98,
+  "score": 0.94,
   "structureOk": true,
   "requirementCompliance": [
     {
-      "item": "figures/目录按每个活动 figure_id 提供一个 gen_fig_<figure_id>.py 绘图脚本",
+      "item": "在 figures/ 中按一图一脚本提供 gen_fig_*.py，并与 FIGURE_PLAN.json 中的 figure_id 一一对应",
       "done": true,
-      "note": "FIGURE_PLAN.json 中有13个活动 figure_id figures目录中均有对应的 gen_fig_*.py，文件命名与图号及保存名一致。"
+      "note": "已提供14个绘图脚本，计划中的14个 figure_id 均有对应文件，文件命名与绘图输出名一致。"
     },
     {
-      "item": "每个脚本使用 matplotlib，并通过 figures/_figbase.py 统一完成数据加载、绘图引导、面板标注和保存",
+      "item": "脚本使用 matplotlib，并通过 figures/_figbase.py 统一完成数据加载、样式引导和保存",
       "done": true,
-      "note": "各脚本均导入并使用 _figbase 的 load、save、panel 及公共颜色/中文标签工具，图形通过 matplotlib 生成。"
+      "note": "已列出的脚本均导入 _figbase，并使用 load、save、panel 及公共颜色/注释工具；未直接复制公共绘图基础设施。"
     },
     {
-      "item": "绘图数据从 results.json 账本读取，结果值不得硬编码",
+      "item": "绘图所需业务数值从 results.json 结果账本读取，不硬编码题面参数或结果快照",
       "done": true,
-      "note": "样本量、临界数、OC/SPRT边界、成本、利润、决策位、区间端点和稳健性等结果值均通过对应 result_id 读取；源码中的数值常量主要用于布局、坐标范围和样式，未见题面结果值被直接写死。"
+      "note": "各脚本通过 load('results.json') 和明确的结果 result_id 取得业务数据；可见数值常量主要用于布局、坐标范围、格式化和绘图网格。"
     },
     {
-      "item": "本阶段只写脚本，不执行脚本",
+      "item": "FIGURE_PLAN.json 为合法 JSON，且每个规划条目包含契约要求的字段",
       "done": true,
-      "note": "交付物仅包含绘图脚本和 FIGURE_PLAN.json，未见本阶段生成的图像或其他执行产物。"
+      "note": "计划包含 figure_id、chart_type、recipe.category、recipe.number、data_refs、caption、x_label、y_label，字段类型和结构完整。"
     },
     {
-      "item": "FIGURE_PLAN.json 为合法 JSON，且活动图条目具备契约规定的全部字段",
+      "item": "图表类型、配方、data_refs、caption及坐标标签与脚本实际使用的数据和绘图方式相符",
       "done": true,
-      "note": "每个活动图均包含 figure_id、chart_type、recipe.category、recipe.number、data_refs、caption、x_label、y_label；结构与脚本对应。"
+      "note": "各图的 data_refs 与脚本读取的结果项对应，折线、棒棒糖、分组柱、热力图、瀑布图、散点图、网络图、哑铃图和森林图等类型均有对应实现。"
     },
     {
-      "item": "作图规划中的 data_refs、recipe 和 chart_type 与脚本骨架及图型相匹配",
+      "item": "作图规划覆盖题面问题1至问题4及其给定事实的作图落点",
       "done": true,
-      "note": "各脚本使用的账本键均可在对应 data_refs 中追踪；折线、森林图、热力图、瀑布图、棒棒糖图、网络图和哑铃图等类型与规划一致，且给定的机械门禁已通过。"
+      "note": "问题1的抽样/OC/SPRT/两种情形、问题2六种情况及成本决策、问题3组装拓扑与节点策略、问题4区间与重抽样稳健性均有对应图组和账本引用；未发现题面给定成本或约束被凭空替换。"
     },
     {
-      "item": "产物与题面给定的 Q1至Q4、表1六种情况、问题3组装网络及成本/检测/拆解/调换语义一致",
+      "item": "本阶段只交付绘图脚本和作图计划，不提交执行结果",
       "done": true,
-      "note": "Q1抽样方案与OC/SPRT、Q2六情况决策与成本结果、Q3的P1至P8/S1至S3/F网络、Q4置信区间与决策稳健性均有对应图项和账本引用，未见与题面事实冲突的硬编码参数或死成本项。"
+      "note": "实际产物形态为 Python 脚本与 FIGURE_PLAN.json，未见图片文件或其他执行阶段输出。"
     }
   ],
   "findings": [],
   "missing": [],
   "model": "space-bunny-free",
-  "at": "2026-09-27T15:48:02.922Z"
+  "at": "2026-09-27T16:29:38.601Z"
 }

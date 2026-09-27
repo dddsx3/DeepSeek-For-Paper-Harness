@@ -5,25 +5,25 @@
     {
       "id": "figure_plan_valid",
       "ok": true,
-      "detail": "13 条规划：图型合规、配方齐备、data_refs 全部解析到账本",
+      "detail": "14 条规划：图型合规、配方齐备、data_refs 全部解析到账本",
       "code": 0
     },
     {
       "id": "figure_plan_budget",
       "ok": true,
-      "detail": "交付 13 张图（含申报放弃 1 张），落在 12–18 张区间内。题面 4 问 → 目标正文 30 页 → 数据图目标 15 张（容差 ±3，区间 12–18 张；绝对底线 3 张）",
+      "detail": "交付 14 张图，落在 12–18 张区间内。题面 4 问 → 目标正文 30 页 → 数据图目标 15 张（容差 ±3，区间 12–18 张；绝对底线 3 张）",
       "code": 0
     },
     {
       "id": "figure_script_quality",
       "ok": true,
-      "detail": "13 个脚本通过代码级 CRITICAL 检查；WARNING（不阻断）：figures/gen_fig_q1_oc_curve_p1.py：手动 `ax.grid()`（参考 WARNING，非阻断）；figures/gen_fig_q1_sample_size_vs_confidence.py：手动 `ax.grid()`（参考 WARNING，非阻断）；figures/gen_fig_q1_two_cases_sample_size.py：手动 `ax.grid()`（参考 WARNING，非阻断）",
+      "detail": "14 个脚本通过代码级 CRITICAL 检查；WARNING（不阻断）：figures/gen_fig_q1_sample_size_vs_confidence.py：手动 `ax.grid()`（参考 WARNING，非阻断）；figures/gen_fig_q1_sprt_boundary.py：手动 `ax.grid()`（参考 WARNING，非阻断）；figures/gen_fig_q1_two_cases_sample_size.py：手动 `ax.grid()`（参考 WARNING，非阻断）",
       "code": 0
     },
     {
       "id": "figure_script_traced",
       "ok": true,
-      "detail": "13 个脚本都从账本读数据，未发现硬编码数据串",
+      "detail": "14 个脚本都从账本读数据，未发现硬编码数据串",
       "code": 0
     },
     {
@@ -35,7 +35,7 @@
     {
       "id": "figure_diversity",
       "ok": true,
-      "detail": "13 张图、8 种图型：无单一图型超过 3 次",
+      "detail": "14 张图、9 种图型：无单一图型超过 3 次",
       "code": 0
     }
   ]
