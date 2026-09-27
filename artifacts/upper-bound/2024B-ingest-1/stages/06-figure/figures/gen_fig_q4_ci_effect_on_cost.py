@@ -1,118 +1,270 @@
-"""fig_q4_ci_effect_on_cost —— 问题 4 重解决策一致率及其不确定性的森林图合成面板。
-
-本图讲什么
-    在“次品率由抽样检测得到”的口径下，重复抽样并重解问题 2，所得最优决策与点估计
-    决策的一致率有多高、这个一致率本身有多准。一致率越低且标准误越大，说明该情况对
-    抽样波动越敏感、决策越容易被翻转。
-
-每个 panel 是什么
-    (a) 森林图：表 1 六种情况的一致率点估计与 95% 置信区间（点估计 ± 1.96×标准误），
-        虚线为“完全一致”参考线（=1.0），交替行阴影，另用短标签锚出最低与最高情况。
-    (b) 标准误排序条形图：六种情况的标准误由大到小排列，最大值以强调色标出，
-        数值直接标在条端，反映重解决策的抽样稳定性。
-
-数据来自账本哪些 id（stages/04-result-sources/results.json，经 _figbase.load 读取）
-    R-Q4-case1-consistency-rate / -se … R-Q4-case6-consistency-rate / -se，共 12 个条目；
-    脚本内不出现任何数值字面量式的数据，全部经 result_id 取值。
-
-关键表达
-    x 轴为决策一致率（比例，0–1 语义，参考线取 1.0）；条形图 x 轴为一致率标准误。
-"""
-
-import numpy as np
-import matplotlib.pyplot as plt
-
 from _figbase import load, save, panel, PALETTE, COLORS, _lighten, cn
 
-# ---------------------------------------------------------------- 账本读取
+import matplotlib.pyplot as plt
+import numpy as np
+
+__doc__ = """展示置信区间对固定决策利润的影响及区间宽度排序。
+(a) 森林图：按重做问题展示问题2各情形与问题3实例的点利润、利润区间和稳健性标记。
+(b) 排名图：按利润区间宽度从大到小排列，宽度由账本上下界相减得到。
+数据来自 R-Q4-q2、R-Q4-q3-point-profit、R-Q4-q3-profit-range、
+R-Q4-sample-size-used、R-Q4-ci-level 和 R-Q4-resample-count；
+全部关键数值均由账本直接取用，不在源码中复写。
+"""
+
+
 doc = load("results.json")
-rows = doc["results"] if isinstance(doc, dict) and "results" in doc else doc
-V = {r["result_id"]: r["value"] for r in rows}
+ledger = {item["result_id"]: item["value"] for item in doc["results"]}
 
-CASES = [1, 2, 3, 4, 5, 6]
-RATE_IDS = ["R-Q4-case%d-consistency-rate" % k for k in CASES]
-SE_IDS = ["R-Q4-case%d-consistency-rate-se" % k for k in CASES]
+q2_rows = sorted(ledger["R-Q4-q2"], key=lambda row: row["case_id"])
+q3_point = float(ledger["R-Q4-q3-point-profit"])
+q3_range = np.asarray(ledger["R-Q4-q3-profit-range"], dtype=float)
+ci_level = float(ledger["R-Q4-ci-level"])
+sample_size = ledger["R-Q4-sample-size-used"]
+resample_count = ledger["R-Q4-resample-count"]
 
-rates = np.asarray([V[i] for i in RATE_IDS], dtype=float)
-ses = np.asarray([V[i] for i in SE_IDS], dtype=float)
-half = 1.96 * ses
-lo, hi = rates - half, rates + half
-labels = ["情况 %d" % k for k in CASES]
+case_ids = [row["case_id"] for row in q2_rows]
+labels = [f"{cn('问题2 情况')}{case_id}" for case_id in case_ids]
+labels.append(cn("问题3实例"))
 
-# ---------------------------------------------------------------- 画布
-fig, (ax, axb) = plt.subplots(
-    1, 2, figsize=(6.0, 2.8), gridspec_kw={"width_ratios": [1.55, 1.0]}
+points = np.asarray(
+    [row["point_profit"] for row in q2_rows] + [q3_point], dtype=float
+)
+ci_lo = np.asarray(
+    [row["profit_range_fixed_decision"][0] for row in q2_rows]
+    + [q3_range[0]],
+    dtype=float,
+)
+ci_hi = np.asarray(
+    [row["profit_range_fixed_decision"][1] for row in q2_rows]
+    + [q3_range[1]],
+    dtype=float,
+)
+interval_widths = ci_hi - ci_lo
+stability = [bool(row["decision_stable"]) for row in q2_rows]
+stability.append(None)
+q3_index = len(q2_rows)
+
+n_rows = len(labels)
+y = np.arange(n_rows)
+forest_limits = (n_rows - 0.5, -1.05)
+
+fig = plt.figure(figsize=(6.0, 3.6), constrained_layout=True)
+fig.set_label(
+    f"sample_size={sample_size};ci_level={ci_level};resample_count={resample_count}"
 )
 
-# ================================================== (a) 一致率森林图
-y = np.arange(len(CASES), dtype=float)
-
-# 交替行阴影（偶数行）
-for i in range(len(CASES)):
-    if i % 2 == 0:
-        ax.axhspan(
-            y[i] - 0.5, y[i] + 0.5,
-            color=_lighten(COLORS["gray"], 0.88), zorder=0,
-        )
-
-# “完全一致”参考线
-ax.axvline(1.0, color=COLORS["ref_line"], linestyle="--", linewidth=1.0, zorder=1)
-
-# 点估计 + 95% 置信区间（森林图主体）
-ax.errorbar(
-    rates, y, xerr=half,
-    fmt="o", color=PALETTE[0], ecolor=PALETTE[0],
-    elinewidth=1.2, capsize=2.5, markersize=5.0,
-    markeredgecolor="white", markeredgewidth=0.8, zorder=3,
+outer = fig.add_gridspec(
+    1, 2, width_ratios=[2.5, 1.0], wspace=0.34
 )
+forest_grid = outer[0, 0].subgridspec(
+    1, 2, width_ratios=[1.55, 1.15], wspace=0.02
+)
+ax = fig.add_subplot(forest_grid[0, 0])
+ax_numeric = fig.add_subplot(forest_grid[0, 1])
+ax_width = fig.add_subplot(outer[0, 1])
+
+for i in range(n_rows):
+    if i == q3_index:
+        row_color = _lighten(COLORS["accent"], 0.88)
+    elif i % 2 == 0:
+        row_color = _lighten(PALETTE[0], 0.90)
+    else:
+        continue
+    ax.axhspan(
+        y[i] - 0.5,
+        y[i] + 0.5,
+        color=row_color,
+        edgecolor="none",
+        zorder=0,
+    )
+
+x_upper = float(np.max(ci_hi)) * 1.08
+ax.set_xlim(0.0, x_upper)
+ax.set_ylim(*forest_limits)
+ax.set_axisbelow(True)
+ax.grid(
+    axis="x",
+    color=COLORS["grid"],
+    linestyle="--",
+    linewidth=0.7,
+    alpha=0.55,
+)
+
+cap_height = 0.12
+for i in range(n_rows):
+    marker_color = PALETTE[1] if i == q3_index else PALETTE[0]
+    marker = "D" if i == q3_index else "o"
+    marker_size = 7.0 if i == q3_index else 6.2
+    marker_face = "white" if stability[i] is False else marker_color
+
+    ax.plot(
+        [ci_lo[i], ci_hi[i]],
+        [y[i], y[i]],
+        color=COLORS["gray"],
+        linewidth=1.5,
+        solid_capstyle="round",
+        zorder=2,
+    )
+    ax.plot(
+        [ci_lo[i], ci_lo[i]],
+        [y[i] - cap_height, y[i] + cap_height],
+        color=marker_color,
+        linewidth=1.1,
+        zorder=3,
+    )
+    ax.plot(
+        [ci_hi[i], ci_hi[i]],
+        [y[i] - cap_height, y[i] + cap_height],
+        color=marker_color,
+        linewidth=1.1,
+        zorder=3,
+    )
+    ax.plot(
+        points[i],
+        y[i],
+        marker=marker,
+        markersize=marker_size,
+        markerfacecolor=marker_face,
+        markeredgecolor=marker_color,
+        markeredgewidth=1.3,
+        linestyle="none",
+        zorder=4,
+    )
 
 ax.set_yticks(y)
-ax.set_yticklabels(labels, fontsize=8)
-ax.invert_yaxis()
-ax.set_xlabel("决策一致率（比例）", fontsize=9)
-ax.set_xlim(float(np.min(lo)) - 0.05, float(np.max(hi)) + 0.06)
-ax.grid(axis="x", alpha=0.15, linestyle="--", color=COLORS["grid"])
+ax.set_yticklabels(labels)
+ax.tick_params(axis="y", length=0, pad=6, labelsize=8.5)
+ax.tick_params(axis="x", labelsize=8.5)
+ax.set_xlabel(
+    cn("单位利润及固定决策利润区间（元/件）"), fontsize=9.5, labelpad=6
+)
+ax.set_ylabel(cn("重做问题"), fontsize=9.5, labelpad=7)
 ax.spines["top"].set_visible(False)
 ax.spines["right"].set_visible(False)
-ax.tick_params(axis="x", labelsize=8)
-
-# 仅两个数据锚点短标签：最低与最高情况
-i_min = int(np.argmin(rates))
-i_max = int(np.argmax(rates))
-ax.annotate(
-    "%.4f" % rates[i_min],
-    xy=(rates[i_min], y[i_min]), xytext=(0, -13),
-    textcoords="offset points", ha="center", va="top",
-    fontsize=7.5, color=COLORS["down"], zorder=4,
-)
-ax.annotate(
-    "%.4f" % rates[i_max],
-    xy=(rates[i_max], y[i_max]), xytext=(0, 13),
-    textcoords="offset points", ha="center", va="bottom",
-    fontsize=7.5, color=COLORS["up"], zorder=4,
-)
+ax.spines["left"].set_visible(False)
+ax.spines["bottom"].set_color(COLORS["grid"])
 panel(ax, "(a)")
 
-# ================================================== (b) 标准误排序
-order = np.argsort(ses)[::-1]  # 由大到小
-bar_y = np.arange(len(CASES), dtype=float)
-bar_c = [
-    COLORS["accent"] if i == 0 else _lighten(PALETTE[0], 0.35)
-    for i in range(len(order))
-]
-bars = axb.barh(bar_y, ses[order], height=0.62, color=bar_c, zorder=2)
+ax_numeric.set_xlim(0.0, 1.0)
+ax_numeric.set_ylim(*forest_limits)
+ax_numeric.set_xticks([])
+ax_numeric.set_yticks([])
+for spine in ax_numeric.spines.values():
+    spine.set_visible(False)
+ax_numeric.axvline(
+    0.0,
+    color=COLORS["grid"],
+    linestyle="--",
+    linewidth=0.8,
+    alpha=0.8,
+)
+ax_numeric.text(
+    0.03,
+    -0.78,
+    f"{cn('点利润')} / {ci_level:.0%} {cn('区间')}",
+    ha="left",
+    va="center",
+    fontsize=8.2,
+    fontweight="bold",
+    color=COLORS["gray"],
+)
 
-axb.set_yticks(bar_y)
-axb.set_yticklabels([labels[k] for k in order], fontsize=8)
-axb.invert_yaxis()
-axb.set_xlabel("一致率标准误", fontsize=9)
-axb.set_xlim(0.0, float(np.max(ses)) * 1.38)
-axb.grid(axis="x", alpha=0.15, linestyle="--", color=COLORS["grid"])
-axb.spines["top"].set_visible(False)
-axb.spines["right"].set_visible(False)
-axb.tick_params(axis="x", labelsize=8)
-axb.bar_label(bars, fmt="%.4f", padding=2, fontsize=7)
-panel(axb, "(b)")
+for i in range(n_rows):
+    value_text = f"{points[i]:.2f} [{ci_lo[i]:.2f}, {ci_hi[i]:.2f}]"
+    if stability[i] is None:
+        status_text = cn("基准")
+        status_color = PALETTE[1]
+    elif stability[i]:
+        status_text = cn("稳健")
+        status_color = PALETTE[0]
+    else:
+        status_text = cn("敏感")
+        status_color = COLORS["down"]
 
-fig.tight_layout()
+    ax_numeric.text(
+        0.03,
+        y[i] - 0.08,
+        value_text,
+        ha="left",
+        va="center",
+        fontsize=7.4,
+        fontfamily="monospace",
+        color=COLORS["gray"],
+    )
+    ax_numeric.text(
+        0.03,
+        y[i] + 0.25,
+        status_text,
+        ha="left",
+        va="center",
+        fontsize=7.2,
+        color=status_color,
+    )
+
+order = np.argsort(interval_widths)[::-1]
+ranked_y = np.arange(n_rows)
+ranked_labels = [labels[i] for i in order]
+width_scale = float(np.max(interval_widths))
+width_upper = width_scale * 1.28
+width_padding = width_upper * 0.018
+
+for rank, source_index in enumerate(order):
+    if source_index == q3_index:
+        bar_color = PALETTE[1]
+    elif stability[source_index] is False:
+        bar_color = COLORS["down"]
+    else:
+        bar_color = _lighten(PALETTE[0], 0.38)
+
+    width = float(interval_widths[source_index])
+    ax_width.barh(
+        ranked_y[rank],
+        width,
+        height=0.56,
+        color=bar_color,
+        edgecolor="none",
+        zorder=3,
+    )
+    if width == 0.0:
+        ax_width.plot(
+            width,
+            ranked_y[rank],
+            marker="D",
+            markersize=4.5,
+            color=PALETTE[1],
+            linestyle="none",
+            zorder=4,
+        )
+    ax_width.text(
+        width + width_padding,
+        ranked_y[rank],
+        f"{width:.2f}",
+        ha="left",
+        va="center",
+        fontsize=7.5,
+        color=COLORS["gray"],
+    )
+
+ax_width.set_xlim(0.0, width_upper)
+ax_width.set_ylim(n_rows - 0.5, -0.5)
+ax_width.set_yticks(ranked_y)
+ax_width.set_yticklabels(ranked_labels)
+ax_width.tick_params(axis="y", length=0, pad=5, labelsize=8.0)
+ax_width.tick_params(axis="x", labelsize=8.0)
+ax_width.set_xlabel(cn("区间宽度（元/件）"), fontsize=9.5, labelpad=6)
+ax_width.set_axisbelow(True)
+ax_width.grid(
+    axis="x",
+    color=COLORS["grid"],
+    linestyle="--",
+    linewidth=0.7,
+    alpha=0.55,
+)
+ax_width.spines["top"].set_visible(False)
+ax_width.spines["right"].set_visible(False)
+ax_width.spines["left"].set_visible(False)
+ax_width.spines["bottom"].set_color(COLORS["grid"])
+panel(ax_width, "(b)")
+
 save(fig, "fig_q4_ci_effect_on_cost")
+plt.close(fig)

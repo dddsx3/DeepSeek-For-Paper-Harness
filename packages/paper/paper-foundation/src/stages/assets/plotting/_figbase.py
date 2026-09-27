@@ -46,7 +46,7 @@ for _p in (str(ROOT), str(HERE)):
 # 因此下面把脚本真正会用到的名字**逐个转出**，并由测试核对契约里点名的每个名字都在。
 from _utils.plot_utils import (  # noqa: F401  (转出即接口)
     # 核心：样式、出图、色板
-    setup_style, save_fig, _lighten,
+    setup_style, save_fig,
     PALETTE, PALETTE_LIGHT, COLORS, PALETTES,
     # 版式兜底（参考的"高分图集"做法）
     set_paper_placement, declutter_axes, dynamic_limits, shared_legend,
@@ -58,6 +58,13 @@ from _utils.plot_utils import (  # noqa: F401  (转出即接口)
     scatter_plot, residual_diagnostic, multi_line_plot, box_plot, radar_plot,
     subplot_grid,
 )
+# `_lighten` 单独引入并**包一层**（见下面的定义）：plot_utils 里那个只接受
+# `'#rrggbb'` 字符串，而脚本里的插值函数（HSL 插值、`to_rgb`）返回的是**元组**，
+# 直接传进去就 `AttributeError: 'tuple' object has no attribute 'lstrip'`。
+# 参考自己的注释就点过这个坑（*"返回十六进制串而非 RGBA 元组：_lighten 只接受
+# '#rrggbb'，拿到元组会崩"*）——那是**给脚本作者的提醒**；但提醒防不住，
+# 实测 13 张图里就有 2 张栽在这上面。所以在引导层直接容错：接受元组/列表/hex 三种形态。
+from _utils.plot_utils import _lighten as _lighten_strict
 setup_style()
 
 import numpy as np
@@ -101,6 +108,22 @@ CMAP_DIV = LinearSegmentedColormap.from_list(
 
 # 线条可用色（排除近白）
 LINE_COLORS = [PALETTE[0], PALETTE[5], PALETTE[1], PALETTE[4], PALETTE[2]]
+
+
+def _lighten(color, amount=0.4):
+    """把颜色调浅；**接受 hex 串 / RGB(A) 元组 / 列表**三种形态。
+
+    为什么在引导层容错而不是靠文档提醒：`plot_utils._lighten` 只吃 `'#rrggbb'`，
+    而脚本里常见的 HSL 插值（`colorsys.hls_to_rgb` / `to_rgb`）返回的是**元组**。
+    参考自己的注释点过这个坑（"拿到元组会崩"），但**提醒防不住**——
+    实测 2024B 的 13 张图里就有 2 张栽在这里（`AttributeError: 'tuple' object
+    has no attribute 'lstrip'`），而且这类崩发生在**渲染阶段**，
+    等于把代价推到了整轮最后。形态转换没有语义损失，所以在入口一次做掉。
+    """
+    if isinstance(color, (tuple, list)):
+        from matplotlib.colors import to_hex
+        return _lighten_strict(to_hex(tuple(color)), amount)
+    return _lighten_strict(color, amount)
 
 
 def seq_colors(n, lo=0.08, hi=0.95):

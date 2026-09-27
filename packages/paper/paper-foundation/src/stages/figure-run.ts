@@ -161,6 +161,11 @@ export async function runFigureScripts(stagesRoot: string, timeoutMs = 180_000):
       file: s.produced[0] ?? null,
       exit_code: s.exitCode,
       bytes: s.produced.length === 0 ? 0 : undefined,
+      // **失败必须留证据**：执行体本来就抓了 stdout/stderr，但清单里原来只写
+      // `exit_code`——于是"4 个脚本 exit 1"在清单上就是四个空壳，
+      // 得手动把脚本再跑一遍才知道错在哪（实测就这么干过）。
+      // 与 `_rejected-answer.txt` 同一条纪律：**失败要可诊断**。
+      ...(s.exitCode === 0 ? {} : { stderr: s.stderr, stdout: s.stdout }),
     })),
   }
   await writeFile(join(dir, 'figure-manifest.json'), JSON.stringify(manifest, null, 2) + String.fromCharCode(10), 'utf8')

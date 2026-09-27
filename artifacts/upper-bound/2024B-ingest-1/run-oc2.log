@@ -39,3 +39,85 @@ STAGE CHAIN FAILED — 1 个阶段没通过（产物与通行证在 artifacts\up
   [deterministic] figure-declare: 第 6/14 段：交付 figures/gen_fig_q2_strategy_cost_heatmap.py
   [deterministic] figure-declare: 第 7/14 段：交付 figures/gen_fig_q2_optimal_cost_breakdown.py
   [deterministic] figure-declare: 第 8/14 段：交付 figures/gen_fig_q2_six_cases_decisions.py
+  [deterministic] figure-declare: 第 9/14 段：交付 figures/gen_fig_q2_sensitivity_defect_rate.py
+  [deterministic] figure-declare: 第 10/14 段：交付 figures/gen_fig_q2_sensitivity_unit_cost.py
+  [deterministic] figure-declare: 第 11/14 段：交付 figures/gen_fig_q3_assembly_network_cost.py
+  [deterministic] figure-declare: 第 12/14 段：交付 figures/gen_fig_q3_strategy_cost_compare.py
+  [deterministic] figure-declare: 第 13/14 段：交付 figures/gen_fig_q4_ci_effect_on_cost.py
+  [deterministic] figure-declare: 第 14/14 段：交付 figures/gen_fig_q4_monte_carlo_robustness.py
+  [deterministic] figure-declare: 逐节点审计（space-bunny-free）：pass，质量分 0.98，要求 7/7 项完成，0 条 findings
+[STAGE NEXT] 只跑了 'figure-declare'，到此即停。检查 artifacts\upper-bound\2024B-ingest-1\stages 后，放行 = 再执行一次 --stages --stage-next。
+  ✅ figure-declare: 门禁全过，已签发通行证
+
+STAGE CHAIN OK — 1 个阶段签发通行证（其中 0 个带未判定门禁，缺口已记在 PASSED 上）。产物在 artifacts\upper-bound\2024B-ingest-1\stages
+===== 第 4 次 --stage-next（opencode/space-bunny-free）=====
+[STAGE CHAIN] artifacts\upper-bound\2024B-ingest-1\stages
+  题面问数（数出来的）：4
+[STAGE NEXT] 只跑了 'figure'，到此即停。检查 artifacts\upper-bound\2024B-ingest-1\stages 后，放行 = 再执行一次 --stages --stage-next。
+  ❌ figure: 阶段产出未通过形态检查：4/13 个绘图脚本没跑成 —— 首个 `figures/gen_fig_q2_sensitivity_unit_cost.py`：exit=1，期望产出 figures/fig_q2_sensitivity_unit_cost.png / figures/fig_q2_sensitivity_unit_cost.pdf / figures/fig_q2_sensitivity_unit_cost.svg / figures/fig_q2_sensitivity_unit_cost.jpg / figures/fig_q2_sensitivity_unit_cost.jpeg，实际 （无）；stderr 末尾：q2_sensitivity_unit_cost.py", line 143, in main
+    color=_lighten(item_color, 0.15),
+          ~~~~~~~~^^^^^^^^^^^^^^^^^^
+  File "D:\deepseek modex\deepseek-harness\artifacts\upper-bound\2024B-ingest-1\stages\06-figure\_utils\plot_utils.py", line 670, in _lighten
+    hex_color = hex_color.lstrip('#')
+                ^^^^^^^^^^^^^^^^
+AttributeError: 'tuple' object has no attribute 'lstrip'
+
+
+STAGE CHAIN FAILED — 1 个阶段没通过（产物与通行证在 artifacts\upper-bound\2024B-ingest-1\stages）。
+===== 第 1 次 --stage-next（opencode/space-bunny-free 非流式）=====
+[STAGE CHAIN] artifacts\upper-bound\2024B-ingest-1\stages
+  题面问数（数出来的）：4
+[STAGE NEXT] 只跑了 'figure'，到此即停。检查 artifacts\upper-bound\2024B-ingest-1\stages 后，放行 = 再执行一次 --stages --stage-next。
+  ❌ figure: 阶段产出未通过形态检查：4/13 个绘图脚本没跑成 —— 首个 `figures/gen_fig_q2_sensitivity_unit_cost.py`：exit=1，期望产出 figures/fig_q2_sensitivity_unit_cost.png / figures/fig_q2_sensitivity_unit_cost.pdf / figures/fig_q2_sensitivity_unit_cost.svg / figures/fig_q2_sensitivity_unit_cost.jpg / figures/fig_q2_sensitivity_unit_cost.jpeg，实际 （无）；stderr 末尾：q2_sensitivity_unit_cost.py", line 143, in main
+    color=_lighten(item_color, 0.15),
+          ~~~~~~~~^^^^^^^^^^^^^^^^^^
+  File "D:\deepseek modex\deepseek-harness\artifacts\upper-bound\2024B-ingest-1\stages\06-figure\_utils\plot_utils.py", line 670, in _lighten
+    hex_color = hex_color.lstrip('#')
+                ^^^^^^^^^^^^^^^^
+AttributeError: 'tuple' object has no attribute 'lstrip'
+
+
+STAGE CHAIN FAILED — 1 个阶段没通过（产物与通行证在 artifacts\upper-bound\2024B-ingest-1\stages）。
+===== 第 2 次 --stage-next（opencode/space-bunny-free 非流式）=====
+[STAGE CHAIN] artifacts\upper-bound\2024B-ingest-1\stages
+  题面问数（数出来的）：4
+[STAGE NEXT] 只跑了 'figure'，到此即停。检查 artifacts\upper-bound\2024B-ingest-1\stages 后，放行 = 再执行一次 --stages --stage-next。
+  ❌ figure: 阶段产出未通过形态检查：4/13 个绘图脚本没跑成 —— 首个 `figures/gen_fig_q2_sensitivity_unit_cost.py`：exit=1，期望产出 figures/fig_q2_sensitivity_unit_cost.png / figures/fig_q2_sensitivity_unit_cost.pdf / figures/fig_q2_sensitivity_unit_cost.svg / figures/fig_q2_sensitivity_unit_cost.jpg / figures/fig_q2_sensitivity_unit_cost.jpeg，实际 （无）；stderr 末尾：q2_sensitivity_unit_cost.py", line 143, in main
+    color=_lighten(item_color, 0.15),
+          ~~~~~~~~^^^^^^^^^^^^^^^^^^
+  File "D:\deepseek modex\deepseek-harness\artifacts\upper-bound\2024B-ingest-1\stages\06-figure\_utils\plot_utils.py", line 670, in _lighten
+    hex_color = hex_color.lstrip('#')
+                ^^^^^^^^^^^^^^^^
+AttributeError: 'tuple' object has no attribute 'lstrip'
+
+
+STAGE CHAIN FAILED — 1 个阶段没通过（产物与通行证在 artifacts\upper-bound\2024B-ingest-1\stages）。
+===== 第 3 次 --stage-next（opencode/space-bunny-free 非流式）=====
+[STAGE CHAIN] artifacts\upper-bound\2024B-ingest-1\stages
+  题面问数（数出来的）：4
+[STAGE NEXT] 只跑了 'figure'，到此即停。检查 artifacts\upper-bound\2024B-ingest-1\stages 后，放行 = 再执行一次 --stages --stage-next。
+  ❌ figure: 阶段产出未通过形态检查：4/13 个绘图脚本没跑成 —— 首个 `figures/gen_fig_q2_sensitivity_unit_cost.py`：exit=1，期望产出 figures/fig_q2_sensitivity_unit_cost.png / figures/fig_q2_sensitivity_unit_cost.pdf / figures/fig_q2_sensitivity_unit_cost.svg / figures/fig_q2_sensitivity_unit_cost.jpg / figures/fig_q2_sensitivity_unit_cost.jpeg，实际 （无）；stderr 末尾：q2_sensitivity_unit_cost.py", line 143, in main
+    color=_lighten(item_color, 0.15),
+          ~~~~~~~~^^^^^^^^^^^^^^^^^^
+  File "D:\deepseek modex\deepseek-harness\artifacts\upper-bound\2024B-ingest-1\stages\06-figure\_utils\plot_utils.py", line 670, in _lighten
+    hex_color = hex_color.lstrip('#')
+                ^^^^^^^^^^^^^^^^
+AttributeError: 'tuple' object has no attribute 'lstrip'
+
+
+STAGE CHAIN FAILED — 1 个阶段没通过（产物与通行证在 artifacts\upper-bound\2024B-ingest-1\stages）。
+===== 第 4 次 --stage-next（opencode/space-bunny-free 非流式）=====
+[STAGE CHAIN] artifacts\upper-bound\2024B-ingest-1\stages
+  题面问数（数出来的）：4
+[STAGE NEXT] 只跑了 'figure'，到此即停。检查 artifacts\upper-bound\2024B-ingest-1\stages 后，放行 = 再执行一次 --stages --stage-next。
+  ❌ figure: 阶段产出未通过形态检查：4/13 个绘图脚本没跑成 —— 首个 `figures/gen_fig_q2_sensitivity_unit_cost.py`：exit=1，期望产出 figures/fig_q2_sensitivity_unit_cost.png / figures/fig_q2_sensitivity_unit_cost.pdf / figures/fig_q2_sensitivity_unit_cost.svg / figures/fig_q2_sensitivity_unit_cost.jpg / figures/fig_q2_sensitivity_unit_cost.jpeg，实际 （无）；stderr 末尾：q2_sensitivity_unit_cost.py", line 143, in main
+    color=_lighten(item_color, 0.15),
+          ~~~~~~~~^^^^^^^^^^^^^^^^^^
+  File "D:\deepseek modex\deepseek-harness\artifacts\upper-bound\2024B-ingest-1\stages\06-figure\_utils\plot_utils.py", line 670, in _lighten
+    hex_color = hex_color.lstrip('#')
+                ^^^^^^^^^^^^^^^^
+AttributeError: 'tuple' object has no attribute 'lstrip'
+
+
+STAGE CHAIN FAILED — 1 个阶段没通过（产物与通行证在 artifacts\upper-bound\2024B-ingest-1\stages）。
+===== LOOP DONE =====

@@ -24,3 +24,16 @@ STAGE CHAIN FAILED — 1 个阶段没通过（产物与通行证在 artifacts\up
 [STAGE CHAIN] artifacts\upper-bound\2024B-ingest-1\stages
   题面问数（数出来的）：4
   [deterministic] figure-declare: 第 1 段：出作图规划
+  [deterministic] figure-declare: 第 2/15 段：交付 figures/gen_fig_q1_oc_curve_p1.py
+  [deterministic] figure-declare: 第 3/15 段：交付 figures/gen_fig_q1_sample_size_vs_confidence.py
+  [deterministic] figure-declare: 第 4/15 段：交付 figures/gen_fig_q1_sprt_boundary.py
+  [deterministic] figure-declare: 第 5/15 段：交付 figures/gen_fig_q1_two_cases_sample_size.py
+  [deterministic] figure-declare: 第 6/15 段：交付 figures/gen_fig_q2_strategy_cost_heatmap.py
+  [deterministic] figure-declare: 第 7/15 段：交付 figures/gen_fig_q2_optimal_cost_breakdown.py
+  [deterministic] figure-declare: 第 8/15 段：交付 figures/gen_fig_q2_six_cases_decisions.py
+  [deterministic] figure-declare: 第 9/15 段：交付 figures/gen_fig_q2_quality_profit_scatter.py
+  [deterministic] figure-declare: 第 10/15 段：交付 figures/gen_fig_q2_recovery_cost_compare.py
+  [deterministic] figure-declare: 第 11/15 段：交付 figures/gen_fig_q3_node_cost_profile.py
+  [deterministic] figure-declare: 第 12/15 段：交付 figures/gen_fig_q3_assembly_network_cost.py
+  [deterministic] figure-declare: 第 13/15 段：交付 figures/gen_fig_q3_strategy_cost_compare.py
+  [deterministic] figure-declare: 第 14/15 段：交付 figures/gen_fig_q4_ci_effect_on_cost.py

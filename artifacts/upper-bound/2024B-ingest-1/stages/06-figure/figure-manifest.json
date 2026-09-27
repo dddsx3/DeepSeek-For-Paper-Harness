@@ -9,6 +9,18 @@
       "exit_code": 0
     },
     {
+      "figure_id": "fig_q1_sample_size_vs_confidence",
+      "script": "figures/gen_fig_q1_sample_size_vs_confidence.py",
+      "file": "figures/fig_q1_sample_size_vs_confidence.png",
+      "exit_code": 0
+    },
+    {
+      "figure_id": "fig_q1_sprt_boundary",
+      "script": "figures/gen_fig_q1_sprt_boundary.py",
+      "file": "figures/fig_q1_sprt_boundary.png",
+      "exit_code": 0
+    },
+    {
       "figure_id": "fig_q1_two_cases_sample_size",
       "script": "figures/gen_fig_q1_two_cases_sample_size.py",
       "file": "figures/fig_q1_two_cases_sample_size.png",
@@ -18,6 +30,18 @@
       "figure_id": "fig_q2_optimal_cost_breakdown",
       "script": "figures/gen_fig_q2_optimal_cost_breakdown.py",
       "file": "figures/fig_q2_optimal_cost_breakdown.png",
+      "exit_code": 0
+    },
+    {
+      "figure_id": "fig_q2_sensitivity_defect_rate",
+      "script": "figures/gen_fig_q2_sensitivity_defect_rate.py",
+      "file": "figures/fig_q2_sensitivity_defect_rate.png",
+      "exit_code": 0
+    },
+    {
+      "figure_id": "fig_q2_sensitivity_unit_cost",
+      "script": "figures/gen_fig_q2_sensitivity_unit_cost.py",
+      "file": "figures/fig_q2_sensitivity_unit_cost.png",
       "exit_code": 0
     },
     {
@@ -33,6 +57,12 @@
       "exit_code": 0
     },
     {
+      "figure_id": "fig_q3_assembly_network_cost",
+      "script": "figures/gen_fig_q3_assembly_network_cost.py",
+      "file": "figures/fig_q3_assembly_network_cost.png",
+      "exit_code": 0
+    },
+    {
       "figure_id": "fig_q3_strategy_cost_compare",
       "script": "figures/gen_fig_q3_strategy_cost_compare.py",
       "file": "figures/fig_q3_strategy_cost_compare.png",
@@ -42,6 +72,12 @@
       "figure_id": "fig_q4_ci_effect_on_cost",
       "script": "figures/gen_fig_q4_ci_effect_on_cost.py",
       "file": "figures/fig_q4_ci_effect_on_cost.png",
+      "exit_code": 0
+    },
+    {
+      "figure_id": "fig_q4_monte_carlo_robustness",
+      "script": "figures/gen_fig_q4_monte_carlo_robustness.py",
+      "file": "figures/fig_q4_monte_carlo_robustness.png",
       "exit_code": 0
     }
   ]
