@@ -110,6 +110,19 @@ export type NumericShape =
   | 'record'
   /** 记录数组（`[{Z1:0, profit:21.68}, …]`）——每行一条记录，天然是"表/热力图数据"。 */
   | 'table'
+  /**
+   * **字符串数组**（`["P1","P2","P3"]` / 二维的 `[["P1","P2"],["P3","P4"]]`）。
+   *
+   * 这是**分类轴**：类别名是图的一部分，不是杂质。实测：零配件分组
+   * `blocks: [["P1","P2","P3"],["P4","P5","P6"],["P7","P8"]]` 正是组装拓扑图要的标签。
+   */
+  | 'labels'
+  /**
+   * **空数组**：`flip_examples: []` = "该情况没有翻转样本"。
+   *
+   * "没有"本身就是一条结论——判它非法等于逼执行者把空结果藏起来。
+   */
+  | 'empty'
 
 /**
  * 判定值的形态；**叶子必须是有限数、布尔、或（仅限 record 字段的）字符串标签**，
@@ -129,22 +142,35 @@ export function numericShapeOf(value: unknown): NumericShape | null {
   if (typeof value === 'number') return Number.isFinite(value) ? 'scalar' : null
   if (typeof value === 'boolean') return 'flag'
   if (Array.isArray(value)) {
-    if (value.length === 0) return null
+    // **空数组合法**：`flip_examples: []` 表示"该情况没有翻转样本"——
+    // **"没有"本身就是一条结论**，判它非法等于逼模型把空结果藏起来。
+    // （实测：problem4 第 2 行就是空数组，被旧判据判死。）
+    if (value.length === 0) return 'empty'
+    // **全字符串 = 标签数组**：`[["P1","P2","P3"],["P4","P5","P6"]]` 是零配件的分组名，
+    // 而组装拓扑图**恰恰需要这些标签**（它们就是节点分组的名字）。
+    // 旧判据把"数组里有字符串"一律拒掉，理由是"那是标签列表不是数据"——
+    // 这条理由在**分类轴**上是错的：类别名是图的一部分，不是杂质。
+    if (value.every(v => typeof v === 'string')) return 'labels'
     const inner = value.map(numericShapeOf)
     if (inner.some(s => s === null)) return null
-    // 元素形态必须一致：一列里既有标量又有记录 = 说不清是什么
-    const only = inner[0]
-    if (inner.some(s => s !== only)) return null
+    // **参差不齐的数组按"非空元素"判形态**：`[[], [1,2,3], [4]]` 是合法的
+    // （有的行没有样本），不该因为混了空元素就整条作废。
+    const nonEmpty = inner.filter(s => s !== 'empty')
+    if (nonEmpty.length === 0) return 'empty'
+    const only = nonEmpty[0]
+    // 非空元素形态必须一致：一列里既有标量又有记录 = 说不清是什么
+    if (nonEmpty.some(s => s !== only)) return null
     if (only === 'record') return 'table'
     if (only === 'scalar' || only === 'flag') return 'series'
     if (only === 'series') return 'matrix'
     if (only === 'matrix' || only === 'tensor') return 'tensor'
     if (only === 'table') return 'table'
+    if (only === 'labels') return 'labels'
     return null
   }
   if (typeof value === 'object' && value !== null) {
     const vals = Object.values(value as Record<string, unknown>)
-    if (vals.length === 0) return null
+    if (vals.length === 0) return null // `{}` 仍拒绝：空对象说不清是什么
     const ok = vals.every(v =>
       typeof v === 'string' ? true // 标签（不是数，但它可溯源到代码产物本身）
         : typeof v === 'number' ? Number.isFinite(v)

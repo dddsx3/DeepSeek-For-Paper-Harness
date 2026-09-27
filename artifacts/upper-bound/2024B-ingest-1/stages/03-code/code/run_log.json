@@ -4,7 +4,7 @@
     {
       "name": "problem1",
       "ok": true,
-      "elapsed_sec": 82.134
+      "elapsed_sec": 81.102
     },
     {
       "name": "problem2",
@@ -14,14 +14,14 @@
     {
       "name": "problem3",
       "ok": true,
-      "elapsed_sec": 0.01
+      "elapsed_sec": 0.009
     },
     {
       "name": "problem4",
       "ok": true,
-      "elapsed_sec": 5.027
+      "elapsed_sec": 4.875
     }
   ],
   "ok_all": true,
-  "elapsed_sec": 87.182
+  "elapsed_sec": 85.996
 }

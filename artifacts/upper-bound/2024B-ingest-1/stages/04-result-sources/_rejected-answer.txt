@@ -1,747 +1,137 @@
-<!-- 拒绝原因：铸数失败（3/104 条声明没能从真实产物里解析出有限数）：R-META-ok-all：json_path 'outputs.meta.ok_all' 在 'outputs.json' 里 解析到 undefined —— 既不是有限数，也不是有限数构成的数组（允许：标量 / 一维序列 / 二维矩阵 / 三维张量；元素必须都是有限数）；R-META-elapsed-sec：json_path 'outputs.meta.elapsed_sec' 在 'outputs.json' 里 解析到 undefined —— 既不是有限数，也不是有限数构成的数组（允许：标量 / 一维序列 / 二维矩阵 / 三维张量；元素必须都是有限数）；R-META-seed：json_path 'outputs.meta.seed' 在 'outputs.json' 里 解析到 undefined —— 既不是有限数，也不是有限数构成的数组（允许：标量 / 一维序列 / 二维矩阵 / 三维张量；元素必须都是有限数） -->
+<!-- 拒绝原因：铸数失败（2/121 条声明没能从真实产物里解析出有限数）：R-Q3-topology-robustness：json_path 'problem3.topology_robustness' 在 'problem3.json' 里 解析到 [{"name":"baseline_ASM09","blocks":[["P1","P2","P3"],["P4","P5","P6"],["P7","P8"]],"feasible":true,"U_root":96,"profit":104,"decision":{"P1":{"Z":0,"D":0},"P2":{"Z":0,"D":0},"P3":{"Z":0,"D":0},"S1":{"Z":0,"D":0},"P4":{"Z":0,"D":0},"P5":{"Z":0,"D":0},"P6":{"Z":0,"D":0},"S2":{"Z":0,"D":0},"P7":{"Z":0,"D":0},"P8":{"Z":0,"D":0},"S3":{"Z":0,"D":0},"F":{"Z":0,"D":0}}},{"name":"swap_1_4","blocks":[["P1","P2","P4"],["P3","P5","P6"],["P7","P8"]],"feasible":true,"U_root":96,"profit":104,"decision":{"P1":{"Z":0,"D":0},"P2":{"Z":0,"D":0},"P4":{"Z":0,"D":0},"S1":{"Z":0,"D":0},"P3":{"Z":0,"D":0},"P5":{"Z":0,"D":0},"P6":{"Z":0,"D":0},"S2":{"Z":0,"D":0},"P7":{"Z":0,"D":0},"P8":{"Z":0,"D":0},"S3":{"Z":0,"D":0},"F":{"Z":0,"D":0}}},{"name":"swap_2_5","blocks":[["P1","P3","P5"],["P2","P4","P6"],["P7","P8"]],"feasible":true,"U_root":96,"profit":104,"decision":{"P1":{"Z":0,"D":0},"P3":{"Z":0,"D":0},"P5":{"Z":0,"D":0},"S1":{"Z":0,"D":0},"P2":{"Z":0,"D":0},"P4":{"Z":0,"D":0},"P6":{"Z":0,"D":0},"S2":{"Z":0,"D":0},"P7":{"Z":0,"D":0},"P8":{"Z":0,"D":0},"S3":{"Z":0,"D":0},"F":{"Z":0,"D":0}}},{"name":"mix_1","blocks":[["P1","P3","P4"],["P2","P5","P6"],["P7","P8"]],"feasible":true,"U_root":96,"profit":104,"decision":{"P1":{"Z":0,"D":0},"P3":{"Z":0,"D":0},"P4":{"Z":0,"D":0},"S1":{"Z":0,"D":0},"P2":{"Z":0,"D":0},"P5":{"Z":0,"D":0},"P6":{"Z":0,"D":0},"S2":{"Z":0,"D":0},"P7":{"Z":0,"D":0},"P8":{"Z":0,"D":0},"S3":{"Z":0,"D":0},"F":{"Z":0,"D":0}}},{"name":"mix_2","blocks":[["P1","P2","P8"],["P4","P5","P6"],["P3","P7"]],"feasible":true,"U_root":96,"profit":104,"decision":{"P1":{"Z":0,"D":0},"P2":{"Z":0,"D":0},"P8":{"Z":0,"D":0},"S1":{"Z":0,"D":0},"P4":{"Z":0,"D":0},"P5":{"Z":0,"D":0},"P6":{"Z":0,"D":0},"S2":{"Z":0,"D":0},"P3":{"Z":0,"D":0},"P7":{"Z":0,"D":0},"S3":{"Z":0,"D":0},"F":{"Z":0,"D":0}}},{"name":"block_size_b","blocks":[["P1","P2","P3","P4"],["P5","P6"],["P7","P8"]],"feasible":true,"U_root":96,"profit":104,"decision":{"P1":{"Z":0,"D":0},"P2":{"Z":0,"D":0},"P3":{"Z":0,"D":0},"P4":{"Z":0,"D":0},"S1":{"Z":0,"D":0},"P5":{"Z":0,"D":0},"P6":{"Z":0,"D":0},"S2":{"Z":0,"D":0},"P7":{"Z":0,"D":0},"P8":{"Z":0,"D":0},"S3":{"Z":0,"D":0},"F":{"Z":0,"D":0}}}] —— 既不是有限数，也不是有限数构成的数组（允许：标量 / 一维序列 / 二维矩阵 / 三维张量；元素必须都是有限数）；R-Q4-q2：json_path 'problem4.q2' 在 'problem4.json' 里 解析到 [{"case_id":1,"point_decision":{"Z1":0,"Z2":0,"C":0,"D":1},"point_profit":21.680384087791495,"ci":{"p1":[0.0717842432976231,0.13591812644376844],"p2":[0.0717842432976231,0.13591812644376844],"p0":[0.0717842432976231,0.13591812644376844]},"profit_range_fixed_decision":[18.649780506474663,23.74299316623928],"consistency_rate":0.994,"flip_rate":0.006000000000000005,"flip_examples":[[1,0,0,1],[1,0,0,1],[1,0,0,1],[1,0,0,1],[1,0,0,1],[1,0,0,1],[1,0,0,1],[1,0,0,1]],"decision_stable":true},{"case_id":2,"point_decision":{"Z1":1,"Z2":0,"C":0,"D":1},"point_profit":13.812500000000007,"ci":{"p1":[0.16132499994665295,0.24573431349487027],"p2":[0.16132499994665295,0.24573431349487027],"p0":[0.16132499994665295,0.24573431349487027]},"profit_range_fixed_decision":[9.648440007921089,16.833269337086293],"consistency_rate":1,"flip_rate":0,"flip_examples":[],"decision_stable":true},{"case_id":3,"point_decision":{"Z1":0,"Z2":0,"C":1,"D":1},"point_profit":19.795610425240056,"ci":{"p1":[0.0717842432976231,0.13591812644376844],"p2":[0.0717842432976231,0.13591812644376844],"p0":[0.0717842432976231,0.13591812644376844]},"profit_range_fixed_decision":[17.299819240626192,21.494229666314702],"consistency_rate":1,"flip_rate":0,"flip_examples":[],"decision_stable":true},{"case_id":4,"point_decision":{"Z1":1,"Z2":0,"C":1,"D":1},"point_profit":15.875000000000007,"ci":{"p1":[0.16132499994665295,0.24573431349487027],"p2":[0.16132499994665295,0.24573431349487027],"p0":[0.16132499994665295,0.24573431349487027]},"profit_range_fixed_decision":[12.762865239519918,18.134202305869792],"consistency_rate":1,"flip_rate":0,"flip_examples":[],"decision_stable":true},{"case_id":5,"point_decision":{"Z1":0,"Z2":0,"C":1,"D":1},"point_profit":18.93827160493828,"ci":{"p1":[0.0717842432976231,0.13591812644376844],"p2":[0.16132499994665295,0.24573431349487027],"p0":[0.0717842432976231,0.13591812644376844]},"profit_range_fixed_decision":[15.916098533874788,21.009145878338728],"consistency_rate":1,"flip_rate":0,"flip_examples":[],"decision_stable":true},{"case_id":6,"point_decision":{"Z1":0,"Z2":0,"C":0,"D":0},"point_profit":21.6786703601108,"ci":{"p1":[0.0292431071780384,0.07620401163059591],"p2":[0.0292431071780384,0.07620401163059591],"p0":[0.0292431071780384,0.07620401163059591]},"profit_range_fixed_decision":[17.799074105281193,24.461372004937946],"consistency_rate":0.7825,"flip_rate":0.21750000000000003,"flip_examples":[[1,0,0,0],[1,0,0,0],[1,0,0,0],[1,0,0,0],[1,0,0,0],[1,0,0,0],[1,0,0,0],[1,0,0,0]],"decision_stable":false}] —— 既不是有限数，也不是有限数构成的数组（允许：标量 / 一维序列 / 二维矩阵 / 三维张量；元素必须都是有限数） -->
 
 {
-  "stage": "04-result-sources",
-  "locator_base": "code/",
-  "note": "本文件即契约要求的数源声明：顶层对象的 sources 字段就是契约中形如 [{result_id, name, locator, json_path, unit}] 的那个数组，未另设其他承载字段；模型只声明定位，不含任何数值，全部数值由 harness 真跑 code/main.py 后按 locator + json_path 从产物字节铸出。locator 一律写相对 code/ 的汇总账本 outputs.json，json_path 逐字照抄阶段三 DELIVERABLES.json 的 ledger_keys（含全流程标记三条，按公布键名照抄为 outputs.meta.* 前缀形式）；账本内不存在未被公布的路径，也无任何自推路径。 覆盖口径：凡以标量或纯数值序列/矩阵形态落在账本里的量逐条登记（每个数单独一条，序列/矩阵一条顶多个数，供下游热力图与曲线铸形）；账本中以对象或复合结构承载的条目——问题三节点级 0/1 决策表（problem3.baseline.best_decision）、各节点分项成本（problem3.baseline.node_cost）、拓扑扰动扫描结果（problem3.topology_robustness）、成品策略横向对比（problem3.product_strategy_compare）、各情况十六种组合策略表（problem2.cases[i].strategies）、问题四重解结果数组（problem4.q2）、各节点次品率置信区间表（problem4.q2[0].ci、problem4.q3.ci）、问题三点估计决策表（problem4.q3.point_decision）、决策差异表（problem4.decision_diff）、利润区间表（problem4.q2[0].profit_range_fixed_decision、problem4.q3.profit_range_fixed_decision）、抽样单价假设说明文本（problem1.sampling_cost.note）——未作为单条声明登记：契约规定每条声明的取值必须是有穷数，复合结构无法作为单条声明落账（这正是上一轮若干条取值非有限数的成因），论文与图表若引用这些内容，请直接回指阶段三账本的对应键。 对独立审计意见的逐条落点：其一，全流程标记三条这次逐字照抄公布键名 outputs.meta.*，不再自推；其二，上一轮取值非有限数的复合结构与文本型条目已全部移出声明集，只留标量与纯数值数列；其三，问题三节点级决策未逐节点登记，理由如上——账本对该问的决策以整表对象给出，无逐节点标量键可供铸数，非标准不一致，而是可铸形态所限；其四，问题四的问题三分支已有落点，本次登记点估计利润、决策一致率、翻转率与稳健性判定四条，问题二分支登记一致率、翻转率与稳健性判定三条，满足题面「重新完成问题二和问题三」的双分支覆盖；其五，顶层采用带 sources 数组的对象并在本字段写明 sources 即契约数组；其六，抽样检测费用两条不再以元/件表述，改注为以单件检测成本归一的无量纲口径，明确其并非题面给定的真实费用支出，单价本身仍单列并标注为自选假设；其七，问题二六个情况统一登记最优单位期望成本与最优单位期望利润，同名指标覆盖口径一致。",
   "sources": [
-    {
-      "result_id": "R-Q1-nominal-p",
-      "name": "标称次品率",
-      "locator": "outputs.json",
-      "json_path": "problem1.nominal_p",
-      "unit": "比率"
-    },
-    {
-      "result_id": "R-Q1-p-alt",
-      "name": "两点设计备择次品率",
-      "locator": "outputs.json",
-      "json_path": "problem1.p_alt",
-      "unit": "比率"
-    },
-    {
-      "result_id": "R-Q1-case95-n",
-      "name": "情形95拒收最小检测次数",
-      "locator": "outputs.json",
-      "json_path": "problem1.case95.n",
-      "unit": "件"
-    },
-    {
-      "result_id": "R-Q1-case95-c",
-      "name": "情形95拒收临界次品数",
-      "locator": "outputs.json",
-      "json_path": "problem1.case95.c",
-      "unit": "件"
-    },
-    {
-      "result_id": "R-Q1-case95-err-reject-at-nom",
-      "name": "情形95标称点拒收侧错误率",
-      "locator": "outputs.json",
-      "json_path": "problem1.case95.err_reject_at_nom",
-      "unit": "概率"
-    },
-    {
-      "result_id": "R-Q1-case95-power-at-alt",
-      "name": "情形95备择点功效",
-      "locator": "outputs.json",
-      "json_path": "problem1.case95.power_at_alt",
-      "unit": "概率"
-    },
-    {
-      "result_id": "R-Q1-case95-verify-gap",
-      "name": "情形95真实约束距离",
-      "locator": "outputs.json",
-      "json_path": "problem1.case95.verify_gap",
-      "unit": "概率"
-    },
-    {
-      "result_id": "R-Q1-case90-n",
-      "name": "情形90接收最小检测次数",
-      "locator": "outputs.json",
-      "json_path": "problem1.case90.n",
-      "unit": "件"
-    },
-    {
-      "result_id": "R-Q1-case90-c",
-      "name": "情形90接收临界次品数",
-      "locator": "outputs.json",
-      "json_path": "problem1.case90.c",
-      "unit": "件"
-    },
-    {
-      "result_id": "R-Q1-case90-accept-prob-at-nom",
-      "name": "情形90标称点接收置信水平",
-      "locator": "outputs.json",
-      "json_path": "problem1.case90.accept_prob_at_nom",
-      "unit": "概率"
-    },
-    {
-      "result_id": "R-Q1-case90-accept-prob-at-alt",
-      "name": "情形90备择点误收概率",
-      "locator": "outputs.json",
-      "json_path": "problem1.case90.accept_prob_at_alt",
-      "unit": "概率"
-    },
-    {
-      "result_id": "R-Q1-case90-verify-gap",
-      "name": "情形90真实约束距离",
-      "locator": "outputs.json",
-      "json_path": "problem1.case90.verify_gap",
-      "unit": "概率"
-    },
-    {
-      "result_id": "R-Q1-sampling-unit-cost",
-      "name": "抽样检测单价（自选假设）",
-      "locator": "outputs.json",
-      "json_path": "problem1.sampling_cost.unit_cost",
-      "unit": "元/件"
-    },
-    {
-      "result_id": "R-Q1-sampling-cost-case95",
-      "name": "情形95抽样检测费用（以单件检测成本归一的无量纲等价检测量）",
-      "locator": "outputs.json",
-      "json_path": "problem1.sampling_cost.case95_cost",
-      "unit": "无量纲（以单件检测成本归一）"
-    },
-    {
-      "result_id": "R-Q1-sampling-cost-case90",
-      "name": "情形90抽样检测费用（以单件检测成本归一的无量纲等价检测量）",
-      "locator": "outputs.json",
-      "json_path": "problem1.sampling_cost.case90_cost",
-      "unit": "无量纲（以单件检测成本归一）"
-    },
-    {
-      "result_id": "R-Q1-oc-p-grid",
-      "name": "OC曲线横轴（真实次品率序列）",
-      "locator": "outputs.json",
-      "json_path": "problem1.oc_curve.p_grid",
-      "unit": "比率"
-    },
-    {
-      "result_id": "R-Q1-oc-accept-prob",
-      "name": "OC曲线纵轴（接收概率序列）",
-      "locator": "outputs.json",
-      "json_path": "problem1.oc_curve.accept_prob",
-      "unit": "概率"
-    },
-    {
-      "result_id": "R-Q1-oc-n",
-      "name": "OC曲线对应样本量",
-      "locator": "outputs.json",
-      "json_path": "problem1.oc_curve.n",
-      "unit": "件"
-    },
-    {
-      "result_id": "R-Q1-oc-c",
-      "name": "OC曲线对应临界次品数",
-      "locator": "outputs.json",
-      "json_path": "problem1.oc_curve.c",
-      "unit": "件"
-    },
-    {
-      "result_id": "R-Q1-ssc-confidence",
-      "name": "样本量-信度扫描的置信水平序列",
-      "locator": "outputs.json",
-      "json_path": "problem1.sample_size_vs_confidence.confidence",
-      "unit": "比率"
-    },
-    {
-      "result_id": "R-Q1-ssc-n-reject",
-      "name": "拒收情形各置信水平下的最小样本量序列",
-      "locator": "outputs.json",
-      "json_path": "problem1.sample_size_vs_confidence.n_reject",
-      "unit": "件"
-    },
-    {
-      "result_id": "R-Q1-ssc-c-reject",
-      "name": "拒收情形各置信水平下的临界次品数序列",
-      "locator": "outputs.json",
-      "json_path": "problem1.sample_size_vs_confidence.c_reject",
-      "unit": "件"
-    },
-    {
-      "result_id": "R-Q1-ssc-n-accept",
-      "name": "接收情形各置信水平下的最小样本量序列",
-      "locator": "outputs.json",
-      "json_path": "problem1.sample_size_vs_confidence.n_accept",
-      "unit": "件"
-    },
-    {
-      "result_id": "R-Q1-ssc-c-accept",
-      "name": "接收情形各置信水平下的临界次品数序列",
-      "locator": "outputs.json",
-      "json_path": "problem1.sample_size_vs_confidence.c_accept",
-      "unit": "件"
-    },
-    {
-      "result_id": "R-Q1-sprt-m",
-      "name": "SPRT边界横轴（抽样件数序列）",
-      "locator": "outputs.json",
-      "json_path": "problem1.sprt_boundary.m",
-      "unit": "件"
-    },
-    {
-      "result_id": "R-Q1-sprt-accept-line",
-      "name": "SPRT接受边界序列",
-      "locator": "outputs.json",
-      "json_path": "problem1.sprt_boundary.accept_line",
-      "unit": "件"
-    },
-    {
-      "result_id": "R-Q1-sprt-reject-line",
-      "name": "SPRT拒收边界序列",
-      "locator": "outputs.json",
-      "json_path": "problem1.sprt_boundary.reject_line",
-      "unit": "件"
-    },
-    {
-      "result_id": "R-Q1-normal-approx-n",
-      "name": "正态近似适用性核验的样本量",
-      "locator": "outputs.json",
-      "json_path": "problem1.normal_approx.n_at_nom",
-      "unit": "件"
-    },
-    {
-      "result_id": "R-Q1-normal-approx-ok",
-      "name": "正态近似适用性判定",
-      "locator": "outputs.json",
-      "json_path": "problem1.normal_approx.ok",
-      "unit": "布尔"
-    },
+    {"result_id": "R-Q1-nominal-p", "name": "零配件标称次品率", "locator": "problem1.json", "json_path": "problem1.nominal_p", "unit": "比率"},
+    {"result_id": "R-Q1-p-alt", "name": "两点设计备择次品率", "locator": "problem1.json", "json_path": "problem1.p_alt", "unit": "比率"},
+    {"result_id": "R-Q1-case95-n", "name": "情形95拒收最小检测次数", "locator": "problem1.json", "json_path": "problem1.case95.n", "unit": "件"},
+    {"result_id": "R-Q1-case95-c", "name": "情形95拒收临界次品数", "locator": "problem1.json", "json_path": "problem1.case95.c", "unit": "件"},
+    {"result_id": "R-Q1-case95-err-reject-at-nom", "name": "情形95标称点拒收侧错误率", "locator": "problem1.json", "json_path": "problem1.case95.err_reject_at_nom", "unit": "概率"},
+    {"result_id": "R-Q1-case95-power-at-alt", "name": "情形95备择点功效", "locator": "problem1.json", "json_path": "problem1.case95.power_at_alt", "unit": "概率"},
+    {"result_id": "R-Q1-case95-verify-gap", "name": "情形95真实约束距离", "locator": "problem1.json", "json_path": "problem1.case95.verify_gap", "unit": "概率"},
+    {"result_id": "R-Q1-case90-n", "name": "情形90接收最小检测次数", "locator": "problem1.json", "json_path": "problem1.case90.n", "unit": "件"},
+    {"result_id": "R-Q1-case90-c", "name": "情形90接收临界次品数", "locator": "problem1.json", "json_path": "problem1.case90.c", "unit": "件"},
+    {"result_id": "R-Q1-case90-accept-prob-at-nom", "name": "情形90标称点接收置信水平", "locator": "problem1.json", "json_path": "problem1.case90.accept_prob_at_nom", "unit": "概率"},
+    {"result_id": "R-Q1-case90-accept-prob-at-alt", "name": "情形90备择点误收概率", "locator": "problem1.json", "json_path": "problem1.case90.accept_prob_at_alt", "unit": "概率"},
+    {"result_id": "R-Q1-case90-verify-gap", "name": "情形90真实约束距离", "locator": "problem1.json", "json_path": "problem1.case90.verify_gap", "unit": "概率"},
+    {"result_id": "R-Q1-sampling-unit-cost", "name": "抽样检测单价（自选假设：题面未给单价，取表1情况1零配件1的检测成本为代理值）", "locator": "problem1.json", "json_path": "problem1.sampling_cost.unit_cost", "unit": "元/件"},
+    {"result_id": "R-Q1-sampling-cost-case95", "name": "情形95抽样检测费用（金额，按上述自选假设单价折算；非题面给定值，引用须同时引用该单价假设）", "locator": "problem1.json", "json_path": "problem1.sampling_cost.case95_cost", "unit": "元"},
+    {"result_id": "R-Q1-sampling-cost-case90", "name": "情形90抽样检测费用（金额，按上述自选假设单价折算；非题面给定值，引用须同时引用该单价假设）", "locator": "problem1.json", "json_path": "problem1.sampling_cost.case90_cost", "unit": "元"},
+    {"result_id": "R-Q1-oc-curve-p-grid", "name": "OC曲线横轴（真实次品率序列）", "locator": "problem1.json", "json_path": "problem1.oc_curve.p_grid", "unit": "比率"},
+    {"result_id": "R-Q1-oc-curve-accept-prob", "name": "OC曲线纵轴（接收概率序列）", "locator": "problem1.json", "json_path": "problem1.oc_curve.accept_prob", "unit": "概率"},
+    {"result_id": "R-Q1-oc-curve-n", "name": "OC曲线对应样本量", "locator": "problem1.json", "json_path": "problem1.oc_curve.n", "unit": "件"},
+    {"result_id": "R-Q1-oc-curve-c", "name": "OC曲线对应临界次品数", "locator": "problem1.json", "json_path": "problem1.oc_curve.c", "unit": "件"},
+    {"result_id": "R-Q1-ssvc-confidence", "name": "样本量-信度扫描的置信水平序列", "locator": "problem1.json", "json_path": "problem1.sample_size_vs_confidence.confidence", "unit": "比率"},
+    {"result_id": "R-Q1-ssvc-n-reject", "name": "拒收情形各置信水平下的最小样本量序列", "locator": "problem1.json", "json_path": "problem1.sample_size_vs_confidence.n_reject", "unit": "件"},
+    {"result_id": "R-Q1-ssvc-c-reject", "name": "拒收情形各置信水平下的临界次品数序列", "locator": "problem1.json", "json_path": "problem1.sample_size_vs_confidence.c_reject", "unit": "件"},
+    {"result_id": "R-Q1-ssvc-n-accept", "name": "接收情形各置信水平下的最小样本量序列", "locator": "problem1.json", "json_path": "problem1.sample_size_vs_confidence.n_accept", "unit": "件"},
+    {"result_id": "R-Q1-ssvc-c-accept", "name": "接收情形各置信水平下的临界次品数序列", "locator": "problem1.json", "json_path": "problem1.sample_size_vs_confidence.c_accept", "unit": "件"},
+    {"result_id": "R-Q1-sprt-m", "name": "SPRT边界横轴（抽样件数序列）", "locator": "problem1.json", "json_path": "problem1.sprt_boundary.m", "unit": "件"},
+    {"result_id": "R-Q1-sprt-accept-line", "name": "SPRT接受边界序列", "locator": "problem1.json", "json_path": "problem1.sprt_boundary.accept_line", "unit": "件"},
+    {"result_id": "R-Q1-sprt-reject-line", "name": "SPRT拒收边界序列", "locator": "problem1.json", "json_path": "problem1.sprt_boundary.reject_line", "unit": "件"},
+    {"result_id": "R-Q1-normal-approx-n", "name": "正态近似适用性核验的样本量", "locator": "problem1.json", "json_path": "problem1.normal_approx.n_at_nom", "unit": "件"},
+    {"result_id": "R-Q1-normal-approx-ok", "name": "正态近似适用性判定", "locator": "problem1.json", "json_path": "problem1.normal_approx.ok", "unit": "布尔"},
 
-    {
-      "result_id": "R-Q2-c1-best-Z1",
-      "name": "情况1最优决策Z1",
-      "locator": "outputs.json",
-      "json_path": "problem2.cases[0].best.Z1",
-      "unit": "0/1"
-    },
-    {
-      "result_id": "R-Q2-c1-best-Z2",
-      "name": "情况1最优决策Z2",
-      "locator": "outputs.json",
-      "json_path": "problem2.cases[0].best.Z2",
-      "unit": "0/1"
-    },
-    {
-      "result_id": "R-Q2-c1-best-C",
-      "name": "情况1最优决策C",
-      "locator": "outputs.json",
-      "json_path": "problem2.cases[0].best.C",
-      "unit": "0/1"
-    },
-    {
-      "result_id": "R-Q2-c1-best-D",
-      "name": "情况1最优决策D",
-      "locator": "outputs.json",
-      "json_path": "problem2.cases[0].best.D",
-      "unit": "0/1"
-    },
-    {
-      "result_id": "R-Q2-c1-best-U",
-      "name": "情况1最优单位期望成本",
-      "locator": "outputs.json",
-      "json_path": "problem2.cases[0].best.U",
-      "unit": "元/件"
-    },
-    {
-      "result_id": "R-Q2-c1-best-profit",
-      "name": "情况1最优单位期望利润",
-      "locator": "outputs.json",
-      "json_path": "problem2.cases[0].best.profit",
-      "unit": "元/件"
-    },
-    {
-      "result_id": "R-Q2-c1-best-q",
-      "name": "情况1最优策略一次装配合格率",
-      "locator": "outputs.json",
-      "json_path": "problem2.cases[0].best.q",
-      "unit": "概率"
-    },
-    {
-      "result_id": "R-Q2-c1-best-Kf",
-      "name": "情况1新料一轮成本",
-      "locator": "outputs.json",
-      "json_path": "problem2.cases[0].best.K_f",
-      "unit": "元/轮"
-    },
-    {
-      "result_id": "R-Q2-c1-best-Kr",
-      "name": "情况1回收料一轮成本",
-      "locator": "outputs.json",
-      "json_path": "problem2.cases[0].best.K_r",
-      "unit": "元/轮"
-    },
-    {
-      "result_id": "R-Q2-c1-best-kappa",
-      "name": "情况1一轮回收等效收益",
-      "locator": "outputs.json",
-      "json_path": "problem2.cases[0].best.kappa",
-      "unit": "元/轮"
-    },
-    {
-      "result_id": "R-Q2-c1-best-g",
-      "name": "情况1交付概率",
-      "locator": "outputs.json",
-      "json_path": "problem2.cases[0].best.g",
-      "unit": "概率"
-    },
-    {
-      "result_id": "R-Q2-c1-best-R",
-      "name": "情况1回收链期望成本",
-      "locator": "outputs.json",
-      "json_path": "problem2.cases[0].best.R",
-      "unit": "元"
-    },
-    {
-      "result_id": "R-Q2-c1-breakdown-purchase",
-      "name": "情况1最优策略采购分项（每件交付）",
-      "locator": "outputs.json",
-      "json_path": "problem2.cases[0].best.cost_breakdown.purchase",
-      "unit": "元/件"
-    },
-    {
-      "result_id": "R-Q2-c1-breakdown-inspect",
-      "name": "情况1最优策略零配件检测分项",
-      "locator": "outputs.json",
-      "json_path": "problem2.cases[0].best.cost_breakdown.inspect",
-      "unit": "元/件"
-    },
-    {
-      "result_id": "R-Q2-c1-breakdown-assembly",
-      "name": "情况1最优策略装配分项",
-      "locator": "outputs.json",
-      "json_path": "problem2.cases[0].best.cost_breakdown.assembly",
-      "unit": "元/件"
-    },
-    {
-      "result_id": "R-Q2-c1-breakdown-product-inspect",
-      "name": "情况1最优策略成品检测分项",
-      "locator": "outputs.json",
-      "json_path": "problem2.cases[0].best.cost_breakdown.product_inspect",
-      "unit": "元/件"
-    },
-    {
-      "result_id": "R-Q2-c1-breakdown-disassemble",
-      "name": "情况1最优策略拆解分项",
-      "locator": "outputs.json",
-      "json_path": "problem2.cases[0].best.cost_breakdown.disassemble",
-      "unit": "元/件"
-    },
-    {
-      "result_id": "R-Q2-c1-breakdown-exchange",
-      "name": "情况1最优策略调换损失分项",
-      "locator": "outputs.json",
-      "json_path": "problem2.cases[0].best.cost_breakdown.exchange",
-      "unit": "元/件"
-    },
+    {"result_id": "R-Q2-case1-Z1", "name": "情况1最优决策Z1", "locator": "problem2.json", "json_path": "problem2.cases[0].best.Z1", "unit": "0/1"},
+    {"result_id": "R-Q2-case1-Z2", "name": "情况1最优决策Z2", "locator": "problem2.json", "json_path": "problem2.cases[0].best.Z2", "unit": "0/1"},
+    {"result_id": "R-Q2-case1-C", "name": "情况1最优决策C", "locator": "problem2.json", "json_path": "problem2.cases[0].best.C", "unit": "0/1"},
+    {"result_id": "R-Q2-case1-D", "name": "情况1最优决策D", "locator": "problem2.json", "json_path": "problem2.cases[0].best.D", "unit": "0/1"},
+    {"result_id": "R-Q2-case1-U", "name": "情况1最优单位期望成本", "locator": "problem2.json", "json_path": "problem2.cases[0].best.U", "unit": "元/件"},
+    {"result_id": "R-Q2-case1-profit", "name": "情况1最优单位期望利润", "locator": "problem2.json", "json_path": "problem2.cases[0].best.profit", "unit": "元/件"},
+    {"result_id": "R-Q2-case1-q", "name": "情况1最优策略一次装配合格率", "locator": "problem2.json", "json_path": "problem2.cases[0].best.q", "unit": "概率"},
+    {"result_id": "R-Q2-case1-Kf", "name": "情况1新料一轮成本", "locator": "problem2.json", "json_path": "problem2.cases[0].best.K_f", "unit": "元/轮"},
+    {"result_id": "R-Q2-case1-Kr", "name": "情况1回收料一轮成本", "locator": "problem2.json", "json_path": "problem2.cases[0].best.K_r", "unit": "元/轮"},
+    {"result_id": "R-Q2-case1-kappa", "name": "情况1一轮回收等效收益", "locator": "problem2.json", "json_path": "problem2.cases[0].best.kappa", "unit": "元/轮"},
+    {"result_id": "R-Q2-case1-g", "name": "情况1交付概率", "locator": "problem2.json", "json_path": "problem2.cases[0].best.g", "unit": "概率"},
+    {"result_id": "R-Q2-case1-R", "name": "情况1回收链期望成本", "locator": "problem2.json", "json_path": "problem2.cases[0].best.R", "unit": "元"},
+    {"result_id": "R-Q2-case1-cost-purchase", "name": "情况1最优策略采购分项（每件交付）", "locator": "problem2.json", "json_path": "problem2.cases[0].best.cost_breakdown.purchase", "unit": "元/件"},
+    {"result_id": "R-Q2-case1-cost-inspect", "name": "情况1最优策略零配件检测分项", "locator": "problem2.json", "json_path": "problem2.cases[0].best.cost_breakdown.inspect", "unit": "元/件"},
+    {"result_id": "R-Q2-case1-cost-assembly", "name": "情况1最优策略装配分项", "locator": "problem2.json", "json_path": "problem2.cases[0].best.cost_breakdown.assembly", "unit": "元/件"},
+    {"result_id": "R-Q2-case1-cost-product-inspect", "name": "情况1最优策略成品检测分项", "locator": "problem2.json", "json_path": "problem2.cases[0].best.cost_breakdown.product_inspect", "unit": "元/件"},
+    {"result_id": "R-Q2-case1-cost-disassemble", "name": "情况1最优策略拆解分项", "locator": "problem2.json", "json_path": "problem2.cases[0].best.cost_breakdown.disassemble", "unit": "元/件"},
+    {"result_id": "R-Q2-case1-cost-exchange", "name": "情况1最优策略调换损失分项", "locator": "problem2.json", "json_path": "problem2.cases[0].best.cost_breakdown.exchange", "unit": "元/件"},
+    {"result_id": "R-Q2-case1-strategies", "name": "情况1全部16种组合的U与利润数组（画热力图用）", "locator": "problem2.json", "json_path": "problem2.cases[0].strategies", "unit": "数组"},
 
-    {
-      "result_id": "R-Q2-c2-best-Z1",
-      "name": "情况2最优决策Z1",
-      "locator": "outputs.json",
-      "json_path": "problem2.cases[1].best.Z1",
-      "unit": "0/1"
-    },
-    {
-      "result_id": "R-Q2-c2-best-Z2",
-      "name": "情况2最优决策Z2",
-      "locator": "outputs.json",
-      "json_path": "problem2.cases[1].best.Z2",
-      "unit": "0/1"
-    },
-    {
-      "result_id": "R-Q2-c2-best-C",
-      "name": "情况2最优决策C",
-      "locator": "outputs.json",
-      "json_path": "problem2.cases[1].best.C",
-      "unit": "0/1"
-    },
-    {
-      "result_id": "R-Q2-c2-best-D",
-      "name": "情况2最优决策D",
-      "locator": "outputs.json",
-      "json_path": "problem2.cases[1].best.D",
-      "unit": "0/1"
-    },
-    {
-      "result_id": "R-Q2-c2-best-U",
-      "name": "情况2最优单位期望成本",
-      "locator": "outputs.json",
-      "json_path": "problem2.cases[1].best.U",
-      "unit": "元/件"
-    },
-    {
-      "result_id": "R-Q2-c2-best-profit",
-      "name": "情况2最优单位期望利润",
-      "locator": "outputs.json",
-      "json_path": "problem2.cases[1].best.profit",
-      "unit": "元/件"
-    },
+    {"result_id": "R-Q2-case2-Z1", "name": "情况2最优决策Z1", "locator": "problem2.json", "json_path": "problem2.cases[1].best.Z1", "unit": "0/1"},
+    {"result_id": "R-Q2-case2-Z2", "name": "情况2最优决策Z2", "locator": "problem2.json", "json_path": "problem2.cases[1].best.Z2", "unit": "0/1"},
+    {"result_id": "R-Q2-case2-C", "name": "情况2最优决策C", "locator": "problem2.json", "json_path": "problem2.cases[1].best.C", "unit": "0/1"},
+    {"result_id": "R-Q2-case2-D", "name": "情况2最优决策D", "locator": "problem2.json", "json_path": "problem2.cases[1].best.D", "unit": "0/1"},
+    {"result_id": "R-Q2-case2-U", "name": "情况2最优单位期望成本", "locator": "problem2.json", "json_path": "problem2.cases[1].best.U", "unit": "元/件"},
+    {"result_id": "R-Q2-case2-profit", "name": "情况2最优单位期望利润", "locator": "problem2.json", "json_path": "problem2.cases[1].best.profit", "unit": "元/件"},
+    {"result_id": "R-Q2-case2-strategies", "name": "情况2全部16种组合数组", "locator": "problem2.json", "json_path": "problem2.cases[1].strategies", "unit": "数组"},
 
-    {
-      "result_id": "R-Q2-c3-best-Z1",
-      "name": "情况3最优决策Z1",
-      "locator": "outputs.json",
-      "json_path": "problem2.cases[2].best.Z1",
-      "unit": "0/1"
-    },
-    {
-      "result_id": "R-Q2-c3-best-Z2",
-      "name": "情况3最优决策Z2",
-      "locator": "outputs.json",
-      "json_path": "problem2.cases[2].best.Z2",
-      "unit": "0/1"
-    },
-    {
-      "result_id": "R-Q2-c3-best-C",
-      "name": "情况3最优决策C",
-      "locator": "outputs.json",
-      "json_path": "problem2.cases[2].best.C",
-      "unit": "0/1"
-    },
-    {
-      "result_id": "R-Q2-c3-best-D",
-      "name": "情况3最优决策D",
-      "locator": "outputs.json",
-      "json_path": "problem2.cases[2].best.D",
-      "unit": "0/1"
-    },
-    {
-      "result_id": "R-Q2-c3-best-U",
-      "name": "情况3最优单位期望成本",
-      "locator": "outputs.json",
-      "json_path": "problem2.cases[2].best.U",
-      "unit": "元/件"
-    },
-    {
-      "result_id": "R-Q2-c3-best-profit",
-      "name": "情况3最优单位期望利润",
-      "locator": "outputs.json",
-      "json_path": "problem2.cases[2].best.profit",
-      "unit": "元/件"
-    },
+    {"result_id": "R-Q2-case3-Z1", "name": "情况3最优决策Z1", "locator": "problem2.json", "json_path": "problem2.cases[2].best.Z1", "unit": "0/1"},
+    {"result_id": "R-Q2-case3-Z2", "name": "情况3最优决策Z2", "locator": "problem2.json", "json_path": "problem2.cases[2].best.Z2", "unit": "0/1"},
+    {"result_id": "R-Q2-case3-C", "name": "情况3最优决策C", "locator": "problem2.json", "json_path": "problem2.cases[2].best.C", "unit": "0/1"},
+    {"result_id": "R-Q2-case3-D", "name": "情况3最优决策D", "locator": "problem2.json", "json_path": "problem2.cases[2].best.D", "unit": "0/1"},
+    {"result_id": "R-Q2-case3-U", "name": "情况3最优单位期望成本", "locator": "problem2.json", "json_path": "problem2.cases[2].best.U", "unit": "元/件"},
+    {"result_id": "R-Q2-case3-profit", "name": "情况3最优单位期望利润", "locator": "problem2.json", "json_path": "problem2.cases[2].best.profit", "unit": "元/件"},
+    {"result_id": "R-Q2-case3-strategies", "name": "情况3全部16种组合数组", "locator": "problem2.json", "json_path": "problem2.cases[2].strategies", "unit": "数组"},
 
-    {
-      "result_id": "R-Q2-c4-best-Z1",
-      "name": "情况4最优决策Z1",
-      "locator": "outputs.json",
-      "json_path": "problem2.cases[3].best.Z1",
-      "unit": "0/1"
-    },
-    {
-      "result_id": "R-Q2-c4-best-Z2",
-      "name": "情况4最优决策Z2",
-      "locator": "outputs.json",
-      "json_path": "problem2.cases[3].best.Z2",
-      "unit": "0/1"
-    },
-    {
-      "result_id": "R-Q2-c4-best-C",
-      "name": "情况4最优决策C",
-      "locator": "outputs.json",
-      "json_path": "problem2.cases[3].best.C",
-      "unit": "0/1"
-    },
-    {
-      "result_id": "R-Q2-c4-best-D",
-      "name": "情况4最优决策D",
-      "locator": "outputs.json",
-      "json_path": "problem2.cases[3].best.D",
-      "unit": "0/1"
-    },
-    {
-      "result_id": "R-Q2-c4-best-U",
-      "name": "情况4最优单位期望成本",
-      "locator": "outputs.json",
-      "json_path": "problem2.cases[3].best.U",
-      "unit": "元/件"
-    },
-    {
-      "result_id": "R-Q2-c4-best-profit",
-      "name": "情况4最优单位期望利润",
-      "locator": "outputs.json",
-      "json_path": "problem2.cases[3].best.profit",
-      "unit": "元/件"
-    },
+    {"result_id": "R-Q2-case4-Z1", "name": "情况4最优决策Z1", "locator": "problem2.json", "json_path": "problem2.cases[3].best.Z1", "unit": "0/1"},
+    {"result_id": "R-Q2-case4-Z2", "name": "情况4最优决策Z2", "locator": "problem2.json", "json_path": "problem2.cases[3].best.Z2", "unit": "0/1"},
+    {"result_id": "R-Q2-case4-C", "name": "情况4最优决策C", "locator": "problem2.json", "json_path": "problem2.cases[3].best.C", "unit": "0/1"},
+    {"result_id": "R-Q2-case4-D", "name": "情况4最优决策D", "locator": "problem2.json", "json_path": "problem2.cases[3].best.D", "unit": "0/1"},
+    {"result_id": "R-Q2-case4-U", "name": "情况4最优单位期望成本", "locator": "problem2.json", "json_path": "problem2.cases[3].best.U", "unit": "元/件"},
+    {"result_id": "R-Q2-case4-profit", "name": "情况4最优单位期望利润", "locator": "problem2.json", "json_path": "problem2.cases[3].best.profit", "unit": "元/件"},
+    {"result_id": "R-Q2-case4-strategies", "name": "情况4全部16种组合数组", "locator": "problem2.json", "json_path": "problem2.cases[3].strategies", "unit": "数组"},
 
-    {
-      "result_id": "R-Q2-c5-best-Z1",
-      "name": "情况5最优决策Z1",
-      "locator": "outputs.json",
-      "json_path": "problem2.cases[4].best.Z1",
-      "unit": "0/1"
-    },
-    {
-      "result_id": "R-Q2-c5-best-Z2",
-      "name": "情况5最优决策Z2",
-      "locator": "outputs.json",
-      "json_path": "problem2.cases[4].best.Z2",
-      "unit": "0/1"
-    },
-    {
-      "result_id": "R-Q2-c5-best-C",
-      "name": "情况5最优决策C",
-      "locator": "outputs.json",
-      "json_path": "problem2.cases[4].best.C",
-      "unit": "0/1"
-    },
-    {
-      "result_id": "R-Q2-c5-best-D",
-      "name": "情况5最优决策D",
-      "locator": "outputs.json",
-      "json_path": "problem2.cases[4].best.D",
-      "unit": "0/1"
-    },
-    {
-      "result_id": "R-Q2-c5-best-U",
-      "name": "情况5最优单位期望成本",
-      "locator": "outputs.json",
-      "json_path": "problem2.cases[4].best.U",
-      "unit": "元/件"
-    },
-    {
-      "result_id": "R-Q2-c5-best-profit",
-      "name": "情况5最优单位期望利润",
-      "locator": "outputs.json",
-      "json_path": "problem2.cases[4].best.profit",
-      "unit": "元/件"
-    },
+    {"result_id": "R-Q2-case5-Z1", "name": "情况5最优决策Z1", "locator": "problem2.json", "json_path": "problem2.cases[4].best.Z1", "unit": "0/1"},
+    {"result_id": "R-Q2-case5-Z2", "name": "情况5最优决策Z2", "locator": "problem2.json", "json_path": "problem2.cases[4].best.Z2", "unit": "0/1"},
+    {"result_id": "R-Q2-case5-C", "name": "情况5最优决策C", "locator": "problem2.json", "json_path": "problem2.cases[4].best.C", "unit": "0/1"},
+    {"result_id": "R-Q2-case5-D", "name": "情况5最优决策D", "locator": "problem2.json", "json_path": "problem2.cases[4].best.D", "unit": "0/1"},
+    {"result_id": "R-Q2-case5-U", "name": "情况5最优单位期望成本", "locator": "problem2.json", "json_path": "problem2.cases[4].best.U", "unit": "元/件"},
+    {"result_id": "R-Q2-case5-profit", "name": "情况5最优单位期望利润", "locator": "problem2.json", "json_path": "problem2.cases[4].best.profit", "unit": "元/件"},
+    {"result_id": "R-Q2-case5-strategies", "name": "情况5全部16种组合数组", "locator": "problem2.json", "json_path": "problem2.cases[4].strategies", "unit": "数组"},
 
-    {
-      "result_id": "R-Q2-c6-best-Z1",
-      "name": "情况6最优决策Z1",
-      "locator": "outputs.json",
-      "json_path": "problem2.cases[5].best.Z1",
-      "unit": "0/1"
-    },
-    {
-      "result_id": "R-Q2-c6-best-Z2",
-      "name": "情况6最优决策Z2",
-      "locator": "outputs.json",
-      "json_path": "problem2.cases[5].best.Z2",
-      "unit": "0/1"
-    },
-    {
-      "result_id": "R-Q2-c6-best-C",
-      "name": "情况6最优决策C",
-      "locator": "outputs.json",
-      "json_path": "problem2.cases[5].best.C",
-      "unit": "0/1"
-    },
-    {
-      "result_id": "R-Q2-c6-best-D",
-      "name": "情况6最优决策D",
-      "locator": "outputs.json",
-      "json_path": "problem2.cases[5].best.D",
-      "unit": "0/1"
-    },
-    {
-      "result_id": "R-Q2-c6-best-U",
-      "name": "情况6最优单位期望成本",
-      "locator": "outputs.json",
-      "json_path": "problem2.cases[5].best.U",
-      "unit": "元/件"
-    },
-    {
-      "result_id": "R-Q2-c6-best-profit",
-      "name": "情况6最优单位期望利润",
-      "locator": "outputs.json",
-      "json_path": "problem2.cases[5].best.profit",
-      "unit": "元/件"
-    },
+    {"result_id": "R-Q2-case6-Z1", "name": "情况6最优决策Z1", "locator": "problem2.json", "json_path": "problem2.cases[5].best.Z1", "unit": "0/1"},
+    {"result_id": "R-Q2-case6-Z2", "name": "情况6最优决策Z2", "locator": "problem2.json", "json_path": "problem2.cases[5].best.Z2", "unit": "0/1"},
+    {"result_id": "R-Q2-case6-C", "name": "情况6最优决策C", "locator": "problem2.json", "json_path": "problem2.cases[5].best.C", "unit": "0/1"},
+    {"result_id": "R-Q2-case6-D", "name": "情况6最优决策D", "locator": "problem2.json", "json_path": "problem2.cases[5].best.D", "unit": "0/1"},
+    {"result_id": "R-Q2-case6-U", "name": "情况6最优单位期望成本", "locator": "problem2.json", "json_path": "problem2.cases[5].best.U", "unit": "元/件"},
+    {"result_id": "R-Q2-case6-profit", "name": "情况6最优单位期望利润", "locator": "problem2.json", "json_path": "problem2.cases[5].best.profit", "unit": "元/件"},
+    {"result_id": "R-Q2-case6-strategies", "name": "情况6全部16种组合数组", "locator": "problem2.json", "json_path": "problem2.cases[5].strategies", "unit": "数组"},
 
-    {
-      "result_id": "R-Q2-identity-max-diff",
-      "name": "问题2分项恒等式守卫的最大差值",
-      "locator": "outputs.json",
-      "json_path": "problem2.identity_max_diff",
-      "unit": "元/件"
-    },
-    {
-      "result_id": "R-Q2-global-best-case-id",
-      "name": "六种情况中利润最大的情况编号",
-      "locator": "outputs.json",
-      "json_path": "problem2.global_best_case_id",
-      "unit": "编号"
-    },
+    {"result_id": "R-Q2-identity-max-diff", "name": "问题2分项恒等式守卫的最大差值", "locator": "problem2.json", "json_path": "problem2.identity_max_diff", "unit": "元/件"},
+    {"result_id": "R-Q2-global-best-case-id", "name": "六种情况中利润最大的情况编号", "locator": "problem2.json", "json_path": "problem2.global_best_case_id", "unit": "编号"},
 
-    {
-      "result_id": "R-Q3-baseline-U-root",
-      "name": "问题3根节点每件合格成品期望总成本",
-      "locator": "outputs.json",
-      "json_path": "problem3.baseline.U_root",
-      "unit": "元/件"
-    },
-    {
-      "result_id": "R-Q3-baseline-profit",
-      "name": "问题3单位成品期望利润",
-      "locator": "outputs.json",
-      "json_path": "problem3.baseline.profit",
-      "unit": "元/件"
-    },
-    {
-      "result_id": "R-Q3-baseline-node-count",
-      "name": "问题3节点总数",
-      "locator": "outputs.json",
-      "json_path": "problem3.baseline.node_count",
-      "unit": "个"
-    },
-    {
-      "result_id": "R-Q3-baseline-semi-count",
-      "name": "问题3半成品数",
-      "locator": "outputs.json",
-      "json_path": "problem3.baseline.semi_count",
-      "unit": "个"
-    },
-    {
-      "result_id": "R-Q3-degenerate-tree-U",
-      "name": "退化核验-节点级递推的U",
-      "locator": "outputs.json",
-      "json_path": "problem3.degenerate_check.tree_U",
-      "unit": "元/件"
-    },
-    {
-      "result_id": "R-Q3-degenerate-q2-U",
-      "name": "退化核验-问题2闭式的U",
-      "locator": "outputs.json",
-      "json_path": "problem3.degenerate_check.q2_U",
-      "unit": "元/件"
-    },
-    {
-      "result_id": "R-Q3-degenerate-tree-profit",
-      "name": "退化核验-节点级递推的利润",
-      "locator": "outputs.json",
-      "json_path": "problem3.degenerate_check.tree_profit",
-      "unit": "元/件"
-    },
-    {
-      "result_id": "R-Q3-degenerate-q2-profit",
-      "name": "退化核验-问题2闭式的利润",
-      "locator": "outputs.json",
-      "json_path": "problem3.degenerate_check.q2_profit",
-      "unit": "元/件"
-    },
-    {
-      "result_id": "R-Q3-degenerate-diff-U",
-      "name": "退化核验的成本差",
-      "locator": "outputs.json",
-      "json_path": "problem3.degenerate_check.diff_U",
-      "unit": "元/件"
-    },
-    {
-      "result_id": "R-Q3-degenerate-diff-profit",
-      "name": "退化核验的利润差",
-      "locator": "outputs.json",
-      "json_path": "problem3.degenerate_check.diff_profit",
-      "unit": "元/件"
-    },
-    {
-      "result_id": "R-Q3-degenerate-pass",
-      "name": "退化核验是否通过",
-      "locator": "outputs.json",
-      "json_path": "problem3.degenerate_check.pass",
-      "unit": "布尔"
-    },
+    {"result_id": "R-Q3-baseline-best-decision", "name": "问题3基准拓扑最优节点决策表", "locator": "problem3.json", "json_path": "problem3.baseline.best_decision", "unit": "对象"},
+    {"result_id": "R-Q3-baseline-U-root", "name": "问题3根节点每件合格成品期望总成本", "locator": "problem3.json", "json_path": "problem3.baseline.U_root", "unit": "元/件"},
+    {"result_id": "R-Q3-baseline-profit", "name": "问题3单位成品期望利润", "locator": "problem3.json", "json_path": "problem3.baseline.profit", "unit": "元/件"},
+    {"result_id": "R-Q3-baseline-node-cost", "name": "问题3各节点分项成本", "locator": "problem3.json", "json_path": "problem3.baseline.node_cost", "unit": "对象"},
+    {"result_id": "R-Q3-baseline-node-count", "name": "问题3节点总数", "locator": "problem3.json", "json_path": "problem3.baseline.node_count", "unit": "个"},
+    {"result_id": "R-Q3-baseline-semi-count", "name": "问题3半成品数", "locator": "problem3.json", "json_path": "problem3.baseline.semi_count", "unit": "个"},
+    {"result_id": "R-Q3-degenerate-tree-U", "name": "退化核验-节点级递推的U", "locator": "problem3.json", "json_path": "problem3.degenerate_check.tree_U", "unit": "元/件"},
+    {"result_id": "R-Q3-degenerate-q2-U", "name": "退化核验-问题2闭式的U", "locator": "problem3.json", "json_path": "problem3.degenerate_check.q2_U", "unit": "元/件"},
+    {"result_id": "R-Q3-degenerate-tree-profit", "name": "退化核验-节点级递推的利润", "locator": "problem3.json", "json_path": "problem3.degenerate_check.tree_profit", "unit": "元/件"},
+    {"result_id": "R-Q3-degenerate-q2-profit", "name": "退化核验-问题2闭式的利润", "locator": "problem3.json", "json_path": "problem3.degenerate_check.q2_profit", "unit": "元/件"},
+    {"result_id": "R-Q3-degenerate-diff-U", "name": "退化核验的成本差", "locator": "problem3.json", "json_path": "problem3.degenerate_check.diff_U", "unit": "元/件"},
+    {"result_id": "R-Q3-degenerate-diff-profit", "name": "退化核验的利润差", "locator": "problem3.json", "json_path": "problem3.degenerate_check.diff_profit", "unit": "元/件"},
+    {"result_id": "R-Q3-degenerate-pass", "name": "退化核验是否通过", "locator": "problem3.json", "json_path": "problem3.degenerate_check.pass", "unit": "布尔"},
+    {"result_id": "R-Q3-topology-robustness", "name": "拓扑扰动扫描结果数组（各变体利润与决策）", "locator": "problem3.json", "json_path": "problem3.topology_robustness", "unit": "数组"},
+    {"result_id": "R-Q3-product-strategy-compare", "name": "成品(Z,D)四组合横向对比（画图用）", "locator": "problem3.json", "json_path": "problem3.product_strategy_compare", "unit": "数组"},
 
-    {
-      "result_id": "R-Q4-sample-size-used",
-      "name": "问题4使用的抽样样本量",
-      "locator": "outputs.json",
-      "json_path": "problem4.sample_size_used",
-      "unit": "件"
-    },
-    {
-      "result_id": "R-Q4-ci-level",
-      "name": "问题4置信区间置信水平",
-      "locator": "outputs.json",
-      "json_path": "problem4.ci_level",
-      "unit": "比率"
-    },
-    {
-      "result_id": "R-Q4-resample-count",
-      "name": "问题4重抽样次数",
-      "locator": "outputs.json",
-      "json_path": "problem4.resample_count",
-      "unit": "次"
-    },
-    {
-      "result_id": "R-Q4-seed",
-      "name": "问题4随机种子",
-      "locator": "outputs.json",
-      "json_path": "problem4.seed",
-      "unit": "整数"
-    },
-    {
-      "result_id": "R-Q4-q3-point-profit",
-      "name": "问题4重做问题3的点估计利润",
-      "locator": "outputs.json",
-      "json_path": "problem4.q3.point_profit",
-      "unit": "元/件"
-    },
-    {
-      "result_id": "R-Q4-q3-consistency-rate",
-      "name": "问题4问题3决策一致率",
-      "locator": "outputs.json",
-      "json_path": "problem4.q3.consistency_rate",
-      "unit": "比率"
-    },
-    {
-      "result_id": "R-Q4-q3-flip-rate",
-      "name": "问题4问题3决策翻转率",
-      "locator": "outputs.json",
-      "json_path": "problem4.q3.flip_rate",
-      "unit": "比率"
-    },
-    {
-      "result_id": "R-Q4-q3-decision-stable",
-      "name": "问题4问题3决策是否稳健",
-      "locator": "outputs.json",
-      "json_path": "problem4.q3.decision_stable",
-      "unit": "布尔"
-    },
-    {
-      "result_id": "R-Q4-q2-c1-consistency-rate",
-      "name": "问题4情况1决策一致率",
-      "locator": "outputs.json",
-      "json_path": "problem4.q2[0].consistency_rate",
-      "unit": "比率"
-    },
-    {
-      "result_id": "R-Q4-q2-c1-flip-rate",
-      "name": "问题4情况1决策翻转率",
-      "locator": "outputs.json",
-      "json_path": "problem4.q2[0].flip_rate",
-      "unit": "比率"
-    },
-    {
-      "result_id": "R-Q4-q2-c1-decision-stable",
-      "name": "问题4情况1决策是否稳健",
-      "locator": "outputs.json",
-      "json_path": "problem4.q2[0].decision_stable",
-      "unit": "布尔"
-    },
+    {"result_id": "R-Q4-sample-size-used", "name": "问题4使用的抽样样本量", "locator": "problem4.json", "json_path": "problem4.sample_size_used", "unit": "件"},
+    {"result_id": "R-Q4-ci-level", "name": "问题4置信区间置信水平", "locator": "problem4.json", "json_path": "problem4.ci_level", "unit": "比率"},
+    {"result_id": "R-Q4-resample-count", "name": "问题4重抽样次数", "locator": "problem4.json", "json_path": "problem4.resample_count", "unit": "次"},
+    {"result_id": "R-Q4-seed", "name": "问题4随机种子", "locator": "problem4.json", "json_path": "problem4.seed", "unit": "整数"},
+    {"result_id": "R-Q4-q2", "name": "问题4重做问题2的结果数组（点估计决策/区间/利润区间/一致率）", "locator": "problem4.json", "json_path": "problem4.q2", "unit": "数组"},
+    {"result_id": "R-Q4-q3-point-decision", "name": "问题4重做问题3的点估计决策", "locator": "problem4.json", "json_path": "problem4.q3.point_decision", "unit": "对象"},
+    {"result_id": "R-Q4-q3-point-profit", "name": "问题4重做问题3的点估计利润", "locator": "problem4.json", "json_path": "problem4.q3.point_profit", "unit": "元/件"},
+    {"result_id": "R-Q4-q3-ci", "name": "问题4问题3各节点次品率置信区间", "locator": "problem4.json", "json_path": "problem4.q3.ci", "unit": "对象"},
+    {"result_id": "R-Q4-q3-profit-range", "name": "问题4问题3决策固定下的利润区间", "locator": "problem4.json", "json_path": "problem4.q3.profit_range_fixed_decision", "unit": "元/件"},
+    {"result_id": "R-Q4-q3-consistency-rate", "name": "问题4问题3决策一致率", "locator": "problem4.json", "json_path": "problem4.q3.consistency_rate", "unit": "比率"},
+    {"result_id": "R-Q4-q3-flip-rate", "name": "问题4问题3决策翻转率", "locator": "problem4.json", "json_path": "problem4.q3.flip_rate", "unit": "比率"},
+    {"result_id": "R-Q4-q3-decision-stable", "name": "问题4问题3决策是否稳健", "locator": "problem4.json", "json_path": "problem4.q3.decision_stable", "unit": "布尔"},
+    {"result_id": "R-Q4-decision-diff", "name": "问题4相对点估计决策的差异表", "locator": "problem4.json", "json_path": "problem4.decision_diff", "unit": "数组"},
+    {"result_id": "R-Q4-q2-case1-ci", "name": "问题4情况1各次品率置信区间", "locator": "problem4.json", "json_path": "problem4.q2[0].ci", "unit": "对象"},
+    {"result_id": "R-Q4-q2-case1-profit-range", "name": "问题4情况1决策固定下的利润区间", "locator": "problem4.json", "json_path": "problem4.q2[0].profit_range_fixed_decision", "unit": "元/件"},
+    {"result_id": "R-Q4-q2-case1-consistency-rate", "name": "问题4情况1决策一致率", "locator": "problem4.json", "json_path": "problem4.q2[0].consistency_rate", "unit": "比率"},
+    {"result_id": "R-Q4-q2-case1-flip-rate", "name": "问题4情况1决策翻转率", "locator": "problem4.json", "json_path": "problem4.q2[0].flip_rate", "unit": "比率"},
+    {"result_id": "R-Q4-q2-case1-decision-stable", "name": "问题4情况1决策是否稳健", "locator": "problem4.json", "json_path": "problem4.q2[0].decision_stable", "unit": "布尔"},
 
-    {
-      "result_id": "R-META-ok-all",
-      "name": "全流程成功标记",
-      "locator": "outputs.json",
-      "json_path": "outputs.meta.ok_all",
-      "unit": "布尔"
-    },
-    {
-      "result_id": "R-META-elapsed-sec",
-      "name": "全流程耗时",
-      "locator": "outputs.json",
-      "json_path": "outputs.meta.elapsed_sec",
-      "unit": "秒"
-    },
-    {
-      "result_id": "R-META-seed",
-      "name": "全局随机种子",
-      "locator": "outputs.json",
-      "json_path": "outputs.meta.seed",
-      "unit": "整数"
-    }
+    {"result_id": "R-OUT-meta-ok-all", "name": "全流程成功标记", "locator": "outputs.json", "json_path": "outputs.meta.ok_all", "unit": "布尔"},
+    {"result_id": "R-OUT-meta-elapsed-sec", "name": "全流程耗时", "locator": "outputs.json", "json_path": "outputs.meta.elapsed_sec", "unit": "秒"},
+    {"result_id": "R-OUT-meta-seed", "name": "全局随机种子", "locator": "outputs.json", "json_path": "outputs.meta.seed", "unit": "整数"}
   ]
 }
