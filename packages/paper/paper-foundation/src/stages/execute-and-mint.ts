@@ -285,7 +285,23 @@ export async function runCodeAndMintResults(stagesRoot: string): Promise<Execute
       problems.push(`${source.result_id}：locator '${source.locator}' 不是合法 JSON（${String(error).slice(0, 80)}）`)
       continue
     }
-    const value = resolveJsonPath(root, source.json_path)
+    // **容忍一种自然的误读**：把文件名当前缀写进 `json_path`。
+    // 实测（2024B）：`locator` 已经是 `outputs.json`，而 `json_path` 写成
+    // `outputs.meta.seed`——多了一层"文件名"当顶层键。这与 `locator` 写成
+    // `code/outputs.json` 是同一类误读（两种读法指向同一位置），
+    // 而契约侧已经为 locator 的同一误读做了容错。为表述差异让整轮铸数作废，
+    // 是把契约的表述问题算在执行者头上。
+    // 判据要窄：**只剥"与该 locator 同名的那一层前缀"**，不是"随便试几个前缀"。
+    const resolved = resolveJsonPath(root, source.json_path)
+    let value = resolved
+    if (resolved === undefined) {
+      const parts = source.locator.split('/').filter(x => x.length > 0)
+      const last = parts[parts.length - 1] ?? ''
+      const base = last.endsWith('.json') ? last.slice(0, -'.json'.length) : last
+      if (base !== '' && source.json_path.slice(0, base.length + 1) === `${base}.`) {
+        value = resolveJsonPath(root, source.json_path.slice(base.length + 1))
+      }
+    }
     // **允许标量之外的三种形态**（序列 / 矩阵 / 三维），这是本轮的关键放宽。
     //
     // 原来只收有限数，后果是**结构性的**：2024B 的账本 49 条全是标量点值，

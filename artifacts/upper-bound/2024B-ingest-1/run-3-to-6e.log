@@ -33,3 +33,83 @@ STAGE CHAIN FAILED — 1 个阶段没通过（产物与通行证在 artifacts\up
   [deterministic] code: 分片 2/7 交付 code/params.py
   [deterministic] code: 分片 3/7 交付 code/problem1.py
   [deterministic] code: 分片 4/7 交付 code/problem2.py
+  [deterministic] code: 分片 5/7 交付 code/problem3.py
+  [deterministic] code: 分片 6/7 交付 code/problem4.py
+  [deterministic] code: 分片 7/7 交付 *
+[STAGE NEXT] 只跑了 'code'，到此即停。检查 artifacts\upper-bound\2024B-ingest-1\stages 后，放行 = 再执行一次 --stages --stage-next。
+  ❌ code: 阶段产出未通过形态检查：Unexpected non-whitespace character after JSON at position 13071 (line 1 column 13072)
+
+STAGE CHAIN FAILED — 1 个阶段没通过（产物与通行证在 artifacts\upper-bound\2024B-ingest-1\stages）。
+===== 第 4 次 --stage-next =====
+[STAGE CHAIN] artifacts\upper-bound\2024B-ingest-1\stages
+  题面问数（数出来的）：4
+  [deterministic] code: 分片 1/7 交付 code/main.py
+  [deterministic] code: 分片 2/7 交付 code/params.py
+  [deterministic] code: 分片 3/7 交付 code/problem1.py
+  [deterministic] code: 分片 4/7 交付 code/problem2.py
+  [deterministic] code: 分片 5/7 交付 code/problem3.py
+  [deterministic] code: 分片 6/7 交付 code/problem4.py
+  [deterministic] code: 分片 7/7 交付 *
+[STAGE NEXT] 只跑了 'code'，到此即停。检查 artifacts\upper-bound\2024B-ingest-1\stages 后，放行 = 再执行一次 --stages --stage-next。
+  ❌ code: 阶段产出未通过形态检查：Unexpected non-whitespace character after JSON at position 8589 (line 1 column 8590)
+
+STAGE CHAIN FAILED — 1 个阶段没通过（产物与通行证在 artifacts\upper-bound\2024B-ingest-1\stages）。
+===== 第 5 次 --stage-next =====
+[STAGE CHAIN] artifacts\upper-bound\2024B-ingest-1\stages
+  题面问数（数出来的）：4
+  [deterministic] code: 分片 1/7 交付 code/main.py
+  [deterministic] code: 分片 2/7 交付 code/params.py
+  [deterministic] code: 分片 3/7 交付 code/problem1.py
+  [deterministic] code: 分片 4/7 交付 code/problem2.py
+  [deterministic] code: 分片 5/7 交付 code/problem3.py
+  [deterministic] code: 分片 6/7 交付 code/problem4.py
+  [deterministic] code: 分片 7/7 交付 *
+[STAGE NEXT] 只跑了 'code'，到此即停。检查 artifacts\upper-bound\2024B-ingest-1\stages 后，放行 = 再执行一次 --stages --stage-next。
+  ❌ code: 阶段产出未通过形态检查：stage 'code' envelope does not match its contract — missing: DELIVERABLES.json; expected exactly: code/main.py、RESULTS.md、DELIVERABLES.json（或 code/ 之下的任意文件）（原始回答已留档：_rejected-answer.txt）
+
+STAGE CHAIN FAILED — 1 个阶段没通过（产物与通行证在 artifacts\upper-bound\2024B-ingest-1\stages）。
+===== 第 6 次 --stage-next =====
+[STAGE CHAIN] artifacts\upper-bound\2024B-ingest-1\stages
+  题面问数（数出来的）：4
+  [deterministic] code: 分片 1/7 交付 code/main.py
+  [deterministic] code: 分片 2/7 交付 code/params.py
+  [deterministic] code: 分片 3/7 交付 code/problem1.py
+  [deterministic] code: 分片 4/7 交付 code/problem2.py
+  [deterministic] code: 分片 5/7 交付 code/problem3.py
+  [deterministic] code: 分片 6/7 交付 code/problem4.py
+  [deterministic] code: 分片 7/7 交付 *
+  [deterministic] code: 逐节点审计（glm-5.3-flash-free）：fail，质量分 0.40，要求 7/7 项完成，10 条 findings
+[STAGE NEXT] 只跑了 'code'，到此即停。检查 artifacts\upper-bound\2024B-ingest-1\stages 后，放行 = 再执行一次 --stages --stage-next。
+  ❌ code: 逐节点审计未通过：审计未通过：1 条 fatal（code/problem2.py: evaluate() 的 cost_parts 与 run() 的恒等式守卫：cost_parts 重复计入零配件检测费："purchase" 已用 (a_i）；质量分 0.40 < 阈值 0.70；交付结构不完整（缺：code/problem2.json（DELIVERABLES.json 声明；按 problem2.py 的分项恒等式守卫，表1 情况4 必然 raise，导致该分账缺席、outputs.json 账本不完整）、审计包中未见 code/outputs.json / code/run_log.json / code/problem1..4.json —— 若已落盘请随包提供，否则阶段4 无账本可取） —— 低于阈值不允许交付（审计结论见 _audit.json）
+
+STAGE CHAIN FAILED — 1 个阶段没通过（产物与通行证在 artifacts\upper-bound\2024B-ingest-1\stages）。
+===== 第 7 次 --stage-next =====
+[STAGE CHAIN] artifacts\upper-bound\2024B-ingest-1\stages
+  题面问数（数出来的）：4
+  [deterministic] code: 分片 1/7 交付 code/main.py
+  [deterministic] code: 分片 2/7 交付 code/params.py
+  [deterministic] code: 分片 3/7 交付 code/problem1.py
+  [deterministic] code: 分片 4/7 交付 code/problem2.py
+  [deterministic] code: 分片 5/7 交付 code/problem3.py
+  [deterministic] code: 分片 6/7 交付 code/problem4.py
+  [deterministic] code: 分片 7/7 交付 *
+[STAGE NEXT] 只跑了 'code'，到此即停。检查 artifacts\upper-bound\2024B-ingest-1\stages 后，放行 = 再执行一次 --stages --stage-next。
+  ❌ code: 阶段产出未通过形态检查：Unexpected non-whitespace character after JSON at position 22512 (line 2 column 8930)
+
+STAGE CHAIN FAILED — 1 个阶段没通过（产物与通行证在 artifacts\upper-bound\2024B-ingest-1\stages）。
+===== 第 8 次 --stage-next =====
+[STAGE CHAIN] artifacts\upper-bound\2024B-ingest-1\stages
+  题面问数（数出来的）：4
+  [deterministic] code: 分片 1/7 交付 code/main.py
+  [deterministic] code: 分片 2/7 交付 code/params.py
+  [deterministic] code: 分片 3/7 交付 code/problem1.py
+  [deterministic] code: 分片 4/7 交付 code/problem2.py
+  [deterministic] code: 分片 5/7 交付 code/problem3.py
+  [deterministic] code: 分片 6/7 交付 code/problem4.py
+  [deterministic] code: 分片 7/7 交付 *
+  [deterministic] code: 逐节点审计（glm-5.3-flash-free）：pass，质量分 0.85，要求 9/9 项完成，3 条 findings
+[STAGE NEXT] 只跑了 'code'，到此即停。检查 artifacts\upper-bound\2024B-ingest-1\stages 后，放行 = 再执行一次 --stages --stage-next。
+  🟡 code: 门禁全过但**有 1 条无法判定**（delivery_audit）——已如实记在通行证上（`cleanliness: unverified-gates`）；这些缺口使本阶段不能计入 CLEAN。
+
+STAGE CHAIN OK — 1 个阶段签发通行证（其中 1 个带未判定门禁，缺口已记在 PASSED 上）。产物在 artifacts\upper-bound\2024B-ingest-1\stages
+===== LOOP DONE =====

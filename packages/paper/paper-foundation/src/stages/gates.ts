@@ -41,7 +41,7 @@ import { FIGURE_DECLARATIONS_FILE, FIGURE_MANIFEST_FILE, parseFigureDeclarations
 
 /** 作图规划文件名（阶段 5 的产物；「模型写脚本」之后的合同）。 */
 export const FIGURE_PLAN_FILE = 'FIGURE_PLAN.json'
-import { parseResultSources, RESULTS_LEDGER_FILE } from './execute-and-mint.ts'
+import { numericShapeOf, parseResultSources, RESULTS_LEDGER_FILE } from './execute-and-mint.ts'
 import { auditFiles, buildAllowlist, commentLines, verificationClaims } from './number-audit.ts'
 import {
   figurePlanValid, figureScriptQuality, figureScriptTraced, figureSizeBuckets, figureTypeMatch,
@@ -1234,12 +1234,14 @@ export const GATES: ReadonlyMap<string, GateFn> = new Map<string, GateFn>([
       const ids = sources.map(s2 => s2.result_id)
       const dupes = ids.filter((x, k) => ids.indexOf(x) !== k)
       if (dupes.length > 0) return fail(id, `重复的 result_id：${[...new Set(dupes)].join('、')}`)
-      // **交叉核对：声明的 json_path 必须是阶段 3 公布过的键**。
+      // **交叉核对：声明的 json_path 是否都在阶段 3 公布的键里**（只提示，不阻断）。
       //
-      // 这一条把"猜键名"的失败从**铸数之后**（跑完代码才发现）提前到**声明当场**，
-      // 而且给出的是可执行的修法（照抄哪一份清单），不是一句"undefined"。
-      // 阶段 3 没公布时给 `2`（无法判定）——那说明阶段 3 漏了 `ledger_keys`，
-      // 由 `ledger_keys_declared` 在那边报。
+      // 为什么降级成提示：**铸数（`afterModel`）先于门禁跑**，它已经拿真实产物
+      // 逐条解析过每个 `json_path`，解析不到就整轮失败——**那才是权威判据**。
+      // 门禁这里只能拿"阶段 3 公布的键"当代理，而那份清单是模型写的，
+      // 漏登几个（实测 3 条 `meta.*`）就会把**已经被真实产物证明可取到**的声明判死。
+      // 所以这里如实报出越界的键（提醒阶段 3 补全 `ledger_keys`），但放行。
+      let strayNote = ''
       const declared = i.upstream.get('DELIVERABLES.json') ?? null
       if (declared !== null) {
         try {
@@ -1248,19 +1250,17 @@ export const GATES: ReadonlyMap<string, GateFn> = new Map<string, GateFn>([
             const known = new Set(keys
               .map(k => (k as { json_path?: unknown }).json_path)
               .filter((p): p is string => typeof p === 'string'))
-            const stray = sources.map(s2 => s2.json_path).filter(p => !known.has(p))
+            const stray = [...new Set(sources.map(s2 => s2.json_path).filter(p => !known.has(p)))]
             if (stray.length > 0) {
-              return fail(id, `${String(stray.length)}/${String(sources.length)} 条声明的 \`json_path\` `
-                + `**不在阶段 3 公布的账本键里**（${[...new Set(stray)].slice(0, 3).join('、')}…）—— `
-                + '`json_path` 必须**逐字照抄** `DELIVERABLES.json` 的 `ledger_keys`，不得自己推路径。'
-                + '实测代价：模型自编命名（`problem1.case1.n`）而代码写的是 `problem1.case95.n`，'
-                + '102 条里 100 条落空，铸数整轮失败。')
+              strayNote = `；提示：${String(stray.length)} 个 json_path 不在阶段 3 公布的 ledger_keys 里`
+                + `（${stray.slice(0, 3).join('、')}…）——铸数已按真实产物核对通过，`
+                + '但阶段 3 的 `ledger_keys` 应补全（它是阶段 4 的取数依据）'
             }
           }
         } catch { /* 上游 DELIVERABLES.json 坏了由阶段 3 的门禁报，这里不重复报 */ }
       }
       return ok(id, `${String(sources.length)} 条数源声明，id 唯一、locator/json_path 齐备`
-        + '，且 json_path 全部来自阶段 3 公布的账本键')
+        + '，且每一条都经铸数按真实产物解析过' + strayNote)
     } catch (error) {
       return fail(id, String(error instanceof Error ? error.message : error).slice(0, 200))
     }
@@ -1278,11 +1278,25 @@ export const GATES: ReadonlyMap<string, GateFn> = new Map<string, GateFn>([
     } catch (error) {
       return fail(id, `results.json 不是合法 JSON：${String(error).slice(0, 100)}`)
     }
-    const results = Array.isArray(parsed.results) ? parsed.results as ReadonlyArray<{ value?: unknown }> : null
+    const results = Array.isArray(parsed.results) ? parsed.results as ReadonlyArray<{ value?: unknown; kind?: unknown }> : null
     if (results === null || results.length === 0) return fail(id, 'results.json 的 results 是空的 —— 没有声明任何数')
-    const bad = results.filter(r => typeof r.value !== 'number' || !Number.isFinite(r.value)).length
-    if (bad > 0) return fail(id, `${String(bad)} 条账目的 value 不是有限数 —— NaN 进图是静默失败`)
-    return ok(id, `账本 ${String(results.length)} 条，全部是来自真实执行的有限数`)
+    // **账目不止标量**：序列 / 矩阵 / 张量 / 记录 / 表 / 布尔都合法（阶段 3 的扫描表、样本、
+    // 组合矩阵都靠它们承载）。这条门禁原来写死"每条 value 必须是有限数"，
+    // 于是 12 条序列 + 5 条布尔被判成"17 条不是有限数"——**门禁没跟上铸数的放宽**。
+    // 判据仍然严：形态不合法（含 NaN/Infinity/字符串/混合数组）一律拦。
+    const bad = results.filter(r => numericShapeOf(r.value) === null)
+    if (bad.length > 0) {
+      return fail(id, `${String(bad.length)} 条账目的 value 既不是有限数，也不是合法的数值结构`
+        + '（允许：标量 / 序列 / 矩阵 / 张量 / 记录 / 表 / 布尔；元素必须是有限数）——'
+        + 'NaN 进图是静默失败')
+    }
+    const kinds: Record<string, number> = {}
+    for (const r of results) {
+      const k = typeof r.kind === 'string' ? r.kind : (numericShapeOf(r.value) ?? '?')
+      kinds[k] = (kinds[k] ?? 0) + 1
+    }
+    return ok(id, `账本 ${String(results.length)} 条，全部来自真实执行；形态：`
+      + Object.entries(kinds).map(([k, n]) => `${k} ${String(n)}`).join('、'))
   }],
   ['delivery_audit', () => cannot('delivery_audit',
     '未实现：参考的 delivery_audit.py 要核对 DELIVERABLES.json 声明的每个交付物**真的存在且非空**。'

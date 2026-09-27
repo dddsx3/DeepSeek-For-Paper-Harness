@@ -1,73 +1,56 @@
 {
   "stage": "result-sources",
-  "verdict": "pass",
-  "score": 0.78,
+  "verdict": "fail",
+  "score": 0.65,
   "structureOk": true,
   "requirementCompliance": [
     {
       "item": "产出 RESULT_SOURCES.json（json，≥200 字节）",
       "done": true,
-      "note": "文件存在，13080 字节，可解析 JSON。"
+      "note": "文件存在，24874 字节，合法 JSON（对象含 stage/locator_base/note/sources）。"
     },
     {
-      "item": "每条只写 {result_id,name,locator,json_path,unit}，不得写任何数值",
+      "item": "RESULT_SOURCES.json 只写定位字段 {result_id, name, locator, json_path, unit}，不写任何数值",
       "done": true,
-      "note": "sources 49 条，逐条恰好含这 5 个键；全文未出现任何被铸量的数值（出现的数字仅为 问题1/情况1/零配件1 一类标识名与 'code/'），模型确实只持有定位。"
+      "note": "可见的前 12000 字节内 20 余条全部只有 result_id/name/locator/json_path/unit 五个字段，locator 一律为 code/ 下的 outputs.json，未出现任何取值；截断部分无法核对，不据此判缺。"
     },
     {
-      "item": "locator + json_path 指向真跑产物的字节位置",
-      "done": true,
-      "note": "locator 统一为 outputs.json，json_path 形如 q2.cases[i].best.decision[j]、q4.q2.cases[i].consistency_rate；harness 门禁 result_sources_valid 已通过。"
+      "item": "为代码真跑出来的『每个量』都声明了数在哪（覆盖完整）",
+      "done": false,
+      "note": "执行者自述：problem3.baseline.best_decision（问题三节点级 0/1 决策表）、problem3.baseline.node_cost、problem3.topology_robustness、problem3.product_strategy_compare、problem2.cases[i].strategies（十六组合策略表）、problem4.q2 重解数组、problem4.q2[0].ci / problem4.q3.ci、problem4.q3.point_decision、problem4.decision_diff、两处 profit_range 均『未作为单条声明登记』，因此这些量不会进入 results.json。问题三的决策方案与指标、问题四对问题二/问题三的重解结果正是题面两大子问题的核心产物，未全数覆盖，契约的『每个量』未达成。"
     },
     {
-      "item": "results.json 为 harness 铸出的数，与数源声明一一对应",
+      "item": "产出 results.json，由 harness 真跑代码后按 locator+json_path 从产物字节铸出",
       "done": true,
-      "note": "49 条 result_id 与 sources 完全同名同数（Q1 5 条、Q2 31 条、Q3 1 条、Q4 12 条），逐条含 value/unit/uncertainty；无孤儿、无缺铸。"
+      "note": "文件存在，66773 字节；可见条目均带 value/unit/kind，值均为有穷数或纯数值序列（标量/序列）且量纲标注齐备，说明声明的 json_path 在账本中均可解析出有穷数（与 results_minted 门禁通过一致）。"
     },
     {
-      "item": "与题面相符：给定参数确实进入模型（非死参数）",
+      "item": "铸出的数与题面给定值/子问题结构相符",
       "done": true,
-      "note": "按表 1 反算可复现：情况1 成本=22+6/q+11(1/q−1)=34.319615912208505（q=0.729）、情况3=22+9/q+5(1/q−1)=36.2043896、情况5=22+8/q+5(1/q−1)（q=0.648）、情况6=28/q+10(1/q−1)=34.3213296，均与 results.json 精确吻合；调换损失 6/10/30 与拆解费用 5/40 均实际进入成本并改变最优决策（情况1 ce=6 选 C=0/D=1，情况3 ce=30 改选 C=1；情况6 拆解费用 40 使 D=0），无 'ce 写了不用' 的形态。问题1 亦复现：0.9^22=0.0985≤0.10 → n*=22,c*=0。Q3 利润 66.086877 与题面口径真值 66.09 一致。"
-    },
-    {
-      "item": "与上游一致、无自相矛盾",
-      "done": true,
-      "note": "单位口径统一（金额 元/件、比率无量纲），一致率与标准误自洽：如 0.916 的 SE=sqrt(0.916×0.084/2000)=0.00620258，0.6085 的 SE=0.0109139，均与所报值吻合（n=2000 的 k/2000 形式）。"
+      "note": "R-Q1-nominal-p=0.1 对应题面『标称值为 10%』；情形(1) case95.n=368、err_reject_at_nom=0.04964≤0.05、power_at_alt=0.9001≥0.90，情形(2) case90.n=288、accept_prob_at_nom=0.9032≥0.90、accept_prob_at_alt=0.0995≤0.10，与题面 95%/90% 两种信度口径一致；问题二六情况按『最优单位期望成本/最优单位期望利润』统一登记，口径一致。"
     }
   ],
   "findings": [
     {
       "severity": "major",
-      "where": "RESULT_SOURCES.json / sources（Q3 段）",
-      "issue": "问题3 只登记了 R-Q3-profit 一个量，未登记节点级决策（8 个零配件/3 个半成品/成品的检测与拆解 0-1 变量）。同一份账本对问题2 的同类决策变量却逐项登记（6×4=24 条），内部标准不一致；而题面问题3 明确要求'给出具体的决策方案'，若论文引用这些 0/1 值将无账本可溯。",
-      "fix": "在 sources 中补 q3 决策向量的 locator（例如 q3.decision.parts[i].inspect/disassemble、q3.decision.semis[j].…、q3.decision.product.…），json_path 指向 outputs.json 中对应字段，由 harness 铸入 results.json。"
+      "where": "RESULT_SOURCES.json sources[R-Q1-sampling-cost-case95]/[...case90] 与 results.json 同名两条",
+      "issue": "同一 result_id 在声明与铸出账本里口径打架：声明写 name『情形95抽样检测费用（以单件检测成本归一的无量纲等价检测量）』、unit『无量纲（以单件检测成本归一）』，而 results.json 给出 value 736/576、unit『元』、name『按登记单价折算』。736=368 件×2 元/件，证明该数确是按 R-Q1-sampling-unit-cost=2 元/件折算出来的金额，而非归一化检测量；若按声明口径归一，值应为 368/288。这是『改口径不改数』——为回应上一轮审计把单位从元/件改写为无量纲，但 outputs.json 里的数仍是金额，声明因此误导下游（论文若按声明把 736 说成『无量纲等价检测量』即错，若按 736 元引用则必须写明 2 元/件这个自设单价）。同类不同名的还有 R-Q1-nominal-p（声明『标称次品率』/铸出『零配件标称次品率』）、R-Q1-sampling-unit-cost，说明声明条目被手工改写而未与账本同步。",
+      "fix": ""
     },
     {
       "severity": "major",
-      "where": "RESULT_SOURCES.json / sources（Q4 段）",
-      "issue": "问题4 的登记只覆盖 q4.q2.cases[*].consistency_rate 与 rate_standard_error（问题2 的重解），题面要求'请重新完成问题 2 和问题 3'，问题3 在抽样次品率下的重解在产物中没有任何落点（既无一致率也无重解后的利润/决策）。",
-      "fix": "若代码已产出（如 q4.q3.*），补对应 locator 并铸数；若代码确实未算，需回溯上游补齐问题4 的问题3 分支后再铸，否则论文问题4 只能作答一半、或被迫使用无账本数字。"
+      "where": "RESULT_SOURCES.json 的 note（自述未登记清单）及由此缺失的 json_path",
+      "issue": "问题三节点级决策表、各节点分项成本、拓扑扰动扫描、成品策略对比、问题二十六组合策略表、问题四重解数组与置信区间/点估计决策/决策差异/利润区间全部未逐条声明，故全部未进入 results.json。这些恰是题面问题 3『给出具体的决策方案，以及决策的依据及相应指标』与问题 4『重新完成问题 2 和问题 3』的核心产物，缺登记使论文阶段无法从铸出账本引用问题三的决策与问题四的重解数字。以『账本以整表对象给出、无逐节点标量键可供铸数』为由整块弃登记，理由不充分：对象/表内部的标量叶子（某节点是否检测、某节点的分项成本等）完全可以逐条以 json_path 指向叶子声明；确因 null/文本导致取值非有穷数而不能铸的，应改账本存储形态（如决策表改存 0/1 纯数值矩阵后按矩阵一条登记），而不是不登记。",
+      "fix": ""
     },
     {
       "severity": "minor",
-      "where": "RESULT_SOURCES.json 顶层",
-      "issue": "产出契约给出的顶层形态是数组 [{result_id,name,locator,json_path,unit}]，实际为对象 {stage, locator_base, note, sources:[...]}。机械门禁 result_sources_valid 已通过，不阻断流转，但形态与契约字面不一致，下游解析必须知道到 sources 字段取数组。",
-      "fix": "在 note 中显式写明'sources 即契约要求的数组'，或直接改成顶层数组 + 侧车元数据文件。"
-    },
-    {
-      "severity": "minor",
-      "where": "RESULT_SOURCES.json / R-Q1-sampling-cost-case1 与 results.json 对应项",
-      "issue": "该量名为'抽样检测费用（按单件检测成本归一）'、单位'元/件'，值为 368，实际是 n* 的等比复制；题面问题1 并未给出检测成本数值，此单位容易被误读为真实费用支出。",
-      "fix": "改为无量纲表述（如'归一化检测次数 n*'）并注明单件检测成本取 1 的归一约定来源，或从账本移除。"
-    },
-    {
-      "severity": "minor",
-      "where": "RESULT_SOURCES.json / sources（Q2 段）",
-      "issue": "问题2 六个情况中仅情况1 登记了 unit_cost（期望总成本），情况2-6 只有 profit，同一类指标在账本内覆盖不一致。",
-      "fix": "六个情况统一登记 unit_cost（或统一不登记），保持同名指标口径一致。"
+      "where": "results.json R-Q1-sampling-unit-cost（=2 元/件）及其派生的 case95_cost=736、case90_cost=576",
+      "issue": "题面问题 1 只说『检测费用由企业自行承担』，未给抽样检测单价；上游也未给。该单价是凭空多出的自设参数。它已被标注为自选假设，本身可接受，但由它派生的 736/576 是自设假设下的示意金额，绝不能被当作题面给定值引用。",
+      "fix": ""
     }
   ],
   "missing": [],
   "model": "glm-5.3-flash-free",
-  "at": "2026-09-26T09:35:19.670Z"
+  "at": "2026-09-27T08:37:17.794Z"
 }

@@ -1,0 +1,27 @@
+{
+  "stage": "03-code",
+  "steps": [
+    {
+      "name": "problem1",
+      "ok": true,
+      "elapsed_sec": 82.134
+    },
+    {
+      "name": "problem2",
+      "ok": true,
+      "elapsed_sec": 0.001
+    },
+    {
+      "name": "problem3",
+      "ok": true,
+      "elapsed_sec": 0.01
+    },
+    {
+      "name": "problem4",
+      "ok": true,
+      "elapsed_sec": 5.027
+    }
+  ],
+  "ok_all": true,
+  "elapsed_sec": 87.182
+}

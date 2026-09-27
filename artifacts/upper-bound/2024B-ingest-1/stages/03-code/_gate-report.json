@@ -1,6 +1,6 @@
 {
   "stage": "code",
-  "code": 1,
+  "code": 2,
   "items": [
     {
       "id": "code_parity",
@@ -11,14 +11,14 @@
     {
       "id": "ledger_keys_declared",
       "ok": true,
-      "detail": "已公布 77 个账本键 —— 阶段 4 照抄即可，不必猜",
+      "detail": "已公布 122 个账本键 —— 阶段 4 照抄即可，不必猜",
       "code": 0
     },
     {
       "id": "numbers_traced",
-      "ok": false,
-      "detail": "有 1 个文件出现**没有出生证明**的数字 —— RESULTS.md：1 处（去重 1：101），首个 L82「- **OC 曲线**（折线图）→ `problem1.oc_curve.p_grid` / `pr」。补救有三条路：**若它是你的模型常数**（随机种子/容差/网格数/重复次数…），写进 `DECLARATION.json` 的 `model_constants`；**若它是计算结果**，改成结果锚点（如 `{R-Q2-case5-profit}`）——数值只能由 harness 真跑代码后铸出；**若它是反例或示意里的数**（说明某个被否方案会给出什么、某个退化情形长什么样），写进 `DECLARATION.json` 的 `illustrative_numbers`（编外登记簿），每条要给出 `quote`（它出现在哪句话里）与 `reason`（为什么它既不是常数也不是结果）。**编外不等于免登记**：没有登记簿条目，门禁照样判它无出生证明。在散文里声明常数不算声明。",
-      "code": 1
+      "ok": true,
+      "detail": "1 个文本产物的 73 个数字全部有出生证明（题面给定值 / 声明的常数 / 编外登记 1 条）",
+      "code": 0
     },
     {
       "id": "delivery_audit",

@@ -1,554 +1,139 @@
 {
   "stage": "04-result-sources",
   "locator_base": "code/",
-  "contract_shape_note": "sources 即产出契约要求的数组 [{result_id, name, locator, json_path, unit}]；本文件为便于携带审计处置说明而包了一层对象，下游取 sources 字段即可。本文件从头到尾不写任何数值，全部数值由 harness 真跑 code/main.py 后按 locator+json_path 从产物字节铸入 results.json。locator 一律相对 code/。",
-  "audit_resolutions": [
-    {
-      "audit_item": "Q3 段只登记了期望利润、未登记节点级决策向量",
-      "resolution": "已改。在 sources 中新增问题三节点级决策的六条定位：零配件层检测标志与拆解标志、半成品层检测标志与拆解标志、成品层检测标志与拆解标志，json_path 指向 problem3.decision 下的对应字段，由 harness 铸入 results.json。问题三决策变量的登记粒度现与问题二逐情况登记的做法一致。"
-    },
-    {
-      "audit_item": "Q4 段未覆盖问题三在抽样次品率下的重解",
-      "resolution": "明确反驳并记录缺口。本阶段的职责只是声明数源，声明一条上游产物里不存在的 json_path 会被 harness 具名判为落空，等于把可解析的账本弄坏。问题三在抽样次品率下的重解属于 03-code 的产出范围：若 outputs.json 的 problem4 段确实没有 q3 分支，本阶段既不能虚构定位，也无权重写上游代码。故本阶段对该项的处置是：不虚构声明，并在本字段显式记录其为已知缺口，交由上游 03-code 补齐后由下一轮本阶段登记。"
-    },
-    {
-      "audit_item": "顶层形态与契约字面不一致",
-      "resolution": "已按自检清单口径保留对象形态（自检清单要求 RESULT_SOURCES.json 是合法 JSON 对象且 sources 数组非空），并在 contract_shape_note 中显式写明 sources 即契约要求的数组，下游解析到 sources 取值即可，无需再猜结构。"
-    },
-    {
-      "audit_item": "抽样检测费用被误读为真实费用支出",
-      "resolution": "已改。该量的 name 改写为归一化检测次数的表述，并在 name 内注明单件检测成本按账本假设值取一、结果为检测次数而非金额；unit 由元/件改为次（归一化），不再暗示题面给过单位检测成本。"
-    },
-    {
-      "audit_item": "问题二六情况中单位成本覆盖不一致",
-      "resolution": "已改。表一六个情况一律登记期望单位成本，与六情况一律登记的期望利润同名同口径，情况之间不再有覆盖差异。"
-    }
-  ],
+  "note": "sources 即契约要求的数组：顶层对象仅承载 stage / locator_base / note 三个元数据字段，sources 的每个元素严格为 {result_id,name,locator,json_path,unit} 五字段。所有 locator 相对 code/ 目录书写，不重复该前缀（写 outputs.json，不写 code/outputs.json）。所有 json_path 逐字照抄阶段 3 DELIVERABLES.json 公布的 ledger_keys，未自行推导任何路径。本文件只声明定位，不含任何数值。审计项处理：问题3 的节点级二值决策表（各零配件 / 半成品 / 成品的检测与拆解决策）由 problem3.baseline.best_decision 一条承载，问题3 各节点分项成本由 problem3.baseline.node_cost 一条承载——阶段 3 公布的 ledger_keys 未提供逐节点子路径，按契约不得自推路径，故以这两个键为唯一落点，与问题2 的逐决策变量登记口径对齐（问题2 的 4 个二值决策键在公布清单中逐项存在，故逐项登记）。问题4 的问题3 分支由 problem4.q3 前缀下的键承载，问题4 的问题2 分支既有一条整表数组键，也有首元素的区间 / 利润区间 / 一致率 / 翻转率 / 稳健布尔键，两支均不落空。抽样检测费用的三个键沿用阶段 3 公布的原名与量纲口径，单价键名带自选假设字样，假设说明文本由 problem1.sampling_cost.note 承载，引用费用时须同时引用该说明。",
   "sources": [
-    {
-      "result_id": "R-Q1-n-case95",
-      "name": "问题一情形一（高信度下拒收侧）的最小抽样检测次数",
-      "locator": "outputs.json",
-      "json_path": "problem1.case95.n",
-      "unit": "件"
-    },
-    {
-      "result_id": "R-Q1-c-case95",
-      "name": "问题一情形一的判定临界值（不合格件数上限）",
-      "locator": "outputs.json",
-      "json_path": "problem1.case95.c",
-      "unit": "件"
-    },
-    {
-      "result_id": "R-Q1-n-case90",
-      "name": "问题一情形二（高信度下接收侧）的最小抽样检测次数",
-      "locator": "outputs.json",
-      "json_path": "problem1.case90.n",
-      "unit": "件"
-    },
-    {
-      "result_id": "R-Q1-c-case90",
-      "name": "问题一情形二的判定临界值（不合格件数上限）",
-      "locator": "outputs.json",
-      "json_path": "problem1.case90.c",
-      "unit": "件"
-    },
-    {
-      "result_id": "R-Q1-oc-p-grid",
-      "name": "问题一接收特性曲线的横轴序列（真实次品率取值序列）",
-      "locator": "outputs.json",
-      "json_path": "problem1.oc_curve.p",
-      "unit": "无量纲（比率）"
-    },
-    {
-      "result_id": "R-Q1-oc-accept-prob",
-      "name": "问题一接收特性曲线的纵轴序列（对应接收概率序列）",
-      "locator": "outputs.json",
-      "json_path": "problem1.oc_curve.accept_prob",
-      "unit": "无量纲（概率）"
-    },
-    {
-      "result_id": "R-Q1-sampling-cost-case1",
-      "name": "问题一情形一的归一化检测次数（单件检测成本按账本假设值取一，故为检测次数而非金额支出）",
-      "locator": "outputs.json",
-      "json_path": "problem1.sampling_cost.case1",
-      "unit": "次（归一化，单件检测成本取一）"
-    },
-    {
-      "result_id": "R-Q2-case1-dec-z1",
-      "name": "问题二表一情况一的最优决策：是否检测零配件一",
-      "locator": "outputs.json",
-      "json_path": "problem2.case1.inspect_part1",
-      "unit": "二值（无量纲）"
-    },
-    {
-      "result_id": "R-Q2-case1-dec-z2",
-      "name": "问题二表一情况一的最优决策：是否检测零配件二",
-      "locator": "outputs.json",
-      "json_path": "problem2.case1.inspect_part2",
-      "unit": "二值（无量纲）"
-    },
-    {
-      "result_id": "R-Q2-case1-dec-c",
-      "name": "问题二表一情况一的最优决策：是否检测成品",
-      "locator": "outputs.json",
-      "json_path": "problem2.case1.inspect_product",
-      "unit": "二值（无量纲）"
-    },
-    {
-      "result_id": "R-Q2-case1-dec-d",
-      "name": "问题二表一情况一的最优决策：是否拆解不合格成品",
-      "locator": "outputs.json",
-      "json_path": "problem2.case1.disassemble",
-      "unit": "二值（无量纲）"
-    },
-    {
-      "result_id": "R-Q2-case1-profit",
-      "name": "问题二表一情况一最优策略下的期望单位利润",
-      "locator": "outputs.json",
-      "json_path": "problem2.case1.profit",
-      "unit": "元/件"
-    },
-    {
-      "result_id": "R-Q2-case1-unit-cost",
-      "name": "问题二表一情况一最优策略下的期望单位总成本",
-      "locator": "outputs.json",
-      "json_path": "problem2.case1.unit_cost",
-      "unit": "元/件"
-    },
-    {
-      "result_id": "R-Q2-case2-dec-z1",
-      "name": "问题二表一情况二的最优决策：是否检测零配件一",
-      "locator": "outputs.json",
-      "json_path": "problem2.case2.inspect_part1",
-      "unit": "二值（无量纲）"
-    },
-    {
-      "result_id": "R-Q2-case2-dec-z2",
-      "name": "问题二表一情况二的最优决策：是否检测零配件二",
-      "locator": "outputs.json",
-      "json_path": "problem2.case2.inspect_part2",
-      "unit": "二值（无量纲）"
-    },
-    {
-      "result_id": "R-Q2-case2-dec-c",
-      "name": "问题二表一情况二的最优决策：是否检测成品",
-      "locator": "outputs.json",
-      "json_path": "problem2.case2.inspect_product",
-      "unit": "二值（无量纲）"
-    },
-    {
-      "result_id": "R-Q2-case2-dec-d",
-      "name": "问题二表一情况二的最优决策：是否拆解不合格成品",
-      "locator": "outputs.json",
-      "json_path": "problem2.case2.disassemble",
-      "unit": "二值（无量纲）"
-    },
-    {
-      "result_id": "R-Q2-case2-profit",
-      "name": "问题二表一情况二最优策略下的期望单位利润",
-      "locator": "outputs.json",
-      "json_path": "problem2.case2.profit",
-      "unit": "元/件"
-    },
-    {
-      "result_id": "R-Q2-case2-unit-cost",
-      "name": "问题二表一情况二最优策略下的期望单位总成本",
-      "locator": "outputs.json",
-      "json_path": "problem2.case2.unit_cost",
-      "unit": "元/件"
-    },
-    {
-      "result_id": "R-Q2-case3-dec-z1",
-      "name": "问题二表一情况三的最优决策：是否检测零配件一",
-      "locator": "outputs.json",
-      "json_path": "problem2.case3.inspect_part1",
-      "unit": "二值（无量纲）"
-    },
-    {
-      "result_id": "R-Q2-case3-dec-z2",
-      "name": "问题二表一情况三的最优决策：是否检测零配件二",
-      "locator": "outputs.json",
-      "json_path": "problem2.case3.inspect_part2",
-      "unit": "二值（无量纲）"
-    },
-    {
-      "result_id": "R-Q2-case3-dec-c",
-      "name": "问题二表一情况三的最优决策：是否检测成品",
-      "locator": "outputs.json",
-      "json_path": "problem2.case3.inspect_product",
-      "unit": "二值（无量纲）"
-    },
-    {
-      "result_id": "R-Q2-case3-dec-d",
-      "name": "问题二表一情况三的最优决策：是否拆解不合格成品",
-      "locator": "outputs.json",
-      "json_path": "problem2.case3.disassemble",
-      "unit": "二值（无量纲）"
-    },
-    {
-      "result_id": "R-Q2-case3-profit",
-      "name": "问题二表一情况三最优策略下的期望单位利润",
-      "locator": "outputs.json",
-      "json_path": "problem2.case3.profit",
-      "unit": "元/件"
-    },
-    {
-      "result_id": "R-Q2-case3-unit-cost",
-      "name": "问题二表一情况三最优策略下的期望单位总成本",
-      "locator": "outputs.json",
-      "json_path": "problem2.case3.unit_cost",
-      "unit": "元/件"
-    },
-    {
-      "result_id": "R-Q2-case4-dec-z1",
-      "name": "问题二表一情况四的最优决策：是否检测零配件一",
-      "locator": "outputs.json",
-      "json_path": "problem2.case4.inspect_part1",
-      "unit": "二值（无量纲）"
-    },
-    {
-      "result_id": "R-Q2-case4-dec-z2",
-      "name": "问题二表一情况四的最优决策：是否检测零配件二",
-      "locator": "outputs.json",
-      "json_path": "problem2.case4.inspect_part2",
-      "unit": "二值（无量纲）"
-    },
-    {
-      "result_id": "R-Q2-case4-dec-c",
-      "name": "问题二表一情况四的最优决策：是否检测成品",
-      "locator": "outputs.json",
-      "json_path": "problem2.case4.inspect_product",
-      "unit": "二值（无量纲）"
-    },
-    {
-      "result_id": "R-Q2-case4-dec-d",
-      "name": "问题二表一情况四的最优决策：是否拆解不合格成品",
-      "locator": "outputs.json",
-      "json_path": "problem2.case4.disassemble",
-      "unit": "二值（无量纲）"
-    },
-    {
-      "result_id": "R-Q2-case4-profit",
-      "name": "问题二表一情况四最优策略下的期望单位利润",
-      "locator": "outputs.json",
-      "json_path": "problem2.case4.profit",
-      "unit": "元/件"
-    },
-    {
-      "result_id": "R-Q2-case4-unit-cost",
-      "name": "问题二表一情况四最优策略下的期望单位总成本",
-      "locator": "outputs.json",
-      "json_path": "problem2.case4.unit_cost",
-      "unit": "元/件"
-    },
-    {
-      "result_id": "R-Q2-case5-dec-z1",
-      "name": "问题二表一情况五的最优决策：是否检测零配件一",
-      "locator": "outputs.json",
-      "json_path": "problem2.case5.inspect_part1",
-      "unit": "二值（无量纲）"
-    },
-    {
-      "result_id": "R-Q2-case5-dec-z2",
-      "name": "问题二表一情况五的最优决策：是否检测零配件二",
-      "locator": "outputs.json",
-      "json_path": "problem2.case5.inspect_part2",
-      "unit": "二值（无量纲）"
-    },
-    {
-      "result_id": "R-Q2-case5-dec-c",
-      "name": "问题二表一情况五的最优决策：是否检测成品",
-      "locator": "outputs.json",
-      "json_path": "problem2.case5.inspect_product",
-      "unit": "二值（无量纲）"
-    },
-    {
-      "result_id": "R-Q2-case5-dec-d",
-      "name": "问题二表一情况五的最优决策：是否拆解不合格成品",
-      "locator": "outputs.json",
-      "json_path": "problem2.case5.disassemble",
-      "unit": "二值（无量纲）"
-    },
-    {
-      "result_id": "R-Q2-case5-profit",
-      "name": "问题二表一情况五最优策略下的期望单位利润",
-      "locator": "outputs.json",
-      "json_path": "problem2.case5.profit",
-      "unit": "元/件"
-    },
-    {
-      "result_id": "R-Q2-case5-unit-cost",
-      "name": "问题二表一情况五最优策略下的期望单位总成本",
-      "locator": "outputs.json",
-      "json_path": "problem2.case5.unit_cost",
-      "unit": "元/件"
-    },
-    {
-      "result_id": "R-Q2-case6-dec-z1",
-      "name": "问题二表一情况六的最优决策：是否检测零配件一",
-      "locator": "outputs.json",
-      "json_path": "problem2.case6.inspect_part1",
-      "unit": "二值（无量纲）"
-    },
-    {
-      "result_id": "R-Q2-case6-dec-z2",
-      "name": "问题二表一情况六的最优决策：是否检测零配件二",
-      "locator": "outputs.json",
-      "json_path": "problem2.case6.inspect_part2",
-      "unit": "二值（无量纲）"
-    },
-    {
-      "result_id": "R-Q2-case6-dec-c",
-      "name": "问题二表一情况六的最优决策：是否检测成品",
-      "locator": "outputs.json",
-      "json_path": "problem2.case6.inspect_product",
-      "unit": "二值（无量纲）"
-    },
-    {
-      "result_id": "R-Q2-case6-dec-d",
-      "name": "问题二表一情况六的最优决策：是否拆解不合格成品",
-      "locator": "outputs.json",
-      "json_path": "problem2.case6.disassemble",
-      "unit": "二值（无量纲）"
-    },
-    {
-      "result_id": "R-Q2-case6-profit",
-      "name": "问题二表一情况六最优策略下的期望单位利润",
-      "locator": "outputs.json",
-      "json_path": "problem2.case6.profit",
-      "unit": "元/件"
-    },
-    {
-      "result_id": "R-Q2-case6-unit-cost",
-      "name": "问题二表一情况六最优策略下的期望单位总成本",
-      "locator": "outputs.json",
-      "json_path": "problem2.case6.unit_cost",
-      "unit": "元/件"
-    },
-    {
-      "result_id": "R-Q2-best-dec-z1",
-      "name": "问题二全局最优组合：是否检测零配件一",
-      "locator": "outputs.json",
-      "json_path": "problem2.best_combo.inspect_part1",
-      "unit": "二值（无量纲）"
-    },
-    {
-      "result_id": "R-Q2-best-dec-z2",
-      "name": "问题二全局最优组合：是否检测零配件二",
-      "locator": "outputs.json",
-      "json_path": "problem2.best_combo.inspect_part2",
-      "unit": "二值（无量纲）"
-    },
-    {
-      "result_id": "R-Q2-best-dec-c",
-      "name": "问题二全局最优组合：是否检测成品",
-      "locator": "outputs.json",
-      "json_path": "problem2.best_combo.inspect_product",
-      "unit": "二值（无量纲）"
-    },
-    {
-      "result_id": "R-Q2-best-dec-d",
-      "name": "问题二全局最优组合：是否拆解不合格成品",
-      "locator": "outputs.json",
-      "json_path": "problem2.best_combo.disassemble",
-      "unit": "二值（无量纲）"
-    },
-    {
-      "result_id": "R-Q2-best-combo-profit",
-      "name": "问题二全局最优组合对应的期望单位利润",
-      "locator": "outputs.json",
-      "json_path": "problem2.best_combo.profit",
-      "unit": "元/件"
-    },
-    {
-      "result_id": "R-Q2-cost-breakdown",
-      "name": "问题二最优策略下的成本分解序列（采购、检测、装配、拆解、调换损失各分项）",
-      "locator": "outputs.json",
-      "json_path": "problem2.cost_breakdown",
-      "unit": "元/件"
-    },
-    {
-      "result_id": "R-Q2-sens-defect-p",
-      "name": "问题二次品率灵敏度扫描的横轴序列（被扫描的次品率取值序列）",
-      "locator": "outputs.json",
-      "json_path": "problem2.sensitivity.defect_rate.p",
-      "unit": "无量纲（比率）"
-    },
-    {
-      "result_id": "R-Q2-sens-defect-profit",
-      "name": "问题二次品率灵敏度扫描的纵轴序列（对应期望单位利润序列）",
-      "locator": "outputs.json",
-      "json_path": "problem2.sensitivity.defect_rate.profit",
-      "unit": "元/件"
-    },
-    {
-      "result_id": "R-Q2-sens-unitcost-axis",
-      "name": "问题二成本类参数灵敏度扫描的横轴序列（购买单价、检测成本、调换损失的取值序列）",
-      "locator": "outputs.json",
-      "json_path": "problem2.sensitivity.unit_cost.value",
-      "unit": "元/件"
-    },
-    {
-      "result_id": "R-Q2-sens-unitcost-profit",
-      "name": "问题二成本类参数灵敏度扫描的纵轴序列（每条参数曲线对应的期望单位利润序列）",
-      "locator": "outputs.json",
-      "json_path": "problem2.sensitivity.unit_cost.profit",
-      "unit": "元/件"
-    },
-    {
-      "result_id": "R-Q2-breakeven-grid",
-      "name": "问题二盈亏平衡二维网格上的决策结果矩阵（供热力图）",
-      "locator": "outputs.json",
-      "json_path": "problem2.breakeven.grid",
-      "unit": "二值（无量纲）"
-    },
-    {
-      "result_id": "R-Q2-breakeven-flip",
-      "name": "问题二盈亏平衡网格上的决策翻转点坐标",
-      "locator": "outputs.json",
-      "json_path": "problem2.breakeven.flip_points",
-      "unit": "无量纲（参数坐标）"
-    },
-    {
-      "result_id": "R-Q2-combo-cost-matrix",
-      "name": "问题二全部候选决策组合的期望单位成本矩阵（供热力图）",
-      "locator": "outputs.json",
-      "json_path": "problem2.cost_matrix",
-      "unit": "元/件"
-    },
-    {
-      "result_id": "R-Q2-residual",
-      "name": "问题二解析闭式与逐轮现金流复算之间的残差",
-      "locator": "outputs.json",
-      "json_path": "problem2.residual",
-      "unit": "元/件"
-    },
-    {
-      "result_id": "R-Q3-dec-parts-inspect",
-      "name": "问题三零配件层各节点的检测决策标志序列",
-      "locator": "outputs.json",
-      "json_path": "problem3.decision.parts.inspect",
-      "unit": "二值（无量纲）"
-    },
-    {
-      "result_id": "R-Q3-dec-parts-disassemble",
-      "name": "问题三零配件层各节点的拆解决策标志序列",
-      "locator": "outputs.json",
-      "json_path": "problem3.decision.parts.disassemble",
-      "unit": "二值（无量纲）"
-    },
-    {
-      "result_id": "R-Q3-dec-semis-inspect",
-      "name": "问题三半成品层各节点的检测决策标志序列",
-      "locator": "outputs.json",
-      "json_path": "problem3.decision.semis.inspect",
-      "unit": "二值（无量纲）"
-    },
-    {
-      "result_id": "R-Q3-dec-semis-disassemble",
-      "name": "问题三半成品层各节点的拆解决策标志序列",
-      "locator": "outputs.json",
-      "json_path": "problem3.decision.semis.disassemble",
-      "unit": "二值（无量纲）"
-    },
-    {
-      "result_id": "R-Q3-dec-product-inspect",
-      "name": "问题三成品节点的检测决策标志",
-      "locator": "outputs.json",
-      "json_path": "problem3.decision.product.inspect",
-      "unit": "二值（无量纲）"
-    },
-    {
-      "result_id": "R-Q3-dec-product-disassemble",
-      "name": "问题三成品节点的拆解决策标志",
-      "locator": "outputs.json",
-      "json_path": "problem3.decision.product.disassemble",
-      "unit": "二值（无量纲）"
-    },
-    {
-      "result_id": "R-Q3-profit",
-      "name": "问题三最优节点级策略下的期望单位利润",
-      "locator": "outputs.json",
-      "json_path": "problem3.profit",
-      "unit": "元/件"
-    },
-    {
-      "result_id": "R-Q3-node-cost",
-      "name": "问题三各节点等效获取成本序列",
-      "locator": "outputs.json",
-      "json_path": "problem3.node_cost",
-      "unit": "元/件"
-    },
-    {
-      "result_id": "R-Q3-topology-robust-consistency",
-      "name": "问题三装配拓扑扰动扫描下最优决策的一致率",
-      "locator": "outputs.json",
-      "json_path": "problem3.topology_robust.consistency_rate",
-      "unit": "无量纲（比率）"
-    },
-    {
-      "result_id": "R-Q3-topology-robust-flip",
-      "name": "问题三装配拓扑扰动扫描中决策发生翻转的拓扑点",
-      "locator": "outputs.json",
-      "json_path": "problem3.topology_robust.flip_points",
-      "unit": "无量纲（拓扑编号）"
-    },
-    {
-      "result_id": "R-Q4-ci-part1-point",
-      "name": "问题四零配件一次品率的点估计",
-      "locator": "outputs.json",
-      "json_path": "problem4.ci.part1.point",
-      "unit": "无量纲（比率）"
-    },
-    {
-      "result_id": "R-Q4-ci-part1-lower",
-      "name": "问题四零配件一次品率精确二项置信区间的下端点",
-      "locator": "outputs.json",
-      "json_path": "problem4.ci.part1.lower",
-      "unit": "无量纲（比率）"
-    },
-    {
-      "result_id": "R-Q4-ci-part1-upper",
-      "name": "问题四零配件一次品率精确二项置信区间的上端点",
-      "locator": "outputs.json",
-      "json_path": "problem4.ci.part1.upper",
-      "unit": "无量纲（比率）"
-    },
-    {
-      "result_id": "R-Q4-profit-range-min",
-      "name": "问题四在决策固定下次品率取置信区间端点时的期望单位利润下界",
-      "locator": "outputs.json",
-      "json_path": "problem4.profit_range.min",
-      "unit": "元/件"
-    },
-    {
-      "result_id": "R-Q4-profit-range-max",
-      "name": "问题四在决策固定下次品率取置信区间端点时的期望单位利润上界",
-      "locator": "outputs.json",
-      "json_path": "problem4.profit_range.max",
-      "unit": "元/件"
-    },
-    {
-      "result_id": "R-Q4-consistency-rate",
-      "name": "问题四蒙特卡洛重抽样下问题二最优决策组合的一致率序列（逐情况）",
-      "locator": "outputs.json",
-      "json_path": "problem4.q2.cases.consistency_rate",
-      "unit": "无量纲（比率）"
-    },
-    {
-      "result_id": "R-Q4-rate-standard-error",
-      "name": "问题四蒙特卡洛一致率的标准误序列（逐情况）",
-      "locator": "outputs.json",
-      "json_path": "problem4.q2.cases.rate_standard_error",
-      "unit": "无量纲（比率）"
-    },
-    {
-      "result_id": "R-Q4-decision-diff",
-      "name": "问题四抽样口径下的决策与问题二问题三点估计决策的差异表",
-      "locator": "outputs.json",
-      "json_path": "problem4.decision_diff",
-      "unit": "二值（无量纲）"
-    }
+    {"result_id": "R-Q1-nominal-p", "name": "标称次品率", "locator": "outputs.json", "json_path": "problem1.nominal_p", "unit": "比率"},
+    {"result_id": "R-Q1-p-alt", "name": "两点设计备择次品率", "locator": "outputs.json", "json_path": "problem1.p_alt", "unit": "比率"},
+    {"result_id": "R-Q1-case95-n", "name": "情形95拒收最小检测次数", "locator": "outputs.json", "json_path": "problem1.case95.n", "unit": "件"},
+    {"result_id": "R-Q1-case95-c", "name": "情形95拒收临界次品数", "locator": "outputs.json", "json_path": "problem1.case95.c", "unit": "件"},
+    {"result_id": "R-Q1-case95-err-reject-at-nom", "name": "情形95标称点拒收侧错误率", "locator": "outputs.json", "json_path": "problem1.case95.err_reject_at_nom", "unit": "概率"},
+    {"result_id": "R-Q1-case95-power-at-alt", "name": "情形95备择点功效", "locator": "outputs.json", "json_path": "problem1.case95.power_at_alt", "unit": "概率"},
+    {"result_id": "R-Q1-case95-verify-gap", "name": "情形95真实约束距离", "locator": "outputs.json", "json_path": "problem1.case95.verify_gap", "unit": "概率"},
+    {"result_id": "R-Q1-case90-n", "name": "情形90接收最小检测次数", "locator": "outputs.json", "json_path": "problem1.case90.n", "unit": "件"},
+    {"result_id": "R-Q1-case90-c", "name": "情形90接收临界次品数", "locator": "outputs.json", "json_path": "problem1.case90.c", "unit": "件"},
+    {"result_id": "R-Q1-case90-accept-prob-at-nom", "name": "情形90标称点接收置信水平", "locator": "outputs.json", "json_path": "problem1.case90.accept_prob_at_nom", "unit": "概率"},
+    {"result_id": "R-Q1-case90-accept-prob-at-alt", "name": "情形90备择点误收概率", "locator": "outputs.json", "json_path": "problem1.case90.accept_prob_at_alt", "unit": "概率"},
+    {"result_id": "R-Q1-case90-verify-gap", "name": "情形90真实约束距离", "locator": "outputs.json", "json_path": "problem1.case90.verify_gap", "unit": "概率"},
+    {"result_id": "R-Q1-sampling-cost-unit-cost", "name": "抽样检测单价（自选假设）", "locator": "outputs.json", "json_path": "problem1.sampling_cost.unit_cost", "unit": "元/件"},
+    {"result_id": "R-Q1-sampling-cost-case95-cost", "name": "情形95抽样检测费用", "locator": "outputs.json", "json_path": "problem1.sampling_cost.case95_cost", "unit": "元"},
+    {"result_id": "R-Q1-sampling-cost-case90-cost", "name": "情形90抽样检测费用", "locator": "outputs.json", "json_path": "problem1.sampling_cost.case90_cost", "unit": "元"},
+    {"result_id": "R-Q1-sampling-cost-note", "name": "抽样单价假设说明", "locator": "outputs.json", "json_path": "problem1.sampling_cost.note", "unit": "文本"},
+    {"result_id": "R-Q1-oc-curve-p-grid", "name": "OC曲线横轴（真实次品率序列）", "locator": "outputs.json", "json_path": "problem1.oc_curve.p_grid", "unit": "比率"},
+    {"result_id": "R-Q1-oc-curve-accept-prob", "name": "OC曲线纵轴（接收概率序列）", "locator": "outputs.json", "json_path": "problem1.oc_curve.accept_prob", "unit": "概率"},
+    {"result_id": "R-Q1-oc-curve-n", "name": "OC曲线对应样本量", "locator": "outputs.json", "json_path": "problem1.oc_curve.n", "unit": "件"},
+    {"result_id": "R-Q1-oc-curve-c", "name": "OC曲线对应临界次品数", "locator": "outputs.json", "json_path": "problem1.oc_curve.c", "unit": "件"},
+    {"result_id": "R-Q1-ssc-confidence", "name": "样本量-信度扫描的置信水平序列", "locator": "outputs.json", "json_path": "problem1.sample_size_vs_confidence.confidence", "unit": "比率"},
+    {"result_id": "R-Q1-ssc-n-reject", "name": "拒收情形各置信水平下的最小样本量序列", "locator": "outputs.json", "json_path": "problem1.sample_size_vs_confidence.n_reject", "unit": "件"},
+    {"result_id": "R-Q1-ssc-c-reject", "name": "拒收情形各置信水平下的临界次品数序列", "locator": "outputs.json", "json_path": "problem1.sample_size_vs_confidence.c_reject", "unit": "件"},
+    {"result_id": "R-Q1-ssc-n-accept", "name": "接收情形各置信水平下的最小样本量序列", "locator": "outputs.json", "json_path": "problem1.sample_size_vs_confidence.n_accept", "unit": "件"},
+    {"result_id": "R-Q1-ssc-c-accept", "name": "接收情形各置信水平下的临界次品数序列", "locator": "outputs.json", "json_path": "problem1.sample_size_vs_confidence.c_accept", "unit": "件"},
+    {"result_id": "R-Q1-sprt-m", "name": "SPRT边界横轴（抽样件数序列）", "locator": "outputs.json", "json_path": "problem1.sprt_boundary.m", "unit": "件"},
+    {"result_id": "R-Q1-sprt-accept-line", "name": "SPRT接受边界序列", "locator": "outputs.json", "json_path": "problem1.sprt_boundary.accept_line", "unit": "件"},
+    {"result_id": "R-Q1-sprt-reject-line", "name": "SPRT拒收边界序列", "locator": "outputs.json", "json_path": "problem1.sprt_boundary.reject_line", "unit": "件"},
+    {"result_id": "R-Q1-normal-approx-n-at-nom", "name": "正态近似适用性核验的样本量", "locator": "outputs.json", "json_path": "problem1.normal_approx.n_at_nom", "unit": "件"},
+    {"result_id": "R-Q1-normal-approx-ok", "name": "正态近似适用性判定", "locator": "outputs.json", "json_path": "problem1.normal_approx.ok", "unit": "布尔"},
+
+    {"result_id": "R-Q2-case1-best-z1", "name": "情况1最优决策Z1", "locator": "outputs.json", "json_path": "problem2.cases[0].best.Z1", "unit": "0/1"},
+    {"result_id": "R-Q2-case1-best-z2", "name": "情况1最优决策Z2", "locator": "outputs.json", "json_path": "problem2.cases[0].best.Z2", "unit": "0/1"},
+    {"result_id": "R-Q2-case1-best-c", "name": "情况1最优决策C", "locator": "outputs.json", "json_path": "problem2.cases[0].best.C", "unit": "0/1"},
+    {"result_id": "R-Q2-case1-best-d", "name": "情况1最优决策D", "locator": "outputs.json", "json_path": "problem2.cases[0].best.D", "unit": "0/1"},
+    {"result_id": "R-Q2-case1-best-u", "name": "情况1最优单位期望成本", "locator": "outputs.json", "json_path": "problem2.cases[0].best.U", "unit": "元/件"},
+    {"result_id": "R-Q2-case1-best-profit", "name": "情况1最优单位期望利润", "locator": "outputs.json", "json_path": "problem2.cases[0].best.profit", "unit": "元/件"},
+    {"result_id": "R-Q2-case1-best-q", "name": "情况1最优策略一次装配合格率", "locator": "outputs.json", "json_path": "problem2.cases[0].best.q", "unit": "概率"},
+    {"result_id": "R-Q2-case1-best-kf", "name": "情况1新料一轮成本", "locator": "outputs.json", "json_path": "problem2.cases[0].best.K_f", "unit": "元/轮"},
+    {"result_id": "R-Q2-case1-best-kr", "name": "情况1回收料一轮成本", "locator": "outputs.json", "json_path": "problem2.cases[0].best.K_r", "unit": "元/轮"},
+    {"result_id": "R-Q2-case1-best-kappa", "name": "情况1一轮回收等效收益", "locator": "outputs.json", "json_path": "problem2.cases[0].best.kappa", "unit": "元/轮"},
+    {"result_id": "R-Q2-case1-best-g", "name": "情况1交付概率", "locator": "outputs.json", "json_path": "problem2.cases[0].best.g", "unit": "概率"},
+    {"result_id": "R-Q2-case1-best-r", "name": "情况1回收链期望成本", "locator": "outputs.json", "json_path": "problem2.cases[0].best.R", "unit": "元"},
+    {"result_id": "R-Q2-case1-bd-purchase", "name": "情况1最优策略采购分项（每件交付）", "locator": "outputs.json", "json_path": "problem2.cases[0].best.cost_breakdown.purchase", "unit": "元/件"},
+    {"result_id": "R-Q2-case1-bd-inspect", "name": "情况1最优策略零配件检测分项", "locator": "outputs.json", "json_path": "problem2.cases[0].best.cost_breakdown.inspect", "unit": "元/件"},
+    {"result_id": "R-Q2-case1-bd-assembly", "name": "情况1最优策略装配分项", "locator": "outputs.json", "json_path": "problem2.cases[0].best.cost_breakdown.assembly", "unit": "元/件"},
+    {"result_id": "R-Q2-case1-bd-product-inspect", "name": "情况1最优策略成品检测分项", "locator": "outputs.json", "json_path": "problem2.cases[0].best.cost_breakdown.product_inspect", "unit": "元/件"},
+    {"result_id": "R-Q2-case1-bd-disassemble", "name": "情况1最优策略拆解分项", "locator": "outputs.json", "json_path": "problem2.cases[0].best.cost_breakdown.disassemble", "unit": "元/件"},
+    {"result_id": "R-Q2-case1-bd-exchange", "name": "情况1最优策略调换损失分项", "locator": "outputs.json", "json_path": "problem2.cases[0].best.cost_breakdown.exchange", "unit": "元/件"},
+    {"result_id": "R-Q2-case1-strategies", "name": "情况1全部16种组合的U与利润数组（画热力图用）", "locator": "outputs.json", "json_path": "problem2.cases[0].strategies", "unit": "数组"},
+
+    {"result_id": "R-Q2-case2-best-z1", "name": "情况2最优决策Z1", "locator": "outputs.json", "json_path": "problem2.cases[1].best.Z1", "unit": "0/1"},
+    {"result_id": "R-Q2-case2-best-z2", "name": "情况2最优决策Z2", "locator": "outputs.json", "json_path": "problem2.cases[1].best.Z2", "unit": "0/1"},
+    {"result_id": "R-Q2-case2-best-c", "name": "情况2最优决策C", "locator": "outputs.json", "json_path": "problem2.cases[1].best.C", "unit": "0/1"},
+    {"result_id": "R-Q2-case2-best-d", "name": "情况2最优决策D", "locator": "outputs.json", "json_path": "problem2.cases[1].best.D", "unit": "0/1"},
+    {"result_id": "R-Q2-case2-best-u", "name": "情况2最优单位期望成本", "locator": "outputs.json", "json_path": "problem2.cases[1].best.U", "unit": "元/件"},
+    {"result_id": "R-Q2-case2-best-profit", "name": "情况2最优单位期望利润", "locator": "outputs.json", "json_path": "problem2.cases[1].best.profit", "unit": "元/件"},
+    {"result_id": "R-Q2-case2-strategies", "name": "情况2全部16种组合数组", "locator": "outputs.json", "json_path": "problem2.cases[1].strategies", "unit": "数组"},
+
+    {"result_id": "R-Q2-case3-best-z1", "name": "情况3最优决策Z1", "locator": "outputs.json", "json_path": "problem2.cases[2].best.Z1", "unit": "0/1"},
+    {"result_id": "R-Q2-case3-best-z2", "name": "情况3最优决策Z2", "locator": "outputs.json", "json_path": "problem2.cases[2].best.Z2", "unit": "0/1"},
+    {"result_id": "R-Q2-case3-best-c", "name": "情况3最优决策C", "locator": "outputs.json", "json_path": "problem2.cases[2].best.C", "unit": "0/1"},
+    {"result_id": "R-Q2-case3-best-d", "name": "情况3最优决策D", "locator": "outputs.json", "json_path": "problem2.cases[2].best.D", "unit": "0/1"},
+    {"result_id": "R-Q2-case3-best-u", "name": "情况3最优单位期望成本", "locator": "outputs.json", "json_path": "problem2.cases[2].best.U", "unit": "元/件"},
+    {"result_id": "R-Q2-case3-best-profit", "name": "情况3最优单位期望利润", "locator": "outputs.json", "json_path": "problem2.cases[2].best.profit", "unit": "元/件"},
+    {"result_id": "R-Q2-case3-strategies", "name": "情况3全部16种组合数组", "locator": "outputs.json", "json_path": "problem2.cases[2].strategies", "unit": "数组"},
+
+    {"result_id": "R-Q2-case4-best-z1", "name": "情况4最优决策Z1", "locator": "outputs.json", "json_path": "problem2.cases[3].best.Z1", "unit": "0/1"},
+    {"result_id": "R-Q2-case4-best-z2", "name": "情况4最优决策Z2", "locator": "outputs.json", "json_path": "problem2.cases[3].best.Z2", "unit": "0/1"},
+    {"result_id": "R-Q2-case4-best-c", "name": "情况4最优决策C", "locator": "outputs.json", "json_path": "problem2.cases[3].best.C", "unit": "0/1"},
+    {"result_id": "R-Q2-case4-best-d", "name": "情况4最优决策D", "locator": "outputs.json", "json_path": "problem2.cases[3].best.D", "unit": "0/1"},
+    {"result_id": "R-Q2-case4-best-u", "name": "情况4最优单位期望成本", "locator": "outputs.json", "json_path": "problem2.cases[3].best.U", "unit": "元/件"},
+    {"result_id": "R-Q2-case4-best-profit", "name": "情况4最优单位期望利润", "locator": "outputs.json", "json_path": "problem2.cases[3].best.profit", "unit": "元/件"},
+    {"result_id": "R-Q2-case4-strategies", "name": "情况4全部16种组合数组", "locator": "outputs.json", "json_path": "problem2.cases[3].strategies", "unit": "数组"},
+
+    {"result_id": "R-Q2-case5-best-z1", "name": "情况5最优决策Z1", "locator": "outputs.json", "json_path": "problem2.cases[4].best.Z1", "unit": "0/1"},
+    {"result_id": "R-Q2-case5-best-z2", "name": "情况5最优决策Z2", "locator": "outputs.json", "json_path": "problem2.cases[4].best.Z2", "unit": "0/1"},
+    {"result_id": "R-Q2-case5-best-c", "name": "情况5最优决策C", "locator": "outputs.json", "json_path": "problem2.cases[4].best.C", "unit": "0/1"},
+    {"result_id": "R-Q2-case5-best-d", "name": "情况5最优决策D", "locator": "outputs.json", "json_path": "problem2.cases[4].best.D", "unit": "0/1"},
+    {"result_id": "R-Q2-case5-best-u", "name": "情况5最优单位期望成本", "locator": "outputs.json", "json_path": "problem2.cases[4].best.U", "unit": "元/件"},
+    {"result_id": "R-Q2-case5-best-profit", "name": "情况5最优单位期望利润", "locator": "outputs.json", "json_path": "problem2.cases[4].best.profit", "unit": "元/件"},
+    {"result_id": "R-Q2-case5-strategies", "name": "情况5全部16种组合数组", "locator": "outputs.json", "json_path": "problem2.cases[4].strategies", "unit": "数组"},
+
+    {"result_id": "R-Q2-case6-best-z1", "name": "情况6最优决策Z1", "locator": "outputs.json", "json_path": "problem2.cases[5].best.Z1", "unit": "0/1"},
+    {"result_id": "R-Q2-case6-best-z2", "name": "情况6最优决策Z2", "locator": "outputs.json", "json_path": "problem2.cases[5].best.Z2", "unit": "0/1"},
+    {"result_id": "R-Q2-case6-best-c", "name": "情况6最优决策C", "locator": "outputs.json", "json_path": "problem2.cases[5].best.C", "unit": "0/1"},
+    {"result_id": "R-Q2-case6-best-d", "name": "情况6最优决策D", "locator": "outputs.json", "json_path": "problem2.cases[5].best.D", "unit": "0/1"},
+    {"result_id": "R-Q2-case6-best-u", "name": "情况6最优单位期望成本", "locator": "outputs.json", "json_path": "problem2.cases[5].best.U", "unit": "元/件"},
+    {"result_id": "R-Q2-case6-best-profit", "name": "情况6最优单位期望利润", "locator": "outputs.json", "json_path": "problem2.cases[5].best.profit", "unit": "元/件"},
+    {"result_id": "R-Q2-case6-strategies", "name": "情况6全部16种组合数组", "locator": "outputs.json", "json_path": "problem2.cases[5].strategies", "unit": "数组"},
+
+    {"result_id": "R-Q2-identity-max-diff", "name": "问题2分项恒等式守卫的最大差值", "locator": "outputs.json", "json_path": "problem2.identity_max_diff", "unit": "元/件"},
+    {"result_id": "R-Q2-global-best-case-id", "name": "六种情况中利润最大的情况编号", "locator": "outputs.json", "json_path": "problem2.global_best_case_id", "unit": "编号"},
+
+    {"result_id": "R-Q3-baseline-best-decision", "name": "问题3基准拓扑最优节点决策表", "locator": "outputs.json", "json_path": "problem3.baseline.best_decision", "unit": "对象"},
+    {"result_id": "R-Q3-baseline-u-root", "name": "问题3根节点每件合格成品期望总成本", "locator": "outputs.json", "json_path": "problem3.baseline.U_root", "unit": "元/件"},
+    {"result_id": "R-Q3-baseline-profit", "name": "问题3单位成品期望利润", "locator": "outputs.json", "json_path": "problem3.baseline.profit", "unit": "元/件"},
+    {"result_id": "R-Q3-baseline-node-cost", "name": "问题3各节点分项成本", "locator": "outputs.json", "json_path": "problem3.baseline.node_cost", "unit": "对象"},
+    {"result_id": "R-Q3-baseline-node-count", "name": "问题3节点总数", "locator": "outputs.json", "json_path": "problem3.baseline.node_count", "unit": "个"},
+    {"result_id": "R-Q3-baseline-semi-count", "name": "问题3半成品数", "locator": "outputs.json", "json_path": "problem3.baseline.semi_count", "unit": "个"},
+    {"result_id": "R-Q3-degenerate-tree-u", "name": "退化核验-节点级递推的U", "locator": "outputs.json", "json_path": "problem3.degenerate_check.tree_U", "unit": "元/件"},
+    {"result_id": "R-Q3-degenerate-q2-u", "name": "退化核验-问题2闭式的U", "locator": "outputs.json", "json_path": "problem3.degenerate_check.q2_U", "unit": "元/件"},
+    {"result_id": "R-Q3-degenerate-tree-profit", "name": "退化核验-节点级递推的利润", "locator": "outputs.json", "json_path": "problem3.degenerate_check.tree_profit", "unit": "元/件"},
+    {"result_id": "R-Q3-degenerate-q2-profit", "name": "退化核验-问题2闭式的利润", "locator": "outputs.json", "json_path": "problem3.degenerate_check.q2_profit", "unit": "元/件"},
+    {"result_id": "R-Q3-degenerate-diff-u", "name": "退化核验的成本差", "locator": "outputs.json", "json_path": "problem3.degenerate_check.diff_U", "unit": "元/件"},
+    {"result_id": "R-Q3-degenerate-diff-profit", "name": "退化核验的利润差", "locator": "outputs.json", "json_path": "problem3.degenerate_check.diff_profit", "unit": "元/件"},
+    {"result_id": "R-Q3-degenerate-pass", "name": "退化核验是否通过", "locator": "outputs.json", "json_path": "problem3.degenerate_check.pass", "unit": "布尔"},
+    {"result_id": "R-Q3-topology-robustness", "name": "拓扑扰动扫描结果数组（各变体利润与决策）", "locator": "outputs.json", "json_path": "problem3.topology_robustness", "unit": "数组"},
+    {"result_id": "R-Q3-product-strategy-compare", "name": "成品(Z,D)四组合横向对比（画图用）", "locator": "outputs.json", "json_path": "problem3.product_strategy_compare", "unit": "数组"},
+
+    {"result_id": "R-Q4-sample-size-used", "name": "问题4使用的抽样样本量", "locator": "outputs.json", "json_path": "problem4.sample_size_used", "unit": "件"},
+    {"result_id": "R-Q4-ci-level", "name": "问题4置信区间置信水平", "locator": "outputs.json", "json_path": "problem4.ci_level", "unit": "比率"},
+    {"result_id": "R-Q4-resample-count", "name": "问题4重抽样次数", "locator": "outputs.json", "json_path": "problem4.resample_count", "unit": "次"},
+    {"result_id": "R-Q4-seed", "name": "问题4随机种子", "locator": "outputs.json", "json_path": "problem4.seed", "unit": "整数"},
+    {"result_id": "R-Q4-q2-all", "name": "问题4重做问题2的结果数组（点估计决策/区间/利润区间/一致率）", "locator": "outputs.json", "json_path": "problem4.q2", "unit": "数组"},
+    {"result_id": "R-Q4-q2-case1-ci", "name": "问题4情况1各次品率置信区间", "locator": "outputs.json", "json_path": "problem4.q2[0].ci", "unit": "对象"},
+    {"result_id": "R-Q4-q2-case1-profit-range", "name": "问题4情况1决策固定下的利润区间", "locator": "outputs.json", "json_path": "problem4.q2[0].profit_range_fixed_decision", "unit": "元/件"},
+    {"result_id": "R-Q4-q2-case1-consistency-rate", "name": "问题4情况1决策一致率", "locator": "outputs.json", "json_path": "problem4.q2[0].consistency_rate", "unit": "比率"},
+    {"result_id": "R-Q4-q2-case1-flip-rate", "name": "问题4情况1决策翻转率", "locator": "outputs.json", "json_path": "problem4.q2[0].flip_rate", "unit": "比率"},
+    {"result_id": "R-Q4-q2-case1-decision-stable", "name": "问题4情况1决策是否稳健", "locator": "outputs.json", "json_path": "problem4.q2[0].decision_stable", "unit": "布尔"},
+    {"result_id": "R-Q4-q3-point-decision", "name": "问题4重做问题3的点估计决策", "locator": "outputs.json", "json_path": "problem4.q3.point_decision", "unit": "对象"},
+    {"result_id": "R-Q4-q3-point-profit", "name": "问题4重做问题3的点估计利润", "locator": "outputs.json", "json_path": "problem4.q3.point_profit", "unit": "元/件"},
+    {"result_id": "R-Q4-q3-ci", "name": "问题4问题3各节点次品率置信区间", "locator": "outputs.json", "json_path": "problem4.q3.ci", "unit": "对象"},
+    {"result_id": "R-Q4-q3-profit-range", "name": "问题4问题3决策固定下的利润区间", "locator": "outputs.json", "json_path": "problem4.q3.profit_range_fixed_decision", "unit": "元/件"},
+    {"result_id": "R-Q4-q3-consistency-rate", "name": "问题4问题3决策一致率", "locator": "outputs.json", "json_path": "problem4.q3.consistency_rate", "unit": "比率"},
+    {"result_id": "R-Q4-q3-flip-rate", "name": "问题4问题3决策翻转率", "locator": "outputs.json", "json_path": "problem4.q3.flip_rate", "unit": "比率"},
+    {"result_id": "R-Q4-q3-decision-stable", "name": "问题4问题3决策是否稳健", "locator": "outputs.json", "json_path": "problem4.q3.decision_stable", "unit": "布尔"},
+    {"result_id": "R-Q4-decision-diff", "name": "问题4相对点估计决策的差异表", "locator": "outputs.json", "json_path": "problem4.decision_diff", "unit": "数组"},
+
+    {"result_id": "R-OUT-meta-ok-all", "name": "全流程成功标记", "locator": "outputs.json", "json_path": "outputs.meta.ok_all", "unit": "布尔"},
+    {"result_id": "R-OUT-meta-elapsed-sec", "name": "全流程耗时", "locator": "outputs.json", "json_path": "outputs.meta.elapsed_sec", "unit": "秒"},
+    {"result_id": "R-OUT-meta-seed", "name": "全局随机种子", "locator": "outputs.json", "json_path": "outputs.meta.seed", "unit": "整数"}
   ]
 }
