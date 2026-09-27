@@ -41,20 +41,20 @@
  * @module @deepseek-ai/dsh-paper-foundation/stages/stage-service
  */
 
-import { readFile } from 'node:fs/promises'
+import { readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { Context, Service } from '@deepseek-ai/cordis'
 import { createUserMessage, type GenerateOptions } from '@deepseek-ai/dsh-llm'
 import { deterministicRunner, type DeterministicOutcome } from './deterministic.ts'
 import { runCodeAndMintResults } from './execute-and-mint.ts'
 import { assembleShards, planCodeShards, planModelingShards } from './code-shard.ts'
-import { assembleFigureAnswers, planShard, scriptShards } from './figure-script-shard.ts'
+import { assembleFigureAnswers, planShard, scriptShards, type FigureShard } from './figure-script-shard.ts'
 import { auditPromptOf, parseAuditVerdict } from './audit.ts'
 import { skillTaskOf } from './briefing.ts'
 import { readPassport } from './handoff.ts'
-import { runStages, type StageOutcome, type StageRunContext } from './runner.ts'
+import { REJECTED_ANSWER_FILE, runStages, type StageOutcome, type StageRunContext } from './runner.ts'
 import type { StageSpec } from './registry.ts'
-import { STAGES, type StageId } from './registry.ts'
+import { STAGES, stageDirName, type StageId } from './registry.ts'
 
 /** 读一个文件；不存在返回 null（**不返回空串**）。 */
 async function readFileMaybe(path: string): Promise<string | null> {
@@ -363,14 +363,37 @@ export class PaperStageChainService extends Service {
           const plan = planShard(prompt)
           this.config.onDeterministicOutcome?.({ stage: spec.id, summary: '第 1 段：出作图规划' })
           const planAnswer = await singleCall(spec, plan.prompt)
-          const shards = scriptShards(prompt, planAnswer)
+          // **第一段的原始回答必须留档**：分片路径的失败（"没有可用的 figures 数组"）
+          // 发生在 `scriptShards` 里，而它**不是** runner 的 `parseStageOutput`，
+          // 所以 runner 的 `_rejected-answer.txt` 归档机制照不到这里——
+          // 实测就因此只看到一句"回答开头：[…"却拿不到原文，无法定性（是截断？是形态错？）。
+          // 与 runner 同一条纪律：**失败要可诊断**。
+          const stageDir = join(this.config.stagesRoot, stageDirName(spec))
+          const archive = async (reason: string): Promise<void> => {
+            await writeFile(join(stageDir, REJECTED_ANSWER_FILE),
+              `<!-- 拒绝原因：${reason.replace(/--/g, '——')} -->\n\n`
+              + `<!-- 第 1 段（规划）的原始回答，${String(planAnswer.length)} 字符 -->\n\n${planAnswer}\n`,
+              'utf8').catch(() => { /* 落盘失败不掩盖原失败 */ })
+          }
+          let shards: ReadonlyArray<FigureShard>
+          try {
+            shards = scriptShards(prompt, planAnswer)
+          } catch (error) {
+            await archive(String(error instanceof Error ? error.message : error))
+            throw error
+          }
           const answers: string[] = []
-          for (const shard of shards) {
-            answers.push(await singleCall(spec, shard.prompt))
-            this.config.onDeterministicOutcome?.({
-              stage: spec.id,
-              summary: `第 ${String(shard.index)}/${String(shard.total)} 段：交付 ${shard.deliverable}`,
-            })
+          try {
+            for (const shard of shards) {
+              answers.push(await singleCall(spec, shard.prompt))
+              this.config.onDeterministicOutcome?.({
+                stage: spec.id,
+                summary: `第 ${String(shard.index)}/${String(shard.total)} 段：交付 ${shard.deliverable}`,
+              })
+            }
+          } catch (error) {
+            await archive(`第 ${String(answers.length + 2)} 段调用失败：${String(error instanceof Error ? error.message : error)}`)
+            throw error
           }
           return assembleFigureAnswers(planAnswer, shards, answers)
         }

@@ -1,118 +1,92 @@
-"""fig_q4_ci_effect_on_cost —— 问题 4 重解决策一致率及其不确定性的森林图合成面板。
-
-本图讲什么
-    在“次品率由抽样检测得到”的口径下，重复抽样并重解问题 2，所得最优决策与点估计
-    决策的一致率有多高、这个一致率本身有多准。一致率越低且标准误越大，说明该情况对
-    抽样波动越敏感、决策越容易被翻转。
-
-每个 panel 是什么
-    (a) 森林图：表 1 六种情况的一致率点估计与 95% 置信区间（点估计 ± 1.96×标准误），
-        虚线为“完全一致”参考线（=1.0），交替行阴影，另用短标签锚出最低与最高情况。
-    (b) 标准误排序条形图：六种情况的标准误由大到小排列，最大值以强调色标出，
-        数值直接标在条端，反映重解决策的抽样稳定性。
-
-数据来自账本哪些 id（stages/04-result-sources/results.json，经 _figbase.load 读取）
-    R-Q4-case1-consistency-rate / -se … R-Q4-case6-consistency-rate / -se，共 12 个条目；
-    脚本内不出现任何数值字面量式的数据，全部经 result_id 取值。
-
-关键表达
-    x 轴为决策一致率（比例，0–1 语义，参考线取 1.0）；条形图 x 轴为一致率标准误。
-"""
-
+"""问题4区间稳健性森林图：左面板展示问题2各情形与问题3的利润区间，右面板展示问题3各节点次品率置信区间。数据来自账本 R-Q4-q2、R-Q4-q3-ci、R-Q4-q3-profit-range、R-Q4-q2-case1-profit-range、R-Q4-q2-case1-consistency-rate。"""
 import numpy as np
 import matplotlib.pyplot as plt
 
 from _figbase import load, save, panel, PALETTE, COLORS, _lighten, cn
 
-# ---------------------------------------------------------------- 账本读取
+
+def values_by_id(doc):
+    return {item["result_id"]: item["value"] for item in doc["results"]}
+
+
+def draw_interval(ax, y, lo, hi, color, marker=None):
+    ax.plot([lo, hi], [y, y], color=color, linewidth=1.5, solid_capstyle="round", zorder=2)
+    ax.plot([lo, lo], [y - 0.10, y + 0.10], color=color, linewidth=1.0, zorder=2)
+    ax.plot([hi, hi], [y - 0.10, y + 0.10], color=color, linewidth=1.0, zorder=2)
+    if marker is not None:
+        ax.plot(marker, y, marker="o", color=color, markersize=5, zorder=3)
+
+
 doc = load("results.json")
-rows = doc["results"] if isinstance(doc, dict) and "results" in doc else doc
-V = {r["result_id"]: r["value"] for r in rows}
+v = values_by_id(doc)
 
-CASES = [1, 2, 3, 4, 5, 6]
-RATE_IDS = ["R-Q4-case%d-consistency-rate" % k for k in CASES]
-SE_IDS = ["R-Q4-case%d-consistency-rate-se" % k for k in CASES]
+q2_results = v["R-Q4-q2"]
+q2_case1_range = v["R-Q4-q2-case1-profit-range"]
+q3_profit_range = v["R-Q4-q3-profit-range"]
+q3_ci = v["R-Q4-q3-ci"]
+case1_consistency = v["R-Q4-q2-case1-consistency-rate"]
 
-rates = np.asarray([V[i] for i in RATE_IDS], dtype=float)
-ses = np.asarray([V[i] for i in SE_IDS], dtype=float)
-half = 1.96 * ses
-lo, hi = rates - half, rates + half
-labels = ["情况 %d" % k for k in CASES]
-
-# ---------------------------------------------------------------- 画布
-fig, (ax, axb) = plt.subplots(
-    1, 2, figsize=(6.0, 2.8), gridspec_kw={"width_ratios": [1.55, 1.0]}
+fig, (ax_profit, ax_defect) = plt.subplots(
+    1, 2, figsize=(6.0, 3.2), gridspec_kw={"width_ratios": [1.15, 1.0]}
 )
 
-# ================================================== (a) 一致率森林图
-y = np.arange(len(CASES), dtype=float)
+profit_rows = []
+for result in q2_results:
+    case_id = result["case_id"]
+    interval = (
+        q2_case1_range
+        if case_id == q2_results[0]["case_id"]
+        else result["profit_range_fixed_decision"]
+    )
+    profit_rows.append((cn(f"情况{case_id}"), interval[0], interval[1], result["point_profit"]))
 
-# 交替行阴影（偶数行）
-for i in range(len(CASES)):
+profit_rows.append((cn("问题3"), q3_profit_range[0], q3_profit_range[1], None))
+profit_rows.reverse()
+
+for i, (label, lo, hi, point) in enumerate(profit_rows):
+    y = i
     if i % 2 == 0:
-        ax.axhspan(
-            y[i] - 0.5, y[i] + 0.5,
-            color=_lighten(COLORS["gray"], 0.88), zorder=0,
-        )
+        ax_profit.axhspan(y - 0.42, y + 0.42, color=_lighten(COLORS["primary"], 0.88), zorder=0)
+    draw_interval(ax_profit, y, lo, hi, PALETTE[0], point)
+    ax_profit.text(hi, y + 0.15, cn(f"[{lo:.2f}, {hi:.2f}]"),
+                   ha="right", va="bottom", fontsize=7, color=COLORS["gray"])
 
-# “完全一致”参考线
-ax.axvline(1.0, color=COLORS["ref_line"], linestyle="--", linewidth=1.0, zorder=1)
-
-# 点估计 + 95% 置信区间（森林图主体）
-ax.errorbar(
-    rates, y, xerr=half,
-    fmt="o", color=PALETTE[0], ecolor=PALETTE[0],
-    elinewidth=1.2, capsize=2.5, markersize=5.0,
-    markeredgecolor="white", markeredgewidth=0.8, zorder=3,
+ax_profit.axvline(0, color=COLORS["ref_line"], linestyle="--", linewidth=1.0, zorder=1)
+ax_profit.set_yticks(np.arange(len(profit_rows)))
+ax_profit.set_yticklabels([row[0] for row in profit_rows], fontsize=8)
+ax_profit.set_xlabel(cn("利润（元/件）"))
+ax_profit.set_xlim(
+    min(row[1] for row in profit_rows) - 1,
+    max(row[2] for row in profit_rows) + 2
 )
+ax_profit.grid(axis="x", color=COLORS["grid"], alpha=0.45, linestyle="--")
+ax_profit.spines["top"].set_visible(False)
+ax_profit.spines["right"].set_visible(False)
+panel(ax_profit, "(a)")
 
-ax.set_yticks(y)
-ax.set_yticklabels(labels, fontsize=8)
-ax.invert_yaxis()
-ax.set_xlabel("决策一致率（比例）", fontsize=9)
-ax.set_xlim(float(np.min(lo)) - 0.05, float(np.max(hi)) + 0.06)
-ax.grid(axis="x", alpha=0.15, linestyle="--", color=COLORS["grid"])
-ax.spines["top"].set_visible(False)
-ax.spines["right"].set_visible(False)
-ax.tick_params(axis="x", labelsize=8)
+node_names = list(q3_ci.keys())
+node_names.reverse()
+ci_rows = [(name, q3_ci[name][0], q3_ci[name][1]) for name in node_names]
 
-# 仅两个数据锚点短标签：最低与最高情况
-i_min = int(np.argmin(rates))
-i_max = int(np.argmax(rates))
-ax.annotate(
-    "%.4f" % rates[i_min],
-    xy=(rates[i_min], y[i_min]), xytext=(0, -13),
-    textcoords="offset points", ha="center", va="top",
-    fontsize=7.5, color=COLORS["down"], zorder=4,
+for i, (name, lo, hi) in enumerate(ci_rows):
+    y = i
+    if i % 2 == 0:
+        ax_defect.axhspan(y - 0.42, y + 0.42, color=_lighten(COLORS["secondary"], 0.88), zorder=0)
+    draw_interval(ax_defect, y, lo, hi, PALETTE[1])
+
+ax_defect.set_yticks(np.arange(len(ci_rows)))
+ax_defect.set_yticklabels([cn(name) for name, _, _ in ci_rows], fontsize=7)
+ax_defect.set_xlabel(cn("次品率置信区间"))
+ax_defect.set_xlim(0, max(hi for _, _, hi in ci_rows) * 1.25)
+ax_defect.grid(axis="x", color=COLORS["grid"], alpha=0.45, linestyle="--")
+ax_defect.spines["top"].set_visible(False)
+ax_defect.spines["right"].set_visible(False)
+panel(ax_defect, "(b)")
+
+fig.text(
+    0.5, 0.015,
+    cn(f"问题2情况1决策一致率：{case1_consistency:.3f}"),
+    ha="center", va="bottom", fontsize=8, color=COLORS["gray"]
 )
-ax.annotate(
-    "%.4f" % rates[i_max],
-    xy=(rates[i_max], y[i_max]), xytext=(0, 13),
-    textcoords="offset points", ha="center", va="bottom",
-    fontsize=7.5, color=COLORS["up"], zorder=4,
-)
-panel(ax, "(a)")
-
-# ================================================== (b) 标准误排序
-order = np.argsort(ses)[::-1]  # 由大到小
-bar_y = np.arange(len(CASES), dtype=float)
-bar_c = [
-    COLORS["accent"] if i == 0 else _lighten(PALETTE[0], 0.35)
-    for i in range(len(order))
-]
-bars = axb.barh(bar_y, ses[order], height=0.62, color=bar_c, zorder=2)
-
-axb.set_yticks(bar_y)
-axb.set_yticklabels([labels[k] for k in order], fontsize=8)
-axb.invert_yaxis()
-axb.set_xlabel("一致率标准误", fontsize=9)
-axb.set_xlim(0.0, float(np.max(ses)) * 1.38)
-axb.grid(axis="x", alpha=0.15, linestyle="--", color=COLORS["grid"])
-axb.spines["top"].set_visible(False)
-axb.spines["right"].set_visible(False)
-axb.tick_params(axis="x", labelsize=8)
-axb.bar_label(bars, fmt="%.4f", padding=2, fontsize=7)
-panel(axb, "(b)")
-
-fig.tight_layout()
+fig.tight_layout(rect=(0, 0.07, 1, 1))
 save(fig, "fig_q4_ci_effect_on_cost")

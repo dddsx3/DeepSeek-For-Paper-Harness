@@ -24,3 +24,30 @@ STAGE CHAIN FAILED — 1 个阶段没通过（产物与通行证在 artifacts\up
   [deterministic] figure-declare: 两个模型都受限，等待 300s 后改用 glm-5.3-flash-free 重试（已等 510s / 上限 1800s）
   [deterministic] figure-declare: 两个模型都受限，等待 600s 后改用 deepseek-flash-free 重试（已等 1110s / 上限 1800s）
   [deterministic] figure-declare: 两个模型都受限，等待 600s 后改用 glm-5.3-flash-free 重试（已等 1710s / 上限 1800s）
+[STAGE NEXT] 只跑了 'figure-declare'，到此即停。检查 artifacts\upper-bound\2024B-ingest-1\stages 后，放行 = 再执行一次 --stages --stage-next。
+  ❌ figure-declare: 阶段产出未通过形态检查：provider http 402 {"error":{"message":"您的DeepSeek v4.1 flash福利版今日免费额度已耗尽，明日刷新。请切换模型代号为deepseek-flash继续使用。","type":"free_request_quota_exhausted","code":402},"trace_id":"6e3e2394-28e7-4c2b-a221-01dc80bdb0d0"}
+
+STAGE CHAIN FAILED — 1 个阶段没通过（产物与通行证在 artifacts\upper-bound\2024B-ingest-1\stages）。
+===== 第 3 次 --stage-next =====
+[STAGE CHAIN] artifacts\upper-bound\2024B-ingest-1\stages
+  题面问数（数出来的）：4
+  [deterministic] figure-declare: 第 1 段：出作图规划
+  [deterministic] figure-declare: 模型 deepseek-flash-free 触发限额，切换到 glm-5.3-flash-free 继续完成剩余内容
+  [deterministic] figure-declare: 两个模型都受限，等待 30s 后改用 deepseek-flash-free 重试（已等 30s / 上限 1800s）
+  [deterministic] figure-declare: 两个模型都受限，等待 60s 后改用 glm-5.3-flash-free 重试（已等 90s / 上限 1800s）
+  [deterministic] figure-declare: 两个模型都受限，等待 120s 后改用 deepseek-flash-free 重试（已等 210s / 上限 1800s）
+  [deterministic] figure-declare: 两个模型都受限，等待 300s 后改用 glm-5.3-flash-free 重试（已等 510s / 上限 1800s）
+  [deterministic] figure-declare: 两个模型都受限，等待 600s 后改用 deepseek-flash-free 重试（已等 1110s / 上限 1800s）
+[STAGE NEXT] 只跑了 'figure-declare'，到此即停。检查 artifacts\upper-bound\2024B-ingest-1\stages 后，放行 = 再执行一次 --stages --stage-next。
+  ❌ figure-declare: 阶段产出未通过形态检查：fetch failed
+
+STAGE CHAIN FAILED — 1 个阶段没通过（产物与通行证在 artifacts\upper-bound\2024B-ingest-1\stages）。
+===== 第 4 次 --stage-next =====
+[STAGE CHAIN] artifacts\upper-bound\2024B-ingest-1\stages
+  题面问数（数出来的）：4
+  [deterministic] figure-declare: 第 1 段：出作图规划
+[STAGE NEXT] 只跑了 'figure-declare'，到此即停。检查 artifacts\upper-bound\2024B-ingest-1\stages 后，放行 = 再执行一次 --stages --stage-next。
+  ❌ figure-declare: 阶段产出未通过形态检查：fetch failed
+
+STAGE CHAIN FAILED — 1 个阶段没通过（产物与通行证在 artifacts\upper-bound\2024B-ingest-1\stages）。
+===== LOOP DONE =====
