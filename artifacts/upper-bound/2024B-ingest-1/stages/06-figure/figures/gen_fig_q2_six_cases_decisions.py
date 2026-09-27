@@ -1,117 +1,354 @@
-"""
-fig_q2_six_cases_decisions —— 问题 2 表 1 六种情况最优期望利润对照。
+"""六种情况的最优决策矩阵与经济结果排序。
 
-本图讲什么
-    表 1 的六种情况（零配件/成品次品率、购买单价、检测成本、拆解费用、调换损失
-    的不同组合）在各自最优决策 (Z1, Z2, C, D) 下折出的“单位成品最优期望利润”，
-    并给出各情况相对基准情况 1 的增减幅度，用于判读参数变化对最优策略收益的
-    影响方向与量级。
-
-每个 panel 是什么
-    (a) 六情况最优期望利润柱状图（元/件）：柱高即账本读数，最高利润柱用主色
-        实心高亮、其余为同族浅色，柱顶标数值。
-    (b) 各情况相对情况 1 的利润差值发散柱：基线为零（情况 1 自身差值为 0），
-        下降用 COLORS["down"]、上升用 COLORS["up"]，柱顶带符号标数值。
-
-数据来自账本哪些 id
-    R-Q2-case1-profit / R-Q2-case2-profit / R-Q2-case3-profit /
-    R-Q2-case4-profit / R-Q2-case5-profit / R-Q2-case6-profit
-    —— 两个 panel 的全部柱高都由这些读数派生（panel b 为两账本值之差），
-    脚本内不含任何字面量数据，也不含扫描/拟合数据。
+(a) 热力图展示各情况的 Z1、Z2、C、D 账本取值，行末列出单位期望利润，并框出账本判定的全局最优情况。
+(b) 按单位期望利润降序排列六种情况，同时标出排名与全局最优情况。
+数据来自账本 R-Q2-case1 至 R-Q2-case6 的 Z1、Z2、C、D、profit 项，以及 R-Q2-global-best-case-id；所有绘图数值均在运行时读取，模块不内嵌账本结果副本。
 """
 
-import numpy as np
+from _figbase import load, save, panel, PALETTE, COLORS, _lighten, cn
+from _figbase import CMAP_SEQ
+
 import matplotlib.pyplot as plt
-from matplotlib.patches import Patch
+import numpy as np
+from matplotlib.colors import Normalize
+from matplotlib.patches import Rectangle
 
-from _figbase import load, save, panel, PALETTE, COLORS, _lighten
 
-CASE_IDS = [
+DATA_REFS = (
+    "R-Q2-case1-Z1",
+    "R-Q2-case1-Z2",
+    "R-Q2-case1-C",
+    "R-Q2-case1-D",
     "R-Q2-case1-profit",
+    "R-Q2-case2-Z1",
+    "R-Q2-case2-Z2",
+    "R-Q2-case2-C",
+    "R-Q2-case2-D",
     "R-Q2-case2-profit",
+    "R-Q2-case3-Z1",
+    "R-Q2-case3-Z2",
+    "R-Q2-case3-C",
+    "R-Q2-case3-D",
     "R-Q2-case3-profit",
+    "R-Q2-case4-Z1",
+    "R-Q2-case4-Z2",
+    "R-Q2-case4-C",
+    "R-Q2-case4-D",
     "R-Q2-case4-profit",
+    "R-Q2-case5-Z1",
+    "R-Q2-case5-Z2",
+    "R-Q2-case5-C",
+    "R-Q2-case5-D",
     "R-Q2-case5-profit",
+    "R-Q2-case6-Z1",
+    "R-Q2-case6-Z2",
+    "R-Q2-case6-C",
+    "R-Q2-case6-D",
     "R-Q2-case6-profit",
-]
-CASE_LABELS = ["情况1", "情况2", "情况3", "情况4", "情况5", "情况6"]
+    "R-Q2-global-best-case-id",
+)
+DECISION_KEYS = ("Z1", "Z2", "C", "D")
+
+
+def case_number_from_id(result_id):
+    token = result_id.split("-")[2]
+    return int(token[len("case"):])
+
 
 doc = load("results.json")
-ledger = {rec["result_id"]: rec["value"] for rec in doc["results"]}
+values = {
+    record["result_id"]: record["value"]
+    for record in doc["results"]
+}
+missing = [result_id for result_id in DATA_REFS if result_id not in values]
+if missing:
+    raise KeyError("Missing result_id(s): " + ", ".join(missing))
 
-profit = np.array([ledger[key] for key in CASE_IDS], dtype=float)
-delta = profit - profit[0]          # 相对情况 1 的差值，由账本两数相减派生
-x = np.arange(profit.size)
-
-fig, axes = plt.subplots(1, 2, figsize=(6.0, 2.8))
-
-# ---- panel (a) 六情况最优期望利润 -------------------------------------------
-ax = axes[0]
-best = int(np.argmax(profit))
-bar_colors = [_lighten(PALETTE[0], 0.60)] * profit.size
-bar_colors[best] = PALETTE[0]       # 主色留给最高利润柱
-bars = ax.bar(
-    x, profit, width=0.66,
-    color=bar_colors, edgecolor=PALETTE[0], linewidth=0.8, zorder=3,
-)
-ax.bar_label(bars, fmt="%.2f", padding=2, fontsize=6.5, color=COLORS["gray"])
-ax.annotate(
-    "★", xy=(x[best], profit[best]), xytext=(0, 12),
-    textcoords="offset points", ha="center", va="bottom",
-    fontsize=7, color=COLORS["highlight"],
-)
-
-ax.set_xticks(x)
-ax.set_xticklabels(CASE_LABELS, fontsize=7)
-ax.set_xlabel("表 1 情况", fontsize=8)
-ax.set_ylabel("最优期望利润（元/件）", fontsize=8)
-ax.set_ylim(0.0, profit.max() * 1.20)
-ax.tick_params(axis="y", labelsize=7)
-
-# ---- panel (b) 相对情况 1 的利润差值发散柱 -----------------------------------
-ax2 = axes[1]
-delta_colors = [
-    COLORS["up"] if d > 0 else (COLORS["down"] if d < 0 else COLORS["gray"])
-    for d in delta
+decision_refs = [
+    result_id
+    for result_id in DATA_REFS
+    if result_id.rsplit("-", 1)[-1] in DECISION_KEYS
 ]
-bars2 = ax2.bar(
-    x, delta, width=0.66,
-    color=[_lighten(c, 0.55) for c in delta_colors],
-    edgecolor=delta_colors, linewidth=0.8, zorder=3,
+profit_refs = [
+    result_id
+    for result_id in DATA_REFS
+    if result_id.endswith("-profit")
+]
+case_numbers = sorted(
+    {case_number_from_id(result_id) for result_id in decision_refs}
+    | {case_number_from_id(result_id) for result_id in profit_refs}
 )
-ax2.axhline(0.0, color=COLORS["ref_line"], linewidth=0.9,
-            linestyle="--", zorder=2)
-ax2.bar_label(bars2, fmt="%+.2f", padding=2, fontsize=6.5, color=COLORS["gray"])
 
-d_hi = max(float(delta.max()), 0.0)
-d_lo = min(float(delta.min()), 0.0)
-pad = 0.24 * (d_hi - d_lo) if d_hi > d_lo else 1.0
-ax2.set_ylim(d_lo - pad, d_hi + pad)
+decision_lookup = {
+    (
+        case_number_from_id(result_id),
+        result_id.rsplit("-", 1)[-1],
+    ): result_id
+    for result_id in decision_refs
+}
+profit_lookup = {
+    case_number_from_id(result_id): result_id
+    for result_id in profit_refs
+}
 
-ax2.set_xticks(x)
-ax2.set_xticklabels(CASE_LABELS, fontsize=7)
-ax2.set_xlabel("表 1 情况", fontsize=8)
-ax2.set_ylabel("相对情况 1 的利润差值（元/件）", fontsize=8)
-ax2.tick_params(axis="y", labelsize=7)
-ax2.legend(
-    handles=[
-        Patch(facecolor=_lighten(COLORS["up"], 0.55),
-              edgecolor=COLORS["up"], label="高于情况 1"),
-        Patch(facecolor=_lighten(COLORS["down"], 0.55),
-              edgecolor=COLORS["down"], label="低于情况 1"),
+decision_matrix = np.asarray(
+    [
+        [
+            values[decision_lookup[(case_number, decision_key)]]
+            for decision_key in DECISION_KEYS
+        ]
+        for case_number in case_numbers
     ],
-    fontsize=6.5, frameon=False, loc="lower left", handlelength=1.2,
+    dtype=float,
+)
+profits = {
+    case_number: float(values[profit_lookup[case_number]])
+    for case_number in case_numbers
+}
+best_case = int(values["R-Q2-global-best-case-id"])
+if best_case not in case_numbers:
+    raise ValueError("R-Q2-global-best-case-id is not present in the case data")
+
+unique_values = np.unique(decision_matrix)
+normalization = Normalize(
+    vmin=float(unique_values.min()),
+    vmax=float(unique_values.max()),
 )
 
-# ---- 公共轴样式 --------------------------------------------------------------
-for a in (ax, ax2):
-    for side in ("top", "right"):
-        a.spines[side].set_visible(False)
-    a.grid(axis="y", color=COLORS["grid"], linewidth=0.6, alpha=0.6, zorder=0)
-    a.set_axisbelow(True)
+fig, (ax_matrix, ax_rank) = plt.subplots(
+    1,
+    2,
+    figsize=(6.0, 2.8),
+    gridspec_kw={"width_ratios": (1.45, 1.0)},
+)
 
-panel(ax, "(a)")
-panel(ax2, "(b)")
-fig.tight_layout(pad=0.4, w_pad=1.6)
+heatmap = ax_matrix.imshow(
+    decision_matrix,
+    cmap=CMAP_SEQ,
+    norm=normalization,
+    interpolation="nearest",
+    aspect="auto",
+)
 
+colorbar = fig.colorbar(
+    heatmap,
+    ax=ax_matrix,
+    fraction=0.046,
+    pad=0.025,
+    shrink=0.82,
+)
+colorbar.set_ticks(unique_values)
+colorbar.set_ticklabels([cn(f"{value:g}") for value in unique_values])
+colorbar.ax.set_ylabel(cn("账本取值"), rotation=90, labelpad=4)
+colorbar.ax.tick_params(colors=COLORS["gray"], labelsize=7)
+colorbar.outline.set_edgecolor(COLORS["grid"])
+
+for row_index, row in enumerate(decision_matrix):
+    for column_index, value in enumerate(row):
+        ax_matrix.text(
+            column_index,
+            row_index,
+            f"{value:g}",
+            ha="center",
+            va="center",
+            fontsize=7.5,
+            color=COLORS["gray"],
+            bbox={
+                "boxstyle": "circle,pad=0.25",
+                "facecolor": _lighten(COLORS["gray"], 0.88),
+                "edgecolor": "none",
+                "alpha": 0.88,
+            },
+            zorder=3,
+        )
+
+heatmap_width = len(DECISION_KEYS)
+boundary_x = heatmap_width - 0.5
+profit_x = heatmap_width + 0.45
+ax_matrix.axvline(
+    boundary_x,
+    color=COLORS["grid"],
+    linewidth=0.9,
+    zorder=1,
+)
+ax_matrix.text(
+    profit_x,
+    -0.70,
+    cn("利润"),
+    ha="center",
+    va="center",
+    fontsize=7.5,
+    fontweight="bold",
+    color=COLORS["gray"],
+    clip_on=False,
+)
+
+for row_index, case_number in enumerate(case_numbers):
+    is_best = case_number == best_case
+    ax_matrix.text(
+        profit_x,
+        row_index,
+        f"{profits[case_number]:.2f}",
+        ha="center",
+        va="center",
+        fontsize=7.5,
+        fontweight="bold" if is_best else "normal",
+        color=PALETTE[0] if is_best else COLORS["gray"],
+    )
+
+ax_matrix.set_xticks(np.arange(heatmap_width))
+ax_matrix.set_xticklabels([cn(key) for key in DECISION_KEYS])
+ax_matrix.set_yticks(np.arange(len(case_numbers)))
+ax_matrix.set_yticklabels(
+    [
+        cn(f"情况 {case_number}" + ("  ★" if case_number == best_case else ""))
+        for case_number in case_numbers
+    ]
+)
+ax_matrix.set_xticks(
+    np.arange(-0.5, heatmap_width, 1),
+    minor=True,
+)
+ax_matrix.set_yticks(
+    np.arange(-0.5, len(case_numbers), 1),
+    minor=True,
+)
+ax_matrix.grid(
+    which="minor",
+    color=COLORS["grid"],
+    linewidth=0.6,
+    alpha=0.85,
+)
+ax_matrix.tick_params(
+    which="minor",
+    bottom=False,
+    left=False,
+)
+ax_matrix.tick_params(
+    which="major",
+    length=0,
+    colors=COLORS["gray"],
+    labelsize=7.5,
+)
+ax_matrix.set_xlim(-0.5, heatmap_width + 1.35)
+ax_matrix.set_ylim(len(case_numbers) - 0.5, -0.95)
+ax_matrix.set_xlabel(cn("决策位 Z1 / Z2 / C / D"))
+ax_matrix.set_ylabel(cn("表1情况"))
+for spine in ax_matrix.spines.values():
+    spine.set_color(COLORS["grid"])
+    spine.set_linewidth(0.7)
+
+best_index = case_numbers.index(best_case)
+ax_matrix.add_patch(
+    Rectangle(
+        (-0.5, best_index - 0.5),
+        heatmap_width,
+        1,
+        fill=False,
+        edgecolor=COLORS["highlight"],
+        linewidth=2.0,
+        zorder=4,
+    )
+)
+panel(ax_matrix, "(a)")
+
+ranked = sorted(
+    ((case_number, profits[case_number]) for case_number in case_numbers),
+    key=lambda item: (item[1], -item[0]),
+    reverse=True,
+)
+ranked_cases = [item[0] for item in ranked]
+ranked_profits = [item[1] for item in ranked]
+rank_positions = np.arange(len(ranked))
+bar_colors = [
+    PALETTE[0]
+    if rank_index == 0
+    else _lighten(PALETTE[0], min(0.70, 0.18 * rank_index))
+    for rank_index in range(len(ranked))
+]
+bar_edges = [
+    COLORS["highlight"] if case_number == best_case else COLORS["grid"]
+    for case_number in ranked_cases
+]
+bar_widths = [
+    1.6 if case_number == best_case else 0.5
+    for case_number in ranked_cases
+]
+
+bars = ax_rank.barh(
+    rank_positions,
+    ranked_profits,
+    height=0.62,
+    color=bar_colors,
+    edgecolor=bar_edges,
+    linewidth=bar_widths,
+)
+ax_rank.set_yticks(rank_positions)
+ax_rank.set_yticklabels(
+    [
+        cn(
+            f"{rank_index + 1}. 情况 {case_number}"
+            + ("  ★" if case_number == best_case else "")
+        )
+        for rank_index, case_number in enumerate(ranked_cases)
+    ]
+)
+ax_rank.invert_yaxis()
+ax_rank.margins(x=0.22)
+ax_rank.axvline(
+    0.0,
+    color=COLORS["ref_line"],
+    linewidth=0.9,
+    zorder=1,
+)
+ax_rank.set_axisbelow(True)
+ax_rank.grid(
+    axis="x",
+    color=COLORS["grid"],
+    linewidth=0.6,
+    alpha=0.8,
+)
+ax_rank.bar_label(
+    bars,
+    labels=[f"{profit:.2f}" for profit in ranked_profits],
+    padding=3,
+    fontsize=7,
+    color=COLORS["gray"],
+)
+ax_rank.set_xlabel(cn("单位期望利润（元/件）"))
+ax_rank.set_ylabel(cn("利润排序"))
+ax_rank.tick_params(
+    axis="y",
+    length=0,
+    colors=COLORS["gray"],
+    labelsize=7.5,
+)
+ax_rank.tick_params(
+    axis="x",
+    colors=COLORS["gray"],
+    labelsize=7,
+)
+ax_rank.text(
+    0.98,
+    1.03,
+    cn("★ 账本全局最优"),
+    transform=ax_rank.transAxes,
+    ha="right",
+    va="bottom",
+    fontsize=7,
+    color=COLORS["gray"],
+)
+for side in ("top", "right", "left"):
+    ax_rank.spines[side].set_visible(False)
+ax_rank.spines["bottom"].set_color(COLORS["grid"])
+panel(ax_rank, "(b)")
+
+fig.subplots_adjust(
+    left=0.11,
+    right=0.98,
+    bottom=0.24,
+    top=0.86,
+    wspace=0.58,
+)
 save(fig, "fig_q2_six_cases_decisions")
+plt.close(fig)
