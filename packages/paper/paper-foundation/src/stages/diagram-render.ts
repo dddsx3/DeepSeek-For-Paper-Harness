@@ -43,6 +43,7 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { diagramTemplate } from './assets.ts'
 import { digestOf } from './interchange.ts'
+import { stripOneFence } from './code-shard.ts'
 import { architectureFigureNames, parseFigureManifest } from './figure-manifest.ts'
 import { FIGURE_DIR, stagePathOf } from './figure-render.ts'
 import {
@@ -118,7 +119,10 @@ export function parseArchDeclaration(analysisText: string): ReadonlyMap<string, 
   const body = analysisText.slice(begin + ARCH_DECLARATION_BEGIN.length, end).trim()
   let parsed: unknown
   try {
-    parsed = JSON.parse(body)
+    // **剥一层围栏**：模型很自然地把这块写成 ```json … ```（书写惯性），而契约要的是裸 JSON。
+    // 这与分片回答、`RESULT_SOURCES` 的裸数组是同一类——**形态的表述差异不该让内容作废**。
+    // 实测代价：阶段 7 是**确定性阶段**（不调模型），却因此连续 8 次失败，纯粹卡在解析上。
+    parsed = JSON.parse(stripOneFence(body))
   } catch (error) {
     throw new Error(`ARCH_DECLARATION 块不是合法 JSON：${String(error).slice(0, 120)}`)
   }
@@ -126,25 +130,27 @@ export function parseArchDeclaration(analysisText: string): ReadonlyMap<string, 
     throw new Error('ARCH_DECLARATION 必须是 JSON 对象（{"<图 id>": {layers, edges, …}}）')
   }
   const out = new Map<string, ArchDeclaration>()
+  // **只提取"可解释"的条目，不为用不上的条目打死整个阶段。**
+  //
+  // 实测（2024B）：阶段 1 的模型把**数据图**也写进了这块
+  // （`fig_q1_oc_curve_p1: {style_family: 'matplotlib_data_chart', …}`），
+  // 而解析器对未知 `style_family` 是硬失败——于是一个**确定性阶段**（不调模型）
+  // 连续 8 次失败，而卡点与要画的那张图毫无关系。
+  //
+  // 分工本来就该是：**解析器负责"能解释的取出来"，调用方负责"清单里每张架构图都必须
+  // 有可用声明"**（`renderDiagramStage` 已经这么做了，报错还会列出可用的 id）。
+  // 所以这里：缺 `layers` 的条目跳过（画不了），未知 `style_family` / `direction`
+  // 退回默认（那只是画法偏好，不是正确性）；真正要紧的"某张架构图没有声明"
+  // 由调用方具名报出。
   for (const [id, value] of Object.entries(parsed as Record<string, unknown>)) {
-    if (typeof value !== 'object' || value === null) {
-      throw new Error(`ARCH_DECLARATION 里 '${id}' 不是对象`)
-    }
+    if (typeof value !== 'object' || value === null) continue
     const d = value as Record<string, unknown>
-    if (!Array.isArray(d['layers']) || d['layers'].length === 0) {
-      throw new Error(`ARCH_DECLARATION 里 '${id}' 缺 layers —— 没有层就没有图`)
-    }
+    if (!Array.isArray(d['layers']) || d['layers'].length === 0) continue
     const family = d['style_family']
-    if (family !== undefined && family !== 'A' && family !== 'B' && family !== 'C') {
-      throw new Error(`ARCH_DECLARATION 里 '${id}' 的 style_family '${String(family)}' 不在 A/B/C 里`)
-    }
     const direction = d['direction']
-    if (direction !== undefined && direction !== 'horizontal' && direction !== 'vertical') {
-      throw new Error(`ARCH_DECLARATION 里 '${id}' 的 direction '${String(direction)}' 不在 horizontal/vertical 里`)
-    }
     out.set(id, {
-      style_family: (family ?? 'A') as 'A' | 'B' | 'C',
-      direction: (direction ?? 'vertical') as 'horizontal' | 'vertical',
+      style_family: (family === 'A' || family === 'B' || family === 'C' ? family : 'A'),
+      direction: (direction === 'horizontal' || direction === 'vertical' ? direction : 'vertical'),
       layers: d['layers'] as ArchInput['layers'],
       edges: (Array.isArray(d['edges']) ? d['edges'] : []) as ArchInput['edges'],
       ...(typeof d['seed'] === 'string' ? { seed: d['seed'] } : {}),
