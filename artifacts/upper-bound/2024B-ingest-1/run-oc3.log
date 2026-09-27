@@ -37,3 +37,25 @@ STAGE CHAIN FAILED — 1 个阶段没通过（产物与通行证在 artifacts\up
   [deterministic] figure-declare: 第 12/15 段：交付 figures/gen_fig_q3_assembly_network_cost.py
   [deterministic] figure-declare: 第 13/15 段：交付 figures/gen_fig_q3_strategy_cost_compare.py
   [deterministic] figure-declare: 第 14/15 段：交付 figures/gen_fig_q4_ci_effect_on_cost.py
+  [deterministic] figure-declare: 第 15/15 段：交付 figures/gen_fig_q4_monte_carlo_robustness.py
+[STAGE NEXT] 只跑了 'figure-declare'，到此即停。检查 artifacts\upper-bound\2024B-ingest-1\stages 后，放行 = 再执行一次 --stages --stage-next。
+  🟡 figure-declare: 门禁通过但**逐节点审计没跑成**（fetch failed）——按 `2 ≠ 0` 的纪律记在通行证上，本阶段不能计入 CLEAN。
+
+STAGE CHAIN OK — 1 个阶段签发通行证（其中 1 个带未判定门禁，缺口已记在 PASSED 上）。产物在 artifacts\upper-bound\2024B-ingest-1\stages
+===== 第 3 次 --stage-next（opencode/space-bunny-free 非流式）=====
+[STAGE CHAIN] artifacts\upper-bound\2024B-ingest-1\stages
+  题面问数（数出来的）：4
+  [deterministic] figure: 执行 14 个绘图脚本，产出 14 张图（脚本由阶段 5 写，数据全部从铸出的账本读）
+[STAGE NEXT] 只跑了 'figure'，到此即停。检查 artifacts\upper-bound\2024B-ingest-1\stages 后，放行 = 再执行一次 --stages --stage-next。
+  ❌ figure: 门禁 code 1（0=通过 1=硬失败 2=无法判定）：figure_manifest_reconcile、figure_style_rules
+
+STAGE CHAIN FAILED — 1 个阶段没通过（产物与通行证在 artifacts\upper-bound\2024B-ingest-1\stages）。
+===== 第 4 次 --stage-next（opencode/space-bunny-free 非流式）=====
+[STAGE CHAIN] artifacts\upper-bound\2024B-ingest-1\stages
+  题面问数（数出来的）：4
+  [deterministic] figure: 执行 14 个绘图脚本，产出 14 张图（脚本由阶段 5 写，数据全部从铸出的账本读）
+[STAGE NEXT] 只跑了 'figure'，到此即停。检查 artifacts\upper-bound\2024B-ingest-1\stages 后，放行 = 再执行一次 --stages --stage-next。
+  ❌ figure: 门禁 code 1（0=通过 1=硬失败 2=无法判定）：figure_manifest_reconcile、figure_style_rules
+
+STAGE CHAIN FAILED — 1 个阶段没通过（产物与通行证在 artifacts\upper-bound\2024B-ingest-1\stages）。
+===== LOOP DONE =====

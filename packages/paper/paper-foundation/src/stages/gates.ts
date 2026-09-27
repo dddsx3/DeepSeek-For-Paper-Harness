@@ -536,7 +536,15 @@ const figureManifestReconcile: GateFn = (input) => {
   // `plan_deviations` 里申报 {from, to, reason}——申报了就可审计，门禁放行并把
   // 理由写进结论。没有理由的分叉就是没被审视的分叉。
   const deviations = declaredDeviations(input)
-  const accepted = deviations.filter(d => missing.includes(d.from) && untracked.includes(d.to))
+  // **改名的判据是"新 id 真的渲染出来了"**，不是"新 id 不在规划里"。
+  //
+  // 原来的写法是 `missing.includes(d.from) && untracked.includes(d.to)`——
+  // 而改名后的新 id **必然在规划的 `declared` 里**（它就是从规划里来的），
+  // 所以 `untracked`（= 渲染了但既不在清单、也不在规划里）**永远不会**包含它。
+  // 那个条件对真正的改名恒为假：申报了改名也照旧判"漏渲染"。
+  // 实测（2024B）：阶段 5 申报了 3 处改名（账本没有扫描序列/二维网格，
+  // 改用横断面关联图与成本结构对照，理由写明且诚实），却被判 3 张漏渲染。
+  const accepted = deviations.filter(d => d.to !== '' && missing.includes(d.from) && rendered.includes(d.to))
   // **申报放弃**也要认（`to` 为空 + 写明理由）。
   //
   // 实测：模型显式放弃了 6 张计划图，理由是"账本只有两个点，连成曲线会虚构并不存在的
