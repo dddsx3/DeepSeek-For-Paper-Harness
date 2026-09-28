@@ -269,12 +269,12 @@ export class PaperStageChainService extends Service {
       for (let attempt = 1; attempt <= 3; attempt += 1) {
         try {
           let text = ''
-          // **别把 finish 的 message/code 削掉**：provider 已把带内错误分类成
-          // `provider stream error: <原文> (code=PROVIDER_<n>)`，而这里原来只留 `kind`，
-          // 于是日志里永远只有一句 `finish=error`——分不清是限流、被重置还是协议错，
-          // 只能人工探活（实测为此反复探活）。与 `_rejected-answer.txt`、
-          // 渲染清单的 stderr 同一条纪律：**失败要可诊断**。
-          let finish: { kind: string; message?: string; code?: string } | undefined
+          // **别把 finish 的细节削掉，也别读错字段**：provider 把失败细节放在
+          // `finish.failure.{message,code}`（`kind:'error'` 时），而第一版这里读的是
+          // `finish.message`——**读错字段**，于是日志里仍然只有一句 `finish=error`，
+          // 分不清是限流、被重置、空流还是协议错（实测为此反复人工探活）。
+          // 与 `_rejected-answer.txt`、渲染清单的 stderr 同一条纪律：**失败要可诊断**。
+          let finish: { kind: string; failure?: { message?: string; code?: string } } | undefined
           for await (const chunk of provider.stream(request)) {
             if (chunk.type === 'text-delta') text += chunk.text
             if (chunk.type === 'finish') finish = chunk.reason
@@ -285,7 +285,7 @@ export class PaperStageChainService extends Service {
               + '这不是"写错了哪里"，是产出超过了单次调用的输出上限；分片或压缩后重试')
           }
           if (kind === 'error' || kind === 'aborted') {
-            const why = [finish?.message, finish?.code]
+            const why = [finish?.failure?.message, finish?.failure?.code]
               .filter((x): x is string => typeof x === 'string' && x !== '').join(' / ')
             throw new Error(`模型调用未正常结束（finish=${kind}${why === '' ? '' : `：${why}`}）`
               + `—— 阶段 '${spec.id}' 没有可用回答`)
@@ -294,14 +294,17 @@ export class PaperStageChainService extends Service {
         } catch (error) {
           lastFailure = error
           const message = String(error instanceof Error ? error.message : error)
-          // **截断 → 换一份"压缩"请求重问一次**（见上面 COMPACT_HINT 的注释）。
-          // 放在限额判定之前：截断不是限额，走限额那套只会白等。
-          if (/max-tokens/.test(message) && !compactRetried) {
+          // **截断/流错 → 换一份"压缩"请求重问一次**（见上面 COMPACT_HINT 的注释）。
+          // 为什么把 `finish=error` 也纳入：实测同一片（`code/problem4.py`）先以
+          // max-tokens 失败、再以 `finish=error` 失败——两次都发生在**产出很长**的那一片，
+          // 说明流是被"太长"这件事掐断的，压缩重问对症。放在限额判定之前（都不是限额）。
+          // 代价不对称：多问一次 vs 整个阶段 8 次调用全废。
+          if (/(max-tokens|finish=error|finish=aborted)/.test(message) && !compactRetried) {
             compactRetried = true
             request = buildRequest(prompt + COMPACT_HINT)
             this.config.onDeterministicOutcome?.({
               stage: spec.id,
-              summary: '回答被输出上限截断，改为"压缩"请求重问一次',
+              summary: `回答未正常结束（${message.slice(0, 60)}），改为"压缩"请求重问一次`,
             })
             attempt -= 1 // 不消耗传输重试预算
             continue
@@ -470,7 +473,7 @@ export class PaperStageChainService extends Service {
           messages: [createUserMessage({ content: [{ type: 'text', text: prompt }], source: { kind: 'user' } })],
         }
         let text = ''
-        let finish: { kind: string; message?: string; code?: string } | undefined
+        let finish: { kind: string; failure?: { message?: string; code?: string } } | undefined
         for await (const chunk of provider.stream(request)) {
           if (chunk.type === 'text-delta') text += chunk.text
           if (chunk.type === 'finish') finish = chunk.reason
@@ -478,7 +481,7 @@ export class PaperStageChainService extends Service {
         const kind = finish?.kind ?? 'stop'
         if (kind === 'error' || kind === 'aborted' || kind === 'max-tokens') {
           // 审计没跑成 → 抛错，由 runner 记 `2`（**绝不当成通过**）
-          const why = [finish?.message, finish?.code]
+          const why = [finish?.failure?.message, finish?.failure?.code]
             .filter((x): x is string => typeof x === 'string' && x !== '').join(' / ')
           throw new Error(`审计调用未正常结束（finish=${kind}${why === '' ? '' : `：${why}`}）—— 本阶段未被审计`)
         }
