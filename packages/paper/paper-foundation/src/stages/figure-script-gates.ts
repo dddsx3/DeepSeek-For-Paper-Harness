@@ -387,6 +387,9 @@ export function figureScriptQuality(input: GateInput): ScriptGateVerdict {
     }
     if (/ax\.grid\s*\(|plt\.grid\s*\(/.test(code)) warnings.push(`${file}：手动 \`ax.grid()\`（参考 WARNING，非阻断）`)
     if (/frameon\s*=\s*True/.test(code)) warnings.push(`${file}：图例带灰框 \`frameon=True\`（参考 WARNING，显土）`)
+    // **本环境不支持的 API 误用**（四类确定性文本判据）——这类崩只在渲染阶段
+    // （整轮最后一步）才暴露，所以必须在这里就拦下来，措辞给出正确写法。
+    for (const p of apiMisuseProblems(file, code)) problems.push(p)
   }
 
   // ── 两条**图集层面**的检查（逐脚本查不出来的那类缺陷）────────────────────
@@ -453,6 +456,325 @@ function callArgs(code: string, openIdx: number): string {
     }
   }
   return code.slice(openIdx + 1, stop)
+}
+
+// ── 本环境不支持的 API 误用（确定性文本判据）────────────────────────────────
+//
+// 背景：作图脚本由模型写、阶段 6 才逐个执行，于是"用了本环境不支持的 API"
+// **只在整轮最后一步才炸**（实测 2024B 一轮 14 张里 3 张崩溃，人工修了 3 处）。
+// 这四类都是**确定性文本形态**（判据不依赖运行），所以命中即硬失败：
+//   ① `mcolors.ScalarMappable` —— matplotlib 3.10 起不在 `matplotlib.colors`；
+//   ② `nx.draw_networkx_*(..., zorder=...)` —— 本环境装的 networkx 不接受该关键字；
+//   ③ `set_xlim(bottom=...)` / `set_ylim(left=...)` —— 轴范围关键字写错了轴；
+//   ④ `scatter(标量, 数组)` —— matplotlib 不做标量广播。
+// 分寸：④ 只判"一个位置参数是标量字面量/单元素下标、另一个是**明确的数组**"的
+// **明显形态**；判不准（两边都是变量、下标基变量形态不明）一律放行（宁可漏，不误杀）。
+
+/** 数值字面量（含符号 / 小数 / 科学计数法）。 */
+const NUM_LITERAL = /^[-+]?(?:\d+\.?\d*|\.\d+)(?:[eE][-+]?\d+)?$/
+
+/**
+ * 会返回**数组**的调用（保守白名单）。
+ *
+ * 故意不含 `np.mean` / `np.max` / `np.sum` 这类返回标量的——判据窄一点，宁漏不误。
+ */
+const ARRAY_PRODUCER = /^(?:np\.(?:array|asarray|arange|linspace|logspace|geomspace|zeros|ones|full|full_like|empty|empty_like|concatenate|stack|hstack|vstack|dstack|column_stack|repeat|tile|atleast_1d|atleast_2d|fromiter|meshgrid)\b|list\s*\(|array\s*\(|asarray\s*\()/
+
+/** 按**顶层**逗号切分实参（括号 / 方括号 / 花括号 / 字符串里的逗号不算）。 */
+function splitTopLevel(args: string): string[] {
+  const out: string[] = []
+  let depth = 0
+  let cur = ''
+  let quote: string | null = null
+  for (let i = 0; i < args.length; i += 1) {
+    const ch = args[i]
+    if (ch === undefined) continue
+    if (quote !== null) {
+      cur += ch
+      if (ch === quote && args[i - 1] !== '\\') quote = null
+      continue
+    }
+    if (ch === '"' || ch === "'") { quote = ch; cur += ch; continue }
+    if (ch === '(' || ch === '[' || ch === '{') depth += 1
+    else if (ch === ')' || ch === ']' || ch === '}') depth -= 1
+    if (ch === ',' && depth === 0) { out.push(cur); cur = ''; continue }
+    cur += ch
+  }
+  if (cur.trim() !== '') out.push(cur)
+  return out
+}
+
+/** 位置实参（在第一个关键字实参 / `*args` 之前）。 */
+function positionalArgs(args: string): string[] {
+  const out: string[] = []
+  for (const seg of splitTopLevel(args)) {
+    if (/^\s*\*/.test(seg)) break
+    if (/^\s*[A-Za-z_]\w*\s*=(?!=)/.test(seg)) break
+    out.push(seg.trim())
+  }
+  return out
+}
+
+/** 脚本里 `名字 = 表达式` 的赋值（同一个名字可能有多条）。 */
+function assignedExprsOf(code: string): ReadonlyMap<string, ReadonlyArray<string>> {
+  const out = new Map<string, string[]>()
+  for (const m of code.matchAll(/^\s*([A-Za-z_]\w*)\s*=\s*([^\n#]+)/gm)) {
+    const name = m[1]
+    const rhs = (m[2] ?? '').trim()
+    if (name === undefined || rhs === '') continue
+    const list = out.get(name) ?? []
+    list.push(rhs)
+    out.set(name, list)
+  }
+  return out
+}
+
+/** 该表达式是否"明确是二维"（取一行会是数组而不是标量）。 */
+function isTwoDimensional(expr: string): boolean {
+  const e = expr.trim()
+  if (/^\[\s*\[/.test(e)) return true
+  if (/np\.(?:array|asarray)\s*\(\s*\[\s*\[/.test(e)) return true
+  if (/np\.(?:zeros|ones|full|empty)\s*\(\s*\(/.test(e)) return true
+  if (/np\.meshgrid\s*\(/.test(e)) return true
+  if (/\.reshape\s*\(\s*[^,)]+\s*,/.test(e)) return true
+  return false
+}
+
+/** 该表达式是否"明确是数组"。 */
+function looksArray(expr: string, assigns: ReadonlyMap<string, ReadonlyArray<string>>, depth = 0): boolean {
+  const e = expr.trim()
+  if (e === '' || depth > 2) return false
+  if (/^\[[\s\S]*\]$/.test(e)) return true
+  if (/^\([^()]*,[^()]*\)$/.test(e)) return true
+  if (ARRAY_PRODUCER.test(e)) return true
+  if (/^[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*\s*\[[^\]]*:[^\]]*\]$/.test(e)) return true
+  if (/^[A-Za-z_]\w*$/.test(e)) {
+    for (const rhs of assigns.get(e) ?? []) if (looksArray(rhs, assigns, depth + 1)) return true
+  }
+  return false
+}
+
+/**
+ * 该表达式是否"明确是标量"：数值字面量，或**已知一维序列**的单元素下标。
+ *
+ * 单元素下标只在**基变量在本脚本里被赋成明确的一维序列**时才算标量——
+ * 否则 `matrix[0]` 可能是"取一行"（数组），那种形态判不准，一律放行。
+ */
+function looksScalar(expr: string, assigns: ReadonlyMap<string, ReadonlyArray<string>>): boolean {
+  const e = expr.trim()
+  if (NUM_LITERAL.test(e)) return true
+  const m = /^([A-Za-z_]\w*)\s*\[\s*\d+\s*\]$/.exec(e)
+  if (m === null) return false
+  const rhss = assigns.get(m[1] ?? '')
+  if (rhss === undefined) return false
+  if (rhss.some(isTwoDimensional)) return false
+  return rhss.some(r => looksArray(r, assigns, 1))
+}
+
+/** 四类 API 误用的静态判据（命中即硬失败，措辞给出"本环境不支持 + 正确写法"）。 */
+function apiMisuseProblems(file: string, code: string): string[] {
+  const out: string[] = []
+  const assigns = assignedExprsOf(code)
+  // ① ScalarMappable 不在 matplotlib.colors（3.10 起）
+  if (/(?:mcolors|matplotlib\.colors|\bcolors)\s*\.\s*ScalarMappable/.test(code)) {
+    out.push(`${file}：\`mcolors.ScalarMappable\` —— 本环境（matplotlib 3.10）里 ScalarMappable `
+      + '**不在** `matplotlib.colors`，会 `AttributeError`；正确落点是 '
+      + '`plt.cm.ScalarMappable(norm=..., cmap=...)`（或 `matplotlib.cm.ScalarMappable`）')
+  }
+  // ② draw_networkx_* 不接受 zorder
+  for (const m of code.matchAll(/draw_networkx\w*\s*\(/g)) {
+    const args = callArgs(code, (m.index ?? 0) + m[0].length - 1)
+    if (/(?<![\w.])zorder\s*=/.test(args)) {
+      out.push(`${file}：\`${m[0].replace(/\s*\($/, '')}(..., zorder=...)\` —— 本环境装的 networkx `
+        + '**不接受 zorder 关键字**（渲染时会 `TypeError`）；把 `zorder=` 从这些调用里去掉，'
+        + '层叠改由 `ax.plot` / `ax.scatter` 自绘边与节点来控制')
+      break
+    }
+  }
+  // ③ 轴范围关键字写错轴：x 轴是 left/right，y 轴是 bottom/top
+  for (const m of code.matchAll(/set_xlim\s*\(/g)) {
+    const args = callArgs(code, (m.index ?? 0) + m[0].length - 1)
+    if (/(?<![\w.])bottom\s*=/.test(args)) {
+      out.push(`${file}：\`set_xlim(bottom=...)\` —— \`bottom\` 是 **y 轴**的关键字，x 轴是 \`left\`；`
+        + "会 `TypeError: set_xlim() got an unexpected keyword argument 'bottom'`。"
+        + '写 `set_xlim(left=..., right=...)` 或位置参数 `set_xlim(lo, hi)`')
+      break
+    }
+  }
+  for (const m of code.matchAll(/set_ylim\s*\(/g)) {
+    const args = callArgs(code, (m.index ?? 0) + m[0].length - 1)
+    if (/(?<![\w.])left\s*=/.test(args)) {
+      out.push(`${file}：\`set_ylim(left=...)\` —— \`left\` 是 **x 轴**的关键字，y 轴是 \`bottom\`；`
+        + "会 `TypeError: set_ylim() got an unexpected keyword argument 'left'`。"
+        + '写 `set_ylim(bottom=..., top=...)` 或位置参数 `set_ylim(lo, hi)`')
+      break
+    }
+  }
+  // ④ scatter 不做标量广播（只判明显形态：一侧标量、另一侧明确数组）
+  for (const m of code.matchAll(/\.\s*scatter\s*\(/g)) {
+    const args = callArgs(code, (m.index ?? 0) + m[0].length - 1)
+    const pos = positionalArgs(args)
+    if (pos.length < 2) continue
+    const a = pos[0] ?? ''
+    const b = pos[1] ?? ''
+    const aScalar = looksScalar(a, assigns)
+    const bScalar = looksScalar(b, assigns)
+    const aArray = looksArray(a, assigns)
+    const bArray = looksArray(b, assigns)
+    if (!((aScalar && bArray) || (aArray && bScalar))) continue
+    const scalarExpr = aScalar ? a : b
+    const arrayExpr = aScalar ? b : a
+    out.push(`${file}：\`scatter(${a}, ${b})\` —— matplotlib **不做标量广播**，x 与 y 尺寸不一致会 `
+      + '`ValueError: x and y must be the same size`；把标量 '
+      + `\`${scalarExpr}\` 显式铺开成与 \`${arrayExpr}\` 同长的数组（如 \`np.full_like(${arrayExpr}, ${scalarExpr})\`）`)
+    break
+  }
+  return out
+}
+
+// ── `figure_text_within_axes`：标注坐标必须落在坐标区内 ──────────────────────
+//
+// 为什么判在**脚本坐标**上而不是渲染后的 PNG：PNG 渲染完**判不出文字是否被裁**
+// ——被裁的像素已经不在图里了。所以判据只能落在脚本里 `ax.text` / `ax.annotate`
+// 的字面量坐标 vs 同脚本 `set_xlim` / `set_ylim` 的字面量范围上。
+// 分寸（宁可漏，不误杀）：表达式/变量坐标、非数据坐标系（`transform=` /
+// `textcoords=` / `xycoords=`）、以及取不到字面量范围的轴，一律放行。
+
+/** 钳制 / 防重叠辅助函数名单 —— 出现任一即认为脚本用了版式兜底。 */
+const TEXT_CLAMP_HELPERS = ['smart_labels', 'auto_legend', 'declutter_axes', '_clamp_texts_to_axes', '_auto_fix_overlaps'] as const
+
+/** 某个 axes 变量上取到的字面量范围（`[lo, hi]`，已归一为 lo ≤ hi）。 */
+interface AxisLiteralRange {
+  readonly x?: readonly [number, number]
+  readonly y?: readonly [number, number]
+}
+
+/** 从脚本里取 `ax.set_xlim(lo, hi)` / `ax.set_ylim(lo, hi)` 的**字面量**范围。 */
+function literalAxisRanges(code: string): ReadonlyMap<string, AxisLiteralRange> {
+  const out = new Map<string, AxisLiteralRange>()
+  const put = (ax: string, axis: 'x' | 'y', a: number, b: number): void => {
+    const cur = out.get(ax) ?? {}
+    const range = [Math.min(a, b), Math.max(a, b)] as const
+    out.set(ax, axis === 'x' ? { ...cur, x: range } : { ...cur, y: range })
+  }
+  const jobs: ReadonlyArray<readonly [RegExp, 'x' | 'y']> = [
+    [/([A-Za-z_]\w*)\s*\.\s*set_xlim\s*\(/g, 'x'],
+    [/([A-Za-z_]\w*)\s*\.\s*set_ylim\s*\(/g, 'y'],
+  ]
+  for (const [re, axis] of jobs) {
+    for (const m of code.matchAll(re)) {
+      const args = callArgs(code, (m.index ?? 0) + m[0].length - 1)
+      // `auto=True` 会重新自动缩放 —— 字面量范围不再成立，放行。
+      if (/auto\s*=\s*True/.test(args)) continue
+      const pair = /^\s*\(?\s*([-+]?(?:\d+\.?\d*|\.\d+)(?:[eE][-+]?\d+)?)\s*,\s*([-+]?(?:\d+\.?\d*|\.\d+)(?:[eE][-+]?\d+)?)/.exec(args)
+      if (pair === null) continue
+      const a = Number(pair[1])
+      const b = Number(pair[2])
+      if (!Number.isFinite(a) || !Number.isFinite(b)) continue
+      put(m[1] ?? '', axis, a, b)
+    }
+  }
+  return out
+}
+
+/**
+ * `figure_text_within_axes` —— **标注坐标必须落在坐标区内**（脚本层静态判）。
+ *
+ * 治的是"图上标注文字溢出坐标区被裁"（实测三张图可见：中位数标注右半被裁、
+ * 「账本最高：…」整段被裁、底部横轴标题被裁）。**为什么在脚本层判**：PNG 渲染完
+ * 判不出文字是否被裁（被裁的像素已经不在图里了），判据只能落在**坐标**上。
+ *
+ * 判什么：`ax.text(x, y, ...)` 与 `ax.annotate(..., xytext=(x, y))` 的**字面量**
+ * 坐标，若落在**同一脚本里**同一 axes 变量的 `set_xlim` / `set_ylim` 字面量范围
+ * 之外 → 硬失败。
+ *
+ * 放行什么（宁可漏，不误杀）：表达式/变量坐标、`transform=`（transAxes /
+ * yaxis_transform 等非数据坐标系）、`annotate` 指定了 `textcoords=` / `xycoords=`、
+ * 该 axes 取不到字面量范围、以及 `set_*lim(..., auto=True)` 的轴。
+ *
+ * 另给一条**提示级**（不阻断）：脚本出现 `ax.text` / `ax.annotate` 却从未使用任何
+ * 钳制/防重叠辅助函数（`smart_labels` / `auto_legend` / `declutter_axes` /
+ * `_clamp_texts_to_axes` / `_auto_fix_overlaps`）——这些 `plot_utils` 里已铺好，
+ * 先把这个"资产在、没用上"暴露出来。
+ */
+export function figureTextWithinAxes(input: GateInput): ScriptGateVerdict {
+  const id = 'figure_text_within_axes'
+  const scripts = figureScripts(input)
+  if (scripts.length === 0) {
+    return { code: 2, items: [{ id, ok: false, detail: '本阶段没有 `figures/gen_fig_*.py` —— 没有可判的标注坐标', code: 2 }] }
+  }
+  const problems: string[] = []
+  const warnings: string[] = []
+  let checked = 0
+  for (const [file, code] of scripts) {
+    const ranges = literalAxisRanges(code)
+    const usesHelper = TEXT_CLAMP_HELPERS.some(h => code.includes(h))
+    let sawText = false
+    const judge = (ax: string, axis: 'x' | 'y', expr: string, what: string): void => {
+      const e = expr.trim()
+      if (!NUM_LITERAL.test(e)) return // 表达式/变量坐标 → 判不准，放行
+      const range = ranges.get(ax)?.[axis]
+      if (range === undefined) return // 取不到字面量范围 → 放行
+      checked += 1
+      const v = Number(e)
+      if (v < range[0] - 1e-9 || v > range[1] + 1e-9) {
+        problems.push(`${file}：${what} 的 ${axis}=${e} 落在 \`${ax}.set_${axis}lim\` 的字面量范围 `
+          + `[${String(range[0])}, ${String(range[1])}] 之外 —— 该标注会被画到坐标区外；`
+          + 'PNG 渲染完无法补救（被裁的像素已经不在图里），所以在这里拦。'
+          + '把坐标移进范围内，或改用 `smart_labels` / `auto_legend` 做自动防重叠与钳制')
+      }
+    }
+    for (const m of code.matchAll(/([A-Za-z_]\w*)\s*\.\s*text\s*\(/g)) {
+      const ax = m[1] ?? ''
+      const args = callArgs(code, (m.index ?? 0) + m[0].length - 1)
+      sawText = true
+      // `transform=...` → 坐标不是数据坐标（如 transAxes / get_yaxis_transform），放行。
+      if (/(?<![\w.])transform\s*=/.test(args)) continue
+      const pos = positionalArgs(args)
+      if (pos.length < 2) continue
+      judge(ax, 'x', pos[0] ?? '', '`ax.text`')
+      judge(ax, 'y', pos[1] ?? '', '`ax.text`')
+    }
+    for (const m of code.matchAll(/([A-Za-z_]\w*)\s*\.\s*annotate\s*\(/g)) {
+      const ax = m[1] ?? ''
+      const args = callArgs(code, (m.index ?? 0) + m[0].length - 1)
+      sawText = true
+      // 指定了坐标系 → `xytext` 不再是数据坐标，放行。
+      if (/(?<![\w.])(?:textcoords|xycoords|transform)\s*=/.test(args)) continue
+      const tm = /(?<![\w.])xytext\s*=\s*\(\s*([-+]?(?:\d+\.?\d*|\.\d+)(?:[eE][-+]?\d+)?)\s*,\s*([-+]?(?:\d+\.?\d*|\.\d+)(?:[eE][-+]?\d+)?)\s*\)/.exec(args)
+      if (tm === null) continue
+      judge(ax, 'x', tm[1] ?? '', '`ax.annotate` 的 `xytext`')
+      judge(ax, 'y', tm[2] ?? '', '`ax.annotate` 的 `xytext`')
+    }
+    if (sawText && !usesHelper) {
+      // ⛔ **这条提示的措辞必须准确**：第一版写的是"标注坐标全靠手写很容易溢出被裁"，
+      // 那是个**假前提**——查过 `plot_utils` 才知道，`savefig` 钩子链里**已经自动**调
+      // `_auto_fix_overlaps` → `_clamp_texts_to_axes`，还有 `_pull_back_outside_transaxes_text`。
+      // 也就是说**钳制是自动的，脚本不需要手写调用**；把"没用辅助函数"说成裁切的原因会误导
+      // 下一轮（我一度据此想把它升为硬拦，那是错的）。
+      //
+      // 真实机制（源码注释里写着）：`_save` **刻意**用 `bbox_inches=None`（防 PDF mediabox
+      // 被 axes 外标注撑爆），代价是**画布边缘会切掉画到外面的文字**。两个兜底只覆盖
+      // 刻度标签（`_ensure_ticklabels_visible`）与 transAxes 的上下越界
+      // （`_pull_back_outside_transaxes_text`），**右侧/数据坐标越界不在其中**。
+      // 所以这条只提示"可以更省心"，**不声称它是裁切的原因**。
+      warnings.push(`${file}：出现 \`ax.text\` / \`ax.annotate\`，未使用 \`smart_labels\` / \`auto_legend\` 这类辅助`
+        + `（${TEXT_CLAMP_HELPERS.join(' / ')}）—— 提示级：钳制在 savefig 钩子里是**自动**的，`
+        + '用辅助函数能进一步减少重叠；**这不代表本图有裁切问题**')
+    }
+  }
+  const tail = warnings.length === 0 ? '' : `；WARNING（不阻断）：${warnings.slice(0, 3).join('；')}`
+  return problems.length === 0
+    ? {
+      code: 0,
+      items: [{
+        id, ok: true, code: 0,
+        detail: (checked === 0
+          ? '没有可判的字面量标注坐标（表达式/变量坐标、非数据坐标系一律放行）'
+          : `${String(checked)} 处标注坐标落在同脚本 \`set_xlim\`/\`set_ylim\` 的字面量范围内`) + tail,
+      }],
+    }
+    : { code: 1, items: [{ id, ok: false, detail: problems.slice(0, 5).join('；') + tail, code: 1 }] }
 }
 
 export function figureScriptTraced(input: GateInput): ScriptGateVerdict {

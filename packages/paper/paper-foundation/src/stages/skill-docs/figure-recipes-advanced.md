@@ -1571,7 +1571,7 @@ for (u, v), w in zip(edges, edge_weights):
 
 # Draw nodes
 nx.draw_networkx_nodes(G, pos, ax=ax, node_color=node_colors, node_size=node_sizes,
-                        edgecolors='white', linewidths=1.2, alpha=0.9, zorder=3)
+                        edgecolors='white', linewidths=1.2, alpha=0.9)  # 本环境 networkx 不接受 zorder
 
 # Labels for high-degree nodes only
 high_deg_nodes = {n: str(n) for n in G.nodes() if degrees[n] >= 4}

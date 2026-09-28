@@ -17,7 +17,11 @@ import { describe, expect, it } from 'vitest'
 import { ModelingIr } from '../../src/ir/store.ts'
 import { computeStaleReport } from '../../src/ir/stale.ts'
 import { produceContainerInto, MODEL_CONTAINER_VERSION } from '../../src/produce/ir-producer.ts'
-import { produceRunExecution } from '../../src/produce/execution-producer.ts'
+import {
+  produceRunExecution,
+  type RunExecutionInput,
+  type RunExecutionVerdict,
+} from '../../src/produce/execution-producer.ts'
 import {
   dataArtifact,
   requirementSpec,
@@ -30,6 +34,43 @@ import {
   problemSpec,
   modelSpec,
 } from '../ir/fixtures.ts'
+
+/**
+ * Run one execution, giving a machine that could not start the child a second
+ * chance (P4, 负载下偶发失败 —— 环境性，不是回归).
+ *
+ * Under background load the runner's `spawn` can fail before the child ever
+ * starts; the runner normalizes that to "no exit code, no terminating signal"
+ * (`exit -1`), which the producer reports as an `OUTPUT_SET_MISMATCH` refusal —
+ * indistinguishable at the assertion from a code that really is broken.
+ * Retrying the LAUNCH is safe: when the cause is the code the refusal is
+ * re-observed identically and the test still fails (nothing is masked); when
+ * the cause is a machine that momentarily cannot fork, the next attempt gets
+ * through. The retry is bounded, so a genuinely broken environment still fails.
+ *
+ * Only this class is retried. A refusal the test itself asserts on — a syntax
+ * error's `runner exited 1`, the wall-clock `KILLED` verdict, a pre-flight
+ * refusal — is returned on the first attempt, unchanged. A launch failure can
+ * also surface as a rejection (the sandbox dir could not be created), so that
+ * is retried under the same "the child never started" rule.
+ */
+async function produceRunResilient(input: RunExecutionInput): Promise<RunExecutionVerdict> {
+  for (let attempt = 1; ; attempt += 1) {
+    try {
+      const verdict = await produceRunExecution(input)
+      if (verdict.ok || attempt >= 3 || !childNeverStarted(verdict)) return verdict
+    } catch (error) {
+      if (attempt >= 3) throw error
+    }
+  }
+}
+
+/** The runner's launch-failure signature: neither an exit code nor a signal. */
+function childNeverStarted(verdict: RunExecutionVerdict): boolean {
+  return !verdict.ok
+    && verdict.code === 'OUTPUT_SET_MISMATCH'
+    && verdict.reason.includes('runner exited -1')
+}
 
 const REAL_RESULT = JSON.stringify({ mean_thickness: 0.731 })
 const RUN_ID = 'RUN-P1'
@@ -89,7 +130,7 @@ describe('P1-2 execution producer — positive (real node child)', () => {
   it('runs a real node child and commits RunArtifact + ExecutionRecord', async () => {
     const ir = new ModelingIr()
     seedContract(ir)
-    const verdict = await produceRunExecution({ ir, ...runArgs() })
+    const verdict = await produceRunResilient({ ir, ...runArgs() })
     expect(verdict.ok).toBe(true)
     expect(ir.list().filter(r => r.kind === 'RunArtifact').map(r => (r.value as { run_id: string }).run_id)).toContain(RUN_ID)
     const records = ir.list().filter(r => r.kind === 'ExecutionRecord').map(r => r.value as { execution_id: string; exit_status: number; run_ref: string })
@@ -149,7 +190,7 @@ describe('P1-2 execution producer — attacks', () => {
     expect(first.code).toBe('OUTPUT_SET_MISMATCH')
     expect(first.reason).toContain('runner exited')
 
-    const second = await produceRunExecution({ ir, ...runArgs() })
+    const second = await produceRunResilient({ ir, ...runArgs() })
     expect(second.ok, second.ok ? '' : second.reason).toBe(true)
     if (!second.ok) return
     expect(second.runArtifactId).toBe(RUN_ID)
@@ -185,7 +226,7 @@ describe('P1-2 execution producer — attacks', () => {
   it('refuses a run declaration that is already committed (one run id, one execution)', async () => {
     const ir = new ModelingIr()
     seedContract(ir)
-    const first = await produceRunExecution({ ir, ...runArgs() })
+    const first = await produceRunResilient({ ir, ...runArgs() })
     expect(first.ok).toBe(true)
     const again = await produceRunExecution({ ir, ...runArgs() })
     expect(again.ok).toBe(false)
@@ -236,7 +277,7 @@ describe('M-QUAL DP-4 — execution-time config capture', () => {
   it('a code-emitted numeric_config.json lands as a NumericConfig bound to the run', async () => {
     const ir = new ModelingIr()
     seedContract(ir)
-    const verdict = await produceRunExecution({ ir, ...configRunArgs(CONFIG_EMISSION) })
+    const verdict = await produceRunResilient({ ir, ...configRunArgs(CONFIG_EMISSION) })
     expect(verdict.ok).toBe(true)
     if (!verdict.ok) return
     const configs = ir.list().filter(r => r.kind === 'NumericConfig')
@@ -264,7 +305,7 @@ describe('M-QUAL DP-4 — execution-time config capture', () => {
     // **不变量仍在**：缺口必须被记录（configGaps 非空），绝不静默丢掉。
     const ir = new ModelingIr()
     seedContract(ir)
-    const verdict = await produceRunExecution({
+    const verdict = await produceRunResilient({
       ir,
       ...configRunArgs(JSON.stringify({ discretization: { mystery: 1 }, physical: {}, choices: {}, property_set: null })),
     })
@@ -289,7 +330,7 @@ describe('M-QUAL DP-4 — execution-time config capture', () => {
   it('a run that never declares the emission simply leaves the contract inactive', async () => {
     const ir = new ModelingIr()
     seedContract(ir)
-    const verdict = await produceRunExecution({ ir, ...runArgs() })
+    const verdict = await produceRunResilient({ ir, ...runArgs() })
     expect(verdict.ok).toBe(true)
     expect(ir.list().filter(r => r.kind === 'NumericConfig')).toHaveLength(0)
   }, 60_000)

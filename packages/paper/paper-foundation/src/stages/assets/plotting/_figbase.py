@@ -206,9 +206,32 @@ def cn(s):
 
 
 def save(fig, stem):
-    """统一出图：`save(fig, 'fig_q1_oc_curve_p1')` → `figures/fig_q1_oc_curve_p1.png`。"""
+    """统一出图：`save(fig, 'fig_q1_oc_curve_p1')` → `figures/fig_q1_oc_curve_p1.png`。
+
+    ## 为什么在 `save_fig` 之后再存一次（本模块自己的补偿，不动迁移来的 plot_utils）
+
+    `plot_utils._save` **刻意**用 `bbox_inches=None`（源码注释：防 axes 外的 transAxes 标注
+    把 PDF mediabox 撑爆）。代价是**画布边缘会切掉画到外面的文字**——实测 2024B 的
+    `fig_recovery_cost_compare`（右边界的中位数标注）、`fig_quality_profit_scatter`
+    （`annotate` 整段）、`fig_assembly_network_cost`（横轴标题）都是这么被裁的。
+
+    `plot_utils` 自带两个兜底，但只覆盖**刻度标签**（`_ensure_ticklabels_visible`）与
+    **transAxes 的上下越界**（`_pull_back_outside_transaxes_text`），
+    **右侧 / 数据坐标越界不在其中**。
+
+    本链路是 **PNG**（docx 用），而 `bbox_inches=None` 的理由是 **PDF** 的 mediabox——
+    对 PNG 用 `bbox_inches='tight'` 恰好把越界文字纳进画布，且没有那个副作用。
+    所以：先 `save_fig`（跑完整钩子链：钳制、防重叠、tight_layout、子图防护），
+    再按 tight 画布重存一次 PNG。第二次用的是**已被钩子改过**的 figure，不会丢那些修复。
+    """
     if stem.startswith("figures/"):
         stem = stem[len("figures/"):]
     out = FIG_DIR / (stem + ".png")
     save_fig(fig, str(out))
+    # 补偿：PNG 用 tight 画布，避免右侧/数据坐标越界的文字被画布边缘切掉。
+    # 失败不掩盖前一次已落盘的结果（tight 只是"更好"，不是"必须"）。
+    try:
+        fig.savefig(str(out), dpi=350, bbox_inches="tight", pad_inches=0.06)
+    except Exception:
+        pass
     return out

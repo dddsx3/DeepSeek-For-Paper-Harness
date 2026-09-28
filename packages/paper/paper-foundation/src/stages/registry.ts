@@ -187,7 +187,7 @@ export const STAGES: ReadonlyArray<StageSpec> = [
       D('figures/', 'dir', '跑 `gen_fig_*.py` 产出的图（matplotlib，PNG）'),
       D('figure-manifest.json', 'json', '渲染清单：图 id → 文件 → 退出码 → 字节数'),
     ],
-    gates: ['figure_manifest_reconcile', 'figure_completeness', 'figure_size_buckets', 'figure_style_rules'],
+    gates: ['figure_manifest_reconcile', 'figure_completeness', 'figure_size_buckets', 'figure_text_within_axes', 'figure_style_rules'],
     contractRules: [], rollbackTo: ['figure-declare', 'code'],
     premise: '**执行是 harness 的事**：把 `plot_utils.py` 铺到 `_utils/`、把铸出的账本铺到 '
       + '`results.json`，然后逐个跑 `gen_fig_*.py`（cwd 就是本阶段目录，脚本里的相对路径'

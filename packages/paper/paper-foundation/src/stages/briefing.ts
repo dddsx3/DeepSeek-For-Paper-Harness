@@ -492,6 +492,22 @@ const SKILLS: Readonly<Record<string, StageSkill>> = {
         + 'r=高/宽 ≤0.80 → 宽写 6.0in；≤1.20 → 5.0in；≤1.60 → 3.6in；否则 3.0in。'
         + '高不超过 8in。门禁 `figure_size_buckets` 按这条判（容差 15%）——'
         + '原生远大于上页显示宽时，缩下去刻度会从 8.5pt 掉到 5.4pt。',
+      '**环境 API 约束（这四类写法本环境不支持，脚本会崩在渲染阶段；门禁 `figure_script_quality` 直接硬拦）**：'
+        + '① `ScalarMappable` **不在 `matplotlib.colors`**（matplotlib 3.10 起）——'
+        + '写 `plt.cm.ScalarMappable(norm=norm, cmap=cmap)`，**不要**写 `mcolors.ScalarMappable` / '
+        + '`matplotlib.colors.ScalarMappable`；'
+        + '② 本环境装的 networkx **不接受 `zorder`**——`nx.draw_networkx_nodes/edges/labels(...)` 里不要传 `zorder=`'
+        + '（要控制层叠就用 `ax.plot` / `ax.scatter` 自绘边与节点）；'
+        + '③ 轴范围关键字**别写错轴**：x 轴是 `set_xlim(left=..., right=...)`、y 轴是 `set_ylim(bottom=..., top=...)`'
+        + '——`set_xlim(bottom=...)` 会 `TypeError: unexpected keyword argument \'bottom\'`；'
+        + '④ `scatter` **不做标量广播**：`ax.scatter(标量, 数组)` 会 `ValueError: x and y must be the same size`，'
+        + '标量要显式铺开成同长数组（`np.full_like(y, 标量)`）。这四条都是确定性判据，命中即失败。',
+      '**标注坐标必须落在坐标区内**（门禁 `figure_text_within_axes` 按这条判）：PNG 渲染完**判不出**文字是否被裁'
+        + '（被裁的像素已经不在图里了），所以判据落在**脚本坐标**上——`ax.text` / `ax.annotate` 的**字面量**坐标'
+        + '不得落在同脚本 `set_xlim` / `set_ylim` 的字面量范围之外（表达式/变量坐标、`transform=` 等非数据坐标系放行）。'
+        + '**优先用 `_figbase` 转出的 `smart_labels` / `auto_legend`**（自动防重叠与钳制），'
+        + '三面板以上合成图要调用 `declutter_axes`；`ax.annotate` 的 `xytext` 容易溢出时改用 '
+        + '`textcoords="offset points"` 或把坐标收进范围。',
       '**图内文字最小化**（参考的"三层闸"）：结论、口径、方法说明**一律进 LaTeX 题注**；'
         + '图内只留轴标签+单位、图例、colorbar，以及 ≤1 行的数据锚点短标签（每个 panel ≤2 个）。'
         + '柱顶数值优先用 `ax.bar_label(bars, fmt="%.2f", padding=2)`；点标注用 `smart_labels(ax, xs, ys, texts)` 自动防重叠。',
