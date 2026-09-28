@@ -16,3 +16,18 @@ STAGE CHAIN FAILED — 1 个阶段没通过（产物与通行证在 artifacts\up
   [deterministic] code: 分片 1/8 交付 code/main.py
   [deterministic] code: 分片 2/8 交付 code/params.py
   [deterministic] code: 分片 3/8 交付 code/problem1.py
+  [deterministic] code: 分片 4/8 交付 code/problem2.py
+[STAGE NEXT] 只跑了 'code'，到此即停。检查 artifacts\upper-bound\2024B-ingest-1\stages 后，放行 = 再执行一次 --stages --stage-next。
+  ❌ code: 阶段产出未通过形态检查：idle watchdog：180000ms 没有任何新令牌 —— 对端大概率已挂住
+
+STAGE CHAIN FAILED — 1 个阶段没通过（产物与通行证在 artifacts\upper-bound\2024B-ingest-1\stages）。
+===== 第 3 次 --stage-next =====
+[STAGE CHAIN] artifacts\upper-bound\2024B-ingest-1\stages
+  题面问数（数出来的）：4
+  [deterministic] code: 分片 1/8 交付 code/main.py
+  [deterministic] code: 分片 2/8 交付 code/params.py
+  [deterministic] code: 分片 3/8 交付 code/problem1.py
+  [deterministic] code: 分片 4/8 交付 code/problem2.py
+  [deterministic] code: 分片 5/8 交付 code/problem3.py
+  [deterministic] code: 分片 6/8 交付 code/problem4.py
+  [deterministic] code: 分片 7/8 交付 RESULTS.md

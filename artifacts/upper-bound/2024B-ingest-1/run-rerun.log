@@ -87,3 +87,14 @@ STAGE CHAIN FAILED — 1 个阶段没通过（产物与通行证在 artifacts\up
 
 STAGE CHAIN FAILED — 1 个阶段没通过（产物与通行证在 artifacts\upper-bound\2024B-ingest-1\stages）。
 ===== 第 9 次 --stage-next =====
+[STAGE CHAIN] artifacts\upper-bound\2024B-ingest-1\stages
+  题面问数（数出来的）：4
+  [deterministic] code: 分片 1/8 交付 code/main.py
+[provider] 传输失败第 1 次（2s 后重试）：fetch failed（底层原因：fetch failed ← Headers Timeout Error code=UND_ERR_HEADERS_TIMEOUT）
+  [deterministic] code: 分片 2/8 交付 code/params.py
+  [deterministic] code: 分片 3/8 交付 code/problem1.py
+[provider] 传输失败第 1 次（2s 后重试）：fetch failed（底层原因：fetch failed ← Headers Timeout Error code=UND_ERR_HEADERS_TIMEOUT）
+[provider] 传输失败第 2 次（3s 后重试）：fetch failed（底层原因：fetch failed ← Headers Timeout Error code=UND_ERR_HEADERS_TIMEOUT）
+[provider] 传输失败第 3 次（6s 后重试）：fetch failed（底层原因：fetch failed ← Headers Timeout Error code=UND_ERR_HEADERS_TIMEOUT）
+[provider] 传输失败第 1 次（2s 后重试）：fetch failed（底层原因：fetch failed ← Headers Timeout Error code=UND_ERR_HEADERS_TIMEOUT）
+[provider] 传输失败第 2 次（3s 后重试）：fetch failed（底层原因：fetch failed ← Headers Timeout Error code=UND_ERR_HEADERS_TIMEOUT）

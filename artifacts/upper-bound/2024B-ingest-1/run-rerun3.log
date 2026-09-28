@@ -84,3 +84,9 @@ STAGE CHAIN FAILED — 1 个阶段没通过（产物与通行证在 artifacts\up
 
 STAGE CHAIN FAILED — 1 个阶段没通过（产物与通行证在 artifacts\upper-bound\2024B-ingest-1\stages）。
 ===== 第 9 次 --stage-next =====
+[STAGE CHAIN] artifacts\upper-bound\2024B-ingest-1\stages
+  题面问数（数出来的）：4
+  [deterministic] code: 分片 1/8 交付 code/main.py
+  [deterministic] code: 分片 2/8 交付 code/params.py
+  [deterministic] code: 分片 3/8 交付 code/problem1.py
+  [deterministic] code: 分片 4/8 交付 code/problem2.py

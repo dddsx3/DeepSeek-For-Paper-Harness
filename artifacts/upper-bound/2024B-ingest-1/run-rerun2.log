@@ -19,3 +19,9 @@ STAGE CHAIN FAILED — 1 个阶段没通过（产物与通行证在 artifacts\up
 [provider] 传输失败第 5 次（80s 后重试）：fetch failed（底层原因：fetch failed ← Headers Timeout Error code=UND_ERR_HEADERS_TIMEOUT）
 [provider] 传输失败第 6 次（160s 后重试）：fetch failed（底层原因：fetch failed ← Headers Timeout Error code=UND_ERR_HEADERS_TIMEOUT）
 [provider] 传输失败第 7 次（320s 后重试）：fetch failed（底层原因：fetch failed ← Headers Timeout Error code=UND_ERR_HEADERS_TIMEOUT）
+[provider] 传输失败第 1 次（5s 后重试）：fetch failed（底层原因：fetch failed ← Headers Timeout Error code=UND_ERR_HEADERS_TIMEOUT）
+[provider] 传输失败第 2 次（10s 后重试）：fetch failed（底层原因：fetch failed ← Headers Timeout Error code=UND_ERR_HEADERS_TIMEOUT）
+[provider] 传输失败第 3 次（20s 后重试）：fetch failed（底层原因：fetch failed ← Headers Timeout Error code=UND_ERR_HEADERS_TIMEOUT）
+[provider] 传输失败第 4 次（40s 后重试）：fetch failed（底层原因：fetch failed ← Headers Timeout Error code=UND_ERR_HEADERS_TIMEOUT）
+[provider] 传输失败第 6 次（160s 后重试）：fetch failed（底层原因：fetch failed ← Headers Timeout Error code=UND_ERR_HEADERS_TIMEOUT）
+[provider] 传输失败第 7 次（320s 后重试）：fetch failed（底层原因：fetch failed ← Headers Timeout Error code=UND_ERR_HEADERS_TIMEOUT）
