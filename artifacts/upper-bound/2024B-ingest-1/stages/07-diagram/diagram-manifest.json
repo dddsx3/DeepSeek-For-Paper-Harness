@@ -1,0 +1,21 @@
+{
+  "figures": [
+    {
+      "figure_id": "fig_decision_pipeline",
+      "file": "figures/fig_decision_pipeline.svg",
+      "template": "tpl_roadmap",
+      "template_digest": "d8d9fe2d82d72a9be9c0f76f58940e1c364e07f89660b8ee1bbae2ba8fe59fe9",
+      "style_family": "A",
+      "direction": "vertical",
+      "seed": "arch:fig_decision_pipeline:de3ce85e3ed69f04",
+      "nodes": 7,
+      "bytes": 3327
+    }
+  ],
+  "unreachable": [
+    {
+      "figure_id": "tikz_process_route",
+      "reason": "TikZ 几何图需要 LaTeX 引擎渲染（参考用 xelatex），本仓库没有 LaTeX 工具链；本阶段的渲染器（确定性 SVG 布局）不覆盖几何图族"
+    }
+  ]
+}

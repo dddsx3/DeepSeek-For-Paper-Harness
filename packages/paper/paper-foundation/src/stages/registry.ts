@@ -199,7 +199,12 @@ export const STAGES: ReadonlyArray<StageSpec> = [
     id: 'diagram', index: 7, kind: 'deterministic', title: '流程与架构图绘制', skillId: 'paper-figure-html',
     consumes: ['01-prob-analysis/PROBLEM_ANALYSIS.md'],
     produces: [
-      D('figures/fig_roadmap.svg', 'svg', '流程 / 架构 / 路线图（按清单逐张渲染）'),
+      // **声明目录，不写死文件名**：架构图的 id 来自阶段 1 的清单（本轮是
+      // `fig_decision_pipeline`，换一道题就是别的名字）。原来写死 `figures/fig_roadmap.svg`，
+      // 于是渲染器按清单正确产出了 `figures/fig_decision_pipeline.svg`，却被
+      // "声明的产物不存在"判死——**契约的写法与产物的实际命名对不上**。
+      // 阶段 5/6 早就是声明 `figures/` 目录，这里与它们对齐。
+      D('figures/', 'dir', '流程 / 架构 / 路线图（按清单逐张渲染，文件名为清单里的图 id）'),
       D('diagram-manifest.json', 'json', '架构图清单：图 id → 模板 → 模板摘要 → 风格族；含够不到的图'),
     ],
     gates: ['diagram_manifest_reconcile', 'diagram_geometry'],

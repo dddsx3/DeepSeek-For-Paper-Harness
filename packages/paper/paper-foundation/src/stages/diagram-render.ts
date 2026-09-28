@@ -145,19 +145,115 @@ export function parseArchDeclaration(analysisText: string): ReadonlyMap<string, 
   for (const [id, value] of Object.entries(parsed as Record<string, unknown>)) {
     if (typeof value !== 'object' || value === null) continue
     const d = value as Record<string, unknown>
-    if (!Array.isArray(d['layers']) || d['layers'].length === 0) continue
     const family = d['style_family']
     const direction = d['direction']
-    out.set(id, {
-      style_family: (family === 'A' || family === 'B' || family === 'C' ? family : 'A'),
-      direction: (direction === 'horizontal' || direction === 'vertical' ? direction : 'vertical'),
-      layers: d['layers'] as ArchInput['layers'],
-      edges: (Array.isArray(d['edges']) ? d['edges'] : []) as ArchInput['edges'],
+    const common = {
+      style_family: (family === 'A' || family === 'B' || family === 'C' ? family : 'A') as 'A' | 'B' | 'C',
+      direction: (direction === 'horizontal' || direction === 'vertical' ? direction : 'vertical') as 'horizontal' | 'vertical',
       ...(typeof d['seed'] === 'string' ? { seed: d['seed'] } : {}),
       ...(typeof d['template'] === 'string' ? { template: d['template'] } : {}),
-    })
+    }
+    // ① 契约的嵌套形态：`layers: [{label, nodes: [{id, label}]}]`
+    if (Array.isArray(d['layers']) && d['layers'].length > 0
+      && typeof d['layers'][0] === 'object' && d['layers'][0] !== null) {
+      out.set(id, {
+        ...common,
+        layers: d['layers'] as ArchInput['layers'],
+        edges: (Array.isArray(d['edges']) ? d['edges'] : []) as ArchInput['edges'],
+      })
+      continue
+    }
+    // ② **模型实际写出的扁平形态**（实测连续两代都是它）：
+    //    `{layers: ["层名", …], nodes: ["节点名", …], edges: [["A","B"], …]}`
+    //    扁平形态**缺"节点→层"的映射**，但边给了拓扑——按"最长路径秩"把节点分层，
+    //    这是流图语义下的确定性还原（同秩同层、按秩排列），不是猜。
+    //    为什么必须容错而不是回退重跑：阶段 1 的产物已经定稿，为一个形状问题重跑阶段 1
+    //    （17KB 分析 + 审计）代价远大于这里做一次确定性还原；而契约侧同时补上了
+    //    形状说明（见 briefing），下一代不会再犯。
+    const flat = flatLayersOf(d)
+    if (flat !== null) {
+      out.set(id, { ...common, layers: flat.layers, edges: flat.edges })
+      continue
+    }
+    // 两套形态都不是 → 跳过（调用方会为"必须画的图没有声明"具名报错）
   }
   return out
+}
+
+/** 节点名 → id：扁平形态的边用**标签**互指，所以 id 直接由标签派生（稳定、可读）。 */
+function nodeIdOf(label: string, used: Set<string>): string {
+  const base = label.trim().replace(/\s+/g, '_').slice(0, 40) || 'n'
+  let id = base
+  let k = 2
+  while (used.has(id)) { id = `${base}_${String(k)}`; k += 1 }
+  used.add(id)
+  return id
+}
+
+/**
+ * 把**扁平形态**的声明还原成 `{layers, edges}`。
+ *
+ * 输入：`{layers: [层名…], nodes: [节点名…], edges: [[fromLabel, toLabel]…]}`
+ * 输出：按"最长路径秩"分层的 `layers: [{label, nodes: [{id,label}]}]` 与 `{from,to}` 边。
+ *
+ * 秩的计算是确定性的：无入边的节点秩 0，其余取其所有前驱秩的最大值 +1（有环时按首次
+ * 访问截断，不会死循环）。层名优先用模型给的名字，不够就补 `层 N`。
+ *
+ * @returns 还原结果；`nodes` 不是字符串数组时返回 `null`（说明两套形态都不是）。
+ */
+function flatLayersOf(d: Record<string, unknown>): { layers: ArchInput['layers']; edges: ArchInput['edges'] } | null {
+  const nodesRaw = d['nodes']
+  if (!Array.isArray(nodesRaw) || nodesRaw.length === 0) return null
+  if (!nodesRaw.every(n => typeof n === 'string')) return null
+  const labels = nodesRaw as ReadonlyArray<string>
+  const used = new Set<string>()
+  const idOf = new Map<string, string>()
+  for (const label of labels) idOf.set(label, nodeIdOf(label, used))
+
+  const rawEdges = Array.isArray(d['edges']) ? d['edges'] : []
+  const edges: Array<{ from: string; to: string }> = []
+  const preds = new Map<string, string[]>()
+  for (const label of labels) preds.set(label, [])
+  for (const e of rawEdges) {
+    if (!Array.isArray(e) || e.length < 2) continue
+    const [a, b] = e as [unknown, unknown]
+    if (typeof a !== 'string' || typeof b !== 'string') continue
+    if (!idOf.has(a) || !idOf.has(b)) continue
+    edges.push({ from: idOf.get(a) as string, to: idOf.get(b) as string })
+    preds.get(b)?.push(a)
+  }
+  // 最长路径秩（带记忆 + 访问中标记，环不会死循环）
+  const rank = new Map<string, number>()
+  const visiting = new Set<string>()
+  const rankOf = (label: string): number => {
+    const memo = rank.get(label)
+    if (memo !== undefined) return memo
+    if (visiting.has(label)) return 0
+    visiting.add(label)
+    const ps = preds.get(label) ?? []
+    const r = ps.length === 0 ? 0 : Math.max(...ps.map(rankOf)) + 1
+    visiting.delete(label)
+    rank.set(label, r)
+    return r
+  }
+  for (const label of labels) rankOf(label)
+
+  const layerNames = Array.isArray(d['layers']) && d['layers'].every(x => typeof x === 'string')
+    ? (d['layers'] as ReadonlyArray<string>)
+    : []
+  const byRank = new Map<number, Array<{ id: string; label: string }>>()
+  for (const label of labels) {
+    const r = rank.get(label) ?? 0
+    const bucket = byRank.get(r) ?? []
+    bucket.push({ id: idOf.get(label) as string, label })
+    byRank.set(r, bucket)
+  }
+  const ranks = [...byRank.keys()].sort((a, b) => a - b)
+  const layers = ranks.map((r, i) => ({
+    label: layerNames[i] ?? `层 ${String(i + 1)}`,
+    nodes: byRank.get(r) ?? [],
+  }))
+  return { layers, edges }
 }
 
 /**
