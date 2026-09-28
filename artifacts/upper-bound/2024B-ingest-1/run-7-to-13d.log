@@ -1,0 +1,65 @@
+===== 第 1 次 --stage-next =====
+[STAGE CHAIN] artifacts\upper-bound\2024B-ingest-1\stages
+  题面问数（数出来的）：4
+  [deterministic] diagram: 渲染 1 张架构图；1 张够不到（tikz_process_route，需 LaTeX 引擎）
+[STAGE NEXT] 只跑了 'diagram'，到此即停。检查 artifacts\upper-bound\2024B-ingest-1\stages 后，放行 = 再执行一次 --stages --stage-next。
+  ❌ diagram: 门禁前置不成立：本阶段声明的 1 项产物不存在或为空（figures/fig_roadmap.svg）—— 产出齐备是门禁的前提，"没产出"不许被当成"通过"
+
+STAGE CHAIN FAILED — 1 个阶段没通过（产物与通行证在 artifacts\upper-bound\2024B-ingest-1\stages）。
+===== 第 2 次 --stage-next =====
+[STAGE CHAIN] artifacts\upper-bound\2024B-ingest-1\stages
+  题面问数（数出来的）：4
+  [deterministic] diagram: 渲染 1 张架构图；1 张够不到（tikz_process_route，需 LaTeX 引擎）
+[STAGE NEXT] 只跑了 'diagram'，到此即停。检查 artifacts\upper-bound\2024B-ingest-1\stages 后，放行 = 再执行一次 --stages --stage-next。
+  ❌ diagram: 门禁前置不成立：本阶段声明的 1 项产物不存在或为空（figures/fig_roadmap.svg）—— 产出齐备是门禁的前提，"没产出"不许被当成"通过"
+
+STAGE CHAIN FAILED — 1 个阶段没通过（产物与通行证在 artifacts\upper-bound\2024B-ingest-1\stages）。
+===== 第 3 次 --stage-next =====
+[STAGE CHAIN] artifacts\upper-bound\2024B-ingest-1\stages
+  题面问数（数出来的）：4
+  [deterministic] diagram: 渲染 1 张架构图；1 张够不到（tikz_process_route，需 LaTeX 引擎）
+[STAGE NEXT] 只跑了 'diagram'，到此即停。检查 artifacts\upper-bound\2024B-ingest-1\stages 后，放行 = 再执行一次 --stages --stage-next。
+  ❌ diagram: 门禁前置不成立：本阶段声明的 1 项产物不存在或为空（figures/fig_roadmap.svg）—— 产出齐备是门禁的前提，"没产出"不许被当成"通过"
+
+STAGE CHAIN FAILED — 1 个阶段没通过（产物与通行证在 artifacts\upper-bound\2024B-ingest-1\stages）。
+===== 第 4 次 --stage-next =====
+[STAGE CHAIN] artifacts\upper-bound\2024B-ingest-1\stages
+  题面问数（数出来的）：4
+  [deterministic] diagram: 渲染 1 张架构图；1 张够不到（tikz_process_route，需 LaTeX 引擎）
+[STAGE NEXT] 只跑了 'diagram'，到此即停。检查 artifacts\upper-bound\2024B-ingest-1\stages 后，放行 = 再执行一次 --stages --stage-next。
+  ❌ diagram: 门禁前置不成立：本阶段声明的 1 项产物不存在或为空（figures/fig_roadmap.svg）—— 产出齐备是门禁的前提，"没产出"不许被当成"通过"
+
+STAGE CHAIN FAILED — 1 个阶段没通过（产物与通行证在 artifacts\upper-bound\2024B-ingest-1\stages）。
+===== 第 5 次 --stage-next =====
+[STAGE CHAIN] artifacts\upper-bound\2024B-ingest-1\stages
+  题面问数（数出来的）：4
+  [deterministic] diagram: 渲染 1 张架构图；1 张够不到（tikz_process_route，需 LaTeX 引擎）
+[STAGE NEXT] 只跑了 'diagram'，到此即停。检查 artifacts\upper-bound\2024B-ingest-1\stages 后，放行 = 再执行一次 --stages --stage-next。
+  ❌ diagram: 门禁前置不成立：本阶段声明的 1 项产物不存在或为空（figures/fig_roadmap.svg）—— 产出齐备是门禁的前提，"没产出"不许被当成"通过"
+
+STAGE CHAIN FAILED — 1 个阶段没通过（产物与通行证在 artifacts\upper-bound\2024B-ingest-1\stages）。
+===== 第 6 次 --stage-next =====
+[STAGE CHAIN] artifacts\upper-bound\2024B-ingest-1\stages
+  题面问数（数出来的）：4
+  [deterministic] diagram: 渲染 1 张架构图；1 张够不到（tikz_process_route，需 LaTeX 引擎）
+[STAGE NEXT] 只跑了 'diagram'，到此即停。检查 artifacts\upper-bound\2024B-ingest-1\stages 后，放行 = 再执行一次 --stages --stage-next。
+  ❌ diagram: 门禁前置不成立：本阶段声明的 1 项产物不存在或为空（figures/fig_roadmap.svg）—— 产出齐备是门禁的前提，"没产出"不许被当成"通过"
+
+STAGE CHAIN FAILED — 1 个阶段没通过（产物与通行证在 artifacts\upper-bound\2024B-ingest-1\stages）。
+===== 第 7 次 --stage-next =====
+[STAGE CHAIN] artifacts\upper-bound\2024B-ingest-1\stages
+  题面问数（数出来的）：4
+  [deterministic] diagram: 渲染 1 张架构图；1 张够不到（tikz_process_route，需 LaTeX 引擎）
+[STAGE NEXT] 只跑了 'diagram'，到此即停。检查 artifacts\upper-bound\2024B-ingest-1\stages 后，放行 = 再执行一次 --stages --stage-next。
+  ❌ diagram: 门禁前置不成立：本阶段声明的 1 项产物不存在或为空（figures/fig_roadmap.svg）—— 产出齐备是门禁的前提，"没产出"不许被当成"通过"
+
+STAGE CHAIN FAILED — 1 个阶段没通过（产物与通行证在 artifacts\upper-bound\2024B-ingest-1\stages）。
+===== 第 8 次 --stage-next =====
+[STAGE CHAIN] artifacts\upper-bound\2024B-ingest-1\stages
+  题面问数（数出来的）：4
+  [deterministic] diagram: 渲染 1 张架构图；1 张够不到（tikz_process_route，需 LaTeX 引擎）
+[STAGE NEXT] 只跑了 'diagram'，到此即停。检查 artifacts\upper-bound\2024B-ingest-1\stages 后，放行 = 再执行一次 --stages --stage-next。
+  ❌ diagram: 门禁前置不成立：本阶段声明的 1 项产物不存在或为空（figures/fig_roadmap.svg）—— 产出齐备是门禁的前提，"没产出"不许被当成"通过"
+
+STAGE CHAIN FAILED — 1 个阶段没通过（产物与通行证在 artifacts\upper-bound\2024B-ingest-1\stages）。
+===== LOOP DONE =====

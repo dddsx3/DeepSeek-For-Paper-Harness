@@ -102,9 +102,22 @@ const SKILLS: Readonly<Record<string, StageSkill>> = {
         + '阶段 3 会照这个要求去算。**规划与"数据可得性"脱节的代价，是整个图集塌一半。**',
       '**ARCH_DECLARATION 块**（`<!-- BEGIN ARCH_DECLARATION -->` … `<!-- END ARCH_DECLARATION -->`）：'
         + '**只要清单里有 `DRAWIO` 条目就必须写**。它是 `图 id → {style_family, direction, layers, edges}` 的 JSON 对象。'
-        + '理由：清单只给图**名**，给不出层/节点/连线——阶段 5 的渲染器按声明画图，**没有声明就不画**'
+        + '⛔ **形状必须照抄下面这个例子**（第一版契约只写了键名、没写形状，模型于是写成了'
+        + '"`layers` 是层名数组、`nodes` 平铺在顶层"的扁平形态——**那不是错，是契约没说清**；'
+        + '渲染器要的是嵌套形态，结果阶段 7 连续 8 次失败）：\n'
+        + '```json\n'
+        + '{"fig_roadmap": {"style_family": "A", "direction": "vertical",\n'
+        + '  "layers": [{"label": "零配件层", "nodes": [{"id": "p1", "label": "零配件检测"}]},\n'
+        + '             {"label": "装配层", "nodes": [{"id": "s1", "label": "装配"}]}],\n'
+        + '  "edges": [{"from": "p1", "to": "s1"}]}}\n'
+        + '```\n'
+        + '要点：`layers` 是**对象数组**，每层有 `label` 与 `nodes`；`nodes` 里每个节点是 '
+        + '`{id, label}`（`id` 是短标识，`edges` 用 `id` 互指）；`edges` 是 `{from, to}` 对象数组。'
+        + '`style_family` 只能取 `"A"|"B"|"C"`。'
+        + '理由：清单只给图**名**，给不出层/节点/连线——阶段 7 的渲染器按声明画图，**没有声明就不画**'
         + '（凭空造一张路线图比缺一张更糟）。节点标签要短（**不得**写具体结果数值，也**不得**整张图都是'
-        + '"数据采集/建立模型"这类万能词）。',
+        + '"数据采集/建立模型"这类万能词）。'
+        + '另外：**这块只声明 `DRAWIO`/`TIKZ` 段的图**，不要把数据图（`DATA` 段）也写进来。',
       '**CAPABILITY_CHECKLIST.json**：每条 = `{ id, required_output, machine_check, source_sentence }`。'
         + '`machine_check` 要写成**别人能照着核**的句子（"问题 2 给出 16 种策略的期望成本表"），'
         + '不是"建模合理"。',

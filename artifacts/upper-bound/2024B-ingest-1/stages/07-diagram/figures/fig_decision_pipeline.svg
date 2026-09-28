@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="596" height="796" viewBox="0 0 596 796" role="img">
+<rect x="0" y="0" width="596" height="796" fill="#FFFFFF"/>
+<path d="M 298 112 L 298 376 L 170 376 L 170 640" fill="none" stroke="#888888" stroke-width="1.1" marker-end="url(#arrow)"/>
+<path d="M 170 692 L 170 434 L 298 434 L 298 176" fill="none" stroke="#888888" stroke-width="1.1" marker-end="url(#arrow)"/>
+<path d="M 298 228 L 298 260 L 298 260 L 298 292" fill="none" stroke="#888888" stroke-width="1.1" marker-end="url(#arrow)"/>
+<path d="M 298 228 L 298 376 L 298 376 L 298 524" fill="none" stroke="#888888" stroke-width="1.1" marker-end="url(#arrow)"/>
+<path d="M 298 576 L 298 608 L 170 608 L 170 640" fill="none" stroke="#888888" stroke-width="1.1" marker-end="url(#arrow)"/>
+<path d="M 298 576 L 298 608 L 426 608 L 426 640" fill="none" stroke="#888888" stroke-width="1.1" marker-end="url(#arrow)"/>
+<path d="M 298 344 L 298 376 L 298 376 L 298 408" fill="none" stroke="#888888" stroke-width="1.1" marker-end="url(#arrow)"/>
+<path d="M 298 460 L 298 492 L 298 492 L 298 524" fill="none" stroke="#888888" stroke-width="1.1" marker-end="url(#arrow)"/>
+<rect data-mh-row="0" x="188" y="60" width="220" height="52" rx="0" fill="#F5F5F3" stroke="#777777" stroke-width="1"/>
+<text x="298" y="90" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="12" font-weight="400" fill="#000000">零配件检测</text>
+<rect data-mh-row="1" x="188" y="176" width="220" height="52" rx="0" fill="#F5F5F3" stroke="#777777" stroke-width="1"/>
+<text x="298" y="206" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="12" font-weight="400" fill="#000000">成品检测</text>
+<rect data-mh-row="2" x="188" y="292" width="220" height="52" rx="0" fill="#F5F5F3" stroke="#777777" stroke-width="1"/>
+<text x="298" y="322" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="12" font-weight="400" fill="#000000">合格品上市</text>
+<rect data-mh-row="3" x="188" y="408" width="220" height="52" rx="0" fill="#F5F5F3" stroke="#777777" stroke-width="1"/>
+<text x="298" y="438" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="12" font-weight="400" fill="#000000">退回调换</text>
+<rect data-mh-row="4" x="188" y="524" width="220" height="52" rx="0" fill="#F5F5F3" stroke="#777777" stroke-width="1"/>
+<text x="298" y="554" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="12" font-weight="400" fill="#000000">不合格品拆解</text>
+<rect data-mh-row="5" x="60" y="640" width="220" height="52" rx="0" fill="hsl(136, 30%, 92%)" stroke="hsl(136, 45%, 55%)" stroke-width="2"/>
+<text x="170" y="670" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="12" font-weight="600" fill="#000000">装配</text>
+<rect data-mh-row="5" x="316" y="640" width="220" height="52" rx="0" fill="#F5F5F3" stroke="#777777" stroke-width="1"/>
+<text x="426" y="670" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="12" font-weight="400" fill="#000000">报废</text>
+<defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#555555"/></marker></defs>
+</svg>
