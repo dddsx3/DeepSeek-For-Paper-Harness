@@ -171,8 +171,47 @@ function retryableStatus(status: number): boolean {
   return status === 429 || status === 500 || status === 502 || status === 503 || status === 504
 }
 
-const MAX_ATTEMPTS = 4
-const BASE_BACKOFF_MS = 1_500
+/**
+ * 传输层重试预算（**可配**）。
+ *
+ * 原来是写死的 4 次 / 1.5s 基数 → 总重试窗口只有约 **10.5 秒**。实测（2024B 重跑）：
+ * 免费中转在负载下会**连续**丢弃连接，10 秒窗口根本骑不过去——阶段 2 连撞 4 次
+ * 全是 `fetch failed`，而四次重试都落在**同一分钟内**，等于没重试。
+ *
+ * 放宽窗口是对的：这类失败是**瞬时的**（对端限流 / 连接被重置），
+ * 而一次建模调用的价值是分钟级的；用几分钟退避换回一次成功，账划得来。
+ * 默认值保持原样（4 / 1500）以免动到既有语义与测试；跑真实流水线时用环境变量放大。
+ */
+function maxAttempts(): number {
+  const raw = Number.parseInt(process.env['PAPER_PROBE_MAX_ATTEMPTS'] ?? '', 10)
+  return Number.isFinite(raw) && raw > 0 ? raw : 4
+}
+function baseBackoffMs(): number {
+  const raw = Number.parseInt(process.env['PAPER_PROBE_BASE_BACKOFF_MS'] ?? '', 10)
+  return Number.isFinite(raw) && raw > 0 ? raw : 1_500
+}
+
+/**
+ * 把 `fetch failed` 背后的**真实原因**挖出来。
+ *
+ * undici 的 `fetch` 把底层故障（`ECONNRESET` / `UND_ERR_SOCKET` / DNS 失败…）
+ * 藏在 `error.cause` 里，`message` 永远只有一句 `fetch failed`。实测代价：
+ * 阶段 2 连撞 4 次，日志里只有四个 `fetch failed`，**无法判断是限流、DNS
+ * 还是被重置**，只能猜。与 `_rejected-answer.txt`、渲染清单的 stderr 同一条纪律：
+ * **失败要可诊断**。
+ */
+function causeChainOf(error: unknown): string {
+  const parts: string[] = []
+  let cursor: unknown = error
+  for (let depth = 0; depth < 4 && cursor instanceof Error; depth += 1) {
+    const code = (cursor as Error & { code?: unknown }).code
+    const detail = [cursor.message, typeof code === 'string' ? `code=${code}` : '']
+      .filter(x => x !== '').join(' ')
+    if (detail !== '' && !parts.includes(detail)) parts.push(detail)
+    cursor = (cursor as { cause?: unknown }).cause
+  }
+  return parts.length === 0 ? '' : `（底层原因：${parts.join(' ← ')}）`
+}
 
 /** W8.6-B1: explicit output budget, configurable — NOT hardcoded. The
  *  32k ceiling that truncated the W8.5 run was a RELAY DEFAULT; asking
@@ -334,18 +373,20 @@ export async function* streamCompletion(
           })
         } catch (error) {
           const message = String(error instanceof Error ? error.message : error)
-          if (attempt < MAX_ATTEMPTS && /timeout|terminated|ECONNRESET|fetch failed/i.test(message)) {
-            await new Promise(resolve => setTimeout(resolve, BASE_BACKOFF_MS * 2 ** (attempt - 1)))
+          if (attempt < maxAttempts() && /timeout|terminated|ECONNRESET|fetch failed/i.test(message)) {
+            await new Promise(resolve => setTimeout(resolve, baseBackoffMs() * 2 ** (attempt - 1)))
             continue
           }
-          throw error
+          // **重试耗尽**：把尝试次数与底层原因一并抛出。
+          // 否则日志里只剩一句 `fetch failed`——无法判断是限流、DNS 还是被重置。
+          throw new Error(`模型请求失败（已重试 ${String(attempt)} 次）：${message}${causeChainOf(error)}`)
         }
         if (!response.ok) {
           const detail = await response.text().catch(() => '')
           const err = new Error(`provider http ${response.status} ${detail.slice(0, 200)}`) as Error & { status?: number }
           err.status = response.status
-          if (!retryableStatus(response.status) || attempt >= MAX_ATTEMPTS) throw err
-          await new Promise(resolve => setTimeout(resolve, BASE_BACKOFF_MS * 2 ** (attempt - 1)))
+          if (!retryableStatus(response.status) || attempt >= maxAttempts()) throw err
+          await new Promise(resolve => setTimeout(resolve, baseBackoffMs() * 2 ** (attempt - 1)))
           continue
         }
         const data = JSON.parse(await response.text()) as {
@@ -410,8 +451,8 @@ export async function* streamCompletion(
       const detail = await response.text().catch(() => '')
       const err = new Error(`provider http ${response.status} ${detail.slice(0, 200)}`) as Error & { status?: number }
       err.status = response.status
-      if (!retryableStatus(response.status) || attempt >= MAX_ATTEMPTS) throw err
-      await new Promise(resolve => setTimeout(resolve, BASE_BACKOFF_MS * 2 ** (attempt - 1)))
+      if (!retryableStatus(response.status) || attempt >= maxAttempts()) throw err
+      await new Promise(resolve => setTimeout(resolve, baseBackoffMs() * 2 ** (attempt - 1)))
     }
   } catch (error) {
     release()

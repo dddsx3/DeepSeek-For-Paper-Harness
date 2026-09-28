@@ -3,7 +3,7 @@
   "stage": "code",
   "index": 3,
   "at": "2026-09-27T00:50:35.545Z",
-  "status": "passed",
+  "status": "stale",
   "cleanliness": "unverified-gates",
   "inputDigest": "920a0b1c5afdb349c52a5b4fcab0f90c74f9a660ebe324f6f46df1b8f3e0b10c",
   "artifacts": {
@@ -131,5 +131,6 @@
     "missing": [],
     "model": "glm-5.3-flash-free",
     "at": "2026-09-27T00:50:35.542Z"
-  }
+  },
+  "staleReason": "阶段 8 复核判定 ROLLBACK：4 条致命（F-001 Δ/β 无依据、F-002 U_v 漏除 q_v、F-003 根节点漏调换损失与拆解费、F-004 Q4 未真正重做）。复核结论已回灌到建模/编程简报 —— 检查人回滚"
 }

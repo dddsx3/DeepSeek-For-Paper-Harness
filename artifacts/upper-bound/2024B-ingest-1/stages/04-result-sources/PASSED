@@ -3,7 +3,7 @@
   "stage": "result-sources",
   "index": 4,
   "at": "2026-09-27T10:18:31.534Z",
-  "status": "passed",
+  "status": "stale",
   "cleanliness": "clean",
   "inputDigest": "609a9c7e85456a06e7eded4266899391b653b4c3782a0efc7d52f33aa7c81b15",
   "artifacts": {
@@ -95,5 +95,6 @@
   },
   "regate": {
     "reason": "形态判据放宽：标签数组(labels)与空数组(empty)合法——两条真实误判；产物未变，原地复评"
-  }
+  },
+  "staleReason": "阶段 8 复核判定 ROLLBACK：4 条致命（F-001 Δ/β 无依据、F-002 U_v 漏除 q_v、F-003 根节点漏调换损失与拆解费、F-004 Q4 未真正重做）。复核结论已回灌到建模/编程简报 —— 检查人回滚"
 }
