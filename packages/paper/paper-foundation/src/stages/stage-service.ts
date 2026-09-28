@@ -355,7 +355,37 @@ export class PaperStageChainService extends Service {
           const shards = planCodeShards(spec, prompt, await this.problemCount())
           const answers: string[] = []
           for (const shard of shards) {
-            answers.push(await singleCall(spec, shard.prompt))
+            // **后续分片必须看到前面的产出**（与阶段 2 同一条约束，见下面那段注释）。
+            //
+            // 阶段 2 早就补了这个机制，**阶段 3 漏了**——实测代价：`problem1.py` 用了
+            // `params.py` 里并不存在的常量名（`Q1_ALTERN`），代码在阶段 4 真跑时
+            // `ValueError: params 中缺少问题一常量：Q1_ALTERN`。分片把"一次调用"拆成
+            // "八次独立调用"，于是**各文件之间对不上名字**，而它们本该是一套东西。
+            //
+            // 全量内联会把 prompt 顶到 100KB+（请求体本就 58KB），所以**有选择地给**：
+            // `params.py`（所有脚本 `from params import *`，它是共享契约）与 `main.py`
+            // （编排入口）**总是带上**，再加**紧邻的前一片**保证局部连贯；总量封顶 30KB。
+            const carried: Array<{ name: string; body: string }> = []
+            let carriedBytes = 0
+            const want = (name: string): void => {
+              if (carried.some(c => c.name === name)) return
+              const idx = shards.findIndex(s => s.deliverable === name)
+              const body = idx >= 0 ? (answers[idx] ?? '') : ''
+              if (body === '') return
+              const bytes = Buffer.byteLength(body)
+              if (carriedBytes + bytes > 30_000) return
+              carried.push({ name, body })
+              carriedBytes += bytes
+            }
+            want('code/params.py')
+            want('code/main.py')
+            const at = shards.indexOf(shard)
+            if (at > 0) want(shards[at - 1]?.deliverable ?? '')
+            const prior = carried.length === 0
+              ? ''
+              : '\n\n---\n\n## 本阶段**已产出**的文件（必须与之保持一致：名字、签名、单位都以它们为准）\n\n'
+                + carried.map(c => `### \`${c.name}\`\n\n${c.body}`).join('\n\n')
+            answers.push(await singleCall(spec, shard.prompt + prior))
             this.config.onDeterministicOutcome?.({
               stage: spec.id,
               summary: `分片 ${String(shard.index)}/${String(shard.total)} 交付 ${shard.deliverable}`,

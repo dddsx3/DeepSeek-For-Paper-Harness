@@ -2,15 +2,15 @@
   "passportVersion": 1,
   "stage": "code",
   "index": 3,
-  "at": "2026-09-28T16:24:11.611Z",
+  "at": "2026-09-28T18:23:32.498Z",
   "status": "passed",
   "cleanliness": "unverified-gates",
   "inputDigest": "920a0b1c5afdb349c52a5b4fcab0f90c74f9a660ebe324f6f46df1b8f3e0b10c",
   "artifacts": {
-    "code/main.py": "552ae7f98fa59657b518df2fc21473a876749ad6429d270bb2dff9cc35223c40",
+    "code/main.py": "88459276bc6355a694586885aa34ad3f65c70051ed6abf0f0c64ee7c7b38500f",
     "code/": "dir:7",
-    "RESULTS.md": "33e4521c05a32d35443eb42a3ed750aa99ba3e4698b9d3f77d827fa171f3850d",
-    "DELIVERABLES.json": "834207cc9e52102146402ad44d23d8b9bfbd7b23f680033e78e8efad74638c6b"
+    "RESULTS.md": "d34b8fdfc3371ee2e0e7a01619653372f32153999c00f1d11815df9baf8a1744",
+    "DELIVERABLES.json": "5b5cd3dea8c1d6c8e000bc9df9a29ec95b1a2d52fbb4a23e6719fbd47fa6d461"
   },
   "gate": {
     "code": 2,
@@ -24,13 +24,13 @@
       {
         "id": "ledger_keys_declared",
         "ok": true,
-        "detail": "已公布 79 个账本键 —— 阶段 4 照抄即可，不必猜",
+        "detail": "已公布 67 个账本键 —— 阶段 4 照抄即可，不必猜",
         "code": 0
       },
       {
         "id": "numbers_traced",
         "ok": true,
-        "detail": "1 个文本产物的 18 个数字全部有出生证明（题面给定值 / 声明的常数）",
+        "detail": "1 个文本产物的 0 个数字全部有出生证明（题面给定值 / 声明的常数）",
         "code": 0
       },
       {
@@ -50,76 +50,16 @@
         "ok": true,
         "detail": "没有图像产物（渲染归阶段 4）",
         "code": 0
+      },
+      {
+        "id": "stage_audit",
+        "ok": false,
+        "detail": "审计未跑成（无法判定）"
       }
     ]
   },
   "unverifiedGates": [
-    "delivery_audit"
-  ],
-  "audit": {
-    "stage": "code",
-    "verdict": "pass",
-    "score": 0.78,
-    "structureOk": true,
-    "requirementCompliance": [
-      {
-        "item": "数字由代码真跑产生，code/main.py 依次执行四问并汇总结果",
-        "done": true,
-        "note": "main.py 按 problem1、problem2、problem3、problem4 顺序调用 run()，合并结果并写入 code/outputs.json；numbers_traced 门禁已通过。"
-      },
-      {
-        "item": "code/main.py 为 py 且不少于 500 字节",
-        "done": true,
-        "note": "已提供完整入口，实际为 4238 字节，包含运行清单、异常状态记录、结果合并和原子写入。"
-      },
-      {
-        "item": "code/ 中逐问 problem*.py 文件数与题面问数 parity",
-        "done": true,
-        "note": "存在 problem1.py、problem2.py、problem3.py、problem4.py，共 4 个，恰与 4 个问题一致；code_parity 门禁已通过。"
-      },
-      {
-        "item": "RESULTS.md 为 md 且不少于 1024 字节并构成结果说明",
-        "done": true,
-        "note": "RESULTS.md 实际为 17055 字节，涵盖四问模型口径、结果字段、验证方式和情景边界。"
-      },
-      {
-        "item": "DELIVERABLES.json 为合法产出清单且每项包含 kind/min_rows/min_bytes/desc",
-        "done": true,
-        "note": "DELIVERABLES.json 实际为 14491 字节，列明代码目录、入口、逐问模块、结果账本和说明文件，各 artifact 均含规定四类字段。"
-      },
-      {
-        "item": "本阶段仅提供代码与结果说明，不包含渲染代码或图像字节",
-        "done": true,
-        "note": "所列代码用于计算和 JSON 写出，未发现绘图或图像写出实现；no_render 门禁已通过。"
-      },
-      {
-        "item": "题面四问的给定参数与决策机制在实现中有对应落点",
-        "done": true,
-        "note": "问题一的 10%、95%、90%及登记备择风险参数进入精确二项枚举；问题二六组表 1 数值逐项进入 Q2Case 和成本事件账本；问题三八零件、三半成品、成品及全部成本进入 NodeSpec 和装配网络；问题四设置抽样区间及稳健重解流程。调换损失、拆解费用和成品检测等也分别进入 Q2 事件组件、Q3 节点成本及 Q4 成本 bundle。未见仅声明而完全未接入模型的目标函数、约束或判定条件。"
-      }
-    ],
-    "findings": [
-      {
-        "severity": "major",
-        "where": "RESULTS.md 第2至5节与 DELIVERABLES.json 的 ledger_keys",
-        "issue": "结果说明和机器清单对同一结果给出了冲突的 JSON 路径。例如 RESULTS.md 使用 problem1.rejection.n、problem1.acceptance.n、problem1.sprt.boundary 和 problem4.q2.cases，而清单登记为 problem1.case95.n、problem1.case90.n、problem1.sprt_boundary 和 problem4.cases；问题二成本分解及部分验证字段也存在嵌套层级或名称不一致。人工按 RESULTS.md 取数可能找不到字段。",
-        "fix": "以实际 code/outputs.json 为唯一基准，确定唯一字段架构后，同时重写 RESULTS.md 的字段索引和 DELIVERABLES.json 的 ledger_keys，并增加一次逐路径存在性与非空性核验。"
-      },
-      {
-        "severity": "major",
-        "where": "RESULTS.md 第1节、第6节与 code/main.py 的 run_all()",
-        "issue": "结果说明声称入口在四问前执行参数接口自检，并在写出前执行统一验证、生成顶层 validation.probability_bounds，且任一阻断项失败会令入口非零退出；可见 main.py 只检查 run() 返回非空映射并捕获异常，没有统一验证器，也不会根据各模块返回的阻断标志拒绝写出。",
-        "fix": "若统一验证确属设计要求，应在 main.py 中显式汇总各问验证字段、生成顶层 validation，并在阻断项失败时抛出异常；否则应修改 RESULTS.md，准确说明仅有逐模块验证及其失败传播方式。"
-      },
-      {
-        "severity": "minor",
-        "where": "DELIVERABLES.json 的 run.command 与 run.working_directory",
-        "issue": "command 为“python code/main.py”，working_directory 却声明为“code”；按该工作目录执行会解析为 code/code/main.py。实际从项目根目录运行可成功，但清单中的复现命令与工作目录不自洽。",
-        "fix": "若从项目根目录运行，将 working_directory 改为“.”；若固定在 code 目录运行，则将 command 改为“python main.py”。"
-      }
-    ],
-    "missing": [],
-    "model": "space-bunny-free",
-    "at": "2026-09-28T16:24:11.607Z"
-  }
+    "delivery_audit",
+    "stage_audit"
+  ]
 }

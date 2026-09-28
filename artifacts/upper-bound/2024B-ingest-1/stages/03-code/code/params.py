@@ -1,71 +1,82 @@
-"""阶段 03 的冻结参数注册表。
+"""阶段 3 代码统一参数层。
 
-本文件只展开题面事实表与阶段 2 登记的模型常数，不在模块导入时求解问题。
-金额单位均为元/件，概率与比率均无量纲。所有下游脚本应从本模块取参数，
-不得在求解器中另写题面数值。
+本文件只展开阶段 1 事实表与阶段 2 登记常数，不生成结果、不绘图。
+问题一和问题四的备择率、边际错误率等派生量均由登记常数计算。
 """
 
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
-from typing import Dict, Tuple
+from math import log
+from typing import Dict, Iterable, Mapping, Tuple
 
-
-OUTPUT_JSON_FILENAME = "outputs.json"
 
 # ---------------------------------------------------------------------------
 # 问题一：精确二项检验与有限 SPRT
 # ---------------------------------------------------------------------------
 
-Q1_P0 = 0.10
-Q1_REJECT_ALPHA = 0.05
-Q1_ACCEPT_CONFIDENCE = 0.90
-Q1_ACCEPT_ALPHA = 1.0 - Q1_ACCEPT_CONFIDENCE
+Q1_NOMINAL_DEFECT_RATE = 0.10
+Q1_NOMINAL_RATE = Q1_NOMINAL_DEFECT_RATE
+Q1_NOMINAL = Q1_NOMINAL_DEFECT_RATE
+Q1_P0 = Q1_NOMINAL_DEFECT_RATE
+P0 = Q1_NOMINAL_DEFECT_RATE
 
-# A-010 登记的设计风险参数；它们不是题面直接给定的事实。
-Q1_DELTA = 0.05
-Q1_BETA = 0.10
-Q1_P_ALT = Q1_P0 + Q1_DELTA
-Q1_REJECT_POWER = 1.0 - Q1_BETA
+Q1_REJECT_FIRST_TYPE_ERROR = 0.05
+Q1_REJECT_ALPHA = Q1_REJECT_FIRST_TYPE_ERROR
+Q1_REJECT_SIGNIFICANCE = Q1_REJECT_FIRST_TYPE_ERROR
+ALPHA_REJECT = Q1_REJECT_FIRST_TYPE_ERROR
+
+Q1_ACCEPT_CONFIDENCE = 0.90
+Q1_ACCEPT_LEVEL = Q1_ACCEPT_CONFIDENCE
+Q1_ACCEPT_ALPHA = 1.0 - Q1_ACCEPT_CONFIDENCE
+CONF_ACCEPT = Q1_ACCEPT_CONFIDENCE
+
+Q1_ALTERNATIVE_GAP = 0.05
+Q1_DESIGN_DELTA = Q1_ALTERNATIVE_GAP
+Q1_ALTERNATIVE_RATE = Q1_NOMINAL_DEFECT_RATE + Q1_ALTERNATIVE_GAP
+Q1_P_ALT = Q1_ALTERNATIVE_RATE
+
+Q1_SECOND_ERROR = 0.10
+Q1_SECOND_ERROR_BOUND = Q1_SECOND_ERROR
+Q1_BETA = Q1_SECOND_ERROR
+Q1_POWER_REQUIREMENT = 1.0 - Q1_SECOND_ERROR
 
 Q1_DELTA_GRID = (0.02, 0.05, 0.10)
 Q1_BETA_GRID = (0.05, 0.10, 0.20)
-Q1_P_ALT_GRID = tuple(Q1_P0 + delta for delta in Q1_DELTA_GRID)
-
 Q1_NUMERIC_TOL = 1e-12
 
-# 接收方案必须保留非空拒收域，避免 c=n 的恒接收退化方案。
-Q1_ACCEPT_REQUIRE_C_LT_N = True
-Q1_REJECT_REQUIRE_R_GE_1 = True
-
-# 搜索顺序属于确定性实现规则：n 优先；拒收阈值从小到大；
-# 接收阈值在满足 c<n 的候选中从大到小。
-Q1_SEARCH_ORDER = "min_n_then_lexicographic_threshold"
-Q1_REJECT_R_ORDER = "ascending"
-Q1_ACCEPT_C_ORDER = "descending_with_c_lt_n"
-
-Q1_SPRT_TRUNCATION_RULE = "truncate_at_fixed_plan_n"
-Q1_SPRT_REQUIRE_EXACT_TAIL_RECHECK = True
-
-# 常用别名，保留清晰含义的同时方便逐问模块调用。
-Q1_NOMINAL_DEFECT_RATE = Q1_P0
-Q1_ALPHA_REJECT = Q1_REJECT_ALPHA
-Q1_CONFIDENCE_ACCEPT = Q1_ACCEPT_CONFIDENCE
-Q1_ALTERNATIVE_DEFECT_RATE = Q1_P_ALT
-Q1_SECOND_TYPE_ERROR = Q1_BETA
+Q1_SPRT_H1_ODDS = (1.0 - Q1_SECOND_ERROR) / Q1_REJECT_ALPHA
+Q1_SPRT_H0_ODDS = Q1_SECOND_ERROR / (1.0 - Q1_REJECT_ALPHA)
+Q1_SPRT_ACCEPT_BOUNDARY = log(Q1_SPRT_H1_ODDS)
+Q1_SPRT_REJECT_BOUNDARY = log(Q1_SPRT_H0_ODDS)
+Q1_SPRT_LOWER_BOUNDARY = Q1_SPRT_ACCEPT_BOUNDARY
+Q1_SPRT_UPPER_BOUNDARY = Q1_SPRT_REJECT_BOUNDARY
+Q1_SPRT_BOUNDARY_MODE = "wald_log_likelihood_ratio"
+Q1_SPRT_TRUNCATION_MODE = "fixed_sample_threshold_at_truncation"
+Q1_SAMPLE_SEARCH_LIMIT = None
 
 
 # ---------------------------------------------------------------------------
-# 问题二：两零件闭环决策
+# 问题二：两零件闭环现金流参数
 # ---------------------------------------------------------------------------
+
+Q2_STRATEGY_SPACE_SIZE = 16
+Q2_MAX_STOCK_STATES = 9
+Q2_CASHFLOW_ABS_TOL = 1e-6
+Q2_VALUE_ITERATION_TOL = 1e-10
+Q2_VALUE_ITERATION_MAX = 100000
+Q2_SCRAP_RECOVERY_VALUE = 0.0
+Q2_SENSITIVITY_GRID = (-0.20, -0.10, 0.0, 0.10, 0.20)
+Q2_DECISION_ORDER = ("z1", "z2", "product_inspection", "disassembly")
+Q2_DECISION_LABELS_ZH = ("零配件1检测", "零配件2检测", "成品检测", "不合格成品拆解")
 
 
 @dataclass(frozen=True)
 class Q2Case:
-    """表 1 的一行完整参数。"""
+    """表 1 单种情形的扁平参数模式。"""
 
     case_id: int
-    fact_id: str
+    case_name: str
     p1: float
     price1: float
     test1: float
@@ -74,425 +85,468 @@ class Q2Case:
     test2: float
     pf: float
     assembly_cost: float
-    product_test_cost: float
-    market_price: float
+    test_product: float
+    sale_price: float
     exchange_loss: float
     disassembly_cost: float
 
+    @property
+    def id(self) -> int:
+        return self.case_id
 
-Q2_CASES = (
+    @property
+    def name(self) -> str:
+        return self.case_name
+
+    @property
+    def case_label(self) -> str:
+        return f"情况{self.case_id}"
+
+    @property
+    def a1(self) -> float:
+        return self.price1
+
+    @property
+    def t1(self) -> float:
+        return self.test1
+
+    @property
+    def a2(self) -> float:
+        return self.price2
+
+    @property
+    def t2(self) -> float:
+        return self.test2
+
+    @property
+    def product_test_cost(self) -> float:
+        return self.test_product
+
+    @property
+    def product_inspection_cost(self) -> float:
+        return self.test_product
+
+    @property
+    def assembly(self) -> float:
+        return self.assembly_cost
+
+    @property
+    def market_price(self) -> float:
+        return self.sale_price
+
+    @property
+    def sale(self) -> float:
+        return self.sale_price
+
+    @property
+    def r_market(self) -> float:
+        return self.sale_price
+
+    @property
+    def replacement_loss(self) -> float:
+        return self.exchange_loss
+
+    @property
+    def L_exchange(self) -> float:
+        return self.exchange_loss
+
+    @property
+    def disassembly(self) -> float:
+        return self.disassembly_cost
+
+    @property
+    def g_dis(self) -> float:
+        return self.disassembly_cost
+
+    @property
+    def part1(self) -> Dict[str, float]:
+        return {
+            "defect_rate": self.p1,
+            "purchase_price": self.price1,
+            "inspection_cost": self.test1,
+        }
+
+    @property
+    def part2(self) -> Dict[str, float]:
+        return {
+            "defect_rate": self.p2,
+            "purchase_price": self.price2,
+            "inspection_cost": self.test2,
+        }
+
+    @property
+    def product(self) -> Dict[str, float]:
+        return {
+            "defect_rate": self.pf,
+            "assembly_cost": self.assembly_cost,
+            "inspection_cost": self.test_product,
+        }
+
+    def as_dict(self) -> Dict[str, object]:
+        return asdict(self)
+
+
+Q2_CASES: Tuple[Q2Case, ...] = (
     Q2Case(
         case_id=1,
-        fact_id="F-T1-C1",
+        case_name="表1情况1",
         p1=0.10,
-        price1=4,
-        test1=2,
+        price1=4.0,
+        test1=2.0,
         p2=0.10,
-        price2=18,
-        test2=3,
+        price2=18.0,
+        test2=3.0,
         pf=0.10,
-        assembly_cost=6,
-        product_test_cost=3,
-        market_price=56,
-        exchange_loss=6,
-        disassembly_cost=5,
+        assembly_cost=6.0,
+        test_product=3.0,
+        sale_price=56.0,
+        exchange_loss=6.0,
+        disassembly_cost=5.0,
     ),
     Q2Case(
         case_id=2,
-        fact_id="F-T1-C2",
+        case_name="表1情况2",
         p1=0.20,
-        price1=4,
-        test1=2,
+        price1=4.0,
+        test1=2.0,
         p2=0.20,
-        price2=18,
-        test2=3,
+        price2=18.0,
+        test2=3.0,
         pf=0.20,
-        assembly_cost=6,
-        product_test_cost=3,
-        market_price=56,
-        exchange_loss=6,
-        disassembly_cost=5,
+        assembly_cost=6.0,
+        test_product=3.0,
+        sale_price=56.0,
+        exchange_loss=6.0,
+        disassembly_cost=5.0,
     ),
     Q2Case(
         case_id=3,
-        fact_id="F-T1-C3",
+        case_name="表1情况3",
         p1=0.10,
-        price1=4,
-        test1=2,
+        price1=4.0,
+        test1=2.0,
         p2=0.10,
-        price2=18,
-        test2=3,
+        price2=18.0,
+        test2=3.0,
         pf=0.10,
-        assembly_cost=6,
-        product_test_cost=3,
-        market_price=56,
-        exchange_loss=30,
-        disassembly_cost=5,
+        assembly_cost=6.0,
+        test_product=3.0,
+        sale_price=56.0,
+        exchange_loss=30.0,
+        disassembly_cost=5.0,
     ),
     Q2Case(
         case_id=4,
-        fact_id="F-T1-C4",
+        case_name="表1情况4",
         p1=0.20,
-        price1=4,
-        test1=1,
+        price1=4.0,
+        test1=1.0,
         p2=0.20,
-        price2=18,
-        test2=1,
+        price2=18.0,
+        test2=1.0,
         pf=0.20,
-        assembly_cost=6,
-        product_test_cost=2,
-        market_price=56,
-        exchange_loss=30,
-        disassembly_cost=5,
+        assembly_cost=6.0,
+        test_product=2.0,
+        sale_price=56.0,
+        exchange_loss=30.0,
+        disassembly_cost=5.0,
     ),
     Q2Case(
         case_id=5,
-        fact_id="F-T1-C5",
+        case_name="表1情况5",
         p1=0.10,
-        price1=4,
-        test1=8,
+        price1=4.0,
+        test1=8.0,
         p2=0.20,
-        price2=18,
-        test2=1,
+        price2=18.0,
+        test2=1.0,
         pf=0.10,
-        assembly_cost=6,
-        product_test_cost=2,
-        market_price=56,
-        exchange_loss=10,
-        disassembly_cost=5,
+        assembly_cost=6.0,
+        test_product=2.0,
+        sale_price=56.0,
+        exchange_loss=10.0,
+        disassembly_cost=5.0,
     ),
     Q2Case(
         case_id=6,
-        fact_id="F-T1-C6",
+        case_name="表1情况6",
         p1=0.05,
-        price1=4,
-        test1=2,
+        price1=4.0,
+        test1=2.0,
         p2=0.05,
-        price2=18,
-        test2=3,
+        price2=18.0,
+        test2=3.0,
         pf=0.05,
-        assembly_cost=6,
-        product_test_cost=3,
-        market_price=56,
-        exchange_loss=10,
-        disassembly_cost=40,
+        assembly_cost=6.0,
+        test_product=3.0,
+        sale_price=56.0,
+        exchange_loss=10.0,
+        disassembly_cost=40.0,
     ),
 )
 
-Q2_CASES_BY_ID: Dict[int, Q2Case] = {
+Q2_CASE_BY_ID: Mapping[int, Q2Case] = {
     case.case_id: case for case in Q2_CASES
 }
-Q2_CASES_BY_FACT_ID: Dict[str, Q2Case] = {
-    case.fact_id: case for case in Q2_CASES
-}
-Q2_CASES_AS_DICTS: Tuple[dict, ...] = tuple(
-    asdict(case) for case in Q2_CASES
-)
 
-Q2_CASE_COUNT = len(Q2_CASES)
-Q2_PARAMETER_COUNT = 3
-Q2_POLICY_SPACE_SIZE = 16
-Q2_INVENTORY_STATE_LIMIT = 9
-Q2_PART_STATES = ("empty", "good", "bad")
-Q2_POLICY_FIELDS = ("Z1", "Z2", "C", "D")
 
-SCRAP_RECOVERY_VALUE = 0.0
-CASHFLOW_ABS_TOL = 1e-6
-VALUE_ITERATION_TOL = 1e-10
-VALUE_ITERATION_MAX_ITER = 100000
+def q2_scenario_rates(case: Q2Case) -> Dict[str, float]:
+    """返回仅用于问题四情景抽样中心的三个率，不作为点估计。"""
 
-Q2_REQUIRE_ABSORPTION_PROBABILITY_ONE = True
-Q2_MARKET_REVENUE_ONCE = True
-Q2_REPLACEMENT_ASSEMBLY_ONCE = True
-Q2_EXCHANGE_LOSS_EXCLUDES_REPLACEMENT_COST = True
-Q2_SCRAP_RECOVERY_ZERO = True
-Q2_RECOVERED_PART_STATE_PRESERVED = True
+    return {
+        "part1": case.p1,
+        "part2": case.p2,
+        "product": case.pf,
+    }
 
 
 # ---------------------------------------------------------------------------
-# 问题三：表 2 节点参数与条件拓扑
+# 问题三：一般 DAG 接口与 2 工序、8 零配件条件情景
 # ---------------------------------------------------------------------------
+
+Q3_MAX_REACHABLE_STATES = 531441
+Q3_PRIMARY_EFFECTIVE_STRATEGY_COUNT = 65536
+Q3_CASHFLOW_ABS_TOL = Q2_CASHFLOW_ABS_TOL
+Q3_VALUE_ITERATION_TOL = Q2_VALUE_ITERATION_TOL
+Q3_VALUE_ITERATION_MAX = Q2_VALUE_ITERATION_MAX
+Q3_SENSITIVITY_GRID = Q2_SENSITIVITY_GRID
+Q3_PARAMETER_COUNT = 12
+Q3_ROOT_NODE_ID = "F"
+Q3_ROOT_NAME = "成品"
 
 
 @dataclass(frozen=True)
 class Q3Part:
-    node_id: str
-    number: int
-    fact_id: str
+    part_id: int
+    name: str
     defect_rate: float
     purchase_price: float
     inspection_cost: float
 
+    @property
+    def node_id(self) -> str:
+        return f"P{self.part_id}"
+
+    @property
+    def a(self) -> float:
+        return self.purchase_price
+
+    @property
+    def t(self) -> float:
+        return self.inspection_cost
+
 
 @dataclass(frozen=True)
-class Q3AssemblyNode:
+class Q3ProcessNode:
     node_id: str
-    number: int
-    fact_id: str
-    conditional_defect_rate: float
+    name: str
+    defect_rate: float
     assembly_cost: float
     inspection_cost: float
     disassembly_cost: float
+    is_root: bool = False
+
+    @property
+    def a(self) -> float:
+        return self.assembly_cost
+
+    @property
+    def t(self) -> float:
+        return self.inspection_cost
+
+    @property
+    def g(self) -> float:
+        return self.disassembly_cost
 
 
-@dataclass(frozen=True)
-class Q3Product:
-    node_id: str
-    fact_id: str
-    conditional_defect_rate: float
-    assembly_cost: float
-    inspection_cost: float
-    disassembly_cost: float
-    market_price: float
-    exchange_loss: float
-
-
-Q3_PARTS = (
-    Q3Part("零配件1", 1, "F-T2-PART-1", 0.10, 2, 1),
-    Q3Part("零配件2", 2, "F-T2-PART-2", 0.10, 8, 1),
-    Q3Part("零配件3", 3, "F-T2-PART-3", 0.10, 12, 2),
-    Q3Part("零配件4", 4, "F-T2-PART-4", 0.10, 2, 1),
-    Q3Part("零配件5", 5, "F-T2-PART-5", 0.10, 8, 1),
-    Q3Part("零配件6", 6, "F-T2-PART-6", 0.10, 12, 2),
-    Q3Part("零配件7", 7, "F-T2-PART-7", 0.10, 8, 1),
-    Q3Part("零配件8", 8, "F-T2-PART-8", 0.10, 12, 2),
+Q3_PARTS: Tuple[Q3Part, ...] = (
+    Q3Part(1, "零配件1", 0.10, 2.0, 1.0),
+    Q3Part(2, "零配件2", 0.10, 8.0, 1.0),
+    Q3Part(3, "零配件3", 0.10, 12.0, 2.0),
+    Q3Part(4, "零配件4", 0.10, 2.0, 1.0),
+    Q3Part(5, "零配件5", 0.10, 8.0, 1.0),
+    Q3Part(6, "零配件6", 0.10, 12.0, 2.0),
+    Q3Part(7, "零配件7", 0.10, 8.0, 1.0),
+    Q3Part(8, "零配件8", 0.10, 12.0, 2.0),
 )
 
-Q3_SEMIS = (
-    Q3AssemblyNode(
-        "半成品1", 1, "F-T2-SEMI", 0.10, 8, 4, 6
-    ),
-    Q3AssemblyNode(
-        "半成品2", 2, "F-T2-SEMI", 0.10, 8, 4, 6
-    ),
-    Q3AssemblyNode(
-        "半成品3", 3, "F-T2-SEMI", 0.10, 8, 4, 6
-    ),
+Q3_SEMI_NODES: Tuple[Q3ProcessNode, ...] = (
+    Q3ProcessNode("S1", "半成品1", 0.10, 8.0, 4.0, 6.0),
+    Q3ProcessNode("S2", "半成品2", 0.10, 8.0, 4.0, 6.0),
+    Q3ProcessNode("S3", "半成品3", 0.10, 8.0, 4.0, 6.0),
 )
 
-Q3_PRODUCT = Q3Product(
-    node_id="成品",
-    fact_id="F-T2-PRODUCT/F-T2-PRICE",
-    conditional_defect_rate=0.10,
-    assembly_cost=8,
-    inspection_cost=6,
-    disassembly_cost=10,
-    market_price=200,
-    exchange_loss=40,
+Q3_PRODUCT_NODE = Q3ProcessNode(
+    node_id="F",
+    name="成品",
+    defect_rate=0.10,
+    assembly_cost=8.0,
+    inspection_cost=6.0,
+    disassembly_cost=10.0,
+    is_root=True,
 )
 
-# 题面事实只确认二道工序、八个零配件，没有给出可校验的父子边集。
-# 因此不存在可用于最终题图答案的正式拓扑；不得把下列情景命名为 primary。
-Q3_GRAPH_FACT_ID = "F-FIG1"
-Q3_OFFICIAL_EDGE_LIST = None
-Q3_OFFICIAL_TOPOLOGY = None
-Q3_GRAPH_AVAILABLE = False
-Q3_OFFICIAL_RESULT_STATUS = "BLOCKED_MISSING_ORIGINAL_EDGE_LIST"
-Q3_REQUIRE_OFFICIAL_EDGE_LIST_FOR_FINAL_ANSWER = True
-Q3_ALLOW_CONDITIONAL_SCENARIOS = True
-Q3_CONDITIONAL_RESULT_STATUS = "SCENARIO_ONLY_NOT_FIG1_INSTANCE"
-Q3_GRAPH_BLOCK_REASON = (
-    "题面可见事实未给出图1的父节点边集；3/3/2与2/2/4仅为条件情景"
-)
+Q3_PRODUCT = Q3_PRODUCT_NODE
+Q3_MARKET_PRICE = 200.0
+Q3_EXCHANGE_LOSS = 40.0
+Q3_R_MARKET = Q3_MARKET_PRICE
+Q3_L_EXCHANGE = Q3_EXCHANGE_LOSS
 
-# 条件情景一：阶段 2 根据表 2 行分组登记的推断边表。
-Q3_SCENARIO_TOPOLOGY_332 = {
-    "scenario_id": "inferred_3_3_2",
-    "official_fig1_topology": False,
-    "semi_parents": {
-        "半成品1": ("零配件1", "零配件2", "零配件3"),
-        "半成品2": ("零配件4", "零配件5", "零配件6"),
-        "半成品3": ("零配件7", "零配件8"),
-    },
-    "product_parents": ("半成品1", "半成品2", "半成品3"),
+Q3_PRIMARY_TOPOLOGY = {
+    "半成品1": (1, 2, 3),
+    "半成品2": (4, 5, 6),
+    "半成品3": (7, 8),
+    "成品": ("半成品1", "半成品2", "半成品3"),
 }
 
-# 条件情景二：父节点输入数不同，用于结构扰动对照。
-Q3_SCENARIO_TOPOLOGY_224 = {
-    "scenario_id": "alternative_2_2_4",
-    "official_fig1_topology": False,
-    "semi_parents": {
-        "半成品1": ("零配件1", "零配件2"),
-        "半成品2": ("零配件3", "零配件4"),
-        "半成品3": ("零配件5", "零配件6", "零配件7", "零配件8"),
-    },
-    "product_parents": ("半成品1", "半成品2", "半成品3"),
+Q3_ALTERNATIVE_TOPOLOGY = {
+    "半成品1": (1, 2),
+    "半成品2": (3, 4),
+    "半成品3": (5, 6, 7, 8),
+    "成品": ("半成品1", "半成品2", "半成品3"),
 }
 
-Q3_SCENARIO_TOPOLOGIES = (
-    Q3_SCENARIO_TOPOLOGY_332,
-    Q3_SCENARIO_TOPOLOGY_224,
-)
-Q3_SCENARIO_TOPOLOGY_BY_ID = {
-    topology["scenario_id"]: topology
-    for topology in Q3_SCENARIO_TOPOLOGIES
+Q3_PRIMARY_PARENT_MAP: Mapping[str, Tuple[str, ...]] = {
+    "S1": ("P1", "P2", "P3"),
+    "S2": ("P4", "P5", "P6"),
+    "S3": ("P7", "P8"),
+    "F": ("S1", "S2", "S3"),
 }
 
-# 每个零配件只有一个检测决策；每个半成品和根节点各有检测、拆解两个决策。
-Q3_POLICY_VARIABLE_COUNT = (
-    len(Q3_PARTS) + 2 * len(Q3_SEMIS) + 2
-)
-Q3_PARAMETER_COUNT = (
-    len(Q3_PARTS) + len(Q3_SEMIS) + 1
-)
-Q3_SCENARIO_POLICY_COUNT = 65536
-Q3_REACHABLE_INVENTORY_STATE_LIMIT = 531441
-
-Q3_ROOT_ALL_FAILURE_PATHS_REQUIRED = True
-Q3_ROOT_UNDETECTED_RETURN_REQUIRED = True
-Q3_ROOT_DISASSEMBLY_RECOVERY_REQUIRED = True
-Q3_U_MUST_EQUAL_C_OVER_Q = True
-Q3_Q_ZERO_MEANS_INFEASIBLE = True
-Q3_PARENT_USES_LAUNCH_COST_NOT_UNIT_COST = True
-Q3_TOPOLOGY_GAP_REQUIRE_BLOCKING_STATUS = True
+Q3_ALTERNATIVE_PARENT_MAP: Mapping[str, Tuple[str, ...]] = {
+    "S1": ("P1", "P2"),
+    "S2": ("P3", "P4"),
+    "S3": ("P5", "P6", "P7", "P8"),
+    "F": ("S1", "S2", "S3"),
+}
 
 
-def expected_q3_policy_length(semi_count: int) -> int:
-    """返回给定半成品数量下的完整策略向量长度。"""
+def _parent_map_to_edge_list(
+    parent_map: Mapping[str, Iterable[str]],
+) -> Tuple[Tuple[str, str], ...]:
+    """把 child -> parents 边表转换为 networkx 可用的 parent -> child 边表。"""
 
-    return len(Q3_PARTS) + 2 * semi_count + 2
-
-
-def get_q3_scenario_topology(scenario_id: str) -> dict:
-    """只按条件情景标识取边表，不允许回退为所谓正式主拓扑。"""
-
-    try:
-        return Q3_SCENARIO_TOPOLOGY_BY_ID[scenario_id]
-    except KeyError as exc:
-        raise KeyError(
-            f"未登记的 Q3 条件情景：{scenario_id}"
-        ) from exc
-
-
-def get_q3_official_topology() -> None:
-    """正式边表缺失时显式阻断，禁止以条件情景替代。"""
-
-    if Q3_OFFICIAL_EDGE_LIST is None:
-        raise ValueError(Q3_GRAPH_BLOCK_REASON)
-    return Q3_OFFICIAL_EDGE_LIST
-
-
-def q3_parameter_centers() -> Dict[str, float]:
-    """返回表 2 条件次品率情景中心；它们不是 Q4 的抽样点估计。"""
-
-    centers = {part.node_id: part.defect_rate for part in Q3_PARTS}
-    centers.update(
-        {semi.node_id: semi.conditional_defect_rate for semi in Q3_SEMIS}
+    return tuple(
+        (parent, child)
+        for child, parents in parent_map.items()
+        for parent in parents
     )
-    centers[Q3_PRODUCT.node_id] = Q3_PRODUCT.conditional_defect_rate
-    return centers
+
+
+Q3_PRIMARY_EDGE_LIST = _parent_map_to_edge_list(Q3_PRIMARY_PARENT_MAP)
+Q3_ALTERNATIVE_EDGE_LIST = _parent_map_to_edge_list(Q3_ALTERNATIVE_PARENT_MAP)
+Q3_PRIMARY_SCENARIO_EDGE_LIST = Q3_PRIMARY_EDGE_LIST
+Q3_ALTERNATIVE_SCENARIO_EDGE_LIST = Q3_ALTERNATIVE_EDGE_LIST
+Q3_SCENARIO_EDGE_LIST = Q3_PRIMARY_EDGE_LIST
+Q3_CONDITIONAL_EDGE_LIST = Q3_PRIMARY_EDGE_LIST
+Q3_DEFAULT_PARENT_MAP = Q3_PRIMARY_PARENT_MAP
+Q3_SCENARIO_PARENT_MAPS = {
+    "primary": Q3_PRIMARY_PARENT_MAP,
+    "alternative": Q3_ALTERNATIVE_PARENT_MAP,
+}
+
+# 图 1 原件未进入阶段 1 事实表，故不得把条件边表冒充正式边表。
+Q3_OFFICIAL_EDGE_LIST = None
+Q3_OFFICIAL_PARENT_MAP = None
+Q3_HAS_OFFICIAL_TOPOLOGY = False
+Q3_TOPOLOGY_STATUS = "missing_source_figure_conditional_scenarios_only"
+Q3_PRIMARY_SCENARIO_STATUS = "inferred_3_3_2_grouping_not_verified_figure"
+Q3_ALTERNATIVE_SCENARIO_STATUS = "registered_2_2_4_topology_perturbation"
+
+Q3_PART_BY_ID: Mapping[int, Q3Part] = {
+    part.part_id: part for part in Q3_PARTS
+}
+Q3_PART_BY_NODE_ID: Mapping[str, Q3Part] = {
+    part.node_id: part for part in Q3_PARTS
+}
+Q3_SEMI_BY_NODE_ID: Mapping[str, Q3ProcessNode] = {
+    node.node_id: node for node in Q3_SEMI_NODES
+}
+Q3_PROCESS_NODES: Tuple[Q3ProcessNode, ...] = Q3_SEMI_NODES + (Q3_PRODUCT_NODE,)
+Q3_NODE_IDS: Tuple[str, ...] = tuple(part.node_id for part in Q3_PARTS) + tuple(
+    node.node_id for node in Q3_PROCESS_NODES
+)
+Q3_PARAMETER_NODE_IDS: Tuple[str, ...] = Q3_NODE_IDS
+Q3_PARAMETER_COUNT = len(Q3_PARAMETER_NODE_IDS)
+
+# 兼容常见的数据访问命名；它们仍是同一组事实参数。
+Q3_PART_SPECS = Q3_PARTS
+Q3_PART_DATA = Q3_PARTS
+Q3_SEMI_DATA = Q3_SEMI_NODES
+Q3_PRODUCT_DATA = Q3_PRODUCT_NODE
+Q3_NODES_BY_ID: Mapping[str, object] = {
+    **{part.node_id: part for part in Q3_PARTS},
+    **{node.node_id: node for node in Q3_PROCESS_NODES},
+}
 
 
 # ---------------------------------------------------------------------------
-# 问题四：情景观测、精确区间与决策重解
+# 问题四：情景抽样、CP 区间、Bonferroni 联合域与重优化
 # ---------------------------------------------------------------------------
 
-Q4_JOINT_CONFIDENCE = 0.95
+Q4_JOINT_CONFIDENCE_LEVEL = 0.95
 Q4_FAMILY_ALPHA = 0.05
+Q4_Q2_PARAMETER_COUNT = 3
+Q4_Q3_PARAMETER_COUNT = 12
+Q4_Q2_ALPHA_MARGINAL = Q4_FAMILY_ALPHA / Q4_Q2_PARAMETER_COUNT
+Q4_Q3_ALPHA_MARGINAL = Q4_FAMILY_ALPHA / Q4_Q3_PARAMETER_COUNT
 Q4_WIDTH_TARGET = 0.10
 Q4_N_MAX = 1000
-Q4_N_SCAN_GRID = (50, 100, 200, 400, 800)
-Q4_MC_REPETITIONS = 10000
-Q4_RNG_SEED = 202409
+Q4_N_GRID = (50, 100, 200, 400, 800)
+Q4_MC_REPEATS = 10000
+Q4_RANDOM_SEED = 202409
 Q4_JEFFREYS_ALPHA = 0.5
 Q4_JEFFREYS_BETA = 0.5
 Q4_DECISION_CONSISTENCY_THRESHOLD = 0.90
+Q4_NUMERIC_TOL = Q1_NUMERIC_TOL
+Q4_CASHFLOW_ABS_TOL = Q2_CASHFLOW_ABS_TOL
 
-Q4_Q2_MARGINAL_ALPHA = Q4_FAMILY_ALPHA / Q2_PARAMETER_COUNT
-Q4_Q3_MARGINAL_ALPHA = Q4_FAMILY_ALPHA / Q3_PARAMETER_COUNT
-
-# 兼容阶段 2 中按问题命名的登记名称。
-Q4_BONFERRONI_ALPHA_Q2 = Q4_Q2_MARGINAL_ALPHA
-Q4_BONFERRONI_ALPHA_Q3 = Q4_Q3_MARGINAL_ALPHA
-Q4_WIDTH_SCAN_GRID = Q4_N_SCAN_GRID
-Q4_SAMPLE_SIZE_MAX = Q4_N_MAX
-Q4_REPETITIONS = Q4_MC_REPETITIONS
-Q4_SEED = Q4_RNG_SEED
-
+# 上游没有真实企业批次观测；以下空映射是显式数据缺口，不是零样本。
 Q4_ACTUAL_SAMPLES_AVAILABLE = False
-Q4_OBSERVATION_STATUS = "AUDITABLE_SCENARIO_ONLY_NO_REAL_NV_XV"
-Q4_SCENARIO_CENTER_IS_NOT_POINT_ESTIMATE = True
-Q4_POINT_ESTIMATE_SOURCE = "generated_scenario_x_over_n"
-Q4_REOPTIMIZATION_SOURCE = "Jeffreys_posterior_draws_conditioned_on_scenario_x"
-Q4_REQUIRE_STORE_NV_XV = True
-Q4_REQUIRE_REOPTIMIZATION_EACH_DRAW = True
-Q4_WIDTH_METHOD = "expected_clopper_pearson_width_at_scenario_rate"
-Q4_CP_BOUNDARY_X_ZERO = True
-Q4_CP_BOUNDARY_X_EQUAL_N = True
-Q4_BONFERRONI_BOX_REQUIRED = True
-Q4_Q3_MODE = "CONDITIONAL_TOPOLOGY_SCENARIOS_ONLY"
+Q4_ACTUAL_SAMPLES: Mapping[str, Tuple[int, int]] = {}
+Q4_OBSERVED_SAMPLES = Q4_ACTUAL_SAMPLES
+Q4_SCENARIO_ONLY = not Q4_ACTUAL_SAMPLES_AVAILABLE
+Q4_SCENARIO_GENERATION_ONLY = Q4_SCENARIO_ONLY
+Q4_SAMPLE_SOURCE_STATUS = "scenario_only_no_observed_n_x"
+Q4_SAMPLE_SIZE_CRITERION = "minimum_n_meeting_scenario_cp_width_target"
+Q4_INTERVAL_METHOD = "clopper_pearson_exact_binomial"
+Q4_JOINT_CONSTRUCTION = "bonferroni_rectangle"
+Q4_RESAMPLING_DISTRIBUTION = "jeffreys_posterior_beta"
+Q4_POINT_ESTIMATE_SOURCE = "scenario_binomial_counts_only"
+Q4_ROBUST_POLICY_SOURCE = "worst_case_over_bonferroni_box"
+
+Q3_SCENARIO_RATES: Mapping[str, float] = {
+    **{part.node_id: part.defect_rate for part in Q3_PARTS},
+    **{node.node_id: node.defect_rate for node in Q3_PROCESS_NODES},
+}
+Q4_Q3_SCENARIO_RATES = Q3_SCENARIO_RATES
+Q4_Q3_RATE_VECTOR: Tuple[float, ...] = tuple(
+    Q3_SCENARIO_RATES[node_id] for node_id in Q3_PARAMETER_NODE_IDS
+)
+
+
+def q4_node_label(node_id: str) -> str:
+    """把规范化节点编号转换为论文可读标签。"""
+
+    if node_id in Q3_PART_BY_NODE_ID:
+        return Q3_PART_BY_NODE_ID[node_id].name
+    if node_id in Q3_SEMI_BY_NODE_ID:
+        return Q3_SEMI_BY_NODE_ID[node_id].name
+    if node_id == Q3_ROOT_NODE_ID:
+        return Q3_PRODUCT_NODE.name
+    return node_id
+
 
 # ---------------------------------------------------------------------------
-# 公共灵敏度与验收参数
+# 跨问题统一容差与数据边界
 # ---------------------------------------------------------------------------
 
-RELATIVE_SENSITIVITY_GRID = (-0.20, -0.10, 0.0, 0.10, 0.20)
-CASHFLOW_BELLMAN_RESIDUAL_TOL = VALUE_ITERATION_TOL
-Q1_EXACT_ENUMERATION_REQUIRED = True
-Q3_DEGENERATION_POLICY_COUNT = Q2_POLICY_SPACE_SIZE
-Q3_DEGENERATION_MAX_TOL = CASHFLOW_ABS_TOL
-Q4_CP_ENDPOINT_TOL = Q1_NUMERIC_TOL
-
-
-def validate_parameter_registry() -> bool:
-    """在求解前阻断越界参数、内部不一致和缺失的正式图证据。"""
-
-    probabilities = (
-        Q1_P0,
-        Q1_REJECT_ALPHA,
-        Q1_ACCEPT_CONFIDENCE,
-        Q1_P_ALT,
-        Q1_BETA,
-    )
-    if any(not 0.0 <= value <= 1.0 for value in probabilities):
-        raise ValueError("Q1 参数超出概率域")
-
-    for case in Q2_CASES:
-        case_probabilities = (case.p1, case.p2, case.pf)
-        if any(not 0.0 <= value <= 1.0 for value in case_probabilities):
-            raise ValueError(f"{case.fact_id} 的概率超出概率域")
-        case_amounts = (
-            case.price1,
-            case.test1,
-            case.price2,
-            case.test2,
-            case.assembly_cost,
-            case.product_test_cost,
-            case.market_price,
-            case.exchange_loss,
-            case.disassembly_cost,
-        )
-        if any(value < 0.0 for value in case_amounts):
-            raise ValueError(f"{case.fact_id} 含负金额")
-
-    q3_probabilities = tuple(
-        [part.defect_rate for part in Q3_PARTS]
-        + [semi.conditional_defect_rate for semi in Q3_SEMIS]
-        + [Q3_PRODUCT.conditional_defect_rate]
-    )
-    if any(not 0.0 <= value <= 1.0 for value in q3_probabilities):
-        raise ValueError("Q3 参数超出概率域")
-
-    if expected_q3_policy_length(len(Q3_SEMIS)) != Q3_POLICY_VARIABLE_COUNT:
-        raise ValueError("Q3 策略向量长度与节点结构不一致")
-    if (1 << Q3_POLICY_VARIABLE_COUNT) != Q3_SCENARIO_POLICY_COUNT:
-        raise ValueError("Q3 条件情景策略数与登记常数不一致")
-    if Q3_PARAMETER_COUNT != len(q3_probabilities):
-        raise ValueError("Q3 参数节点数不一致")
-    if 3 ** Q3_PARAMETER_COUNT != Q3_REACHABLE_INVENTORY_STATE_LIMIT:
-        raise ValueError("Q3 可达库存状态上限与登记常数不一致")
-
-    if Q4_Q2_MARGINAL_ALPHA * Q2_PARAMETER_COUNT > Q4_FAMILY_ALPHA:
-        raise ValueError("Q4-Q2 Bonferroni 边际错误率分配超限")
-    if Q4_Q3_MARGINAL_ALPHA * Q3_PARAMETER_COUNT > Q4_FAMILY_ALPHA:
-        raise ValueError("Q4-Q3 Bonferroni 边际错误率分配超限")
-
-    if Q3_GRAPH_AVAILABLE and Q3_OFFICIAL_EDGE_LIST is None:
-        raise ValueError("声明图可用但没有正式边表")
-    if not Q3_GRAPH_AVAILABLE and Q3_OFFICIAL_EDGE_LIST is not None:
-        raise ValueError("正式边表状态与图缺口标记不一致")
-
-    return True
-
-
-validate_parameter_registry()
+CASHFLOW_ABS_TOL = Q2_CASHFLOW_ABS_TOL
+VALUE_ITERATION_TOL = Q2_VALUE_ITERATION_TOL
+VALUE_ITERATION_MAX = Q2_VALUE_ITERATION_MAX
+NUMERIC_TOL = Q1_NUMERIC_TOL
+ACTUAL_ASSEMBLY_FIGURE_AVAILABLE = False
+ACTUAL_Q4_SAMPLES_AVAILABLE = Q4_ACTUAL_SAMPLES_AVAILABLE
+SCENARIO_ANALYSIS_REQUIRED = True
+RENDERING_ENABLED = False
+RESULT_SOURCE_DECLARATION_ENABLED = False

@@ -30,5 +30,5 @@
   "unverifiedGates": [
     "diagram_manifest_reconcile"
   ],
-  "staleReason": "阶段 'code' 逐节点审计未通过 —— 下游前提不成立"
+  "staleReason": "阶段4真跑代码失败：NameError at_palt（应为 at_p_atl）——运行时错误已回灌阶段3简报 —— 检查人回滚"
 }
