@@ -242,12 +242,23 @@ export class PaperStageChainService extends Service {
 
     // **单次调用原语**（传输级重试 + 限额降级内建）。阶段 3 的分片与单产出的模型阶段都用它。
     const singleCall = async (spec: StageSpec, prompt: string): Promise<string> => {
-      const request: GenerateOptions = {
+      const buildRequest = (text: string): GenerateOptions => ({
         provider: route.provider,
         model: activeModel,
         system: STAGE_CHAIN_SYSTEM,
-        messages: [createUserMessage({ content: [{ type: 'text', text: prompt }], source: { kind: 'user' } })],
-      }
+        messages: [createUserMessage({ content: [{ type: 'text', text }], source: { kind: 'user' } })],
+      })
+      let request = buildRequest(prompt)
+      // **截断的补救不是"盲重发"**。原注释说"重发只会再超限一次"——那对**同一个请求**成立；
+      // 但实测截断几乎都是因为模型把可展开的东西铺开了（2024B 重跑：`problem4.py`
+      // 一次要吐几十 KB，把整轮 8 次调用作废）。所以这里重问一次、并**附上压缩指示**——
+      // 请求变了，不是盲重发。只做一次，且不消耗传输重试预算。
+      let compactRetried = false
+      const COMPACT_HINT = '\n\n---\n\n## ⛔ 上一次回答被输出上限截断（必须显著更短）\n\n'
+        + '- 用**循环 + 数据表**代替逐项展开（例如不要手写 16 种策略的每个表达式）；\n'
+        + '- 单个 `.py` 文件控制在 **300 行以内**；公共逻辑复用已有模块，不要重复贴；\n'
+        + '- 不要重复输出同样的推导或注释；\n'
+        + '- **仍然只产出这一次要的那一个交付物**，不要加前言、不要加围栏。'
       // 传输级重试（2024B 阶段 3 实测）：一次十几分钟的流会被中转中途掐断
       // （"terminated" / 看门狗触发 / ECONNRESET）。这些是**传输失败**，不是
       // "模型答错了"——重试是恢复路径，把整阶段作废才是真的浪费。
@@ -283,6 +294,18 @@ export class PaperStageChainService extends Service {
         } catch (error) {
           lastFailure = error
           const message = String(error instanceof Error ? error.message : error)
+          // **截断 → 换一份"压缩"请求重问一次**（见上面 COMPACT_HINT 的注释）。
+          // 放在限额判定之前：截断不是限额，走限额那套只会白等。
+          if (/max-tokens/.test(message) && !compactRetried) {
+            compactRetried = true
+            request = buildRequest(prompt + COMPACT_HINT)
+            this.config.onDeterministicOutcome?.({
+              stage: spec.id,
+              summary: '回答被输出上限截断，改为"压缩"请求重问一次',
+            })
+            attempt -= 1 // 不消耗传输重试预算
+            continue
+          }
           // 限额 → 先切降级模型（重置重试预算），都受限就等待后交替重试。
           if (isQuotaError(message)) {
             if (!modelSwitched && activeModel !== fallbackModel) {
