@@ -53,6 +53,7 @@ import { compressForModeling, shouldCompress } from './context-compression.ts'
 import { dirname, join } from 'node:path'
 import { decideAudit, type AuditVerdict } from './audit.ts'
 import { stageBriefing, type BriefingFinding } from './briefing.ts'
+import { RUNTIME_FAILURE_FILE } from './execute-and-mint.ts'
 import { runGates, type GateInput } from './gates.ts'
 import {
   artifactDigests,
@@ -566,6 +567,36 @@ export async function priorReviewFindings(
 }
 
 /**
+ * **运行时失败要回到写代码的那个阶段**（`_runtime-failure.txt` → 阶段 3 的简报）。
+ *
+ * 与 `priorReviewFindings` 同类：**下游发现的错误必须能回到该负责的上游**。
+ * 阶段 4 真跑 `code/main.py` 失败时，错误属于阶段 3 的代码；而 `--stage-next` 只会
+ * 重跑阶段 4，拿同一份坏代码再跑一遍——实测一个变量名拼写错（`at_palt` vs 它自己
+ * 定义的 `at_p_alt`）让阶段 4 连撞 **9 次**、半个多小时全废，那条 `NameError`
+ * 却从来没到过该看它的阶段。
+ *
+ * 读不到就返回空（没跑过、或已修好清掉），**不因此阻断**。
+ */
+export async function priorRuntimeFindings(
+  stagesRoot: string,
+  spec: StageSpec,
+): Promise<ReadonlyArray<BriefingFinding>> {
+  // 只对**写代码的那个阶段**注入：别的阶段看到这段栈只会是噪声。
+  if (spec.id !== 'code') return []
+  const raw = await readFile(join(stagesRoot, stageDirName(spec), RUNTIME_FAILURE_FILE), 'utf8').catch(() => null)
+  if (raw === null) return []
+  const body = raw.trim()
+  if (body === '') return []
+  return [{
+    severity: 'fatal',
+    where: `真跑 code/main.py 的运行时错误（${RUNTIME_FAILURE_FILE}）`,
+    issue: body.slice(0, 1500),
+    fix: '这是**你的代码跑不起来**（不是数源声明的问题）。按栈里指到的文件与行号改掉再交一次；'
+      + '这次运行会重新跑代码，跑通才继续。',
+  }]
+}
+
+/**
  * 跑一条阶段链。
  *
  * 默认从第 1 阶段跑到第 11 阶段；遇到 `blocked` 或 `gate-failed` **立即停**
@@ -635,6 +666,8 @@ export async function runStages(
           // **复核的结论也要回灌**：它是唯一会说"该回滚到哪一阶段、为什么"的地方。
           // 少了这一路，按复核要求回滚后的重跑就是盲跑（见 `priorReviewFindings` 的注释）。
           ...await priorReviewFindings(ctx.stagesRoot, spec),
+          // 运行时失败（阶段 4 跑阶段 3 的代码失败）也要回到阶段 3——见 priorRuntimeFindings
+          ...await priorRuntimeFindings(ctx.stagesRoot, spec),
         ]
         const prompt = stageBriefing(
           spec,

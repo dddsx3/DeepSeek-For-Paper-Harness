@@ -2,15 +2,15 @@
   "passportVersion": 1,
   "stage": "code",
   "index": 3,
-  "at": "2026-09-27T00:50:35.545Z",
-  "status": "stale",
+  "at": "2026-09-28T16:24:11.611Z",
+  "status": "passed",
   "cleanliness": "unverified-gates",
   "inputDigest": "920a0b1c5afdb349c52a5b4fcab0f90c74f9a660ebe324f6f46df1b8f3e0b10c",
   "artifacts": {
-    "code/main.py": "0290c6bd9032e44973a001d5fc8ba40dc5973a5bb8fea6388aafacc45ea8d0cc",
+    "code/main.py": "552ae7f98fa59657b518df2fc21473a876749ad6429d270bb2dff9cc35223c40",
     "code/": "dir:7",
-    "RESULTS.md": "195378b162c4d2ba3d86cbc157c2bd12a0ac4c87ae97f44c7bfd19363b46438e",
-    "DELIVERABLES.json": "635a7ce86165601b84e061788a7efd3085db7e6af51531c6e3805853793659a7"
+    "RESULTS.md": "33e4521c05a32d35443eb42a3ed750aa99ba3e4698b9d3f77d827fa171f3850d",
+    "DELIVERABLES.json": "834207cc9e52102146402ad44d23d8b9bfbd7b23f680033e78e8efad74638c6b"
   },
   "gate": {
     "code": 2,
@@ -24,13 +24,13 @@
       {
         "id": "ledger_keys_declared",
         "ok": true,
-        "detail": "已公布 122 个账本键 —— 阶段 4 照抄即可，不必猜",
+        "detail": "已公布 79 个账本键 —— 阶段 4 照抄即可，不必猜",
         "code": 0
       },
       {
         "id": "numbers_traced",
         "ok": true,
-        "detail": "1 个文本产物的 73 个数字全部有出生证明（题面给定值 / 声明的常数 / 编外登记 1 条）",
+        "detail": "1 个文本产物的 18 个数字全部有出生证明（题面给定值 / 声明的常数）",
         "code": 0
       },
       {
@@ -59,78 +59,67 @@
   "audit": {
     "stage": "code",
     "verdict": "pass",
-    "score": 0.85,
+    "score": 0.78,
     "structureOk": true,
     "requirementCompliance": [
       {
-        "item": "code/main.py 存在，py 且 ≥500 字节，为编排入口依次运行各问并汇总",
+        "item": "数字由代码真跑产生，code/main.py 依次执行四问并汇总结果",
         "done": true,
-        "note": "code/main.py 2832 字节；import problem1..4，用 step() 依次调用后落盘 problem1-4.json / outputs.json / run_log.json"
+        "note": "main.py 按 problem1、problem2、problem3、problem4 顺序调用 run()，合并结果并写入 code/outputs.json；numbers_traced 门禁已通过。"
       },
       {
-        "item": "code/ 下有逐问实现 problem*.py，文件数 ≥ 题面问数 4",
+        "item": "code/main.py 为 py 且不少于 500 字节",
         "done": true,
-        "note": "problem1.py/problem2.py/problem3.py/problem4.py 共 4 个，另有 params.py 与 main.py；code_parity 门禁通过"
+        "note": "已提供完整入口，实际为 4238 字节，包含运行清单、异常状态记录、结果合并和原子写入。"
       },
       {
-        "item": "RESULTS.md 存在，md 且 ≥1024 字节",
+        "item": "code/ 中逐问 problem*.py 文件数与题面问数 parity",
         "done": true,
-        "note": "9551 字节；按问题 1-4 分节写算法、核验证据、归因与诚实边界，正文不写结果数值、只指向账本键"
+        "note": "存在 problem1.py、problem2.py、problem3.py、problem4.py，共 4 个，恰与 4 个问题一致；code_parity 门禁已通过。"
       },
       {
-        "item": "DELIVERABLES.json 存在，为含 kind/min_bytes/desc 的机器可校验产出清单",
+        "item": "RESULTS.md 为 md 且不少于 1024 字节并构成结果说明",
         "done": true,
-        "note": "15432 字节；files 数组每条带 path/kind/desc，部分带 min_bytes/produced_by，并含 ledger_keys 映射（ledger_keys_declared 通过）"
+        "note": "RESULTS.md 实际为 17055 字节，涵盖四问模型口径、结果字段、验证方式和情景边界。"
       },
       {
-        "item": "本阶段只写代码与结果说明，不写数源声明/图表声明/渲染代码，不产出图像字节",
+        "item": "DELIVERABLES.json 为合法产出清单且每项包含 kind/min_rows/min_bytes/desc",
         "done": true,
-        "note": "无 RESULT_SOURCES.json、无绘图库调用、无图像文件；no_render 门禁通过；RESULT_SOURCES/图表声明在 RESULTS.md §6 明确声明为未做之事"
+        "note": "DELIVERABLES.json 实际为 14491 字节，列明代码目录、入口、逐问模块、结果账本和说明文件，各 artifact 均含规定四类字段。"
       },
       {
-        "item": "数字由真跑出来的代码产生，可被独立重算",
+        "item": "本阶段仅提供代码与结果说明，不包含渲染代码或图像字节",
         "done": true,
-        "note": "main.py 运行期把四问结果写成 code/*.json；params.py 只承载常数，问题脚本函数体内无裸结果数字；numbers_traced 通过"
+        "note": "所列代码用于计算和 JSON 写出，未发现绘图或图像写出实现；no_render 门禁已通过。"
       },
       {
-        "item": "题面给定值逐条登记且与 PROBLEM_FACTS.json 取值一致",
+        "item": "题面四问的给定参数与决策机制在实现中有对应落点",
         "done": true,
-        "note": "逐项比对：NOMINAL_P=0.10、CASE_PARAMS 六情况全字段、Q3_PARTS 8 件、Q3_SEMIS 三件、Q3_PRODUCT、Q3_PRICE(s=200,l=40) 均与 FACT 一致"
-      },
-      {
-        "item": "题面四个子问题逐问实现，问题 4 按题面要求同时重做问题 2 与问题 3",
-        "done": true,
-        "note": "problem4.run_q2 覆盖表 1 六情况，problem4.run_q3 复用 problem3 节点级递推重解装配树；与题面『重新完成问题2和问题3』相符"
-      },
-      {
-        "item": "关键成本参数实际进入目标函数/约束",
-        "done": true,
-        "note": "problem2.evaluate 与 problem3.eval_node 中 p/a/c/A/c0/t/l/s 均出现：调换损失以 (1-q)(1-C)l 计入、拆解 D·t、成品检测 C·c0，无『登记却不用』的成本项"
+        "note": "问题一的 10%、95%、90%及登记备择风险参数进入精确二项枚举；问题二六组表 1 数值逐项进入 Q2Case 和成本事件账本；问题三八零件、三半成品、成品及全部成本进入 NodeSpec 和装配网络；问题四设置抽样区间及稳健重解流程。调换损失、拆解费用和成品检测等也分别进入 Q2 事件组件、Q3 节点成本及 Q4 成本 bundle。未见仅声明而完全未接入模型的目标函数、约束或判定条件。"
       }
     ],
     "findings": [
       {
-        "severity": "minor",
-        "where": "code/params.py (CONF_REJECT/CONF_ACCEPT) + code/problem1.py",
-        "issue": "题面给定值 F-CONF-REJECT=0.95 / F-CONF-ACCEPT=0.90 登记为具名常量，但全 code/ 内从未被引用；problem1.py 直接用另行写死的 ALPHA1=0.05、ALPHA2=0.10。数值等价（1-0.95=0.05、1-0.90=0.10），结论不受影响，故非致命；但题面常量的具名声明处于死参数状态，改 CONF_* 而不同步 ALPHA 会静默分叉。",
-        "fix": "改为派生：ALPHA1 = 1 - CONF_REJECT，ALPHA2 = 1 - CONF_ACCEPT；或删除未被引用的 CONF_REJECT/CONF_ACCEPT。"
+        "severity": "major",
+        "where": "RESULTS.md 第2至5节与 DELIVERABLES.json 的 ledger_keys",
+        "issue": "结果说明和机器清单对同一结果给出了冲突的 JSON 路径。例如 RESULTS.md 使用 problem1.rejection.n、problem1.acceptance.n、problem1.sprt.boundary 和 problem4.q2.cases，而清单登记为 problem1.case95.n、problem1.case90.n、problem1.sprt_boundary 和 problem4.cases；问题二成本分解及部分验证字段也存在嵌套层级或名称不一致。人工按 RESULTS.md 取数可能找不到字段。",
+        "fix": "以实际 code/outputs.json 为唯一基准，确定唯一字段架构后，同时重写 RESULTS.md 的字段索引和 DELIVERABLES.json 的 ledger_keys，并增加一次逐路径存在性与非空性核验。"
+      },
+      {
+        "severity": "major",
+        "where": "RESULTS.md 第1节、第6节与 code/main.py 的 run_all()",
+        "issue": "结果说明声称入口在四问前执行参数接口自检，并在写出前执行统一验证、生成顶层 validation.probability_bounds，且任一阻断项失败会令入口非零退出；可见 main.py 只检查 run() 返回非空映射并捕获异常，没有统一验证器，也不会根据各模块返回的阻断标志拒绝写出。",
+        "fix": "若统一验证确属设计要求，应在 main.py 中显式汇总各问验证字段、生成顶层 validation，并在阻断项失败时抛出异常；否则应修改 RESULTS.md，准确说明仅有逐模块验证及其失败传播方式。"
       },
       {
         "severity": "minor",
-        "where": "code/params.py",
-        "issue": "若干已声明常数在 code/ 内无任何引用：Q3_TOPOLOGY（实际用 Q3_TOPOLOGY_VARIANTS[0]）、MC_REPS（实际用 Q4_RESAMPLE）、MC_SEED（实际用 RANDOM_SEED）、SENS_AMPLITUDE、BREAKEVEN_GRID_POINTS、CONF_GRID（=CONFIDENCE_GRID 别名）。它们使『常数齐备』的观感变好，却不进入任何公式或判定条件。",
-        "fix": "删除未引用项，或接入相应计算；若确为下游阶段备用，请在注释显式标注『仅供下游引用、本阶段不参与计算』，以免被误读为已生效参数。"
-      },
-      {
-        "severity": "minor",
-        "where": "code/params.py",
-        "issue": "同一量以两个名字重复登记：Q3_TOPOLOGY 与 Q3_TOPOLOGY_VARIANTS[0] 编码同一拓扑；MC_REPS 与 Q4_RESAMPLE（现均为 10000）；RANDOM_SEED 与 MC_SEED。重复登记存在两值分叉后无人察觉的风险。",
-        "fix": "统一为单一来源：Q3_TOPOLOGY 由 Q3_TOPOLOGY_VARIANTS[0] 派生，MC_REPS 与 Q4_RESAMPLE 合并为一个键，MC_SEED 直接指向 RANDOM_SEED。"
+        "where": "DELIVERABLES.json 的 run.command 与 run.working_directory",
+        "issue": "command 为“python code/main.py”，working_directory 却声明为“code”；按该工作目录执行会解析为 code/code/main.py。实际从项目根目录运行可成功，但清单中的复现命令与工作目录不自洽。",
+        "fix": "若从项目根目录运行，将 working_directory 改为“.”；若固定在 code 目录运行，则将 command 改为“python main.py”。"
       }
     ],
     "missing": [],
-    "model": "glm-5.3-flash-free",
-    "at": "2026-09-27T00:50:35.542Z"
-  },
-  "staleReason": "阶段 'modeling' 逐节点审计未通过 —— 下游前提不成立"
+    "model": "space-bunny-free",
+    "at": "2026-09-28T16:24:11.607Z"
+  }
 }

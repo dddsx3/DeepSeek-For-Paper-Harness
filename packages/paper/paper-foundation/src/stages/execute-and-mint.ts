@@ -43,6 +43,17 @@ export const RESULT_SOURCES_FILE = 'RESULT_SOURCES.json'
 /** harness 铸出的结果账本（下游图表渲染的唯一取数口）。 */
 export const RESULTS_LEDGER_FILE = 'results.json'
 
+/**
+ * **运行时失败的回执**（写在**阶段 3** 的目录里）。
+ *
+ * 阶段 4 真跑 `code/main.py` 失败时，错误属于**阶段 3 的代码**，不属于阶段 4。
+ * 但 `--stage-next` 只会重跑阶段 4——拿同一份坏代码再跑一遍。实测一个变量名拼写错
+ * （`at_palt` vs 它自己定义的 `at_p_alt`）让阶段 4 连撞 9 次、半个多小时全废，
+ * 而那条 `NameError` 从来没到过该看它的阶段。
+ * 这个文件是回路：`priorRuntimeFindings` 会把它注入阶段 3 的下一轮简报。
+ */
+export const RUNTIME_FAILURE_FILE = '_runtime-failure.txt'
+
 /** 代码执行入口（相对 `code/`）。 */
 export const CODE_ENTRY = 'main.py'
 
@@ -271,8 +282,23 @@ export async function runCodeAndMintResults(stagesRoot: string): Promise<Execute
     throw new Error(`代码执行失败（spawn）：${String(run.error).slice(0, 160)}`)
   }
   if (run.status !== 0) {
+    // **把运行时错误写回"写代码的那个阶段"**。
+    //
+    // 为什么必须写回：本阶段（数源声明）的失败**不是本阶段的错**——是阶段 3 交的代码跑不起来。
+    // 而 `--stage-next` 只会重跑**本阶段**，拿同一份坏代码再跑一遍：实测一个变量名拼写错
+    // （`at_palt` vs 它自己定义的 `at_p_alt`）让阶段 4 连撞 **9 次**，每次一次模型调用 + 一次
+    // 代码执行，半个多小时全废，而错误信息从来没到过该看它的那个阶段。
+    //
+    // 与"复核结论回灌"（`priorReviewFindings`）是同一类缺陷：**下游发现的错误必须能回到
+    // 该负责的上游**，否则重试就是空转。
+    const tail = (run.stderr || '(空)').split('\n').slice(-12).join('\n').slice(0, 2000)
+    await writeFile(join(stagesRoot, stageDirName(stageOf('code')), RUNTIME_FAILURE_FILE),
+      `<!-- 阶段 4 真跑 code/${CODE_ENTRY} 失败（退出码 ${String(run.status ?? 'null')}）；`
+      + '这不是数源声明的问题，是阶段 3 交的代码跑不起来。修完代码再放行。 -->\n\n'
+      + `${tail}\n`, 'utf8').catch(() => { /* 落盘失败不掩盖原失败 */ })
     throw new Error(`code/${CODE_ENTRY} 退出码 ${String(run.status ?? 'null')}（非 0）—— `
-      + `stderr 末尾：${(run.stderr || '(空)').split('\n').slice(-4).join(' / ').slice(0, 240)}`)
+      + `stderr 末尾：${(run.stderr || '(空)').split('\n').slice(-4).join(' / ').slice(0, 240)}`
+      + `（完整栈已写回阶段 3：${RUNTIME_FAILURE_FILE}）`)
   }
 
   // 铸数：每个声明都要在**真实产物字节**里解析出一个有限数。

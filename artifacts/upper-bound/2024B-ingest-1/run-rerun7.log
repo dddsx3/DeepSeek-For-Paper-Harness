@@ -6,53 +6,35 @@
   [deterministic] code: 分片 3/8 交付 code/problem1.py
   [deterministic] code: 分片 4/8 交付 code/problem2.py
   [deterministic] code: 分片 5/8 交付 code/problem3.py
+  [deterministic] code: 分片 6/8 交付 code/problem4.py
+  [deterministic] code: 分片 7/8 交付 RESULTS.md
+  [deterministic] code: 分片 8/8 交付 DELIVERABLES.json
+  [deterministic] code: 逐节点审计（space-bunny-free）：pass，质量分 0.78，要求 6/6 项完成，3 条 findings
 [STAGE NEXT] 只跑了 'code'，到此即停。检查 artifacts\upper-bound\2024B-ingest-1\stages 后，放行 = 再执行一次 --stages --stage-next。
-  ❌ code: 阶段产出未通过形态检查：阶段 'code' 的回答被 max-tokens 截断 —— 这不是"写错了哪里"，是产出超过了单次调用的输出上限；分片或压缩后重试
+  🟡 code: 门禁全过但**有 1 条无法判定**（delivery_audit）——已如实记在通行证上（`cleanliness: unverified-gates`）；这些缺口使本阶段不能计入 CLEAN。
 
-STAGE CHAIN FAILED — 1 个阶段没通过（产物与通行证在 artifacts\upper-bound\2024B-ingest-1\stages）。
+STAGE CHAIN OK — 1 个阶段签发通行证（其中 1 个带未判定门禁，缺口已记在 PASSED 上）。产物在 artifacts\upper-bound\2024B-ingest-1\stages
 ===== 第 2 次 --stage-next =====
 [STAGE CHAIN] artifacts\upper-bound\2024B-ingest-1\stages
   题面问数（数出来的）：4
-  [deterministic] code: 分片 1/8 交付 code/main.py
-  [deterministic] code: 分片 2/8 交付 code/params.py
-  [deterministic] code: 分片 3/8 交付 code/problem1.py
-  [deterministic] code: 分片 4/8 交付 code/problem2.py
-[STAGE NEXT] 只跑了 'code'，到此即停。检查 artifacts\upper-bound\2024B-ingest-1\stages 后，放行 = 再执行一次 --stages --stage-next。
-  ❌ code: 阶段产出未通过形态检查：idle watchdog：180000ms 没有任何新令牌 —— 对端大概率已挂住
+[STAGE NEXT] 只跑了 'result-sources'，到此即停。检查 artifacts\upper-bound\2024B-ingest-1\stages 后，放行 = 再执行一次 --stages --stage-next。
+  ❌ result-sources: 阶段产出未通过形态检查：code/main.py 退出码 1（非 0）—— stderr 末尾：    ) /      / RuntimeError: Q1 required validation failed: sample_size_nonincreasing_with_delta, sample_size_nonincreasing_with_beta, all_required_checks_passed / （原始回答已留档：_rejected-answer.txt）
 
 STAGE CHAIN FAILED — 1 个阶段没通过（产物与通行证在 artifacts\upper-bound\2024B-ingest-1\stages）。
 ===== 第 3 次 --stage-next =====
 [STAGE CHAIN] artifacts\upper-bound\2024B-ingest-1\stages
   题面问数（数出来的）：4
-  [deterministic] code: 分片 1/8 交付 code/main.py
-  [deterministic] code: 分片 2/8 交付 code/params.py
-  [deterministic] code: 分片 3/8 交付 code/problem1.py
-  [deterministic] code: 分片 4/8 交付 code/problem2.py
-  [deterministic] code: 分片 5/8 交付 code/problem3.py
-  [deterministic] code: 分片 6/8 交付 code/problem4.py
-  [deterministic] code: 分片 7/8 交付 RESULTS.md
-  [deterministic] code: 分片 8/8 交付 DELIVERABLES.json
-  [deterministic] code: 逐节点审计（space-bunny-free）：fail，质量分 0.20，要求 5/8 项完成，6 条 findings
-[STAGE NEXT] 只跑了 'code'，到此即停。检查 artifacts\upper-bound\2024B-ingest-1\stages 后，放行 = 再执行一次 --stages --stage-next。
-  ❌ code: 逐节点审计未通过：审计未通过：4 条 fatal（code/main.py、code/problem1.py、code/params.py：模块参数接口不一致导致入口在执行 main() 前即失败。problem1.py；code/problem4.py 的 _normalise_q3_data：问题三零配件记录使用 purchase_cost 字段，但归一化器只接受 a、p）；质量分 0.20 < 阈值 0.70；交付结构不完整（缺：可成功导入并运行的统一参数接口（至少包括 OUTPUT_JSON_NAME、JSON_INDENT、问题一搜索上限和置信度网格）、问题四归一化所需的字段别名及可缺省根参数接口、由当前交付代码从干净环境成功执行四问并可复现 outputs.json 的端到端运行实现）；3 项要求未完成（main.py 作为编排入口依次运行问题一至问题四并汇总结果——依据：入口结构虽按 problem1—problem4 顺序调用，但当前无法导入：problem1.py 在模块加载时要求 Q；RESULTS.md 提供四问可核读的结果说明——依据：正文主要给出 outputs.json 字段锚点和计算方法说明，未列出四问实际检测次数、决策向量、利润等结果；且当前代码；全部数字由真跑代码产生——依据：当前 main.py—problem*.py 接口存在确定的导入和运行错误，无法从干净环境执行四问并生成或复现代码所声称） —— 低于阈值不允许交付（审计结论见 _audit.json）
+[STAGE NEXT] 只跑了 'result-sources'，到此即停。检查 artifacts\upper-bound\2024B-ingest-1\stages 后，放行 = 再执行一次 --stages --stage-next。
+  ❌ result-sources: 阶段产出未通过形态检查：code/main.py 退出码 1（非 0）—— stderr 末尾：    - at_palt["stop_at_limit_probability"], /       ^^^^^^^ / NameError: name 'at_palt' is not defined. Did you mean: 'at_p_alt'? / （原始回答已留档：_rejected-answer.txt）
 
 STAGE CHAIN FAILED — 1 个阶段没通过（产物与通行证在 artifacts\upper-bound\2024B-ingest-1\stages）。
 ===== 第 4 次 --stage-next =====
 [STAGE CHAIN] artifacts\upper-bound\2024B-ingest-1\stages
   题面问数（数出来的）：4
-  [deterministic] code: 分片 1/8 交付 code/main.py
-  [deterministic] code: 分片 2/8 交付 code/params.py
-  [deterministic] code: 分片 3/8 交付 code/problem1.py
-  [deterministic] code: 分片 4/8 交付 code/problem2.py
-  [deterministic] code: 分片 5/8 交付 code/problem3.py
-  [deterministic] code: 分片 6/8 交付 code/problem4.py
-  [deterministic] code: 分片 7/8 交付 RESULTS.md
-  [deterministic] code: 分片 8/8 交付 DELIVERABLES.json
-  [deterministic] code: 逐节点审计（space-bunny-free）：pass，质量分 0.78，要求 7/7 项完成，3 条 findings
-[STAGE NEXT] 只跑了 'code'，到此即停。检查 artifacts\upper-bound\2024B-ingest-1\stages 后，放行 = 再执行一次 --stages --stage-next。
-  🟡 code: 门禁全过但**有 1 条无法判定**（delivery_audit）——已如实记在通行证上（`cleanliness: unverified-gates`）；这些缺口使本阶段不能计入 CLEAN。
+[STAGE NEXT] 只跑了 'result-sources'，到此即停。检查 artifacts\upper-bound\2024B-ingest-1\stages 后，放行 = 再执行一次 --stages --stage-next。
+  ❌ result-sources: 阶段产出未通过形态检查：code/main.py 退出码 1（非 0）—— stderr 末尾：    - at_palt["stop_at_limit_probability"], /       ^^^^^^^ / NameError: name 'at_palt' is not defined. Did you mean: 'at_p_alt'? / （原始回答已留档：_rejected-answer.txt）
 
-STAGE CHAIN OK — 1 个阶段签发通行证（其中 1 个带未判定门禁，缺口已记在 PASSED 上）。产物在 artifacts\upper-bound\2024B-ingest-1\stages
+STAGE CHAIN FAILED — 1 个阶段没通过（产物与通行证在 artifacts\upper-bound\2024B-ingest-1\stages）。
 ===== 第 5 次 --stage-next =====
 [STAGE CHAIN] artifacts\upper-bound\2024B-ingest-1\stages
   题面问数（数出来的）：4
@@ -106,35 +88,35 @@ STAGE CHAIN FAILED — 1 个阶段没通过（产物与通行证在 artifacts\up
 [STAGE CHAIN] artifacts\upper-bound\2024B-ingest-1\stages
   题面问数（数出来的）：4
 [STAGE NEXT] 只跑了 'result-sources'，到此即停。检查 artifacts\upper-bound\2024B-ingest-1\stages 后，放行 = 再执行一次 --stages --stage-next。
-  ❌ result-sources: 阶段产出未通过形态检查：code/main.py 退出码 1（非 0）—— stderr 末尾：    - at_palt["stop_at_limit_probability"], /       ^^^^^^^ / NameError: name 'at_palt' is not defined. Did you mean: 'at_p_alt'? / （原始回答已留档：_rejected-answer.txt）
+  ❌ result-sources: 阶段产出未通过形态检查：code/main.py 退出码 1（非 0）—— stderr 末尾：  File "D:\deepseek modex\deepseek-harness\artifacts\upper-bound\2024B-ingest-1\stages\03-code\code\main.py", line 427, in _validate_code_shape /     raise FileNotFoundError(f"代码入口或逐问实现缺失：{missing}") / FileNotFoundError: 代码入口或逐问实现缺失：['D:\（原始回答已留档：_rejected-answer.txt）
 
 STAGE CHAIN FAILED — 1 个阶段没通过（产物与通行证在 artifacts\upper-bound\2024B-ingest-1\stages）。
 ===== 第 13 次 --stage-next =====
 [STAGE CHAIN] artifacts\upper-bound\2024B-ingest-1\stages
   题面问数（数出来的）：4
 [STAGE NEXT] 只跑了 'result-sources'，到此即停。检查 artifacts\upper-bound\2024B-ingest-1\stages 后，放行 = 再执行一次 --stages --stage-next。
-  ❌ result-sources: 阶段产出未通过形态检查：code/main.py 退出码 1（非 0）—— stderr 末尾：    - at_palt["stop_at_limit_probability"], /       ^^^^^^^ / NameError: name 'at_palt' is not defined. Did you mean: 'at_p_alt'? / （原始回答已留档：_rejected-answer.txt）
+  ❌ result-sources: 阶段产出未通过形态检查：code/main.py 退出码 1（非 0）—— stderr 末尾：  File "D:\deepseek modex\deepseek-harness\artifacts\upper-bound\2024B-ingest-1\stages\03-code\code\main.py", line 427, in _validate_code_shape /     raise FileNotFoundError(f"代码入口或逐问实现缺失：{missing}") / FileNotFoundError: 代码入口或逐问实现缺失：['D:\（原始回答已留档：_rejected-answer.txt）
 
 STAGE CHAIN FAILED — 1 个阶段没通过（产物与通行证在 artifacts\upper-bound\2024B-ingest-1\stages）。
 ===== 第 14 次 --stage-next =====
 [STAGE CHAIN] artifacts\upper-bound\2024B-ingest-1\stages
   题面问数（数出来的）：4
 [STAGE NEXT] 只跑了 'result-sources'，到此即停。检查 artifacts\upper-bound\2024B-ingest-1\stages 后，放行 = 再执行一次 --stages --stage-next。
-  ❌ result-sources: 阶段产出未通过形态检查：code/main.py 退出码 1（非 0）—— stderr 末尾：    - at_palt["stop_at_limit_probability"], /       ^^^^^^^ / NameError: name 'at_palt' is not defined. Did you mean: 'at_p_alt'? / （原始回答已留档：_rejected-answer.txt）
+  ❌ result-sources: 阶段产出未通过形态检查：code/main.py 退出码 1（非 0）—— stderr 末尾：  File "D:\deepseek modex\deepseek-harness\artifacts\upper-bound\2024B-ingest-1\stages\03-code\code\problem1.py", line 66, in _parameter /     raise AttributeError(f"params 中缺少问题一常量：{joined}") / AttributeError: params 中缺少问题一常量：Q1_NOMINAL_（原始回答已留档：_rejected-answer.txt）
 
 STAGE CHAIN FAILED — 1 个阶段没通过（产物与通行证在 artifacts\upper-bound\2024B-ingest-1\stages）。
 ===== 第 15 次 --stage-next =====
 [STAGE CHAIN] artifacts\upper-bound\2024B-ingest-1\stages
   题面问数（数出来的）：4
 [STAGE NEXT] 只跑了 'result-sources'，到此即停。检查 artifacts\upper-bound\2024B-ingest-1\stages 后，放行 = 再执行一次 --stages --stage-next。
-  ❌ result-sources: 阶段产出未通过形态检查：code/main.py 退出码 1（非 0）—— stderr 末尾：    - at_palt["stop_at_limit_probability"], /       ^^^^^^^ / NameError: name 'at_palt' is not defined. Did you mean: 'at_p_alt'? / （原始回答已留档：_rejected-answer.txt）
+  ❌ result-sources: 阶段产出未通过形态检查：code/main.py 退出码 1（非 0）—— stderr 末尾：  File "D:\deepseek modex\deepseek-harness\artifacts\upper-bound\2024B-ingest-1\stages\03-code\code\problem1.py", line 66, in _parameter /     raise AttributeError(f"params 中缺少问题一常量：{joined}") / AttributeError: params 中缺少问题一常量：Q1_NOMINAL_（完整栈已写回阶段 3：_runtime-failure.txt）（原始回答已留档：_rejected-answer.txt）
 
 STAGE CHAIN FAILED — 1 个阶段没通过（产物与通行证在 artifacts\upper-bound\2024B-ingest-1\stages）。
 ===== 第 16 次 --stage-next =====
 [STAGE CHAIN] artifacts\upper-bound\2024B-ingest-1\stages
   题面问数（数出来的）：4
 [STAGE NEXT] 只跑了 'result-sources'，到此即停。检查 artifacts\upper-bound\2024B-ingest-1\stages 后，放行 = 再执行一次 --stages --stage-next。
-  ❌ result-sources: 阶段产出未通过形态检查：code/main.py 退出码 1（非 0）—— stderr 末尾：    - at_palt["stop_at_limit_probability"], /       ^^^^^^^ / NameError: name 'at_palt' is not defined. Did you mean: 'at_p_alt'? / （原始回答已留档：_rejected-answer.txt）
+  ❌ result-sources: 阶段产出未通过形态检查：code/main.py 退出码 1（非 0）—— stderr 末尾：  File "D:\deepseek modex\deepseek-harness\artifacts\upper-bound\2024B-ingest-1\stages\03-code\code\problem1.py", line 66, in _parameter /     raise AttributeError(f"params 中缺少问题一常量：{joined}") / AttributeError: params 中缺少问题一常量：Q1_NOMINAL_（完整栈已写回阶段 3：_runtime-failure.txt）（原始回答已留档：_rejected-answer.txt）
 
 STAGE CHAIN FAILED — 1 个阶段没通过（产物与通行证在 artifacts\upper-bound\2024B-ingest-1\stages）。
 ===== LOOP DONE =====

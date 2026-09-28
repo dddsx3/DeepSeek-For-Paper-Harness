@@ -98,3 +98,19 @@ STAGE CHAIN FAILED — 1 个阶段没通过（产物与通行证在 artifacts\up
 [provider] 传输失败第 3 次（6s 后重试）：fetch failed（底层原因：fetch failed ← Headers Timeout Error code=UND_ERR_HEADERS_TIMEOUT）
 [provider] 传输失败第 1 次（2s 后重试）：fetch failed（底层原因：fetch failed ← Headers Timeout Error code=UND_ERR_HEADERS_TIMEOUT）
 [provider] 传输失败第 2 次（3s 后重试）：fetch failed（底层原因：fetch failed ← Headers Timeout Error code=UND_ERR_HEADERS_TIMEOUT）
+[provider] 传输失败第 3 次（6s 后重试）：fetch failed（底层原因：fetch failed ← Headers Timeout Error code=UND_ERR_HEADERS_TIMEOUT）
+  [deterministic] code: 分片 4/8 交付 code/problem2.py
+[provider] 传输失败第 1 次（2s 后重试）：fetch failed（底层原因：fetch failed ← Headers Timeout Error code=UND_ERR_HEADERS_TIMEOUT）
+[provider] 传输失败第 2 次（3s 后重试）：fetch failed（底层原因：fetch failed ← Headers Timeout Error code=UND_ERR_HEADERS_TIMEOUT）
+[provider] 传输失败第 3 次（6s 后重试）：fetch failed（底层原因：fetch failed ← Headers Timeout Error code=UND_ERR_HEADERS_TIMEOUT）
+[provider] 传输失败第 1 次（2s 后重试）：fetch failed（底层原因：fetch failed ← Headers Timeout Error code=UND_ERR_HEADERS_TIMEOUT）
+[provider] 传输失败第 2 次（3s 后重试）：fetch failed（底层原因：fetch failed ← Headers Timeout Error code=UND_ERR_HEADERS_TIMEOUT）
+[provider] 传输失败第 3 次（6s 后重试）：fetch failed（底层原因：fetch failed ← Headers Timeout Error code=UND_ERR_HEADERS_TIMEOUT）
+[provider] 传输失败第 1 次（2s 后重试）：fetch failed（底层原因：fetch failed ← Headers Timeout Error code=UND_ERR_HEADERS_TIMEOUT）
+[provider] 传输失败第 2 次（3s 后重试）：fetch failed（底层原因：fetch failed ← Headers Timeout Error code=UND_ERR_HEADERS_TIMEOUT）
+[provider] 传输失败第 3 次（6s 后重试）：fetch failed（底层原因：fetch failed ← Headers Timeout Error code=UND_ERR_HEADERS_TIMEOUT）
+[STAGE NEXT] 只跑了 'code'，到此即停。检查 artifacts\upper-bound\2024B-ingest-1\stages 后，放行 = 再执行一次 --stages --stage-next。
+  ❌ code: 阶段产出未通过形态检查：模型请求失败（已重试 4 次）：fetch failed（底层原因：fetch failed ← Headers Timeout Error code=UND_ERR_HEADERS_TIMEOUT）
+
+STAGE CHAIN FAILED — 1 个阶段没通过（产物与通行证在 artifacts\upper-bound\2024B-ingest-1\stages）。
+===== 第 10 次 --stage-next =====
