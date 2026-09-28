@@ -1,0 +1,18 @@
+{
+  "stage": "diagram",
+  "code": 2,
+  "items": [
+    {
+      "id": "diagram_manifest_reconcile",
+      "ok": false,
+      "detail": "DRAWIO/HTML 段 1 张全部渲染；但 TIKZ 段 1 张（tikz_process_route）需要 LaTeX 引擎，本仓库没有该工具链 —— 这几张既没产出、也没被判定，所以本门禁不能算通过",
+      "code": 2
+    },
+    {
+      "id": "diagram_geometry",
+      "ok": true,
+      "detail": "1 张架构图：边界/溢出/对齐（≤4px）/标签重叠 全部通过",
+      "code": 0
+    }
+  ]
+}

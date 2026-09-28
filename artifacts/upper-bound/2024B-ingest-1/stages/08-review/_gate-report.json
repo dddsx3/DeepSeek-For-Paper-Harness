@@ -1,0 +1,12 @@
+{
+  "stage": "review",
+  "code": 1,
+  "items": [
+    {
+      "id": "review_fatal_count",
+      "ok": false,
+      "detail": "fatal_count = 4 —— 必须回滚到归属阶段修正后重跑，不许进阶段 7",
+      "code": 1
+    }
+  ]
+}
