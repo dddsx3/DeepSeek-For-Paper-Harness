@@ -243,7 +243,21 @@ async function harness(options: { readonly pauseAfter?: ReadonlyArray<string>; r
       }
       const m = /stages\/(\d\d)-([a-z-]+)\//.exec(prompt)
       const stage = m?.[2] ?? ''
-      const text = answerFor(stage)
+      let text = answerFor(stage)
+      // **分片阶段要按"只产出 `X`"作答**：阶段 2/3 现在是"一次调用只产出一个文件"
+      // （阶段 3 的信封片已被拆掉——见 `planCodeShards` 的注释：信封片曾因一次要吐出
+      // RESULTS.md + DELIVERABLES.json 被 max-tokens 截断，整轮调用白跑）。
+      // 桩若不区分分片、对每一片都返回同一份信封，`assembleShards` 会把**信封 JSON 当成
+      // 文件内容**写进 `code/main.py`，`afterModel` 跑它必然语法错——链在第 3 阶段就断
+      // （实测：13 个阶段只跑出 3 个）。
+      const named = /只产出 `([^`]+)`/.exec(prompt)?.[1]
+      if (named !== undefined) {
+        try {
+          const parsed = JSON.parse(text) as { files?: Record<string, string> }
+          const hit = parsed.files?.[named]
+          if (typeof hit === 'string') text = hit
+        } catch { /* 不是信封（如阶段 5 的逐图脚本）→ 原样返回 */ }
+      }
       return (async function* () {
         yield { type: 'block-start', index: 0, blockType: 'text' }
         yield { type: 'text-delta', index: 0, text }
@@ -282,11 +296,13 @@ describe('阶段链服务 —— 真的接进了 provider 缝', () => {
     const modelingPassport = await readPassport(stagesRoot, stageOf('modeling'))
     expect(modelingPassport?.audit?.score).toBeCloseTo(0.85, 5)
     expect(modelingPassport?.audit?.verdict).toBe('pass')
-    // 阶段 3 分片：问数 2 → 5 次调用（入口 + params + problem1 + problem2 + 收尾信封）
+    // 阶段 3 分片：问数 2 → 6 次调用（入口 + params + problem1 + problem2 + RESULTS.md + DELIVERABLES.json）
     // `params.py` 自成一档是因为契约要求它（"题面给定值唯一落点"）而原来没有槽位——
     // 于是 main.py 写了 `import params` 却没人交这个文件，阶段 4 跑代码直接 ModuleNotFoundError。
+    // 尾两个文件也各自成片：原来打成一个信封，一次要吐十几 KB 散文 + 十几 KB JSON，
+    // 被 max-tokens 截断（实测），整轮调用白跑。
     const codeCalls = prompts.filter(p => p.includes('stages/03-code/'))
-    expect(codeCalls.length).toBe(5)
+    expect(codeCalls.length).toBe(6)
     expect(codeCalls.filter(p => p.includes('只产出 `code/params.py`')).length).toBe(1)
     expect(codeCalls.filter(p => p.includes('只产出 `code/problem1.py`')).length).toBe(1)
     // 简报调用要按**分片**数：阶段 2 分 2 片（IR 声明 + 富散文）、阶段 3 分 6 片。
