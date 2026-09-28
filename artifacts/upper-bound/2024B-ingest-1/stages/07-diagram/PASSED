@@ -1,0 +1,33 @@
+{
+  "passportVersion": 1,
+  "stage": "diagram",
+  "index": 7,
+  "at": "2026-09-28T01:37:37.425Z",
+  "status": "passed",
+  "cleanliness": "unverified-gates",
+  "inputDigest": "1e7e2279a49a1f94924cede02c4260b29b99c4b8f2a13baf4edbd454b7a87859",
+  "artifacts": {
+    "figures/": "dir:1",
+    "diagram-manifest.json": "95cdc6e53bdff02f4e0f83cd46e3b500a1171bf5078221ede1d185ad543d1f4f"
+  },
+  "gate": {
+    "code": 2,
+    "items": [
+      {
+        "id": "diagram_manifest_reconcile",
+        "ok": false,
+        "detail": "DRAWIO/HTML 段 1 张全部渲染；但 TIKZ 段 1 张（tikz_process_route）需要 LaTeX 引擎，本仓库没有该工具链 —— 这几张既没产出、也没被判定，所以本门禁不能算通过",
+        "code": 2
+      },
+      {
+        "id": "diagram_geometry",
+        "ok": true,
+        "detail": "1 张架构图：边界/溢出/对齐（≤4px）/标签重叠 全部通过",
+        "code": 0
+      }
+    ]
+  },
+  "unverifiedGates": [
+    "diagram_manifest_reconcile"
+  ]
+}
