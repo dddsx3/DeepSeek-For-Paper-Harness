@@ -374,7 +374,12 @@ export async function* streamCompletion(
         } catch (error) {
           const message = String(error instanceof Error ? error.message : error)
           if (attempt < maxAttempts() && /timeout|terminated|ECONNRESET|fetch failed/i.test(message)) {
-            await new Promise(resolve => setTimeout(resolve, baseBackoffMs() * 2 ** (attempt - 1)))
+            const waitMs = baseBackoffMs() * 2 ** (attempt - 1)
+            // **重试要出声**：否则日志里只有长时间沉默，检查的人分不清
+            // "正在长生成" / "正在重试" / "挂住了"——实测就为此反复人工探活。
+            console.warn(`[provider] 传输失败第 ${String(attempt)} 次（${String(Math.round(waitMs / 1000))}s 后重试）：`
+              + `${message}${causeChainOf(error)}`)
+            await new Promise(resolve => setTimeout(resolve, waitMs))
             continue
           }
           // **重试耗尽**：把尝试次数与底层原因一并抛出。
@@ -409,7 +414,14 @@ export async function* streamCompletion(
           yield { type: 'finish', reason: { kind: 'stop' } }
         }
         const usage = data.usage
-        if (usage !== undefined) {
+        // **`usage` 可能是 `null`，不只是 `undefined`**（实测：opencode/space-bunny-free
+        // 在非流式下返回 `"usage": null`）。旧判据 `!== undefined` 放行了 `null`，
+        // 于是 `usage.prompt_tokens_details` 抛
+        // `Cannot read properties of null (reading 'prompt_tokens_details')`，
+        // **整个阶段失败**——而这只影响用量统计，与产物毫无关系。
+        // 同一个教训本文件已经为 `content: null` 学过（见流式路径的注释：
+        // "判据必须是 typeof === 'string'，不能是 !== undefined"），只是没用到 usage 上。
+        if (usage !== undefined && usage !== null) {
           const cached = usage.prompt_tokens_details?.cached_tokens ?? 0
           const promptTotal = usage.prompt_tokens ?? 0
           yield {
@@ -519,7 +531,8 @@ export async function* streamCompletion(
       // wire shape when include_usage is on) — AFTER the finish_reason
       // chunk. Breaking at finish_reason would miss it, so keep scanning
       // until the stream ends or [DONE]; deltas after finish do not exist.
-      if (parsed.usage !== undefined) usage = parsed.usage
+      // 同非流式：`usage` 可能是 `null`，不是只有 `undefined`
+      if (parsed.usage !== undefined && parsed.usage !== null) usage = parsed.usage
       if (parsed.choices !== undefined && parsed.choices.length > 0) sawAnyChoice = true
       const reason = parsed.choices?.[0]?.finish_reason
       if (typeof reason === 'string') finishReason = reason
@@ -559,7 +572,9 @@ export async function* streamCompletion(
     // Real token accounting, exactly the disjoint TokenUsage shape the
     // runtime expects: inputTokens = uncached input only; cache hits
     // reported separately (TASK-Q2 telemetry).
-    if (usage !== undefined) {
+    // 同非流式：`usage` 可能是 `null`（实测该中转会显式返回 `"usage": null`），
+    // 只判 `!== undefined` 会把 `null` 放进来，随后读字段即崩。
+    if (usage !== undefined && usage !== null) {
       const cached = usage.prompt_tokens_details?.cached_tokens ?? 0
       const promptTotal = usage.prompt_tokens ?? 0
       yield {

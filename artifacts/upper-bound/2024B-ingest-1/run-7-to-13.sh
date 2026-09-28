@@ -6,8 +6,8 @@ export PAPER_PROBE_MODEL=space-bunny-free
 export PAPER_PROBE_PROVIDER=opencode
 export PAPER_PROBE_API_KEY=oc_sk_213f3ee9fcde_yJ7nv66hZ0r9X_kWKUxMsk18UKCv5BkN
 export PAPER_PROBE_REASONING=default
-export PAPER_NON_STREAM=1
-export PAPER_NON_STREAM_TIMEOUT_MS=1800000
+# 流式 + 空闲看门狗：180s 无字节即判失败（比非流式的"等满总时长"快 10 倍）
+export PAPER_IDLE_TIMEOUT_MS=180000
 export PAPER_PROBE_MAX_OUTPUT_TOKENS=64000
 export PAPER_PROBE_TIMEOUT_MS=1800000
 export PAPER_AUDIT_MODEL=space-bunny-free
