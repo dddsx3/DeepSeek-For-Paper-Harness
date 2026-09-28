@@ -19,8 +19,9 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { passportFor, readPassport } from '../../src/stages/handoff.ts'
-import { runStages, type StageRunContext } from '../../src/stages/runner.ts'
+import { priorReviewFindings, runStages, type StageRunContext } from '../../src/stages/runner.ts'
 import { stageOf } from '../../src/stages/registry.ts'
+import { stageBriefing } from '../../src/stages/briefing.ts'
 
 /** 造一个最小 ctx：`callModel` 记调用次数（复评时它必须一直是 0）。 */
 function ctxOf(stagesRoot: string, calls: { n: number }): StageRunContext {
@@ -103,5 +104,78 @@ describe('复评 —— 不重跑模型，但也不放行', () => {
     }))
     const back = await readPassport(root, spec)
     expect(back?.regate?.reason).toBe('复评留痕测试')
+  })
+})
+
+/**
+ * **复核的结论必须回灌到被回滚的阶段** —— 重启前检查发现的缺口。
+ *
+ * 事故背景：阶段 8 复核报出 4 条致命（全在建模/编程），判定 `ROLLBACK`，
+ * `rollback_target: ['02-modeling', '03-code']`。但 runner 原有的两路回灌
+ * （`priorGateFindings` / `priorAuditFindings`）**只读本阶段自己的报告**——
+ * 而这两个阶段当时自身门禁与审计**都是通过的**，所以它们的 `prior` 是空的。
+ * 后果：按复核要求回滚之后，**被回滚的阶段拿不到"你为何被回滚"**，只能盲重跑，
+ * 几乎必然重犯同一批缺陷。整次回滚白做。
+ *
+ * 判据取自复核自己写的归属：每条 finding 都带 `owner_stage`
+ * （`02-modeling` / `02-modeling/03-code`），按本阶段 id 子串匹配即可分发。
+ */
+describe('复核结论回灌 —— 回滚不能是盲跑', () => {
+  const verdict = (findings: ReadonlyArray<Record<string, unknown>>): string =>
+    JSON.stringify({ findings, fatal_count: findings.length })
+
+  async function seedVerdict(findings: ReadonlyArray<Record<string, unknown>>): Promise<string> {
+    const root = await mkdtemp(join(tmpdir(), 'dsh-prior-review-'))
+    const dir = join(root, '08-review')
+    await mkdir(dir, { recursive: true })
+    await writeFile(join(dir, 'COMP_REVIEW_VERDICT.json'), verdict(findings), 'utf8')
+    return root
+  }
+
+  const f001 = {
+    id: 'F-001', category: 'task_misread', severity: 'fatal', owner_stage: '02-modeling',
+    where: 'MODELING_REPORT.md §1.1', evidence: '题面没给 Δ、β', impact: '问题 1 不可复算',
+    fix: '登记并论证 Δ、β', acceptance_test: '正文直接给出 Δ、β、n、c',
+  }
+  const f002 = {
+    id: 'F-002', category: 'cross_problem', severity: 'fatal', owner_stage: '02-modeling/03-code',
+    where: 'EQ-Q3-UNITCOST', evidence: 'Z_v=0 时 U_v=K_f 漏除以 q_v', impact: '成本与决策可能全错',
+    fix: 'U_v 除以 q_v', acceptance_test: 'A_v=8、q_v=0.9 时 U_v=(8+B)/0.9',
+  }
+
+  it('按 `owner_stage` 分发：建模阶段拿到 F-001 与 F-002，编程阶段拿到 F-002', async () => {
+    const root = await seedVerdict([f001, f002])
+    const modeling = await priorReviewFindings(root, stageOf('modeling'))
+    const code = await priorReviewFindings(root, stageOf('code'))
+    expect(modeling.map(f => f.where)).toEqual([
+      expect.stringContaining('F-001'), expect.stringContaining('F-002'),
+    ])
+    expect(code).toHaveLength(1)
+    expect(code[0]?.where).toContain('F-002')
+    // 致命级必须原样保留（回滚的理由就是它们）
+    expect(modeling.every(f => f.severity === 'fatal')).toBe(true)
+  })
+
+  it('**真的进得了简报**（这是"不盲跑"的落点）', async () => {
+    const root = await seedVerdict([f001])
+    const prior = await priorReviewFindings(root, stageOf('modeling'))
+    const brief = stageBriefing(stageOf('modeling'), new Map(), false, prior)
+    expect(brief).toContain('F-001')
+    expect(brief).toContain('题面没给 Δ、β')
+    expect(brief).toContain('登记并论证 Δ、β')
+    expect(brief).toContain('验收判据') // acceptance_test 也要带上，否则改没改到位无法判
+  })
+
+  it('归属不含本阶段的 findings **不分发**（不制造噪声）', async () => {
+    const root = await seedVerdict([f001])
+    expect(await priorReviewFindings(root, stageOf('paper'))).toEqual([])
+  })
+
+  it('复核没跑过 / 格式坏了 → 空数组，**不因此阻断**', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'dsh-prior-review-'))
+    expect(await priorReviewFindings(root, stageOf('modeling'))).toEqual([])
+    const bad = await seedVerdict([])
+    await writeFile(join(bad, '08-review', 'COMP_REVIEW_VERDICT.json'), '{ 坏 JSON', 'utf8')
+    expect(await priorReviewFindings(bad, stageOf('modeling'))).toEqual([])
   })
 })
