@@ -517,6 +517,55 @@ async function priorGateFindings(
 }
 
 /**
+ * **下游复核的结论要能回灌到被回滚的阶段**（本轮新增，重启前检查发现的缺口）。
+ *
+ * 为什么必须补：阶段 8 的复核是**唯一**会点名"该回滚到哪一阶段"的地方
+ * （`rollback_target`），而且它的每条 finding 本来就带 `owner_stage`。
+ * 但 `priorGateFindings` / `priorAuditFindings` **只读本阶段自己的**报告——
+ * 于是按复核要求回滚到阶段 2 之后，**阶段 2 拿不到"你为何被回滚"**，
+ * 只能盲重跑，几乎必然重犯同一批缺陷（实测：复核的 4 条致命全在建模/编程，
+ * 而这两阶段的自身门禁与审计当时都是通过的）。
+ *
+ * 判据直接取自复核自己写的归属：`owner_stage` 里包含本阶段 id 的才回灌。
+ * 复核没跑过（文件不在）或格式坏了 → 返回空，**不因此阻断**。
+ */
+export async function priorReviewFindings(
+  stagesRoot: string,
+  spec: StageSpec,
+): Promise<ReadonlyArray<BriefingFinding>> {
+  const reviewDir = stageDirName(STAGES.find(s => s.id === 'review') ?? spec)
+  const raw = await readFile(join(stagesRoot, reviewDir, 'COMP_REVIEW_VERDICT.json'), 'utf8').catch(() => null)
+  if (raw === null) return []
+  try {
+    const parsed: unknown = JSON.parse(raw)
+    const list = (parsed as { findings?: unknown }).findings
+    if (!Array.isArray(list)) return []
+    return list.flatMap((f): ReadonlyArray<BriefingFinding> => {
+      if (typeof f !== 'object' || f === null) return []
+      const o = f as Record<string, unknown>
+      const owner = typeof o['owner_stage'] === 'string' ? o['owner_stage'] : ''
+      // 归属是 `02-modeling` / `02-modeling/03-code` 这种写法 → 按本阶段 id 子串匹配
+      if (owner === '' || !owner.includes(spec.id)) return []
+      const id = typeof o['id'] === 'string' ? o['id'] : '(未具名)'
+      const where = typeof o['where'] === 'string' ? o['where'] : ''
+      const issue = [o['evidence'], o['impact']]
+        .filter((x): x is string => typeof x === 'string' && x !== '')
+        .join(' —— ')
+      const fix = typeof o['fix'] === 'string' ? o['fix'] : ''
+      const accept = typeof o['acceptance_test'] === 'string' ? ` 验收判据：${o['acceptance_test']}` : ''
+      return [{
+        severity: o['severity'] === 'fatal' ? 'fatal' : 'major',
+        where: `阶段 8 复核 ${id}（${where}）`,
+        issue,
+        fix: `${fix}${accept}`,
+      }]
+    })
+  } catch {
+    return []
+  }
+}
+
+/**
  * 跑一条阶段链。
  *
  * 默认从第 1 阶段跑到第 11 阶段；遇到 `blocked` 或 `gate-failed` **立即停**
@@ -583,6 +632,9 @@ export async function runStages(
         const prior = [
           ...await priorGateFindings(ctx.stagesRoot, spec),
           ...await priorAuditFindings(ctx.stagesRoot, spec),
+          // **复核的结论也要回灌**：它是唯一会说"该回滚到哪一阶段、为什么"的地方。
+          // 少了这一路，按复核要求回滚后的重跑就是盲跑（见 `priorReviewFindings` 的注释）。
+          ...await priorReviewFindings(ctx.stagesRoot, spec),
         ]
         const prompt = stageBriefing(
           spec,
