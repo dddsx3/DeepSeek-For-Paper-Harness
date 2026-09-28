@@ -38,8 +38,18 @@ export interface CodeShard {
 }
 
 /** 阶段 3 的模型交付清单（非 harnessMinted、含目录型）。 */
+/**
+ * 本阶段**模型要写出来的文件**（不含 harness 铸的、也**不含目录型产物**）。
+ *
+ * ⛔ 目录必须排除：`code/` 是"逐问实现放在这个目录里"的声明，**不是一份要写的文件**。
+ * 原来没排，于是 `code/` 被当成一个交付物——先是混进信封片的键列表（模型大概直接忽略），
+ * 我把它改成"每文件一片"之后立刻显形：**多出一片要求产出名为 `code/` 的文件**。
+ * 这类"声明形态与真实产物不同类"的缺陷只有落到分片计划上才会暴露。
+ */
 function codeDeliverables(spec: StageSpec): ReadonlyArray<string> {
-  return spec.produces.filter(p => p.harnessMinted !== true).map(p => p.file)
+  return spec.produces
+    .filter(p => p.harnessMinted !== true && p.kind !== 'dir')
+    .map(p => p.file)
 }
 
 /**
@@ -75,11 +85,21 @@ export function planCodeShards(spec: StageSpec, prompt: string, problemCount: nu
     const total = 1
     return [{ index: 1, total, deliverable: '*', prompt: shardPrompt('*', 1, total) }]
   }
+  // **剩余交付物各自一片，不再打成一个信封。**
+  //
+  // 实测（2024B 重跑第 5 次）：前 6 片（入口 + params + 逐问）全部交付成功，
+  // **第 7 片（信封）被 max-tokens 截断**——它要一次吐出 `RESULTS.md`（散文，十几 KB）
+  // 加 `DELIVERABLES.json`（含全部 `ledger_keys`，十几 KB），JSON 转义后再叠上开思考的
+  // 推理占用，必然撞上限。而"截断"的代价是**整轮 7 次调用白跑**。
+  //
+  // 修法与阶段 2 对齐（`planModelingShards` 本来就是"每个交付物一次调用"）：
+  // 每个剩余文件一片，`assembleShards` 对非 `*` 片本来就按"回答即文件原文"处理，
+  // 所以不需要信封这条路径。**一次调用只产出一个文件**，截断风险随产出量线性下降。
   const shards: Array<{ deliverable: string }> = [
     { deliverable: entry },
     { deliverable: params },
     ...perProblem.map(f => ({ deliverable: f })),
-    { deliverable: '*' },
+    ...rest.map(f => ({ deliverable: f })),
   ]
   const total = shards.length
   return shards.map((shard, i) => ({

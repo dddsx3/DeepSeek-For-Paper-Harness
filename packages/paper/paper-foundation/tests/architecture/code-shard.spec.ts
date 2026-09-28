@@ -14,23 +14,29 @@ const spec = stageOf('code')
 const briefing = '阶段简报……（含逐问模型与上游上下文）'
 
 describe('code-shard —— 分片计划', () => {
-  it('问数 4 → 7 片：入口 1 + params 1 + 逐问 4 + 收尾信封 1；每片 prompt 都带完整简报与片号', () => {
+  it('问数 4 → 8 片：入口 1 + params 1 + 逐问 4 + **剩余交付物各自一片**；每片都带完整简报与片号', () => {
     const shards = planCodeShards(spec, briefing, 4)
+    // **不再有 `*` 信封片**：实测重跑第 5 次，信封片要一次吐出 `RESULTS.md`（散文，十几 KB）
+    // 加 `DELIVERABLES.json`（含全部 `ledger_keys`，十几 KB），JSON 转义后再叠上开思考的
+    // 推理占用 → 被 max-tokens 截断，**整轮 7 次调用白跑**。
+    // 改成"一次调用只产出一个文件"（与阶段 2 的 `planModelingShards` 同构）。
     expect(shards.map(s => s.deliverable)).toEqual([
-      'code/main.py', 'code/params.py', 'code/problem1.py', 'code/problem2.py', 'code/problem3.py', 'code/problem4.py', '*',
+      'code/main.py', 'code/params.py', 'code/problem1.py', 'code/problem2.py', 'code/problem3.py', 'code/problem4.py',
+      'RESULTS.md', 'DELIVERABLES.json',
     ])
     for (const s of shards) {
-      expect(s.total).toBe(7)
+      expect(s.total).toBe(8)
       expect(s.prompt).toContain(briefing)
       expect(s.prompt).toContain(`分片 ${String(s.index)}/${String(s.total)}`)
+      // 每一片都是"只产出这一个文件"的物态（信封片已拆掉）
+      expect(s.prompt).toContain(`只产出 \`${s.deliverable}\``)
+      expect(s.prompt).not.toContain('JSON 信封')
     }
-    // 单文件片：原文物态；收尾片：JSON 信封物态
-    expect(shards[0]?.prompt).toContain('只产出 `code/main.py`')
     // `params.py` 有自己的一片（契约要求它，分片计划就得给它槽位）
     expect(shards[1]?.deliverable).toBe('code/params.py')
-    expect(shards[1]?.prompt).toContain('只产出 `code/params.py`')
-    expect(shards[6]?.prompt).toContain('JSON 信封')
-    expect(shards[6]?.prompt).toContain('`RESULTS.md`')
+    // 剩余交付物各自成片（不再是打包信封）
+    expect(shards[6]?.deliverable).toBe('RESULTS.md')
+    expect(shards[7]?.deliverable).toBe('DELIVERABLES.json')
   })
 
   it('问数 0 → 单片回退（问数未知时拆片无从拆；code_parity 会如实给 2）', () => {
@@ -41,13 +47,10 @@ describe('code-shard —— 分片计划', () => {
 })
 
 describe('code-shard —— 组装过原契约', () => {
-  it('七片回答组装成 JSON 信封，键与注册表契约一致', () => {
+  it('八片回答组装成 JSON 信封，键与注册表契约一致', () => {
     const shards = planCodeShards(spec, briefing, 2)
-    const answers = shards.map(s =>
-      s.deliverable === '*'
-        ? JSON.stringify({ files: { 'RESULTS.md': '结果说明', 'DELIVERABLES.json': '{"deliverables":[]}' } })
-        : `# ${s.deliverable} 的内容`,
-    )
+    // 每片交一个文件（信封片已拆掉——见分片计划那条用例）
+    const answers = shards.map(s => `# ${s.deliverable} 的内容`)
     const envelope = JSON.parse(assembleShards(shards, answers)) as { files: Record<string, string> }
     expect(Object.keys(envelope.files).sort()).toEqual([
       'DELIVERABLES.json', 'RESULTS.md', 'code/main.py', 'code/params.py', 'code/problem1.py', 'code/problem2.py',
@@ -56,7 +59,7 @@ describe('code-shard —— 组装过原契约', () => {
 
   it('某一片的回答为空 → 具名失败（没有内容就是没有交付，不静默跳过）', () => {
     const shards = planCodeShards(spec, briefing, 1)
-    const answers = shards.map(s => (s.deliverable === 'code/main.py' ? '' : s.deliverable === '*' ? '{"files":{}}' : 'x'))
+    const answers = shards.map(s => (s.deliverable === 'code/main.py' ? '' : 'x'))
     expect(() => assembleShards(shards, answers)).toThrow(/code\/main.py.*回答是空的/)
   })
 })
@@ -112,26 +115,21 @@ describe('阶段 2 分片计划 —— 每个交付物一次调用', () => {
 describe('code-shard —— 一层围栏剥掉（内容判据一条不放松）', () => {
   const BT = String.fromCharCode(96, 96, 96)
 
-  it('末片信封带 ```json 围栏 → 照常组装', () => {
-    const shards = planCodeShards(spec, briefing, 1)
-    const answers = shards.map(s =>
-      s.deliverable === '*'
-        ? BT + 'json\n' + JSON.stringify({ files: { 'RESULTS.md': '结果', 'DELIVERABLES.json': '{}' } }) + '\n' + BT
-        : '# ' + s.deliverable,
-    )
+  // ⚠ 下面几条测的是 `assembleShards` 的**信封分支**。阶段 3 的分片计划已经不再产 `*` 片
+  // （见分片计划那条用例：信封片被拆成"每文件一片"），现在只剩**问数未知**的回退路径
+  // 会走信封——所以这几条统一用 `problemCount = 0`（单片信封）来覆盖该分支。
+  it('单片信封带 ```json 围栏 → 照常组装', () => {
+    const shards = planCodeShards(spec, briefing, 0)
+    const answers = shards.map(() =>
+      BT + 'json\n' + JSON.stringify({ files: { 'RESULTS.md': '结果', 'DELIVERABLES.json': '{}' } }) + '\n' + BT)
     const env = JSON.parse(assembleShards(shards, answers)) as { files: Record<string, string> }
     expect(env.files['RESULTS.md']).toBe('结果')
-    expect(env.files['code/main.py']).toBe('# code/main.py')
   })
 
   it('`.py` 分片带围栏 → 剥掉后落盘（不把围栏行写进 Python）', () => {
     const shards = planCodeShards(spec, briefing, 1)
     const answers = shards.map(s =>
-      s.deliverable === '*'
-        ? JSON.stringify({ files: {} })
-        : s.deliverable.endsWith('.py')
-          ? BT + 'python\nprint(1)\n' + BT
-          : '散文',
+      s.deliverable.endsWith('.py') ? BT + 'python\nprint(1)\n' + BT : '散文',
     )
     const env = JSON.parse(assembleShards(shards, answers)) as { files: Record<string, string> }
     expect(env.files['code/main.py']).toBe('print(1)')
@@ -140,25 +138,21 @@ describe('code-shard —— 一层围栏剥掉（内容判据一条不放松）'
 
   it('**空回答照旧具名失败**（剥围栏不是放行空内容）', () => {
     const shards = planCodeShards(spec, briefing, 1)
-    const answers = shards.map(s => (s.deliverable === '*' ? JSON.stringify({ files: {} }) : BT + '\n' + BT))
+    const answers = shards.map(() => BT + '\n' + BT)
     // 只有围栏、里面什么都没有 → 剥完是空串 → 必须仍然报"回答是空的"
     expect(() => assembleShards(shards, answers)).toThrow(/空的/)
   })
 
   it('**内容坏了照旧报错**（剥围栏不掩盖坏 JSON）', () => {
-    const shards = planCodeShards(spec, briefing, 1)
-    const answers = shards.map(s =>
-      s.deliverable === '*' ? BT + 'json\n{ "files": ' + BT : '散文',
-    )
+    const shards = planCodeShards(spec, briefing, 0)
+    const answers = shards.map(() => BT + 'json\n{ "files": ' + BT)
     expect(() => assembleShards(shards, answers)).toThrow()
   })
 
   it('多层围栏不剥（形态本身有问题，该报错而不是猜）', () => {
-    const shards = planCodeShards(spec, briefing, 1)
+    const shards = planCodeShards(spec, briefing, 0)
     const inner = JSON.stringify({ files: {} })
-    const answers = shards.map(s =>
-      s.deliverable === '*' ? BT + '\n' + BT + 'json\n' + inner + '\n' + BT + '\n' + BT : '散文',
-    )
+    const answers = shards.map(() => BT + '\n' + BT + 'json\n' + inner + '\n' + BT + '\n' + BT)
     expect(() => assembleShards(shards, answers)).toThrow()
   })
 })
