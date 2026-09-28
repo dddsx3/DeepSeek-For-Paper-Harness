@@ -19,7 +19,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { passportFor, readPassport } from '../../src/stages/handoff.ts'
-import { priorReviewFindings, runStages, type StageRunContext } from '../../src/stages/runner.ts'
+import { priorReviewFindings, priorRuntimeFindings, runStages, type StageRunContext } from '../../src/stages/runner.ts'
 import { stageOf } from '../../src/stages/registry.ts'
 import { stageBriefing } from '../../src/stages/briefing.ts'
 
@@ -177,5 +177,61 @@ describe('复核结论回灌 —— 回滚不能是盲跑', () => {
     const bad = await seedVerdict([])
     await writeFile(join(bad, '08-review', 'COMP_REVIEW_VERDICT.json'), '{ 坏 JSON', 'utf8')
     expect(await priorReviewFindings(bad, stageOf('modeling'))).toEqual([])
+  })
+})
+
+/**
+ * **运行时失败必须回到写代码的那个阶段** —— 实测代价 9 次空转、半个多小时。
+ *
+ * 事故：阶段 3 的代码里一个变量名拼写错（`at_palt` vs 它自己定义的 `at_p_alt`），
+ * 于是阶段 4 真跑 `code/main.py` 时报 `NameError`。但那条错误记在**阶段 4** 的报告里，
+ * 而 `--stage-next` 只会重跑**阶段 4**——拿同一份坏代码再跑一遍。**连撞 9 次**，
+ * 每次一次模型调用 + 一次代码执行，而那条栈从来没到过该看它的阶段。
+ *
+ * 与"复核结论回灌"（`priorReviewFindings`）同类：**下游发现的错误必须能回到该负责的上游**，
+ * 否则重试就是空转。
+ */
+describe('运行时失败回灌 —— 拼写错误不该让下游空转 9 次', () => {
+  const traceback = 'Traceback (most recent call last):\n'
+    + '  File "code/problem1.py", line 88, in main\n'
+    + '    at_palt["stop_at_limit_probability"],\n'
+    + 'NameError: name \'at_palt\' is not defined. Did you mean: \'at_p_alt\'?'
+
+  async function seed(trace: string): Promise<string> {
+    const root = await mkdtemp(join(tmpdir(), 'dsh-runtime-'))
+    const dir = join(root, '03-code')
+    await mkdir(dir, { recursive: true })
+    await writeFile(join(dir, '_runtime-failure.txt'), trace, 'utf8')
+    return root
+  }
+
+  it('阶段 3 拿到完整的栈（含文件与行号）', async () => {
+    const root = await seed(traceback)
+    const prior = await priorRuntimeFindings(root, stageOf('code'))
+    expect(prior).toHaveLength(1)
+    expect(prior[0]?.severity).toBe('fatal')
+    expect(prior[0]?.issue).toContain('NameError')
+    expect(prior[0]?.issue).toContain('line 88')
+    expect(prior[0]?.fix).toContain('你的代码跑不起来')
+  })
+
+  it('**真的进得了简报**（这是"不空转"的落点）', async () => {
+    const root = await seed(traceback)
+    const brief = stageBriefing(stageOf('code'), new Map(), false, await priorRuntimeFindings(root, stageOf('code')))
+    expect(brief).toContain('NameError')
+    expect(brief).toContain('at_p_alt') // 栈里的"Did you mean"提示要带上，那是最省事的修法线索
+  })
+
+  it('**别的阶段不注入**（否则只是噪声）', async () => {
+    const root = await seed(traceback)
+    expect(await priorRuntimeFindings(root, stageOf('modeling'))).toEqual([])
+    expect(await priorRuntimeFindings(root, stageOf('result-sources'))).toEqual([])
+  })
+
+  it('没有回执 / 空回执 → 空数组，不阻断', async () => {
+    const clean = await mkdtemp(join(tmpdir(), 'dsh-runtime-'))
+    expect(await priorRuntimeFindings(clean, stageOf('code'))).toEqual([])
+    const empty = await seed('   \n')
+    expect(await priorRuntimeFindings(empty, stageOf('code'))).toEqual([])
   })
 })

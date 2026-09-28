@@ -1,76 +1,75 @@
 {
   "stage": "code",
-  "verdict": "pass",
-  "score": 0.85,
+  "verdict": "fail",
+  "score": 0.35,
   "structureOk": true,
   "requirementCompliance": [
     {
-      "item": "code/main.py 存在，py 且 ≥500 字节，为编排入口依次运行各问并汇总",
+      "item": "code/main.py（py，≥500 字节）存在并具备四问顺序编排结构",
       "done": true,
-      "note": "code/main.py 2832 字节；import problem1..4，用 step() 依次调用后落盘 problem1-4.json / outputs.json / run_log.json"
+      "note": "文件实际为 5964 字节，PROBLEM_MODULES 按 problem1、problem2、problem3、problem4 循环调用并汇总。"
     },
     {
-      "item": "code/ 下有逐问实现 problem*.py，文件数 ≥ 题面问数 4",
+      "item": "code/ 中提供逐问 problem*.py，文件数不少于题面问数",
       "done": true,
-      "note": "problem1.py/problem2.py/problem3.py/problem4.py 共 4 个，另有 params.py 与 main.py；code_parity 门禁通过"
+      "note": "problem1.py、problem2.py、problem3.py、problem4.py 四个逐问实现文件均存在，且被 main.py 调度。"
     },
     {
-      "item": "RESULTS.md 存在，md 且 ≥1024 字节",
+      "item": "RESULTS.md（md，≥1024 字节）提供结果说明",
       "done": true,
-      "note": "9551 字节；按问题 1-4 分节写算法、核验证据、归因与诚实边界，正文不写结果数值、只指向账本键"
+      "note": "RESULTS.md 实际为 10326 字节，包含四问方法、结果账本引用、核验项、情景边界和阻断说明。"
     },
     {
-      "item": "DELIVERABLES.json 存在，为含 kind/min_bytes/desc 的机器可校验产出清单",
+      "item": "DELIVERABLES.json（json）提供 kind/min_rows/min_bytes/desc 的机器可校验产出清单",
       "done": true,
-      "note": "15432 字节；files 数组每条带 path/kind/desc，部分带 min_bytes/produced_by，并含 ledger_keys 映射（ledger_keys_declared 通过）"
+      "note": "可见 artifacts 条目均包含 kind、min_rows、min_bytes、desc，目录、入口、逐问实现及结果文件均已登记。"
     },
     {
-      "item": "本阶段只写代码与结果说明，不写数源声明/图表声明/渲染代码，不产出图像字节",
+      "item": "本阶段只提供代码与结果说明，不写渲染代码、不产出图像字节",
       "done": true,
-      "note": "无 RESULT_SOURCES.json、无绘图库调用、无图像文件；no_render 门禁通过；RESULT_SOURCES/图表声明在 RESULTS.md §6 明确声明为未做之事"
+      "note": "交付中未见渲染模块或图像文件，且 no_render 机械门禁已通过。"
     },
     {
-      "item": "数字由真跑出来的代码产生，可被独立重算",
-      "done": true,
-      "note": "main.py 运行期把四问结果写成 code/*.json；params.py 只承载常数，问题脚本函数体内无裸结果数字；numbers_traced 通过"
+      "item": "四问数字由真跑代码产生并完成汇总",
+      "done": false,
+      "note": "当前 Q2 参数注册结构与 problem2、problem4 的适配器不兼容，入口无法完成四问真跑，不能把现有结果文件作为本次运行的可靠凭证。"
     },
     {
-      "item": "题面给定值逐条登记且与 PROBLEM_FACTS.json 取值一致",
-      "done": true,
-      "note": "逐项比对：NOMINAL_P=0.10、CASE_PARAMS 六情况全字段、Q3_PARTS 8 件、Q3_SEMIS 三件、Q3_PRODUCT、Q3_PRICE(s=200,l=40) 均与 FACT 一致"
-    },
-    {
-      "item": "题面四个子问题逐问实现，问题 4 按题面要求同时重做问题 2 与问题 3",
-      "done": true,
-      "note": "problem4.run_q2 覆盖表 1 六情况，problem4.run_q3 复用 problem3 节点级递推重解装配树；与题面『重新完成问题2和问题3』相符"
-    },
-    {
-      "item": "关键成本参数实际进入目标函数/约束",
-      "done": true,
-      "note": "problem2.evaluate 与 problem3.eval_node 中 p/a/c/A/c0/t/l/s 均出现：调换损失以 (1-q)(1-C)l 计入、拆解 D·t、成品检测 C·c0，无『登记却不用』的成本项"
+      "item": "题面给定参数进入实际计算、目标函数或判定条件，而非仅在参数表中登记",
+      "done": false,
+      "note": "Q2 的 price1、test1、price2、test2 在可见适配路径中无法读取；问题三的正式父节点边表也未进入正式模型。"
     }
   ],
   "findings": [
     {
-      "severity": "minor",
-      "where": "code/params.py (CONF_REJECT/CONF_ACCEPT) + code/problem1.py",
-      "issue": "题面给定值 F-CONF-REJECT=0.95 / F-CONF-ACCEPT=0.90 登记为具名常量，但全 code/ 内从未被引用；problem1.py 直接用另行写死的 ALPHA1=0.05、ALPHA2=0.10。数值等价（1-0.95=0.05、1-0.90=0.10），结论不受影响，故非致命；但题面常量的具名声明处于死参数状态，改 CONF_* 而不同步 ALPHA 会静默分叉。",
-      "fix": "改为派生：ALPHA1 = 1 - CONF_REJECT，ALPHA2 = 1 - CONF_ACCEPT；或删除未被引用的 CONF_REJECT/CONF_ACCEPT。"
+      "severity": "fatal",
+      "where": "code/params.py 的 Q2Case/Q2_CASES；code/problem2.py 的 _parse_case/load_cases；code/problem4.py 的 _normalize_q2_case",
+      "issue": "按当前可见定义，Q2_CASES 中的 Q2Case 是扁平 dataclass，成本字段名为 price1、test1、price2、test2。problem2._parse_case 对这些字段只查找 a1、t1、a2、t2 或嵌套的 part1、part2，忽略实际字段名；load_cases 又直接把 Q2_CASES 传入，因此首个案例在解析零件成本时即会抛出 KeyError。problem4._normalize_q2_case 对同一扁平案例也遗漏这些字段。零配件购买单价和检测成本因而没有进入问题二、问题四的计算路径。",
+      "fix": "统一 Q2 参数模式：在两个适配器中显式接受 price1/test1/price2/test2，或将 Q2_CASES 规范化为适配器期待的嵌套结构；清空旧输出后从 main.py 重新运行，并增加六种情形的回归测试和四问成功汇总断言。"
+    },
+    {
+      "severity": "fatal",
+      "where": "code/problem4.py 的 _q2_build_mrp 与 _q2_mrp_value",
+      "issue": "可见状态转移模型没有终止或吸收的交付状态。合格销售分支调用 add(index, state, good_probability, ...)，成功销售后仍回到同一零配件状态；因此转移矩阵含有可达闭合类，随后直接对 I-P 调用 np.linalg.solve 和 np.linalg.inv。该矩阵是随机的，I-P 数学上奇异，不能给出有限的单位合格交付价值，结果会报奇异或产生数值失真。",
+      "fix": "增加明确的吸收交付状态，或改用严格的单次生产周期/更新方程；每次求解后检查转移矩阵谱半径、单位期望成本和逐事件账本残差，确保闭环模型具有有限且可复核的值。"
+    },
+    {
+      "severity": "major",
+      "where": "code/problem3.py 的 build_network；code/params.py 的 Q3_OFFICIAL_EDGE_LIST 与情景拓扑；RESULTS.md 的问题三部分",
+      "issue": "题面事实表只确认二道工序、八个零配件，没有提供图1的父节点边表；代码也明确将 Q3_OFFICIAL_EDGE_LIST 设为 None，并把正式问题三及问题四中的问题三重解标为阻断。当前网络实现还明确只接受零配件层、半成品层和成品根节点的两级 DAG，不能覆盖题面所说的任意 m 道工序。因此 3/3/2 和 2/2/4 只能作为隔离的条件情景，不能构成图1的正式决策或指标结果。",
+      "fix": "补充原图1或经核验的唯一父节点边表，并将正式拓扑映射到节点编号；扩展网络引擎以支持一般 m,n 的 DAG，再重新运行问题三及问题四的问题三重解。条件拓扑结果必须继续与正式结果隔离。"
     },
     {
       "severity": "minor",
-      "where": "code/params.py",
-      "issue": "若干已声明常数在 code/ 内无任何引用：Q3_TOPOLOGY（实际用 Q3_TOPOLOGY_VARIANTS[0]）、MC_REPS（实际用 Q4_RESAMPLE）、MC_SEED（实际用 RANDOM_SEED）、SENS_AMPLITUDE、BREAKEVEN_GRID_POINTS、CONF_GRID（=CONFIDENCE_GRID 别名）。它们使『常数齐备』的观感变好，却不进入任何公式或判定条件。",
-      "fix": "删除未引用项，或接入相应计算；若确为下游阶段备用，请在注释显式标注『仅供下游引用、本阶段不参与计算』，以免被误读为已生效参数。"
-    },
-    {
-      "severity": "minor",
-      "where": "code/params.py",
-      "issue": "同一量以两个名字重复登记：Q3_TOPOLOGY 与 Q3_TOPOLOGY_VARIANTS[0] 编码同一拓扑；MC_REPS 与 Q4_RESAMPLE（现均为 10000）；RANDOM_SEED 与 MC_SEED。重复登记存在两值分叉后无人察觉的风险。",
-      "fix": "统一为单一来源：Q3_TOPOLOGY 由 Q3_TOPOLOGY_VARIANTS[0] 派生，MC_REPS 与 Q4_RESAMPLE 合并为一个键，MC_SEED 直接指向 RANDOM_SEED。"
+      "where": "code/params.py 的 Q4_ACTUAL_SAMPLES_AVAILABLE=False；RESULTS.md 的问题四部分",
+      "issue": "问题四没有企业实际批次的 (n_v,x_v) 观测，代码按登记的情景次品率生成样本后再做 Clopper–Pearson 区间和重优化。产物已明确标注为情景分析，因此没有把情景中心冒充真实估计，但它不能被表述为基于实际抽样观测的完整重解。",
+      "fix": "若交付要求实测重解，应提供并保存每个参数的观测计数后重新计算；若接受假设情景，则在下游所有结果中保留 scenario-only 标识和解释边界。"
     }
   ],
-  "missing": [],
-  "model": "glm-5.3-flash-free",
-  "at": "2026-09-27T00:50:35.542Z"
+  "missing": [
+    "修复 Q2 参数适配及 Q4 状态方程后，由 main.py 真跑新生成并通过四问验证的 outputs.json 与汇总结果。",
+    "问题三图1的正式父节点边表或原始图的可唯一校验映射，以及据此生成的正式问题三、问题四中问题三的决策和指标结果。"
+  ],
+  "model": "space-bunny-free",
+  "at": "2026-09-28T16:58:37.200Z"
 }

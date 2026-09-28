@@ -1,98 +1,174 @@
-"""阶段 03 编排入口：依次跑问题 1/2/3/4，把每个要用的量写成 JSON 文件。
+"""阶段 3 编排入口：按问题顺序执行求解器并汇总 JSON 结果。"""
 
-运行：在 code/ 目录下执行 `python main.py`。
-产物：problem1.json / problem2.json / problem3.json / problem4.json /
-      outputs.json（汇总）/ run_log.json
-"""
+from __future__ import annotations
 
+import dataclasses
+import importlib
 import json
-import os
-import time
-import traceback
+import math
+from collections.abc import Mapping, Sequence, Set
+from datetime import date, datetime
+from decimal import Decimal
+from enum import Enum
+from pathlib import Path
+from typing import Any
 
-import params as P
-import problem1
-import problem2
-import problem3
-import problem4
-
-WORK_DIR = os.path.dirname(os.path.abspath(__file__))
+import params
 
 
-def _save(name, obj):
-    path = os.path.join(WORK_DIR, name)
-    with open(path, 'w', encoding='utf-8') as f:
-        json.dump(obj, f, ensure_ascii=False, indent=2)
-    return path
+BASE_DIR = Path(__file__).resolve().parent
+PROBLEM_MODULES = ("problem1", "problem2", "problem3", "problem4")
+ENTRYPOINT_NAMES = ("solve", "run", "main")
+PARAMETER_NAMESPACE = dict(vars(params))
 
 
-def _to_jsonable(o):
-    if isinstance(o, dict):
-        return {str(k): _to_jsonable(v) for k, v in o.items()}
-    if isinstance(o, (list, tuple)):
-        return [_to_jsonable(v) for v in o]
-    if hasattr(o, 'item'):
-        try:
-            return o.item()
-        except Exception:
-            pass
-    return o
+class Stage3ExecutionError(RuntimeError):
+    """Raised when a problem solver does not produce a usable result."""
 
 
-def main():
-    t0 = time.time()
-    log = {'stage': '03-code', 'steps': []}
-
-    def step(name, fn):
-        s = time.time()
-        try:
-            res = fn()
-            log['steps'].append({'name': name, 'ok': True,
-                                 'elapsed_sec': round(time.time() - s, 3)})
-            return res
-        except Exception as exc:
-            log['steps'].append({'name': name, 'ok': False,
-                                 'error': repr(exc),
-                                 'trace': traceback.format_exc(),
-                                 'elapsed_sec': round(time.time() - s, 3)})
-            raise
-
-    p1 = step('problem1', problem1.run)
-    _save('problem1.json', _to_jsonable(p1))
-
-    p2 = step('problem2', problem2.run)
-    _save('problem2.json', _to_jsonable(p2))
-
-    p3 = step('problem3', problem3.run)
-    _save('problem3.json', _to_jsonable(p3))
-
-    p4 = step('problem4', lambda: problem4.run(p1, p2, p3))
-    _save('problem4.json', _to_jsonable(p4))
-
-    outputs = {
-        'meta': {
-            'stage': '03-code',
-            'ok_all': True,
-            'elapsed_sec': round(time.time() - t0, 3),
-            'seed': P.RANDOM_SEED,
-            'files': ['problem1.json', 'problem2.json',
-                      'problem3.json', 'problem4.json'],
-            'sampling_unit_cost_note': P.SAMPLING_UNIT_COST_NOTE,
-        },
-        'problem1': _to_jsonable(p1),
-        'problem2': _to_jsonable(p2),
-        'problem3': _to_jsonable(p3),
-        'problem4': _to_jsonable(p4),
-    }
-    _save('outputs.json', outputs)
-
-    log['ok_all'] = True
-    log['elapsed_sec'] = round(time.time() - t0, 3)
-    _save('run_log.json', log)
-
-    print(json.dumps({'ok_all': True, 'elapsed_sec': log['elapsed_sec'],
-                      'files': outputs['meta']['files']}, ensure_ascii=False))
+def _jsonable(value: Any) -> Any:
+    """Convert numerical-library objects to strict JSON-compatible values."""
+    if value is None or isinstance(value, (bool, int, str)):
+        return value
+    if isinstance(value, float):
+        if math.isnan(value):
+            return "NaN"
+        if math.isinf(value):
+            return "Infinity" if value > 0 else "-Infinity"
+        return value
+    if isinstance(value, Decimal):
+        return _jsonable(float(value))
+    if isinstance(value, Enum):
+        return _jsonable(value.value)
+    if isinstance(value, (Path, date, datetime)):
+        return str(value)
+    if dataclasses.is_dataclass(value) and not isinstance(value, type):
+        return _jsonable(dataclasses.asdict(value))
+    if isinstance(value, Mapping):
+        return {str(key): _jsonable(item) for key, item in value.items()}
+    if hasattr(value, "to_dict") and callable(value.to_dict):
+        return _jsonable(value.to_dict())
+    if hasattr(value, "tolist") and callable(value.tolist):
+        return _jsonable(value.tolist())
+    if hasattr(value, "item") and callable(value.item):
+        return _jsonable(value.item())
+    if isinstance(value, Sequence) and not isinstance(value, (str, bytes, bytearray)):
+        return [_jsonable(item) for item in value]
+    if isinstance(value, Set):
+        return [_jsonable(item) for item in sorted(value, key=repr)]
+    if hasattr(value, "__dict__"):
+        return {
+            str(key): _jsonable(item)
+            for key, item in vars(value).items()
+            if not str(key).startswith("_")
+        }
+    return str(value)
 
 
-if __name__ == '__main__':
+def _read_json(path: Path) -> dict[str, Any]:
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise Stage3ExecutionError(f"Cannot read solver output {path.name}: {exc}") from exc
+    if not isinstance(payload, Mapping):
+        raise Stage3ExecutionError(f"Solver output {path.name} is not a JSON object")
+    result = dict(payload)
+    if set(result) == {"outputs"} and isinstance(result["outputs"], Mapping):
+        result = dict(result["outputs"])
+    return result
+
+
+def _fallback_result_path(stem: str) -> Path | None:
+    filenames = (
+        f"{stem}_outputs.json",
+        f"{stem}_output.json",
+        f"{stem}_results.json",
+        f"outputs_{stem}.json",
+        f"{stem}.json",
+    )
+    for filename in filenames:
+        candidate = BASE_DIR / filename
+        if candidate.is_file() and candidate.stat().st_size:
+            return candidate
+    return None
+
+
+def _normalise_solver_output(stem: str, result: Any) -> dict[str, Any]:
+    if isinstance(result, (str, Path)):
+        path = Path(result)
+        if not path.is_absolute():
+            path = BASE_DIR / path
+        return _read_json(path)
+    if result is None:
+        path = _fallback_result_path(stem)
+        if path is not None:
+            return _read_json(path)
+        raise Stage3ExecutionError(
+            f"{stem} returned no mapping and wrote no recognized JSON result"
+        )
+    if isinstance(result, Mapping):
+        output = dict(result)
+        if set(output) == {"outputs"} and isinstance(output["outputs"], Mapping):
+            output = dict(output["outputs"])
+        if not output:
+            raise Stage3ExecutionError(f"{stem} returned an empty result")
+        return output
+    raise Stage3ExecutionError(
+        f"{stem} returned unsupported result type {type(result).__name__}"
+    )
+
+
+def _invoke_problem(stem: str) -> dict[str, Any]:
+    module = importlib.import_module(stem)
+    entrypoint = None
+    for name in ENTRYPOINT_NAMES:
+        candidate = getattr(module, name, None)
+        if callable(candidate):
+            entrypoint = candidate
+            break
+    if entrypoint is None:
+        available = ", ".join(ENTRYPOINT_NAMES)
+        raise Stage3ExecutionError(f"{stem} exposes none of: {available}")
+    return _normalise_solver_output(stem, entrypoint())
+
+
+def _write_outputs(path: Path, payload: Mapping[str, Any]) -> None:
+    serialised = json.dumps(
+        _jsonable(payload),
+        ensure_ascii=False,
+        indent=2,
+        allow_nan=False,
+    )
+    temporary = path.with_name(path.name + ".tmp")
+    temporary.write_text(serialised + "\n", encoding="utf-8")
+    temporary.replace(path)
+
+
+def run_all(output_name: str = "outputs.json") -> Path:
+    """Run all four problem solvers synchronously and persist their results."""
+    if not PARAMETER_NAMESPACE:
+        raise Stage3ExecutionError("params.py exposes no registered parameters")
+
+    aggregated: dict[str, Any] = {}
+    for stem in PROBLEM_MODULES:
+        aggregated[stem] = _invoke_problem(stem)
+
+    expected = set(PROBLEM_MODULES)
+    actual = set(aggregated)
+    if actual != expected:
+        missing = ", ".join(sorted(expected - actual)) or "none"
+        extra = ", ".join(sorted(actual - expected)) or "none"
+        raise Stage3ExecutionError(f"Question parity failed; missing={missing}; extra={extra}")
+
+    output_path = BASE_DIR / output_name
+    _write_outputs(output_path, aggregated)
+    return output_path
+
+
+def main() -> None:
+    output_path = run_all()
+    print(f"Stage 3 results written to {output_path.name}")
+
+
+if __name__ == "__main__":
     main()
