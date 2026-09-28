@@ -1,72 +1,25 @@
 ===== 第 1 次 --stage-next =====
 [STAGE CHAIN] artifacts\upper-bound\2024B-ingest-1\stages
   题面问数（数出来的）：4
-[STAGE NEXT] 只跑了 'modeling'，到此即停。检查 artifacts\upper-bound\2024B-ingest-1\stages 后，放行 = 再执行一次 --stages --stage-next。
-  ❌ modeling: 阶段产出未通过形态检查：模型请求失败（已重试 8 次）：fetch failed（底层原因：fetch failed ← Headers Timeout Error code=UND_ERR_HEADERS_TIMEOUT）
+  [deterministic] code: 分片 1/8 交付 code/main.py
+  [deterministic] code: 分片 2/8 交付 code/params.py
+  [deterministic] code: 分片 3/8 交付 code/problem1.py
+  [deterministic] code: 分片 4/8 交付 code/problem2.py
+  [deterministic] code: 回答未正常结束（阶段 'code' 的回答被 max-tokens 截断 —— 这不是"写错了哪里"，是产出超过了单次调用的输出上限；分），改为"压缩"请求重问一次
+  [deterministic] code: 分片 5/8 交付 code/problem3.py
+  [deterministic] code: 回答未正常结束（阶段 'code' 的回答被 max-tokens 截断 —— 这不是"写错了哪里"，是产出超过了单次调用的输出上限；分），改为"压缩"请求重问一次
+  [deterministic] code: 分片 6/8 交付 code/problem4.py
+  [deterministic] code: 分片 7/8 交付 RESULTS.md
+  [deterministic] code: 分片 8/8 交付 DELIVERABLES.json
+[STAGE NEXT] 只跑了 'code'，到此即停。检查 artifacts\upper-bound\2024B-ingest-1\stages 后，放行 = 再执行一次 --stages --stage-next。
+  🟡 code: 门禁通过但**逐节点审计没跑成**（审计调用未正常结束（finish=max-tokens）—— 本阶段未被审计）——按 `2 ≠ 0` 的纪律记在通行证上，本阶段不能计入 CLEAN。
 
-STAGE CHAIN FAILED — 1 个阶段没通过（产物与通行证在 artifacts\upper-bound\2024B-ingest-1\stages）。
+STAGE CHAIN OK — 1 个阶段签发通行证（其中 1 个带未判定门禁，缺口已记在 PASSED 上）。产物在 artifacts\upper-bound\2024B-ingest-1\stages
 ===== 第 2 次 --stage-next =====
 [STAGE CHAIN] artifacts\upper-bound\2024B-ingest-1\stages
   题面问数（数出来的）：4
-  [deterministic] code: 分片 1/7 交付 code/main.py
-[provider] 传输失败第 1 次（5s 后重试）：fetch failed（底层原因：fetch failed ← Headers Timeout Error code=UND_ERR_HEADERS_TIMEOUT）
-  [deterministic] code: 分片 2/7 交付 code/params.py
-  [deterministic] code: 分片 3/7 交付 code/problem1.py
-[provider] 传输失败第 1 次（5s 后重试）：fetch failed（底层原因：fetch failed ← Headers Timeout Error code=UND_ERR_HEADERS_TIMEOUT）
-[provider] 传输失败第 2 次（10s 后重试）：fetch failed（底层原因：fetch failed ← Headers Timeout Error code=UND_ERR_HEADERS_TIMEOUT）
-[provider] 传输失败第 3 次（20s 后重试）：fetch failed（底层原因：fetch failed ← Headers Timeout Error code=UND_ERR_HEADERS_TIMEOUT）
-[provider] 传输失败第 4 次（40s 后重试）：fetch failed（底层原因：fetch failed ← Headers Timeout Error code=UND_ERR_HEADERS_TIMEOUT）
-[provider] 传输失败第 5 次（80s 后重试）：fetch failed（底层原因：fetch failed ← Headers Timeout Error code=UND_ERR_HEADERS_TIMEOUT）
-[provider] 传输失败第 6 次（160s 后重试）：fetch failed（底层原因：fetch failed ← Headers Timeout Error code=UND_ERR_HEADERS_TIMEOUT）
-[provider] 传输失败第 7 次（320s 后重试）：fetch failed（底层原因：fetch failed ← Headers Timeout Error code=UND_ERR_HEADERS_TIMEOUT）
-[provider] 传输失败第 1 次（5s 后重试）：fetch failed（底层原因：fetch failed ← Headers Timeout Error code=UND_ERR_HEADERS_TIMEOUT）
-[provider] 传输失败第 2 次（10s 后重试）：fetch failed（底层原因：fetch failed ← Headers Timeout Error code=UND_ERR_HEADERS_TIMEOUT）
-[provider] 传输失败第 3 次（20s 后重试）：fetch failed（底层原因：fetch failed ← Headers Timeout Error code=UND_ERR_HEADERS_TIMEOUT）
-[provider] 传输失败第 4 次（40s 后重试）：fetch failed（底层原因：fetch failed ← Headers Timeout Error code=UND_ERR_HEADERS_TIMEOUT）
-[provider] 传输失败第 6 次（160s 后重试）：fetch failed（底层原因：fetch failed ← Headers Timeout Error code=UND_ERR_HEADERS_TIMEOUT）
-[provider] 传输失败第 7 次（320s 后重试）：fetch failed（底层原因：fetch failed ← Headers Timeout Error code=UND_ERR_HEADERS_TIMEOUT）
-[provider] 传输失败第 2 次（10s 后重试）：fetch failed（底层原因：fetch failed ← Headers Timeout Error code=UND_ERR_HEADERS_TIMEOUT）
-[provider] 传输失败第 3 次（20s 后重试）：fetch failed（底层原因：fetch failed ← Headers Timeout Error code=UND_ERR_HEADERS_TIMEOUT）
-  [deterministic] code: 分片 4/7 交付 code/problem2.py
-[provider] 传输失败第 1 次（5s 后重试）：fetch failed（底层原因：fetch failed ← Headers Timeout Error code=UND_ERR_HEADERS_TIMEOUT）
-[provider] 传输失败第 2 次（10s 后重试）：fetch failed（底层原因：fetch failed ← Connect Timeout Error (attempted addresses: 2606:4700:78::90:0:142:443, 172.65.90.23:443, 2606:4700:78::90:0:140:443, 172.65.90.22:443, 2606:4700:78::90:0:143:443, 172.65.90.21:443, 2606:4700:78::90:0:141:443, 172.65.90.20:443, timeout: 10000ms) code=UND_ERR_CONNECT_TIMEOUT）
-[provider] 传输失败第 3 次（20s 后重试）：fetch failed（底层原因：fetch failed ← Headers Timeout Error code=UND_ERR_HEADERS_TIMEOUT）
-[provider] 传输失败第 4 次（40s 后重试）：fetch failed（底层原因：fetch failed ← Headers Timeout Error code=UND_ERR_HEADERS_TIMEOUT）
-[provider] 传输失败第 5 次（80s 后重试）：fetch failed（底层原因：fetch failed ← Headers Timeout Error code=UND_ERR_HEADERS_TIMEOUT）
-[provider] 传输失败第 6 次（160s 后重试）：fetch failed（底层原因：fetch failed ← Headers Timeout Error code=UND_ERR_HEADERS_TIMEOUT）
-[provider] 传输失败第 7 次（320s 后重试）：fetch failed（底层原因：fetch failed ← Headers Timeout Error code=UND_ERR_HEADERS_TIMEOUT）
-[provider] 传输失败第 1 次（5s 后重试）：fetch failed（底层原因：fetch failed ← Headers Timeout Error code=UND_ERR_HEADERS_TIMEOUT）
-[provider] 传输失败第 2 次（10s 后重试）：fetch failed（底层原因：fetch failed ← Headers Timeout Error code=UND_ERR_HEADERS_TIMEOUT）
-[provider] 传输失败第 3 次（20s 后重试）：fetch failed（底层原因：fetch failed ← Headers Timeout Error code=UND_ERR_HEADERS_TIMEOUT）
-[provider] 传输失败第 4 次（40s 后重试）：fetch failed（底层原因：fetch failed ← Headers Timeout Error code=UND_ERR_HEADERS_TIMEOUT）
-[provider] 传输失败第 5 次（80s 后重试）：fetch failed（底层原因：fetch failed ← Headers Timeout Error code=UND_ERR_HEADERS_TIMEOUT）
-[provider] 传输失败第 6 次（160s 后重试）：fetch failed（底层原因：fetch failed ← Headers Timeout Error code=UND_ERR_HEADERS_TIMEOUT）
-[provider] 传输失败第 7 次（320s 后重试）：fetch failed（底层原因：fetch failed ← Headers Timeout Error code=UND_ERR_HEADERS_TIMEOUT）
-[provider] 传输失败第 1 次（5s 后重试）：fetch failed（底层原因：fetch failed ← Headers Timeout Error code=UND_ERR_HEADERS_TIMEOUT）
-  [deterministic] code: 分片 5/7 交付 code/problem3.py
-[provider] 传输失败第 1 次（5s 后重试）：fetch failed（底层原因：fetch failed ← Headers Timeout Error code=UND_ERR_HEADERS_TIMEOUT）
-[provider] 传输失败第 2 次（10s 后重试）：fetch failed（底层原因：fetch failed ← Headers Timeout Error code=UND_ERR_HEADERS_TIMEOUT）
-[provider] 传输失败第 3 次（20s 后重试）：fetch failed（底层原因：fetch failed ← Headers Timeout Error code=UND_ERR_HEADERS_TIMEOUT）
-[provider] 传输失败第 4 次（40s 后重试）：fetch failed（底层原因：fetch failed ← Headers Timeout Error code=UND_ERR_HEADERS_TIMEOUT）
-[provider] 传输失败第 5 次（80s 后重试）：fetch failed（底层原因：fetch failed ← Headers Timeout Error code=UND_ERR_HEADERS_TIMEOUT）
-[provider] 传输失败第 6 次（160s 后重试）：fetch failed（底层原因：fetch failed ← Headers Timeout Error code=UND_ERR_HEADERS_TIMEOUT）
-[provider] 传输失败第 7 次（320s 后重试）：fetch failed（底层原因：fetch failed ← Headers Timeout Error code=UND_ERR_HEADERS_TIMEOUT）
-[provider] 传输失败第 1 次（5s 后重试）：fetch failed（底层原因：fetch failed ← Headers Timeout Error code=UND_ERR_HEADERS_TIMEOUT）
-[provider] 传输失败第 2 次（10s 后重试）：fetch failed（底层原因：fetch failed ← Headers Timeout Error code=UND_ERR_HEADERS_TIMEOUT）
-[provider] 传输失败第 3 次（20s 后重试）：fetch failed（底层原因：fetch failed ← Headers Timeout Error code=UND_ERR_HEADERS_TIMEOUT）
-[provider] 传输失败第 4 次（40s 后重试）：fetch failed（底层原因：fetch failed ← Headers Timeout Error code=UND_ERR_HEADERS_TIMEOUT）
-[provider] 传输失败第 5 次（80s 后重试）：fetch failed（底层原因：fetch failed ← Headers Timeout Error code=UND_ERR_HEADERS_TIMEOUT）
-[provider] 传输失败第 6 次（160s 后重试）：fetch failed（底层原因：fetch failed ← Headers Timeout Error code=UND_ERR_HEADERS_TIMEOUT）
-[provider] 传输失败第 7 次（320s 后重试）：fetch failed（底层原因：fetch failed ← Headers Timeout Error code=UND_ERR_HEADERS_TIMEOUT）
-[provider] 传输失败第 1 次（5s 后重试）：fetch failed（底层原因：fetch failed ← Headers Timeout Error code=UND_ERR_HEADERS_TIMEOUT）
-[provider] 传输失败第 2 次（10s 后重试）：fetch failed（底层原因：fetch failed ← Headers Timeout Error code=UND_ERR_HEADERS_TIMEOUT）
-[provider] 传输失败第 3 次（20s 后重试）：fetch failed（底层原因：fetch failed ← Headers Timeout Error code=UND_ERR_HEADERS_TIMEOUT）
-[provider] 传输失败第 4 次（40s 后重试）：fetch failed（底层原因：fetch failed ← Headers Timeout Error code=UND_ERR_HEADERS_TIMEOUT）
-[provider] 传输失败第 5 次（80s 后重试）：fetch failed（底层原因：fetch failed ← Headers Timeout Error code=UND_ERR_HEADERS_TIMEOUT）
-[provider] 传输失败第 6 次（160s 后重试）：fetch failed（底层原因：fetch failed ← Headers Timeout Error code=UND_ERR_HEADERS_TIMEOUT）
-[provider] 传输失败第 7 次（320s 后重试）：fetch failed（底层原因：fetch failed ← Headers Timeout Error code=UND_ERR_HEADERS_TIMEOUT）
-[STAGE NEXT] 只跑了 'code'，到此即停。检查 artifacts\upper-bound\2024B-ingest-1\stages 后，放行 = 再执行一次 --stages --stage-next。
-  ❌ code: 阶段产出未通过形态检查：模型请求失败（已重试 8 次）：fetch failed（底层原因：fetch failed ← Headers Timeout Error code=UND_ERR_HEADERS_TIMEOUT）
+[STAGE NEXT] 只跑了 'result-sources'，到此即停。检查 artifacts\upper-bound\2024B-ingest-1\stages 后，放行 = 再执行一次 --stages --stage-next。
+  ❌ result-sources: 阶段产出未通过形态检查：code/main.py 退出码 1（非 0）—— stderr 末尾：  File "D:\deepseek modex\deepseek-harness\artifacts\upper-bound\2024B-ingest-1\stages\03-code\code\problem1.py", line 61, in _parameter /     raise ValueError(f"params 中缺少问题一常量：{', '.join(names)}") / ValueError: params 中缺少问题一常量：Q1_ALTERN（完整栈已写回阶段 3：_runtime-failure.txt）（原始回答已留档：_rejected-answer.txt）
 
 STAGE CHAIN FAILED — 1 个阶段没通过（产物与通行证在 artifacts\upper-bound\2024B-ingest-1\stages）。
 ===== 第 3 次 --stage-next =====
@@ -167,4 +120,4 @@ STAGE CHAIN FAILED — 1 个阶段没通过（产物与通行证在 artifacts\up
   ❌ result-sources: 阶段产出未通过形态检查：code/main.py 退出码 1（非 0）—— stderr 末尾：  File "D:\deepseek modex\deepseek-harness\artifacts\upper-bound\2024B-ingest-1\stages\03-code\code\problem1.py", line 61, in _parameter /     raise ValueError(f"params 中缺少问题一常量：{', '.join(names)}") / ValueError: params 中缺少问题一常量：Q1_ALTERN（完整栈已写回阶段 3：_runtime-failure.txt）（原始回答已留档：_rejected-answer.txt）
 
 STAGE CHAIN FAILED — 1 个阶段没通过（产物与通行证在 artifacts\upper-bound\2024B-ingest-1\stages）。
-artifacts/upper-bound/2024B-ingest-1/run-7-to-13.sh: line 24: unexpected EOF while looking for matching `"'
+===== LOOP DONE =====

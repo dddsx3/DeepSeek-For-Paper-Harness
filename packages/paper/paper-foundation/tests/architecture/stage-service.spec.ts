@@ -414,3 +414,41 @@ describe('阶段 2 分片 —— 后续片看得见前面的产出（分片换�
     expect(p).toContain('checklist_refs')
   }, 120_000)
 })
+
+/**
+ * **阶段 3 的分片同样要看得见前面的产出** —— 阶段 2 早就补了，阶段 3 漏了。
+ *
+ * 实测代价：`problem1.py` 用了 `params.py` 里并不存在的常量名（`Q1_ALTERN`），
+ * 代码在阶段 4 真跑时报 `ValueError: params 中缺少问题一常量：Q1_ALTERN`。
+ * 分片把"一次调用"拆成"八次独立调用"，于是**各文件之间对不上名字**——
+ * 而它们本该是一套东西（`params.py` 是所有脚本 `from params import *` 的共享契约）。
+ *
+ * 与阶段 2 那条同类，但机制不同：阶段 3 是**有选择地**带（`params.py` / `main.py` 总是带，
+ * 再加紧邻前一片，总量封顶 30KB），因为全量内联会把本就 58KB 的请求体顶到 100KB+。
+ */
+describe('阶段 3 分片 —— 后续片看得见 params.py 与紧邻前一片', () => {
+  it('写 problem2.py 那一片的 prompt 里带着 params.py 的产出与"必须与之保持一致"', async () => {
+    // **必须给 problemCount**：夹具没写 00-input，问数为 0 时阶段 3 会走
+    // "单片信封"回退（`planCodeShards` 的 problemCount<=0 分支），没有"后续片"可言，
+    // 这条机制就测不到（第一版就是这么白跑的）。
+    const { ctx, prompts } = await harness({ pauseAfter: ['code'], problemCount: 2 })
+    await ctx.paperStageChain.runUntilPause()
+    const p2 = prompts.filter(p => p.includes('只产出 `code/problem2.py`'))
+    expect(p2.length).toBeGreaterThan(0)
+    const p = p2[0] ?? ''
+    expect(p).toContain('本阶段**已产出**的文件')
+    expect(p).toContain('必须与之保持一致')
+    // `params.py` 总是带（共享契约）：夹具里它的内容是 `params.py 的内容` 前缀
+    expect(p).toContain('code/params.py')
+    // 紧邻前一片（problem1.py）也在
+    expect(p).toContain('code/problem1.py')
+  }, 180_000)
+
+  it('**第一片不带**（此时还没有"已产出"的东西）', async () => {
+    const { ctx, prompts } = await harness({ pauseAfter: ['code'], problemCount: 2 })
+    await ctx.paperStageChain.runUntilPause()
+    const p1 = prompts.filter(p => p.includes('只产出 `code/main.py`'))
+    expect(p1.length).toBeGreaterThan(0)
+    expect(p1[0] ?? '').not.toContain('本阶段**已产出**的文件')
+  }, 180_000)
+})

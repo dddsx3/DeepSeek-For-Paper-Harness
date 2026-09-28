@@ -1,14 +1,14 @@
 <!-- 阶段 4 真跑 code/main.py 失败（退出码 1）；这不是数源声明的问题，是阶段 3 交的代码跑不起来。修完代码再放行。 -->
 
     ~~~~~~~~~~^
-        (
-        ^
-    ...<9 lines>...
-        exclude=("grid", "sensitivity", "sensitivitygrid"),
-        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        "Q1_ALTERNATIVE_DELTA",
+        ^^^^^^^^^^^^^^^^^^^^^^^
+    ...<2 lines>...
+        "Q1可识别超标幅度",
+        ^^^^^^^^^^^^^^^^^^^
     )
     ^
-  File "D:\deepseek modex\deepseek-harness\artifacts\upper-bound\2024B-ingest-1\stages\03-code\code\problem1.py", line 66, in _parameter
-    raise AttributeError(f"params 中缺少问题一常量：{joined}")
-AttributeError: params 中缺少问题一常量：Q1_NOMINAL_DEFECT_RATE, Q1_NOMINAL_RATE, Q1_NOMINAL, Q1_P0, P0, Q1标称次品率, 标称次品率
+  File "D:\deepseek modex\deepseek-harness\artifacts\upper-bound\2024B-ingest-1\stages\03-code\code\problem1.py", line 61, in _parameter
+    raise ValueError(f"params 中缺少问题一常量：{', '.join(names)}")
+ValueError: params 中缺少问题一常量：Q1_ALTERNATIVE_DELTA, Q1_DELTA, Q1_POWER_DELTA, Q1可识别超标幅度
 
