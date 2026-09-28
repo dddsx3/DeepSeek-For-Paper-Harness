@@ -1,76 +1,61 @@
 {
   "stage": "modeling",
-  "verdict": "pass",
-  "score": 0.9,
+  "verdict": "fail",
+  "score": 0.64,
   "structureOk": true,
   "requirementCompliance": [
     {
-      "item": "产出 DECLARATION.json（IR：Symbol/Assumption/Equation/ModelSpec）",
+      "item": "2a 独立交付仅声明 IR 条目的 DECLARATION.json",
       "done": true,
-      "note": "文件存在（28231B），四段齐备：symbols（~50 条）、assumptions（ASM-01..16）、equations（EQ-OC…EQ-Q4-ROBUST）、model_specs（MS-Q1/MS-Q2/MS-Q3/MS-Q4/MS-GLOBAL）"
+      "note": "DECLARATION.json 为独立 JSON，可见内容按 symbols、assumptions、equations 组织；完整文件大小为 42896 字节，静态产物边界与 2a 要求一致。"
     },
     {
-      "item": "产出 MODELING_REPORT.md（md，≥1500 字节）",
+      "item": "DECLARATION.json 声明 Symbol、Assumption、Equation、ModelSpec 四类 IR 条目",
       "done": true,
-      "note": "54258 字节，远超下限；含 §0 写作纪律、§1 逐问归因、§2 假设、§3 符号、§4 逐问模型、§5 检验方案、§6 灵敏度（后段被截断未内联，不判缺）"
+      "note": "可见部分已有完整符号表、18 条假设和方程表；其余被展示截断，按审计纪律不据未见内容判缺。"
     },
     {
-      "item": "两次调用分离（2a 仅 IR / 2b 仅富散文）",
+      "item": "2b 独立交付富散文 MODELING_REPORT.md",
       "done": true,
-      "note": "IR 落在 DECLARATION.json，散文落在 MODELING_REPORT.md，报告显式标注『02-modeling（分片 2b，富散文正文）』，未见单文件合成痕迹"
+      "note": "MODELING_REPORT.md 为独立 Markdown 报告，大小为 47166 字节，包含证据边界、假设、状态与量纲、方法比较、难点、现金流口径及四问模型说明。"
     },
     {
-      "item": "本阶段禁止写最终数值结论，须用结果锚点",
+      "item": "覆盖问题 1 至问题 4 并为题面给定事实建立模型落点",
       "done": true,
-      "note": "全文未出现算出来的数；报结果处一律为 {R-Q1-n-case95}/{R-Q2-case1-profit}/{R-Q3-decision-table}/{R-Q4-ci-part1} 等锚点；正文出现的具体数字仅为题面给定值（10%/95%/90%/56/200/拆解费6与10 等）或已登记常数"
+      "note": "报告显式映射 F-NOMINAL、F-CONF-REJECT、F-CONF-ACCEPT、六种表 1 情形及表 2 参数；采购、检测、装配、售价、调换和拆解参数均进入相应公式或事件账本，未发现仅登记不使用的成本参数。"
     },
     {
-      "item": "不得声称检验通过（no_claimed_verification）",
+      "item": "建模阶段不声称最终数值结论，未执行结果使用结果锚点",
       "done": true,
-      "note": "5 条 model_specs[*].verification_plan 全部以『待执行：』开头（可见证据），报告 §0 明写检验规范；audit_response #1 evidence 亦自证此点"
+      "note": "可见报告明确声明尚未执行数值程序，并将后续决策、利润、样本量和区间等留给阶段 3；未看到伪造的求解结果。"
     },
     {
-      "item": "四问覆盖 + 全局口径",
-      "done": true,
-      "note": "MS-Q1（两点设计二项检验最小 n）、MS-Q2（16 组合全枚举闭式）、MS-Q3（装配树节点级 U_v 聚合+拓扑）、MS-Q4（Clopper-Pearson 区间传播+一致率 ρ）、MS-GLOBAL（单位/费用归类）"
-    },
-    {
-      "item": "与上游/题面事实一致",
-      "done": true,
-      "note": "F-NOMINAL/F-CONF-REJECT/F-CONF-ACCEPT 对应 p_nom、α1=0.05、α2=0.10；表1六组 F-T1-C1..C6 映射到 (p1,p2,p0,a1,a2,c1,c2,c0,A,t,l,s)；表2 F-T2-* 映射到 (a_v,c_v,A_v,t_v,l_v,s)；均见 §4 推导"
-    },
-    {
-      "item": "给定参数不得是死参数",
-      "done": true,
-      "note": "逐条回溯：调换损失 l→EQ-Q2-RECUR/EQ-COST-Q2 的 (1-C)l 与 EQ-Q3-XI；拆解费 t→D t 项；装配成本 A→EQ-KF/EQ-Q3-KF 的 A_v；售价 s→EQ-PROFIT-Q2/EQ-Q3-PROFIT 的 s-U；检测成本 c_i/c_0/c_v→采购倍数与工序检测项；采购单价 a_i/a_v→EQ-KF/EQ-Q3-COST。均进入公式，无仅登记不入式者"
-    },
-    {
-      "item": "闭式解自洽",
-      "done": true,
-      "note": "复核 EQ-KAPPA=K_f-K_r 的分项展开、EQ-Q2-RECUR 的几何级数（g=q/(1-D(1-q))、R=[K_r+Cc0+(1-q)(Dt+(1-C)l)]/(1-D(1-q))）与 EQ-COST-Q2 分母归一 U=(…)/g，与逐轮现金流等价，未见回收免采购重复抵扣"
+      "item": "问题 1 的 90% 信度接收判据正确",
+      "done": false,
+      "note": "EQ-Q1-ACCEPT 及报告正文采用 F(n,c;p0)>=1-alpha_accept，这不是证明 p<=p0 的正确单侧置信约束，并会允许平凡的小样本方案。"
     }
   ],
   "findings": [
     {
-      "severity": "minor",
-      "where": "DECLARATION.json 顶层 audit_responses",
-      "issue": "该字段是执行者对上一轮审计的回执（含 severity/gate/action/partial_refute），不属于本阶段契约要求的 IR 四段，混在交付物顶层属元信息冗余；其中 #2 自述『已删除 data 与 output_artifacts』因文件被截断无法核验全量",
-      "fix": "将审计回执移出交付物（另存日志），DECLARATION.json 顶层只保留 IR 四段及被正文显式引用的 model_constants/illustrative_numbers；若保留则确保删除声明可被机械核验"
+      "severity": "fatal",
+      "where": "DECLARATION.json 的 EQ-Q1-ACCEPT；MODELING_REPORT.md“问题一模型”接收方案",
+      "issue": "接收端把“在标称率处的接收概率至少为 0.90”误当成“以 90% 信度认定 p<=p0”。例如 n=1、c=0 时 F(1,0;p0)=0.90 即可通过；更直接地，取 c=n 时对任意 n 都有 F(n,n;p0)=1，因此最小化会得到退化的检测次数，而不是有效的 90% 单侧置信方案。该错误会直接改变问题 1 的样本量和接收临界值。",
+      "fix": "将接收决策写成 H0:p>=p0 对 H1:p<p0，并在 X<=c 时接收；要求 sup_{p>=p0}P_p(X<=c)=F(n,c;p0)<=alpha_accept，其中 alpha_accept=0.10。随后枚举整数 n、c 求最小可行 n，并用 Clopper-Pearson 单侧上置信限 U_CI<=p0 做等价复核；具体样本量和临界值只能由阶段 3 真跑后写入结果锚点。"
     },
     {
       "severity": "minor",
-      "where": "DECLARATION.json ASM-09 / MS-Q3.structure_map",
-      "issue": "图1原件未随简报下传，{1,2,3}→半1、{4,5,6}→半2、{7,8}→半3、三半→成品 的拓扑是读表2行分组的推断而非图证；执行者已显式登记为 data_gap 并排了 {R-Q3-topology-robust}，但这是问题3全部结论的结构性前提，风险等级高于一般假设",
-      "fix": "阶段3除拓扑扰动扫描外，应至少给出一个替代连接（如半成品输入数不同）的解对照表，把拓扑不确定对最优决策的影响量化后再定稿"
+      "where": "DECLARATION.json 的符号表与 EQ-Q1-ACCEPT、A-010",
+      "issue": "公式使用 alpha_accept，但符号表只登记了含义较宽的 alpha；A-010 又引入未登记的 Delta。IR 中缺少这些量的稳定标识和上下文绑定。",
+      "fix": "分别增加 reject_alpha、accept_alpha、delta 等 Symbol 条目，并在 ModelSpec 中将 95% 拒收信度绑定为 0.05、90% 接收信度绑定为 0.10，同时声明 delta 是建模设计参数而非题面事实。"
     },
     {
       "severity": "minor",
-      "where": "DECLARATION.json model_constants『Q1可识别超标幅度Δ』=0.05",
-      "issue": "Δ为设计量而非题面给定，直接决定 n^(1)/n^(2) 的具体取值，属影响问题1答案的自由参数；已登记但未见其取值的敏感性安排",
-      "fix": "在阶段3对 Δ∈{0.02,0.05,0.10} 各跑一遍最小 n 与临界 c_r，报告结果对 Δ 的依赖，避免用单一 Δ 当作唯一答案"
+      "where": "DECLARATION.json 的 A-005、A-006",
+      "issue": "source 字段分别写成“A-005”和“A-006”，属于自引用，不能提供假设来源或建模依据的可追溯性。",
+      "fix": "将 source 改为明确来源说明；若确属建模选择，则写为“题面未规定，采用单侧频率学派检验”等，并补充 rationale。"
     }
   ],
   "missing": [],
-  "model": "glm-5.3-flash-free",
-  "at": "2026-09-26T08:17:13.587Z"
+  "model": "space-bunny-free",
+  "at": "2026-09-28T11:33:11.343Z"
 }
