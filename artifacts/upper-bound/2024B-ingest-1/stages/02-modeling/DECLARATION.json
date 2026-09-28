@@ -1,212 +1,1452 @@
 {
-  "stage": "02-modeling",
-  "source": "01-prob-analysis",
-  "ir_sections": ["symbols", "assumptions", "equations", "model_specs"],
   "symbols": [
-    {"id": "SYM-n", "symbol": "n", "meaning": "抽样检测次数（分情形记 n^(1)、n^(2)）", "unit": "件"},
-    {"id": "SYM-cr", "symbol": "c_r", "meaning": "接收判定临界次品数（分情形记 c_r^(1)、c_r^(2)）", "unit": "件"},
-    {"id": "SYM-X", "symbol": "X", "meaning": "样本中的次品件数", "unit": "件"},
-    {"id": "SYM-pnom", "symbol": "p_nom", "meaning": "供应商标称次品率", "unit": "比率"},
-    {"id": "SYM-palt", "symbol": "p_alt", "meaning": "两点设计备择次品率 p_nom+Δ", "unit": "比率"},
-    {"id": "SYM-alpha", "symbol": "α", "meaning": "拒收（或拒收侧）判定的第一类错误上界", "unit": "比率"},
-    {"id": "SYM-beta", "symbol": "β", "meaning": "第二类错误上界，功效下界为 1-β", "unit": "比率"},
-    {"id": "SYM-Lp", "symbol": "L(p)", "meaning": "次品率为 p 时的接收概率（OC 函数）", "unit": "概率"},
-    {"id": "SYM-Z1", "symbol": "Z_1", "meaning": "是否检测零配件1；1检测 0不检测", "unit": "0/1"},
-    {"id": "SYM-Z2", "symbol": "Z_2", "meaning": "是否检测零配件2；1检测 0不检测", "unit": "0/1"},
-    {"id": "SYM-C", "symbol": "C", "meaning": "是否检测成品；1检测 0不检测", "unit": "0/1"},
-    {"id": "SYM-D", "symbol": "D", "meaning": "不合格成品是否拆解；1拆解 0报废", "unit": "0/1"},
-    {"id": "SYM-p1", "symbol": "p_1", "meaning": "零配件1来料次品率", "unit": "比率"},
-    {"id": "SYM-p2", "symbol": "p_2", "meaning": "零配件2来料次品率", "unit": "比率"},
-    {"id": "SYM-p0", "symbol": "p_0", "meaning": "两件均合格时成品装配次品率", "unit": "比率"},
-    {"id": "SYM-a1", "symbol": "a_1", "meaning": "零配件1购买单价", "unit": "元/件"},
-    {"id": "SYM-a2", "symbol": "a_2", "meaning": "零配件2购买单价", "unit": "元/件"},
-    {"id": "SYM-c1", "symbol": "c_1", "meaning": "零配件1检测成本", "unit": "元/件"},
-    {"id": "SYM-c2", "symbol": "c_2", "meaning": "零配件2检测成本", "unit": "元/件"},
-    {"id": "SYM-c0", "symbol": "c_0", "meaning": "成品检测成本", "unit": "元/件"},
-    {"id": "SYM-A", "symbol": "A", "meaning": "成品装配成本", "unit": "元/件"},
-    {"id": "SYM-t", "symbol": "t", "meaning": "不合格成品拆解费用", "unit": "元/件"},
-    {"id": "SYM-l", "symbol": "l", "meaning": "单件退回不合格品的调换损失", "unit": "元/件"},
-    {"id": "SYM-s", "symbol": "s", "meaning": "成品市场售价", "unit": "元/件"},
-    {"id": "SYM-Qi", "symbol": "Q_i", "meaning": "进入装配的零配件 i 为合格的概率", "unit": "概率"},
-    {"id": "SYM-q", "symbol": "q", "meaning": "一次装配产出合格成品的概率", "unit": "概率"},
-    {"id": "SYM-Kf", "symbol": "K_f", "meaning": "新料装配一轮的期望成本", "unit": "元/轮"},
-    {"id": "SYM-Kr", "symbol": "K_r", "meaning": "回收料再装配一轮的成本", "unit": "元/轮"},
-    {"id": "SYM-kappa", "symbol": "κ", "meaning": "问题2拆解回收一轮的等效收益", "unit": "元/轮"},
-    {"id": "SYM-g", "symbol": "g", "meaning": "一条装配链最终交付合格成品的概率", "unit": "概率"},
-    {"id": "SYM-R", "symbol": "R", "meaning": "回收链期望成本（自回收轮起算）", "unit": "元"},
-    {"id": "SYM-U", "symbol": "U", "meaning": "问题2每件合格成品的期望总成本", "unit": "元/件"},
-    {"id": "SYM-Pi", "symbol": "Π", "meaning": "单位成品期望利润", "unit": "元/件"},
-    {"id": "SYM-Zv", "symbol": "Z_v", "meaning": "节点 v 的检测决策；1检测 0不检测", "unit": "0/1"},
-    {"id": "SYM-Dv", "symbol": "D_v", "meaning": "节点 v 的不合格件拆解决策；1拆解", "unit": "0/1"},
-    {"id": "SYM-pv", "symbol": "p_v", "meaning": "节点 v 的装配条件次品率", "unit": "比率"},
-    {"id": "SYM-Av", "symbol": "A_v", "meaning": "节点 v 的装配成本", "unit": "元/件"},
-    {"id": "SYM-cv", "symbol": "c_v", "meaning": "节点 v 的检测成本", "unit": "元/件"},
-    {"id": "SYM-tv", "symbol": "t_v", "meaning": "节点 v 的不合格件拆解费用", "unit": "元/件"},
-    {"id": "SYM-lv", "symbol": "l_v", "meaning": "节点 v 的调换损失（非成品节点为0）", "unit": "元/件"},
-    {"id": "SYM-av", "symbol": "a_v", "meaning": "节点 v 的购买单价（仅零配件节点）", "unit": "元/件"},
-    {"id": "SYM-Qv", "symbol": "Q_v", "meaning": "节点 v 交付件的合格概率", "unit": "概率"},
-    {"id": "SYM-qv", "symbol": "q_v", "meaning": "节点 v 一轮装配的合格概率", "unit": "概率"},
-    {"id": "SYM-Uv", "symbol": "U_v", "meaning": "节点 v 每件交付件的等效获取成本", "unit": "元/件"},
-    {"id": "SYM-kappa-v", "symbol": "κ_v", "meaning": "节点 v 拆解回收一组子件的等效收益", "unit": "元/轮"},
-    {"id": "SYM-hv", "symbol": "h_v", "meaning": "节点 v 的不合格件是否在本节点处置", "unit": "0/1"},
-    {"id": "SYM-xiv", "symbol": "ξ_v", "meaning": "节点 v 一轮不合格件的处置触发成本", "unit": "元"},
-    {"id": "SYM-Kfv", "symbol": "K_f(v)", "meaning": "节点 v 新料装配一轮成本", "unit": "元/轮"},
-    {"id": "SYM-Krv", "symbol": "K_r(v)", "meaning": "节点 v 回收料装配一轮成本", "unit": "元/轮"},
-    {"id": "SYM-gv", "symbol": "g_v", "meaning": "节点 v 装配链最终交付合格件的概率", "unit": "概率"},
-    {"id": "SYM-Rv", "symbol": "R_v", "meaning": "节点 v 回收链期望成本", "unit": "元"},
-    {"id": "SYM-chv", "symbol": "ch(v)", "meaning": "节点 v 的子节点集合", "unit": "集合"},
-    {"id": "SYM-phat", "symbol": "p_hat", "meaning": "次品率的抽样点估计（样本频率）", "unit": "比率"},
-    {"id": "SYM-CIp", "symbol": "[p_L, p_U]", "meaning": "次品率的 Clopper-Pearson 置信区间", "unit": "比率"},
-    {"id": "SYM-rho", "symbol": "ρ", "meaning": "重复抽样下最优决策组合的一致率", "unit": "比率"}
+    {
+      "id": "S-P0",
+      "name": "p0",
+      "meaning": "供应商标称次品率",
+      "unit": "1"
+    },
+    {
+      "id": "S-ALPHA",
+      "name": "alpha",
+      "meaning": "第一类错误上限",
+      "unit": "1"
+    },
+    {
+      "id": "S-BETA",
+      "name": "beta",
+      "meaning": "第二类错误上限",
+      "unit": "1"
+    },
+    {
+      "id": "S-N",
+      "name": "n",
+      "meaning": "抽样检测次数",
+      "unit": "次"
+    },
+    {
+      "id": "S-X",
+      "name": "X",
+      "meaning": "样本中的次品数",
+      "unit": "件"
+    },
+    {
+      "id": "S-C",
+      "name": "c",
+      "meaning": "接收临界次品数",
+      "unit": "件"
+    },
+    {
+      "id": "S-R",
+      "name": "r",
+      "meaning": "拒收临界次品数",
+      "unit": "件"
+    },
+    {
+      "id": "S-PALT",
+      "name": "p_alt",
+      "meaning": "功效计算用备择次品率",
+      "unit": "1"
+    },
+    {
+      "id": "S-A",
+      "name": "a_sprt",
+      "meaning": "SPRT接受边界",
+      "unit": "1"
+    },
+    {
+      "id": "S-B",
+      "name": "b_sprt",
+      "meaning": "SPRT拒收边界",
+      "unit": "1"
+    },
+    {
+      "id": "S-NS",
+      "name": "N_SPRT",
+      "meaning": "SPRT截断检测次数",
+      "unit": "次"
+    },
+    {
+      "id": "S-Z1",
+      "name": "Z1",
+      "meaning": "零配件1是否检测",
+      "unit": "0-1"
+    },
+    {
+      "id": "S-Z2",
+      "name": "Z2",
+      "meaning": "零配件2是否检测",
+      "unit": "0-1"
+    },
+    {
+      "id": "S-CF",
+      "name": "C",
+      "meaning": "成品是否检测",
+      "unit": "0-1"
+    },
+    {
+      "id": "S-DF",
+      "name": "D",
+      "meaning": "不合格成品是否拆解",
+      "unit": "0-1"
+    },
+    {
+      "id": "S-P1",
+      "name": "p1",
+      "meaning": "零配件1次品率",
+      "unit": "1"
+    },
+    {
+      "id": "S-P2",
+      "name": "p2",
+      "meaning": "零配件2次品率",
+      "unit": "1"
+    },
+    {
+      "id": "S-PF",
+      "name": "pf",
+      "meaning": "正品件装配后的条件次品率",
+      "unit": "1"
+    },
+    {
+      "id": "S-APRICE",
+      "name": "a_i",
+      "meaning": "零配件或节点采购单价",
+      "unit": "元/件"
+    },
+    {
+      "id": "S-TCOST",
+      "name": "t_i",
+      "meaning": "零配件或节点单次检测成本",
+      "unit": "元/件"
+    },
+    {
+      "id": "S-KF",
+      "name": "k_f",
+      "meaning": "成品装配成本",
+      "unit": "元/件"
+    },
+    {
+      "id": "S-TF",
+      "name": "t_f",
+      "meaning": "成品检测成本",
+      "unit": "元/件"
+    },
+    {
+      "id": "S-SALE",
+      "name": "r_market",
+      "meaning": "每次市场交付售价",
+      "unit": "元/件"
+    },
+    {
+      "id": "S-EXL",
+      "name": "L_exchange",
+      "meaning": "每个退回次品的调换损失",
+      "unit": "元/件"
+    },
+    {
+      "id": "S-DIS",
+      "name": "g_dis",
+      "meaning": "每次不合格品拆解费用",
+      "unit": "元/件"
+    },
+    {
+      "id": "S-H",
+      "name": "h",
+      "meaning": "即时回流件的数量与质量状态",
+      "unit": "离散状态"
+    },
+    {
+      "id": "S-V",
+      "name": "V_pi(h)",
+      "meaning": "给定策略下完成合格交付的期望净收益",
+      "unit": "元/合格交付"
+    },
+    {
+      "id": "S-PI",
+      "name": "Pi",
+      "meaning": "单位合格交付期望利润",
+      "unit": "元/合格交付"
+    },
+    {
+      "id": "S-GRAPH",
+      "name": "G=(V,E)",
+      "meaning": "带层级的装配有向无环图",
+      "unit": "图"
+    },
+    {
+      "id": "S-QV",
+      "name": "Q_v",
+      "meaning": "节点v每次投入的合格产出率",
+      "unit": "件/次"
+    },
+    {
+      "id": "S-CV",
+      "name": "C_v",
+      "meaning": "节点v每次投入的期望现金成本",
+      "unit": "元/次"
+    },
+    {
+      "id": "S-UV",
+      "name": "U_v",
+      "meaning": "节点v每件合格产出的等效成本",
+      "unit": "元/合格件"
+    },
+    {
+      "id": "S-M",
+      "name": "M",
+      "meaning": "联合置信构造中的参数节点数",
+      "unit": "个"
+    },
+    {
+      "id": "S-NV",
+      "name": "n_v",
+      "meaning": "参数节点v的样本量",
+      "unit": "次"
+    },
+    {
+      "id": "S-XV",
+      "name": "x_v",
+      "meaning": "参数节点v的观测次品数",
+      "unit": "件"
+    },
+    {
+      "id": "S-PHAT",
+      "name": "p_hat_v",
+      "meaning": "参数节点v的抽样估计次品率",
+      "unit": "1"
+    },
+    {
+      "id": "S-ALPHAJ",
+      "name": "alpha_joint",
+      "meaning": "联合置信域的边际错误率",
+      "unit": "1"
+    },
+    {
+      "id": "S-CIL",
+      "name": "L_v",
+      "meaning": "参数节点v置信区间下端点",
+      "unit": "1"
+    },
+    {
+      "id": "S-CIU",
+      "name": "U_CI_v",
+      "meaning": "参数节点v置信区间上端点",
+      "unit": "1"
+    },
+    {
+      "id": "S-CONSIST",
+      "name": "rho_decision",
+      "meaning": "重抽样策略一致率",
+      "unit": "1"
+    }
   ],
   "assumptions": [
-    {"id": "ASM-01", "statement": "检测无损且100%准确，无漏检与误检", "source_refs": ["A-001"], "shared": true},
-    {"id": "ASM-02", "statement": "拆解不损坏零配件，回收件与原件同分布", "source_refs": ["A-002"], "shared": true},
-    {"id": "ASM-03", "statement": "各节点次品相互独立；p_v 为输入全合格时的条件次品率", "source_refs": ["A-003", "HC-04", "HC-05"], "shared": true},
-    {"id": "ASM-04", "statement": "按每件成品单位化，不计库存产能固定成本与资金时间价值", "source_refs": ["A-004"], "shared": true},
-    {"id": "ASM-05", "statement": "问题1信度取频率学派置信水平，单侧显著性0.05与0.10", "source_refs": ["A-005", "HC-02", "HC-03"], "shared": true},
-    {"id": "ASM-06", "statement": "抽样为简单随机抽样，批量足够大，用二项分布近似", "source_refs": ["A-006"]},
-    {"id": "ASM-07", "statement": "问题4以二项置信区间刻画次品率不确定度并做稳健性校核", "source_refs": ["A-007"]},
-    {"id": "ASM-08", "statement": "调换损失按退回件数计，不含补发品生产成本", "source_refs": ["A-008", "HC-09"]},
-    {"id": "ASM-09", "statement": "图1拓扑假设：{1,2,3}→半1、{4,5,6}→半2、{7,8}→半3、三半成品→成品", "source_refs": ["F-FIG1", "R-Q3"], "shared": true, "data_gap": "图1原件未随阶段简报下传，连接关系只能从表2的行分组读出，故显式假设并在阶段3做拓扑扰动稳健性说明"},
-    {"id": "ASM-10", "statement": "回收件免除采购成本、仍付再检测费，按同分布重入父节点流程", "source_refs": ["A-002", "HC-06", "HC-07"], "shared": true},
-    {"id": "ASM-11", "statement": "问题1用固定样本量单侧二项检验，序贯方案仅作对照", "source_refs": ["HC-01"]},
-    {"id": "ASM-12", "statement": "口径单位化为每交付一件合格成品；回收免采购收益只记一次", "source_refs": ["A-004", "HC-06"], "shared": true},
-    {"id": "ASM-13", "statement": "问题3每个零配件/半成品/成品节点各定义 Z_v 与 D_v", "source_refs": ["R-Q3", "HC-08"]},
-    {"id": "ASM-14", "statement": "问题1两点设计以 p_alt=p_nom+Δ 为备择点，Δ 为可识别超标幅度", "source_refs": ["HC-01"]},
-    {"id": "ASM-15", "statement": "问题3中调换损失仅发生在成品节点，其余节点 l_v=0", "source_refs": ["HC-09", "HC-10"]},
-    {"id": "ASM-16", "statement": "问题4点估计取样本频率，区间用 Clopper-Pearson 精确区间", "source_refs": ["A-007", "HC-01"]}
+    {
+      "id": "A-001",
+      "statement": "检测无损且全检，无漏检和误检",
+      "source": "题面未给检测误差",
+      "shared": true
+    },
+    {
+      "id": "A-002",
+      "statement": "拆解无损，回收件质量身份保持",
+      "source": "题面拆解机制",
+      "shared": true
+    },
+    {
+      "id": "A-003",
+      "statement": "各缺陷源及同批抽样相互独立",
+      "source": "条件次品率解释",
+      "shared": true
+    },
+    {
+      "id": "A-004",
+      "statement": "按单件量化，仅保留即时回流件",
+      "source": "单位化建模约定",
+      "shared": true
+    },
+    {
+      "id": "A-005",
+      "statement": "信度采用频率学派单侧检验",
+      "source": "A-005",
+      "shared": false
+    },
+    {
+      "id": "A-006",
+      "statement": "简单随机抽样且总体足够大",
+      "source": "A-006",
+      "shared": false
+    },
+    {
+      "id": "A-007",
+      "statement": "问题4用精确区间和稳健重解",
+      "source": "A-007",
+      "shared": false
+    },
+    {
+      "id": "A-008",
+      "statement": "调换损失不含补发品生产成本",
+      "source": "题面调换损失定义",
+      "shared": true
+    },
+    {
+      "id": "A-009",
+      "statement": "图1缺失，主拓扑按表2分组推断",
+      "source": "上游数据缺口",
+      "shared": false
+    },
+    {
+      "id": "A-010",
+      "statement": "取Δ=0.05、β=0.10作为设计风险",
+      "source": "建模风险偏好",
+      "rationale": "5个百分点为标称率一半，β与接收端风险口径一致",
+      "shared": false
+    },
+    {
+      "id": "A-011",
+      "statement": "收益按一次最终合格交付归一化",
+      "source": "统一利润口径",
+      "shared": true
+    },
+    {
+      "id": "A-012",
+      "statement": "各节点决策在全流程保持固定",
+      "source": "静态决策建模约定",
+      "shared": true
+    },
+    {
+      "id": "A-013",
+      "statement": "报废无残值且既有投入沉没",
+      "source": "成本核算约定",
+      "shared": true
+    },
+    {
+      "id": "A-014",
+      "statement": "无实际(n,x)，仅生成情景数据",
+      "source": "上游数据缺口",
+      "shared": false
+    },
+    {
+      "id": "A-015",
+      "statement": "有限SPRT按同约束作对照",
+      "source": "方案比较要求",
+      "shared": false
+    },
+    {
+      "id": "A-016",
+      "statement": "回收件可追踪并按原状态回流",
+      "source": "无损拆解的状态化解释",
+      "shared": true
+    },
+    {
+      "id": "A-017",
+      "statement": "非吸收策略无有限期望利润",
+      "source": "期望报酬建模约定",
+      "shared": true
+    },
+    {
+      "id": "A-018",
+      "statement": "情景率从Jeffreys后验独立抽取",
+      "source": "问题4情景生成约定",
+      "shared": false
+    }
   ],
   "equations": [
-    {"id": "EQ-OC", "expr": "L(p) = P(X <= c_r | p) = Σ_{i=0}^{c_r} \\binom{n}{i} p^i (1-p)^{n-i}", "statement": "接收概率即 OC 函数", "refs": ["SYM-n", "SYM-cr", "SYM-X", "SYM-Lp", "SYM-pnom"], "assumption_refs": ["ASM-06"]},
-    {"id": "EQ-Q1-REJECT", "expr": "n^(1) = min{ n : ∃ c_r ∈ {0..n}, P(X >= c_r+1 | p_nom) <= α 且 P(X >= c_r+1 | p_alt) >= 1-β }，判据为 X >= c_r+1 时拒收", "statement": "情形1最小检测次数与拒收界", "refs": ["SYM-n", "SYM-cr", "SYM-X", "SYM-pnom", "SYM-palt", "SYM-alpha", "SYM-beta"], "assumption_refs": ["ASM-05", "ASM-11", "ASM-14"]},
-    {"id": "EQ-Q1-ACCEPT", "expr": "n^(2) = min{ n : ∃ c_r, P(X <= c_r | p_nom) >= 1-α 且 P(X <= c_r | p_alt) <= β }，判据为 X <= c_r 时接收", "statement": "情形2最小检测次数与接收界", "refs": ["SYM-n", "SYM-cr", "SYM-X", "SYM-pnom", "SYM-palt", "SYM-alpha", "SYM-beta"], "assumption_refs": ["ASM-05", "ASM-11", "ASM-14"]},
-    {"id": "EQ-Q2-YIELD", "expr": "Q_i = 1 - (1-Z_i) p_i (i=1,2)；q = (1-p_0) Q_1 Q_2", "statement": "一次装配产出合格成品的概率", "refs": ["SYM-Qi", "SYM-q", "SYM-Z1", "SYM-Z2", "SYM-p1", "SYM-p2", "SYM-p0"], "assumption_refs": ["ASM-01", "ASM-03"]},
-    {"id": "EQ-KF", "expr": "K_f = A + Σ_{i=1,2} [ Z_i (a_i + c_i)/(1-p_i) + (1-Z_i) a_i ]", "statement": "新料装配一轮成本；得1件可用件需买1/(1-p_i)件", "refs": ["SYM-Kf", "SYM-A", "SYM-Z1", "SYM-Z2", "SYM-a1", "SYM-a2", "SYM-c1", "SYM-c2", "SYM-p1", "SYM-p2"], "assumption_refs": ["ASM-01", "ASM-12"]},
-    {"id": "EQ-KR", "expr": "K_r = A + Σ_{i=1,2} Z_i c_i", "statement": "回收料再装配一轮成本；免采购只记于此", "refs": ["SYM-Kr", "SYM-A", "SYM-Z1", "SYM-Z2", "SYM-c1", "SYM-c2"], "assumption_refs": ["ASM-10", "ASM-12"]},
-    {"id": "EQ-KAPPA", "expr": "κ = K_f - K_r = Σ_{i=1,2} [ Z_i (a_i+c_i)/(1-p_i) + (1-Z_i) a_i - Z_i c_i ]", "statement": "问题2一轮回收的等效收益", "refs": ["SYM-kappa", "SYM-Kf", "SYM-Kr"], "assumption_refs": ["ASM-10"]},
-    {"id": "EQ-Q2-RECUR", "expr": "g = q / (1 - D (1-q))；R = [ K_r + C c_0 + (1-q)( D t + (1-C) l ) ] / (1 - D (1-q))", "statement": "回收链交付概率与期望成本闭式解", "refs": ["SYM-g", "SYM-R", "SYM-Kr", "SYM-q", "SYM-D", "SYM-C", "SYM-c0", "SYM-t", "SYM-l"], "assumption_refs": ["ASM-10", "ASM-12"]},
-    {"id": "EQ-COST-Q2", "expr": "U = [ K_f + C c_0 + (1-q)( D t + (1-C) l + D R ) ] / g", "statement": "每件合格成品期望成本，含调换损失项 (1-q)(1-C) l", "refs": ["SYM-U", "SYM-Kf", "SYM-C", "SYM-c0", "SYM-q", "SYM-D", "SYM-t", "SYM-l", "SYM-R", "SYM-g"], "assumption_refs": ["ASM-08", "ASM-12"]},
-    {"id": "EQ-PROFIT-Q2", "expr": "Π = s - U", "statement": "问题2单位成品期望利润", "refs": ["SYM-Pi", "SYM-s", "SYM-U"], "assumption_refs": ["ASM-04"], "shared": true},
-    {"id": "EQ-Q3-ASSY", "expr": "q_v = (1-p_v) Π_{u ∈ ch(v)} Q_u（叶节点取 q_v = 1-p_v）", "statement": "节点 v 一轮装配的合格概率", "refs": ["SYM-qv", "SYM-pv", "SYM-Qv", "SYM-chv"], "assumption_refs": ["ASM-03"]},
-    {"id": "EQ-Q3-NODE", "expr": "Q_v = Z_v + (1-Z_v) q_v", "statement": "v 交付件合格概率；叶节点退化为 1-(1-Z_v) p_v", "refs": ["SYM-Qv", "SYM-Zv", "SYM-qv", "SYM-pv"], "assumption_refs": ["ASM-01", "ASM-03"]},
-    {"id": "EQ-Q3-COST", "expr": "叶节点：U_v = Z_v (a_v + c_v)/(1-p_v) + (1-Z_v) a_v；内部节点：U_v 由 EQ-Q3-UNITCOST 给出", "statement": "节点 v 每件交付件的等效获取成本", "refs": ["SYM-Uv", "SYM-Zv", "SYM-av", "SYM-cv", "SYM-pv"], "assumption_refs": ["ASM-01", "ASM-12"]},
-    {"id": "EQ-Q3-KF", "expr": "K_f(v) = A_v + Z_v c_v + Σ_{u ∈ ch(v)} U_u；K_r(v) = K_f(v) - κ_v", "statement": "节点 v 新料与回收料装配一轮成本", "refs": ["SYM-Kfv", "SYM-Krv", "SYM-Av", "SYM-Zv", "SYM-cv", "SYM-Uv", "SYM-kappa-v", "SYM-chv"], "assumption_refs": ["ASM-10"]},
-    {"id": "EQ-Q3-KAPPA", "expr": "κ_v = Σ_{u ∈ ch(v)} ( U_u - Z_u c_u ) = K_f(v) - K_r(v)", "statement": "内部节点回收一组子件免除的等效成本", "refs": ["SYM-kappa-v", "SYM-Uv", "SYM-Zv", "SYM-cv", "SYM-chv", "SYM-Kfv", "SYM-Krv"], "assumption_refs": ["ASM-10", "ASM-12"]},
-    {"id": "EQ-Q3-XI", "expr": "h_v = Z_v ∨ 1{v 为成品节点}；ξ_v = h_v D_v t_v + (1-Z_v) l_v", "statement": "节点 v 一轮不合格件处置触发成本", "refs": ["SYM-hv", "SYM-xiv", "SYM-Dv", "SYM-tv", "SYM-Zv", "SYM-lv"], "assumption_refs": ["ASM-13", "ASM-15"]},
-    {"id": "EQ-Q3-RECUR", "expr": "g_v = q_v / (1 - h_v D_v (1-q_v))；R_v = [ K_r(v) + (1-q_v) ξ_v ] / (1 - h_v D_v (1-q_v))", "statement": "节点 v 回收链交付概率与期望成本", "refs": ["SYM-gv", "SYM-Rv", "SYM-qv", "SYM-Dv", "SYM-hv", "SYM-Krv", "SYM-xiv"], "assumption_refs": ["ASM-10", "ASM-12"]},
-    {"id": "EQ-Q3-UNITCOST", "expr": "U_v = [ K_f(v) + (1-q_v)( ξ_v + h_v D_v R_v ) ] / g_v（Z_v=1）；U_v = K_f(v)（Z_v=0，子件缺陷上递）", "statement": "节点 v 每件交付件的等效成本闭式", "refs": ["SYM-Uv", "SYM-Kfv", "SYM-qv", "SYM-hv", "SYM-Dv", "SYM-xiv", "SYM-Rv", "SYM-gv"], "assumption_refs": ["ASM-12", "ASM-13"]},
-    {"id": "EQ-Q3-PROFIT", "expr": "Π = s - U_f（f 为成品节点，U_f 按 EQ-Q3-UNITCOST 取）", "statement": "问题3单位成品期望利润", "refs": ["SYM-Pi", "SYM-s", "SYM-Uv"], "assumption_refs": ["ASM-04", "ASM-15"], "shared": true},
-    {"id": "EQ-Q4-CI", "expr": "[p_L, p_U] = [ Beta(α/2; x, n-x+1), Beta(1-α/2; x+1, n-x) ]，中心取 p_hat = x/n", "statement": "次品率的精确二项置信区间", "refs": ["SYM-CIp", "SYM-phat", "SYM-n"], "assumption_refs": ["ASM-07", "ASM-16"]},
-    {"id": "EQ-Q4-PROFIT-RANGE", "expr": "Π 的区间 = [ min_{p ∈ CI} Π(p | 决策固定), max_{p ∈ CI} Π(p | 决策固定) ]", "statement": "置信区间在决策固定下的利润传播", "refs": ["SYM-Pi", "SYM-CIp"], "assumption_refs": ["ASM-07"]},
-    {"id": "EQ-Q4-ROBUST", "expr": "ρ = (1/M) Σ_{m=1}^{M} 1{ (Z_1,Z_2,C,D)_m = (Z_1,Z_2,C,D)* }", "statement": "重复抽样下最优决策一致率", "refs": ["SYM-rho", "SYM-Z1", "SYM-Z2", "SYM-C", "SYM-D", "SYM-Zv", "SYM-Dv"], "assumption_refs": ["ASM-07"]}
+    {
+      "id": "EQ-Q1-BINOM",
+      "expression": "P_p(X=x)=Comb(n,x)p^x(1-p)^(n-x), 0<=x<=n",
+      "meaning": "二项抽样概率质量函数"
+    },
+    {
+      "id": "EQ-Q1-REJECT",
+      "expression": "min n subject to 1-F(n,r-1;p0)<=alpha and 1-F(n,r-1;p_alt)>=1-beta",
+      "meaning": "拒收方案精确约束与最小样本量"
+    },
+    {
+      "id": "EQ-Q1-ACCEPT",
+      "expression": "min n subject to F(n,c;p0)>=1-alpha_accept; ties choose largest c",
+      "meaning": "接收方案精确约束与最小样本量"
+    },
+    {
+      "id": "EQ-Q1-OC",
+      "expression": "L_accept(p)=F(n,c;p); L_reject(p)=F(n,r-1;p)",
+      "meaning": "两情形接收概率函数"
+    },
+    {
+      "id": "EQ-Q1-SPRT",
+      "expression": "log LR=x log(p_alt/p0)+(n-x)log((1-p_alt)/(1-p0)); accept below a, reject above b, truncate at n_fixed",
+      "meaning": "有限SPRT边界与截断规则"
+    },
+    {
+      "id": "EQ-Q1-COMPARE",
+      "expression": "E_p[N_SPRT]=sum_{j=0}^{n_fixed-1}P(N_SPRT>j); choose SPRT iff exact tails pass and both E_p0 and E_palt are no larger",
+      "meaning": "固定样本与有限SPRT同约束比较"
+    },
+    {
+      "id": "EQ-Q2-STATE",
+      "expression": "h=(h1,h2), h_i in {empty,good,bad}; terminal states contain no outstanding demand",
+      "meaning": "问题2即时回流状态"
+    },
+    {
+      "id": "EQ-Q2-PREP",
+      "expression": "z_i=0: A_i(empty)=a_i and A_i(good,bad)=0; z_i=1: A_i(good)=t_i and A_i(empty,bad)=t_i+(a_i+t_i)/(1-p_i)",
+      "meaning": "零配件准备成本与去向"
+    },
+    {
+      "id": "EQ-Q2-DEFECT",
+      "expression": "P_bad=1-I(h1=good)I(h2=good)(1-pf)",
+      "meaning": "装配不合格的两类来源"
+    },
+    {
+      "id": "EQ-Q2-BELLMAN",
+      "expression": "V_pi(h)=E_pi[immediate cash reward+1_not_terminal V_pi(h')], V_pi(terminal)=0",
+      "meaning": "含检测、调换和回流的状态方程"
+    },
+    {
+      "id": "EQ-Q2-CASH",
+      "expression": "V_pi(empty)=E[r_market N_market-a-parts-t-inspection-k_f N_assembly-g_dis N_disassembly-L_exchange N_return]",
+      "meaning": "逐轮现金流守恒账本"
+    },
+    {
+      "id": "EQ-Q2-ENUM",
+      "expression": "Pi2*=max over (Z1,Z2,C,D) in {0,1}^4 of V_pi(empty), excluding nonabsorbing policies",
+      "meaning": "问题2策略空间与argmax"
+    },
+    {
+      "id": "EQ-Q3-NET",
+      "expression": "P_bad(v)=1-[product over parents I(parent good)](1-p_v)",
+      "meaning": "一般装配节点的不合格率"
+    },
+    {
+      "id": "EQ-Q3-KERNEL",
+      "expression": "P_pi(h,h') and r_pi(h,h') are generated by procurement, inspection, assembly, sale, scrap and disassembly events",
+      "meaning": "一般网络的现金事件转移核"
+    },
+    {
+      "id": "EQ-Q3-BELLMAN",
+      "expression": "V_pi(h)=r_pi(h)+sum_h' P_pi(h,h')V_pi(h'); V_pi(h)=0 after one qualified root delivery",
+      "meaning": "全事件闭环价值递推"
+    },
+    {
+      "id": "EQ-Q3-RATE",
+      "expression": "Q_v=lim E[N_good,v]/E[N_launch,v], C_v=lim E[cash cost,v]/E[N_launch,v], U_v=C_v/Q_v",
+      "meaning": "产出率、投入成本率及单位合格成本"
+    },
+    {
+      "id": "EQ-Q3-PROFIT",
+      "expression": "Pi3=(E[r_market N_market]-E[L_exchange N_return]-C_root)/Q_root",
+      "meaning": "一般网络单位合格交付利润"
+    },
+    {
+      "id": "EQ-Q3-DEGEN",
+      "expression": "abs(Pi2_pi-Pi3_deg_pi)<=cashflow_abs_tol for every one of the 16 degenerate policies",
+      "meaning": "问题3退化实例与问题2逐策略等价"
+    },
+    {
+      "id": "EQ-Q4-EST",
+      "expression": "p_hat_v=x_v/n_v, 0<=x_v<=n_v and n_v>=1",
+      "meaning": "抽样点估计"
+    },
+    {
+      "id": "EQ-Q4-CP",
+      "expression": "L_v=0 if x_v=0 else QBeta(alpha/2;x_v,n_v-x_v+1); U_CI_v=1 if x_v=n_v else QBeta(1-alpha/2;x_v+1,n_v-x_v)",
+      "meaning": "含端点分支的Clopper-Pearson区间"
+    },
+    {
+      "id": "EQ-Q4-JOINT",
+      "expression": "B_joint=product_v[L_v,U_CI_v], alpha_joint=alpha_family/M",
+      "meaning": "Bonferroni联合置信域"
+    },
+    {
+      "id": "EQ-Q4-N",
+      "expression": "n_v=min{n in 1..n_max: width_CP(p_v,n)<=w_target}",
+      "meaning": "逐节点精度样本量设计"
+    },
+    {
+      "id": "EQ-Q4-MC",
+      "expression": "x_v^(b)~Binomial(n_v,p_v^scenario); p_hat_v^(b)=x_v^(b)/n_v; theta_v^(b)~Beta(x_v^(b)+1/2,n_v-x_v^(b)+1/2)",
+      "meaning": "可复现情景抽样与后验重抽样"
+    },
+    {
+      "id": "EQ-Q4-ROBUST",
+      "expression": "Pi_low(pi)=min over theta in B_joint Pi(pi,theta); rho_decision=mean I[pi*(p_hat^(b))=pi*(p_scenario)]",
+      "meaning": "最坏情景利润与决策一致率"
+    }
   ],
   "model_specs": [
     {
       "id": "MS-Q1",
-      "title": "问题1：检测次数尽可能少的抽样检测方案",
-      "problem_refs": ["R-Q1"],
-      "checklist_refs": ["C-Q1-PLAN", "C-Q1-CASE95", "C-Q1-CASE90", "C-MODEL-COST-BEAR"],
-      "assumption_refs": ["ASM-05", "ASM-06", "ASM-11", "ASM-14"],
-      "equation_refs": ["EQ-OC", "EQ-Q1-REJECT", "EQ-Q1-ACCEPT"],
-      "symbol_refs": ["SYM-n", "SYM-cr", "SYM-X", "SYM-pnom", "SYM-palt", "SYM-alpha", "SYM-beta", "SYM-Lp"],
-      "method": "单侧二项检验两点设计 + 整数样本量最小化搜索",
-      "objective": "在两类错误约束下最小化检测次数 n",
-      "decision_vars": ["n", "c_r"],
-      "result_anchors": ["{R-Q1-n-case95}", "{R-Q1-c-case95}", "{R-Q1-n-case90}", "{R-Q1-c-case90}", "{R-Q1-oc-verify}", "{R-Q1-sampling-cost}"],
-      "verification_plan": ["待执行：对情形1核验 P(X >= c_r^(1)+1 | p_nom) <= α 与 p_alt 处功效达标", "待执行：对情形2核验 P(X <= c_r^(2) | p_nom) >= 1-α 与 p_alt 处误收概率达标", "待执行：把检测费用按元/件折算进问题1方案比较的决策成本项"]
+      "title": "精确二项抽样与有限序贯比较",
+      "problem_refs": [
+        "Q1",
+        "R-Q1"
+      ],
+      "symbol_refs": [
+        "S-P0",
+        "S-ALPHA",
+        "S-BETA",
+        "S-N",
+        "S-X",
+        "S-C",
+        "S-R",
+        "S-PALT",
+        "S-A",
+        "S-B",
+        "S-NS"
+      ],
+      "assumption_refs": [
+        "A-001",
+        "A-004",
+        "A-005",
+        "A-006",
+        "A-010",
+        "A-015"
+      ],
+      "equation_refs": [
+        "EQ-Q1-BINOM",
+        "EQ-Q1-REJECT",
+        "EQ-Q1-ACCEPT",
+        "EQ-Q1-OC",
+        "EQ-Q1-SPRT",
+        "EQ-Q1-COMPARE"
+      ],
+      "checklist_refs": [
+        "C-Q1-PLAN",
+        "C-Q1-CASE95",
+        "C-Q1-CASE90",
+        "C-MODEL-COST-BEAR"
+      ],
+      "decision_variables": [
+        "n",
+        "c",
+        "r",
+        "fixed_or_SPRT"
+      ],
+      "objective": "满足精确尾概率约束后最少检测",
+      "state_space": "X为0到n的整数，p属于0到1",
+      "solution_method": "逐个n精确枚举，并以同约束有限SPRT作对照",
+      "outputs": [
+        "{R-Q1-case95-n}",
+        "{R-Q1-case95-r}",
+        "{R-Q1-case95-reject-tail}",
+        "{R-Q1-case90-n}",
+        "{R-Q1-case90-c}",
+        "{R-Q1-case90-accept-tail}",
+        "{R-Q1-sprt-expected-n}",
+        "{R-Q1-sprt-selected}"
+      ],
+      "structural_validation_input": {
+        "constraints_active": "第一类错误、接收置信度与备择功效均由精确二项尾概率约束",
+        "decision_ranges": "n为正整数，c和r为0到n的整数",
+        "sensitivity_directions": [
+          "固定(n,r)时p上升使拒收尾概率不减",
+          "固定(n,c)时p上升使接收概率不增",
+          "固定β时Δ上升所需n不降",
+          "固定Δ时β上升所需n不升"
+        ],
+        "stability_expectation": "整数枚举和尾概率独立复算应满足登记容差",
+        "resource_expectation": "找到首个可行n即停止，不预设经验样本量"
+      },
+      "machine_contracts": {
+        "method_claims_machine_html": "<!-- METHOD_CLAIMS_MACHINE\nQ1-M1 | must: scipy.stats.binom, exact_integer_enumeration, likelihood_ratio_random_walk | forbid: norm.approx, asserted_sample_size, unbounded_sprt\nQ1-M2 | must: p0, delta_grid, beta_grid, lexicographic_tie_break | forbid: single_unregistered_delta, single_unregistered_beta\nEND METHOD_CLAIMS_MACHINE -->",
+        "logic_contract_machine": {
+          "bounds": {
+            "items": [
+              "0<=p<=1",
+              "n>=1",
+              "0<=c<=n",
+              "0<=r<=n"
+            ],
+            "four_step_directions": [
+              "1 计数X满足0<=X<=n",
+              "2 次品率由p=X/n反解",
+              "3 代入计数界得0<=p<=1",
+              "4 题给p0=0.10满足界条件"
+            ],
+            "logic_probes": [
+              "p改为p+δ后重算拒收尾概率，变化应不减",
+              "c改为c+1后重算接收尾概率，变化应不减"
+            ]
+          },
+          "no_double_count": [
+            "每个被检样本只进入一个二项计数",
+            "固定方案与SPRT对照使用同一p0和错误约束"
+          ],
+          "must_features": [
+            "精确二项枚举",
+            "整数阈值",
+            "OC函数",
+            "有限SPRT期望检测数对照"
+          ],
+          "train_range": "不适用训练；推理域为p属于0到1、n为正整数",
+          "monotonic": [
+            "固定方案拒收概率对p单调不减",
+            "固定接收方案接收概率对p单调不增"
+          ],
+          "constraints_with_margin": [
+            "alpha95=F(n95,r95-1;p0)精确满足上限",
+            "power95=1-F(n95,r95-1;p_alt)精确满足下限",
+            "conf90=F(n90,c90;p0)精确满足下限"
+          ],
+          "calibration_anchors": [
+            "F-NOMINAL",
+            "F-CONF-REJECT",
+            "F-CONF-ACCEPT",
+            "Q1可识别超标幅度",
+            "Q1第二类错误上限"
+          ],
+          "equivalence_claims": [
+            "整数枚举与二项尾概率直接求和等价",
+            "截断SPRT必须用同一精确尾概率重新核验"
+          ]
+        },
+        "result_constraints": [
+          "n95=min{n>=1: exists r in 0..n with 1-F(n,r-1;p0)<=alpha95 and 1-F(n,r-1;p0+delta)>=1-beta1}",
+          "c90=max{c in 0..n90: F(n90,c;p0)>=conf90}",
+          "L_accept(p)=sum_{x=0}^{c90}Comb(n90,x)p^x(1-p)^(n90-x)",
+          "E_p[N_SPRT]=sum_{j=0}^{n_fixed-1}P(N_SPRT>j)",
+          "abs(P_sprt_constraint-P_exact_constraint)<=q1_numeric_tol"
+        ]
+      },
+      "audit_dispositions": [
+        {
+          "id": "F-001",
+          "action": "固定Δ与β，登记尾概率约束及β-Δ灵敏度网格"
+        },
+        {
+          "id": "audit-3",
+          "action": "新增Δ∈三点和β∈三点的逐点重算契约"
+        },
+        {
+          "id": "F-008",
+          "action": "新增同约束、截断SPRT、期望检测数和确定性选择规则"
+        }
+      ]
     },
     {
       "id": "MS-Q2",
-      "title": "问题2：四元决策 (Z1,Z2,C,D) 的期望利润模型",
-      "problem_refs": ["R-Q2"],
-      "checklist_refs": ["C-Q2-MODEL", "C-Q2-PART-DECISION", "C-Q2-PRODUCT-DECISION", "C-Q2-DISASSEMBLE-DECISION", "C-Q2-EXCHANGE", "C-Q2-TABLE1-CASES", "C-MODEL-SYSTEM", "C-MODEL-ASSEMBLY", "C-MODEL-SCRAP", "C-MODEL-DEFECT-DEF", "C-MODEL-EXCHANGE-LOSS"],
-      "assumption_refs": ["ASM-01", "ASM-02", "ASM-03", "ASM-04", "ASM-08", "ASM-10", "ASM-12"],
-      "equation_refs": ["EQ-Q2-YIELD", "EQ-KF", "EQ-KR", "EQ-KAPPA", "EQ-Q2-RECUR", "EQ-COST-Q2", "EQ-PROFIT-Q2"],
-      "symbol_refs": ["SYM-Z1", "SYM-Z2", "SYM-C", "SYM-D", "SYM-p1", "SYM-p2", "SYM-p0", "SYM-a1", "SYM-a2", "SYM-c1", "SYM-c2", "SYM-c0", "SYM-A", "SYM-t", "SYM-l", "SYM-s", "SYM-Qi", "SYM-q", "SYM-Kf", "SYM-Kr", "SYM-kappa", "SYM-g", "SYM-R", "SYM-U", "SYM-Pi"],
-      "method": "16 组合全枚举 + 期望利润闭式比较，最优组合取 argmax",
-      "objective": "max Π(Z_1,Z_2,C,D) over {0,1}^4",
-      "decision_vars": ["Z_1", "Z_2", "C", "D"],
-      "result_anchors": ["{R-Q2-case1-decision}", "{R-Q2-case1-profit}", "{R-Q2-case2-decision}", "{R-Q2-case2-profit}", "{R-Q2-case3-decision}", "{R-Q2-case3-profit}", "{R-Q2-case4-decision}", "{R-Q2-case4-profit}", "{R-Q2-case5-decision}", "{R-Q2-case5-profit}", "{R-Q2-case6-decision}", "{R-Q2-case6-profit}", "{R-Q2-best-combo}", "{R-Q2-cost-breakdown}"],
-      "verification_plan": ["待执行：对表1六种情况逐一核验分项恒等式（容差 1e-6）", "待执行：解析闭式与逐轮现金流复算比对（容差 1e-6），重点核查非检测件的采购倍数与回收件免采购只记一次", "待执行：核验回收分支不再在利润式中重复抵扣采购价"]
+      "title": "两零件闭环现金流决策",
+      "problem_refs": [
+        "Q2",
+        "R-Q2",
+        "R-OUT"
+      ],
+      "symbol_refs": [
+        "S-Z1",
+        "S-Z2",
+        "S-CF",
+        "S-DF",
+        "S-P1",
+        "S-P2",
+        "S-PF",
+        "S-APRICE",
+        "S-TCOST",
+        "S-KF",
+        "S-TF",
+        "S-SALE",
+        "S-EXL",
+        "S-DIS",
+        "S-H",
+        "S-V",
+        "S-PI"
+      ],
+      "assumption_refs": [
+        "A-001",
+        "A-002",
+        "A-003",
+        "A-004",
+        "A-008",
+        "A-011",
+        "A-012",
+        "A-013",
+        "A-016",
+        "A-017"
+      ],
+      "equation_refs": [
+        "EQ-Q2-STATE",
+        "EQ-Q2-PREP",
+        "EQ-Q2-DEFECT",
+        "EQ-Q2-BELLMAN",
+        "EQ-Q2-CASH",
+        "EQ-Q2-ENUM"
+      ],
+      "checklist_refs": [
+        "C-Q2-MODEL",
+        "C-Q2-PART-DECISION",
+        "C-Q2-PRODUCT-DECISION",
+        "C-Q2-DISASSEMBLE-DECISION",
+        "C-Q2-EXCHANGE",
+        "C-Q2-TABLE1-CASES",
+        "C-MODEL-SYSTEM",
+        "C-MODEL-ASSEMBLY",
+        "C-MODEL-SCRAP",
+        "C-MODEL-COST-BEAR",
+        "C-MODEL-DEFECT-DEF",
+        "C-MODEL-EXCHANGE-LOSS",
+        "C-UNIT-DEF"
+      ],
+      "decision_variables": [
+        "Z1",
+        "Z2",
+        "C",
+        "D"
+      ],
+      "objective": "最大化单位合格交付期望利润",
+      "state_space": "两个零件的empty-good-bad状态及当前市场需求",
+      "solution_method": "枚举16种策略并以状态方程和逐事件现金流双算",
+      "outputs": [
+        "{R-Q2-case1-policy}",
+        "{R-Q2-case1-profit}",
+        "{R-Q2-case2-policy}",
+        "{R-Q2-case2-profit}",
+        "{R-Q2-case3-policy}",
+        "{R-Q2-case3-profit}",
+        "{R-Q2-case4-policy}",
+        "{R-Q2-case4-profit}",
+        "{R-Q2-case5-policy}",
+        "{R-Q2-case5-profit}",
+        "{R-Q2-case6-policy}",
+        "{R-Q2-case6-profit}",
+        "{R-Q2-sixteen-policy-table}"
+      ],
+      "structural_validation_input": {
+        "constraints_active": "仅吸收策略具有有限V，argmax前检查Bellman方程可解",
+        "decision_ranges": "Z1、Z2、C、D均属于0或1",
+        "sensitivity_directions": [
+          "固定策略时检测成本上升不增加最优利润",
+          "固定策略时拆解费用上升不增加最优利润",
+          "固定策略时调换损失上升不增加最优利润",
+          "成本扰动后必须重新求argmax"
+        ],
+        "stability_expectation": "解析状态值与逐轮现金流差不超过登记容差",
+        "resource_expectation": "每种策略仅解可达离散状态，不模拟连续库存"
+      },
+      "machine_contracts": {
+        "method_claims_machine_html": "<!-- METHOD_CLAIMS_MACHINE\nQ2-M1 | must: itertools.product, numpy.linalg.solve, absorbing_markov_reward | forbid: round_only_formula, ignored_return_defect, double_count_purchase_credit\nQ2-M2 | must: event_cash_ledger, market_revenue_once, replacement_assembly_once | forbid: exchange_loss_with_replacement_cost, scrap_salvage\nEND METHOD_CLAIMS_MACHINE -->",
+        "logic_contract_machine": {
+          "bounds": {
+            "items": [
+              "0<=p1,p2,pf<=1",
+              "all costs and losses are nonnegative",
+              "0<=Q_v<=1"
+            ],
+            "four_step_directions": [
+              "1 单次投入至多产生一个合格根产出",
+              "2 合格产出是0-1指示量",
+              "3 取期望得0<=Q_root<=1",
+              "4 题给p0=0.10位于概率域内"
+            ],
+            "logic_probes": [
+              "把任一成本增加δ后，最优价值应不增加",
+              "把D在0与1间切换后必须重算完整Bellman方程"
+            ]
+          },
+          "no_double_count": [
+            "采购费仅在零件缺失或检出报废时发生",
+            "回收件免采购收益只由状态转移体现",
+            "市场收入和调换损失按每次实际市场事件各记一次",
+            "报废不恢复采购成本且残值为零"
+          ],
+          "must_features": [
+            "四种二值决策",
+            "条件成品次品率",
+            "检测与不检测市场路径分流",
+            "调换后退回件重新处置",
+            "非吸收策略剔除"
+          ],
+          "train_range": "不适用训练；概率在0到1，金额参数非负，检测时次品率必须小于1",
+          "monotonic": [
+            "固定策略最优价值对检测成本单调不增",
+            "固定策略最优价值对拆解费用单调不增",
+            "固定策略最优价值对调换损失单调不增"
+          ],
+          "constraints_with_margin": [
+            "Bellman残差绝对值不超过value_iteration_tol",
+            "状态值与事件账本差不超过cashflow_abs_tol"
+          ],
+          "calibration_anchors": [
+            "F-T1-C1至F-T1-C6",
+            "F-MECH-QUALIFIED",
+            "F-APPENDIX-EXCHANGE-LOSS",
+            "Q2策略空间规模"
+          ],
+          "equivalence_claims": [
+            "状态期望与逐轮现金流账本等价",
+            "全检零件采购检测期望成本为(a_i+t_i)/(1-p_i)"
+          ]
+        },
+        "cross_problem_ledger": {
+          "links": [
+            {
+              "id": "XL-21",
+              "upstream": "MS-Q2",
+              "downstream": "MS-Q3",
+              "quantity": "degenerate_root_profit_gap",
+              "must_le": "cashflow_abs_tol",
+              "must_ge": "0"
+            }
+          ]
+        },
+        "result_constraints": [
+          "Pi2(pi)=V_pi(empty)",
+          "Pi2*=max_{pi in {0,1}^4}Pi2(pi)",
+          "P_bad=1-I(h1=good)I(h2=good)(1-pf)",
+          "abs(V_pi(empty)-event_cash_sum_pi)<=cashflow_abs_tol",
+          "absorption_probability_pi=1"
+        ]
+      },
+      "audit_dispositions": [
+        {
+          "id": "F-003",
+          "action": "状态方程覆盖C和D全部分支，不删除无检测根节点处置"
+        }
+      ]
     },
     {
       "id": "MS-Q3",
-      "title": "问题3：m 工序 n 零配件的节点级一般化决策模型",
-      "problem_refs": ["R-Q3"],
-      "checklist_refs": ["C-Q3-GENERAL", "C-Q3-INSTANCE-DATA", "C-Q3-INSTANCE-RESULT", "C-MODEL-SYSTEM", "C-MODEL-ASSEMBLY", "C-MODEL-SCRAP", "C-MODEL-DEFECT-DEF"],
-      "assumption_refs": ["ASM-01", "ASM-02", "ASM-03", "ASM-04", "ASM-09", "ASM-10", "ASM-12", "ASM-13", "ASM-15"],
-      "equation_refs": ["EQ-Q3-ASSY", "EQ-Q3-NODE", "EQ-Q3-COST", "EQ-Q3-KF", "EQ-Q3-KAPPA", "EQ-Q3-XI", "EQ-Q3-RECUR", "EQ-Q3-UNITCOST", "EQ-Q3-PROFIT"],
-      "symbol_refs": ["SYM-Zv", "SYM-Dv", "SYM-pv", "SYM-Av", "SYM-cv", "SYM-tv", "SYM-lv", "SYM-av", "SYM-Qv", "SYM-qv", "SYM-Uv", "SYM-kappa-v", "SYM-hv", "SYM-xiv", "SYM-Kfv", "SYM-Krv", "SYM-gv", "SYM-Rv", "SYM-chv", "SYM-s", "SYM-Pi"],
-      "method": "自底向上聚合成本与合格率、自顶向下折算交付需求量，再对节点二值决策做枚举/分层搜索",
-      "objective": "max Π over {Z_v, D_v}",
-      "decision_vars": ["Z_v", "D_v"],
-      "structure_map": {"零配件": [1, 2, 3, 4, 5, 6, 7, 8], "半成品1": [1, 2, 3], "半成品2": [4, 5, 6], "半成品3": [7, 8], "成品": ["半成品1", "半成品2", "半成品3"]},
-      "result_anchors": ["{R-Q3-decision-table}", "{R-Q3-profit}", "{R-Q3-node-cost}", "{R-Q3-topology-robust}"],
-      "verification_plan": ["待执行：对 2 工序 8 零配件实例逐一核验各节点分项成本恒等式（容差 1e-6）", "待执行：把 m=2、n=2 的退化结构与问题2的四元模型结果对齐核验", "待执行：对装配树连接关系做拓扑扰动扫描，核验最优决策的稳健性"]
+      "title": "一般装配网络事件动态规划",
+      "problem_refs": [
+        "Q3",
+        "R-Q3",
+        "R-OUT"
+      ],
+      "symbol_refs": [
+        "S-GRAPH",
+        "S-Z1",
+        "S-CF",
+        "S-DF",
+        "S-APRICE",
+        "S-TCOST",
+        "S-KF",
+        "S-TF",
+        "S-SALE",
+        "S-EXL",
+        "S-DIS",
+        "S-H",
+        "S-V",
+        "S-QV",
+        "S-CV",
+        "S-UV",
+        "S-PI"
+      ],
+      "assumption_refs": [
+        "A-001",
+        "A-002",
+        "A-003",
+        "A-004",
+        "A-008",
+        "A-009",
+        "A-011",
+        "A-012",
+        "A-013",
+        "A-016",
+        "A-017"
+      ],
+      "equation_refs": [
+        "EQ-Q2-STATE",
+        "EQ-Q2-PREP",
+        "EQ-Q3-NET",
+        "EQ-Q3-KERNEL",
+        "EQ-Q3-BELLMAN",
+        "EQ-Q3-RATE",
+        "EQ-Q3-PROFIT",
+        "EQ-Q3-DEGEN"
+      ],
+      "checklist_refs": [
+        "C-Q3-GENERAL",
+        "C-Q3-INSTANCE-DATA",
+        "C-Q3-INSTANCE-RESULT",
+        "C-MODEL-SYSTEM",
+        "C-MODEL-ASSEMBLY",
+        "C-MODEL-SCRAP",
+        "C-MODEL-DEFECT-DEF",
+        "C-MODEL-EXCHANGE-LOSS",
+        "C-UNIT-DEF"
+      ],
+      "decision_variables": [
+        "Y_v",
+        "D_v"
+      ],
+      "objective": "最大化一般网络单位合格根产出利润",
+      "state_space": "有向无环装配图及所有可达即时回流件状态",
+      "solution_method": "全事件Markov奖励递推、有效策略枚举和主替拓扑对照",
+      "data_gaps": [
+        {
+          "id": "DG-Q3-TOPOLOGY",
+          "missing": "图1原件及可校验边表",
+          "handling": "主结果仅作分组推断情景，并强制运行替代拓扑"
+        }
+      ],
+      "outputs": [
+        "{R-Q3-primary-policy}",
+        "{R-Q3-primary-profit}",
+        "{R-Q3-alternative-policy}",
+        "{R-Q3-alternative-profit}",
+        "{R-Q3-topology-profit-gap}",
+        "{R-Q3-degeneration-max-error}"
+      ],
+      "structural_validation_input": {
+        "constraints_active": "所有可达状态须有有限吸收路径，根交付后Bellman值为零",
+        "decision_ranges": "每个可检测节点Y_v属于0或1，半成品和成品D_v属于0或1",
+        "sensitivity_directions": [
+          "固定策略时任一成本上升不增加最优利润",
+          "更换边表后必须重新计算全部节点决策",
+          "拆解决策翻转须由完整利润差而非局部比值决定"
+        ],
+        "stability_expectation": "单位成本、产出率、利润和逐事件账本量纲一致",
+        "resource_expectation": "只展开单需求可达状态并用稀疏线性方程求解"
+      },
+      "machine_contracts": {
+        "method_claims_machine_html": "<!-- METHOD_CLAIMS_MACHINE\nQ3-M1 | must: networkx.DiGraph, reachable_state_enumeration, event_markov_reward | forbid: acyclic_cost_sum_without_rework, local_ratio_decision\nQ3-M2 | must: output_rate, launch_cost_rate, U_equals_C_over_Q, topology_perturbation | forbid: U_times_Q, untraced_topology, primary_only_claim\nQ3-M3 | must: q2_degenerate_16_policy_equivalence | forbid: tolerance_exemption, parameter_realignment\nEND METHOD_CLAIMS_MACHINE -->",
+        "logic_contract_machine": {
+          "bounds": {
+            "items": [
+              "0<=Q_v<=1",
+              "0<=C_v",
+              "U_v>=0 when Q_v>0"
+            ],
+            "four_step_directions": [
+              "1 每次节点投入最多形成一个该节点产出",
+              "2 合格产出用0-1指示量表示",
+              "3 产出率是状态分布下的期望",
+              "4 题给次品率0.10满足概率界"
+            ],
+            "logic_probes": [
+              "拓扑边改变δ后全树重算并记录决策差异",
+              "把Q_v除以正数δ后U_v应按同比例反向变化"
+            ]
+          },
+          "no_double_count": [
+            "父节点只使用事件转移的本次现金成本",
+            "U_v=C_v/Q_v仅作单位换算，禁止再乘Q_v",
+            "Q_v和C_v必须来自同一完整回流事件轨迹",
+            "根节点所有检测和处置分支均进入同一状态方程"
+          ],
+          "must_features": [
+            "一般有向无环装配图",
+            "逐节点检测和拆解决策",
+            "完整失败处置",
+            "主替拓扑对照",
+            "退化实例逐策略等价"
+          ],
+          "train_range": "不适用训练；节点率在0到1，金额非负，图必须为有限DAG",
+          "monotonic": [
+            "固定策略成本对各成本参数单调不增",
+            "固定策略U_v对C_v单调不减"
+          ],
+          "constraints_with_margin": [
+            "Bellman残差不超过value_iteration_tol",
+            "退化实例16策略逐项差不超过cashflow_abs_tol",
+            "Q_v=0时U_v取正无穷并剔除策略"
+          ],
+          "calibration_anchors": [
+            "F-FIG1",
+            "F-T2-PART-1至F-T2-PART-8",
+            "F-T2-SEMI",
+            "F-T2-PRODUCT",
+            "F-T2-PRICE"
+          ],
+          "equivalence_claims": [
+            "U_v=C_v/Q_v与每件合格产出成本定义等价",
+            "两零件退化图与MS-Q2逐策略等价"
+          ]
+        },
+        "cross_problem_ledger": {
+          "links": [
+            {
+              "id": "XL-21",
+              "upstream": "MS-Q2",
+              "downstream": "MS-Q3",
+              "quantity": "degenerate_root_profit_gap",
+              "must_le": "cashflow_abs_tol",
+              "must_ge": "0"
+            },
+            {
+              "id": "XL-31",
+              "upstream": "MS-Q3",
+              "downstream": "MS-Q4",
+              "quantity": "root_profit_normalization_difference",
+              "must_le": "cashflow_abs_tol",
+              "must_ge": "0"
+            }
+          ]
+        },
+        "result_constraints": [
+          "U_v=C_v/Q_v for Q_v>0",
+          "U_v=+infinity for Q_v=0",
+          "parent_launch_cash=sum_h'P_pi(h,h') immediate_cash(h,h')",
+          "abs(Pi2_pi-Pi3_deg_pi)<=cashflow_abs_tol for every degenerate policy",
+          "Pi3*=max_pi Pi3(pi)"
+        ]
+      },
+      "audit_dispositions": [
+        {
+          "id": "audit-2",
+          "action": "主拓扑保留图证缺口，新增输入数不同的替代边表和利润差"
+        },
+        {
+          "id": "F-002",
+          "action": "改为投入成本率C_v、产出率Q_v及U_v=C_v/Q_v，禁止父子混用"
+        },
+        {
+          "id": "F-003",
+          "action": "根节点全部分支进入事件Bellman方程并以Q2退化实例阻断"
+        },
+        {
+          "id": "F-009",
+          "action": "图1缺失时结果降级为条件情景，不冒充原图精确答案"
+        }
+      ]
     },
     {
       "id": "MS-Q4",
-      "title": "问题4：次品率带抽样误差时的重解与稳健性",
-      "problem_refs": ["R-Q4"],
-      "checklist_refs": ["C-Q4-REDO"],
-      "assumption_refs": ["ASM-05", "ASM-07", "ASM-16"],
-      "equation_refs": ["EQ-OC", "EQ-Q4-CI", "EQ-Q4-PROFIT-RANGE", "EQ-Q4-ROBUST", "EQ-PROFIT-Q2", "EQ-Q3-PROFIT"],
-      "symbol_refs": ["SYM-phat", "SYM-CIp", "SYM-n", "SYM-rho", "SYM-Pi", "SYM-Z1", "SYM-Z2", "SYM-C", "SYM-D", "SYM-Zv", "SYM-Dv"],
-      "method": "点估计重解 + 置信区间在决策固定下的利润传播 + 蒙特卡洛重抽样一致率",
-      "objective": "在次品率不确定下给出决策并量化翻转风险",
-      "decision_vars": ["Z_1", "Z_2", "C", "D", "Z_v", "D_v"],
-      "result_anchors": ["{R-Q4-ci-part1}", "{R-Q4-profit-range}", "{R-Q4-consistency-rate}", "{R-Q4-decision-diff}"],
-      "verification_plan": ["待执行：核验置信区间覆盖点估计且端点单调（容差 1e-6）", "待执行：核验蒙特卡洛一致率随抽样次数收敛", "待执行：逐条比对问题4决策与问题2、问题3点估计决策的差异"]
-    },
-    {
-      "id": "MS-GLOBAL",
-      "title": "全局口径：量纲统一与检测费用归属",
-      "problem_refs": ["R-OUT"],
-      "checklist_refs": ["C-UNIT-DEF", "C-MODEL-COST-BEAR"],
-      "assumption_refs": ["ASM-04", "ASM-12"],
-      "equation_refs": ["EQ-PROFIT-Q2", "EQ-Q3-PROFIT"],
-      "symbol_refs": ["SYM-s", "SYM-U", "SYM-Uv", "SYM-Pi", "SYM-l", "SYM-lv"],
-      "method": "统一指标口径：所有金额以元/件计，比率无量纲",
-      "objective": "保证问题2/3/4 指标横向可比",
-      "decision_vars": [],
-      "result_anchors": ["{R-OUT-profit-def}"],
-      "verification_plan": ["待执行：全表核验各金额列单位为元/件、比率列为无量纲百分数", "待执行：核验问题1检测费用按元/件折入方案比较，不重复计入问题2/3的检测成本项"]
+      "title": "抽样不确定性下的区间与稳健重解",
+      "problem_refs": [
+        "Q4",
+        "R-Q4",
+        "R-OUT"
+      ],
+      "symbol_refs": [
+        "S-M",
+        "S-NV",
+        "S-XV",
+        "S-PHAT",
+        "S-ALPHAJ",
+        "S-CIL",
+        "S-CIU",
+        "S-CONSIST",
+        "S-H",
+        "S-V",
+        "S-PI"
+      ],
+      "assumption_refs": [
+        "A-001",
+        "A-003",
+        "A-004",
+        "A-007",
+        "A-011",
+        "A-012",
+        "A-014",
+        "A-018"
+      ],
+      "equation_refs": [
+        "EQ-Q4-EST",
+        "EQ-Q4-CP",
+        "EQ-Q4-JOINT",
+        "EQ-Q4-N",
+        "EQ-Q4-MC",
+        "EQ-Q4-ROBUST",
+        "EQ-Q3-BELLMAN"
+      ],
+      "checklist_refs": [
+        "C-Q4-REDO",
+        "C-Q2-MODEL",
+        "C-Q3-GENERAL",
+        "C-MODEL-DEFECT-DEF",
+        "C-UNIT-DEF"
+      ],
+      "decision_variables": [
+        "pi_Q2",
+        "pi_Q3",
+        "robust_policy"
+      ],
+      "objective": "给出点估计、区间最坏值及重抽样一致性",
+      "state_space": "问题2的3个和问题3的12个次品率参数节点",
+      "solution_method": "逐节点精度设计、精确CP区间、Bonferroni联合域及可复现情景重抽样",
+      "data_gaps": [
+        {
+          "id": "DG-Q4-SAMPLES",
+          "missing": "各参数节点实际样本量与观测次品数",
+          "handling": "按登记过程生成并保存每个x_v，禁止称作真实观测估计"
+        }
+      ],
+      "outputs": [
+        "{R-Q4-case1-point-policy}",
+        "{R-Q4-case1-robust-policy}",
+        "{R-Q4-case1-profit-interval}",
+        "{R-Q4-case2-point-policy}",
+        "{R-Q4-case2-robust-policy}",
+        "{R-Q4-case2-profit-interval}",
+        "{R-Q4-case3-point-policy}",
+        "{R-Q4-case3-robust-policy}",
+        "{R-Q4-case3-profit-interval}",
+        "{R-Q4-case4-point-policy}",
+        "{R-Q4-case4-robust-policy}",
+        "{R-Q4-case4-profit-interval}",
+        "{R-Q4-case5-point-policy}",
+        "{R-Q4-case5-robust-policy}",
+        "{R-Q4-case5-profit-interval}",
+        "{R-Q4-case6-point-policy}",
+        "{R-Q4-case6-robust-policy}",
+        "{R-Q4-case6-profit-interval}",
+        "{R-Q4-Q3-point-policy}",
+        "{R-Q4-Q3-robust-policy}",
+        "{R-Q4-Q3-profit-interval}",
+        "{R-Q4-decision-consistency}"
+      ],
+      "structural_validation_input": {
+        "constraints_active": "区间合法、联合错误率不超族错误率、点估计和每次重抽样均重新argmax",
+        "decision_ranges": "n_v为正整数，x_v属于0到n_v，所有概率限于0到1",
+        "sensitivity_directions": [
+          "固定n时x上升使CP下端点不降、上端点不增",
+          "样本量增大时区间总体宽度不增",
+          "成本率上升时稳健最优利润不升",
+          "更换n或置信构造后策略一致率必须重算"
+        ],
+        "stability_expectation": "x等于0、x等于n和内部值均返回合法闭区间",
+        "resource_expectation": "重复次数与随机种子固定，样本量扫描使用登记网格"
+      },
+      "machine_contracts": {
+        "method_claims_machine_html": "<!-- METHOD_CLAIMS_MACHINE\nQ4-M1 | must: scipy.stats.beta.ppf, scipy.stats.binom, clopper_pearson, edge_case_tests | forbid: plug_normal_ci, undefined_beta_endpoint, true_rate_as_estimate\nQ4-M2 | must: bonferroni_joint_box, parameter_precision_n, decision_reopt | forbid: marginal_box_called_joint_ci, q1_n_reused_for_all_nodes\nQ4-M3 | must: numpy.random.Generator, recorded_x_v, reproducible_seed, monte_carlo_consistency | forbid: unseeded_simulation, unlogged_scenario, empirical_claim_without_data\nEND METHOD_CLAIMS_MACHINE -->",
+        "logic_contract_machine": {
+          "bounds": {
+            "items": [
+              "n_v>=1",
+              "0<=x_v<=n_v",
+              "0<=L_v<=p_hat_v<=U_CI_v<=1"
+            ],
+            "four_step_directions": [
+              "1 二项计数满足0<=x_v<=n_v",
+              "2 次品率由p_hat_v=x_v/n_v反解",
+              "3 代入计数界得0<=p_hat_v<=1",
+              "4 题给p0=0.10满足反解域"
+            ],
+            "logic_probes": [
+              "x改为x+δ时CP下端点应不降",
+              "x改为x+δ时CP上端点应不增",
+              "n改为n+δ后区间宽度应不增",
+              "区间端点改变后必须重新求argmax"
+            ]
+          },
+          "no_double_count": [
+            "情景x_v是唯一抽样数据来源",
+            "名义p_v只作情景生成中心，不直接充当p_hat_v",
+            "点估计、联合域和重抽样分别记账",
+            "Q2与Q3沿用同一利润及现金流口径"
+          ],
+          "must_features": [
+            "逐参数独立精度样本量",
+            "CP端点显式分支",
+            "Bonferroni联合覆盖",
+            "最坏情景利润",
+            "可复现决策一致率"
+          ],
+          "train_range": "n_v从1到登记上限，x_v为二项计数，情景概率限于0到1",
+          "monotonic": [
+            "CP下端点对观测次品数单调不减",
+            "CP上端点对观测次品数单调不增",
+            "区间宽度对样本量总体单调不增"
+          ],
+          "constraints_with_margin": [
+            "sum_v alpha_v<=q4_family_alpha",
+            "CP端点次序误差不超过q1_numeric_tol",
+            "情景与稳健利润均沿用cashflow_abs_tol"
+          ],
+          "calibration_anchors": [
+            "F-T1-C1至F-T1-C6",
+            "F-T2-PART-1至F-T2-PRODUCT",
+            "Q4联合置信水平",
+            "Q4区间总宽度目标"
+          ],
+          "equivalence_claims": [
+            "CP内部公式与精确二项反演区间等价",
+            "Bonferroni联合域覆盖率至少等于登记联合置信水平",
+            "Q4与Q2、Q3使用相同事件利润函数"
+          ]
+        },
+        "cross_problem_ledger": {
+          "links": [
+            {
+              "id": "XL-21",
+              "upstream": "MS-Q2",
+              "downstream": "MS-Q3",
+              "quantity": "degenerate_root_profit_gap",
+              "must_le": "cashflow_abs_tol",
+              "must_ge": "0"
+            },
+            {
+              "id": "XL-42",
+              "upstream": "MS-Q2",
+              "downstream": "MS-Q4",
+              "quantity": "q4_marginal_alpha_q2",
+              "must_le": "q4_family_alpha",
+              "must_ge": "q4_family_alpha/3"
+            },
+            {
+              "id": "XL-43",
+              "upstream": "MS-Q3",
+              "downstream": "MS-Q4",
+              "quantity": "q4_marginal_alpha_q3",
+              "must_le": "q4_family_alpha",
+              "must_ge": "q4_family_alpha/12"
+            },
+            {
+              "id": "XL-44",
+              "upstream": "MS-Q2/MS-Q3",
+              "downstream": "MS-Q4",
+              "quantity": "profit_unit_difference",
+              "must_le": "cashflow_abs_tol",
+              "must_ge": "0"
+            }
+          ]
+        },
+        "result_constraints": [
+          "p_hat_v=x_v/n_v",
+          "L_v=0 if x_v=0 else QBeta(alpha_joint/2;x_v,n_v-x_v+1)",
+          "U_CI_v=1 if x_v=n_v else QBeta(1-alpha_joint/2;x_v+1,n_v-x_v)",
+          "0<=L_v<=p_hat_v<=U_CI_v<=1",
+          "alpha_joint=q4_family_alpha/M",
+          "n_v=min{n in 1..q4_n_max: width_CP(p_v,n)<=q4_width_target}",
+          "rho_decision=mean_b I[pi*(p_hat^(b))=pi*(p_scenario)]"
+        ]
+      },
+      "audit_dispositions": [
+        {
+          "id": "F-004",
+          "action": "无真实样本时只生成可审计情景x_v并降级结论，不称观测重解"
+        },
+        {
+          "id": "F-005",
+          "action": "CP公式显式处理x=0与x=n并加入端点测试"
+        },
+        {
+          "id": "F-006",
+          "action": "采用Bonferroni联合域并按3与12个参数节点分配边际错误率"
+        },
+        {
+          "id": "F-007",
+          "action": "逐参数按区间精度选n_v，另做样本量与翻转率扫描"
+        }
+      ]
     }
   ],
   "model_constants": [
-    {"name": "数值容差", "value": 1e-06, "unit": "", "note": "解析式与逐轮现金流复算比对容差"},
-    {"name": "Q1可识别超标幅度Δ", "value": 0.05, "unit": "比率"},
-    {"name": "Q1情形1显著性水平α1", "value": 0.05, "unit": "比率"},
-    {"name": "Q1情形2显著性水平α2", "value": 0.1, "unit": "比率"},
-    {"name": "Q1功效约束β", "value": 0.1, "unit": "比率"},
-    {"name": "Q1样本量搜索上界", "value": 1000, "unit": "件"},
-    {"name": "蒙特卡洛重复次数", "value": 10000, "unit": "次"},
-    {"name": "随机种子", "value": 202409, "unit": ""},
-    {"name": "灵敏度扰动幅度", "value": 20, "unit": "%"},
-    {"name": "灵敏度扫描置信水平对照值", "value": 0.99, "unit": "比率"},
-    {"name": "盈亏平衡等高线格点数", "value": 41, "unit": "点/轴"},
-    {"name": "正态近似适用下界", "value": 5, "unit": "件"},
-    {"name": "决策一致率判定阈值", "value": 0.95, "unit": "比率"},
-    {"name": "Q4重抽样次数", "value": 2000, "unit": "次"},
-    {"name": "Q4置信区间置信水平", "value": 0.95, "unit": "比率"},
-    {"name": "问题2策略组合数", "value": 16, "unit": "种"},
-    {"name": "问题3半成品数", "value": 3, "unit": "个"},
-    {"name": "问题3图1节点总数", "value": 12, "unit": "个"}
+    {
+      "name": "Q1标称次品率",
+      "value": 0.1,
+      "unit": "1"
+    },
+    {
+      "name": "Q1拒收第一类错误上限",
+      "value": 0.05,
+      "unit": "1"
+    },
+    {
+      "name": "Q1接收置信水平",
+      "value": 0.9,
+      "unit": "1"
+    },
+    {
+      "name": "Q1可识别超标幅度",
+      "value": 0.05,
+      "unit": "1"
+    },
+    {
+      "name": "Q1第二类错误上限",
+      "value": 0.1,
+      "unit": "1"
+    },
+    {
+      "name": "Q1超标幅度灵敏度网格",
+      "value": [
+        0.02,
+        0.05,
+        0.1
+      ],
+      "unit": "1"
+    },
+    {
+      "name": "Q1第二类错误灵敏度网格",
+      "value": [
+        0.05,
+        0.1,
+        0.2
+      ],
+      "unit": "1"
+    },
+    {
+      "name": "Q1精确枚举数值容差",
+      "value": 1e-12,
+      "unit": "1"
+    },
+    {
+      "name": "报废回收价值",
+      "value": 0,
+      "unit": "元/件"
+    },
+    {
+      "name": "Q2策略空间规模",
+      "value": 16,
+      "unit": "种"
+    },
+    {
+      "name": "Q2库存状态上限",
+      "value": 9,
+      "unit": "个"
+    },
+    {
+      "name": "现金流核验绝对容差",
+      "value": 1e-6,
+      "unit": "元/合格交付"
+    },
+    {
+      "name": "价值迭代收敛容差",
+      "value": 1e-10,
+      "unit": "元/合格交付"
+    },
+    {
+      "name": "价值迭代最大轮数",
+      "value": 100000,
+      "unit": "轮"
+    },
+    {
+      "name": "Q3主情景拓扑",
+      "value": {
+        "半成品1": [
+          1,
+          2,
+          3
+        ],
+        "半成品2": [
+          4,
+          5,
+          6
+        ],
+        "半成品3": [
+          7,
+          8
+        ],
+        "成品": [
+          "半成品1",
+          "半成品2",
+          "半成品3"
+        ]
+      },
+      "unit": "边表"
+    },
+    {
+      "name": "Q3替代拓扑",
+      "value": {
+        "半成品1": [
+          1,
+          2
+        ],
+        "半成品2": [
+          3,
+          4
+        ],
+        "半成品3": [
+          5,
+          6,
+          7,
+          8
+        ],
+        "成品": [
+          "半成品1",
+          "半成品2",
+          "半成品3"
+        ]
+      },
+      "unit": "边表"
+    },
+    {
+      "name": "Q3主情景有效策略数",
+      "value": 65536,
+      "unit": "种"
+    },
+    {
+      "name": "Q3可达库存状态上限",
+      "value": 531441,
+      "unit": "个"
+    },
+    {
+      "name": "Q4联合置信水平",
+      "value": 0.95,
+      "unit": "1"
+    },
+    {
+      "name": "Q4联合族错误率",
+      "value": 0.05,
+      "unit": "1"
+    },
+    {
+      "name": "Q2参数节点数",
+      "value": 3,
+      "unit": "个"
+    },
+    {
+      "name": "Q3参数节点数",
+      "value": 12,
+      "unit": "个"
+    },
+    {
+      "name": "Q4-Q2 Bonferroni边际错误率",
+      "value": 0.0166666666666667,
+      "unit": "1"
+    },
+    {
+      "name": "Q4-Q3 Bonferroni边际错误率",
+      "value": 0.00416666666666667,
+      "unit": "1"
+    },
+    {
+      "name": "Q4区间总宽度目标",
+      "value": 0.1,
+      "unit": "1"
+    },
+    {
+      "name": "Q4单参数样本量上限",
+      "value": 1000,
+      "unit": "次"
+    },
+    {
+      "name": "Q4样本量扫描网格",
+      "value": [
+        50,
+        100,
+        200,
+        400,
+        800
+      ],
+      "unit": "次"
+    },
+    {
+      "name": "Q4情景蒙特卡洛重复次数",
+      "value": 10000,
+      "unit": "次"
+    },
+    {
+      "name": "Q4随机种子",
+      "value": 202409,
+      "unit": ""
+    },
+    {
+      "name": "Q4 Jeffreys先验α",
+      "value": 0.5,
+      "unit": "1"
+    },
+    {
+      "name": "Q4 Jeffreys先验β",
+      "value": 0.5,
+      "unit": "1"
+    },
+    {
+      "name": "Q4决策一致率门槛",
+      "value": 0.9,
+      "unit": "1"
+    },
+    {
+      "name": "相对灵敏度扫描网格",
+      "value": [
+        -0.2,
+        -0.1,
+        0,
+        0.1,
+        0.2
+      ],
+      "unit": "1"
+    }
   ],
-  "illustrative_numbers": [
-    {"value": 63, "quote": "连续松弛会给出“检测 63% 的成品”这类无法实施的解", "reason": "反例示意：说明把 0-1 检测决策松弛为连续比例后会得到不可实施的解，既非计算结果也非模型常数"}
-  ],
-  "audit_responses": [
-    {"id": 1, "severity": "fatal", "gate": "no_claimed_verification", "action": "fixed", "landing": "整改落点为 MODELING_REPORT.md 的检验方案章与各模型小节的动词时态：一律写成“待执行：将对…核验”，删除“全部一致/满足/已通过”类完成时结论；本 DECLARATION.json 全文件不含任何完成时验证声明，验证意图全部登记为 model_specs[*].verification_plan（待执行）。", "evidence": "model_specs 内 5 条 verification_plan 均以“待执行：”开头"},
-    {"id": 2, "severity": "major", "gate": "DECLARATION.json 顶层", "action": "partial_refute", "landing": "已删除 data 与 output_artifacts 两段；model_constants 与 illustrative_numbers 保留在顶层，理由有二：① 本阶段交付契约把文件集固定为两件（DECLARATION.json、MODELING_REPORT.md），拆出 MODEL_CONSTANTS.json 会引入不受契约承认的第三个产物，反而使阶段3/9无键名可读；② 门禁 numbers_traced 与编外登记簿条款均以按键名读取本文件为准，故二者以“非 IR 附册”身份保留并在此显式标注；audit_responses 仅作为本轮整改回执保留一次，下轮起移出。", "evidence": "顶层现为 stage/source/ir_sections/symbols/assumptions/equations/model_specs/model_constants/illustrative_numbers/audit_responses"},
-    {"id": 3, "severity": "major", "gate": "EQ-Q3-RECUR 的 κ_v 无定义", "action": "fixed", "landing": "新增 EQ-Q3-KAPPA（κ_v = Σ_{u∈ch(v)}(U_u − Z_u c_u) = K_f(v) − K_r(v)）与符号 SYM-kappa-v；新增 EQ-Q3-KF 给出 K_f(v)、K_r(v)；EQ-Q3-RECUR 与 EQ-Q3-UNITCOST 显式引用 SYM-kappa-v，并挂 ASM-10（回收件免除采购/上游获取成本，仍付再检测费 Z_u c_u）。问题3的 D_v 判定由此有可机械实现的收益项：回收净收益 = κ_v − t_v。", "evidence": "equations: EQ-Q3-KAPPA、EQ-Q3-KF；symbols: SYM-kappa-v"},
-    {"id": 4, "severity": "minor", "gate": "方向表述自相矛盾", "action": "fixed", "landing": "统一为“成本与合格率自底向上聚合，交付需求量自顶向下折算”：EQ-Q3-ASSY 由子节点 Q_u 聚合父节点 q_v，EQ-Q3-UNITCOST 由叶向根聚合 U_v；MS-Q3.method 已改为同一措辞；报告 §1.3 由 2b 分片按此措辞同步改写。", "evidence": "model_specs[MS-Q3].method = “自底向上聚合成本与合格率、自顶向下折算交付需求量”"},
-    {"id": 5, "severity": "minor", "gate": "SYM-Vv 冗余", "action": "fixed", "landing": "删除 SYM-Vv，全文件只保留 U_v（问题3）与 U（问题2），两者均在 equation refs 中被引用；不再存在登记别名。", "evidence": "symbols 中已无 V_v；SYM-U 见 EQ-PROFIT-Q2/EQ-COST-Q2，SYM-Uv 见 EQ-Q3-COST/EQ-Q3-UNITCOST"},
-    {"id": 6, "severity": "minor", "gate": "下标化符号未登记", "action": "fixed", "landing": "symbols 段补齐节点泛化符号：SYM-Av、SYM-cv、SYM-tv、SYM-lv、SYM-av（含义同问题2的 A、c_0/c_i、t、l、a_i，按节点编号），并同步登记 SYM-pv、SYM-Zv、SYM-Dv、SYM-Qv、SYM-qv、SYM-Uv、SYM-chv、SYM-hv、SYM-xiv、SYM-Kfv、SYM-Krv、SYM-gv、SYM-Rv。", "evidence": "symbols: SYM-Av/SYM-cv/SYM-tv/SYM-lv/SYM-av 及 EQ-Q3-* 的 refs"},
-    {"id": 7, "severity": "minor", "gate": "EQ-OC 二项系数与 C 重名", "action": "fixed", "landing": "EQ-OC 改用 \\binom{n}{i} 记法，全文不再出现 C(n,i)；决策变量 C（是否检测成品）与二项系数不再同形。", "evidence": "equations[EQ-OC].expr = “L(p) = … Σ_{i=0}^{c_r} \\binom{n}{i} p^i (1-p)^{n-i}”"},
-    {"id": 8, "severity": "minor", "gate": "SYM-theta4 与符号名不同源", "action": "fixed", "landing": "id 改为 SYM-phat，symbol 字段为 p_hat；EQ-Q4-CI 的 refs 已同步改为 SYM-phat，检索链闭合。", "evidence": "symbols: {id: SYM-phat, symbol: p_hat}；equations[EQ-Q4-CI].refs 含 SYM-phat"},
-    {"id": 9, "severity": "minor", "gate": "EQ-COST-Q2 与闭式解不一致", "action": "fixed_refute_partial", "landing": "不引入 x 因子：删去旧稿中的 x 写法，改为逐字对齐——EQ-Q2-RECUR 给出 R 的闭式（含 (1-q)(D t + (1-C) l) 与分母 1−D(1-q)），EQ-COST-Q2 的描述式与表达式同源，调换损失项写作 (1-q)(1-C) l 并再经 g 折算，不再出现“调换损失按 l/q 全额计入”的歧义。", "evidence": "equations[EQ-COST-Q2].statement = “每件合格成品期望成本，含调换损失项 (1-q)(1-C) l”"},
-    {"id": 10, "severity": "minor", "gate": "上游 id 引用不可核验", "action": "accepted_plan", "landing": "采用审计给出的机械校验路线：阶段3 开工前先跑“上游 id 集合 ⊇ 产物引用集合”的闭包校验（CAPABILITY_CHECKLIST.json 的 C-* 并 ASSUMPTION/REQUIREMENT 锚点集）；本轮已在产物内逐条保留 upstream id 原文（assumptions[*].source_refs 记 A-001..A-008 与 HC-xx，model_specs[*].problem_refs 记 R-Q1..R-Q4/R-OUT），不额外新增顶层登记段以免与 finding 2 冲突。", "evidence": "assumptions[*].source_refs 与 model_specs[*].problem_refs 均逐字保留上游 id"}
-  ]
+  "illustrative_numbers": []
 }

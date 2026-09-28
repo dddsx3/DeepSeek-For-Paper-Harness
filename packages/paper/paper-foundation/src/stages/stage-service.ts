@@ -258,7 +258,12 @@ export class PaperStageChainService extends Service {
       for (let attempt = 1; attempt <= 3; attempt += 1) {
         try {
           let text = ''
-          let finish: { kind: string } | undefined
+          // **别把 finish 的 message/code 削掉**：provider 已把带内错误分类成
+          // `provider stream error: <原文> (code=PROVIDER_<n>)`，而这里原来只留 `kind`，
+          // 于是日志里永远只有一句 `finish=error`——分不清是限流、被重置还是协议错，
+          // 只能人工探活（实测为此反复探活）。与 `_rejected-answer.txt`、
+          // 渲染清单的 stderr 同一条纪律：**失败要可诊断**。
+          let finish: { kind: string; message?: string; code?: string } | undefined
           for await (const chunk of provider.stream(request)) {
             if (chunk.type === 'text-delta') text += chunk.text
             if (chunk.type === 'finish') finish = chunk.reason
@@ -269,7 +274,10 @@ export class PaperStageChainService extends Service {
               + '这不是"写错了哪里"，是产出超过了单次调用的输出上限；分片或压缩后重试')
           }
           if (kind === 'error' || kind === 'aborted') {
-            throw new Error(`模型调用未正常结束（finish=${kind}）—— 阶段 '${spec.id}' 没有可用回答`)
+            const why = [finish?.message, finish?.code]
+              .filter((x): x is string => typeof x === 'string' && x !== '').join(' / ')
+            throw new Error(`模型调用未正常结束（finish=${kind}${why === '' ? '' : `：${why}`}）`
+              + `—— 阶段 '${spec.id}' 没有可用回答`)
           }
           return text
         } catch (error) {
@@ -439,7 +447,7 @@ export class PaperStageChainService extends Service {
           messages: [createUserMessage({ content: [{ type: 'text', text: prompt }], source: { kind: 'user' } })],
         }
         let text = ''
-        let finish: { kind: string } | undefined
+        let finish: { kind: string; message?: string; code?: string } | undefined
         for await (const chunk of provider.stream(request)) {
           if (chunk.type === 'text-delta') text += chunk.text
           if (chunk.type === 'finish') finish = chunk.reason
@@ -447,7 +455,9 @@ export class PaperStageChainService extends Service {
         const kind = finish?.kind ?? 'stop'
         if (kind === 'error' || kind === 'aborted' || kind === 'max-tokens') {
           // 审计没跑成 → 抛错，由 runner 记 `2`（**绝不当成通过**）
-          throw new Error(`审计调用未正常结束（finish=${kind}）—— 本阶段未被审计`)
+          const why = [finish?.message, finish?.code]
+            .filter((x): x is string => typeof x === 'string' && x !== '').join(' / ')
+          throw new Error(`审计调用未正常结束（finish=${kind}${why === '' ? '' : `：${why}`}）—— 本阶段未被审计`)
         }
         const verdict = parseAuditVerdict(text, spec, auditModel, new Date().toISOString())
         this.config.onDeterministicOutcome?.({

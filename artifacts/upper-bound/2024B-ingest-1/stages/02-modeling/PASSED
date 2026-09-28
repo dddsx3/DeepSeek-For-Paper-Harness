@@ -2,13 +2,13 @@
   "passportVersion": 1,
   "stage": "modeling",
   "index": 2,
-  "at": "2026-09-26T08:17:13.589Z",
-  "status": "stale",
+  "at": "2026-09-28T11:23:35.456Z",
+  "status": "passed",
   "cleanliness": "unverified-gates",
   "inputDigest": "fff91c502b14e0faf423774d4fc405add4f6ceb546fa1cef72fc89d990d0f98b",
   "artifacts": {
-    "DECLARATION.json": "aabf7a60ba89cf1f0410e6e401b80daf377d7686672b7ecfb89fc3a751701e37",
-    "MODELING_REPORT.md": "e124a12b9149b1058b46d62fe1cebaee50440e24baeabe7368fb1c59e438eb08"
+    "DECLARATION.json": "0f813e0607416e7ce82fb39ce2afe1a94f1763ea175fcdd614ffd12d71ef2a93",
+    "MODELING_REPORT.md": "9dd47f27a4cf21455e891aa03df0ba2f89e84e75f800e19d77d9f7ac381ecc45"
   },
   "gate": {
     "code": 2,
@@ -16,13 +16,13 @@
       {
         "id": "modeling_floor",
         "ok": true,
-        "detail": "MODELING_REPORT.md 54258 字节 ≥ 1500",
+        "detail": "MODELING_REPORT.md 56200 字节 ≥ 1500",
         "code": 0
       },
       {
         "id": "numbers_traced",
         "ok": true,
-        "detail": "1 个文本产物的 380 个数字全部有出生证明（题面给定值 / 声明的常数 / 编外登记 1 条）",
+        "detail": "1 个文本产物的 264 个数字全部有出生证明（题面给定值 / 声明的常数）",
         "code": 0
       },
       {
@@ -51,78 +51,58 @@
   "audit": {
     "stage": "modeling",
     "verdict": "pass",
-    "score": 0.9,
+    "score": 0.94,
     "structureOk": true,
     "requirementCompliance": [
       {
-        "item": "产出 DECLARATION.json（IR：Symbol/Assumption/Equation/ModelSpec）",
+        "item": "2a 产出独立的 DECLARATION.json JSON IR 声明（Symbol/Assumption/Equation/ModelSpec）",
         "done": true,
-        "note": "文件存在（28231B），四段齐备：symbols（~50 条）、assumptions（ASM-01..16）、equations（EQ-OC…EQ-Q4-ROBUST）、model_specs（MS-Q1/MS-Q2/MS-Q3/MS-Q4/MS-GLOBAL）"
+        "note": "实际文件为 46333 字节的 JSON；可见部分采用 stage、schema、model_constants、symbols 等结构化声明，未混入建模报告正文。截断部分不作缺项判断。"
       },
       {
-        "item": "产出 MODELING_REPORT.md（md，≥1500 字节）",
+        "item": "2b 产出独立的 MODELING_REPORT.md 建模求解报告，且不少于 1500 字节",
         "done": true,
-        "note": "54258 字节，远超下限；含 §0 写作纪律、§1 逐问归因、§2 假设、§3 符号、§4 逐问模型、§5 检验方案、§6 灵敏度（后段被截断未内联，不判缺）"
+        "note": "实际文件为 56200 字节的 Markdown 报告；可见内容包含问题归因、假设、输入事实、概率与成本建模、状态递推、方法取舍和难点分析，明显超过最低长度要求。"
       },
       {
-        "item": "两次调用分离（2a 仅 IR / 2b 仅富散文）",
+        "item": "2a 与 2b 分开交付并保持职责边界",
         "done": true,
-        "note": "IR 落在 DECLARATION.json，散文落在 MODELING_REPORT.md，报告显式标注『02-modeling（分片 2b，富散文正文）』，未见单文件合成痕迹"
+        "note": "DECLARATION.json 与 MODELING_REPORT.md 分别承担结构化 IR 声明和富散文报告，未见将两类内容合成同一交付物的迹象。"
       },
       {
-        "item": "本阶段禁止写最终数值结论，须用结果锚点",
+        "item": "建模阶段不输出最终数值结论，需要计算的结果交由阶段 3 真跑并使用结果锚点",
         "done": true,
-        "note": "全文未出现算出来的数；报结果处一律为 {R-Q1-n-case95}/{R-Q2-case1-profit}/{R-Q3-decision-table}/{R-Q4-ci-part1} 等锚点；正文出现的具体数字仅为题面给定值（10%/95%/90%/56/200/拆解费6与10 等）或已登记常数"
+        "note": "报告明确声明不执行代码、不报告最优样本量、临界界、策略利润等最终结果，并将这些结果留给阶段 3 的结果锚点；可见数值均为题面输入或显式登记的模型设计常数。"
       },
       {
-        "item": "不得声称检验通过（no_claimed_verification）",
+        "item": "题面问题 1 的统计检测模型已覆盖",
         "done": true,
-        "note": "5 条 model_specs[*].verification_plan 全部以『待执行：』开头（可见证据），报告 §0 明写检验规范；audit_response #1 evidence 亦自证此点"
+        "note": "报告覆盖标称次品率 10%、95% 拒收置信约束和 90% 接收置信约束，建立二项固定样本及有上限序贯检测比较，并明确把可识别超标幅度和第二类错误率登记为额外设计假设。"
       },
       {
-        "item": "四问覆盖 + 全局口径",
+        "item": "题面问题 2 的生产决策模型及表 1 六种情形已覆盖",
         "done": true,
-        "note": "MS-Q1（两点设计二项检验最小 n）、MS-Q2（16 组合全枚举闭式）、MS-Q3（装配树节点级 U_v 聚合+拓扑）、MS-Q4（Clopper-Pearson 区间传播+一致率 ρ）、MS-GLOBAL（单位/费用归类）"
+        "note": "报告建立零件检测、成品检测和不合格成品拆解的联合策略空间及状态递推，覆盖采购、检测、装配、拆解、调换损失和重复处置，并逐项绑定表 1 六种情形的参数。"
       },
       {
-        "item": "与上游/题面事实一致",
+        "item": "题面问题 3 的一般装配网络和具体规模已覆盖",
         "done": true,
-        "note": "F-NOMINAL/F-CONF-REJECT/F-CONF-ACCEPT 对应 p_nom、α1=0.05、α2=0.10；表1六组 F-T1-C1..C6 映射到 (p1,p2,p0,a1,a2,c1,c2,c0,A,t,l,s)；表2 F-T2-* 映射到 (a_v,c_v,A_v,t_v,l_v,s)；均见 §4 推导"
+        "note": "报告用有向装配图、子节点集合和节点状态递推参数化一般的 m 道工序、n 个零配件模型，并绑定 2 道工序、8 个零配件、3 个半成品和成品的成本及条件次品率；原图边表缺失被明确标为条件拓扑。"
       },
       {
-        "item": "给定参数不得是死参数",
+        "item": "题面问题 4 的抽样不确定性传播与重决策已覆盖",
         "done": true,
-        "note": "逐条回溯：调换损失 l→EQ-Q2-RECUR/EQ-COST-Q2 的 (1-C)l 与 EQ-Q3-XI；拆解费 t→D t 项；装配成本 A→EQ-KF/EQ-Q3-KF 的 A_v；售价 s→EQ-PROFIT-Q2/EQ-Q3-PROFIT 的 s-U；检测成本 c_i/c_0/c_v→采购倍数与工序检测项；采购单价 a_i/a_v→EQ-KF/EQ-Q3-COST。均进入公式，无仅登记不入式者"
+        "note": "报告建立了问题 2 和问题 3 缺陷率的抽样区间、联合覆盖、情景重算和稳健决策传播，并区分题面情景参数与实际观测估计。"
       },
       {
-        "item": "闭式解自洽",
+        "item": "题面附录中的质量传导、拆解、调换和单位约束已落入模型",
         "done": true,
-        "note": "复核 EQ-KAPPA=K_f-K_r 的分项展开、EQ-Q2-RECUR 的几何级数（g=q/(1-D(1-q))、R=[K_r+Cc0+(1-q)(Dt+(1-C)l)]/(1-D(1-q))）与 EQ-COST-Q2 分母归一 U=(…)/g，与逐轮现金流等价，未见回收免采购重复抵扣"
+        "note": "报告明确使用正品输入后的条件次品率，保留装配本征次品事件，区分拆解费用与调换损失，并将金额统一按元/件处理。"
       }
     ],
-    "findings": [
-      {
-        "severity": "minor",
-        "where": "DECLARATION.json 顶层 audit_responses",
-        "issue": "该字段是执行者对上一轮审计的回执（含 severity/gate/action/partial_refute），不属于本阶段契约要求的 IR 四段，混在交付物顶层属元信息冗余；其中 #2 自述『已删除 data 与 output_artifacts』因文件被截断无法核验全量",
-        "fix": "将审计回执移出交付物（另存日志），DECLARATION.json 顶层只保留 IR 四段及被正文显式引用的 model_constants/illustrative_numbers；若保留则确保删除声明可被机械核验"
-      },
-      {
-        "severity": "minor",
-        "where": "DECLARATION.json ASM-09 / MS-Q3.structure_map",
-        "issue": "图1原件未随简报下传，{1,2,3}→半1、{4,5,6}→半2、{7,8}→半3、三半→成品 的拓扑是读表2行分组的推断而非图证；执行者已显式登记为 data_gap 并排了 {R-Q3-topology-robust}，但这是问题3全部结论的结构性前提，风险等级高于一般假设",
-        "fix": "阶段3除拓扑扰动扫描外，应至少给出一个替代连接（如半成品输入数不同）的解对照表，把拓扑不确定对最优决策的影响量化后再定稿"
-      },
-      {
-        "severity": "minor",
-        "where": "DECLARATION.json model_constants『Q1可识别超标幅度Δ』=0.05",
-        "issue": "Δ为设计量而非题面给定，直接决定 n^(1)/n^(2) 的具体取值，属影响问题1答案的自由参数；已登记但未见其取值的敏感性安排",
-        "fix": "在阶段3对 Δ∈{0.02,0.05,0.10} 各跑一遍最小 n 与临界 c_r，报告结果对 Δ 的依赖，避免用单一 Δ 当作唯一答案"
-      }
-    ],
+    "findings": [],
     "missing": [],
-    "model": "glm-5.3-flash-free",
-    "at": "2026-09-26T08:17:13.587Z"
-  },
-  "staleReason": "阶段 8 复核判定 ROLLBACK：4 条致命（F-001 Δ/β 无依据、F-002 U_v 漏除 q_v、F-003 根节点漏调换损失与拆解费、F-004 Q4 未真正重做）。复核结论已回灌到建模/编程简报 —— 检查人否决"
+    "model": "space-bunny-free",
+    "at": "2026-09-28T11:23:35.454Z"
+  }
 }

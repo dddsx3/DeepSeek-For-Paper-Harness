@@ -5,13 +5,13 @@
     {
       "id": "modeling_floor",
       "ok": true,
-      "detail": "MODELING_REPORT.md 54258 字节 ≥ 1500",
+      "detail": "MODELING_REPORT.md 47166 字节 ≥ 1500",
       "code": 0
     },
     {
       "id": "numbers_traced",
       "ok": true,
-      "detail": "1 个文本产物的 380 个数字全部有出生证明（题面给定值 / 声明的常数 / 编外登记 1 条）",
+      "detail": "1 个文本产物的 160 个数字全部有出生证明（题面给定值 / 声明的常数）",
       "code": 0
     },
     {
