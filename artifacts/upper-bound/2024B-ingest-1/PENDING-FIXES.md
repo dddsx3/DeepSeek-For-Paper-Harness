@@ -55,7 +55,7 @@
 
 ## P1 配图未达论文可用标准：文字溢出被裁 + 合成图留白失衡 ⛔ **最影响观感**
 
-- **状态**：待修（**已放行继续推进**，按用户口径"跑完一个流程再修"）
+- **状态**：**渲染层已修（2026-09-28）**——见下方"根因已查清"与"拟修法"；脚本层门禁保留但不承担修复责任。剩余：重跑后逐张目视复核。
 - **现象**：图上标注文字超出坐标区右边界、被画布裁掉；三面板合成图边距失衡、单面板留白过半。
 - **证据**（逐张目视，可复现）：
   - `stages/06-figure/figures/fig_q2_recovery_cost_compare.png`：中位数标注
@@ -66,16 +66,23 @@
   - `stages/06-figure/figures/fig_q3_assembly_network_cost.png`：底部横轴标题被裁。
 - **为什么先放行**：图数与结构已达标（**14 张 ∈ 12–18**、9 种图型、14/14 用 `_figbase`、
   多面板 4 张），这些排版缺陷**不改变数据与结论**；卡在排版上会挡住整条流程的其余阶段。
-- **拟修法**（两条一起上，别只改一条）：
-  1. **脚本层门禁** `figure_text_within_axes`：静态解析 `ax.text(` / `ax.annotate(` 的坐标，
-     要求落在该 axes 的 `set_xlim`/`set_ylim` 范围内（或改调 `_figbase` 提供的钳制函数）。
-     为什么在脚本层而不是渲染后：PNG 无法判"文字是否被裁"（裁掉的像素已经不在了），
-     只能从**坐标**判。
-  2. **强制版式兜底**：合成图必须调用已迁移的 `plot_utils.declutter_axes` / `auto_legend` /
-     `_clamp_texts_to_axes`（参考的 `plot_utils` 里有 `_clamp_texts_to_axes` 与
-     `_auto_fix_overlaps`，我们**已经迁移了但脚本没调用**——这是"资产在、没用上"）。
-- **验收判据**：14 张图逐张目视无裁切、无文字压数据；`figure_text_within_axes` 在阶段 6 报 `0`；
-  新增回归测试用 P1 里列出的三个真实坐标做夹具。
+- **⚠ 根因已查清（2026-09-28 更正，此前判断有误）**：**钳制本身是自动的**——
+  `plot_utils` 的 `savefig` 钩子链里已自动调 `_auto_fix_overlaps` → `_clamp_texts_to_axes`，
+  另有 `_pull_back_outside_transaxes_text`。所以**不是"脚本没手写钳制"**（我先前与子代理
+  都这么以为，是错的；一度想把"未使用辅助函数"升为硬拦，已否决）。
+  真实机制写在源码注释里：`_save` **刻意**用 `bbox_inches=None`（防 PDF mediabox 被
+  axes 外标注撑爆），代价就是**画布边缘会切掉画到外面的文字**；两个兜底只覆盖
+  **刻度标签**与 **transAxes 的上下越界**，**右侧 / 数据坐标越界不在其中**——这正是三张图
+  被裁的位置。
+- **拟修法（改为渲染层，不再动契约）**：
+  1. 在 `_figbase.save()`（**我们自己的文件**，不是原样迁移的 `plot_utils.py`）里，保存前
+     遍历 figure 的文字对象，把窗口范围超出画布的**拉回画布内**（右侧优先）；
+  2. 或对 **PNG** 输出改用 `bbox_inches='tight'`——`bbox_inches=None` 的理由是 **PDF**
+     mediabox，而本链路是 PNG（docx 用），tight 反而正好把越界文字纳进画布。
+  3. `figure_text_within_axes` 这条**脚本层**判据保留（它抓字面量坐标的明显越界），
+     但**不承担**修 P1 的责任——三条真实被裁的坐标都是表达式/`transform`，静态判不出来。
+- **验收判据**：三张点名图的标注**完整可见**（右边界不再切字）；14 张逐张目视无裁切；
+  `figure_text_within_axes` 在阶段 6 报 `0`。
 
 ---
 
@@ -93,7 +100,7 @@
 
 ## P3 生成脚本的 API 兼容 bug 靠手修（应改为环境约束前置）
 
-- **状态**：待修（本轮 14 张里 3 张崩溃，我手修了 3 处）
+- **状态**：**已修（2026-09-28）**。四类 API 误用已进 `figure_script_quality` 硬判据（含 `scatter` 标量广播的明显形态）；契约已写明正确写法；**并修掉了配方库自身教错写法的那一处**（`figure_recipes_advanced.md` 与 `skill-docs` 镜像里的 `nx.draw_networkx_nodes(..., zorder=3)`——契约要求照抄配方，而门禁会拦它，这是"教了又拦"）。验证：真实 14 个脚本上 `figure_script_quality` 报 `0`（零误杀）。
 - **现象**：脚本在**渲染阶段**崩溃，四类 API 误用：
   1. `mcolors.ScalarMappable` —— matplotlib 3.10 起不在 `matplotlib.colors`（改用 `plt.cm`）；
   2. `nx.draw_networkx_edges/nodes/labels(zorder=…)` —— 该版 networkx 不接受 `zorder`；
@@ -112,7 +119,7 @@
 
 ## P4 `execution-producer.spec.ts` 在负载下偶发失败（环境性，非回归）
 
-- **状态**：待修（不影响交付，但会污染全量测试结论）
+- **状态**：**已修一半（2026-09-28）**。已加"子进程根本没起来"这一类的有界重试（3 次上限，happy path 零成本）。**残留**：若失败来自 Vitest worker 自身被 OOM/资源争用杀掉（`Worker exited unexpectedly`），文件内任何改动都救不了——已在 Vitest 源码确认无文件级重试，需改根 `vitest.config.ts`（把该套件放进 `processBoundTests` 或压 `maxWorkers`），本轮未改。
 - **现象**：全量跑时该文件偶发 1–5 条失败，报 `Worker exited unexpectedly` / `spawn UNKNOWN`；
   **单独跑 11/11 稳定通过**（本轮复现 3 次，每次都验证过）。
 - **根因**：该文件大量 spawn 子进程；机器上同时有后台流水线时资源争用。

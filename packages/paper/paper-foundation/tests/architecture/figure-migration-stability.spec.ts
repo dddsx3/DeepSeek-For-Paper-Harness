@@ -543,3 +543,171 @@ describe('契约点名的文件必须在本阶段的 `consumes` 里', () => {
     expect(problems, problems.join('；')).toEqual([])
   })
 })
+
+/**
+ * **环境 API 误用与标注越界 —— 用真实崩溃片段做夹具**。
+ *
+ * 依据 `artifacts/upper-bound/PENDING-FIXES.md` 的 P1/P3：2024B 一轮 14 张里 3 张
+ * 在**渲染阶段**（整轮最后一步）崩溃，人工修了 3 处；标注文字溢出被裁在 PNG 上
+ * 判不出来（被裁的像素已经不在图里）。两处判据都落在**脚本文本/坐标**上。
+ */
+describe('环境 API 约束（`figure_script_quality` 的四条确定性判据）', () => {
+  const inputOf = (codes: ReadonlyArray<string>) => ({
+    files: new Map(codes.map((c, i) => [`figures/gen_fig_f${String(i)}.py`, c])),
+    upstream: new Map<string, string>(),
+    problemCount: 4,
+  })
+
+  /** 一份"其余全合规"的脚本骨架，只在中间插被测代码 —— 断言的是那一行被拦。 */
+  const withLine = (line: string): string =>
+    'from _figbase import load, save, PALETTE\n'
+    + 'doc = load("results.json")\n'
+    + 'fig, ax = plt.subplots()\n'
+    + line + '\n'
+    + 'save(fig, "fig_x")\n'
+
+  const verdictOf = async (codes: ReadonlyArray<string>): Promise<{ code: number; detail: string }> => {
+    const { figureScriptQuality } = await import('../../src/stages/figure-script-gates.ts')
+    const v = figureScriptQuality(inputOf(codes))
+    return { code: v.code, detail: v.items.map(i => i.detail).join(' ') }
+  }
+
+  it('① `mcolors.ScalarMappable` → 硬失败，并给出 `plt.cm` 正解（真实片段）', async () => {
+    const r = await verdictOf([withLine('sm = mcolors.ScalarMappable(norm=norm, cmap=cmap)')])
+    expect(r.code, r.detail).toBe(1)
+    expect(r.detail).toContain('ScalarMappable')
+    expect(r.detail).toContain('plt.cm.ScalarMappable')
+  })
+
+  it('② `nx.draw_networkx_nodes(..., zorder=3)` → 硬失败（真实片段）', async () => {
+    const r = await verdictOf([withLine('nx.draw_networkx_nodes(graph, positions, zorder=3)')])
+    expect(r.code, r.detail).toBe(1)
+    expect(r.detail).toContain('zorder')
+    expect(r.detail).toContain('networkx')
+  })
+
+  it('③ `ax_right.set_xlim(bottom=0.0)` → 硬失败（真实片段）', async () => {
+    const r = await verdictOf([withLine('ax_right.set_xlim(bottom=0.0)')])
+    expect(r.code, r.detail).toBe(1)
+    expect(r.detail).toContain('bottom')
+    expect(r.detail).toContain('left')
+  })
+
+  it('④ `ax_nodes.scatter(column_x[0], node_y)` → 硬失败，并给出 `np.full_like` 修法（真实片段）', async () => {
+    // 真实脚本 `gen_fig_q3_strategy_cost_compare.py`：`node_y`/`column_x` 由 `np.arange` 赋值，
+    // 崩的那行是 `scatter(column_x[0], node_y, ...)`；修法正是 `np.full_like(node_y, column_x[0])`。
+    const real = 'node_y = np.arange(len(nodes), dtype=float)\n'
+      + 'column_x = np.arange(3, dtype=float)\n'
+      + 'ax_nodes.scatter(column_x[0], node_y, s=72)'
+    const r = await verdictOf([withLine(real)])
+    expect(r.code, r.detail).toBe(1)
+    expect(r.detail).toContain('不做标量广播')
+    expect(r.detail).toContain('np.full_like')
+  })
+
+  it('**合法写法不被误杀**（真实脚本里的合规形态）', async () => {
+    const legal = [
+      'node_y = np.arange(len(nodes), dtype=float)',
+      'column_x = np.arange(3, dtype=float)',
+      'ax.set_xlim(left=0.0, right=10.0)',                  // left 是 x 轴的合法关键字
+      'ax.set_ylim(bottom=0.0, top=5.0)',                   // bottom 是 y 轴的合法关键字
+      'ax_right.set_ylim(bottom=0.0)',                      // 真实片段：y 轴用 bottom 合法
+      'sm = plt.cm.ScalarMappable(norm=norm, cmap=cmap)',   // ScalarMappable 的正确落点
+      'ax_nodes.scatter(np.full_like(node_y, column_x[0]), node_y, s=72)', // 已铺开成数组
+      'ax_nodes.scatter(column_x[2], node_y[index], s=72)', // 单点：两侧都像标量 → 不判
+      'ax.bar(x, y, zorder=3)',                             // zorder 对 bar 合法
+      'nx.draw_networkx_nodes(graph, positions)',           // 不带 zorder 合法
+    ].join('\n')
+    const r = await verdictOf([withLine(legal)])
+    expect(r.code, r.detail).toBe(0)
+  })
+})
+
+describe('`figure_text_within_axes` —— 标注坐标必须落在坐标区内', () => {
+  const inputOf = (codes: ReadonlyArray<string>) => ({
+    files: new Map(codes.map((c, i) => [`figures/gen_fig_f${String(i)}.py`, c])),
+    upstream: new Map<string, string>(),
+    problemCount: 4,
+  })
+  const script = (body: string): string =>
+    'from _figbase import load, save\n'
+    + 'doc = load("results.json")\n'
+    + 'fig, ax = plt.subplots()\n'
+    + body + '\n'
+    + 'save(fig, "fig_x")\n'
+  const verdictOf = async (body: string): Promise<{ code: number; detail: string }> => {
+    const { figureTextWithinAxes } = await import('../../src/stages/figure-script-gates.ts')
+    const v = figureTextWithinAxes(inputOf([script(body)]))
+    return { code: v.code, detail: v.items.map(i => i.detail).join(' ') }
+  }
+
+  it('字面量坐标落在范围内 → 通过', async () => {
+    const r = await verdictOf('ax.set_xlim(0, 10)\nax.set_ylim(0, 5)\nax.text(5.0, 2.0, "ok")')
+    expect(r.code, r.detail).toBe(0)
+  })
+
+  it('**x 越界 → 硬失败**（真实缺陷：中位数标注右半被裁）', async () => {
+    const r = await verdictOf('ax.set_xlim(0, 10)\nax.set_ylim(0, 5)\nax.text(12.5, 2.0, "U 中位数 36.63")')
+    expect(r.code, r.detail).toBe(1)
+    expect(r.detail).toContain('12.5')
+    expect(r.detail).toContain('坐标区')
+  })
+
+  it('**y 越界 → 硬失败**', async () => {
+    const r = await verdictOf('ax.set_xlim(0, 10)\nax.set_ylim(0, 5)\nax.text(5.0, 7.5, "x")')
+    expect(r.code, r.detail).toBe(1)
+    expect(r.detail).toContain('7.5')
+  })
+
+  it('`annotate(xytext=...)` 越界 → 硬失败（未指定坐标系时 xytext 是数据坐标）', async () => {
+    const r = await verdictOf('ax.set_xlim(0, 10)\nax.set_ylim(0, 5)\nax.annotate("t", xy=(1, 1), xytext=(12.0, 2.0))')
+    expect(r.code, r.detail).toBe(1)
+    expect(r.detail).toContain('xytext')
+  })
+
+  it('**判不准就放行**：表达式/变量坐标、非数据坐标系、无字面量范围', async () => {
+    const expr = await verdictOf('ax.set_xlim(0, 10)\nax.set_ylim(0, 5)\nax.text(xmax + 1.0, 2.0, "x")')
+    expect(expr.code, expr.detail).toBe(0)
+    const transform = await verdictOf('ax.set_xlim(0, 10)\nax.set_ylim(0, 5)\nax.text(-1.0, 2.0, "x", transform=ax.transAxes)')
+    expect(transform.code, transform.detail).toBe(0)
+    const offset = await verdictOf('ax.set_xlim(0, 10)\nax.set_ylim(0, 5)\nax.annotate("t", xy=(1, 1), xytext=(8, -18), textcoords="offset points")')
+    expect(offset.code, offset.detail).toBe(0)
+    const noRange = await verdictOf('ax.text(999.0, 2.0, "x")')
+    expect(noRange.code, noRange.detail).toBe(0)
+  })
+
+  it('提示级：出现 `ax.text` 却没用任何钳制/防重叠辅助函数 → 只 WARNING 不阻断', async () => {
+    const r = await verdictOf('ax.set_xlim(0, 10)\nax.set_ylim(0, 5)\nax.text(5.0, 2.0, "x")')
+    expect(r.code, r.detail).toBe(0)
+    expect(r.detail).toContain('WARNING')
+    expect(r.detail).toContain('smart_labels')
+  })
+
+  it('用了 `smart_labels` → 不再给那条提示', async () => {
+    const r = await verdictOf('ax.set_xlim(0, 10)\nax.set_ylim(0, 5)\nax.text(5.0, 2.0, "x")\nsmart_labels(ax, [5.0], [2.0], ["x"])')
+    expect(r.code, r.detail).toBe(0)
+    expect(r.detail).not.toContain('WARNING')
+  })
+
+  it('没有脚本 → code 2（无法判定，不放行）', async () => {
+    const { figureTextWithinAxes } = await import('../../src/stages/figure-script-gates.ts')
+    const v = figureTextWithinAxes({ files: new Map(), upstream: new Map(), problemCount: 1 })
+    expect(v.code).toBe(2)
+  })
+})
+
+describe('新门禁已登记（阶段表 ↔ 登记表一致）', () => {
+  it('`figure_text_within_axes` 在阶段 6 的门禁表里，且 `runGates` 认得它', async () => {
+    expect(stageOf('figure').gates).toContain('figure_text_within_axes')
+    const { runGates } = await import('../../src/stages/gates.ts')
+    const v = runGates(['figure_text_within_axes'], {
+      files: new Map([['figures/gen_fig_f1.py',
+        'from _figbase import save\nax.set_xlim(0, 10)\nax.set_ylim(0, 5)\nax.text(5.0, 2.0, "x")\nsave(fig, "fig_x")\n']]),
+      upstream: new Map<string, string>(),
+      problemCount: 1,
+    })
+    expect(v.items[0]?.id).toBe('figure_text_within_axes')
+    expect(v.items[0]?.detail ?? '').not.toContain('未登记')
+  })
+})
+

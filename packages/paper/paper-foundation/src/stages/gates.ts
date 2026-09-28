@@ -44,7 +44,7 @@ export const FIGURE_PLAN_FILE = 'FIGURE_PLAN.json'
 import { numericShapeOf, parseResultSources, RESULTS_LEDGER_FILE } from './execute-and-mint.ts'
 import { auditFiles, buildAllowlist, commentLines, verificationClaims } from './number-audit.ts'
 import {
-  figurePlanValid, figureScriptQuality, figureScriptTraced, figureSizeBuckets, figureTypeMatch,
+  figurePlanValid, figureScriptQuality, figureScriptTraced, figureSizeBuckets, figureTextWithinAxes, figureTypeMatch,
 } from './figure-script-gates.ts'
 import { architectureFigureNames, dataFigureNames, parseFigureManifest } from './figure-manifest.ts'
 import {
@@ -1323,6 +1323,9 @@ export const GATES: ReadonlyMap<string, GateFn> = new Map<string, GateFn>([
   // 规范本身早已在仓库里（语料 + 简报的禁令），缺的是**可核的判据**，这就是它。
   ['figure_completeness', figureCompleteness],
   ['figure_size_buckets', figureSizeBuckets],
+  // 标注坐标必须落在坐标区内（阶段 6 的脚本已由执行体搬进本阶段目录，
+  // 所以脚本级判据在这里也能拿到脚本——见 `figure-run.ts` 的"把阶段 5 的脚本搬进本阶段"）。
+  ['figure_text_within_axes', figureTextWithinAxes],
   ['figure_diversity', figureDiversity],
   ['figure_style_rules', figureStyleRules],
   ['diagram_manifest_reconcile', diagramManifestReconcile],
