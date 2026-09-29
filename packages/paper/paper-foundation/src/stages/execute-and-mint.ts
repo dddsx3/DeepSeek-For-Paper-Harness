@@ -35,6 +35,7 @@ import { existsSync } from 'node:fs'
 import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { resolveJsonPath } from '../produce/interpretation-producer.ts'
+import { markStaleFrom, readPassport, writePassport } from './handoff.ts'
 import { stageDirName, stageOf } from './registry.ts'
 
 /** 阶段 3 的"数在哪"声明文件名。 */
@@ -282,23 +283,41 @@ export async function runCodeAndMintResults(stagesRoot: string): Promise<Execute
     throw new Error(`代码执行失败（spawn）：${String(run.error).slice(0, 160)}`)
   }
   if (run.status !== 0) {
-    // **把运行时错误写回"写代码的那个阶段"**。
+    // **把运行时错误写回"写代码的那个阶段"**，并**把它标 stale**。
     //
     // 为什么必须写回：本阶段（数源声明）的失败**不是本阶段的错**——是阶段 3 交的代码跑不起来。
     // 而 `--stage-next` 只会重跑**本阶段**，拿同一份坏代码再跑一遍：实测一个变量名拼写错
     // （`at_palt` vs 它自己定义的 `at_p_alt`）让阶段 4 连撞 **9 次**，每次一次模型调用 + 一次
     // 代码执行，半个多小时全废，而错误信息从来没到过该看它的那个阶段。
     //
-    // 与"复核结论回灌"（`priorReviewFindings`）是同一类缺陷：**下游发现的错误必须能回到
+    // 为什么还要标 stale：光写回执不够——回执只有**阶段 3 被重跑**时才进得了简报，而
+    // `resumePointOf` 会一直挑阶段 4（它是 stale，阶段 3 还是 passed）。实测第二轮又是
+    // 15 次空转（新的错是 `OverflowError: int too large to convert to float`）。
+    // 所以这里把阶段 3 **自身**标 stale（`markStaleFrom` 的语义是"保留目标、作废其下游"，
+    // 不作废目标自己），再作废其下游——与 `--stage-rollback` 的两步完全一致。
+    // 这样下一轮 `--stage-next` 就会先跑阶段 3，带着这条栈去改代码。
+    //
+    // 与"复核结论回灌"（`priorReviewFindings`）是同一类：**下游发现的错误必须能回到
     // 该负责的上游**，否则重试就是空转。
     const tail = (run.stderr || '(空)').split('\n').slice(-12).join('\n').slice(0, 2000)
+    const reason = `阶段 4 真跑 code/${CODE_ENTRY} 失败（退出码 ${String(run.status ?? 'null')}）：`
+      + `${(run.stderr || '').split('\n').filter(l => l.trim() !== '').slice(-1)[0]?.slice(0, 120) ?? '(空)'}`
+      + ' —— 这是阶段 3 的代码跑不起来，已自动回滚'
     await writeFile(join(stagesRoot, stageDirName(stageOf('code')), RUNTIME_FAILURE_FILE),
       `<!-- 阶段 4 真跑 code/${CODE_ENTRY} 失败（退出码 ${String(run.status ?? 'null')}）；`
       + '这不是数源声明的问题，是阶段 3 交的代码跑不起来。修完代码再放行。 -->\n\n'
       + `${tail}\n`, 'utf8').catch(() => { /* 落盘失败不掩盖原失败 */ })
+    // 自动回滚：阶段 3 自身标 stale + 作废其下游（两步，与 CLI 的 --stage-rollback 一致）
+    const codeSpec = stageOf('code')
+    const codePassport = await readPassport(stagesRoot, codeSpec).catch(() => null)
+    if (codePassport !== null) {
+      await writePassport(stagesRoot, { ...codePassport, status: 'stale', staleReason: reason })
+        .catch(() => { /* 标不动也不掩盖原失败 */ })
+    }
+    await markStaleFrom(stagesRoot, 'code', reason).catch(() => { /* 同上 */ })
     throw new Error(`code/${CODE_ENTRY} 退出码 ${String(run.status ?? 'null')}（非 0）—— `
       + `stderr 末尾：${(run.stderr || '(空)').split('\n').slice(-4).join(' / ').slice(0, 240)}`
-      + `（完整栈已写回阶段 3：${RUNTIME_FAILURE_FILE}）`)
+      + `（完整栈已写回阶段 3：${RUNTIME_FAILURE_FILE}；阶段 3 已自动回滚，下一轮会带着这条栈改代码）`)
   }
 
   // 铸数：每个声明都要在**真实产物字节**里解析出一个有限数。

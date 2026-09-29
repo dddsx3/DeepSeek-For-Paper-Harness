@@ -1,411 +1,346 @@
 {
+  "schema": "2024B-stage3-deliverables-v1",
+  "stage": "03-code",
+  "ledger_artifact": "outputs.json",
   "deliverables": [
-    {
-      "path": "code/",
-      "kind": "dir",
-      "min_rows": 1,
-      "min_bytes": 1,
-      "desc": "逐问实现目录，包含 problem1.py、problem2.py、problem3.py、problem4.py，并由 params.py 提供集中参数。"
-    },
     {
       "path": "code/main.py",
       "kind": "py",
       "min_rows": 1,
       "min_bytes": 500,
-      "desc": "四问同步编排入口，依次执行各问、核验结果并将完整结果写入 code/outputs.json。"
+      "desc": "四问同步编排入口；清理旧产物，依次执行 problem1 至 problem4，校验参数契约、六种问题二情形、退化等价检查与问题四情景标识，并原子写出严格 JSON。"
     },
     {
       "path": "code/params.py",
       "kind": "py",
       "min_rows": 1,
-      "min_bytes": 1,
-      "desc": "集中参数与题面事实展开模块，统一提供 Q2Case、主替拓扑、Q1 风险网格和 Q4 情景抽样常数。"
+      "min_bytes": 500,
+      "desc": "题面事实与登记常数的独立参数模块；包含扁平 Q2Case、别名访问器、四问参数、情景拓扑边界、Q4 情景分析标识和全部数值容差。"
     },
     {
       "path": "code/problem1.py",
       "kind": "py",
       "min_rows": 1,
-      "min_bytes": 1,
-      "desc": "问题一实现：精确二项整数枚举、拒收与接收方案、灵敏度扫描及有限 SPRT 对照。"
+      "min_bytes": 500,
+      "desc": "问题一实现；使用 scipy.stats.binom 精确二项枚举搜索整数样本量和阈值，并计算有限 SPRT 随机游走、期望检测次数、灵敏度序列与单调性检查。"
     },
     {
       "path": "code/problem2.py",
       "kind": "py",
       "min_rows": 1,
-      "min_bytes": 1,
-      "desc": "问题二实现：兼容扁平 Q2Case 字段，枚举 16 种策略并用吸收状态方程和事件现金流账本求解。"
+      "min_bytes": 500,
+      "desc": "问题二实现；适配 Q2Case 扁平字段，枚举十六种策略，以显式吸收交付状态求解事件现金流，并输出六种情形的策略、利润和逐项账本。"
     },
     {
       "path": "code/problem3.py",
       "kind": "py",
       "min_rows": 1,
-      "min_bytes": 1,
-      "desc": "问题三实现：支持一般 DAG 的节点级检测与处置决策，运行主拓扑和替代拓扑条件情景并执行退化一致性核验。"
+      "min_bytes": 500,
+      "desc": "问题三实现；构造并验证装配 DAG，分别运行主替条件情景，执行节点级事件动态规划、Q/C/U 量纲核验以及与问题二退化实例的逐策略等价检查。"
     },
     {
       "path": "code/problem4.py",
       "kind": "py",
       "min_rows": 1,
+      "min_bytes": 500,
+      "desc": "问题四实现；统一 Q2Case 适配，按节点设计样本量，执行 Clopper-Pearson 端点分支、Bonferroni 联合域、Jeffreys 情景重抽样和逐次重新优化。"
+    },
+    {
+      "path": "code/",
+      "kind": "dir",
+      "min_rows": 4,
       "min_bytes": 1,
-      "desc": "问题四实现：情景抽样、Clopper–Pearson 端点分支、Bonferroni 联合域、稳健重解和固定种子蒙特卡洛。"
+      "desc": "逐问实现目录；problem1.py 至 problem4.py 的文件数与题面问数一致，params.py 和 main.py 另作为公共参数与编排入口。"
     },
     {
       "path": "RESULTS.md",
       "kind": "md",
       "min_rows": 1,
       "min_bytes": 1024,
-      "desc": "由实际运行账本生成的结果说明，涵盖四问关键结果、核验证据、策略归因、灵敏度及情景数据边界。"
+      "desc": "四问真实执行结果说明；记录关键结果路径、核验证据、情景边界、正式图缺失限制和阻断项，不包含账本外计算数字。"
     },
     {
-      "path": "code/outputs.json",
+      "path": "problem1_results.json",
       "kind": "json",
       "min_rows": 1,
-      "min_bytes": 1,
-      "desc": "代码运行时生成的结果账本，包含四问标量、策略表、数据序列、情景样本和验证结果。"
+      "min_bytes": 100,
+      "desc": "问题一同步执行后生成的严格 JSON 结果账本。"
+    },
+    {
+      "path": "problem2_results.json",
+      "kind": "json",
+      "min_rows": 1,
+      "min_bytes": 100,
+      "desc": "问题二同步执行后生成的严格 JSON 结果账本，含六种情形和十六策略结果。"
+    },
+    {
+      "path": "problem3_results.json",
+      "kind": "json",
+      "min_rows": 1,
+      "min_bytes": 100,
+      "desc": "问题三同步执行后生成的严格 JSON 结果账本，含主替条件情景及退化等价检查。"
+    },
+    {
+      "path": "problem4_results.json",
+      "kind": "json",
+      "min_rows": 1,
+      "min_bytes": 100,
+      "desc": "问题四同步执行后生成的严格 JSON 结果账本，含情景样本、区间和重优化结果。"
+    },
+    {
+      "path": "outputs.json",
+      "kind": "json",
+      "min_rows": 1,
+      "min_bytes": 100,
+      "desc": "main.py 汇总写出的阶段三唯一聚合账本，ledger_keys 均相对于此文件解析。"
+    },
+    {
+      "path": "execution_summary.json",
+      "kind": "json",
+      "min_rows": 1,
+      "min_bytes": 100,
+      "desc": "四问顺序运行、成功状态、自检结果和产物路径的执行摘要。"
     },
     {
       "path": "DELIVERABLES.json",
       "kind": "json",
       "min_rows": 1,
-      "min_bytes": 1024,
-      "desc": "阶段产出清单及可供下一阶段取数的 ledger_keys 映射。"
+      "min_bytes": 1,
+      "desc": "本阶段机器可校验交付清单及阶段四取数键目录。"
     }
   ],
   "ledger_keys": [
     {
+      "json_path": "problem1",
+      "name": "问题一完整结构化结果",
+      "unit": "结构化结果"
+    },
+    {
       "json_path": "problem1.case95.n",
-      "name": "问题一情形（1）拒收方案最小检测次数",
+      "name": "问题一拒收情形最小检测次数",
       "unit": "次"
     },
     {
       "json_path": "problem1.case95.r",
-      "name": "问题一情形（1）拒收临界次品数",
+      "name": "问题一拒收情形临界次品数",
       "unit": "件"
     },
     {
-      "json_path": "problem1.case95.reject_tail",
-      "name": "问题一情形（1）标称率处拒收尾概率",
-      "unit": "1"
-    },
-    {
       "json_path": "problem1.case90.n",
-      "name": "问题一情形（2）接收方案最小检测次数",
+      "name": "问题一接收情形最小检测次数",
       "unit": "次"
     },
     {
       "json_path": "problem1.case90.c",
-      "name": "问题一情形（2）接收临界次品数",
+      "name": "问题一接收情形临界次品数",
       "unit": "件"
     },
     {
-      "json_path": "problem1.case90.accept_tail",
-      "name": "问题一情形（2）标称率处接收概率",
-      "unit": "1"
+      "json_path": "problem2",
+      "name": "问题二完整结构化结果",
+      "unit": "结构化结果"
     },
     {
-      "json_path": "problem1.sprt.expected_n",
-      "name": "有限 SPRT 对照期望检测次数",
-      "unit": "次"
-    },
-    {
-      "json_path": "problem1.sprt.selected",
-      "name": "固定方案与有限 SPRT 的选择结果",
-      "unit": "0-1"
-    },
-    {
-      "json_path": "problem1.oc_curve.p",
-      "name": "问题一 OC 曲线真实次品率序列",
-      "unit": "1"
-    },
-    {
-      "json_path": "problem1.oc_curve.accept_prob",
-      "name": "问题一 OC 曲线接收概率序列",
-      "unit": "1"
-    },
-    {
-      "json_path": "problem1.oc_curve.reject_prob",
-      "name": "问题一 OC 曲线拒收概率序列",
-      "unit": "1"
-    },
-    {
-      "json_path": "problem1.sensitivity",
-      "name": "问题一备择幅度与第二类错误灵敏度结果",
-      "unit": "情景数组"
-    },
-    {
-      "json_path": "problem1.sprt.boundary",
-      "name": "问题一有限 SPRT 边界数据",
-      "unit": "边界数组"
+      "json_path": "problem2.cases",
+      "name": "问题二六种情形结果表",
+      "unit": "结果表"
     },
     {
       "json_path": "problem2.cases[0].policy",
-      "name": "问题二情况 1 最优策略",
-      "unit": "决策组合"
+      "name": "问题二情况一最优策略",
+      "unit": "四元布尔策略"
     },
     {
       "json_path": "problem2.cases[0].profit",
-      "name": "问题二情况 1 单位期望利润",
-      "unit": "元/合格件"
+      "name": "问题二情况一单位合格交付期望利润",
+      "unit": "元/合格交付"
     },
     {
       "json_path": "problem2.cases[1].policy",
-      "name": "问题二情况 2 最优策略",
-      "unit": "决策组合"
+      "name": "问题二情况二最优策略",
+      "unit": "四元布尔策略"
     },
     {
       "json_path": "problem2.cases[1].profit",
-      "name": "问题二情况 2 单位期望利润",
-      "unit": "元/合格件"
+      "name": "问题二情况二单位合格交付期望利润",
+      "unit": "元/合格交付"
     },
     {
       "json_path": "problem2.cases[2].policy",
-      "name": "问题二情况 3 最优策略",
-      "unit": "决策组合"
+      "name": "问题二情况三最优策略",
+      "unit": "四元布尔策略"
     },
     {
       "json_path": "problem2.cases[2].profit",
-      "name": "问题二情况 3 单位期望利润",
-      "unit": "元/合格件"
+      "name": "问题二情况三单位合格交付期望利润",
+      "unit": "元/合格交付"
     },
     {
       "json_path": "problem2.cases[3].policy",
-      "name": "问题二情况 4 最优策略",
-      "unit": "决策组合"
+      "name": "问题二情况四最优策略",
+      "unit": "四元布尔策略"
     },
     {
       "json_path": "problem2.cases[3].profit",
-      "name": "问题二情况 4 单位期望利润",
-      "unit": "元/合格件"
+      "name": "问题二情况四单位合格交付期望利润",
+      "unit": "元/合格交付"
     },
     {
       "json_path": "problem2.cases[4].policy",
-      "name": "问题二情况 5 最优策略",
-      "unit": "决策组合"
+      "name": "问题二情况五最优策略",
+      "unit": "四元布尔策略"
     },
     {
       "json_path": "problem2.cases[4].profit",
-      "name": "问题二情况 5 单位期望利润",
-      "unit": "元/合格件"
+      "name": "问题二情况五单位合格交付期望利润",
+      "unit": "元/合格交付"
     },
     {
       "json_path": "problem2.cases[5].policy",
-      "name": "问题二情况 6 最优策略",
-      "unit": "决策组合"
+      "name": "问题二情况六最优策略",
+      "unit": "四元布尔策略"
     },
     {
       "json_path": "problem2.cases[5].profit",
-      "name": "问题二情况 6 单位期望利润",
-      "unit": "元/合格件"
+      "name": "问题二情况六单位合格交付期望利润",
+      "unit": "元/合格交付"
     },
     {
-      "json_path": "problem2.policy_table",
-      "name": "问题二 16 种策略完整利润对照表",
-      "unit": "策略记录"
+      "json_path": "problem3",
+      "name": "问题三完整结构化结果",
+      "unit": "结构化结果"
     },
     {
-      "json_path": "problem2.optimal_cost_breakdown",
-      "name": "问题二最优策略成本分解",
-      "unit": "元/件"
+      "json_path": "problem3.degeneration_check.passed",
+      "name": "问题二与问题三退化网络逐策略等价通过标志",
+      "unit": "布尔值"
     },
     {
-      "json_path": "problem2.sensitivity",
-      "name": "问题二次品率与成本参数灵敏度结果",
-      "unit": "情景数组"
+      "json_path": "problem4",
+      "name": "问题四完整结构化情景结果",
+      "unit": "结构化结果"
     },
     {
-      "json_path": "problem2.breakeven_contour",
-      "name": "问题二检测与拆解决策盈亏平衡网格",
-      "unit": "决策网格"
+      "json_path": "problem4.scenario_only",
+      "name": "问题四仅情景分析边界标志",
+      "unit": "布尔值"
+    }
+  ],
+  "audit_responses": [
+    {
+      "id": "audit_01_q2_case_schema",
+      "status": "implemented",
+      "evidence": [
+        "code/params.py",
+        "code/main.py",
+        "code/problem2.py",
+        "code/problem4.py"
+      ],
+      "handling": "Q2Case 使用 price1、test1、price2、test2 等扁平字段并提供 a1、t1、a2、t2 兼容别名；main.py 在执行前逐案例验证全部字段组，执行后断言六行均含 policy 和 profit。"
     },
     {
-      "json_path": "problem3.primary.policy",
-      "name": "问题三主拓扑情景策略",
-      "unit": "决策组合"
+      "id": "audit_02_q2_absorption",
+      "status": "implemented",
+      "evidence": [
+        "code/problem2.py"
+      ],
+      "handling": "问题二状态方程显式区分终止交付与生产状态；求解后检查吸收性、有限单位价值和现金流残差，非吸收策略不得进入 argmax。"
     },
     {
-      "json_path": "problem3.primary.profit",
-      "name": "问题三主拓扑情景单位期望利润",
-      "unit": "元/合格件"
+      "id": "audit_03_q3_topology_scope",
+      "status": "bounded_by_missing_source",
+      "evidence": [
+        "code/params.py",
+        "code/problem3.py",
+        "RESULTS.md"
+      ],
+      "handling": "题面未提供可校验的图一父节点边表，因此 Q3_OFFICIAL_EDGE_LIST 保持为空。代码只输出明确隔离的主替条件情景，不把这些情景表述为正式图一答案；一般引擎按带层级的有向无环网络接口实现。"
     },
     {
-      "json_path": "problem3.alternative.policy",
-      "name": "问题三替代拓扑情景策略",
-      "unit": "决策组合"
+      "id": "audit_04_q4_actual_samples",
+      "status": "explicit_scenario_boundary",
+      "evidence": [
+        "code/params.py",
+        "code/problem4.py",
+        "outputs.json"
+      ],
+      "handling": "真实 n_v、x_v 不可用，故结果强制标记 scenario_only；保存情景二项计数并以其构造点估计和区间，不把登记情景率直接称为实际观测估计。"
     },
     {
-      "json_path": "problem3.alternative.profit",
-      "name": "问题三替代拓扑情景单位期望利润",
-      "unit": "元/合格件"
+      "id": "audit_05_unit_cost",
+      "status": "implemented",
+      "evidence": [
+        "code/problem3.py"
+      ],
+      "handling": "节点投入现金成本率、合格产出率和单位合格成本分别保存，只按 U_v=C_v/Q_v 换算；父节点现金转移不重复乘用 U_v。"
     },
     {
-      "json_path": "problem3.topology_profit_gap",
-      "name": "问题三主替拓扑利润差异",
-      "unit": "元/合格件"
+      "id": "audit_06_root_failure_path",
+      "status": "implemented",
+      "evidence": [
+        "code/problem2.py",
+        "code/problem3.py",
+        "outputs.json"
+      ],
+      "handling": "根节点无检测、检测失败、调换、报废和拆解均进入同一事件闭环；退化网络逐策略比较作为阻断式验收。"
     },
     {
-      "json_path": "problem3.degeneration_max_error",
-      "name": "问题二与问题三退化网络逐策略最大差值",
-      "unit": "元/合格件"
+      "id": "audit_07_q4_estimation",
+      "status": "scenario_reproduction_only",
+      "evidence": [
+        "code/problem4.py",
+        "problem4_results.json"
+      ],
+      "handling": "每个重复均从可审计情景计数出发，保存 n_v、x_v 与 x_v/n_v；由于缺少企业真实批次，不声称完成了真实观测重解。"
     },
     {
-      "json_path": "problem3.primary.node_metrics",
-      "name": "问题三主拓扑逐节点指标",
-      "unit": "节点记录"
+      "id": "audit_08_cp_edges",
+      "status": "implemented",
+      "evidence": [
+        "code/problem4.py"
+      ],
+      "handling": "Clopper-Pearson 区间对零次品、全次品和内部计数使用显式分支，并以精确二项反演进行边界测试。"
     },
     {
-      "json_path": "problem3.alternative.node_metrics",
-      "name": "问题三替代拓扑逐节点指标",
-      "unit": "节点记录"
+      "id": "audit_09_joint_domain",
+      "status": "implemented",
+      "evidence": [
+        "code/params.py",
+        "code/problem4.py"
+      ],
+      "handling": "问题二和问题三分别按登记参数节点数分配 Bonferroni 边际错误率，输出保守联合域下的稳健利润包络，不把边际区间直接称为联合区间。"
     },
     {
-      "json_path": "problem3.validation.identity_max_diff",
-      "name": "问题三独立参考实现最大差值",
-      "unit": "元/合格件"
+      "id": "audit_10_q4_sample_design",
+      "status": "implemented",
+      "evidence": [
+        "code/params.py",
+        "code/problem4.py"
+      ],
+      "handling": "各参数节点按区间总宽度目标独立选择样本量，并保存登记样本量网格和固定随机种子的重抽样结果，不复用问题一检验样本量。"
     },
     {
-      "json_path": "problem3.validation.dp_state_count",
-      "name": "问题三可达动态规划状态数",
-      "unit": "个"
+      "id": "audit_11_reproducibility",
+      "status": "implemented",
+      "evidence": [
+        "code/main.py",
+        "code/problem1.py",
+        "code/problem2.py",
+        "code/problem3.py",
+        "code/problem4.py",
+        "outputs.json",
+        "execution_summary.json"
+      ],
+      "handling": "源码、逐问结果、聚合结果、执行摘要、状态可达性、退化检查、现金流账本和自检状态均由同步入口生成；阻断条件不通过时主程序非零退出。"
     },
     {
-      "json_path": "problem3.validation.independent_reference",
-      "name": "问题三独立参考解记录",
-      "unit": "验证记录"
-    },
-    {
-      "json_path": "problem3.validation.pass",
-      "name": "问题三结构、退化与单位核验通过标志",
-      "unit": "0-1"
-    },
-    {
-      "json_path": "problem4.cases[0].point_policy",
-      "name": "问题四情况 1 情景点估计策略",
-      "unit": "决策组合"
-    },
-    {
-      "json_path": "problem4.cases[0].robust_policy",
-      "name": "问题四情况 1 区间最坏稳健策略",
-      "unit": "决策组合"
-    },
-    {
-      "json_path": "problem4.cases[0].profit_interval",
-      "name": "问题四情况 1 利润区间",
-      "unit": "元/合格件"
-    },
-    {
-      "json_path": "problem4.cases[1].point_policy",
-      "name": "问题四情况 2 情景点估计策略",
-      "unit": "决策组合"
-    },
-    {
-      "json_path": "problem4.cases[1].robust_policy",
-      "name": "问题四情况 2 区间最坏稳健策略",
-      "unit": "决策组合"
-    },
-    {
-      "json_path": "problem4.cases[1].profit_interval",
-      "name": "问题四情况 2 利润区间",
-      "unit": "元/合格件"
-    },
-    {
-      "json_path": "problem4.cases[2].point_policy",
-      "name": "问题四情况 3 情景点估计策略",
-      "unit": "决策组合"
-    },
-    {
-      "json_path": "problem4.cases[2].robust_policy",
-      "name": "问题四情况 3 区间最坏稳健策略",
-      "unit": "决策组合"
-    },
-    {
-      "json_path": "problem4.cases[2].profit_interval",
-      "name": "问题四情况 3 利润区间",
-      "unit": "元/合格件"
-    },
-    {
-      "json_path": "problem4.cases[3].point_policy",
-      "name": "问题四情况 4 情景点估计策略",
-      "unit": "决策组合"
-    },
-    {
-      "json_path": "problem4.cases[3].robust_policy",
-      "name": "问题四情况 4 区间最坏稳健策略",
-      "unit": "决策组合"
-    },
-    {
-      "json_path": "problem4.cases[3].profit_interval",
-      "name": "问题四情况 4 利润区间",
-      "unit": "元/合格件"
-    },
-    {
-      "json_path": "problem4.cases[4].point_policy",
-      "name": "问题四情况 5 情景点估计策略",
-      "unit": "决策组合"
-    },
-    {
-      "json_path": "problem4.cases[4].robust_policy",
-      "name": "问题四情况 5 区间最坏稳健策略",
-      "unit": "决策组合"
-    },
-    {
-      "json_path": "problem4.cases[4].profit_interval",
-      "name": "问题四情况 5 利润区间",
-      "unit": "元/合格件"
-    },
-    {
-      "json_path": "problem4.cases[5].point_policy",
-      "name": "问题四情况 6 情景点估计策略",
-      "unit": "决策组合"
-    },
-    {
-      "json_path": "problem4.cases[5].robust_policy",
-      "name": "问题四情况 6 区间最坏稳健策略",
-      "unit": "决策组合"
-    },
-    {
-      "json_path": "problem4.cases[5].profit_interval",
-      "name": "问题四情况 6 利润区间",
-      "unit": "元/合格件"
-    },
-    {
-      "json_path": "problem4.q3.point_policy",
-      "name": "问题四问题三情景点估计策略",
-      "unit": "决策组合"
-    },
-    {
-      "json_path": "problem4.q3.robust_policy",
-      "name": "问题四问题三区间最坏稳健策略",
-      "unit": "决策组合"
-    },
-    {
-      "json_path": "problem4.q3.profit_interval",
-      "name": "问题四问题三利润区间",
-      "unit": "元/合格件"
-    },
-    {
-      "json_path": "problem4.decision_consistency",
-      "name": "问题四重抽样决策一致率",
-      "unit": "1"
-    },
-    {
-      "json_path": "problem4.sample_ledger",
-      "name": "问题四各节点样本量与观测计数情景账本",
-      "unit": "节点记录"
-    },
-    {
-      "json_path": "problem4.mc_trace",
-      "name": "问题四固定种子蒙特卡洛重复轨迹",
-      "unit": "重复记录"
-    },
-    {
-      "json_path": "problem4.sensitivity",
-      "name": "问题四样本量、区间宽度与策略稳定性结果",
-      "unit": "情景数组"
-    },
-    {
-      "json_path": "problem4.validation",
-      "name": "问题四 CP 端点、Bonferroni 分配及情景重解核验",
-      "unit": "验证记录"
+      "id": "audit_12_runtime_constants",
+      "status": "implemented",
+      "evidence": [
+        "code/params.py",
+        "code/main.py"
+      ],
+      "handling": "params.py 已同时登记 Q1_DELTA、Q1_BETA、Q1_ALTERNATIVE_DELTA、Q1_POWER_DELTA 及中文登记别名；main.py 在导入求解器前验证必需常数存在。"
     }
   ]
 }

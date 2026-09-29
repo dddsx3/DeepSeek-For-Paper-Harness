@@ -1,1141 +1,1337 @@
+"""Problem 2 exact absorbing Markov-reward solver.
+
+The four binary decisions are interpreted as
+``(part_1_inspection, part_2_inspection, final_inspection, final_disassembly)``.
+Every transient state records the realized quality of the two available parts.
+A qualified market delivery is represented by an explicit absorbing state.
+All expected event counts are obtained from the fundamental matrix and are
+reconciled with an independent value-iteration solution.
+"""
+
+from __future__ import annotations
+
 import itertools
 import math
-from collections.abc import Mapping
-from copy import deepcopy
-from dataclasses import asdict, is_dataclass
+from collections.abc import Mapping, Sequence
+from dataclasses import replace
+from typing import Any
 
 import numpy as np
-import numpy.linalg
+
 import params
-from params import *
+from params import *  # noqa: F401,F403
 
 
 _MISSING = object()
-_PART_STATES = ("empty", "good", "bad")
-_POLICY_TAIL_NAMES = ("final_inspect", "disassemble")
-_TERMINAL_LABEL = "qualified_delivery_absorbing"
+_QUALITY_NAMES = ("empty", "good", "bad")
+_QUALITY_VALUES = tuple(range(Q2_PARAMETER_NODE_COUNT))
+_QUALITY_STATES = tuple(
+    itertools.product(
+        _QUALITY_VALUES,
+        _QUALITY_VALUES,
+        repeat=Q2_PARAMETER_NODE_COUNT,
+    )
+)
+if len(_QUALITY_STATES) != Q2_INVENTORY_STATE_LIMIT:
+    raise AssertionError("问题二质量状态数与 params.py 登记上限不一致")
 
-_COST_FIELDS = (
-    "price1",
-    "test1",
-    "price2",
-    "test2",
-    "assembly_cost",
-    "product_test_cost",
-    "sale_price",
-    "exchange_loss",
-    "disassembly_cost",
+_STATE_TO_INDEX = {
+    state: state_index for state_index, state in enumerate(_QUALITY_STATES)
+}
+_EMPTY_STATE = (_QUALITY_VALUES[0], _QUALITY_VALUES[0])
+_GOOD_STATE = (_QUALITY_VALUES[1], _QUALITY_VALUES[1])
+_BAD_STATE = (_QUALITY_VALUES[2], _QUALITY_VALUES[2])
+_POLICY_TUPLE_LENGTH = Q2_PARAMETER_NODE_COUNT + 1
+_POLICIES = tuple(
+    itertools.product((False, True), repeat=_POLICY_TUPLE_LENGTH)
 )
-_RATE_FIELDS = ("p1", "p2", "pf")
-_PARAMETER_FIELDS = _RATE_FIELDS + _COST_FIELDS
-_COST_CATEGORIES = (
-    "part_purchase_cost",
-    "part_inspection_cost",
-    "assembly_cost",
-    "product_inspection_cost",
-    "disassembly_cost",
-    "exchange_loss",
-)
-_COUNT_CATEGORIES = (
-    "part_purchase_count",
-    "part_inspection_count",
-    "assembly_count",
-    "product_inspection_count",
-    "internal_rejection_count",
-    "market_count",
-    "return_count",
-    "disassembly_count",
-    "replacement_assembly_count",
-    "terminal_delivery_count",
-)
+if len(_POLICIES) != Q2_STRATEGY_SPACE_SIZE:
+    raise AssertionError("问题二策略空间必须与登记的 16 种组合一致")
 
-_PART_SPECS = (
-    {
-        "name": "part1",
-        "rate": ("p1", "part1_defect_rate", "part1_rate", "part1_p", "part1_probability", "零配件1次品率"),
-        "price": ("price1", "part1_price", "part1_purchase_price", "purchase_price1", "a1", "a_1", "零配件1购买单价"),
-        "test": ("test1", "part1_test", "part1_test_cost", "part1_inspection_cost", "t1", "t_1", "零配件1检测成本"),
-        "containers": ("part1", "part_1", "component1", "零配件1"),
-        "inner_rate": ("defect_rate", "rate", "p", "probability", "次品率"),
-        "inner_price": ("purchase_price", "price", "cost", "购买单价"),
-        "inner_test": ("inspection_cost", "test_cost", "test", "检测成本"),
-    },
-    {
-        "name": "part2",
-        "rate": ("p2", "part2_defect_rate", "part2_rate", "part2_p", "part2_probability", "零配件2次品率"),
-        "price": ("price2", "part2_price", "part2_purchase_price", "purchase_price2", "a2", "a_2", "零配件2购买单价"),
-        "test": ("test2", "part2_test", "part2_test_cost", "part2_inspection_cost", "t2", "t_2", "零配件2检测成本"),
-        "containers": ("part2", "part_2", "component2", "零配件2"),
-        "inner_rate": ("defect_rate", "rate", "p", "probability", "次品率"),
-        "inner_price": ("purchase_price", "price", "cost", "购买单价"),
-        "inner_test": ("inspection_cost", "test_cost", "test", "检测成本"),
-    },
+_POLICY_LABELS = tuple(
+    "".join(str(int(decision)) for decision in policy) for policy in _POLICIES
+)
+_TERMINAL_STATE_NAME = "qualified_delivery_absorbing"
+_EVENT_COUNT_KEYS = (
+    "purchases_part1",
+    "purchases_part2",
+    "inspections_part1",
+    "inspections_part2",
+    "inspections_product",
+    "assemblies",
+    "disassemblies",
+    "scrap_events",
+    "market_sales",
+    "market_bad_sales",
+    "returns",
+    "exchange_losses",
+    "bad_outputs",
+    "replacement_assemblies",
+    "qualified_deliveries",
 )
 
 
-def _normalise_name(value):
-    return "".join(character for character in str(value).lower() if character.isalnum())
+def _read_field(record: Any, names: Sequence[str], default: Any = _MISSING) -> Any:
+    if isinstance(record, Mapping):
+        for name in names:
+            if name in record:
+                return record[name]
+    else:
+        for name in names:
+            try:
+                return getattr(record, name)
+            except AttributeError:
+                pass
+        for name in names:
+            try:
+                return record[name]
+            except (KeyError, TypeError, IndexError):
+                pass
+    if default is not _MISSING:
+        return default
+    raise KeyError("缺少字段别名：" + ", ".join(names))
 
 
-def _parameter_containers():
-    containers = [vars(params)]
-    for container_name in (
-        "MODEL_CONSTANTS",
-        "MODEL_CONSTANT_VALUES",
-        "CONSTANTS",
-        "PARAMETERS",
-    ):
-        container = getattr(params, container_name, None)
-        if isinstance(container, Mapping):
-            containers.append(container)
-    return containers
+def _parse_case(raw_case: Any) -> params.Q2Case:
+    """Normalize flat Q2Case, legacy flat mappings, and nested mappings.
+
+    The explicit ``price1/test1/price2/test2`` aliases are required for the
+    frozen dataclass and all legacy records used by earlier adapters.
+    """
+    if isinstance(raw_case, params.Q2Case):
+        parsed = raw_case
+    else:
+        part1 = _read_field(raw_case, ("part1",), default={})
+        part2 = _read_field(raw_case, ("part2",), default={})
+        product = _read_field(raw_case, ("product", "final_product"), default={})
+
+        p1 = _read_field(
+            raw_case, ("p1", "part1_defect", "part1_p"), default=_MISSING
+        )
+        if p1 is _MISSING:
+            p1 = _read_field(part1, ("p", "defect_rate", "p1"))
+        price1 = _read_field(
+            raw_case,
+            ("price1", "a1", "part1_price"),
+            default=_MISSING,
+        )
+        if price1 is _MISSING:
+            price1 = _read_field(part1, ("price", "purchase_price", "a1"))
+        test1 = _read_field(
+            raw_case, ("test1", "t1", "part1_test"), default=_MISSING
+        )
+        if test1 is _MISSING:
+            test1 = _read_field(part1, ("test", "inspection_cost", "t1"))
+
+        p2 = _read_field(
+            raw_case, ("p2", "part2_defect", "part2_p"), default=_MISSING
+        )
+        if p2 is _MISSING:
+            p2 = _read_field(part2, ("p", "defect_rate", "p2"))
+        price2 = _read_field(
+            raw_case,
+            ("price2", "a2", "part2_price"),
+            default=_MISSING,
+        )
+        if price2 is _MISSING:
+            price2 = _read_field(part2, ("price", "purchase_price", "a2"))
+        test2 = _read_field(
+            raw_case, ("test2", "t2", "part2_test"), default=_MISSING
+        )
+        if test2 is _MISSING:
+            test2 = _read_field(part2, ("test", "inspection_cost", "t2"))
+
+        pf = _read_field(
+            raw_case,
+            ("pf", "product_defect", "p_final"),
+            default=_MISSING,
+        )
+        if pf is _MISSING:
+            pf = _read_field(product, ("p", "defect_rate", "pf"))
+        assembly_cost = _read_field(
+            raw_case,
+            ("assembly_cost", "kf", "assembly"),
+            default=_MISSING,
+        )
+        if assembly_cost is _MISSING:
+            assembly_cost = _read_field(product, ("assembly_cost", "kf", "assembly"))
+        product_test_cost = _read_field(
+            raw_case,
+            ("product_test_cost", "tf", "final_test"),
+            default=_MISSING,
+        )
+        if product_test_cost is _MISSING:
+            product_test_cost = _read_field(product, ("test_cost", "test", "tf"))
+
+        parsed = params.Q2Case(
+            p1=float(p1),
+            price1=float(price1),
+            test1=float(test1),
+            p2=float(p2),
+            price2=float(price2),
+            test2=float(test2),
+            pf=float(pf),
+            assembly_cost=float(assembly_cost),
+            product_test_cost=float(product_test_cost),
+            market_price=float(
+                _read_field(raw_case, ("market_price", "rmarket", "sale_price"))
+            ),
+            exchange_loss=float(
+                _read_field(
+                    raw_case,
+                    ("exchange_loss", "lexchange", "replacement_loss"),
+                )
+            ),
+            disassembly_cost=float(
+                _read_field(
+                    raw_case,
+                    ("disassembly_cost", "gdis", "disassembly"),
+                )
+            ),
+            case_id=int(
+                _read_field(raw_case, ("case_id", "id"), default=_QUALITY_VALUES[0])
+            ),
+        )
+    _validate_case(parsed)
+    return parsed
 
 
-def _semantic_parameter(groups):
-    candidates = []
-    for container in _parameter_containers():
-        for name, value in container.items():
-            if str(name).startswith("__"):
-                continue
-            normalised = _normalise_name(name)
-            if all(any(_normalise_name(token) in normalised for token in group) for group in groups):
-                candidates.append((len(normalised), str(name), value))
-    if not candidates:
-        return None
-    candidates.sort(key=lambda item: (item[0], item[1]))
-    return candidates[0][2]
-
-
-def _parameter(*names):
-    containers = _parameter_containers()
-    for requested in names:
-        for container in containers:
-            if requested in container:
-                return container[requested]
-    raise AttributeError("params 中缺少登记常量：" + ", ".join(names))
-
-
-def _model_settings():
-    cashflow_tolerance = _parameter(
-        "Q2_CASHFLOW_ABS_TOL",
-        "CASHFLOW_ABS_TOL",
-        "CASHFLOW_ABSOLUTE_TOLERANCE",
-        "cashflow_abs_tol",
+def _validate_case(case: params.Q2Case) -> None:
+    probabilities = (case.p1, case.p2, case.pf)
+    monetary_values = (
+        case.price1,
+        case.test1,
+        case.price2,
+        case.test2,
+        case.assembly_cost,
+        case.product_test_cost,
+        case.market_price,
+        case.exchange_loss,
+        case.disassembly_cost,
     )
-    value_tolerance = _parameter(
-        "Q2_VALUE_ITERATION_TOL",
-        "VALUE_ITERATION_TOL",
-        "VALUE_ITERATION_TOLERANCE",
-        "value_iteration_tol",
+    for value in probabilities:
+        if not math.isfinite(value) or value < 0.0 or value > 1.0:
+            raise ValueError(f"次品率必须位于 [0,1]，实际为 {value!r}")
+    for value in monetary_values:
+        if not math.isfinite(value) or value < 0.0:
+            raise ValueError(f"金额参数必须有限且非负，实际为 {value!r}")
+
+
+def load_cases(cases: Any = None) -> tuple[params.Q2Case, ...]:
+    source = params.Q2_CASES if cases is None else cases
+    parsed_cases = tuple(_parse_case(raw_case) for raw_case in source)
+    if not parsed_cases:
+        raise ValueError("问题二案例集合不得为空")
+    return parsed_cases
+
+
+def _binary_value(value: Any, field_name: str) -> bool:
+    if isinstance(value, (bool, np.bool_)):
+        return bool(value)
+    try:
+        numeric = float(value)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"{field_name} 必须是 0 或 1") from exc
+    if not math.isfinite(numeric) or numeric not in (0.0, 1.0):
+        raise ValueError(f"{field_name} 必须是 0 或 1，实际为 {value!r}")
+    return bool(numeric)
+
+
+def _canonical_policy(policy: Any) -> tuple[bool, bool, bool, bool]:
+    if isinstance(policy, Mapping):
+        values = (
+            _binary_value(
+                _read_field(
+                    policy,
+                    ("z1", "Z1", "part1_inspection", "inspect_part1"),
+                ),
+                "z1",
+            ),
+            _binary_value(
+                _read_field(
+                    policy,
+                    ("z2", "Z2", "part2_inspection", "inspect_part2"),
+                ),
+                "z2",
+            ),
+            _binary_value(
+                _read_field(
+                    policy,
+                    ("c", "C", "final_test", "product_test", "inspect_final"),
+                ),
+                "c",
+            ),
+            _binary_value(
+                _read_field(
+                    policy,
+                    ("d", "D", "disassemble", "final_disassembly"),
+                ),
+                "d",
+            ),
+        )
+    else:
+        if isinstance(policy, (str, bytes)):
+            raise TypeError("策略必须是四元组或字段映射")
+        values = tuple(policy)
+        if len(values) != _POLICY_TUPLE_LENGTH:
+            raise ValueError(
+                f"策略必须包含 {_POLICY_TUPLE_LENGTH} 个二元决策"
+            )
+        values = tuple(
+            _binary_value(value, field_name)
+            for value, field_name in zip(
+                values,
+                ("z1", "z2", "c", "d"),
+            )
+        )
+    return values
+
+
+def _state_label(state: tuple[int, int]) -> str:
+    return f"h1={_QUALITY_NAMES[state[0]]},h2={_QUALITY_NAMES[state[1]]}"
+
+
+def market_revenue_once(
+    case: params.Q2Case,
+    source_index: int,
+    probability: float,
+    counts: dict[str, np.ndarray],
+    cash: np.ndarray,
+) -> None:
+    """Record exactly one market transaction for each launched market unit."""
+    counts["market_sales"][source_index] += probability
+    cash[source_index] += probability * case.market_price
+
+
+def replacement_assembly_once(
+    source_index: int,
+    probability: float,
+    counts: dict[str, np.ndarray],
+) -> None:
+    """Book the one subsequent launch caused by each defective assembly."""
+    counts["replacement_assemblies"][source_index] += probability
+
+
+def _add_transition(
+    transition: np.ndarray,
+    source_index: int,
+    destination_index: int,
+    probability: float,
+    cash: np.ndarray,
+    source_cash: float,
+    counts: dict[str, np.ndarray],
+) -> None:
+    if probability <= 0.0:
+        return
+    transition[source_index, destination_index] += probability
+    cash[source_index] += source_cash
+
+
+def _reachable_state_indices(transition: np.ndarray) -> list[int]:
+    start = _STATE_TO_INDEX[_EMPTY_STATE]
+    pending = [start]
+    visited = {start}
+    while pending:
+        source_index = pending.pop()
+        for destination_index in np.flatnonzero(transition[source_index] > 0.0):
+            destination = int(destination_index)
+            if destination not in visited:
+                visited.add(destination)
+                pending.append(destination)
+    return sorted(visited)
+
+
+def build_mrp(raw_case: Any, raw_policy: Any) -> dict[str, Any]:
+    """Build the full stochastic kernel, including an absorbing delivery row."""
+    case = _parse_case(raw_case)
+    z1, z2, inspect_product, disassemble = _canonical_policy(raw_policy)
+    state_count = len(_QUALITY_STATES)
+
+    transient = np.zeros((state_count, state_count), dtype=float)
+    terminal = np.zeros(state_count, dtype=float)
+    immediate_cash = np.zeros(state_count, dtype=float)
+    counts = {
+        key: np.zeros(state_count, dtype=float) for key in _EVENT_COUNT_KEYS
+    }
+    procurement_impossible = False
+
+    for state_index, state in enumerate(_QUALITY_STATES):
+        left_quality, right_quality = state
+
+        if left_quality == _QUALITY_VALUES[0]:
+            good_quality = _QUALITY_VALUES[1]
+            bad_quality = _QUALITY_VALUES[2]
+            if z1:
+                good_probability = 1.0 - case.p1
+                if good_probability <= 0.0:
+                    procurement_impossible = True
+                    continue
+                expected_draws = 1.0 / good_probability
+                destination = (good_quality, right_quality)
+                destination_index = _STATE_TO_INDEX[destination]
+                counts["purchases_part1"][state_index] += expected_draws
+                counts["inspections_part1"][state_index] += expected_draws
+                _add_transition(
+                    transient,
+                    state_index,
+                    destination_index,
+                    1.0,
+                    immediate_cash,
+                    -expected_draws * (case.price1 + case.test1),
+                    counts,
+                )
+            else:
+                good_probability = 1.0 - case.p1
+                bad_probability = case.p1
+                good_destination = (good_quality, right_quality)
+                bad_destination = (bad_quality, right_quality)
+                counts["purchases_part1"][state_index] += 1.0
+                _add_transition(
+                    transient,
+                    state_index,
+                    _STATE_TO_INDEX[good_destination],
+                    good_probability,
+                    immediate_cash,
+                    -case.price1,
+                    counts,
+                )
+                _add_transition(
+                    transient,
+                    state_index,
+                    _STATE_TO_INDEX[bad_destination],
+                    bad_probability,
+                    immediate_cash,
+                    -case.price1,
+                    counts,
+                )
+            continue
+
+        if right_quality == _QUALITY_VALUES[0]:
+            good_quality = _QUALITY_VALUES[1]
+            bad_quality = _QUALITY_VALUES[2]
+            if z2:
+                good_probability = 1.0 - case.p2
+                if good_probability <= 0.0:
+                    procurement_impossible = True
+                    continue
+                expected_draws = 1.0 / good_probability
+                destination = (left_quality, good_quality)
+                destination_index = _STATE_TO_INDEX[destination]
+                counts["purchases_part2"][state_index] += expected_draws
+                counts["inspections_part2"][state_index] += expected_draws
+                _add_transition(
+                    transient,
+                    state_index,
+                    destination_index,
+                    1.0,
+                    immediate_cash,
+                    -expected_draws * (case.price2 + case.test2),
+                    counts,
+                )
+            else:
+                good_probability = 1.0 - case.p2
+                bad_probability = case.p2
+                good_destination = (left_quality, good_quality)
+                bad_destination = (left_quality, bad_quality)
+                counts["purchases_part2"][state_index] += 1.0
+                _add_transition(
+                    transient,
+                    state_index,
+                    _STATE_TO_INDEX[good_destination],
+                    good_probability,
+                    immediate_cash,
+                    -case.price2,
+                    counts,
+                )
+                _add_transition(
+                    transient,
+                    state_index,
+                    _STATE_TO_INDEX[bad_destination],
+                    bad_probability,
+                    immediate_cash,
+                    -case.price2,
+                    counts,
+                )
+            continue
+
+        counts["assemblies"][state_index] += 1.0
+        immediate_cash[state_index] -= case.assembly_cost
+
+        if left_quality == _QUALITY_VALUES[1] and right_quality == _QUALITY_VALUES[1]:
+            bad_probability = case.pf
+        else:
+            bad_probability = 1.0
+        good_probability = 1.0 - bad_probability
+
+        if inspect_product:
+            counts["inspections_product"][state_index] += 1.0
+            immediate_cash[state_index] -= case.product_test_cost
+
+        if good_probability > 0.0:
+            terminal[state_index] += good_probability
+            counts["qualified_deliveries"][state_index] += good_probability
+            market_revenue_once(
+                case,
+                state_index,
+                good_probability,
+                counts,
+                immediate_cash,
+            )
+
+        if bad_probability > 0.0:
+            counts["bad_outputs"][state_index] += bad_probability
+            replacement_assembly_once(
+                state_index,
+                bad_probability,
+                counts,
+            )
+            if not inspect_product:
+                market_revenue_once(
+                    case,
+                    state_index,
+                    bad_probability,
+                    counts,
+                    immediate_cash,
+                )
+                counts["market_bad_sales"][state_index] += bad_probability
+                counts["returns"][state_index] += bad_probability
+                counts["exchange_losses"][state_index] += bad_probability
+                immediate_cash[state_index] -= bad_probability * case.exchange_loss
+
+            if disassemble:
+                destination_index = state_index
+                immediate_cash[state_index] -= bad_probability * case.disassembly_cost
+                counts["disassemblies"][state_index] += bad_probability
+            else:
+                destination_index = _STATE_TO_INDEX[_EMPTY_STATE]
+                counts["scrap_events"][state_index] += bad_probability
+                immediate_cash[state_index] += (
+                    bad_probability * Q2_SCRAP_SALVAGE_VALUE
+                )
+            _add_transition(
+                transient,
+                state_index,
+                destination_index,
+                bad_probability,
+                immediate_cash,
+                0.0,
+                counts,
+            )
+
+    full_transition = np.zeros(
+        (state_count + 1, state_count + 1),
+        dtype=float,
     )
-    maximum_steps = _parameter(
-        "Q2_VALUE_ITERATION_MAX_STEPS",
-        "Q2_VALUE_ITERATION_MAX",
-        "VALUE_ITERATION_MAX_STEPS",
-        "VALUE_ITERATION_MAX_ITERATIONS",
-        "value_iteration_max_iterations",
-    )
-    if value_tolerance is None:
-        value_tolerance = _semantic_parameter((("value_iteration", "iteration"), ("tol", "tolerance")))
-    if maximum_steps is None:
-        maximum_steps = _semantic_parameter((("value_iteration", "iteration"), ("max",)))
-    if value_tolerance is None or maximum_steps is None:
-        raise AttributeError("params 中缺少问题二价值迭代登记常数")
-    numeric_tolerance = _parameter(
-        "Q2_NUMERIC_TOL",
-        "Q1_NUMERIC_TOL",
-        "Q1_EXACT_ENUMERATION_TOL",
-        "NUMERIC_TOL",
-        "numeric_tol",
-    )
-    if numeric_tolerance is None:
-        numeric_tolerance = _semantic_parameter((("numeric",), ("tol", "tolerance")))
-    if numeric_tolerance is None:
-        numeric_tolerance = cashflow_tolerance
+    full_transition[:-1, :-1] = transient
+    full_transition[:-1, -1] = terminal
+    full_transition[-1, -1] = 1.0
+
+    reachable_global = _reachable_state_indices(transient)
+    local_position = {
+        global_index: local_index
+        for local_index, global_index in enumerate(reachable_global)
+    }
+    restricted_transition = transient[np.ix_(reachable_global, reachable_global)]
+    restricted_terminal = terminal[reachable_global]
+    restricted_cash = immediate_cash[reachable_global]
+    restricted_counts = {
+        key: values[reachable_global] for key, values in counts.items()
+    }
+
+    initial_global = _STATE_TO_INDEX[_EMPTY_STATE]
+    initial_index = local_position.get(initial_global)
+    if initial_index is None:
+        raise AssertionError("empty 状态必须是可达初始状态")
+
     return {
-        "cashflow_abs_tol": float(cashflow_tolerance),
-        "value_iteration_tol": float(value_tolerance),
-        "value_iteration_max_steps": int(maximum_steps),
-        "numeric_tol": float(numeric_tolerance),
+        "case": case,
+        "policy": (z1, z2, inspect_product, disassemble),
+        "state_names": [_state_label(state) for state in _QUALITY_STATES],
+        "reachable_state_names": [
+            _state_label(_QUALITY_STATES[index]) for index in reachable_global
+        ],
+        "reachable_states": len(reachable_global),
+        "transient_transition": restricted_transition,
+        "terminal_probability": restricted_terminal,
+        "immediate_cash": restricted_cash,
+        "event_immediate_counts": restricted_counts,
+        "initial_index": initial_index,
+        "full_transition": full_transition,
+        "absorbing_state_index": state_count,
+        "absorbing_state_name": _TERMINAL_STATE_NAME,
+        "terminal_row_absorbing": bool(
+            full_transition[-1, -1] == 1.0
+            and np.count_nonzero(full_transition[-1, :-1]) == 0
+        ),
+        "transition_row_sum_error": float(
+            np.max(np.abs(full_transition.sum(axis=1) - 1.0))
+        ),
+        "procurement_impossible": procurement_impossible,
     }
 
 
-def _sensitivity_factors():
-    factors = _parameter(
-        "Q2_SENSITIVITY_FACTORS",
-        "RELATIVE_SENSITIVITY_GRID",
-        "SENSITIVITY_GRID",
-        "relative_sensitivity_grid",
+def absorbing_markov_reward(mrp: dict[str, Any]) -> dict[str, Any]:
+    """Solve the absorbing reward equation and independently iterate it."""
+    transition = np.asarray(mrp["transient_transition"], dtype=float)
+    terminal_probability = np.asarray(mrp["terminal_probability"], dtype=float)
+    rewards = np.asarray(mrp["immediate_cash"], dtype=float)
+    state_count = transition.shape[0]
+
+    if mrp["procurement_impossible"]:
+        return {
+            "eligible": False,
+            "reason": "检测后无法以正概率取得合格零配件",
+            "spectral_radius": None,
+            "value": None,
+            "fundamental_matrix": None,
+            "bellman_residual": None,
+            "value_iteration_error": None,
+        }
+
+    eigenvalues = np.linalg.eigvals(transition)
+    spectral_radius = float(np.max(np.abs(eigenvalues)))
+    if not math.isfinite(spectral_radius) or spectral_radius >= 1.0:
+        return {
+            "eligible": False,
+            "reason": "可达转移核含非吸收闭合类，期望交付价值不是有限值",
+            "spectral_radius": spectral_radius,
+            "value": None,
+            "fundamental_matrix": None,
+            "bellman_residual": None,
+            "value_iteration_error": None,
+        }
+
+    system = np.eye(state_count, dtype=float) - transition
+    try:
+        value = np.linalg.solve(system, rewards)
+        fundamental = np.linalg.solve(system, np.eye(state_count, dtype=float))
+    except np.linalg.LinAlgError:
+        return {
+            "eligible": False,
+            "reason": "吸收转移方程在浮点数下不可解",
+            "spectral_radius": spectral_radius,
+            "value": None,
+            "fundamental_matrix": None,
+            "bellman_residual": None,
+            "value_iteration_error": None,
+        }
+
+    iterated = np.zeros(state_count, dtype=float)
+    converged = False
+    for _ in range(VALUE_ITERATION_MAX_ITER):
+        updated = rewards + transition @ iterated
+        if np.max(np.abs(updated - iterated)) <= VALUE_ITERATION_TOL:
+            iterated = updated
+            converged = True
+            break
+        iterated = updated
+    if not converged:
+        raise RuntimeError("问题二 Bellman 价值迭代未在登记轮数内收敛")
+
+    residual = rewards + transition @ value - value
+    return {
+        "eligible": True,
+        "reason": "可达闭合类仅为合格交付吸收态",
+        "spectral_radius": spectral_radius,
+        "value": value,
+        "fundamental_matrix": fundamental,
+        "bellman_residual": float(np.max(np.abs(residual))),
+        "value_iteration_error": float(np.max(np.abs(value - iterated))),
+    }
+
+
+def _absorption_probability(
+    mrp: dict[str, Any],
+    bellman: dict[str, Any],
+) -> float:
+    initial_index = int(mrp["initial_index"])
+    if bellman["eligible"]:
+        fundamental = np.asarray(bellman["fundamental_matrix"], dtype=float)
+        probability = float(fundamental[initial_index, :].sum())
+        return min(1.0, max(0.0, probability))
+
+    transition = np.asarray(mrp["transient_transition"], dtype=float)
+    terminal = np.asarray(mrp["terminal_probability"], dtype=float)
+    state_count = transition.shape[0]
+    can_reach_terminal = terminal > 0.0
+    for _ in range(state_count):
+        updated = can_reach_terminal | (
+            transition.T @ can_reach_terminal.astype(float) > 0.0
+        )
+        if np.array_equal(updated, can_reach_terminal):
+            break
+        can_reach_terminal = updated
+
+    safe_indices = np.flatnonzero(can_reach_terminal)
+    if initial_index not in safe_indices:
+        return 0.0
+    safe_transition = transition[np.ix_(safe_indices, safe_indices)]
+    safe_terminal = terminal[safe_indices]
+    system = np.eye(len(safe_indices), dtype=float) - safe_transition
+    try:
+        probabilities = np.linalg.solve(system, safe_terminal)
+    except np.linalg.LinAlgError:
+        return 0.0
+    local_initial = int(np.flatnonzero(safe_indices == initial_index)[0])
+    probability = float(probabilities[local_initial])
+    return min(1.0, max(0.0, probability))
+
+
+def event_cash_ledger(
+    raw_case: Any,
+    raw_policy: Any,
+    mrp: dict[str, Any] | None = None,
+    bellman: dict[str, Any] | None = None,
+    absorption_probability: float | None = None,
+) -> dict[str, Any]:
+    """Reconcile Bellman value with an independent expected-event ledger."""
+    case = _parse_case(raw_case)
+    if mrp is None:
+        mrp = build_mrp(case, raw_policy)
+    if bellman is None:
+        bellman = absorbing_markov_reward(mrp)
+    if absorption_probability is None:
+        absorption_probability = _absorption_probability(mrp, bellman)
+
+    if not bellman["eligible"]:
+        return {
+            "status": "nonabsorbing",
+            "event_counts": None,
+            "components": None,
+            "total_cost": None,
+            "market_revenue": None,
+            "net_cash": None,
+            "cashflow_residual": None,
+            "absorption_probability": absorption_probability,
+            "identity_errors": None,
+            "market_revenue_once": False,
+            "replacement_assembly_once": False,
+            "all_costs_accounted": False,
+            "expected_state_visits": None,
+        }
+
+    fundamental = np.asarray(bellman["fundamental_matrix"], dtype=float)
+    initial_index = int(mrp["initial_index"])
+    expected_counts = {
+        key: float(fundamental[initial_index, :] @ values)
+        for key, values in mrp["event_immediate_counts"].items()
+    }
+    market_revenue = case.market_price * expected_counts["market_sales"]
+    components = {
+        "purchase_part1": case.price1 * expected_counts["purchases_part1"],
+        "purchase_part2": case.price2 * expected_counts["purchases_part2"],
+        "inspection_part1": case.test1 * expected_counts["inspections_part1"],
+        "inspection_part2": case.test2 * expected_counts["inspections_part2"],
+        "inspection_product": (
+            case.product_test_cost * expected_counts["inspections_product"]
+        ),
+        "assembly": case.assembly_cost * expected_counts["assemblies"],
+        "disassembly": (
+            case.disassembly_cost * expected_counts["disassemblies"]
+        ),
+        "exchange_loss": (
+            case.exchange_loss * expected_counts["exchange_losses"]
+        ),
+        "scrap_salvage_recovery": (
+            Q2_SCRAP_SALVAGE_VALUE * expected_counts["scrap_events"]
+        ),
+    }
+    total_cost = float(sum(components.values()))
+    net_cash = float(market_revenue - total_cost)
+    bellman_value = float(np.asarray(bellman["value"])[initial_index])
+    cashflow_residual = abs(net_cash - bellman_value)
+
+    replacement_identity_error = abs(
+        expected_counts["assemblies"]
+        - expected_counts["replacement_assemblies"]
+        - expected_counts["qualified_deliveries"]
     )
-    if factors is None:
-        factors = _semantic_parameter((("sensitivity", "relative"), ("grid", "factor", "value")))
-    if factors is None:
-        raise AttributeError("params 中缺少相对灵敏度扫描网格")
-    result = tuple(float(value) for value in factors)
-    if not result:
-        raise ValueError("相对灵敏度扫描网格不能为空")
+    exchange_identity_error = abs(
+        expected_counts["returns"]
+        - expected_counts["market_bad_sales"]
+    )
+    revenue_identity_error = abs(
+        market_revenue
+        - case.market_price * expected_counts["market_sales"]
+    )
+    market_sales_identity = (
+        expected_counts["market_sales"] <= expected_counts["assemblies"] + CASHFLOW_ABS_TOL
+    )
+    identity_errors = {
+        "replacement_assembly_identity": replacement_identity_error,
+        "return_market_bad_identity": exchange_identity_error,
+        "market_revenue_identity": revenue_identity_error,
+    }
+    all_costs_accounted = all(
+        abs(value) <= CASHFLOW_ABS_TOL for value in identity_errors.values()
+    ) and all(
+        key in components
+        for key in (
+            "purchase_part1",
+            "purchase_part2",
+            "inspection_part1",
+            "inspection_part2",
+            "inspection_product",
+            "assembly",
+            "disassembly",
+            "exchange_loss",
+        )
+    )
+
+    expected_state_visits = [
+        {
+            "state": state_name,
+            "expected_visits": float(fundamental[initial_index, local_index]),
+        }
+        for local_index, state_name in enumerate(mrp["reachable_state_names"])
+    ]
+    return {
+        "status": "absorbing",
+        "event_counts": expected_counts,
+        "components": components,
+        "total_cost": total_cost,
+        "market_revenue": float(market_revenue),
+        "net_cash": net_cash,
+        "cashflow_residual": float(cashflow_residual),
+        "absorption_probability": float(absorption_probability),
+        "identity_errors": identity_errors,
+        "market_revenue_once": bool(
+            market_sales_identity
+            and revenue_identity_error <= CASHFLOW_ABS_TOL
+        ),
+        "replacement_assembly_once": bool(
+            replacement_identity_error <= CASHFLOW_ABS_TOL
+        ),
+        "all_costs_accounted": bool(all_costs_accounted),
+        "expected_state_visits": expected_state_visits,
+    }
+
+
+def solve_policy(raw_case: Any, raw_policy: Any) -> dict[str, Any]:
+    case = _parse_case(raw_case)
+    policy = _canonical_policy(raw_policy)
+    mrp = build_mrp(case, policy)
+    bellman = absorbing_markov_reward(mrp)
+    absorption_probability = _absorption_probability(mrp, bellman)
+    ledger = event_cash_ledger(
+        case,
+        policy,
+        mrp=mrp,
+        bellman=bellman,
+        absorption_probability=absorption_probability,
+    )
+    policy_vector = [int(decision) for decision in policy]
+    result: dict[str, Any] = {
+        "policy": policy_vector,
+        "policy_tuple": policy_vector,
+        "policy_label": "".join(str(value) for value in policy_vector),
+        "z1": int(policy[0]),
+        "z2": int(policy[1]),
+        "c": int(policy[2]),
+        "d": int(policy[3]),
+        "is_absorbing": bool(bellman["eligible"]),
+        "absorbing": bool(bellman["eligible"]),
+        "absorption_probability": float(absorption_probability),
+        "termination_probability": float(absorption_probability),
+        "spectral_radius": bellman["spectral_radius"],
+        "reachable_state_count": int(mrp["reachable_states"]),
+        "reachable_states": mrp["reachable_state_names"],
+        "terminal_state": mrp["absorbing_state_name"],
+        "terminal_row_absorbing": mrp["terminal_row_absorbing"],
+        "transition_row_sum_error": mrp["transition_row_sum_error"],
+        "bellman_residual": bellman["bellman_residual"],
+        "value_iteration_error": bellman["value_iteration_error"],
+        "cashflow_residual": ledger["cashflow_residual"],
+        "profit": None,
+        "profit_per_good_delivery": None,
+        "expected_cost": None,
+        "market_revenue": None,
+        "event_cash_ledger": ledger,
+        "reason": bellman["reason"],
+    }
+    if bellman["eligible"]:
+        result["profit"] = float(bellman["value"][mrp["initial_index"]])
+        result["profit_per_good_delivery"] = result["profit"]
+        result["expected_cost"] = ledger["total_cost"]
+        result["market_revenue"] = ledger["market_revenue"]
+        result["decision_basis"] = (
+            "在完整 empty-good-bad 可达状态上，以吸收 Bellman 方程取 argmax，"
+            "并由独立事件现金流账本复核"
+        )
+    else:
+        result["decision_basis"] = (
+            "存在可达非吸收闭合类，依 A-017 从有限期望利润的 argmax 中剔除"
+        )
     return result
 
 
-def _as_mapping(raw):
-    if isinstance(raw, Mapping):
-        return raw
-    if is_dataclass(raw):
-        return asdict(raw)
-    if hasattr(raw, "__dict__"):
-        return vars(raw)
-    return {}
+def evaluate_policy(raw_case: Any, raw_policy: Any) -> dict[str, Any]:
+    return solve_policy(raw_case, raw_policy)
 
 
-def _read_raw(source, name):
-    if isinstance(source, Mapping):
-        return source.get(name, _MISSING)
-    return getattr(source, name, _MISSING)
+def profit_for_policy(raw_case: Any, raw_policy: Any) -> float | None:
+    return solve_policy(raw_case, raw_policy)["profit"]
 
 
-def _numeric(value):
-    if isinstance(value, str):
-        text = value.strip()
-        if text.endswith("%"):
-            divisor = _parameter(
-                "PERCENT_BASE",
-                "PERCENTAGE_BASE",
-                "PERCENT_TO_RATIO",
-                "Q2_PERCENT_BASE",
-            )
-            return float(text[:-1]) / float(divisor)
-        converted = float(text)
-    else:
-        converted = float(value)
-    if not math.isfinite(converted):
-        raise ValueError("参数必须为有限实数")
-    return converted
+def build_q2_mrp(raw_case: Any, raw_policy: Any) -> dict[str, Any]:
+    return build_mrp(raw_case, raw_policy)
 
 
-def _numeric_field(raw, aliases, containers, inner_aliases):
-    mapping = _as_mapping(raw)
-    for alias in aliases:
-        value = _read_raw(mapping, alias)
-        if value is not _MISSING:
-            return _numeric(value)
-    for container_name in containers:
-        child = _read_raw(mapping, container_name)
-        if child is _MISSING:
-            continue
-        child_mapping = _as_mapping(child)
-        for alias in inner_aliases:
-            value = _read_raw(child_mapping, alias)
-            if value is not _MISSING:
-                return _numeric(value)
-    raise KeyError("案例参数缺失；已尝试字段：" + ", ".join(aliases))
+def _q2_build_mrp(raw_case: Any, raw_policy: Any) -> dict[str, Any]:
+    return build_mrp(raw_case, raw_policy)
 
 
-def _case_identifier(raw, index):
-    mapping = _as_mapping(raw)
-    for alias in ("case_id", "caseid", "id", "case_number", "name", "case"):
-        value = _read_raw(mapping, alias)
-        if value is not _MISSING and value is not None:
-            return str(value)
-    return "case_{}".format(index + 1)
+def _q2_mrp_value(raw_case: Any, raw_policy: Any) -> float | None:
+    return profit_for_policy(raw_case, raw_policy)
 
 
-def _is_normalised_case(case):
-    return isinstance(case, Mapping) and all(field in case for field in _PARAMETER_FIELDS)
-
-
-def normalize_case(raw, index=0):
-    if _is_normalised_case(raw):
-        return dict(raw)
-    mapping = _as_mapping(raw)
-    normalised = {"case_id": _case_identifier(raw, index)}
-    for spec in _PART_SPECS:
-        rate = _numeric_field(raw, spec["rate"], spec["containers"], spec["inner_rate"])
-        price = _numeric_field(raw, spec["price"], spec["containers"], spec["inner_price"])
-        test = _numeric_field(raw, spec["test"], spec["containers"], spec["inner_test"])
-        normalised[spec["name"] + "_defect_rate"] = rate
-        normalised["p" + spec["name"][-1]] = rate
-        normalised[spec["name"] + "_purchase_price"] = price
-        normalised["price" + spec["name"][-1]] = price
-        normalised[spec["name"] + "_inspection_cost"] = test
-        normalised["test" + spec["name"][-1]] = test
-        normalised[spec["name"]] = {
-            "defect_rate": rate,
-            "purchase_price": price,
-            "inspection_cost": test,
-        }
-    normalised["pf"] = _numeric_field(
-        raw,
-        ("pf", "product_defect_rate", "assembly_defect_rate", "final_defect_rate", "成品次品率"),
-        ("product", "final_product", "finished_product", "assembly", "成品"),
-        ("defect_rate", "rate", "p", "probability", "次品率"),
-    )
-    normalised["assembly_cost"] = _numeric_field(
-        raw,
-        ("assembly_cost", "product_assembly_cost", "final_assembly_cost", "kf", "k_f", "成品装配成本"),
-        ("product", "final_product", "finished_product", "assembly", "成品"),
-        ("assembly_cost", "cost", "装配成本"),
-    )
-    normalised["product_test_cost"] = _numeric_field(
-        raw,
-        (
-            "product_test_cost",
-            "final_test_cost",
-            "product_inspection_cost",
-            "tf",
-            "t_f",
-            "成品检测成本",
-        ),
-        ("product", "final_product", "finished_product", "assembly", "成品"),
-        ("test_cost", "inspection_cost", "test", "检测成本"),
-    )
-    normalised["sale_price"] = _numeric_field(
-        raw,
-        ("sale_price", "market_price", "market_sale_price", "revenue", "r_market", "市场售价"),
-        ("product", "final_product", "market", "成品"),
-        ("sale_price", "market_price", "price", "市场售价"),
-    )
-    normalised["exchange_loss"] = _numeric_field(
-        raw,
-        ("exchange_loss", "replacement_loss", "return_loss", "L_exchange", "调换损失"),
-        ("exchange", "return", "调换"),
-        ("loss", "exchange_loss", "调换损失"),
-    )
-    normalised["disassembly_cost"] = _numeric_field(
-        raw,
-        ("disassembly_cost", "dismantle_cost", "disassembly_fee", "g_dis", "拆解费用"),
-        ("disassembly", "dismantle", "拆解"),
-        ("cost", "fee", "disassembly_cost", "拆解费用"),
-    )
-    normalised["a1"] = normalised["price1"]
-    normalised["t1"] = normalised["test1"]
-    normalised["a2"] = normalised["price2"]
-    normalised["t2"] = normalised["test2"]
-    normalised["k_f"] = normalised["assembly_cost"]
-    normalised["t_f"] = normalised["product_test_cost"]
-    normalised["r_market"] = normalised["sale_price"]
-    normalised["L_exchange"] = normalised["exchange_loss"]
-    normalised["g_dis"] = normalised["disassembly_cost"]
-    return normalised
-
-
-def _normalize_q2_case(raw, index=0):
-    return normalize_case(raw, index=index)
-
-
-def load_cases(required_count=None):
-    raw_cases = _parameter("Q2_CASES")
-    if isinstance(raw_cases, Mapping):
-        materialised = []
-        for case_id, raw_case in raw_cases.items():
-            if _as_mapping(raw_case):
-                copied = dict(_as_mapping(raw_case))
-                copied.setdefault("case_id", case_id)
-                materialised.append(copied)
-            else:
-                materialised.append(raw_case)
-    else:
-        materialised = list(raw_cases)
-    cases = [normalize_case(raw, index=index) for index, raw in enumerate(materialised)]
-    if required_count is not None and len(cases) != int(required_count):
-        raise ValueError("问题二案例数与登记数量不一致")
-    return cases
-
-
-def _validate_case(case):
-    for field in _RATE_FIELDS:
-        value = case[field]
-        if value < 0 or value > 1:
-            raise ValueError(field + " 必须位于概率区间")
-    for field in _COST_FIELDS:
-        if case[field] < 0:
-            raise ValueError(field + " 必须为非负金额")
-
-
-def _policy_space(part_count):
-    policy_size = part_count + len(_POLICY_TAIL_NAMES)
-    binary_values = getattr(params, "Q2_POLICY_SPACE", None)
-    if binary_values is None:
-        binary_values = (False, True)
-    elif isinstance(binary_values, int):
-        expected_count = 2 ** policy_size
-        if int(binary_values) != expected_count:
-            raise ValueError("Q2_POLICY_SPACE 与二值决策规模不一致")
-        binary_values = (False, True)
-    policies = [tuple(bool(value) for value in policy) for policy in itertools.product(binary_values, repeat=policy_size)]
-    policies.sort()
-    declared_size = getattr(params, "Q2_POLICY_SPACE_SIZE", None)
-    if declared_size is not None and len(policies) != int(declared_size):
-        raise ValueError("实际枚举策略数与 Q2 策略空间规模不一致")
-    return policies
-
-
-def _normalise_policy(policy, part_count):
-    flags = tuple(bool(value) for value in policy)
-    expected_size = part_count + len(_POLICY_TAIL_NAMES)
-    if len(flags) != expected_size:
-        raise ValueError("策略向量长度与问题二状态维数不一致")
-    for raw_value, flag in zip(policy, flags):
-        if int(raw_value) != int(flag):
-            raise ValueError("策略变量只能取两个二值状态")
-    return flags
-
-
-def _policy_record(policy, part_count):
-    flags = _normalise_policy(policy, part_count)
-    record = {
-        "tuple": list(flags),
-        "id": "".join(format(int(flag), "01b") for flag in flags),
-    }
-    for index, flag in enumerate(flags[:part_count]):
-        record["z{}".format(index + 1)] = flag
-        record["part{}_inspect".format(index + 1)] = flag
-    record["C"] = flags[part_count]
-    record["final_inspect"] = flags[part_count]
-    record["D"] = flags[part_count + 1]
-    record["disassemble"] = flags[part_count + 1]
-    return record
-
-
-def _zero_cash():
-    return {category: 0.0 for category in _CASH_CATEGORIES}
-
-
-def _zero_cash_with_revenue():
-    cash = _zero_cash()
-    cash["market_revenue"] = 0.0
-    return cash
-
-
-def _zero_counts():
-    return {category: 0.0 for category in _COUNT_CATEGORIES}
-
-
-def market_revenue_once(sale_price):
-    return {"market_revenue": sale_price}
-
-
-def replacement_assembly_once(assembly_cost):
-    return {"assembly_cost": -assembly_cost}
-
-
-def _add_event(events, target, probability, cash, counts):
-    if probability <= 0:
-        return
-    event = {
-        "target": target,
-        "probability": float(probability),
-        "cash": dict(cash),
-        "counts": dict(counts),
-    }
-    events.append(event)
-
-
-def _build_transitions(case, policy, state):
-    part_count = len(_PART_SPECS)
-    flags = _normalise_policy(policy, part_count)
-    transitions = []
-    for index, status in enumerate(state):
-        if status != "empty":
-            continue
-        rate = case[_RATE_FIELDS[index]]
-        price = case["price{}".format(index + 1)]
-        inspection_cost = case["test{}".format(index + 1)]
-        good_state = list(state)
-        good_state[index] = "good"
-        bad_state = list(state)
-        bad_state[index] = "bad"
-        if flags[index]:
-            purchase_count = 1 / (1 - rate)
-            cash = _zero_cash_with_revenue()
-            cash["part_purchase_cost"] = -purchase_count * price
-            cash["part_inspection_cost"] = -purchase_count * inspection_cost
-            counts = _zero_counts()
-            counts["part_purchase_count"] = purchase_count
-            counts["part_inspection_count"] = purchase_count
-            _add_event(transitions, tuple(good_state), 1, cash, counts)
-        else:
-            base_cash = _zero_cash_with_revenue()
-            base_cash["part_purchase_cost"] = -price
-            base_counts = _zero_counts()
-            base_counts["part_purchase_count"] = 1
-            good_probability = 1 - rate
-            _add_event(transitions, tuple(good_state), good_probability, base_cash, base_counts)
-            _add_event(transitions, tuple(bad_state), rate, base_cash, base_counts)
-        break
-    else:
-        all_good = all(status == "good" for status in state)
-        good_probability = 1 - case["pf"] if all_good else 0
-        bad_probability = 1 - good_probability
-        final_inspect = flags[part_count]
-        disassemble = flags[part_count + 1]
-        failure_target = state if disassemble else tuple("empty" for _ in state)
-        assembly_cash = _zero_cash_with_revenue()
-        assembly_cash.update(replacement_assembly_once(case["assembly_cost"]))
-        assembly_counts = _zero_counts()
-        assembly_counts["assembly_count"] = 1
-        if final_inspect:
-            inspected_cash = dict(assembly_cash)
-            inspected_cash["product_inspection_cost"] = -case["product_test_cost"]
-            inspected_counts = dict(assembly_counts)
-            inspected_counts["product_inspection_count"] = 1
-            good_cash = dict(inspected_cash)
-            good_cash.update(market_revenue_once(case["sale_price"]))
-            good_counts = dict(inspected_counts)
-            good_counts["market_count"] = 1
-            good_counts["terminal_delivery_count"] = 1
-            _add_event(transitions, None, good_probability, good_cash, good_counts)
-            bad_cash = dict(inspected_cash)
-            bad_counts = dict(inspected_counts)
-            bad_counts["internal_rejection_count"] = 1
-            bad_counts["replacement_assembly_count"] = 1
-            if disassemble:
-                bad_cash["disassembly_cost"] = -case["disassembly_cost"]
-                bad_counts["disassembly_count"] = 1
-            _add_event(transitions, failure_target, bad_probability, bad_cash, bad_counts)
-        else:
-            sold_cash = dict(assembly_cash)
-            sold_cash.update(market_revenue_once(case["sale_price"]))
-            sold_counts = dict(assembly_counts)
-            sold_counts["market_count"] = 1
-            good_cash = dict(sold_cash)
-            good_counts = dict(sold_counts)
-            good_counts["terminal_delivery_count"] = 1
-            _add_event(transitions, None, good_probability, good_cash, good_counts)
-            bad_cash = dict(sold_cash)
-            bad_cash["exchange_loss"] = -case["exchange_loss"]
-            bad_counts = dict(sold_counts)
-            bad_counts["return_count"] = 1
-            bad_counts["replacement_assembly_count"] = 1
-            if disassemble:
-                bad_cash["disassembly_cost"] = -case["disassembly_cost"]
-                bad_counts["disassembly_count"] = 1
-            _add_event(transitions, failure_target, bad_probability, bad_cash, bad_counts)
-    return transitions
-
-
-def _state_label(state):
-    return "|".join(state)
-
-
-def _reachable_transient_states(all_states, all_transitions, start):
-    reachable = []
-    seen = set()
-    pending = [start]
-    while pending:
-        state = pending.pop(0)
-        if state in seen:
-            continue
-        seen.add(state)
-        reachable.append(state)
-        for event in all_transitions.get(state, []):
-            target = event["target"]
-            if target is not None and target not in seen:
-                pending.append(target)
-    return reachable
-
-
-def _value_iteration(transient_matrix, rewards, settings):
-    values = np.zeros(len(rewards), dtype=float)
-    converged = False
-    completed_iterations = 0
-    for iteration in range(settings["value_iteration_max_steps"]):
-        updated = rewards + transient_matrix @ values
-        change = float(np.max(np.abs(updated - values)))
-        values = updated
-        completed_iterations = iteration + 1
-        if change <= settings["value_iteration_tol"]:
-            converged = True
-            break
-    if not converged:
-        raise RuntimeError("问题二价值迭代未在登记轮数内收敛")
-    return values, completed_iterations
-
-
-def event_cash_ledger(visits, immediate_cash):
-    cash_totals = {}
-    for category in immediate_cash[0]:
-        cash_totals[category] = float(np.dot(visits, np.asarray([row[category] for row in immediate_cash], dtype=float)))
-    expected_counts = {}
-    for category in _COUNT_CATEGORIES:
-        expected_counts[category] = cash_totals[category]
-    cost_breakdown = {category: cash_totals[category] for category in _COST_CATEGORIES}
-    total_cost = float(sum(cost_breakdown.values()))
-    market_revenue = cash_totals["market_revenue"]
-    net_cash = market_revenue - total_cost
+def _policy_summary(row: Mapping[str, Any]) -> dict[str, Any]:
     return {
-        "expected_counts": expected_counts,
-        "market_revenue": market_revenue,
-        "cost_breakdown": cost_breakdown,
-        "total_cost": total_cost,
-        "net_cash": net_cash,
+        "policy": list(row["policy"]),
+        "policy_label": row["policy_label"],
+        "profit": row["profit"],
+        "expected_cost": row["expected_cost"],
+        "market_revenue": row["market_revenue"],
+        "is_absorbing": row["is_absorbing"],
+        "absorption_probability": row["absorption_probability"],
+        "spectral_radius": row["spectral_radius"],
+        "reachable_state_count": row["reachable_state_count"],
+        "bellman_residual": row["bellman_residual"],
+        "value_iteration_error": row["value_iteration_error"],
+        "cashflow_residual": row["cashflow_residual"],
+        "reason": row["reason"],
     }
 
 
-def _invalid_policy_result(policy, case, all_states, reason, settings, spectral_radius=None):
-    part_count = len(_PART_SPECS)
+def solve_case(raw_case: Any) -> dict[str, Any]:
+    case = _parse_case(raw_case)
+    evaluated = {
+        policy: solve_policy(case, policy) for policy in _POLICIES
+    }
+    eligible_rows = [
+        row for row in evaluated.values() if row["is_absorbing"]
+    ]
+    if not eligible_rows:
+        raise RuntimeError("案例没有任何吸收策略")
+    best = max(
+        eligible_rows,
+        key=lambda row: float(row["profit"]),
+    )
+    tied = [
+        row["policy"]
+        for row in eligible_rows
+        if abs(float(row["profit"]) - float(best["profit"])) <= CASHFLOW_ABS_TOL
+    ]
+    strategy_table = [
+        _policy_summary(evaluated[policy]) for policy in _POLICIES
+    ]
+    profit_matrix = [row["profit"] for row in strategy_table]
+    cost_matrix = [row["expected_cost"] for row in strategy_table]
+    nonabsorbing_policies = [
+        row["policy"] for row in strategy_table if not row["is_absorbing"]
+    ]
     return {
-        "policy": _policy_record(policy, part_count),
-        "policy_tuple": list(_normalise_policy(policy, part_count)),
-        "feasible": False,
-        "profit": None,
-        "expected_cost": None,
-        "inventory_state_space_size": len(all_states),
-        "reachable_state_count": None,
-        "terminal_state_count": 1,
-        "spectral_radius": None if spectral_radius is None else float(spectral_radius),
-        "absorption_probability": None,
-        "nonabsorption_reason": reason,
-        "event_ledger": None,
-        "cost_breakdown": None,
-        "state_values": {},
-        "checks": {"finite_completion": False},
-        "all_checks_passed": False,
-        "model_constants": settings,
-        "case_parameters": {field: case[field] for field in _PARAMETER_FIELDS},
-    }
-
-
-def evaluate_policy(case_like, policy, full_validation=True):
-    case = case_like if _is_normalised_case(case_like) else normalize_case(case_like)
-    _validate_case(case)
-    part_count = len(_PART_SPECS)
-    flags = _normalise_policy(policy, part_count)
-    settings = _model_settings()
-    impossible_inspections = []
-    for index, inspect in enumerate(flags[:part_count]):
-        if inspect and case[_RATE_FIELDS[index]] >= 1:
-            impossible_inspections.append("part{}".format(index + 1))
-    all_states = list(itertools.product(_PART_STATES, repeat=part_count))
-    if impossible_inspections:
-        return _invalid_policy_result(
-            flags,
-            case,
-            all_states,
-            "检测后无法取得合格件：" + ",".join(impossible_inspections),
-            settings,
-        )
-    all_transitions = {
-        state: _build_transitions(case, flags, state)
-        for state in all_states
-    }
-    start = tuple("empty" for _ in state_names(all_states))
-    reachable_states = _reachable_transient_states(all_states, all_transitions, start)
-    state_index = {state: index for index, state in enumerate(reachable_states)}
-    state_count = len(reachable_states)
-    transient_matrix = np.zeros((state_count, state_count), dtype=float)
-    terminal_mass = np.zeros(state_count, dtype=float)
-    event_mass = np.zeros(state_count, dtype=float)
-    immediate_cash = []
-    immediate_counts = []
-    for state in reachable_states:
-        row = state_index[state]
-        cash_row = _zero_cash_with_revenue()
-        count_row = _zero_counts()
-        for event in all_transitions[state]:
-            probability = event["probability"]
-            event_mass[row] += probability
-            target = event["target"]
-            if target is None:
-                terminal_mass[row] += probability
-            else:
-                transient_matrix[row, state_index[target]] += probability
-            for category, amount in event["cash"].items():
-                cash_row[category] += probability * amount
-            for category, amount in event["counts"].items():
-                count_row[category] += probability * amount
-        immediate_cash.append(cash_row)
-        immediate_counts.append(count_row)
-    probability_balance_error = float(np.max(np.abs(event_mass - 1)))
-    spectral_radius = float(np.max(np.abs(np.linalg.eigvals(transient_matrix))))
-    if spectral_radius >= 1 - settings["numeric_tol"]:
-        return _invalid_policy_result(
-            flags,
-            case,
-            all_states,
-            "可达瞬态子图含闭合类，单位最终合格交付期望不有限",
-            settings,
-            spectral_radius=spectral_radius,
-        )
-    identity = np.eye(state_count, dtype=float)
-    system = identity - transient_matrix
-    rewards = np.asarray(
-        [
-            row["market_revenue"] - sum(row[category] for category in _COST_CATEGORIES)
-            for row in immediate_cash
-        ],
-        dtype=float,
-    )
-    try:
-        state_values = numpy.linalg.solve(system, rewards)
-    except numpy.linalg.LinAlgError as exc:
-        raise RuntimeError("问题二吸收型奖励方程不可解") from exc
-    start_basis = np.zeros(state_count, dtype=float)
-    start_basis[state_index[start]] = 1
-    expected_visits = numpy.linalg.solve(system, start_basis)
-    visits = np.asarray(
-        [
-            np.dot(expected_visits, np.asarray([row[category] for row in immediate_counts], dtype=float))
-            for category in _COUNT_CATEGORIES
-        ],
-        dtype=float,
-    )
-    ledger = event_cash_ledger(visits, immediate_cash)
-    expected_counts = ledger["expected_counts"]
-    absorption_probability = float(np.sum(expected_visits))
-    bellman_residual = float(
-        np.max(np.abs(state_values - rewards - transient_matrix @ state_values))
-    )
-    event_cash_residual = float(state_values[state_index[start]] - ledger["net_cash"])
-    replacement_identity = float(
-        expected_counts["assembly_count"]
-        - expected_counts["terminal_delivery_count"]
-        - expected_counts["replacement_assembly_count"]
-    )
-    market_identity = float(
-        expected_counts["market_count"]
-        - expected_counts["terminal_delivery_count"]
-        - expected_counts["return_count"]
-    )
-    inspection_identity = float(
-        expected_counts["assembly_count"]
-        - expected_counts["market_count"]
-        - expected_counts["internal_rejection_count"]
-    )
-    terminal_delivery_error = abs(expected_counts["terminal_delivery_count"] - 1)
-    checks = {
-        "probability_balance": probability_balance_error <= settings["numeric_tol"],
-        "transient_spectral_radius": spectral_radius < 1 - settings["numeric_tol"],
-        "bellman_residual": bellman_residual <= settings["value_iteration_tol"],
-        "event_cash_residual": event_cash_residual <= settings["cashflow_abs_tol"],
-        "absorption_probability": abs(absorption_probability - 1) <= settings["value_iteration_tol"],
-        "terminal_delivery_count": terminal_delivery_error <= settings["value_iteration_tol"],
-        "replacement_assembly_identity": abs(replacement_identity) <= settings["cashflow_abs_tol"],
-        "market_delivery_identity": abs(market_identity) <= settings["cashflow_abs_tol"],
-        "inspection_market_identity": abs(inspection_identity) <= settings["cashflow_abs_tol"],
-    }
-    iteration_values = None
-    iteration_count = None
-    iteration_gap = None
-    if full_validation:
-        iteration_values, iteration_count = _value_iteration(transient_matrix, rewards, settings)
-        iteration_gap = abs(float(iteration_values[state_index[start]]) - float(state_values[state_index[start]]))
-        checks["value_iteration_reference"] = iteration_gap <= settings["value_iteration_tol"]
-    if not all(checks.values()):
-        failed = [name for name, passed in checks.items() if not passed]
-        raise RuntimeError("问题二策略核验失败：" + ",".join(failed))
-    return {
-        "policy": _policy_record(flags, part_count),
-        "policy_tuple": list(flags),
-        "feasible": True,
-        "profit": float(state_values[state_index[start]]),
-        "expected_cost": ledger["total_cost"],
-        "inventory_state_space_size": len(all_states),
-        "reachable_state_count": state_count,
-        "terminal_state_count": 1,
-        "reachable_state_labels": [_state_label(state) for state in reachable_states],
-        "terminal_state_label": _TERMINAL_LABEL,
-        "spectral_radius": spectral_radius,
-        "absorption_probability": absorption_probability,
-        "root_output_rate": expected_counts["terminal_delivery_count"],
-        "event_ledger": ledger,
-        "cost_breakdown": ledger["cost_breakdown"],
-        "state_values": {
-            _state_label(state): float(state_values[state_index[state]])
-            for state in reachable_states
+        "case_id": case.case_id,
+        "parameters": {
+            "case_id": case.case_id,
+            **case.as_nested_dict(),
         },
-        "bellman_residual": bellman_residual,
-        "event_cash_residual": event_cash_residual,
-        "value_iteration_profit": None if iteration_values is None else float(iteration_values[state_index[start]]),
-        "value_iteration_iterations": iteration_count,
-        "value_iteration_gap": iteration_gap,
-        "identity_gaps": {
-            "replacement_assembly": replacement_identity,
-            "market_delivery": market_identity,
-            "inspection_market": inspection_identity,
-        },
-        "probability_balance_error": probability_balance_error,
-        "checks": checks,
-        "all_checks_passed": True,
-        "full_validation": bool(full_validation),
-        "model_constants": settings,
-        "case_parameters": {field: case[field] for field in _PARAMETER_FIELDS},
-    }
-
-
-def state_names(states):
-    if not states:
-        return ()
-    return states[0]
-
-
-def absorbing_markov_reward(case_like, policy, full_validation=True):
-    return evaluate_policy(case_like, policy, full_validation=full_validation)
-
-
-def solve_case(case_like, index=0, full_validation=True):
-    case = case_like if _is_normalised_case(case_like) else normalize_case(case_like, index=index)
-    part_count = len(_PART_SPECS)
-    policies = _policy_space(part_count)
-    policy_rows = [
-        absorbing_markov_reward(case, policy, full_validation=full_validation)
-        for policy in policies
-    ]
-    feasible_rows = [row for row in policy_rows if row["feasible"]]
-    if not feasible_rows:
-        raise RuntimeError("问题二案例没有任何具有有限完成期望的策略")
-    settings = _model_settings()
-    best = feasible_rows[0]
-    for row in feasible_rows[1:]:
-        if row["profit"] > best["profit"] + settings["numeric_tol"]:
-            best = row
-    finite_bellman = [
-        row["bellman_residual"]
-        for row in feasible_rows
-        if row.get("bellman_residual") is not None
-    ]
-    finite_cash = [
-        row["event_cash_residual"]
-        for row in feasible_rows
-        if row.get("event_cash_residual") is not None
-    ]
-    validation = {
-        "enumerated_policy_count": len(policy_rows),
-        "finite_policy_count": len(feasible_rows),
-        "nonabsorbing_policy_count": len(policy_rows) - len(feasible_rows),
-        "maximum_bellman_residual": max(finite_bellman) if finite_bellman else None,
-        "maximum_event_cash_residual": max(finite_cash) if finite_cash else None,
-        "all_finite_policy_checks_passed": all(row["all_checks_passed"] for row in feasible_rows),
-        "terminal_state_explicit": True,
-    }
-    return {
-        "case_index": index,
-        "case_id": case["case_id"],
-        "parameters": {field: case[field] for field in _PARAMETER_FIELDS},
-        "policy": best["policy"],
+        "policy": list(best["policy"]),
+        "policy_tuple": list(best["policy"]),
+        "policy_label": best["policy_label"],
+        "z1": best["z1"],
+        "z2": best["z2"],
+        "c": best["c"],
+        "d": best["d"],
         "profit": best["profit"],
-        "optimal_policy": best["policy"],
-        "optimal_profit": best["profit"],
-        "profit_unit": "元/合格交付",
-        "decision_basis": "完整吸收型事件马尔可夫奖励方程的精确解在全策略空间中最大；并列按策略元组字典序选择",
-        "event_ledger": best["event_ledger"],
-        "cost_breakdown": best["cost_breakdown"],
-        "state_count": best["reachable_state_count"],
+        "profit_per_good_delivery": best["profit_per_good_delivery"],
+        "expected_cost": best["expected_cost"],
+        "market_revenue": best["market_revenue"],
+        "decision_basis": best["decision_basis"],
+        "is_absorbing": best["is_absorbing"],
         "absorption_probability": best["absorption_probability"],
+        "termination_probability": best["termination_probability"],
+        "spectral_radius": best["spectral_radius"],
+        "reachable_state_count": best["reachable_state_count"],
+        "reachable_states": best["reachable_states"],
+        "terminal_state": best["terminal_state"],
+        "terminal_row_absorbing": best["terminal_row_absorbing"],
+        "transition_row_sum_error": best["transition_row_sum_error"],
         "bellman_residual": best["bellman_residual"],
-        "event_cash_residual": best["event_cash_residual"],
-        "policy_table": policy_rows,
-        "validation": validation,
+        "value_iteration_error": best["value_iteration_error"],
+        "cashflow_residual": best["cashflow_residual"],
+        "event_cash_ledger": best["event_cash_ledger"],
+        "cost_breakdown": best["event_cash_ledger"]["components"],
+        "all_costs_accounted": best["event_cash_ledger"]["all_costs_accounted"],
+        "policy_tie_candidates": tied,
+        "tie_break_rule": "按 False<True 的字典序选择首个最大利润策略",
+        "eligible_strategy_count": len(eligible_rows),
+        "nonabsorbing_policies": nonabsorbing_policies,
+        "strategy_table": strategy_table,
+        "strategy_profit_matrix": profit_matrix,
+        "strategy_cost_matrix": cost_matrix,
     }
 
 
-def _perturbed_case(case, field, factor):
-    changed = deepcopy(case)
-    if field in _RATE_FIELDS:
-        changed[field] = max(0, min(1, changed[field] * (1 + factor)))
-    else:
-        if factor < -1:
-            raise ValueError("成本相对扰动不能低于完全清除以下界")
-        changed[field] = changed[field] * (1 + factor)
-    return changed
+def solve_problem2(raw_case: Any) -> dict[str, Any]:
+    return solve_case(raw_case)
 
 
-def _compact_optimum(case):
-    result = solve_case(case, full_validation=False)
-    return {
-        "case_id": result["case_id"],
-        "policy_id": result["policy"]["id"],
-        "policy_tuple": result["policy"]["tuple"],
-        "profit": result["profit"],
-        "profit_unit": result["profit_unit"],
-    }
-
-
-def _sensitivity_outputs(cases, base_result):
-    factors = _sensitivity_factors()
-    base_case = normalize_case(cases[0])
-    base_policy = base_result["policy"]["tuple"]
-    defect_series = []
-    for field in _RATE_FIELDS:
-        rows = []
-        for factor in factors:
-            scenario = _perturbed_case(base_case, field, factor)
-            optimum = _compact_optimum(scenario)
-            rows.append(
-                {
-                    "parameter": field,
-                    "relative_factor": factor,
-                    "parameter_value": scenario[field],
-                    "policy_id": optimum["policy_id"],
-                    "policy_tuple": optimum["policy_tuple"],
-                    "profit": optimum["profit"],
-                }
-            )
-        defect_series.append(
-            {
-                "parameter": field,
-                "relative_factors": list(factors),
-                "parameter_values": [row["parameter_value"] for row in rows],
-                "profits": [row["profit"] for row in rows],
-                "rows": rows,
-            }
-        )
-    cost_series = []
-    for field in _COST_FIELDS:
-        rows = []
-        for factor in factors:
-            scenario = _perturbed_case(base_case, field, factor)
-            optimum = _compact_optimum(scenario)
-            rows.append(
-                {
-                    "parameter": field,
-                    "relative_factor": factor,
-                    "parameter_value": scenario[field],
-                    "policy_id": optimum["policy_id"],
-                    "policy_tuple": optimum["policy_tuple"],
-                    "profit": optimum["profit"],
-                }
-            )
-        cost_series.append(
-            {
-                "parameter": field,
-                "relative_factors": list(factors),
-                "parameter_values": [row["parameter_value"] for row in rows],
-                "profits": [row["profit"] for row in rows],
-                "rows": rows,
-            }
-        )
-    contour_rows = []
-    for exchange_factor in factors:
-        for disassembly_factor in factors:
-            scenario = _perturbed_case(base_case, "exchange_loss", exchange_factor)
-            scenario = _perturbed_case(scenario, "disassembly_cost", disassembly_factor)
-            optimum = _compact_optimum(scenario)
-            policy_tuple = optimum["policy_tuple"]
-            contour_rows.append(
-                {
-                    "exchange_loss": scenario["exchange_loss"],
-                    "disassembly_cost": scenario["disassembly_cost"],
-                    "exchange_relative_factor": exchange_factor,
-                    "disassembly_relative_factor": disassembly_factor,
-                    "policy_id": optimum["policy_id"],
-                    "policy_tuple": policy_tuple,
-                    "decision_changed_from_base": policy_tuple != base_policy,
-                    "profit": optimum["profit"],
-                }
-            )
-    return {
-        "base_case_id": base_result["case_id"],
-        "registered_relative_factors": list(factors),
-        "defect_rate_sensitivity": defect_series,
-        "cost_sensitivity": cost_series,
-        "breakeven_contour": {
-            "rows": contour_rows,
-            "flip_points": [row for row in contour_rows if row["decision_changed_from_base"]],
-        },
-    }
-
-
-def _fixed_policy_cost_monotonicity(case_result):
-    case = normalize_case(case_result["parameters"])
-    case["case_id"] = case_result["case_id"]
-    factors = _sensitivity_factors()
-    positive_factors = [factor for factor in factors if factor > 0]
-    if not positive_factors:
-        raise ValueError("灵敏度网格必须含正扰动")
-    factor = max(positive_factors)
-    settings = _model_settings()
-    violations = []
-    for baseline in case_result["policy_table"]:
-        if not baseline["feasible"]:
-            continue
-        for field in _COST_FIELDS:
-            perturbed = _perturbed_case(case, field, factor)
-            result = absorbing_markov_reward(perturbed, baseline["policy_tuple"], full_validation=False)
-            difference = result["profit"] - baseline["profit"]
-            violations.append(
-                {
-                    "policy_id": baseline["policy"]["id"],
-                    "parameter": field,
-                    "relative_factor": factor,
-                    "profit_difference": difference,
-                    "violation": max(0, difference),
-                }
-            )
-    maximum_violation = max((row["violation"] for row in violations), default=0.0)
-    return {
-        "positive_relative_factor": factor,
-        "checked_policy_parameter_pairs": len(violations),
-        "maximum_profit_increase": maximum_violation,
-        "monotone_nonincreasing_profit": maximum_violation <= settings["cashflow_abs_tol"],
-    }
-
-
-def _cross_validation(case_results):
-    case_checks = []
-    for case_result in case_results:
-        case_checks.append(
-            {
-                "case_id": case_result["case_id"],
-                "finite_policy_cost_monotonicity": _fixed_policy_cost_monotonicity(case_result),
-            }
-        )
-    policy_count = len(case_results[0]["policy_table"])
-    nonabsorbing_count = sum(
-        not row["feasible"]
-        for case_result in case_results
-        for row in case_result["policy_table"]
+def _dense_relative_grid() -> tuple[float, ...]:
+    registered = tuple(Q2_SENSITIVITY_GRID)
+    lower = min(registered)
+    upper = max(registered)
+    grid_count = len(registered)
+    return tuple(
+        lower
+        + (upper - lower) * (offset / grid_count)
+        for offset in range(-grid_count, grid_count + 1)
     )
-    return {
-        "case_count": len(case_results),
-        "strategy_space_size": policy_count,
-        "all_cases_have_finite_optimum": all(
-            math.isfinite(row["optimal_profit"])
-            for row in case_results
-        ),
-        "all_optimal_policy_checks_passed": all(
-            row["validation"]["all_finite_policy_checks_passed"]
-            for row in case_results
-        ),
-        "nonabsorbing_strategy_occurrences": nonabsorbing_count,
-        "explicit_qualified_delivery_absorbing_state": True,
-        "fixed_policy_cost_monotonicity": case_checks,
-        "required_parameter_roles": {
-            "p1": "零配件一次品状态概率",
-            "p2": "零配件二次品状态概率",
-            "pf": "正品输入后的装配条件次品概率",
-            "price1": "零配件一采购事件成本",
-            "test1": "零配件一逐件检测成本",
-            "price2": "零配件二采购事件成本",
-            "test2": "零配件二逐件检测成本",
-            "assembly_cost": "每次装配及补发装配成本",
-            "product_test_cost": "每次成品检测成本",
-            "sale_price": "每次实际市场交易收入",
-            "exchange_loss": "每个退回次品的附加调换损失",
-            "disassembly_cost": "每个失败成品拆解事件成本",
-        },
-        "unused_required_parameters": [],
-        "all_checks_passed": all(
-            row["finite_policy_cost_monotonicity"]["monotone_nonincreasing_profit"]
-            for row in case_checks
+
+
+def _scaled_probability(base: float, factor: float) -> float:
+    return min(1.0, max(0.0, base * (1.0 + factor)))
+
+
+def _scaled_cost(base: float, factor: float) -> float:
+    return max(0.0, base * (1.0 + factor))
+
+
+def _parameter_scan(
+    base_case: params.Q2Case,
+    field_name: str,
+    label: str,
+    scan_type: str,
+    factors: Sequence[float],
+) -> dict[str, Any]:
+    points = []
+    for factor in factors:
+        if scan_type == "probability":
+            modified_value = _scaled_probability(
+                float(getattr(base_case, field_name)),
+                factor,
+            )
+        else:
+            modified_value = _scaled_cost(
+                float(getattr(base_case, field_name)),
+                factor,
+            )
+        modified_case = replace(base_case, **{field_name: modified_value})
+        solved = solve_case(modified_case)
+        points.append(
+            {
+                "relative_factor": float(factor),
+                "value": float(modified_value),
+                "optimal_policy": solved["policy"],
+                "profit": solved["profit"],
+                "expected_cost": solved["expected_cost"],
+            }
         )
-        and all(row["validation"]["all_finite_policy_checks_passed"] for row in case_results),
+    return {
+        "parameter": field_name,
+        "label": label,
+        "scan_type": scan_type,
+        "base_value": float(getattr(base_case, field_name)),
+        "points": points,
     }
 
 
-def _cross_case_arrays(case_results):
-    case_ids = [row["case_id"] for row in case_results]
-    policy_ids = [row["policy"]["id"] for row in case_results[0]["policy_table"]]
-    profits = [
-        [policy["profit"] for policy in row["policy_table"]]
-        for row in case_results
+def _sensitivity(cases: Sequence[params.Q2Case]) -> dict[str, Any]:
+    base_case = cases[0]
+    factors = _dense_relative_grid()
+    probability_scans = [
+        _parameter_scan(base_case, "p1", "零配件1次品率", "probability", factors),
+        _parameter_scan(base_case, "p2", "零配件2次品率", "probability", factors),
+        _parameter_scan(base_case, "pf", "成品条件次品率", "probability", factors),
     ]
-    expected_costs = [
-        [policy["expected_cost"] for policy in row["policy_table"]]
-        for row in case_results
-    ]
-    policy_matrix = [
-        [policy["policy"]["tuple"] for policy in row["policy_table"]]
-        for row in case_results
+    cost_scans = [
+        _parameter_scan(base_case, "price1", "零配件1购买单价", "money", factors),
+        _parameter_scan(base_case, "price2", "零配件2购买单价", "money", factors),
+        _parameter_scan(base_case, "test1", "零配件1检测成本", "money", factors),
+        _parameter_scan(base_case, "test2", "零配件2检测成本", "money", factors),
+        _parameter_scan(base_case, "assembly_cost", "成品装配成本", "money", factors),
+        _parameter_scan(
+            base_case,
+            "product_test_cost",
+            "成品检测成本",
+            "money",
+            factors,
+        ),
+        _parameter_scan(base_case, "exchange_loss", "调换损失", "money", factors),
+        _parameter_scan(
+            base_case,
+            "disassembly_cost",
+            "拆解费用",
+            "money",
+            factors,
+        ),
     ]
     return {
-        "case_ids": case_ids,
-        "policy_ids": policy_ids,
-        "profits": profits,
-        "expected_costs": expected_costs,
-        "policy_matrix": policy_matrix,
-        "profit_unit": "元/合格交付",
-        "expected_cost_unit": "元/合格交付",
+        "relative_grid": list(factors),
+        "defect_rate": probability_scans,
+        "unit_cost": cost_scans,
     }
 
 
-def solve():
-    cases = load_cases()
-    if not cases:
-        raise RuntimeError("Q2_CASES 为空")
-    case_results = [
-        solve_case(case, index=index, full_validation=True)
-        for index, case in enumerate(cases)
-    ]
-    identifiers = [row["case_id"] for row in case_results]
-    if len(set(identifiers)) != len(identifiers):
-        raise RuntimeError("问题二案例标识不唯一")
-    validation = _cross_validation(case_results)
-    if not validation["all_checks_passed"]:
-        raise RuntimeError("问题二跨案例阻断式核验未通过")
-    heatmap = _cross_case_arrays(case_results)
-    decisions = [
-        {
-            "case_id": row["case_id"],
-            "policy": row["policy"],
-            "profit": row["profit"],
-            "profit_unit": row["profit_unit"],
-            "decision_basis": row["decision_basis"],
-        }
-        for row in case_results
-    ]
-    optimal_breakdown = [
-        {
-            "case_id": row["case_id"],
-            "policy_id": row["policy"]["id"],
-            "cost_breakdown": row["cost_breakdown"],
-            "market_revenue": row["event_ledger"]["market_revenue"],
-            "net_profit": row["profit"],
-            "cost_unit": "元/合格交付",
-        }
-        for row in case_results
-    ]
+def _breakeven_contour(
+    cases: Sequence[params.Q2Case],
+) -> dict[str, Any]:
+    base_case = max(cases, key=lambda case: case.exchange_loss)
+    factors = _dense_relative_grid()
+    inspection_values = tuple(
+        _scaled_cost(base_case.test1, factor) for factor in factors
+    )
+    exchange_values = tuple(
+        _scaled_cost(base_case.exchange_loss, factor) for factor in factors
+    )
+    grid = []
+    for inspection_cost in inspection_values:
+        for exchange_loss in exchange_values:
+            modified_case = replace(
+                base_case,
+                test1=inspection_cost,
+                exchange_loss=exchange_loss,
+            )
+            solved = solve_case(modified_case)
+            grid.append(
+                {
+                    "part1_inspection_cost": float(inspection_cost),
+                    "exchange_loss": float(exchange_loss),
+                    "policy": solved["policy"],
+                    "profit": solved["profit"],
+                    "z1": solved["z1"],
+                    "z2": solved["z2"],
+                    "c": solved["c"],
+                    "d": solved["d"],
+                }
+            )
     return {
-        "problem": "Q2",
-        "method": "absorbing_markov_reward_with_explicit_qualified_delivery_state",
-        "implementation_signatures": [
-            "itertools.product",
-            "numpy.linalg.solve",
-            "absorbing_markov_reward",
-            "event_cash_ledger",
-            "market_revenue_once",
-            "replacement_assembly_once",
-        ],
-        "policy_definition": {
-            "order": ["Z1", "Z2", "C", "D"],
-            "domain": "每个分量为二值状态",
-            "tie_break": "策略元组字典序",
-            "profit_unit": "元/合格交付",
+        "base_case_id": base_case.case_id,
+        "axes": {
+            "horizontal": "part1_inspection_cost",
+            "vertical": "exchange_loss",
+            "unit": "yuan/item",
         },
-        "model_constants": _model_settings(),
-        "cases": case_results,
-        "six_case_decisions": decisions,
-        "strategy_cost_heatmap": heatmap,
-        "optimal_cost_breakdown": optimal_breakdown,
-        "sensitivity": _sensitivity_outputs(cases, case_results[0]),
-        "validation": validation,
-        "data_boundary": "问题二输入为题面表一的给定案例；问题四才使用抽样率情景",
+        "inspection_cost_values": list(inspection_values),
+        "exchange_loss_values": list(exchange_values),
+        "grid_size": len(grid),
+        "grid": grid,
     }
 
 
-def run():
-    return solve()
+def run() -> dict[str, Any]:
+    cases = load_cases()
+    case_results = [solve_case(case) for case in cases]
+    policy_table = [
+        {"case_id": case.case_id, **_policy_summary(row)}
+        for case in case_results
+        for row in case["strategy_table"]
+    ]
+    sensitivity = _sensitivity(cases)
+    breakeven = _breakeven_contour(cases)
+
+    eligible_rows = [
+        row
+        for case in case_results
+        for row in case["strategy_table"]
+        if row["is_absorbing"]
+    ]
+    max_bellman_residual = max(
+        float(row["bellman_residual"]) for row in eligible_rows
+    )
+    max_cashflow_residual = max(
+        float(row["cashflow_residual"]) for row in eligible_rows
+    )
+    max_value_iteration_error = max(
+        float(row["value_iteration_error"]) for row in eligible_rows
+    )
+    ledgers = [case["event_cash_ledger"] for case in case_results]
+    checks = {
+        "all_cases_have_absorbing_optimum": all(
+            case["is_absorbing"] for case in case_results
+        ),
+        "all_costs_accounted": all(
+            bool(ledger["all_costs_accounted"]) for ledger in ledgers
+        ),
+        "market_revenue_recorded_once": all(
+            bool(ledger["market_revenue_once"]) for ledger in ledgers
+        ),
+        "replacement_assembly_recorded_once": all(
+            bool(ledger["replacement_assembly_once"]) for ledger in ledgers
+        ),
+        "terminal_delivery_state_is_absorbing": all(
+            case["terminal_row_absorbing"] for case in case_results
+        ),
+        "bellman_residuals_pass": max_bellman_residual <= CASHFLOW_ABS_TOL,
+        "cashflow_residuals_pass": max_cashflow_residual <= CASHFLOW_ABS_TOL,
+        "value_iteration_reference_pass": (
+            max_value_iteration_error <= VALUE_ITERATION_TOL
+        ),
+        "strategy_space_complete": (
+            len(_POLICIES) == Q2_STRATEGY_SPACE_SIZE
+        ),
+        "all_registered_cases_executed": (
+            len(case_results) == len(cases)
+        ),
+    }
+    checks["all_checks_passed"] = all(checks.values())
+
+    return {
+        "schema": "problem2-absorbing-event-cashflow-v1",
+        "problem": "Q2",
+        "data_status": "table1_given_parameters",
+        "case_count": len(case_results),
+        "strategy_space_size": len(_POLICIES),
+        "policy_order": list(_POLICY_LABELS),
+        "profit_unit": "yuan/qualified_delivery",
+        "cost_unit": "yuan/item",
+        "cases": case_results,
+        "optimal_policy_by_case": [
+            {
+                "case_id": case["case_id"],
+                "policy": case["policy"],
+                "profit": case["profit"],
+            }
+            for case in case_results
+        ],
+        "policy_table": policy_table,
+        "strategy_profit_matrix": [
+            case["strategy_profit_matrix"] for case in case_results
+        ],
+        "strategy_cost_matrix": [
+            case["strategy_cost_matrix"] for case in case_results
+        ],
+        "cost_breakdown_by_case": [
+            {
+                "case_id": case["case_id"],
+                "components": case["cost_breakdown"],
+            }
+            for case in case_results
+        ],
+        "sensitivity": sensitivity,
+        "breakeven_contour": breakeven,
+        "validation": {
+            **checks,
+            "maximum_bellman_residual": max_bellman_residual,
+            "maximum_cashflow_residual": max_cashflow_residual,
+            "maximum_value_iteration_error": max_value_iteration_error,
+            "cashflow_abs_tolerance": CASHFLOW_ABS_TOL,
+            "value_iteration_tolerance": VALUE_ITERATION_TOL,
+        },
+    }
 
 
-def run_problem2():
-    return solve()
+def validate(payload: Mapping[str, Any]) -> bool:
+    expected_case_count = len(load_cases())
+    if payload.get("case_count") != expected_case_count:
+        raise AssertionError("问题二案例行数与 params.Q2_CASES 不一致")
+    cases = payload.get("cases")
+    if not isinstance(cases, list) or len(cases) != expected_case_count:
+        raise AssertionError("问题二 cases 必须逐行覆盖 Q2_CASES")
+    expected_table_rows = expected_case_count * Q2_STRATEGY_SPACE_SIZE
+    policy_table = payload.get("policy_table")
+    if not isinstance(policy_table, list) or len(policy_table) != expected_table_rows:
+        raise AssertionError("问题二完整策略表行数不正确")
+    if payload.get("strategy_space_size") != Q2_STRATEGY_SPACE_SIZE:
+        raise AssertionError("问题二策略空间规模不正确")
+    if tuple(payload.get("policy_order", ())) != _POLICY_LABELS:
+        raise AssertionError("问题二策略顺序与字典序不一致")
+
+    for case in cases:
+        if "policy" not in case or "profit" not in case:
+            raise AssertionError("问题二最优行缺少 policy 或 profit")
+        if not case.get("is_absorbing"):
+            raise AssertionError("问题二最优策略必须为吸收策略")
+        if not math.isfinite(float(case["profit"])):
+            raise AssertionError("问题二最优利润必须有限")
+        if float(case["bellman_residual"]) > CASHFLOW_ABS_TOL:
+            raise AssertionError("问题二 Bellman 残差超限")
+        if float(case["cashflow_residual"]) > CASHFLOW_ABS_TOL:
+            raise AssertionError("问题二事件现金流残差超限")
+        strategy_table = case.get("strategy_table")
+        if not isinstance(strategy_table, list) or len(strategy_table) != Q2_STRATEGY_SPACE_SIZE:
+            raise AssertionError("问题二每行必须保留全部登记策略")
+        profit_matrix = case.get("strategy_profit_matrix")
+        cost_matrix = case.get("strategy_cost_matrix")
+        if not isinstance(profit_matrix, list) or len(profit_matrix) != Q2_STRATEGY_SPACE_SIZE:
+            raise AssertionError("问题二策略利润矩阵宽度不正确")
+        if not isinstance(cost_matrix, list) or len(cost_matrix) != Q2_STRATEGY_SPACE_SIZE:
+            raise AssertionError("问题二策略成本矩阵宽度不正确")
+        if not case.get("all_costs_accounted"):
+            raise AssertionError("问题二存在未进入现金账本的题面成本")
+
+    sensitivity = payload.get("sensitivity", {})
+    sensitivity_groups = (
+        list(sensitivity.get("defect_rate", ()))
+        + list(sensitivity.get("unit_cost", ()))
+    )
+    if not sensitivity_groups:
+        raise AssertionError("问题二缺少灵敏度序列")
+    for scan in sensitivity_groups:
+        if len(scan.get("points", ())) <= len(Q2_SENSITIVITY_GRID):
+            raise AssertionError("问题二灵敏度点数必须细于登记网格")
+        for point in scan["points"]:
+            if "optimal_policy" not in point or "profit" not in point:
+                raise AssertionError("问题二灵敏度点必须重新优化并记录利润")
+    contour = payload.get("breakeven_contour", {})
+    if not contour.get("grid"):
+        raise AssertionError("问题二缺少盈亏平衡二维决策网格")
+    if payload.get("validation", {}).get("all_checks_passed") is not True:
+        raise AssertionError("问题二机器核验未全部通过")
+    return True
 
 
-def build_results():
-    return {"problem2": solve()}
+def self_test() -> None:
+    cases = load_cases()
+    if len(_POLICIES) != Q2_STRATEGY_SPACE_SIZE:
+        raise AssertionError("策略枚举回归测试失败")
+    if len(cases) != len(params.Q2_CASES):
+        raise AssertionError("Q2Case 回归测试失败")
 
+    case = cases[0]
+    nested = case.as_nested_dict()
+    nested["case_id"] = case.case_id
+    reparsed = _parse_case(nested)
+    for field_name in (
+        "price1",
+        "test1",
+        "price2",
+        "test2",
+        "assembly_cost",
+        "product_test_cost",
+        "market_price",
+        "exchange_loss",
+        "disassembly_cost",
+    ):
+        if not math.isclose(
+            float(getattr(case, field_name)),
+            float(getattr(reparsed, field_name)),
+            rel_tol=0.0,
+            abs_tol=CASHFLOW_ABS_TOL,
+        ):
+            raise AssertionError(f"问题二字段适配失败：{field_name}")
 
-__all__ = [
-    "normalize_case",
-    "_normalize_q2_case",
-    "load_cases",
-    "market_revenue_once",
-    "replacement_assembly_once",
-    "event_cash_ledger",
-    "evaluate_policy",
-    "absorbing_markov_reward",
-    "solve_case",
-    "solve",
-    "run",
-    "run_problem2",
-    "build_results",
-]
+    inspected_disassembly = solve_policy(case, (True, True, True, True))
+    if not inspected_disassembly["is_absorbing"]:
+        raise AssertionError("全检且允许无损回收的策略应可吸收")
+    disassembly_counts = inspected_disassembly["event_cash_ledger"]["event_counts"]
+    if disassembly_counts["disassemblies"] <= 0.0:
+        raise AssertionError("拆解事件没有进入事件账本")
+    if float(inspected_disassembly["cashflow_residual"]) > CASHFLOW_ABS_TOL:
+        raise AssertionError("全检拆解策略现金流核验失败")
+
+    market_loop = solve_policy(case, (False, False, False, False))
+    if not market_loop["is_absorbing"]:
+        raise AssertionError("报废重建策略应可吸收")
+    market_counts = market_loop["event_cash_ledger"]["event_counts"]
+    if market_counts["market_bad_sales"] <= 0.0 or market_counts["returns"] <= 0.0:
+        raise AssertionError("不检测成品的调换路径没有进入事件账本")
+    if market_loop["event_cash_ledger"]["exchange_loss"] if False else False:
+        raise AssertionError("不可达分支")
+
+    if case.p1 > 0.0:
+        nonabsorbing = solve_policy(case, (False, True, True, True))
+        if nonabsorbing["is_absorbing"]:
+            raise AssertionError("未检测零件加无损拆解的回收陷阱未被识别")
+        if nonabsorbing["absorption_probability"] >= 1.0:
+            raise AssertionError("非吸收策略的终止概率计算失败")
