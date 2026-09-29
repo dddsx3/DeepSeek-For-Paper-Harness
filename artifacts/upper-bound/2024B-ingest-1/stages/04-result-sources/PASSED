@@ -96,5 +96,5 @@
   "regate": {
     "reason": "形态判据放宽：标签数组(labels)与空数组(empty)合法——两条真实误判；产物未变，原地复评"
   },
-  "staleReason": "阶段4真跑报 ValueError: params 缺少 Q1_ALTERN——跨文件不一致（分片之间看不到彼此）；已让后续片带上 params.py 与前一片 —— 检查人回滚"
+  "staleReason": "阶段4真跑 OverflowError（math.comb 溢出，应用对数空间）——已实现自动回滚，本轮手动回滚并带上该栈 —— 检查人回滚"
 }
