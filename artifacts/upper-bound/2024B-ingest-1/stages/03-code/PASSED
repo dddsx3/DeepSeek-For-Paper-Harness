@@ -3,7 +3,7 @@
   "stage": "code",
   "index": 3,
   "at": "2026-09-29T00:40:34.734Z",
-  "status": "passed",
+  "status": "stale",
   "cleanliness": "unverified-gates",
   "inputDigest": "920a0b1c5afdb349c52a5b4fcab0f90c74f9a660ebe324f6f46df1b8f3e0b10c",
   "artifacts": {
@@ -61,5 +61,6 @@
   "unverifiedGates": [
     "delivery_audit",
     "stage_audit"
-  ]
+  ],
+  "staleReason": "阶段4真跑 OverflowError（math.comb 溢出，应用对数空间）——已实现自动回滚，本轮手动回滚并带上该栈 —— 检查人否决"
 }

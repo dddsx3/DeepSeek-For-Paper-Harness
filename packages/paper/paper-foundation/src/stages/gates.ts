@@ -171,6 +171,83 @@ const paperPageFloor: GateFn = (input) => {
     : fail(id, `正文约 ${String(pages)} 页（字符 ${String(chars)}）—— 低于 20 页下限`)
 }
 
+/**
+ * `code_name_consistency` —— **代码里引用的常量名，必须在某个文件里真的定义过**。
+ *
+ * ## 为什么必须静态查（实测三次代价）
+ *
+ * 阶段 3 是**分片**写的（一文件一次调用），于是各文件之间可能对不上名字，
+ * 而它们本该是同一个程序：
+ * - `problem1.py` 用了 `params.py` 里并不存在的 `Q1_ALTERN` → 阶段 4 真跑报
+ *   `ValueError: params 中缺少问题一常量：Q1_ALTERN`；
+ * - 另一代里 `problem1.py` 引用了 10 个**任何文件都没定义**的名字
+ *   （`DELTA`/`BETA`/`Q1_NOMINAL`/`ALPHA_REJECT`/`CONF_ACCEPT`/`NUMERIC_TOL`/
+ *   `N_SPRT`/`SPRT`/`DELTA_GRID`/`BETA_GRID`），而 `params.py` 定义的是
+ *   `Q1_DELTA`/`Q1_BETA`/… 前缀名——**同一个概念两套名字**。
+ *
+ * 这些错误**静态就能判**，却一直被推到最后一步（阶段 4 真跑）才炸：那一炸要么作废
+ * 一轮代码生成，要么（更早的版本里）让阶段 4 空转十几次。所以在这里拦。
+ *
+ * ## 判据要窄（宁可漏，不误杀）
+ *
+ * 只查**全大写、长度 ≥ 4 的裸标识符**（那才是"常量"的形态），且必须同时满足：
+ * ① 不在注释/字符串/文档串里；② 前面不是 `.`（那是属性访问）；
+ * ③ 它在该文件**自己**里没定义过；④ 它在**任何** `.py` 里都没有定义
+ * （含赋值/def/class/import/for/with/except 绑定）。
+ * 四条都成立才判——单条都不足以断定它不存在（可能是 `globals()` 注入、
+ * 也可能是星号导入进来的成员）。
+ */
+const codeNameConsistency: GateFn = (input) => {
+  const id = 'code_name_consistency'
+  const files = [...input.files.entries()].filter(([f]) => /^code\/[A-Za-z0-9_]+\.py$/.test(f))
+  if (files.length === 0) return cannot(id, '没有 `code/*.py` —— 没有可核的代码')
+
+  /** 去掉注释、单行字符串、三引号块（判据只在"真代码"上成立）。 */
+  const strip = (s: string): string => s
+    .replace(/"""[\s\S]*?"""/g, ' ')
+    .replace(/'''[\s\S]*?'''/g, ' ')
+    .replace(/#[^\n]*/g, ' ')
+    .replace(/"[^"\n]*"/g, ' ')
+    .replace(/'[^'\n]*'/g, ' ')
+
+  /** 该段代码"定义"了哪些名字（赋值/def/class/import/for/with/except 的绑定）。 */
+  const defsOf = (code: string): ReadonlySet<string> => {
+    const out = new Set<string>()
+    for (const m of code.matchAll(/^\s*([A-Za-z_]\w*)\s*(?::[^=\n]*)?=/gm)) out.add(m[1] ?? '')
+    for (const m of code.matchAll(/^\s*(?:def|class)\s+([A-Za-z_]\w*)/gm)) out.add(m[1] ?? '')
+    for (const m of code.matchAll(/^\s*import\s+([A-Za-z_]\w*)/gm)) out.add(m[1] ?? '')
+    for (const m of code.matchAll(/^\s*from\s+[\w.]+\s+import\s+([A-Za-z_]\w*)/gm)) out.add(m[1] ?? '')
+    for (const m of code.matchAll(/\bfor\s+([A-Za-z_]\w*)\s+in\b/g)) out.add(m[1] ?? '')
+    for (const m of code.matchAll(/\bwith\b[^:\n]*\bas\s+([A-Za-z_]\w*)/g)) out.add(m[1] ?? '')
+    for (const m of code.matchAll(/\bexcept\b[^:\n]*\bas\s+([A-Za-z_]\w*)/g)) out.add(m[1] ?? '')
+    return out
+  }
+
+  const stripped = files.map(([f, raw]) => [f, strip(raw)] as const)
+  const definedAnywhere = new Set<string>()
+  for (const [, code] of stripped) for (const n of defsOf(code)) definedAnywhere.add(n)
+
+  const problems: string[] = []
+  for (const [file, code] of stripped) {
+    const here = defsOf(code)
+    const stray = new Set<string>()
+    for (const m of code.matchAll(/(?<![.\w])([A-Z][A-Z0-9_]{3,})\b/g)) {
+      const name = m[1] ?? ''
+      if (here.has(name) || definedAnywhere.has(name)) continue
+      stray.add(name)
+    }
+    if (stray.size > 0) {
+      problems.push(`${file}：引用了 ${String(stray.size)} 个**任何文件都没定义**的常量名`
+        + `（${[...stray].slice(0, 6).join('、')}）—— 运行时必然 NameError。`
+        + '分片是"一文件一次调用"，各文件对不上名字是这类阶段的典型塌方；'
+        + '要么用 `params.py` 里已有的名字，要么在用到它的文件里定义。')
+    }
+  }
+  return problems.length === 0
+    ? ok(id, `${String(files.length)} 个代码文件：引用的常量名都有定义`)
+    : fail(id, problems.slice(0, 3).join('；'))
+}
+
 /** 逐问奇偶校验：代码文件数必须 ≥ 题面问数。 */
 const codeParity: GateFn = (input) => {
   const id = 'code_parity'
@@ -1228,6 +1305,7 @@ export const GATES: ReadonlyMap<string, GateFn> = new Map<string, GateFn>([
     + '可机械化的那几项（逐问数、目标/公式/约束非零、符号表存在、灵敏度计划）待实现。')],
   // ── 阶段 3 ────────────────────────────────────────────────────────────
   ['code_parity', codeParity],
+  ['code_name_consistency', codeNameConsistency],
   ['ledger_keys_declared', ledgerKeysDeclared],
   // 阶段 3 同样不许写没有出生证明的数字（此时还没有账本，所以只能写锚点）
   ['numbers_traced', numbersTraced],

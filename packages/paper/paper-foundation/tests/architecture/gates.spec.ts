@@ -871,3 +871,73 @@ describe('figure_manifest_reconcile —— 改名的申报判据', () => {
     expect(noReason.code).toBe(1)
   })
 })
+
+/**
+ * `code_name_consistency` —— 分片写的代码，**引用的常量名必须有定义**。
+ *
+ * 实测代价：阶段 3 是"一文件一次调用"分片写的，各文件因此可能对不上名字——
+ * `problem1.py` 用了 `params.py` 里并不存在的 `Q1_ALTERN`，阶段 4 真跑报
+ * `ValueError: params 中缺少问题一常量：Q1_ALTERN`，整轮代码生成作废。
+ * 这类错误**静态就能判**，不该推到真跑才炸。
+ *
+ * ⛔ 第二条用例是我自己踩过的坑：我用手写 grep 核过一遍，报"10 个名字未定义"，
+ * 其中 `Q1_NOMINAL` 其实只出现在**字符串字面量**里
+ * （`_parameter(("Q1_P0", "Q1_NOMINAL", …))`），`DELTA` 等则在文件里**真的定义过**——
+ * **是误报**。所以判据必须剥掉注释与字符串、且只认裸标识符。
+ */
+describe('code_name_consistency —— 引用的常量名必须有定义', () => {
+  const run1 = (files: Record<string, string>) => run('code_name_consistency', input(files))
+
+  it('**裸引用一个没人定义的名字 → 拦**（真实塌方形态）', () => {
+    const v = run1({
+      'code/params.py': 'Q1_DELTA = 0.05\n',
+      'code/problem1.py': 'def main():\n    return Q1_ALTERN * 2\n',
+    })
+    expect(v.code).toBe(1)
+    expect(v.items[0]?.detail).toContain('Q1_ALTERN')
+    expect(v.items[0]?.detail).toContain('NameError')
+  })
+
+  it('**只在字符串/注释里出现 → 放行**（我误报过的那个形态）', () => {
+    const v = run1({
+      'code/params.py': 'Q1_P0 = 0.1\n',
+      // `Q1_NOMINAL` 只是传给 `_parameter` 的候选键名（字符串），不是标识符；
+      // `SOME_MISSING` 只在注释里。两者都不该被判。
+      'code/problem1.py': [
+        'P0 = float(_parameter(("Q1_P0", "Q1_NOMINAL")))',
+        '# TODO: SOME_MISSING 以后再补',
+        'def main():\n    return P0\n',
+      ].join('\n'),
+    })
+    expect(v.code, v.items[0]?.detail).toBe(0)
+  })
+
+  it('在**本文件**定义 → 放行；在**别的文件**定义（星号导入的成员）也放行', () => {
+    expect(run1({
+      'code/problem1.py': 'DELTA = 0.05\n\n\ndef main():\n    return DELTA\n',
+    }).code).toBe(0)
+    expect(run1({
+      'code/params.py': 'DELTA = 0.05\n',
+      'code/problem1.py': 'def main():\n    return DELTA\n',
+    }).code).toBe(0)
+  })
+
+  it('循环/上下文/异常里的绑定也算定义（别把 `for X in` 当成未定义）', () => {
+    expect(run1({
+      'code/problem1.py': [
+        'for CASE_ID in range(3):',
+        '    pass',
+        'with open("x") as HANDLE:',
+        '    pass',
+        'try:',
+        '    pass',
+        'except ValueError as EXC:',
+        '    pass',
+      ].join('\n'),
+    }).code).toBe(0)
+  })
+
+  it('没有 `code/*.py` → 记 `2`（没有可核的代码，不当通过）', () => {
+    expect(run1({ 'RESULTS.md': 'x' }).code).toBe(2)
+  })
+})
