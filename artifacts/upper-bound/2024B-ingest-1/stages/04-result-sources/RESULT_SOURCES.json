@@ -1,471 +1,128 @@
 [
   {
-    "result_id": "R-Q1-CASE95-N",
-    "name": "问题一情形（1）拒收方案最小检测次数",
+    "result_id": "R-Q1-case95-n",
+    "name": "问题一拒收情形最小检测次数",
     "locator": "outputs.json",
     "json_path": "problem1.case95.n",
     "unit": "次"
   },
   {
-    "result_id": "R-Q1-CASE95-R",
-    "name": "问题一情形（1）拒收临界次品数",
+    "result_id": "R-Q1-case95-r",
+    "name": "问题一拒收情形临界次品数",
     "locator": "outputs.json",
     "json_path": "problem1.case95.r",
     "unit": "件"
   },
   {
-    "result_id": "R-Q1-CASE95-REJECT-TAIL",
-    "name": "问题一情形（1）标称率处拒收尾概率",
-    "locator": "outputs.json",
-    "json_path": "problem1.case95.reject_tail",
-    "unit": "1"
-  },
-  {
-    "result_id": "R-Q1-CASE90-N",
-    "name": "问题一情形（2）接收方案最小检测次数",
+    "result_id": "R-Q1-case90-n",
+    "name": "问题一接收情形最小检测次数",
     "locator": "outputs.json",
     "json_path": "problem1.case90.n",
     "unit": "次"
   },
   {
-    "result_id": "R-Q1-CASE90-C",
-    "name": "问题一情形（2）接收临界次品数",
+    "result_id": "R-Q1-case90-c",
+    "name": "问题一接收情形临界次品数",
     "locator": "outputs.json",
     "json_path": "problem1.case90.c",
     "unit": "件"
   },
   {
-    "result_id": "R-Q1-CASE90-ACCEPT-TAIL",
-    "name": "问题一情形（2）标称率处接收概率",
-    "locator": "outputs.json",
-    "json_path": "problem1.case90.accept_tail",
-    "unit": "1"
-  },
-  {
-    "result_id": "R-Q1-SPRT-EXPECTED-N",
-    "name": "有限 SPRT 对照期望检测次数",
-    "locator": "outputs.json",
-    "json_path": "problem1.sprt.expected_n",
-    "unit": "次"
-  },
-  {
-    "result_id": "R-Q1-SPRT-SELECTED",
-    "name": "固定方案与有限 SPRT 的选择结果",
-    "locator": "outputs.json",
-    "json_path": "problem1.sprt.selected",
-    "unit": "0-1"
-  },
-  {
-    "result_id": "R-Q1-OC-P",
-    "name": "问题一 OC 曲线真实次品率序列",
-    "locator": "outputs.json",
-    "json_path": "problem1.oc_curve.p",
-    "unit": "1"
-  },
-  {
-    "result_id": "R-Q1-OC-ACCEPT",
-    "name": "问题一 OC 曲线接收概率序列",
-    "locator": "outputs.json",
-    "json_path": "problem1.oc_curve.accept_prob",
-    "unit": "1"
-  },
-  {
-    "result_id": "R-Q1-OC-REJECT",
-    "name": "问题一 OC 曲线拒收概率序列",
-    "locator": "outputs.json",
-    "json_path": "problem1.oc_curve.reject_prob",
-    "unit": "1"
-  },
-  {
-    "result_id": "R-Q1-SENSITIVITY",
-    "name": "问题一备择幅度与第二类错误灵敏度结果",
-    "locator": "outputs.json",
-    "json_path": "problem1.sensitivity",
-    "unit": "情景数组"
-  },
-  {
-    "result_id": "R-Q1-SPRT-BOUNDARY",
-    "name": "问题一有限 SPRT 边界数据",
-    "locator": "outputs.json",
-    "json_path": "problem1.sprt.boundary",
-    "unit": "边界数组"
-  },
-  {
-    "result_id": "R-Q2-CASE-1-POLICY",
-    "name": "问题二情况 1 最优策略",
+    "result_id": "R-Q2-case1-policy",
+    "name": "问题二情况一最优策略",
     "locator": "outputs.json",
     "json_path": "problem2.cases[0].policy",
-    "unit": "决策组合"
+    "unit": "四元布尔策略"
   },
   {
-    "result_id": "R-Q2-CASE-1-PROFIT",
-    "name": "问题二情况 1 单位期望利润",
+    "result_id": "R-Q2-case1-profit",
+    "name": "问题二情况一单位合格交付期望利润",
     "locator": "outputs.json",
     "json_path": "problem2.cases[0].profit",
-    "unit": "元/合格件"
+    "unit": "元/合格交付"
   },
   {
-    "result_id": "R-Q2-CASE-2-POLICY",
-    "name": "问题二情况 2 最优策略",
+    "result_id": "R-Q2-case2-policy",
+    "name": "问题二情况二最优策略",
     "locator": "outputs.json",
     "json_path": "problem2.cases[1].policy",
-    "unit": "决策组合"
+    "unit": "四元布尔策略"
   },
   {
-    "result_id": "R-Q2-CASE-2-PROFIT",
-    "name": "问题二情况 2 单位期望利润",
+    "result_id": "R-Q2-case2-profit",
+    "name": "问题二情况二单位合格交付期望利润",
     "locator": "outputs.json",
     "json_path": "problem2.cases[1].profit",
-    "unit": "元/合格件"
+    "unit": "元/合格交付"
   },
   {
-    "result_id": "R-Q2-CASE-3-POLICY",
-    "name": "问题二情况 3 最优策略",
+    "result_id": "R-Q2-case3-policy",
+    "name": "问题二情况三最优策略",
     "locator": "outputs.json",
     "json_path": "problem2.cases[2].policy",
-    "unit": "决策组合"
+    "unit": "四元布尔策略"
   },
   {
-    "result_id": "R-Q2-CASE-3-PROFIT",
-    "name": "问题二情况 3 单位期望利润",
+    "result_id": "R-Q2-case3-profit",
+    "name": "问题二情况三单位合格交付期望利润",
     "locator": "outputs.json",
     "json_path": "problem2.cases[2].profit",
-    "unit": "元/合格件"
+    "unit": "元/合格交付"
   },
   {
-    "result_id": "R-Q2-CASE-4-POLICY",
-    "name": "问题二情况 4 最优策略",
+    "result_id": "R-Q2-case4-policy",
+    "name": "问题二情况四最优策略",
     "locator": "outputs.json",
     "json_path": "problem2.cases[3].policy",
-    "unit": "决策组合"
+    "unit": "四元布尔策略"
   },
   {
-    "result_id": "R-Q2-CASE-4-PROFIT",
-    "name": "问题二情况 4 单位期望利润",
+    "result_id": "R-Q2-case4-profit",
+    "name": "问题二情况四单位合格交付期望利润",
     "locator": "outputs.json",
     "json_path": "problem2.cases[3].profit",
-    "unit": "元/合格件"
+    "unit": "元/合格交付"
   },
   {
-    "result_id": "R-Q2-CASE-5-POLICY",
-    "name": "问题二情况 5 最优策略",
+    "result_id": "R-Q2-case5-policy",
+    "name": "问题二情况五最优策略",
     "locator": "outputs.json",
     "json_path": "problem2.cases[4].policy",
-    "unit": "决策组合"
+    "unit": "四元布尔策略"
   },
   {
-    "result_id": "R-Q2-CASE-5-PROFIT",
-    "name": "问题二情况 5 单位期望利润",
+    "result_id": "R-Q2-case5-profit",
+    "name": "问题二情况五单位合格交付期望利润",
     "locator": "outputs.json",
     "json_path": "problem2.cases[4].profit",
-    "unit": "元/合格件"
+    "unit": "元/合格交付"
   },
   {
-    "result_id": "R-Q2-CASE-6-POLICY",
-    "name": "问题二情况 6 最优策略",
+    "result_id": "R-Q2-case6-policy",
+    "name": "问题二情况六最优策略",
     "locator": "outputs.json",
     "json_path": "problem2.cases[5].policy",
-    "unit": "决策组合"
+    "unit": "四元布尔策略"
   },
   {
-    "result_id": "R-Q2-CASE-6-PROFIT",
-    "name": "问题二情况 6 单位期望利润",
+    "result_id": "R-Q2-case6-profit",
+    "name": "问题二情况六单位合格交付期望利润",
     "locator": "outputs.json",
     "json_path": "problem2.cases[5].profit",
-    "unit": "元/合格件"
+    "unit": "元/合格交付"
   },
   {
-    "result_id": "R-Q2-POLICY-TABLE",
-    "name": "问题二 16 种策略完整利润对照表",
+    "result_id": "R-Q3-degeneration-check-passed",
+    "name": "问题二与问题三退化网络逐策略等价通过标志",
     "locator": "outputs.json",
-    "json_path": "problem2.policy_table",
-    "unit": "策略记录"
+    "json_path": "problem3.degeneration_check.passed",
+    "unit": "布尔值"
   },
   {
-    "result_id": "R-Q2-OPTIMAL-COST-BREAKDOWN",
-    "name": "问题二最优策略成本分解",
+    "result_id": "R-Q4-scenario-only",
+    "name": "问题四仅情景分析边界标志",
     "locator": "outputs.json",
-    "json_path": "problem2.optimal_cost_breakdown",
-    "unit": "元/件"
-  },
-  {
-    "result_id": "R-Q2-SENSITIVITY",
-    "name": "问题二次品率与成本参数灵敏度结果",
-    "locator": "outputs.json",
-    "json_path": "problem2.sensitivity",
-    "unit": "情景数组"
-  },
-  {
-    "result_id": "R-Q2-BREAKEVEN-CONTOUR",
-    "name": "问题二检测与拆解决策盈亏平衡网格",
-    "locator": "outputs.json",
-    "json_path": "problem2.breakeven_contour",
-    "unit": "决策网格"
-  },
-  {
-    "result_id": "R-Q3-PRIMARY-POLICY",
-    "name": "问题三主拓扑情景策略",
-    "locator": "outputs.json",
-    "json_path": "problem3.primary.policy",
-    "unit": "决策组合"
-  },
-  {
-    "result_id": "R-Q3-PRIMARY-PROFIT",
-    "name": "问题三主拓扑情景单位期望利润",
-    "locator": "outputs.json",
-    "json_path": "problem3.primary.profit",
-    "unit": "元/合格件"
-  },
-  {
-    "result_id": "R-Q3-ALTERNATIVE-POLICY",
-    "name": "问题三替代拓扑情景策略",
-    "locator": "outputs.json",
-    "json_path": "problem3.alternative.policy",
-    "unit": "决策组合"
-  },
-  {
-    "result_id": "R-Q3-ALTERNATIVE-PROFIT",
-    "name": "问题三替代拓扑情景单位期望利润",
-    "locator": "outputs.json",
-    "json_path": "problem3.alternative.profit",
-    "unit": "元/合格件"
-  },
-  {
-    "result_id": "R-Q3-TOPOLOGY-PROFIT-GAP",
-    "name": "问题三主替拓扑利润差异",
-    "locator": "outputs.json",
-    "json_path": "problem3.topology_profit_gap",
-    "unit": "元/合格件"
-  },
-  {
-    "result_id": "R-Q3-DEGENERATION-MAX-ERROR",
-    "name": "问题二与问题三退化网络逐策略最大差值",
-    "locator": "outputs.json",
-    "json_path": "problem3.degeneration_max_error",
-    "unit": "元/合格件"
-  },
-  {
-    "result_id": "R-Q3-PRIMARY-NODE-METRICS",
-    "name": "问题三主拓扑逐节点指标",
-    "locator": "outputs.json",
-    "json_path": "problem3.primary.node_metrics",
-    "unit": "节点记录"
-  },
-  {
-    "result_id": "R-Q3-ALTERNATIVE-NODE-METRICS",
-    "name": "问题三替代拓扑逐节点指标",
-    "locator": "outputs.json",
-    "json_path": "problem3.alternative.node_metrics",
-    "unit": "节点记录"
-  },
-  {
-    "result_id": "R-Q3-IDENTITY-MAX-DIFF",
-    "name": "问题三独立参考实现最大差值",
-    "locator": "outputs.json",
-    "json_path": "problem3.validation.identity_max_diff",
-    "unit": "元/合格件"
-  },
-  {
-    "result_id": "R-Q3-DP-STATE-COUNT",
-    "name": "问题三可达动态规划状态数",
-    "locator": "outputs.json",
-    "json_path": "problem3.validation.dp_state_count",
-    "unit": "个"
-  },
-  {
-    "result_id": "R-Q3-INDEPENDENT-REFERENCE",
-    "name": "问题三独立参考解记录",
-    "locator": "outputs.json",
-    "json_path": "problem3.validation.independent_reference",
-    "unit": "验证记录"
-  },
-  {
-    "result_id": "R-Q3-VALIDATION-PASS",
-    "name": "问题三结构、退化与单位核验通过标志",
-    "locator": "outputs.json",
-    "json_path": "problem3.validation.pass",
-    "unit": "0-1"
-  },
-  {
-    "result_id": "R-Q4-CASE-1-POINT-POLICY",
-    "name": "问题四情况 1 情景点估计策略",
-    "locator": "outputs.json",
-    "json_path": "problem4.cases[0].point_policy",
-    "unit": "决策组合"
-  },
-  {
-    "result_id": "R-Q4-CASE-1-ROBUST-POLICY",
-    "name": "问题四情况 1 区间最坏稳健策略",
-    "locator": "outputs.json",
-    "json_path": "problem4.cases[0].robust_policy",
-    "unit": "决策组合"
-  },
-  {
-    "result_id": "R-Q4-CASE-1-PROFIT-INTERVAL",
-    "name": "问题四情况 1 利润区间",
-    "locator": "outputs.json",
-    "json_path": "problem4.cases[0].profit_interval",
-    "unit": "元/合格件"
-  },
-  {
-    "result_id": "R-Q4-CASE-2-POINT-POLICY",
-    "name": "问题四情况 2 情景点估计策略",
-    "locator": "outputs.json",
-    "json_path": "problem4.cases[1].point_policy",
-    "unit": "决策组合"
-  },
-  {
-    "result_id": "R-Q4-CASE-2-ROBUST-POLICY",
-    "name": "问题四情况 2 区间最坏稳健策略",
-    "locator": "outputs.json",
-    "json_path": "problem4.cases[1].robust_policy",
-    "unit": "决策组合"
-  },
-  {
-    "result_id": "R-Q4-CASE-2-PROFIT-INTERVAL",
-    "name": "问题四情况 2 利润区间",
-    "locator": "outputs.json",
-    "json_path": "problem4.cases[1].profit_interval",
-    "unit": "元/合格件"
-  },
-  {
-    "result_id": "R-Q4-CASE-3-POINT-POLICY",
-    "name": "问题四情况 3 情景点估计策略",
-    "locator": "outputs.json",
-    "json_path": "problem4.cases[2].point_policy",
-    "unit": "决策组合"
-  },
-  {
-    "result_id": "R-Q4-CASE-3-ROBUST-POLICY",
-    "name": "问题四情况 3 区间最坏稳健策略",
-    "locator": "outputs.json",
-    "json_path": "problem4.cases[2].robust_policy",
-    "unit": "决策组合"
-  },
-  {
-    "result_id": "R-Q4-CASE-3-PROFIT-INTERVAL",
-    "name": "问题四情况 3 利润区间",
-    "locator": "outputs.json",
-    "json_path": "problem4.cases[2].profit_interval",
-    "unit": "元/合格件"
-  },
-  {
-    "result_id": "R-Q4-CASE-4-POINT-POLICY",
-    "name": "问题四情况 4 情景点估计策略",
-    "locator": "outputs.json",
-    "json_path": "problem4.cases[3].point_policy",
-    "unit": "决策组合"
-  },
-  {
-    "result_id": "R-Q4-CASE-4-ROBUST-POLICY",
-    "name": "问题四情况 4 区间最坏稳健策略",
-    "locator": "outputs.json",
-    "json_path": "problem4.cases[3].robust_policy",
-    "unit": "决策组合"
-  },
-  {
-    "result_id": "R-Q4-CASE-4-PROFIT-INTERVAL",
-    "name": "问题四情况 4 利润区间",
-    "locator": "outputs.json",
-    "json_path": "problem4.cases[3].profit_interval",
-    "unit": "元/合格件"
-  },
-  {
-    "result_id": "R-Q4-CASE-5-POINT-POLICY",
-    "name": "问题四情况 5 情景点估计策略",
-    "locator": "outputs.json",
-    "json_path": "problem4.cases[4].point_policy",
-    "unit": "决策组合"
-  },
-  {
-    "result_id": "R-Q4-CASE-5-ROBUST-POLICY",
-    "name": "问题四情况 5 区间最坏稳健策略",
-    "locator": "outputs.json",
-    "json_path": "problem4.cases[4].robust_policy",
-    "unit": "决策组合"
-  },
-  {
-    "result_id": "R-Q4-CASE-5-PROFIT-INTERVAL",
-    "name": "问题四情况 5 利润区间",
-    "locator": "outputs.json",
-    "json_path": "problem4.cases[4].profit_interval",
-    "unit": "元/合格件"
-  },
-  {
-    "result_id": "R-Q4-CASE-6-POINT-POLICY",
-    "name": "问题四情况 6 情景点估计策略",
-    "locator": "outputs.json",
-    "json_path": "problem4.cases[5].point_policy",
-    "unit": "决策组合"
-  },
-  {
-    "result_id": "R-Q4-CASE-6-ROBUST-POLICY",
-    "name": "问题四情况 6 区间最坏稳健策略",
-    "locator": "outputs.json",
-    "json_path": "problem4.cases[5].robust_policy",
-    "unit": "决策组合"
-  },
-  {
-    "result_id": "R-Q4-CASE-6-PROFIT-INTERVAL",
-    "name": "问题四情况 6 利润区间",
-    "locator": "outputs.json",
-    "json_path": "problem4.cases[5].profit_interval",
-    "unit": "元/合格件"
-  },
-  {
-    "result_id": "R-Q4-Q3-POINT-POLICY",
-    "name": "问题四问题三情景点估计策略",
-    "locator": "outputs.json",
-    "json_path": "problem4.q3.point_policy",
-    "unit": "决策组合"
-  },
-  {
-    "result_id": "R-Q4-Q3-ROBUST-POLICY",
-    "name": "问题四问题三区间最坏稳健策略",
-    "locator": "outputs.json",
-    "json_path": "problem4.q3.robust_policy",
-    "unit": "决策组合"
-  },
-  {
-    "result_id": "R-Q4-Q3-PROFIT-INTERVAL",
-    "name": "问题四问题三利润区间",
-    "locator": "outputs.json",
-    "json_path": "problem4.q3.profit_interval",
-    "unit": "元/合格件"
-  },
-  {
-    "result_id": "R-Q4-DECISION-CONSISTENCY",
-    "name": "问题四重抽样决策一致率",
-    "locator": "outputs.json",
-    "json_path": "problem4.decision_consistency",
-    "unit": "1"
-  },
-  {
-    "result_id": "R-Q4-SAMPLE-LEDGER",
-    "name": "问题四各节点样本量与观测计数情景账本",
-    "locator": "outputs.json",
-    "json_path": "problem4.sample_ledger",
-    "unit": "节点记录"
-  },
-  {
-    "result_id": "R-Q4-MC-TRACE",
-    "name": "问题四固定种子蒙特卡洛重复轨迹",
-    "locator": "outputs.json",
-    "json_path": "problem4.mc_trace",
-    "unit": "重复记录"
-  },
-  {
-    "result_id": "R-Q4-SENSITIVITY",
-    "name": "问题四样本量、区间宽度与策略稳定性结果",
-    "locator": "outputs.json",
-    "json_path": "problem4.sensitivity",
-    "unit": "情景数组"
-  },
-  {
-    "result_id": "R-Q4-VALIDATION",
-    "name": "问题四 CP 端点、Bonferroni 分配及情景重解核验",
-    "locator": "outputs.json",
-    "json_path": "problem4.validation",
-    "unit": "验证记录"
+    "json_path": "problem4.scenario_only",
+    "unit": "布尔值"
   }
 ]

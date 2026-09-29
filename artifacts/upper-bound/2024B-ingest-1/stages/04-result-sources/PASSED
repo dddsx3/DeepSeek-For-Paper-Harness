@@ -96,5 +96,5 @@
   "regate": {
     "reason": "形态判据放宽：标签数组(labels)与空数组(empty)合法——两条真实误判；产物未变，原地复评"
   },
-  "staleReason": "阶段4真跑代码失败：NameError at_palt（应为 at_p_atl）——运行时错误已回灌阶段3简报 —— 检查人回滚"
+  "staleReason": "阶段4真跑报 ValueError: params 缺少 Q1_ALTERN——跨文件不一致（分片之间看不到彼此）；已让后续片带上 params.py 与前一片 —— 检查人回滚"
 }

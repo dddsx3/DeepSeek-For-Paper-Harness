@@ -1,0 +1,121 @@
+===== 第 1 次 --stage-next =====
+[STAGE CHAIN] artifacts\upper-bound\2024B-ingest-1\stages
+  题面问数（数出来的）：4
+  [deterministic] code: 分片 1/8 交付 code/main.py
+  [deterministic] code: 分片 2/8 交付 code/params.py
+  [deterministic] code: 分片 3/8 交付 code/problem1.py
+  [deterministic] code: 分片 4/8 交付 code/problem2.py
+  [deterministic] code: 分片 5/8 交付 code/problem3.py
+  [deterministic] code: 分片 6/8 交付 code/problem4.py
+  [deterministic] code: 分片 7/8 交付 RESULTS.md
+  [deterministic] code: 分片 8/8 交付 DELIVERABLES.json
+[STAGE NEXT] 只跑了 'code'，到此即停。检查 artifacts\upper-bound\2024B-ingest-1\stages 后，放行 = 再执行一次 --stages --stage-next。
+  🟡 code: 门禁通过但**逐节点审计没跑成**（审计调用未正常结束（finish=max-tokens）—— 本阶段未被审计）——按 `2 ≠ 0` 的纪律记在通行证上，本阶段不能计入 CLEAN。
+
+STAGE CHAIN OK — 1 个阶段签发通行证（其中 1 个带未判定门禁，缺口已记在 PASSED 上）。产物在 artifacts\upper-bound\2024B-ingest-1\stages
+===== 第 2 次 --stage-next =====
+[STAGE CHAIN] artifacts\upper-bound\2024B-ingest-1\stages
+  题面问数（数出来的）：4
+[STAGE NEXT] 只跑了 'result-sources'，到此即停。检查 artifacts\upper-bound\2024B-ingest-1\stages 后，放行 = 再执行一次 --stages --stage-next。
+  ❌ result-sources: 阶段产出未通过形态检查：code/main.py 退出码 1（非 0）—— stderr 末尾：    return float(math.comb(n, x) * (p**x) * ((1.0 - p) ** (n - x))) /                  ~~~~~~~~~~~~~~~~^~~~~~~~ / OverflowError: int too large to convert to float / （完整栈已写回阶段 3：_runtime-failure.txt）（原始回答已留档：_rejected-answer.txt）
+
+STAGE CHAIN FAILED — 1 个阶段没通过（产物与通行证在 artifacts\upper-bound\2024B-ingest-1\stages）。
+===== 第 3 次 --stage-next =====
+[STAGE CHAIN] artifacts\upper-bound\2024B-ingest-1\stages
+  题面问数（数出来的）：4
+[STAGE NEXT] 只跑了 'result-sources'，到此即停。检查 artifacts\upper-bound\2024B-ingest-1\stages 后，放行 = 再执行一次 --stages --stage-next。
+  ❌ result-sources: 阶段产出未通过形态检查：code/main.py 退出码 1（非 0）—— stderr 末尾：    return float(math.comb(n, x) * (p**x) * ((1.0 - p) ** (n - x))) /                  ~~~~~~~~~~~~~~~~^~~~~~~~ / OverflowError: int too large to convert to float / （完整栈已写回阶段 3：_runtime-failure.txt）（原始回答已留档：_rejected-answer.txt）
+
+STAGE CHAIN FAILED — 1 个阶段没通过（产物与通行证在 artifacts\upper-bound\2024B-ingest-1\stages）。
+===== 第 4 次 --stage-next =====
+[STAGE CHAIN] artifacts\upper-bound\2024B-ingest-1\stages
+  题面问数（数出来的）：4
+[STAGE NEXT] 只跑了 'result-sources'，到此即停。检查 artifacts\upper-bound\2024B-ingest-1\stages 后，放行 = 再执行一次 --stages --stage-next。
+  ❌ result-sources: 阶段产出未通过形态检查：code/main.py 退出码 1（非 0）—— stderr 末尾：    return float(math.comb(n, x) * (p**x) * ((1.0 - p) ** (n - x))) /                  ~~~~~~~~~~~~~~~~^~~~~~~~ / OverflowError: int too large to convert to float / （完整栈已写回阶段 3：_runtime-failure.txt）（原始回答已留档：_rejected-answer.txt）
+
+STAGE CHAIN FAILED — 1 个阶段没通过（产物与通行证在 artifacts\upper-bound\2024B-ingest-1\stages）。
+===== 第 5 次 --stage-next =====
+[STAGE CHAIN] artifacts\upper-bound\2024B-ingest-1\stages
+  题面问数（数出来的）：4
+[STAGE NEXT] 只跑了 'result-sources'，到此即停。检查 artifacts\upper-bound\2024B-ingest-1\stages 后，放行 = 再执行一次 --stages --stage-next。
+  ❌ result-sources: 阶段产出未通过形态检查：code/main.py 退出码 1（非 0）—— stderr 末尾：    return float(math.comb(n, x) * (p**x) * ((1.0 - p) ** (n - x))) /                  ~~~~~~~~~~~~~~~~^~~~~~~~ / OverflowError: int too large to convert to float / （完整栈已写回阶段 3：_runtime-failure.txt）（原始回答已留档：_rejected-answer.txt）
+
+STAGE CHAIN FAILED — 1 个阶段没通过（产物与通行证在 artifacts\upper-bound\2024B-ingest-1\stages）。
+===== 第 6 次 --stage-next =====
+[STAGE CHAIN] artifacts\upper-bound\2024B-ingest-1\stages
+  题面问数（数出来的）：4
+[STAGE NEXT] 只跑了 'result-sources'，到此即停。检查 artifacts\upper-bound\2024B-ingest-1\stages 后，放行 = 再执行一次 --stages --stage-next。
+  ❌ result-sources: 阶段产出未通过形态检查：code/main.py 退出码 1（非 0）—— stderr 末尾：    return float(math.comb(n, x) * (p**x) * ((1.0 - p) ** (n - x))) /                  ~~~~~~~~~~~~~~~~^~~~~~~~ / OverflowError: int too large to convert to float / （完整栈已写回阶段 3：_runtime-failure.txt）（原始回答已留档：_rejected-answer.txt）
+
+STAGE CHAIN FAILED — 1 个阶段没通过（产物与通行证在 artifacts\upper-bound\2024B-ingest-1\stages）。
+===== 第 7 次 --stage-next =====
+[STAGE CHAIN] artifacts\upper-bound\2024B-ingest-1\stages
+  题面问数（数出来的）：4
+[STAGE NEXT] 只跑了 'result-sources'，到此即停。检查 artifacts\upper-bound\2024B-ingest-1\stages 后，放行 = 再执行一次 --stages --stage-next。
+  ❌ result-sources: 阶段产出未通过形态检查：code/main.py 退出码 1（非 0）—— stderr 末尾：    return float(math.comb(n, x) * (p**x) * ((1.0 - p) ** (n - x))) /                  ~~~~~~~~~~~~~~~~^~~~~~~~ / OverflowError: int too large to convert to float / （完整栈已写回阶段 3：_runtime-failure.txt）（原始回答已留档：_rejected-answer.txt）
+
+STAGE CHAIN FAILED — 1 个阶段没通过（产物与通行证在 artifacts\upper-bound\2024B-ingest-1\stages）。
+===== 第 8 次 --stage-next =====
+[STAGE CHAIN] artifacts\upper-bound\2024B-ingest-1\stages
+  题面问数（数出来的）：4
+[STAGE NEXT] 只跑了 'result-sources'，到此即停。检查 artifacts\upper-bound\2024B-ingest-1\stages 后，放行 = 再执行一次 --stages --stage-next。
+  ❌ result-sources: 阶段产出未通过形态检查：code/main.py 退出码 1（非 0）—— stderr 末尾：    return float(math.comb(n, x) * (p**x) * ((1.0 - p) ** (n - x))) /                  ~~~~~~~~~~~~~~~~^~~~~~~~ / OverflowError: int too large to convert to float / （完整栈已写回阶段 3：_runtime-failure.txt）（原始回答已留档：_rejected-answer.txt）
+
+STAGE CHAIN FAILED — 1 个阶段没通过（产物与通行证在 artifacts\upper-bound\2024B-ingest-1\stages）。
+===== 第 9 次 --stage-next =====
+[STAGE CHAIN] artifacts\upper-bound\2024B-ingest-1\stages
+  题面问数（数出来的）：4
+[STAGE NEXT] 只跑了 'result-sources'，到此即停。检查 artifacts\upper-bound\2024B-ingest-1\stages 后，放行 = 再执行一次 --stages --stage-next。
+  ❌ result-sources: 阶段产出未通过形态检查：code/main.py 退出码 1（非 0）—— stderr 末尾：    return float(math.comb(n, x) * (p**x) * ((1.0 - p) ** (n - x))) /                  ~~~~~~~~~~~~~~~~^~~~~~~~ / OverflowError: int too large to convert to float / （完整栈已写回阶段 3：_runtime-failure.txt）（原始回答已留档：_rejected-answer.txt）
+
+STAGE CHAIN FAILED — 1 个阶段没通过（产物与通行证在 artifacts\upper-bound\2024B-ingest-1\stages）。
+===== 第 10 次 --stage-next =====
+[STAGE CHAIN] artifacts\upper-bound\2024B-ingest-1\stages
+  题面问数（数出来的）：4
+[STAGE NEXT] 只跑了 'result-sources'，到此即停。检查 artifacts\upper-bound\2024B-ingest-1\stages 后，放行 = 再执行一次 --stages --stage-next。
+  ❌ result-sources: 阶段产出未通过形态检查：code/main.py 退出码 1（非 0）—— stderr 末尾：    return float(math.comb(n, x) * (p**x) * ((1.0 - p) ** (n - x))) /                  ~~~~~~~~~~~~~~~~^~~~~~~~ / OverflowError: int too large to convert to float / （完整栈已写回阶段 3：_runtime-failure.txt）（原始回答已留档：_rejected-answer.txt）
+
+STAGE CHAIN FAILED — 1 个阶段没通过（产物与通行证在 artifacts\upper-bound\2024B-ingest-1\stages）。
+===== 第 11 次 --stage-next =====
+[STAGE CHAIN] artifacts\upper-bound\2024B-ingest-1\stages
+  题面问数（数出来的）：4
+[STAGE NEXT] 只跑了 'result-sources'，到此即停。检查 artifacts\upper-bound\2024B-ingest-1\stages 后，放行 = 再执行一次 --stages --stage-next。
+  ❌ result-sources: 阶段产出未通过形态检查：code/main.py 退出码 1（非 0）—— stderr 末尾：    return float(math.comb(n, x) * (p**x) * ((1.0 - p) ** (n - x))) /                  ~~~~~~~~~~~~~~~~^~~~~~~~ / OverflowError: int too large to convert to float / （完整栈已写回阶段 3：_runtime-failure.txt）（原始回答已留档：_rejected-answer.txt）
+
+STAGE CHAIN FAILED — 1 个阶段没通过（产物与通行证在 artifacts\upper-bound\2024B-ingest-1\stages）。
+===== 第 12 次 --stage-next =====
+[STAGE CHAIN] artifacts\upper-bound\2024B-ingest-1\stages
+  题面问数（数出来的）：4
+[STAGE NEXT] 只跑了 'result-sources'，到此即停。检查 artifacts\upper-bound\2024B-ingest-1\stages 后，放行 = 再执行一次 --stages --stage-next。
+  ❌ result-sources: 阶段产出未通过形态检查：code/main.py 退出码 1（非 0）—— stderr 末尾：    return float(math.comb(n, x) * (p**x) * ((1.0 - p) ** (n - x))) /                  ~~~~~~~~~~~~~~~~^~~~~~~~ / OverflowError: int too large to convert to float / （完整栈已写回阶段 3：_runtime-failure.txt）（原始回答已留档：_rejected-answer.txt）
+
+STAGE CHAIN FAILED — 1 个阶段没通过（产物与通行证在 artifacts\upper-bound\2024B-ingest-1\stages）。
+===== 第 13 次 --stage-next =====
+[STAGE CHAIN] artifacts\upper-bound\2024B-ingest-1\stages
+  题面问数（数出来的）：4
+[STAGE NEXT] 只跑了 'result-sources'，到此即停。检查 artifacts\upper-bound\2024B-ingest-1\stages 后，放行 = 再执行一次 --stages --stage-next。
+  ❌ result-sources: 阶段产出未通过形态检查：code/main.py 退出码 1（非 0）—— stderr 末尾：    return float(math.comb(n, x) * (p**x) * ((1.0 - p) ** (n - x))) /                  ~~~~~~~~~~~~~~~~^~~~~~~~ / OverflowError: int too large to convert to float / （完整栈已写回阶段 3：_runtime-failure.txt）（原始回答已留档：_rejected-answer.txt）
+
+STAGE CHAIN FAILED — 1 个阶段没通过（产物与通行证在 artifacts\upper-bound\2024B-ingest-1\stages）。
+===== 第 14 次 --stage-next =====
+[STAGE CHAIN] artifacts\upper-bound\2024B-ingest-1\stages
+  题面问数（数出来的）：4
+[STAGE NEXT] 只跑了 'result-sources'，到此即停。检查 artifacts\upper-bound\2024B-ingest-1\stages 后，放行 = 再执行一次 --stages --stage-next。
+  ❌ result-sources: 阶段产出未通过形态检查：code/main.py 退出码 1（非 0）—— stderr 末尾：    return float(math.comb(n, x) * (p**x) * ((1.0 - p) ** (n - x))) /                  ~~~~~~~~~~~~~~~~^~~~~~~~ / OverflowError: int too large to convert to float / （完整栈已写回阶段 3：_runtime-failure.txt）（原始回答已留档：_rejected-answer.txt）
+
+STAGE CHAIN FAILED — 1 个阶段没通过（产物与通行证在 artifacts\upper-bound\2024B-ingest-1\stages）。
+===== 第 15 次 --stage-next =====
+[STAGE CHAIN] artifacts\upper-bound\2024B-ingest-1\stages
+  题面问数（数出来的）：4
+[STAGE NEXT] 只跑了 'result-sources'，到此即停。检查 artifacts\upper-bound\2024B-ingest-1\stages 后，放行 = 再执行一次 --stages --stage-next。
+  ❌ result-sources: 阶段产出未通过形态检查：code/main.py 退出码 1（非 0）—— stderr 末尾：    return float(math.comb(n, x) * (p**x) * ((1.0 - p) ** (n - x))) /                  ~~~~~~~~~~~~~~~~^~~~~~~~ / OverflowError: int too large to convert to float / （完整栈已写回阶段 3：_runtime-failure.txt）（原始回答已留档：_rejected-answer.txt）
+
+STAGE CHAIN FAILED — 1 个阶段没通过（产物与通行证在 artifacts\upper-bound\2024B-ingest-1\stages）。
+===== 第 16 次 --stage-next =====
+[STAGE CHAIN] artifacts\upper-bound\2024B-ingest-1\stages
+  题面问数（数出来的）：4
+[STAGE NEXT] 只跑了 'result-sources'，到此即停。检查 artifacts\upper-bound\2024B-ingest-1\stages 后，放行 = 再执行一次 --stages --stage-next。
+  ❌ result-sources: 阶段产出未通过形态检查：code/main.py 退出码 1（非 0）—— stderr 末尾：    return float(math.comb(n, x) * (p**x) * ((1.0 - p) ** (n - x))) /                  ~~~~~~~~~~~~~~~~^~~~~~~~ / OverflowError: int too large to convert to float / （完整栈已写回阶段 3：_runtime-failure.txt）（原始回答已留档：_rejected-answer.txt）
+
+STAGE CHAIN FAILED — 1 个阶段没通过（产物与通行证在 artifacts\upper-bound\2024B-ingest-1\stages）。
+===== LOOP DONE =====

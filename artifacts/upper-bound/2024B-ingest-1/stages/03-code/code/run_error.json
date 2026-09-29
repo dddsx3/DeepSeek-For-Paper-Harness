@@ -1,6 +1,0 @@
-{
-  "all_success": false,
-  "completed_questions": [],
-  "error_message": "params 中缺少问题一常量：Q1_ALTERNATIVE_DELTA, Q1_DELTA, Q1_POWER_DELTA, Q1可识别超标幅度",
-  "error_type": "ValueError"
-}
