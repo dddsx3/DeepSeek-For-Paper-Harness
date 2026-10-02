@@ -25,6 +25,24 @@ describe('门禁登记表 —— 与阶段表一致（防漂移）', () => {
     const declared = new Set(STAGES.flatMap(s => s.gates))
     expect([...GATES.keys()].filter(id => !declared.has(id))).toEqual(['anchor_presence'])
   })
+
+  // 这一条治的是**最坏的一种不一致**：契约（简报）向模型承诺了一个**不会运行的检查**
+  // ——模型按"会被核"的假设写代码，实际无人核。实测踩过：`claim_code_check` /
+  // `data_ingest_check` / `facts_audit` 三条在简报里写了很久，`GATES` 里根本没有。
+  it('**简报里点名的每个门禁都真的登记了**（防"契约承诺了不存在的检查"）', async () => {
+    const { readFile } = await import('node:fs/promises')
+    const { fileURLToPath } = await import('node:url')
+    const { dirname, join } = await import('node:path')
+    const here = dirname(fileURLToPath(import.meta.url))
+    const src = await readFile(join(here, '..', '..', 'src', 'stages', 'briefing.ts'), 'utf8')
+    const names = new Set<string>()
+    for (const m of src.matchAll(/门禁\s*`([a-z][a-z0-9_]+)`/g)) names.add(m[1] ?? '')
+    for (const m of src.matchAll(/`([a-z][a-z0-9_]+)`\s*(?:门禁|是门禁)/g)) names.add(m[1] ?? '')
+    names.delete('')
+    expect(names.size, '简报里没点名任何门禁？抽取正则坏了').toBeGreaterThan(10)
+    const missing = [...names].filter(id => !GATES.has(id)).sort()
+    expect(missing, `简报点名了但登记表没有：${missing.join('、')}`).toEqual([])
+  })
 })
 
 describe('字节地板 —— 参考用 wc -c，这里是 UTF-8 字节数', () => {
@@ -261,8 +279,9 @@ describe('未实现的判据给 2，**绝不给 0**', () => {
     // ——机器可读的清单、声明、SVG 字节——现在都由阶段 4/5/11 真的产出了）。
     // S6 删掉了 `modeling_coverage`：它要的输入（能力项 id 的引用）现在由阶段 2 的
     // `ModelSpec.checklist_refs` 真的产出，判据落在"id 逐字命中"上——不再是"待定义形态"。
-    const unimplemented = ['capability_check', 'modeling_self_check',
-      'delivery_audit', 'paper_claim_check']
+    // S7 删掉了 `paper_claim_check`：判据落在"正文里残留的结果锚点"上（账本已由阶段 4 铸出），
+    // 落地的那部分由 harness 在阶段 9 的 afterModel 里换成真值。
+    const unimplemented = ['capability_check', 'modeling_self_check', 'delivery_audit']
     for (const id of unimplemented) {
       const v = run(id, input({}))
       expect(v.code, `${id} 应当是 2（无法判定）`).toBe(2)

@@ -137,7 +137,10 @@ export const STAGES: ReadonlyArray<StageSpec> = [
       D('RESULTS.md', 'md', '结果说明', 1024),
       D('DELIVERABLES.json', 'json', '机器可校验的产出清单（kind/min_rows/min_bytes/desc）'),
     ],
-    gates: ['code_parity', 'code_name_consistency', 'ledger_keys_declared', 'numbers_traced', 'delivery_audit', 'leakage_audit', 'no_render'],
+    gates: ['code_parity', 'code_name_consistency', 'ledger_keys_declared', 'numbers_traced', 'delivery_audit', 'leakage_audit', 'no_render',
+      // 三条代码级静态扫描（从参考逐条移植）：简报早就承诺了它们，此前却没有登记
+      // ——契约在向模型承诺一个不会运行的检查，这是最坏的一种不一致。
+      'claim_code_check', 'data_ingest_check', 'facts_audit'],
     contractRules: ['code_appendix_names_questions', 'floor_code'],
     rollbackTo: ['modeling', 'prob-analysis'], guidedFallback: 'T2',
     premise: '**建模代码与图表声明分属不同阶段**（用户口径），且本阶段只写代码：'

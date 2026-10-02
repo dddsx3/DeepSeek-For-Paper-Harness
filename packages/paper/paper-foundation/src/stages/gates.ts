@@ -42,7 +42,10 @@ import { FIGURE_DECLARATIONS_FILE, FIGURE_MANIFEST_FILE, parseFigureDeclarations
 /** 作图规划文件名（阶段 5 的产物；「模型写脚本」之后的合同）。 */
 export const FIGURE_PLAN_FILE = 'FIGURE_PLAN.json'
 import { numericShapeOf, parseResultSources, RESULTS_LEDGER_FILE } from './execute-and-mint.ts'
-import { auditFiles, buildAllowlist, commentLines, verificationClaims } from './number-audit.ts'
+import { addRoundedVariants, auditFiles, buildAllowlist, commentLines, verificationClaims } from './number-audit.ts'
+import {
+  ANCHOR_REPORT_FILE, anchorsIn, blankFencedCode, parseAnchorReport,
+} from './anchor-resolve.ts'
 import {
   figurePlanValid, figureScriptQuality, figureScriptTraced, figureSizeBuckets, figureTextWithinAxes, figureTypeMatch,
 } from './figure-script-gates.ts'
@@ -1082,7 +1085,10 @@ const numbersTraced: GateFn = (input) => {
     return cannot(id, '既没有 PROBLEM_FACTS.json 也没有 DECLARATION.json —— '
       + '没有任何"出生证明来源"，无从判断某个数字是否有据')
   }
-  const allowed = buildAllowlist([facts, declared, ledger])
+  const allowed = new Set(buildAllowlist([facts, declared, ledger]))
+  // 账本数值的**四舍五入变体**也要算有出生证明：正文写"15.88"而账本存"15.8765432"
+  // 是正常写作（锚点替换与手写都可能这样）。变体全部由真值派生，偏差有界。
+  addRoundedVariants(ledger, allowed)
   // **编外数字登记簿的形态要先合法**（用户口径：可以有编外，但不能不可追溯）。
   // 一个"编外"数字必须能回答两件事：它出现在哪句话里（`quote`）、为什么它既不是
   // 模型常数也不是计算结果（`reason`）。缺任一项就是"凭空出现"——那正是要禁止的。
@@ -1279,6 +1285,464 @@ const noClaimedVerification: GateFn = (input) => {
     + ' —— 本阶段还没有代码执行，检验不可能跑过；把结论改成"检验方案（待执行）"')
 }
 
+// ══════════════════════════════════════════════════════════════════════════
+// 三道从参考实现**逐条移植**的代码级静态门禁
+//
+// 为什么现在补：简报里早就写着"门禁 `claim_code_check` 零方向知识逐条核""门禁
+// `data_ingest_check` 判硬失败""门禁 `facts_audit` 会扫代码里的裸数字"，但这三条
+// 门禁在 `GATES` 里**根本不存在**——契约在向模型承诺一个不会运行的检查。
+// 这是最坏的一种不一致：模型按"会被核"的假设写代码，实际无人核。
+//
+// 移植的是参考的**判据与哲学**（`claim_code_check.py` / `data_ingest_check.py` /
+// `facts_audit.py`），不是字面：参考用 Python 正则扫源码，这里同样用正则扫源码，
+// 逐条对齐它的白名单与上下文门控。**宁可漏报，不可误报**是三条共用的铁律——
+// 每一条的误报都会让模型去修一个不存在的问题（实测代价：反复重启、进度卡死）。
+// ══════════════════════════════════════════════════════════════════════════
+
+/** 本阶段目录里的 `code/*.py` 源码（递归收集后 `files` 的键形如 `code/problem1.py`）。 */
+function pySources(input: GateInput): ReadonlyArray<readonly [string, string]> {
+  return [...input.files.entries()].filter(([name]) => /^code\/.+\.py$/i.test(name))
+}
+
+/**
+ * 去掉**整行注释**（保留行号），防注释里的词骗过扫描。
+ *
+ * 对应参考 `claim_code_check.py::_load_code`：它只跳整行注释，不跳行内注释——
+ * 移植时保持同一口径，否则本文件的判据会比参考松/紧，两边不可比。
+ */
+function stripFullLineComments(src: string): string {
+  return src.split('\n').map(line => (line.trimStart().startsWith('#') ? '' : line)).join('\n')
+}
+
+/** 按正则搜；正则非法则退化为字面量搜（防上游写的模式编译报错拖垮整道闸）。 */
+function safeSearch(pattern: string, haystack: string): boolean {
+  try {
+    return new RegExp(pattern, 'i').test(haystack)
+  } catch {
+    return haystack.toLowerCase().includes(pattern.toLowerCase())
+  }
+}
+
+/** 一条 `METHOD_CLAIMS_MACHINE` 签名。 */
+export interface MethodClaim {
+  readonly id: string
+  readonly must: ReadonlyArray<string>
+  readonly forbid: ReadonlyArray<string>
+}
+
+/**
+ * 解析建模阶段的机器可核合同块 `<!-- METHOD_CLAIMS_MACHINE ... -->`。
+ *
+ * 格式（参考 `claim_code_check.py::_parse_contract` 逐字对齐）：
+ * ```
+ * <!-- METHOD_CLAIMS_MACHINE
+ * M1 | must: LpInteger, GRB.INTEGER | forbid: 就近配车, p_median
+ * -->
+ * ```
+ * 语义：`must` **至少命中一个**即算实现（need_any，防误判）；`forbid` 命中任一即铁证降级。
+ */
+export function parseMethodClaims(text: string): ReadonlyArray<MethodClaim> {
+  const block = /<!--\s*METHOD_CLAIMS_MACHINE\s*([\s\S]*?)-->/i.exec(text)
+  if (block === null) return []
+  const out: MethodClaim[] = []
+  for (const raw of (block[1] ?? '').split('\n')) {
+    const line = raw.trim()
+    if (line === '' || line.startsWith('#')) continue
+    const parts = line.split('|').map(p => p.trim())
+    let must: string[] = []
+    let forbid: string[] = []
+    for (const seg of parts.slice(1)) {
+      const low = seg.toLowerCase()
+      if (low.startsWith('must:')) {
+        must = seg.slice(5).split(',').map(x => x.trim()).filter(x => x !== '')
+      } else if (low.startsWith('forbid:')) {
+        forbid = seg.slice(7).split(',').map(x => x.trim()).filter(x => x !== '')
+      }
+    }
+    if (must.length > 0 || forbid.length > 0) out.push({ id: parts[0] ?? '?', must, forbid })
+  }
+  return out
+}
+
+/** 内置安全网规则（对应参考的 `RULES`，只收"命中即铁证、缺失即铁证"的强规则）。 */
+interface MethodRule {
+  readonly name: string
+  readonly claimKw: ReadonlyArray<string>
+  readonly needAny: ReadonlyArray<string>
+  readonly hint: string
+}
+
+/**
+ * 内置安全网：**仅两条**通用灾难级降级，不按方向扩充（扩充是 `METHOD_CLAIMS_MACHINE` 的活）。
+ *
+ * 触发词全部沿用参考收紧后的版本。参考对裸词"排队/泊松"的注释值得照抄一遍：
+ * 裸词会被论文背景与文献综述误命中（"交通排队现象""数据服从泊松分布"），
+ * 于是方法明明是确定性优化却被判"声称随机仿真但没实现"——**误报比漏报更贵**。
+ */
+const METHOD_RULES: ReadonlyArray<MethodRule> = [
+  {
+    name: '整数规划(整数决策变量)',
+    claimKw: ['整数规划', '混合整数', '\\bMILP\\b', '\\bMIP\\b', 'integer program'],
+    needAny: [
+      'LpInteger', "cat\\s*=\\s*['\"]Integer['\"]", 'GRB\\.INTEGER',
+      "vtype\\s*=\\s*['\"]?I", 'integrality\\s*=', 'cp_model', 'NewIntVar',
+      'Bool(ean)?Var', 'LpBinary', "cat\\s*=\\s*['\"]Binary['\"]",
+    ],
+    hint: '声称整数规划，但代码里找不到任何整数/0-1 变量标记'
+      + '（LpInteger/cat=Integer/GRB.INTEGER/integrality=/NewIntVar 等）。'
+      + '若实际用 scipy.optimize.linprog 且变量全连续 → 名不副实，改代码或改声称。',
+  },
+  {
+    name: '随机仿真(泊松到达/指数服务/蒙特卡洛/排队)',
+    claimKw: [
+      '蒙特卡洛', 'Monte\\s*Carlo', '\\bM/M/', '离散事件', '随机仿真', '到达过程',
+      '泊松到达', '泊松过程', '[Pp]oisson\\s*(?:arrival|process|到达|过程)',
+      '排队(?:仿真|模型|系统|网络|论)',
+    ],
+    // 铁证只认"到达过程 + 队列/事件结构"，**故意不收 exponential/expovariate**：
+    // "给固定值加一点指数噪声"也用 exponential，收了它就会把降级放过去。
+    needAny: [
+      '\\.poisson\\s*\\(', 'rng\\.poisson', 'np\\.random\\.poisson',
+      '\\bqueue\\b', 'heapq', 'simpy', 'interarrival',
+      '到达时刻', '到达间隔', 'arrival_time', 'event_list', 'SimTime',
+    ],
+    hint: '声称泊松/排队/蒙特卡洛仿真，但代码里找不到到达过程采样或队列/事件结构'
+      + '（poisson 到达 / queue / heapq / 到达时刻推进）。'
+      + '若只是给固定响应时间加一点指数噪声（如 base + exponential(0.3)）→ 不是仿真，'
+      + '必须补真到达采样+队列状态，或把声称改成"解析近似/敏感性扰动"。',
+  },
+]
+
+/**
+ * **声称 ↔ 代码实现**（移植 `claim_code_check.py`）。
+ *
+ * 两层，都是"代码有没有背叛建模声称"的方向无关核对：
+ * - (A) 通用合同（主）：执行建模阶段自己写的 `must`/`forbid` 签名，脚本零方向知识
+ *   ——数模/NLP/CV/RL 全靠同一引擎，加新方向不改脚本、不堆规则库；
+ * - (B) 内置安全网（兜底）：整数规划 / 随机仿真两条通用灾难级降级。
+ *
+ * 参考原话：*"凭印象退化成 plot/bar/scatter 是最常见的质量塌方"*，这条就是治它的。
+ */
+const claimCodeCheck: GateFn = (input) => {
+  const id = 'claim_code_check'
+  const sources = pySources(input)
+  if (sources.length === 0) {
+    return cannot(id, '本阶段没有 `code/*.py` —— 没有可核的实现，无法判断声称与代码是否一致')
+  }
+  // 声称来源：上游 MODELING_REPORT.md（阶段 2 的机器合同块就在这里）+ 本阶段 RESULTS.md。
+  // 参考还会并入 paper/sections，但论文在阶段 9，本阶段看不到——如实少一路来源。
+  const claimText = [
+    input.upstream.get('MODELING_REPORT.md') ?? '',
+    input.files.get('RESULTS.md') ?? '',
+  ].join('\n')
+  if (claimText.trim() === '') {
+    return cannot(id, '既没有上游 `MODELING_REPORT.md` 也没有本阶段 `RESULTS.md` —— 没有可核的方法声称')
+  }
+  const codeText = sources.map(([, src]) => stripFullLineComments(src)).join('\n')
+
+  const problems: string[] = []
+  let checked = 0
+  // (B) 内置安全网
+  for (const rule of METHOD_RULES) {
+    if (!rule.claimKw.some(p => safeSearch(p, claimText))) continue // 没声称这类方法 → 不检查
+    checked += 1
+    if (!rule.needAny.some(p => safeSearch(p, codeText))) problems.push(`[内置] ${rule.name}：${rule.hint}`)
+  }
+  // (A) 通用合同（执行建模者写的签名）
+  const contract = parseMethodClaims(claimText)
+  for (const c of contract) {
+    if (c.must.length > 0 && !c.must.some(p => safeSearch(p, codeText))) {
+      problems.push(`[合同 ${c.id}·must] 声称需实现但代码找不到任一必备签名：${c.must.join('、')}`)
+    }
+    const hitForbid = c.forbid.filter(p => safeSearch(p, codeText))
+    if (hitForbid.length > 0) {
+      problems.push(`[合同 ${c.id}·forbid] 代码出现建模报告明令禁止的降级签名：${hitForbid.join('、')}`)
+    }
+  }
+
+  if (problems.length > 0) {
+    return fail(id, `${String(problems.length)} 条方法声称与代码实现脱钩（名不副实/降级冒充）—— `
+      + problems.slice(0, 5).join('；')
+      + '。修复：要么把代码补成真正实现该方法，要么把建模报告/正文的声称改成代码真做的事'
+      + '（合同 must/forbid 签名由建模阶段针对本题所填，方向无关）。')
+  }
+  const contractNote = contract.length === 0
+    ? '；⚠ `MODELING_REPORT.md` 无 `METHOD_CLAIMS_MACHINE` 合同块 —— 仅内置安全网生效，'
+      + '本题特有方法**无人核**（建议阶段 2 补机器可核签名）'
+    : `；通用合同核对了 ${String(contract.length)} 条签名`
+  return ok(id, `内置安全网检查了 ${String(checked)} 类方法声称，全部有实现铁证${contractNote}`)
+}
+
+/** 把三引号块整段置空但保留换行数（维持行号映射）——对应参考 `_blank_triple_quoted`。 */
+function blankTripleQuoted(src: string): string {
+  return src.replace(/'''[\s\S]*?'''|"""[\s\S]*?"""/g, m => '\n'.repeat(m.split('\n').length - 1))
+}
+
+/**
+ * 去掉一行里**字符串外**的 `#` 注释（整行注释 → 返回空串），保留字符串里的 `#`。
+ *
+ * 字符级扫描、跳过引号内内容——对应参考 `_strip_line_comment`。防注释/docstring 里
+ * 贴的 `pd.read_excel(f)` 被当真代码误判为硬失败。
+ */
+function stripLineComment(line: string): string {
+  let quote = ''
+  let i = 0
+  while (i < line.length) {
+    const c = line[i] ?? ''
+    if (quote !== '') {
+      if (c === '\\') { i += 2; continue }
+      if (c === quote) quote = ''
+      i += 1
+      continue
+    }
+    if (c === "'" || c === '"') quote = c
+    else if (c === '#') return line.slice(0, i)
+    i += 1
+  }
+  return line
+}
+
+/** 剥三引号块 + 逐行去注释（保留行号）——对应参考 `_strip_comment_lines`。 */
+function stripComments(src: string): string {
+  return blankTripleQuoted(src).split('\n').map(stripLineComment).join('\n')
+}
+
+/** 从 `text[openIdx] === '('` 开始做括号配平，跳过引号内内容，返回匹配 `)` 的下标（找不到 -1）。 */
+function matchParen(text: string, openIdx: number): number {
+  let depth = 0
+  let i = openIdx
+  let quote = ''
+  while (i < text.length) {
+    const c = text[i] ?? ''
+    if (quote !== '') {
+      if (c === '\\') { i += 2; continue }
+      if (c === quote) quote = ''
+      i += 1
+      continue
+    }
+    if (c === "'" || c === '"') quote = c
+    else if (c === '(') depth += 1
+    else if (c === ')') {
+      depth -= 1
+      if (depth === 0) return i
+    }
+    i += 1
+  }
+  return -1
+}
+
+/**
+ * **数据摄入完整性**（移植 `data_ingest_check.py`）——防"静默少喂数据"。
+ *
+ * 最典型的坑：`pd.read_excel` 不写 `sheet_name` → pandas 默认只读第一个 sheet、
+ * 不报错不告警 → 多 sheet 数据被静默丢掉。程序照常跑完，结果全是错的。
+ *
+ * 唯一硬失败项就是它（零成本、无歧义的铁证）；`nrows=` / `.head(大数)` / 大切片
+ * 这类"疑似截断"只报警告——静态查不出用途，可能只是探查预览。
+ */
+const dataIngestCheck: GateFn = (input) => {
+  const id = 'data_ingest_check'
+  const sources = pySources(input)
+  if (sources.length === 0) {
+    return cannot(id, '本阶段没有 `code/*.py` —— 没有数据读取代码可扫')
+  }
+  const excelCall = /(?<![\w.])(?:pd\.|pandas\.)?read_excel\s*\(/g
+  const sheetKw = /sheet_name\s*=/
+  const parseCall = /\.parse\s*\(/g
+  const nrows = /\bnrows\s*=\s*(\d+)/
+  const headCall = /\.head\s*\(\s*(\d{4,})\s*\)/
+  const sliceCall = /\[\s*:\s*(\d{4,})\s*\]/
+
+  const hard: string[] = []
+  const warns: string[] = []
+  let usedExcel = false
+  for (const [name, raw] of sources) {
+    const src = stripComments(raw)
+    const lineOf = (idx: number): number => src.slice(0, idx).split('\n').length
+    // 1) read_excel 无 sheet_name → 硬失败
+    for (const m of src.matchAll(excelCall)) {
+      const openIdx = src.indexOf('(', m.index)
+      const closeIdx = matchParen(src, openIdx)
+      const args = closeIdx > openIdx ? src.slice(openIdx, closeIdx + 1) : src.slice(openIdx, openIdx + 200)
+      if (!sheetKw.test(args)) {
+        hard.push(`${name}:${String(lineOf(m.index))} read_excel(...) 未写 sheet_name= —— `
+          + 'pandas 默认只读第 1 个 sheet 且不报错，多 sheet 数据会被静默丢掉。'
+          + '改成 sheet_name=None 读全部并合并，或显式写死用哪张并在注释里说明理由')
+      }
+    }
+    // 2) ExcelFile(...).parse() 空参 → 硬失败。
+    //    上下文门控：文件里没出现过 ExcelFile 就不查 .parse()，否则会误伤
+    //    dateutil.parser.parse() / 自定义 obj.parse() 等无辜空参调用（宁漏勿误）。
+    if (src.includes('ExcelFile')) {
+      for (const m of src.matchAll(parseCall)) {
+        const openIdx = src.indexOf('(', m.index)
+        const closeIdx = matchParen(src, openIdx)
+        const args = closeIdx > openIdx ? src.slice(openIdx, closeIdx + 1) : src.slice(openIdx, openIdx + 200)
+        const firstArg = args.replace(/^\(+/, '').replace(/\)+$/, '').split(',')[0]?.trim() ?? ''
+        if (!sheetKw.test(args) && firstArg === '') {
+          hard.push(`${name}:${String(lineOf(m.index))} ExcelFile.parse() 未指定 sheet —— `
+            + '同样默认只读首表，请显式传 sheet 名/索引，或改用 read_excel(sheet_name=None)')
+        }
+      }
+    }
+    if (excelCall.test(src) || src.includes('ExcelFile')) usedExcel = true
+    excelCall.lastIndex = 0
+    // 3) 截断写法 → 警告（不阻断）
+    for (const m of src.matchAll(new RegExp(nrows.source, 'g'))) {
+      warns.push(`${name}:${String(lineOf(m.index))} nrows=${m[1] ?? ''} —— 若这是建模用数据，`
+        + '顺序截断会丢样本且引入顺序偏差；确需抽样用 df.sample(n=, random_state=) 并声明"抽样 X / 总量 Y"')
+    }
+    for (const [re, tag] of [[headCall, '.head('], [sliceCall, '切片 [:N]']] as const) {
+      for (const m of src.matchAll(new RegExp(re.source, 'g'))) {
+        warns.push(`${name}:${String(lineOf(m.index))} ${tag}${m[1] ?? ''}) —— 疑似把大数据顺序截断当抽样，`
+          + '确认是探查预览而非喂给模型的训练/建模数据')
+      }
+    }
+  }
+  // 用了 Excel 却没有机器建档 → 警告（行数断言的权威基准还没建）
+  if (usedExcel && !input.files.has('DATA_PROFILE.json')) {
+    warns.push('代码读了 Excel，但本阶段没有 `DATA_PROFILE.json` —— "读没读全"缺少机器基准，'
+      + '行数断言会退化成靠记忆手填（易随上下文漂移出错）')
+  }
+  if (hard.length > 0) {
+    return fail(id, `${String(hard.length)} 处数据读取存在"静默只读一部分"的写法 —— `
+      + hard.slice(0, 4).join('；')
+      + '。修复：Excel 读取必须显式表明读哪张表（`sheet_name=None` 读全部 / 写死某张并注明），'
+      + '禁止依赖"默认只读首表"。')
+  }
+  return ok(id, `扫描 ${String(sources.length)} 个 .py：所有 Excel 读取都显式声明了 sheet_name`
+    + `（无静默首表陷阱）${warns.length > 0 ? `；⚠ ${String(warns.length)} 处疑似截断待人工确认（${warns[0]?.slice(0, 80) ?? ''}）` : ''}`)
+}
+
+/** 数字字面量：数字后允许跟字母（单位），但禁止跟点或数字（避免抓章节号 1.2.3）。 */
+const FACT_NUM_RE = /(?<![\w.])([-+]?\d+\.\d+|\d+)(?![.\d])/g
+/** 数字白名单：常用辅助常数，不参与"虚构"判定（参考 `WHITELIST` 逐字对齐）。 */
+const FACT_WHITELIST = new Set([0, 1, 2, 3, 4, 5, 10, 100, 1000, 60, 24, 0.5, 1.5, -1])
+/** 抽 facts 时跳过的元信息键（参考 `SKIP_KEYS`）。 */
+const FACT_SKIP_KEYS = new Set(['source', 'raw_quote', 'machine_check', 'factor', 'sha256', 'path', 'note'])
+
+/** 从 facts 嵌套结构里递归抽数值字段（跳过元信息键）。对应参考 `extract_numbers_from_facts`。 */
+function numbersFromFacts(node: unknown, out: Set<number>): void {
+  if (typeof node === 'number') {
+    if (Number.isFinite(node)) out.add(Math.round(node * 1e4) / 1e4)
+    return
+  }
+  if (Array.isArray(node)) { for (const v of node) numbersFromFacts(v, out); return }
+  if (typeof node === 'object' && node !== null) {
+    for (const [k, v] of Object.entries(node)) {
+      if (k.startsWith('_') || FACT_SKIP_KEYS.has(k)) continue
+      numbersFromFacts(v, out)
+    }
+  }
+}
+
+/**
+ * **代码裸数字审计**（移植 `facts_audit.py::audit_code_against_facts` + `audit_params_py_enforced`）。
+ *
+ * ⚠ **这条是警告级，不是硬失败**——参考里它的产物全部以 `⚠` 开头（exit 2，可继续）。
+ * 移植时保持同一强度：代码里的 `dpi=300`、`figsize=(10,6)`、`1e-9`、`range(1000)`
+ * 都是合法写法，把它判成硬失败会制造大量误报，而误报的代价是模型去修不存在的问题。
+ *
+ * 判据两条：
+ * 1. 代码里的数字字面量既不在白名单、也不在题面给定值/模型常数里 → 疑似虚构；
+ * 2. 有数字字面量却不 `import params` 的文件 → 可能凭印象写裸数字（常数没走契约）。
+ */
+const factsAudit: GateFn = (input) => {
+  const id = 'facts_audit'
+  const sources = pySources(input)
+  if (sources.length === 0) return cannot(id, '本阶段没有 `code/*.py` —— 没有可扫的代码')
+  const factsRaw = input.upstream.get('PROBLEM_FACTS.json') ?? null
+  const declaredRaw = input.upstream.get('DECLARATION.json') ?? input.files.get('DECLARATION.json') ?? null
+  if (factsRaw === null && declaredRaw === null) {
+    return cannot(id, '既没有 `PROBLEM_FACTS.json` 也没有 `DECLARATION.json` —— '
+      + '没有"题面给定值/模型常数"的基准集合，无从判断代码里的数字有没有来源')
+  }
+  const allowed = new Set<number>()
+  for (const raw of [factsRaw, declaredRaw]) {
+    if (raw === null) continue
+    try {
+      numbersFromFacts(JSON.parse(raw) as unknown, allowed)
+    } catch { /* 上游 JSON 坏了由它自己的门禁报，这里不重复报 */ }
+  }
+  const suspicious: string[] = []
+  const noParams: string[] = []
+  for (const [name, raw] of sources) {
+    const base = name.split('/').pop() ?? name
+    if (base === 'params.py') continue // 契约文件本身就是常数的出处
+    const lines = raw.split('\n')
+    let hits = 0
+    lines.forEach((line, i) => {
+      const s = line.trim()
+      if (s.startsWith('#') || s.startsWith('import') || s.startsWith('from')) return
+      for (const m of line.matchAll(new RegExp(FACT_NUM_RE.source, 'g'))) {
+        const v = Number(m[1])
+        if (!Number.isFinite(v)) continue
+        const r4 = Math.round(v * 1e4) / 1e4
+        if (FACT_WHITELIST.has(v) || allowed.has(r4)) continue
+        hits += 1
+        if (suspicious.length < 12) {
+          suspicious.push(`${name}:${String(i + 1)} 值=${String(v)} ${s.slice(0, 60)}`)
+        }
+      }
+    })
+    if (hits > 0 && !/^\s*(?:from\s+params\s+import|import\s+params)/m.test(raw)) noParams.push(name)
+  }
+  const notes: string[] = []
+  if (suspicious.length > 0) {
+    notes.push(`${String(suspicious.length)} 处数字字面量既不在白名单也不在题面给定值/模型常数里`
+      + `（${suspicious.slice(0, 3).join('；')}${suspicious.length > 3 ? '…' : ''}）—— `
+      + '若它是模型常数，登记进 `DECLARATION.json` 的 `model_constants`；若是题面给定值，走 `params.py`')
+  }
+  if (noParams.length > 0) {
+    notes.push(`${String(noParams.length)} 个文件有数字字面量却未 \`from params import *\`（${noParams.slice(0, 5).join('、')}）`
+      + '—— 可能凭印象写裸数字；数值常数应从 `params.py` 取')
+  }
+  if (notes.length === 0) {
+    return ok(id, `扫描 ${String(sources.length)} 个 .py：数字字面量都有来源（白名单/题面给定值/模型常数），且常数走契约`)
+  }
+  return ok(id, `⚠ 警告级（不阻断）：${notes.join('；')}`)
+}
+
+/**
+ * **论文声称核对** —— "装配而非推理"这一前提的机械强制手段。
+ *
+ * 判据是**锚点必须落地**：正文里每个 `{R-…}` 都要能解析到阶段 4 铸出的账本
+ * （`results.json`）。落地的那部分由 harness 在模型落盘后**替换成真值**
+ * （`anchor-resolve.ts`），所以走到门禁时**剩下的锚点就是没落地的**——它们是两类真实缺陷：
+ * - 账本里根本没有这个 id → 论文引用了一个不存在的结果（凭空写出来的"成果"）；
+ * - 值是数组/矩阵 → 不能内联成数值，正文该写"见图 N / 见表 N"。
+ *
+ * 两类都会**原样印进最终 Word**（`docx_precheck` 只认 `{<result_id>}` 尖括号形态，
+ * `numbers_traced` 把 `{…}` 整段剥掉），所以这条门禁是它们唯一的拦截点。
+ */
+const paperClaimCheck: GateFn = (input) => {
+  const id = 'paper_claim_check'
+  const paper = text(input, 'paper/main.md')
+  if (paper === null) return fail(id, '`paper/main.md` 不存在 —— 没有可核对的正文')
+  const ledgerRaw = input.upstream.get(RESULTS_LEDGER_FILE) ?? null
+  if (ledgerRaw === null) {
+    return cannot(id, '上游没有 `results.json`（阶段 4 铸出的账本）—— '
+      + '没有可核对的落地，无从判断正文里的结果锚点是否有据')
+  }
+  const report = parseAnchorReport(input.files.get(ANCHOR_REPORT_FILE) ?? null)
+  // 权威判据是**扫正文**（报告只是证据补充）：报告坏掉/没写都不影响判定。
+  const leftover = anchorsIn(blankFencedCode(paper))
+  const resolvedNote = report === null || report.resolved === 0
+    ? ''
+    : `；另 ${String(report.resolved)} 个锚点已由 harness 换成账本真值`
+  if (leftover.length === 0) {
+    return ok(id, `正文里的结果锚点全部落地${resolvedNote}`)
+  }
+  const reasons = new Map((report?.unresolved ?? []).map(u => [u.id, u.reason]))
+  const parts = leftover.slice(0, 4).map(a => `${a}（${reasons.get(a) ?? '未能替换'}）`)
+  return fail(id, `${String(leftover.length)} 个结果锚点**没能落地**（会原样印进最终 Word）—— `
+    + parts.join('；')
+    + '。补救：**账本里有的**结果就直接写它的值（harness 会把锚点换成真值，无需你手打）；'
+    + '**账本里没有的**说明上游没有这个结果——回阶段 3/4 把它真算出来并登记，'
+    + '或者把这句话改成上游真有的结果；**数组/矩阵类结果**（扫描表、组合矩阵、样本序列）'
+    + '在正文里要写成"见图 N"或"见表 N"，不能当数值内联。')
+}
+
 /**
  * 门禁登记表。
  *
@@ -1309,6 +1773,10 @@ export const GATES: ReadonlyMap<string, GateFn> = new Map<string, GateFn>([
   ['code_parity', codeParity],
   ['code_name_consistency', codeNameConsistency],
   ['ledger_keys_declared', ledgerKeysDeclared],
+  // 三条**代码级静态扫描**（从参考逐条移植，2026-10 补：此前简报承诺了它们却不存在）
+  ['claim_code_check', claimCodeCheck],
+  ['data_ingest_check', dataIngestCheck],
+  ['facts_audit', factsAudit],
   // 阶段 3 同样不许写没有出生证明的数字（此时还没有账本，所以只能写锚点）
   ['numbers_traced', numbersTraced],
   // 阶段 3 的数由 harness 铸出（runCodeAndMintResults）：账本存在、非空、
@@ -1426,10 +1894,8 @@ export const GATES: ReadonlyMap<string, GateFn> = new Map<string, GateFn>([
       ? ok(id, `上游三件产物各 ≥500 字符`)
       : fail(id, `上游产物过短或缺失：${short.join('、')} —— 论文没有可装配的原料`)
   }],
-  ['paper_claim_check', () => cannot('paper_claim_check',
-    '未实现：参考的 paper_claim_check.py 要核对"将写进论文的每条结果在上游已有已核验的落地"。'
-    + '这是阶段 7"装配而非推理"这一前提的**机械强制手段**，优先级最高——'
-    + '实现它需要把 Result/Claim 与论文里出现的数字连起来（零数字通道已有这个能力，待接）。')],
+  ['paper_claim_check', paperClaimCheck],
+
   // ── 阶段 8 ────────────────────────────────────────────────────────────
   ['improve_terminated', improveTerminated],
   // ── 阶段 9 ────────────────────────────────────────────────────────────
