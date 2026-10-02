@@ -30,5 +30,5 @@
   "unverifiedGates": [
     "diagram_manifest_reconcile"
   ],
-  "staleReason": "阶段 'code' 逐节点审计未通过 —— 下游前提不成立"
+  "staleReason": "阶段 'code' 门禁未通过（code 1）—— 下游前提不成立"
 }
