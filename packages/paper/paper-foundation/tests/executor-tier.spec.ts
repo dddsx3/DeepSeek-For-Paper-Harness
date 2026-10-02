@@ -317,7 +317,9 @@ describe('W4 red-team leaves on the producing EXECUTE path', () => {
     const { ctx } = await harnessWithProvider(provider)
     void ctx
     expect(provider.seen.some(prompt => prompt.includes('RETRY GUIDANCE') && prompt.includes('ir-container-v1'))).toBe(true)
-  })
+    // 显式超时：这条要走一次"散文 → 引导重试 → 容器"的完整回路，机器忙时超过 5 秒默认值
+    // ——那是**负载**，不是缺陷（孤立跑稳定通过）。
+  }, 120_000)
 
   it('DRIFT: schema-violation first, corrected after the field-level guidance — completes with the id table named', async () => {
     const provider = queuedProvider([driftContainer(), polarContainer()])

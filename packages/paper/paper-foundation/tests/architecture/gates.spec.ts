@@ -271,26 +271,32 @@ describe('阶段 11 的导出前校核', () => {
 })
 
 describe('未实现的判据给 2，**绝不给 0**', () => {
-  it('每个未实现的门禁都写明"需要什么才算实现"', () => {
+  it('**参考里点名的判据已全部落地**——这份清单现在是空的', () => {
     // 这份清单是**断言**：实现一条就删一条。于是"哪些判据其实没跑"永远可回答——
-    // 它不会随着时间悄悄变成"都实现了"。
-    // S5b 删掉了 5 条：figure_manifest_reconcile / figure_declaration_complete /
-    // diagram_manifest_reconcile / diagram_geometry / docx_precheck（它们要的输入
-    // ——机器可读的清单、声明、SVG 字节——现在都由阶段 4/5/11 真的产出了）。
-    // S6 删掉了 `modeling_coverage`：它要的输入（能力项 id 的引用）现在由阶段 2 的
-    // `ModelSpec.checklist_refs` 真的产出，判据落在"id 逐字命中"上——不再是"待定义形态"。
-    // S7 删掉了 `paper_claim_check`：判据落在"正文里残留的结果锚点"上（账本已由阶段 4 铸出），
-    // 落地的那部分由 harness 在阶段 9 的 afterModel 里换成真值。
-    // S7 又删掉 `modeling_self_check`：判据落在 `DECLARATION.json` 的**结构**上
-    // （符号表/公式/约束非空、每个 ModelSpec 有 objective、逐问覆盖、约束形态可核），
-    // 机械判不了的两项（问题递进性、灵敏度计划）在 detail 里如实说明、不假装判过。
-    const unimplemented = ['capability_check']
+    // 它不会随着时间悄悄变成"都实现了"。历史（每一轮都是拿真实产物探出来的）：
+    // - S5b 删掉 5 条：figure_manifest_reconcile / figure_declaration_complete /
+    //   diagram_manifest_reconcile / diagram_geometry / docx_precheck（它们要的输入
+    //   ——机器可读的清单、声明、SVG 字节——由阶段 4/5/11 真的产出了）。
+    // - S6 删掉 `modeling_coverage`：能力项 id 的引用由阶段 2 的 `ModelSpec.checklist_refs` 产出。
+    // - S7 删掉 `paper_claim_check`（判据落在"正文残留的结果锚点"上，落地的那部分由
+    //   阶段 9 的 afterModel 换成账本真值）、`modeling_self_check`（落在 DECLARATION.json
+    //   的结构上）、`delivery_audit`（声明与磁盘一致，三类分别判）、`capability_check`
+    //   （逐句表 ↔ 能力清单逐条比对——逐句表本来就是四列机器可读形态）。
+    const unimplemented: ReadonlyArray<string> = []
     for (const id of unimplemented) {
       const v = run(id, input({}))
       expect(v.code, `${id} 应当是 2（无法判定）`).toBe(2)
       expect(v.items[0]?.detail, `${id} 没写明缺什么`).toContain('未实现')
       expect(v.items[0]?.detail.length, `${id} 的说明太短`).toBeGreaterThan(30)
     }
+    // 清单空了也要能证明"没漏"：`GATES` 里不该再有任何写明"未实现"的条目。
+    // 判据落在**文本**上（而不是调用结果）——因为"缺输入"与"未实现"都会给 2，
+    // 只有 detail 里的"未实现"三个字能区分它们。
+    const stubbed = [...GATES.entries()].filter(([, fn]) => {
+      const v = fn(input({}))
+      return v.code === 2 && (v.items[0]?.detail ?? '').includes('未实现')
+    }).map(([id]) => id)
+    expect(stubbed, `这些门禁还写着"未实现"：${stubbed.join('、')}`).toEqual([])
   })
 
   it('**聚合顺序：硬失败优先于无法判定**（明确的失败比未知更该被看见）', () => {
@@ -1026,5 +1032,71 @@ describe('modeling_self_check —— 建模阶段的**结构**自检（参考 9 
     const v = run1({ 'DECLARATION.json': decl({ result_constraints: ['要保证成本不超过预算'] }) })
     expect(v.code).toBe(1)
     expect(v.items[0]?.detail).toContain('比较运算符')
+  })
+})
+
+// ══════════════════════════════════════════════════════════════════════════
+describe('capability_check —— 逐句表 ↔ 能力清单（阶段 1 的"漏列即漏核"闸）', () => {
+  const cl = JSON.stringify({ capabilities: [
+    { id: 'C-Q1-PLAN', required_output: '抽样方案', source_sentence: '请设计检测方案。' },
+    { id: 'C-Q2-MODEL', required_output: '决策', source_sentence: '请作出决策。' },
+  ] })
+  const table = (rows: ReadonlyArray<string>): string => [
+    '# 赛题分析', '', '| 句子 | 原文 | 类型 | 认领它的能力项 |', '|---|---|---|---|', ...rows, '',
+  ].join('\n')
+  const run1 = (analysis: string, checklist = cl) =>
+    runGates(['capability_check'], input({ 'PROBLEM_ANALYSIS.md': analysis, 'CAPABILITY_CHECKLIST.json': checklist }))
+
+  it('逐句表齐备 → 0', () => {
+    const v = run1(table([
+      '| S01 | 请设计检测方案。 | 目标 | C-Q1-PLAN |',
+      '| S02 | 请作出决策。 | 决策 | C-Q2-MODEL |',
+      '| S03 | 题面背景。 | 数据 | C-Q1-PLAN |',
+    ]))
+    expect(v.code).toBe(0)
+    expect(v.items[0]?.detail).toContain('"决策/目标/机制" 2 条')
+  })
+
+  it('缺输入 / 没有可解析的逐句表 → 2（不是通过）', () => {
+    expect(run1(table(['| S01 | x | 目标 | C-Q1-PLAN |']), '').code).toBe(1)  // 清单坏 → 1
+    expect(runGates(['capability_check'], input({ 'CAPABILITY_CHECKLIST.json': cl })).code).toBe(2)
+    expect(run1('# 只有散文，没有逐句表').code).toBe(2)
+  })
+
+  it('**一条"决策/目标/机制"句没人认领 → 1**（这类句子决定"要做成什么"）', () => {
+    const v = run1(table([
+      '| S01 | 请设计检测方案。 | 目标 | C-Q1-PLAN |',
+      '| S02 | 请作出决策。 | 决策 |  |',
+    ]))
+    expect(v.code).toBe(1)
+    expect(v.items[0]?.detail).toContain('S02')
+  })
+
+  it('**悬空引用**（认领的 id 清单里没有）→ 1', () => {
+    const v = run1(table([
+      '| S01 | 请设计检测方案。 | 目标 | C-NOT-EXIST |',
+      '| S02 | 请作出决策。 | 决策 | C-Q2-MODEL |',
+    ]))
+    expect(v.code).toBe(1)
+    expect(v.items[0]?.detail).toContain('C-NOT-EXIST')
+  })
+
+  it('**警告级**：清单里有能力项没被任何句引用 → 仍是 0，但点名它', () => {
+    const v = run1(table([
+      '| S01 | 请设计检测方案。 | 目标 | C-Q1-PLAN |',
+      '| S02 | 请作出决策。 | 决策 | C-Q1-PLAN |',
+    ]))
+    expect(v.code).toBe(0)
+    expect(v.items[0]?.detail).toContain('C-Q2-MODEL')
+    expect(v.items[0]?.detail).toContain('⚠')
+  })
+
+  it('**零误报**："数据/约束/输出"类句子没人认领不算失败（参考只点名决策/目标/机制）', () => {
+    const v = run1(table([
+      '| S01 | 请设计检测方案。 | 目标 | C-Q1-PLAN |',
+      '| S02 | 请作出决策。 | 决策 | C-Q2-MODEL |',
+      '| S03 | 标称值为 10%。 | 数据 |  |',
+    ]))
+    expect(v.code).toBe(0)
   })
 })

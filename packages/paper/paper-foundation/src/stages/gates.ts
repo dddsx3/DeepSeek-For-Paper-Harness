@@ -1954,6 +1954,86 @@ const modelingSelfCheck: GateFn = (input) => {
 }
 
 /**
+ * **能力项 ↔ 逐句表**（移植 `capability_check.py`）—— 阶段 1 的"漏列即漏核"闸。
+ *
+ * 参考的判据：`PROBLEM_ANALYSIS.md` 的逐句表里**每条"决策/目标/机制"句都必须被某个
+ * 能力项的 `source_sentence` 认领**。为什么关键：能力清单是后面每一阶段的对照表，
+ * 漏一条能力项 = 某一问根本没建模，而报告照样能写得很长。
+ *
+ * 逐句表的机器可读形态（实测 2024B 已经就是这个形态，22 行、四列）：
+ * ```
+ * | S06 | 请为企业设计检测次数尽可能少的抽样检测方案。 | 目标 | C-Q1-PLAN |
+ * ```
+ * 两处**零歧义**的缺陷判硬失败：
+ * ① 一条"决策/目标/机制"句的认领列是空的（没人认领它）；
+ * ② 认领列写的 id 在 `CAPABILITY_CHECKLIST.json` 里不存在（悬空引用）。
+ *
+ * 一处**有歧义**的只给警告：清单里有能力项没被任何句引用——它可能是合理派生的能力项
+ * （题面没直说但确实要做），所以不判失败，只在结论里点名。
+ */
+const capabilityCheck: GateFn = (input) => {
+  const id = 'capability_check'
+  const analysis = input.files.get('PROBLEM_ANALYSIS.md') ?? input.upstream.get('PROBLEM_ANALYSIS.md') ?? null
+  const checklistRaw = input.files.get('CAPABILITY_CHECKLIST.json')
+    ?? input.upstream.get('CAPABILITY_CHECKLIST.json') ?? null
+  if (analysis === null) return cannot(id, '没有 `PROBLEM_ANALYSIS.md` —— 没有逐句表可比对')
+  if (checklistRaw === null) return cannot(id, '没有 `CAPABILITY_CHECKLIST.json` —— 没有能力清单可比对')
+  const rows = [...analysis.matchAll(/^\|\s*(S\d+)\s*\|([^|\n]*)\|([^|\n]*)\|([^|\n]*)\|\s*$/gm)].map(m => ({
+    sentence: m[1] ?? '',
+    text: (m[2] ?? '').trim(),
+    kind: (m[3] ?? '').trim(),
+    claim: (m[4] ?? '').trim(),
+  }))
+  if (rows.length === 0) {
+    return cannot(id, '`PROBLEM_ANALYSIS.md` 里没有可解析的逐句表'
+      + '（形态应为 `| S01 | 题面原句 | 类型 | 认领它的能力项 id |`）—— 没有对照表，无从逐条比对')
+  }
+  let capIds: ReadonlySet<string>
+  try {
+    const parsed: unknown = JSON.parse(checklistRaw)
+    const list = (parsed as { capabilities?: unknown }).capabilities ?? (parsed as { items?: unknown }).items
+    capIds = new Set((Array.isArray(list) ? list : [])
+      .map(c => (typeof c === 'object' && c !== null ? (c as { id?: unknown }).id : undefined))
+      .filter((x): x is string => typeof x === 'string' && x !== ''))
+  } catch (error) {
+    return fail(id, `\`CAPABILITY_CHECKLIST.json\` 不是合法 JSON（${String(error).slice(0, 60)}）`
+      + ' —— 它是后面每一阶段的对照表，必须能被解析')
+  }
+  if (capIds.size === 0) return fail(id, '`CAPABILITY_CHECKLIST.json` 里一条能力项都没有')
+
+  // ① "决策/目标/机制"句必须被认领（这是参考点名的三类——它们决定"要做成什么"）
+  const mustClaim = rows.filter(r => /决策|目标|机制/.test(r.kind))
+  const unclaimed = mustClaim.filter(r => r.claim === '' || r.claim === '-' || r.claim === '—')
+  // ② 悬空引用：认领的 id 在清单里不存在
+  const dangling = rows.filter((r) => {
+    const ids = r.claim.match(/C-[A-Za-z0-9_-]+/g) ?? []
+    return ids.length > 0 && ids.some(x => !capIds.has(x))
+  })
+  // ③ 清单里没被任何句引用的能力项（**警告级**：可能是合理派生的能力项）
+  const referenced = new Set(rows.flatMap(r => r.claim.match(/C-[A-Za-z0-9_-]+/g) ?? []))
+  const orphan = [...capIds].filter(c => !referenced.has(c))
+
+  const problems: string[] = []
+  if (unclaimed.length > 0) {
+    problems.push(`${String(unclaimed.length)} 条"决策/目标/机制"句**没人认领**（认领列是空的）：`
+      + `${unclaimed.slice(0, 4).map(r => `${r.sentence}「${r.text.slice(0, 24)}…」`).join('、')}`
+      + ' —— 这类句子决定"要做成什么"，没人认领就是那一问没建模')
+  }
+  if (dangling.length > 0) {
+    const bad = [...new Set(dangling.flatMap(r => (r.claim.match(/C-[A-Za-z0-9_-]+/g) ?? []).filter(x => !capIds.has(x))))]
+    problems.push(`${String(bad.length)} 个**悬空引用**：逐句表里认领的 id 在能力清单里不存在`
+      + `（${bad.slice(0, 6).join('、')}）—— 要么清单里补上这条能力项，要么改成真有的 id`)
+  }
+  const orphanNote = orphan.length === 0
+    ? ''
+    : `；⚠ ${String(orphan.length)} 条能力项没被任何句子引用（可能是合理派生的能力项，`
+      + `请自行确认它们不是凭空加的）：${orphan.slice(0, 6).join('、')}`
+  if (problems.length > 0) return fail(id, problems.join('；') + orphanNote)
+  return ok(id, `逐句表 ${String(rows.length)} 条（其中"决策/目标/机制" ${String(mustClaim.length)} 条）`
+    + `全部被能力项认领，认领 id 都在清单里（清单 ${String(capIds.size)} 条）${orphanNote}`)
+}
+
+/**
  * 门禁登记表。
  *
  * **未实现的判据给 `2`**，并在 `detail` 里写明"需要什么才算实现"——它们不是"忘了写"，
@@ -1964,10 +2044,7 @@ export const GATES: ReadonlyMap<string, GateFn> = new Map<string, GateFn>([
   ['prob_analysis_floor', i => byteFloor(i, 'prob_analysis_floor', 'PROBLEM_ANALYSIS.md', 1500)],
   ['figure_manifest_anchors', figureManifestAnchors],
   ['figure_manifest_count', figureManifestCount],
-  ['capability_check', () => cannot('capability_check',
-    '未实现：参考的 capability_check.py 要跨 PROBLEM_ANALYSIS.md 的逐句表与 CAPABILITY_CHECKLIST.json '
-    + '逐条比对（每条"决策/目标/机制"句必须被某个能力项的 source_sentence 认领）。'
-    + '实现它需要先定义逐句表的机器可读形态。')],
+  ['capability_check', capabilityCheck],
   // 阶段 1 另有锚点契约（E1 的锚，保真门 B3/B4 依赖它）
   ['anchor_presence', anchorPresence],
   // ── 阶段 2 ────────────────────────────────────────────────────────────
