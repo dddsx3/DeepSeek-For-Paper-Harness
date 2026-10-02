@@ -5,3 +5,20 @@
   [deterministic] code: 分片 2/8 交付 code/params.py
   [deterministic] code: 分片 3/8 交付 code/problem1.py
   [deterministic] code: 分片 4/8 交付 code/problem2.py
+  [deterministic] code: 回答未正常结束（模型调用未正常结束（finish=error：provider stream error: Streaming resp），改为"压缩"请求重问一次
+  [deterministic] code: 分片 5/8 交付 code/problem3.py
+  [deterministic] code: 分片 6/8 交付 code/problem4.py
+  [deterministic] code: 分片 7/8 交付 RESULTS.md
+  [deterministic] code: 分片 8/8 交付 DELIVERABLES.json
+  [deterministic] code: 逐节点审计（space-bunny-free）：fail，质量分 0.48，要求 6/8 项完成，4 条 findings
+[STAGE NEXT] 只跑了 'code'，到此即停。检查 artifacts\upper-bound\2024B-ingest-1\stages 后，放行 = 再执行一次 --stages --stage-next。
+  ❌ code: 逐节点审计未通过：审计未通过：2 条 fatal（code/problem2.py:_component_transition：对 current_quality == _EMPTY 且执行零件检测的分支，期；code/problem3.py、RESULTS.md 第四/八节、DELIVERABLES.json 的 problem3 产物：题面问题三要求针对图1这一具体两级、八零件装配系统给出决策和指标，但产物明确将正）；质量分 0.48 < 阈值 0.70；交付结构不完整（缺：问题三图1的权威父子边表或拓扑输入，以及基于该正式拓扑计算的具体决策方案与指标结果、RESULTS.md 中基于本次运行输出生成的四问关键数值、阈值、策略、利润和核验结论）；2 项要求未完成（四问均有与题面具体实例相对应的计算结果——依据：问题三只给出 conditional scenario；RESULTS.md 明确承认正式图1边表缺失，problem3；RESULTS.md 对四问运行结果作出结果说明——依据：文件主要复述建模方法、预期产物和未来取数方式，没有列出本次运行得到的样本量、临界值、六种问题二策略与利润、问题三情景结果） —— 低于阈值不允许交付（审计结论见 _audit.json）
+
+STAGE CHAIN FAILED — 1 个阶段没通过（产物与通行证在 artifacts\upper-bound\2024B-ingest-1\stages）。
+===== 第 2 次 --stage-next =====
+[STAGE CHAIN] artifacts\upper-bound\2024B-ingest-1\stages
+  题面问数（数出来的）：4
+  [deterministic] code: 分片 1/8 交付 code/main.py
+  [deterministic] code: 分片 2/8 交付 code/params.py
+  [deterministic] code: 分片 3/8 交付 code/problem1.py
+  [deterministic] code: 分片 4/8 交付 code/problem2.py

@@ -47,7 +47,7 @@ import { Context, Service } from '@deepseek-ai/cordis'
 import { createUserMessage, type GenerateOptions } from '@deepseek-ai/dsh-llm'
 import { deterministicRunner, type DeterministicOutcome } from './deterministic.ts'
 import { runCodeAndMintResults } from './execute-and-mint.ts'
-import { assembleShards, planCodeShards, planModelingShards } from './code-shard.ts'
+import { assembleShards, planCodeShards, planModelingShards, type CodeShard } from './code-shard.ts'
 import { assembleFigureAnswers, planShard, scriptShards, type FigureShard } from './figure-script-shard.ts'
 import { auditPromptOf, parseAuditVerdict } from './audit.ts'
 import { skillTaskOf } from './briefing.ts'
@@ -411,6 +411,32 @@ export class PaperStageChainService extends Service {
                 + shards.slice(0, answers.length)
                   .map((s, i) => `### \`${s.deliverable}\`\n\n${answers[i] ?? ''}`)
                   .join('\n\n')
+            answers.push(await singleCall(spec, shard.prompt + prior))
+            this.config.onDeterministicOutcome?.({
+              stage: spec.id,
+              summary: `分片 ${String(shard.index)}/${String(shard.total)} 交付 ${shard.deliverable}`,
+            })
+          }
+          return assembleShards(shards, answers)
+        }
+        // 阶段 8 **两片**：先出复核报告（散文），再出机器可读的结论。
+        //
+        // 为什么必须分：这两份原本打成**一个 JSON 信封**一次产出——与阶段 3 的信封片
+        // 同款风险（实测阶段 3 的信封被 max-tokens 截断，整轮 8 次调用白跑）。
+        // 而复核要审的是 56KB 的建模报告 + 15KB 的结果说明，写出来的复核只会更长。
+        // 结论必须与报告**同一批 findings、同一个 fatal_count**，所以第二片要带上第一片的产出。
+        if (spec.id === 'review') {
+          const shards = [
+            { deliverable: 'COMP_REVIEW.md', index: 1, total: 2, prompt },
+            { deliverable: 'COMP_REVIEW_VERDICT.json', index: 2, total: 2, prompt },
+          ] satisfies ReadonlyArray<CodeShard>
+          const answers: string[] = []
+          for (const shard of shards) {
+            const prior = answers.length === 0
+              ? ''
+              : '\n\n---\n\n## 本阶段**已产出**的复核报告（COMP_REVIEW_VERDICT.json 必须与它完全一致：'
+                + '同一批 findings、同一个 fatal_count、同一个 gate_decision）\n\n'
+                + `### \`COMP_REVIEW.md\`\n\n${answers[0] ?? ''}`
             answers.push(await singleCall(spec, shard.prompt + prior))
             this.config.onDeterministicOutcome?.({
               stage: spec.id,
