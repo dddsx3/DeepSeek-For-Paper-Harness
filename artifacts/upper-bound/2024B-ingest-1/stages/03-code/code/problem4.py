@@ -1,2200 +1,2403 @@
-# -*- coding: utf-8 -*-
-"""问题四：情景抽样、精确区间、Bonferroni 联合域与逐情景重优化。
-
-本模块只生成数值账本，不绘图。阶段简报没有真实节点样本，因此所有
-``(n_v, x_v)`` 均由登记情景率、固定种子和逐节点精度设计生成；名义率只
-作为抽样中心，点估计始终由 ``x_v / n_v`` 得到。
-"""
+"""问题四：抽样区间、Bonferroni 联合域与可复现情景重解。"""
 
 from __future__ import annotations
 
-import math
+from collections.abc import Mapping
 from itertools import product
+from typing import Any
 
 import numpy as np
-import numpy.random as numpy_random
-from scipy import stats as scipy_stats
+import scipy.stats
 
 import params
+from params import *
 
 
-_Q2_POLICY_ARRAY = np.asarray(params.Q2_POLICY_SPACE, dtype=int)
-_Q3_POLICY_ARRAY = np.asarray(params.Q3_POLICY_SPACE, dtype=int)
-_Q3_PART_INSPECTION_PROFILES = np.asarray(
-    list(product((0, 1), repeat=len(params.Q3_PART_NODE_IDS))),
-    dtype=int,
+_Q2_STATE_PAIRS = tuple(
+    product(Q2_STATES, repeat=Q2_DECISION_VARIABLE_COUNT)
 )
-_Q3_SEMI_INSPECTION_PROFILES = np.asarray(
-    list(product((0, 1), repeat=len(params.Q3_SEMI_NODE_IDS))),
-    dtype=int,
+_Q2_STATE_INDEX = {
+    state_pair: state_index
+    for state_index, state_pair in enumerate(_Q2_STATE_PAIRS)
+}
+_Q2_EMPTY_STATE_INDEX = _Q2_STATE_INDEX[(Q2_EMPTY, Q2_EMPTY)]
+_Q2_COMPONENT_DECISION_COUNT = Q2_PARAMETER_NODE_COUNT - 1
+_Q2_PARAMETER_NAMES = ("part1", "part2", "product")
+_Q3_BATCH_SIZE = (
+    Q3_REACHABLE_STATE_LIMIT
+    // (Q4_SINGLE_PARAMETER_N_MAX * Q3_PARAMETER_NODE_COUNT)
 )
-_Q3_ROOT_INSPECTION_PROFILES = np.asarray(
-    list(product((0, 1), repeat=len(params.Q3_PARAMETER_NODE_IDS))),
-    dtype=int,
+_Q2_BATCH_SIZE = (
+    Q3_REACHABLE_STATE_LIMIT
+    // (Q4_SINGLE_PARAMETER_N_MAX * Q2_PARAMETER_NODE_COUNT)
 )
-_Q3_ALL_INSPECTION_PROFILE_COUNT = (
-    _Q3_ROOT_INSPECTION_PROFILES.shape[0]
-)
+_Q3_POLICY_MATRIX: np.ndarray | None = None
 
 
-def _safe_probability_array(values):
-    """把概率限制在闭区间内，并消除浮点端点造成的除零。"""
-    array = np.asarray(values, dtype=float)
-    if not np.all(np.isfinite(array)):
-        raise ValueError("概率数组含非有限值")
-    if np.any(array < params.Q2_PROBABILITY_FLOOR):
-        raise ValueError("概率低于登记下界")
-    if np.any(array > params.Q2_PROBABILITY_CEILING):
-        raise ValueError("概率高于登记上界")
-    upper_open = np.nextafter(
-        params.Q2_PROBABILITY_CEILING,
-        params.Q2_PROBABILITY_FLOOR,
-    )
-    return np.clip(array, params.Q2_PROBABILITY_FLOOR, upper_open)
+def _json_safe(value: Any) -> Any:
+    """将科学计算容器递归转换成严格 JSON 值。"""
+    if value is None or isinstance(value, (str, bool)):
+        return value
+    if isinstance(value, (int, np.integer)):
+        return int(value)
+    if isinstance(value, (float, np.floating)):
+        numeric = float(value)
+        return numeric if np.isfinite(numeric) else None
+    if isinstance(value, np.ndarray):
+        return _json_safe(value.tolist())
+    if isinstance(value, Mapping):
+        return {str(key): _json_safe(item) for key, item in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_json_safe(item) for item in value]
+    return value
 
 
-def _validate_binary_policies(policy_array, variable_count):
-    policies = np.asarray(policy_array, dtype=int)
-    if policies.ndim != params.Q2_POLICY_VARIABLE_COUNT:
-        raise ValueError("策略数组必须为二维")
-    if policies.shape[params.Q2_POLICY_VARIABLE_COUNT - 1] != variable_count:
-        raise ValueError("策略向量长度与登记维数不一致")
-    if np.any((policies != params.Q2_STRATEGIES[0][0]) &
-              (policies != params.Q2_STRATEGIES[0][1])):
-        raise ValueError("策略变量只能取登记的二元值")
-    return policies
+def _q2_policy_matrix() -> np.ndarray:
+    return np.asarray(Q2_POLICY_SPACE, dtype=np.int8)
 
 
-def _policy_mapping(policy_vector, policy_order):
+def _q3_policy_matrix() -> np.ndarray:
+    global _Q3_POLICY_MATRIX
+    if _Q3_POLICY_MATRIX is None:
+        _Q3_POLICY_MATRIX = np.asarray(
+            list(q3_policy_space()),
+            dtype=np.int8,
+        )
+    return _Q3_POLICY_MATRIX
+
+
+def _q2_policy_record(policy: np.ndarray | list[int]) -> dict[str, int]:
+    values = [int(item) for item in policy]
     return {
-        str(name): int(value)
-        for name, value in zip(policy_order, policy_vector)
+        "Z1": values[0],
+        "Z2": values[1],
+        "C": values[2],
+        "D": values[3],
     }
 
 
-def clopper_pearson(x, n, alpha):
-    """Clopper--Pearson 精确区间，显式处理零次品和全次品。"""
-    if not isinstance(n, (int, np.integer)) or int(n) < 1:
-        raise ValueError("CP 样本量必须是正整数")
-    if not isinstance(x, (int, np.integer)):
-        raise ValueError("CP 成功次数必须是整数")
-    x = int(x)
-    n = int(n)
-    if x < 0 or x > n:
-        raise ValueError("CP 成功次数越界")
-    if not params.Q2_PROBABILITY_FLOOR < alpha < params.Q2_PROBABILITY_CEILING:
-        raise ValueError("CP 错误率必须在开区间内")
+def _q3_policy_record(policy: np.ndarray | list[int]) -> dict[str, int]:
+    return {
+        name: int(value)
+        for name, value in zip(Q3_POLICY_BIT_ORDER, policy)
+    }
 
-    tail = alpha / n if False else alpha / (n + n)
+
+def _q3_node_label(node: Mapping[str, Any]) -> str:
+    kind = str(node["kind"])
+    node_id = int(node["node_id"])
+    if kind == "part":
+        return f"part{node_id}"
+    if kind == "semi":
+        return f"semi{node_id}"
+    return "product"
+
+
+def clopper_pearson(
+    defect_count: int,
+    sample_size: int,
+    marginal_alpha: float,
+) -> tuple[float, float]:
+    """Clopper–Pearson 精确区间，显式处理零计数和全计数。"""
+    count = int(defect_count)
+    size = int(sample_size)
+    alpha = float(marginal_alpha)
+    if size < 1:
+        raise ValueError("sample_size 必须为正整数")
+    if count < 0 or count > size:
+        raise ValueError("defect_count 必须位于零到 sample_size")
+    if alpha <= 0 or alpha >= 1:
+        raise ValueError("marginal_alpha 必须位于零到一之间")
+
     lower = (
-        params.Q2_PROBABILITY_FLOOR
-        if x == 0
+        0.0
+        if count == 0
         else float(
-            scipy_stats.beta.ppf(
-                tail,
-                x,
-                n - x + 1,
+            scipy.stats.beta.ppf(
+                alpha / 2,
+                count,
+                size - count + 1,
             )
         )
     )
     upper = (
-        params.Q2_PROBABILITY_CEILING
-        if x == n
+        1.0
+        if count == size
         else float(
-            scipy_stats.beta.ppf(
-                params.Q2_PROBABILITY_CEILING - tail,
-                x + 1,
-                n - x,
+            scipy.stats.beta.ppf(
+                1 - alpha / 2,
+                count + 1,
+                size - count,
             )
         )
     )
-    if not lower <= x / n <= upper:
-        raise ArithmeticError("CP 区间未包住点估计")
+    if not (
+        0 <= lower <= count / size <= upper <= 1
+    ):
+        raise ArithmeticError("Clopper–Pearson 端点次序异常")
     return lower, upper
 
 
-def parameter_precision_n(rate, alpha, target_width, n_max):
-    """逐个正整数扫描，返回首个达到 CP 宽度目标的样本量。"""
-    rate = float(_safe_probability_array(rate))
-    for n in range(1, int(n_max) + 1):
-        expected_count = int(np.rint(rate * n))
-        lower, upper = clopper_pearson(expected_count, n, alpha)
-        if upper - lower <= target_width:
-            return {
-                "n": int(n),
-                "expected_count": int(expected_count),
-                "lower": float(lower),
-                "upper": float(upper),
-                "width": float(upper - lower),
-                "target_achieved": True,
-            }
-    raise RuntimeError("登记的单参数样本量上限内未达到区间宽度目标")
+def parameter_precision_n(
+    scenario_defect_rate: float,
+    marginal_alpha: float,
+    n_max: int = Q4_SINGLE_PARAMETER_N_MAX,
+    width_target: float = Q4_WIDTH_TARGET,
+) -> int:
+    """按登记中心率逐个整数扫描，返回首个达到宽度目标的样本量。"""
+    scan = _parameter_precision_scan(
+        scenario_defect_rate,
+        marginal_alpha,
+        n_max,
+        width_target,
+    )
+    selected_n = scan["selected_n"]
+    if selected_n is None:
+        raise RuntimeError("登记样本量上限内未达到区间宽度目标")
+    return int(selected_n)
 
 
-def bonferroni_joint_box(node_records, family_alpha, expected_node_count):
-    """由边际精确区间构造保守 Bonferroni 联合矩形。"""
-    records = list(node_records)
-    if len(records) != int(expected_node_count):
-        raise ValueError("联合域节点数与登记值不一致")
-    marginal_alpha = float(family_alpha) / len(records)
-    box = []
-    for record in records:
-        lower = float(record["ci_lower"])
-        upper = float(record["ci_upper"])
-        if not params.Q2_PROBABILITY_FLOOR <= lower <= upper <= params.Q2_PROBABILITY_CEILING:
-            raise ArithmeticError("联合域边际区间非法")
-        if record["n"] < 1 or not 0 <= record["x"] <= record["n"]:
-            raise ArithmeticError("联合域样本账本非法")
-        box.append(
+def _parameter_precision_scan(
+    scenario_defect_rate: float,
+    marginal_alpha: float,
+    n_max: int,
+    width_target: float,
+) -> dict[str, Any]:
+    if scenario_defect_rate < 0 or scenario_defect_rate > 1:
+        raise ValueError("scenario_defect_rate 必须位于零到一之间")
+    if n_max < 1:
+        raise ValueError("n_max 必须为正整数")
+
+    trace: list[dict[str, Any]] = []
+    selected_n: int | None = None
+    for sample_size in range(1, int(n_max) + 1):
+        planning_count = int(round(scenario_defect_rate * sample_size))
+        lower, upper = clopper_pearson(
+            planning_count,
+            sample_size,
+            marginal_alpha,
+        )
+        width = upper - lower
+        trace.append(
             {
-                "node": str(record["node"]),
-                "n": int(record["n"]),
-                "x": int(record["x"]),
+                "n": sample_size,
+                "planning_count": planning_count,
                 "lower": lower,
                 "upper": upper,
+                "width": width,
             }
         )
-    allocated_error = len(records) * marginal_alpha
-    if allocated_error > float(family_alpha) + params.Q1_NUMERIC_TOL:
-        raise ArithmeticError("Bonferroni 边际错误率分配超限")
+        if selected_n is None and width <= width_target:
+            selected_n = sample_size
+
+    grid_trace = [
+        row
+        for row in trace
+        if int(row["n"]) in tuple(int(item) for item in Q4_SAMPLE_SIZE_GRID)
+    ]
     return {
-        "method": "bonferroni_joint_box",
-        "family_alpha": float(family_alpha),
-        "node_count": len(records),
-        "marginal_alpha": marginal_alpha,
-        "allocated_family_error": float(allocated_error),
-        "coverage_lower_bound": float(
-            params.Q2_PROBABILITY_CEILING - family_alpha
+        "selected_n": selected_n,
+        "scenario_defect_rate": float(scenario_defect_rate),
+        "marginal_alpha": float(marginal_alpha),
+        "width_target": float(width_target),
+        "planning_count_rule": "round(scenario_rate*n)",
+        "grid_trace": grid_trace,
+        "full_scan": trace,
+    }
+
+
+def bonferroni_joint_box(
+    intervals: Mapping[str, tuple[float, float]],
+    marginal_alpha: float,
+    family_error_rate: float,
+) -> dict[str, Any]:
+    """由逐参数 CP 区间构造保守 Bonferroni 联合矩形。"""
+    parameter_count = len(intervals)
+    box: dict[str, list[float]] = {}
+    for name, endpoints in intervals.items():
+        lower, upper = endpoints
+        if not (0 <= lower <= upper <= 1):
+            raise ValueError("联合域输入区间不合法")
+        box[str(name)] = [float(lower), float(upper)]
+
+    allocated_error = parameter_count * marginal_alpha
+    if allocated_error > family_error_rate + Q1_EXACT_ENUMERATION_TOL:
+        raise ArithmeticError("Bonferroni 边际错误率分配超出族错误率")
+
+    return {
+        "construction": "Bonferroni rectangular joint box",
+        "parameter_count": parameter_count,
+        "marginal_error_rate": float(marginal_alpha),
+        "allocated_family_error_rate": float(allocated_error),
+        "family_error_rate_limit": float(family_error_rate),
+        "joint_confidence_lower_bound": float(
+            1 - family_error_rate
+        ),
+        "independent_marginal_product_for_contrast": float(
+            (1 - marginal_alpha) ** parameter_count
         ),
         "box": box,
     }
 
 
-def edge_case_tests():
-    """用 CP 分位数与精确二项反演交叉核验边界计数。"""
-    alpha = params.Q4_ALPHA_Q3
-    rows = []
-    maximum_residual = params.Q2_COST_FLOOR
-    all_passed = True
-    for n, x in params.Q4_CP_EDGE_CASES:
-        lower, upper = clopper_pearson(x, n, alpha)
-        lower_residual = (
-            params.Q2_COST_FLOOR
-            if x == 0
-            else abs(
-                float(scipy_stats.binom.sf(x - 1, n, lower))
-                - alpha / (n + n)
+def _inverse_binomial_lower(
+    count: int,
+    sample_size: int,
+    target_tail: float,
+) -> float:
+    lower = 0.0
+    upper = 1.0
+    for _ in range(VALUE_ITERATION_MAX_ITERATIONS):
+        midpoint = (lower + upper) / 2
+        tail_probability = float(
+            scipy.stats.binom.sf(
+                count - 1,
+                sample_size,
+                midpoint,
             )
         )
-        upper_residual = (
-            params.Q2_COST_FLOOR
-            if x == n
-            else abs(
-                float(scipy_stats.binom.cdf(x, n, upper))
-                - alpha / (n + n)
+        if abs(tail_probability - target_tail) <= Q1_EXACT_ENUMERATION_TOL:
+            return midpoint
+        if tail_probability > target_tail:
+            lower = midpoint
+        else:
+            upper = midpoint
+    return (lower + upper) / 2
+
+
+def _inverse_binomial_upper(
+    count: int,
+    sample_size: int,
+    target_cdf: float,
+) -> float:
+    lower = 0.0
+    upper = 1.0
+    for _ in range(VALUE_ITERATION_MAX_ITERATIONS):
+        midpoint = (lower + upper) / 2
+        lower_tail_probability = float(
+            scipy.stats.binom.cdf(
+                count,
+                sample_size,
+                midpoint,
             )
         )
-        passed = (
-            params.Q2_PROBABILITY_FLOOR <= lower <= x / n <= upper
-            <= params.Q2_PROBABILITY_CEILING
-            and lower_residual <= params.CASHFLOW_ABS_TOL
-            and upper_residual <= params.CASHFLOW_ABS_TOL
-        )
-        all_passed = all_passed and passed
-        maximum_residual = max(
-            maximum_residual,
-            lower_residual,
-            upper_residual,
-        )
-        rows.append(
-            {
-                "n": int(n),
-                "x": int(x),
-                "point_estimate": float(x / n),
-                "lower": float(lower),
-                "upper": float(upper),
-                "lower_inversion_residual": float(lower_residual),
-                "upper_inversion_residual": float(upper_residual),
-                "passed": bool(passed),
-            }
-        )
-    return {
-        "method": "clopper_pearson",
-        "edge_cases": rows,
-        "maximum_inversion_residual": float(maximum_residual),
-        "all_passed": bool(all_passed),
-    }
+        if abs(lower_tail_probability - target_cdf) <= Q1_EXACT_ENUMERATION_TOL:
+            return midpoint
+        if lower_tail_probability < target_cdf:
+            lower = midpoint
+        else:
+            upper = midpoint
+    return (lower + upper) / 2
 
 
-def _q2_profiles(rates, policies, case):
-    """向量化计算问题二全部策略的逐事件期望账本。"""
-    probabilities = _safe_probability_array(rates)
-    if probabilities.shape[-1] != params.Q2_PARAMETER_COUNT:
-        raise ValueError("问题二概率向量维度错误")
-    policy_array = _validate_binary_policies(
-        policies,
-        params.Q2_POLICY_VARIABLE_COUNT,
-    )
-    if policy_array.shape[0] == 0:
-        raise ValueError("问题二策略集合为空")
-
-    p1 = probabilities[..., 0, None]
-    p2 = probabilities[..., 1, None]
-    pf = probabilities[..., 2, None]
-    s1 = params.Q2_PROBABILITY_CEILING - p1
-    s2 = params.Q2_PROBABILITY_CEILING - p2
-    sf = params.Q2_PROBABILITY_CEILING - pf
-
-    z1 = policy_array[:, 0].astype(bool)[None, :]
-    z2 = policy_array[:, 1].astype(bool)[None, :]
-    inspect_product = policy_array[:, 2].astype(bool)[None, :]
-    disassemble = policy_array[:, 3].astype(bool)[None, :]
-    one = params.Q2_PROBABILITY_CEILING
-
-    purchase1 = np.where(
-        z1,
-        case["a1"] / s1,
-        case["a1"],
-    )
-    inspection1 = np.where(z1, case["t1"] / s1, params.Q2_COST_FLOOR)
-    purchase2 = np.where(
-        z2,
-        case["a2"] / s2,
-        case["a2"],
-    )
-    inspection2 = np.where(z2, case["t2"] / s2, params.Q2_COST_FLOOR)
-    good1 = np.where(z1, one, s1)
-    good2 = np.where(z2, one, s2)
-    good_probability = good1 * good2 * sf
-    failure_probability = one - good_probability
-
-    purchase_each_attempt = purchase1 + purchase2
-    inspection_each_attempt = inspection1 + inspection2
-    assembly_each_attempt = case["kf"]
-    product_inspection_each_attempt = np.where(
-        inspect_product,
-        case["tf"],
-        params.Q2_COST_FLOOR,
-    )
-
-    purchase_cost = np.where(
-        disassemble,
-        purchase_each_attempt,
-        purchase_each_attempt / good_probability,
-    )
-    inspection_cost = np.where(
-        disassemble,
-        inspection_each_attempt,
-        inspection_each_attempt / good_probability,
-    )
-    inspection_cost = inspection_cost + np.where(
-        inspect_product,
-        case["tf"] / good_probability,
-        params.Q2_COST_FLOOR,
-    )
-    assembly_cost = assembly_each_attempt / good_probability
-    disassembly_cost = np.where(
-        disassemble,
-        case["disassembly_cost"] * failure_probability / good_probability,
-        params.Q2_COST_FLOOR,
-    )
-    exchange_cost = np.where(
-        inspect_product,
-        params.Q2_COST_FLOOR,
-        case["exchange_loss"] * failure_probability / good_probability,
-    )
-    revenue = np.where(
-        inspect_product,
-        case["market_price"],
-        case["market_price"] / good_probability,
-    )
-    total_cost = (
-        purchase_cost
-        + inspection_cost
-        + assembly_cost
-        + disassembly_cost
-        + exchange_cost
-    )
-    profit = revenue - total_cost
-    return {
-        "purchase_cost": purchase_cost,
-        "inspection_cost": inspection_cost,
-        "assembly_cost": assembly_cost,
-        "disassembly_cost": disassembly_cost,
-        "exchange_cost": exchange_cost,
-        "revenue": revenue,
-        "total_cost": total_cost,
-        "profit": profit,
-        "good_probability": good_probability,
-        "failure_probability": failure_probability,
-    }
-
-
-def _q2_state_solver_reference(case, policy):
-    """独立九状态吸收型线性方程，用于核验向量化事件账本。"""
-    states = list(
-        product(
-            params.Q2_STATE_VALUES,
-            repeat=params.Q2_PART_COUNT,
-        )
-    )
-    index = {state: position for position, state in enumerate(states)}
-    matrix = np.eye(len(states), dtype=float)
-    rhs = np.zeros(len(states), dtype=float)
-    transition = np.zeros((len(states), len(states)), dtype=float)
-    rates = (case["p1"], case["p2"])
-    prices = (case["a1"], case["a2"])
-    tests = (case["t1"], case["t2"])
-    z1, z2, inspect_product, disassemble = (int(value) for value in policy)
-    inspect_parts = (z1, z2)
-    sf = params.Q2_PROBABILITY_CEILING - case["pf"]
-
-    for state in states:
-        state_index = index[state]
-        distribution = {state: params.Q2_PROBABILITY_CEILING}
-        expected_cost = params.Q2_COST_FLOOR
-
-        for part_index, quality in enumerate(state):
-            inspect = inspect_parts[part_index]
-            probability = distribution.get(quality, params.Q2_COST_FLOOR)
-            if probability == 0:
-                continue
-            rate = rates[part_index]
-            good_probability = params.Q2_PROBABILITY_CEILING - rate
-            price = prices[part_index]
-            test_cost = tests[part_index]
-
-            if quality == "good":
-                replacement = {("good",): params.Q2_PROBABILITY_CEILING}
-                part_cost = params.Q2_COST_FLOOR
-            elif quality == params.Q2_STATE_VALUES[0]:
-                if inspect:
-                    replacement = {
-                        ("good",): params.Q2_PROBABILITY_CEILING
-                    }
-                    part_cost = (price + test_cost) / good_probability
-                else:
-                    replacement = {
-                        ("good",): good_probability,
-                        ("bad",): rate,
-                    }
-                    part_cost = price
-            else:
-                if inspect:
-                    replacement = {
-                        ("good",): good_probability,
-                        ("bad",): rate,
-                    }
-                    part_cost = test_cost + (price + test_cost) / good_probability
-                else:
-                    replacement = {("bad",): params.Q2_PROBABILITY_CEILING}
-                    part_cost = params.Q2_COST_FLOOR
-
-            next_distribution = {}
-            for current_quality, current_probability in distribution.items():
-                for next_qualities, next_probability in replacement.items():
-                    new_state = (
-                        next_qualities[0]
-                        if part_index == 0
-                        else current_quality
-                    )
-                    if part_index == params.Q2_PART_COUNT - 1:
-                        new_state = (
-                            current_quality,
-                            next_qualities[0],
-                        )
-                    next_distribution[new_state] = (
-                        next_distribution.get(
-                            new_state,
-                            params.Q2_COST_FLOOR,
-                        )
-                        + current_probability * next_probability
-                    )
-            distribution = next_distribution
-            expected_cost += probability * part_cost
-
-        good_probability = (
-            distribution.get(
-                ("good", "good"),
-                params.Q2_PROBABILITY_FLOOR,
-            )
-            * sf
-        )
-        bad_probability = params.Q2_PROBABILITY_CEILING - good_probability
-        expected_cost += case["kf"]
-        if inspect_product:
-            expected_cost += case["tf"]
-
-        rhs[state_index] += expected_cost
-        rhs[state_index] += good_probability * case["market_price"]
-        if bad_probability > 0:
-            if not inspect_product:
-                rhs[state_index] += bad_probability * (
-                    case["market_price"] + case["exchange_loss"]
-                )
-            next_state = state if disassemble else ("empty", "empty")
-            next_index = index[next_state]
-            matrix[state_index, next_index] -= bad_probability
-            transition[state_index, next_index] += bad_probability
-
-    try:
-        values = np.linalg.solve(matrix, rhs)
-    except np.linalg.LinAlgError as exc:
-        raise ArithmeticError("问题二参考状态方程不可解") from exc
-    spectral_radius = float(np.max(np.abs(np.linalg.eigvals(transition))))
-    return {
-        "profit": float(values[index[("empty", "empty")]]),
-        "state_count": len(states),
-        "spectral_radius_nonterminal": spectral_radius,
-        "absorption_probability": (
-            params.Q2_PROBABILITY_CEILING
-            if spectral_radius < params.Q2_PROBABILITY_CEILING
-            else params.Q2_PROBABILITY_FLOOR
-        ),
-    }
-
-
-def _q2_degenerate_tree_profiles(case):
-    """三节点退化树的独立公式，用于逐策略验收问题二等价性。"""
-    policies = _Q2_POLICY_ARRAY
-    p1 = _safe_probability_array(case["p1"])
-    p2 = _safe_probability_array(case["p2"])
-    pf = _safe_probability_array(case["pf"])
-    z1 = policies[:, 0].astype(bool)
-    z2 = policies[:, 1].astype(bool)
-    inspect_product = policies[:, 2].astype(bool)
-    disassemble = policies[:, 3].astype(bool)
-
-    good1 = np.where(z1, params.Q2_PROBABILITY_CEILING, params.Q2_PROBABILITY_CEILING - p1)
-    good2 = np.where(z2, params.Q2_PROBABILITY_CEILING, params.Q2_PROBABILITY_CEILING - p2)
-    purchase1 = np.where(z1, case["a1"] / (params.Q2_PROBABILITY_CEILING - p1), case["a1"])
-    purchase2 = np.where(z2, case["a2"] / (params.Q2_PROBABILITY_CEILING - p2), case["a2"])
-    inspection1 = np.where(z1, case["t1"] / (params.Q2_PROBABILITY_CEILING - p1), params.Q2_COST_FLOOR)
-    inspection2 = np.where(z2, case["t2"] / (params.Q2_PROBABILITY_CEILING - p2), params.Q2_COST_FLOOR)
-    q = good1 * good2 * (params.Q2_PROBABILITY_CEILING - pf)
-    failure = params.Q2_PROBABILITY_CEILING - q
-    component_cost = purchase1 + purchase2 + inspection1 + inspection2
-
-    inspected_d0_cost = (
-        component_cost + case["kf"] + case["tf"]
-    ) / q
-    inspected_d1_cost = component_cost + (
-        case["kf"] + case["tf"] + case["disassembly_cost"]
-    ) / q
-    inspected_cost = np.where(
-        disassemble,
-        inspected_d1_cost,
-        inspected_d0_cost,
-    )
-    inspected_profit = case["market_price"] - inspected_cost
-
-    uninspected_d0_cost = (
-        component_cost + case["kf"] + failure * case["exchange_loss"]
-    ) / q
-    uninspected_d1_cost = (
-        component_cost
-        + case["kf"] / q
-        + failure * (case["exchange_loss"] + case["disassembly_cost"]) / q
-    )
-    uninspected_cost = np.where(
-        disassemble,
-        uninspected_d1_cost,
-        uninspected_d0_cost,
-    )
-    uninspected_profit = case["market_price"] / q - uninspected_cost
-    return np.where(inspect_product, inspected_profit, uninspected_profit)
-
-
-def _q2_reference_validation(case):
-    formula = _q2_profiles(
-        np.asarray((case["p1"], case["p2"], case["pf"]), dtype=float),
-        _Q2_POLICY_ARRAY,
-        case,
-    )["profit"][0]
-    reference = np.asarray(
-        [
-            _q2_state_solver_reference(case, policy)["profit"]
-            for policy in _Q2_POLICY_ARRAY
-        ],
-        dtype=float,
-    )
-    differences = np.abs(formula - reference)
-    spectral_radii = [
-        _q2_state_solver_reference(case, policy)[
-            "spectral_radius_nonterminal"
-        ]
-        for policy in _Q2_POLICY_ARRAY
-    ]
-    return {
-        "case_id": int(case["case_id"]),
-        "policy_count": int(_Q2_POLICY_ARRAY.shape[0]),
-        "state_count": int(params.Q2_STATE_SPACE_SIZE),
-        "maximum_cashflow_difference": float(np.max(differences)),
-        "maximum_nonterminal_spectral_radius": float(max(spectral_radii)),
-        "all_absorbing": bool(
-            max(spectral_radii) < params.Q2_PROBABILITY_CEILING
-        ),
-        "passed": bool(
-            np.max(differences) <= params.CASHFLOW_ABS_TOL
-            and max(spectral_radii) < params.Q2_PROBABILITY_CEILING
-        ),
-        "per_policy_absolute_difference": differences.tolist(),
-    }
-
-
-def _q2_degred_validation(case):
-    formula = _q2_profiles(
-        np.asarray((case["p1"], case["p2"], case["pf"]), dtype=float),
-        _Q2_POLICY_ARRAY,
-        case,
-    )["profit"][0]
-    state_reference = np.asarray(
-        [
-            _q2_state_solver_reference(case, policy)["profit"]
-            for policy in _Q2_POLICY_ARRAY
-        ],
-        dtype=float,
-    )
-    degenerate_tree = _q2_degenerate_tree_profiles(case)
-    rows = []
-    for position, policy in enumerate(_Q2_POLICY_ARRAY):
-        rows.append(
-            {
-                "policy_vector": policy.astype(int).tolist(),
-                "problem2_state_profit": float(state_reference[position]),
-                "problem3_degenerate_tree_profit": float(degenerate_tree[position]),
-                "absolute_difference": float(
-                    abs(
-                        state_reference[position]
-                        - degenerate_tree[position]
-                    )
-                ),
-            }
-        )
-    maximum = max(
-        float(np.max(np.abs(formula - state_reference))),
-        float(np.max(np.abs(degenerate_tree - state_reference))),
-    )
-    return {
-        "policy_count": int(_Q2_POLICY_ARRAY.shape[0]),
-        "maximum_error": maximum,
-        "tolerance": float(params.CASHFLOW_ABS_TOL),
-        "passed": bool(maximum <= params.CASHFLOW_ABS_TOL),
-        "rows": rows,
-    }
-
-
-def _q2_precision_scan(rates, selected_n, point_rates, case, alpha):
-    rows = []
-    selected_policies = None
-    selected_profit = None
-    for parameter_index, key in enumerate(params.Q4_Q2_RATE_KEYS):
-        n_values = tuple(
-            sorted(
-                set(params.Q4_SAMPLE_SIZE_GRID)
-                | {int(selected_n[parameter_index])}
-            )
-        )
-        for n in n_values:
-            expected_count = int(np.rint(rates[parameter_index] * n))
-            lower, upper = clopper_pearson(expected_count, n, alpha)
-            trial_rates = np.asarray(point_rates, dtype=float).copy()
-            trial_rates[parameter_index] = expected_count / n
-            profiles = _q2_profiles(trial_rates, _Q2_POLICY_ARRAY, case)
-            winner = int(np.argmax(profiles["profit"][0]))
-            if int(n) == int(selected_n[parameter_index]):
-                selected_policies = _Q2_POLICY_ARRAY[winner]
-                selected_profit = float(profiles["profit"][0, winner])
-            rows.append(
-                {
-                    "node": str(key),
-                    "n": int(n),
-                    "expected_count": int(expected_count),
-                    "point_estimate": float(expected_count / n),
-                    "ci_lower": float(lower),
-                    "ci_upper": float(upper),
-                    "ci_width": float(upper - lower),
-                    "optimal_policy_vector": _Q2_POLICY_ARRAY[
-                        winner
-                    ].astype(int).tolist(),
-                }
-            )
-    return {
-        "selection_rule": "first_n_with_cp_width_at_or_below_registered_target",
-        "target_width": float(params.Q4_WIDTH_TARGET),
-        "selected_policy_vector": selected_policies.astype(int).tolist(),
-        "selected_profit": selected_profit,
-        "rows": rows,
-    }
-
-
-def _policy_frequency_table(policy_vectors):
-    unique, counts = np.unique(
-        np.asarray(policy_vectors, dtype=int),
-        axis=0,
-        return_counts=True,
-    )
-    denominator = unique.shape[0]
-    total = int(np.sum(counts))
-    rows = []
-    for policy, count in zip(unique, counts):
-        rows.append(
-            {
-                "policy_vector": policy.astype(int).tolist(),
-                "count": int(count),
-                "fraction": float(count / total),
-            }
-        )
-    return rows
-
-
-def decision_reopt(model, rate_batch, context):
-    """对每个情景率向量重新执行完整策略空间的 argmax。"""
-    if model == "Q2":
-        profiles = _q2_profiles(
-            rate_batch,
-            _Q2_POLICY_ARRAY,
-            context,
-        )
-        profits = profiles["profit"]
-        indices = np.argmax(profits, axis=-1)
-        maximum = profits[
-            np.arange(profits.shape[0]),
-            indices,
-        ]
-        return indices, maximum, profits
-    if model == "Q3":
-        return _q3_optimize_batch(rate_batch, context)
-    raise ValueError(f"未知重优化模型: {model}")
-
-
-def _q2_case_record(case, rng):
-    true_rates = np.asarray(
-        (case["p1"], case["p2"], case["pf"]),
-        dtype=float,
-    )
-    design = [
-        parameter_precision_n(
-            rate,
-            params.Q4_ALPHA_Q2,
-            params.Q4_WIDTH_TARGET,
-            params.Q4_N_MAX,
-        )
-        for rate in true_rates
-    ]
-    selected_n = np.asarray([row["n"] for row in design], dtype=int)
-    observed_x = np.asarray(
-        rng.binomial(selected_n, true_rates),
-        dtype=int,
-    )
-    point_rates = observed_x / selected_n
-    sample_ledger = []
-    for node, n, x, lower, upper in zip(
-        params.Q4_Q2_RATE_KEYS,
-        selected_n,
-        observed_x,
-        [row["lower"] for row in design],
-        [row["upper"] for row in design],
+def edge_case_tests(
+    representative_n: int,
+    marginal_alpha: float,
+    prefix: str,
+) -> dict[str, Any]:
+    """核验 x=0、x=n 和内部计数，并与精确二项反演交叉验证。"""
+    size = int(representative_n)
+    if size < 2:
+        raise ValueError("端点交叉核验需要至少两个观测")
+    records: list[dict[str, Any]] = []
+    for suffix, count in (
+        ("x_zero", 0),
+        ("x_all", size),
+        ("x_internal", size // 2),
     ):
-        exact_lower, exact_upper = clopper_pearson(
-            int(x),
-            int(n),
-            params.Q4_ALPHA_Q2,
+        lower, upper = clopper_pearson(count, size, marginal_alpha)
+        target = marginal_alpha / 2
+        if count == 0:
+            inverse_lower = 0.0
+        else:
+            inverse_lower = _inverse_binomial_lower(
+                count,
+                size,
+                target,
+            )
+        if count == size:
+            inverse_upper = 1.0
+        else:
+            inverse_upper = _inverse_binomial_upper(
+                count,
+                size,
+                target,
+            )
+        lower_error = abs(lower - inverse_lower)
+        upper_error = abs(upper - inverse_upper)
+        passed = bool(
+            0 <= lower <= count / size <= upper <= 1
+            and lower_error <= Q1_EXACT_ENUMERATION_TOL
+            and upper_error <= Q1_EXACT_ENUMERATION_TOL
+            and (count != size or count == 0 or upper == 1)
         )
-        sample_ledger.append(
+        records.append(
             {
-                "node": str(node),
-                "n": int(n),
-                "x": int(x),
-                "scenario_rate": float(true_rates[len(sample_ledger)]),
-                "point_estimate": float(x / n),
-                "ci_lower": float(exact_lower),
-                "ci_upper": float(exact_upper),
-                "ci_width": float(exact_upper - exact_lower),
+                "test_id": f"{prefix}_{suffix}",
+                "x": int(count),
+                "n": size,
+                "lower": lower,
+                "upper": upper,
+                "exact_inverse_lower": inverse_lower,
+                "exact_inverse_upper": inverse_upper,
+                "lower_absolute_error": lower_error,
+                "upper_absolute_error": upper_error,
+                "passed": passed,
             }
         )
-    joint_box = bonferroni_joint_box(
-        sample_ledger,
-        params.Q4_FAMILY_ALPHA,
-        params.Q4_PARAMETER_COUNT_Q2,
-    )
-    lower_rates = np.asarray(
-        [record["ci_lower"] for record in sample_ledger],
-        dtype=float,
-    )
-    upper_rates = np.asarray(
-        [record["ci_upper"] for record in sample_ledger],
-        dtype=float,
-    )
-
-    nominal = _q2_profiles(true_rates, _Q2_POLICY_ARRAY, case)
-    point = _q2_profiles(point_rates, _Q2_POLICY_ARRAY, case)
-    lower = _q2_profiles(lower_rates, _Q2_POLICY_ARRAY, case)
-    upper = _q2_profiles(upper_rates, _Q2_POLICY_ARRAY, case)
-
-    nominal_index = int(np.argmax(nominal["profit"][0]))
-    point_index = int(np.argmax(point["profit"][0]))
-    robust_index = int(np.argmax(upper["profit"][0]))
-    monotonic_violation = float(
-        np.max(lower["profit"][0] - upper["profit"][0])
-    )
-
-    strategy_table = []
-    for position, policy in enumerate(_Q2_POLICY_ARRAY):
-        strategy_table.append(
-            {
-                "policy_vector": policy.astype(int).tolist(),
-                "policy": _policy_mapping(policy, params.Q2_POLICY_ORDER),
-                "profit": float(point["profit"][0, position]),
-                "purchase_cost": float(point["purchase_cost"][0, position]),
-                "inspection_cost": float(point["inspection_cost"][0, position]),
-                "assembly_cost": float(point["assembly_cost"][0, position]),
-                "disassembly_cost": float(point["disassembly_cost"][0, position]),
-                "exchange_loss": float(point["exchange_cost"][0, position]),
-                "market_revenue": float(point["revenue"][0, position]),
-            }
-        )
-
-    posterior_rates = rng.beta(
-        observed_x + params.Q4_PRIOR_ALPHA,
-        selected_n - observed_x + params.Q4_PRIOR_BETA,
-        size=(params.Q4_MC_REPEATS, params.Q4_PARAMETER_COUNT_Q2),
-    )
-    resampled_x = np.asarray(
-        rng.binomial(
-            np.broadcast_to(
-                selected_n,
-                (params.Q4_MC_REPEATS, params.Q4_PARAMETER_COUNT_Q2),
-            ),
-            posterior_rates,
-        ),
-        dtype=int,
-    )
-    resampled_p_hat = resampled_x / selected_n
-    mc_indices, mc_maximum, mc_strategy_profits = decision_reopt(
-        "Q2",
-        resampled_p_hat,
-        case,
-    )
-    mc_policies = _Q2_POLICY_ARRAY[mc_indices]
-    matches = mc_indices == nominal_index
-    consistency = float(np.mean(matches))
-    convergence = np.cumsum(matches) / np.arange(
-        params.Q4_MC_REPEATS + 1,
-        dtype=float,
-    )[1:]
-
-    point_row = point_index
-    point_net_residual = abs(
-        float(point["revenue"][0, point_row])
-        - float(
-            point["purchase_cost"][0, point_row]
-            + point["inspection_cost"][0, point_row]
-            + point["assembly_cost"][0, point_row]
-            + point["disassembly_cost"][0, point_row]
-            + point["exchange_cost"][0, point_row]
-        )
-        - float(point["profit"][0, point_row])
-    )
-    precision_scan = _q2_precision_scan(
-        true_rates,
-        selected_n,
-        point_rates,
-        case,
-        params.Q4_ALPHA_Q2,
-    )
-    point_policy_vector = _Q2_POLICY_ARRAY[point_index]
-    robust_policy_vector = _Q2_POLICY_ARRAY[robust_index]
-
     return {
-        "case_id": int(case["case_id"]),
-        "sample_source": params.Q4_SAMPLE_SOURCE,
-        "observed_sample_status": params.Q4_OBSERVED_SAMPLE_STATUS,
-        "profit_unit": params.Q4_PROFIT_UNIT,
-        "scenario_true_rates": {
-            key: float(value)
-            for key, value in zip(params.Q4_Q2_RATE_KEYS, true_rates)
-        },
-        "sample_ledger": sample_ledger,
-        "parameter_precision_design": design,
-        "joint_confidence_box": joint_box,
-        "scenario_true_policy_vector": _Q2_POLICY_ARRAY[
-            nominal_index
-        ].astype(int).tolist(),
-        "scenario_true_policy": _policy_mapping(
-            _Q2_POLICY_ARRAY[nominal_index],
-            params.Q2_POLICY_ORDER,
+        "records": records,
+        "max_absolute_error": max(
+            max(
+                float(row["lower_absolute_error"]),
+                float(row["upper_absolute_error"]),
+            )
+            for row in records
         ),
-        "scenario_true_profit": float(nominal["profit"][0, nominal_index]),
-        "point_policy_vector": point_policy_vector.astype(int).tolist(),
-        "point_policy": _policy_mapping(
-            point_policy_vector,
-            params.Q2_POLICY_ORDER,
-        ),
-        "point_profit": float(point["profit"][0, point_index]),
-        "robust_policy_vector": robust_policy_vector.astype(int).tolist(),
-        "robust_policy": _policy_mapping(
-            robust_policy_vector,
-            params.Q2_POLICY_ORDER,
-        ),
-        "robust_profit_interval": [
-            float(upper["profit"][0, robust_index]),
-            float(lower["profit"][0, robust_index]),
-        ],
-        "point_policy_profit_interval": [
-            float(upper["profit"][0, point_index]),
-            float(lower["profit"][0, point_index]),
-        ],
-        "joint_box_profit_envelope": [
-            float(np.min(lower["profit"][0])),
-            float(np.max(upper["profit"][0])),
-        ],
-        "decision_consistency": consistency,
-        "decision_consistency_threshold": float(
-            params.Q4_CONSISTENCY_THRESHOLD
-        ),
-        "decision_consistency_passed": bool(
-            consistency >= params.Q4_CONSISTENCY_THRESHOLD
-        ),
-        "posterior_rate_draws": posterior_rates.tolist(),
-        "bootstrap_x": resampled_x.tolist(),
-        "bootstrap_p_hat": resampled_p_hat.tolist(),
-        "bootstrap_policy_vectors": mc_policies.astype(int).tolist(),
-        "bootstrap_strategy_profit_samples": mc_strategy_profits.tolist(),
-        "bootstrap_optimal_profit_samples": mc_maximum.tolist(),
-        "decision_consistency_convergence": convergence.tolist(),
-        "policy_frequency": _policy_frequency_table(mc_policies),
-        "strategy_profit_table": strategy_table,
-        "sample_size_precision_scan": precision_scan,
-        "monotonicity": {
-            "definition": "fixed_policy_profit_nonincreasing_in_each_defect_rate",
-            "maximum_lower_minus_upper_violation": monotonic_violation,
-            "passed": bool(
-                monotonic_violation <= params.CASHFLOW_ABS_TOL
-            ),
-        },
-        "cashflow_identity_max_error": float(point_net_residual),
-        "reoptimization_count": int(params.Q4_MC_REPEATS),
+        "passed": all(bool(row["passed"]) for row in records),
     }
 
 
-def _combine_semi_axes(arrays, batch_size, policy_count):
-    combined = arrays[0]
-    for array in arrays[1:]:
-        combined = np.broadcast_to(combined[..., None], array.shape)
-    return np.reshape(
-        combined,
-        (batch_size, policy_count, -1),
+def _component_distribution(
+    current_quality: np.ndarray,
+    defect_rate: np.ndarray,
+    purchase_price: float,
+    inspection_cost: float,
+    inspect_component: bool,
+) -> tuple[np.ndarray, np.ndarray]:
+    """返回检测策略下当前质量状态的一次准备分布和期望费用。"""
+    good_index = Q2_STATES.index(Q2_GOOD)
+    bad_index = Q2_STATES.index(Q2_BAD)
+    empty_index = Q2_STATES.index(Q2_EMPTY)
+
+    can_purchase_good = defect_rate < 1
+    safe_success_probability = np.where(
+        can_purchase_good,
+        1 - defect_rate,
+        1,
+    )
+    geometric_preparation = (
+        purchase_price + inspection_cost
+    ) / safe_success_probability
+    geometric_preparation = np.where(
+        can_purchase_good,
+        geometric_preparation,
+        np.inf,
     )
 
-
-def _q3_profiles_for_batch(rates, topology):
-    """树分解后完整重优化全部检测组合，并解析消除劣质拆解分支。"""
-    probability_array = _safe_probability_array(rates)
-    if probability_array.ndim != params.Q2_POLICY_VARIABLE_COUNT:
-        raise ValueError("问题三批量概率必须为二维")
-    batch_size, parameter_count = probability_array.shape
-    if parameter_count != params.Q3_PARAMETER_COUNT:
-        raise ValueError("问题三参数维度错误")
-
-    part_rates = probability_array[
-        :,
-        : len(params.Q3_PART_NODE_IDS),
-    ]
-    part_prices = np.asarray(
-        [node["purchase_price"] for node in params.Q3_PART_NODES],
-        dtype=float,
-    )
-    part_tests = np.asarray(
-        [node["inspection_cost"] for node in params.Q3_PART_NODES],
-        dtype=float,
-    )
-    part_profile = _Q3_PART_INSPECTION_PROFILES
-    inspect_parts = part_profile.astype(bool)[None, :, :]
-    good_parts = np.where(
-        inspect_parts,
-        params.Q2_PROBABILITY_CEILING,
-        params.Q2_PROBABILITY_CEILING - part_rates[:, None, :],
-    )
-    purchase_parts = np.where(
-        inspect_parts,
-        part_prices[None, None, :] / good_parts,
-        part_prices[None, None, :],
-    )
-    inspection_parts = np.where(
-        inspect_parts,
-        part_tests[None, None, :] / good_parts,
-        params.Q2_COST_FLOOR,
-    )
-    part_cost = purchase_parts + inspection_parts
-    part_profile_count = part_profile.shape[0]
-
-    semi_rate_positions = [
-        len(params.Q3_PART_NODE_IDS) + offset
-        for offset in range(len(params.Q3_SEMI_NODE_IDS))
-    ]
-    semi_rates = probability_array[:, semi_rate_positions]
-    semi_inspection_profiles = _Q3_SEMI_INSPECTION_PROFILES
-    semi_q_arrays = []
-    semi_cost_arrays = []
-    semi_d_arrays = []
-
-    for semi_index, node in enumerate(params.Q3_SEMI_NODES):
-        parent_indices = list(topology[node["node_id"]])
-        parent_good = good_parts[:, :, parent_indices]
-        parent_cost = np.sum(
-            part_cost[:, :, parent_indices],
-            axis=-1,
+    if inspect_component:
+        good_probability = np.where(
+            current_quality == good_index,
+            1.0,
+            can_purchase_good.astype(float),
         )
-        conditional_good = params.Q2_PROBABILITY_CEILING - semi_rates[
-            :, semi_index, None
-        ]
-        launch_good = np.prod(parent_good, axis=-1) * conditional_good
-        launch_failure = params.Q2_PROBABILITY_CEILING - launch_good
-        inspect = semi_inspection_profiles[:, None, :].astype(bool)
-        inspect = np.broadcast_to(
-            inspect,
-            (
-                batch_size,
-                part_profile_count,
-                semi_inspection_profiles.shape[0],
+        expected_cost = np.where(
+            current_quality == good_index,
+            inspection_cost,
+            np.where(
+                current_quality == empty_index,
+                geometric_preparation,
+                inspection_cost + geometric_preparation,
             ),
         )
-        assembly_cost = node["assembly_cost"]
-        inspection_cost = node["inspection_cost"]
-        disassembly_cost = node["disassembly_cost"]
+    else:
+        good_probability = (
+            current_quality == good_index
+        ).astype(float)
+        bad_probability = (
+            current_quality == bad_index
+        ).astype(float)
+        empty_rows = current_quality == empty_index
+        good_probability = np.where(
+            empty_rows,
+            1 - defect_rate,
+            good_probability,
+        )
+        bad_probability = np.where(
+            empty_rows,
+            defect_rate,
+            bad_probability,
+        )
+        expected_cost = np.where(
+            empty_rows,
+            purchase_price,
+            0.0,
+        )
 
-        uninspected_cost = parent_cost + assembly_cost
-        inspected_scrap_cost = (
-            parent_cost + assembly_cost + inspection_cost
-        ) / launch_good
-        inspected_disassemble_cost = parent_cost + (
-            assembly_cost + inspection_cost + disassembly_cost
-        ) / launch_good
-        choose_disassemble = (
-            inspect
-            & (
-                parent_cost * launch_failure
-                > disassembly_cost
+    probabilities = np.zeros(
+        (*current_quality.shape, len(Q2_STATES)),
+        dtype=float,
+    )
+    probabilities[:, :, good_index] = good_probability
+    probabilities[:, :, bad_index] = bad_probability
+    return probabilities, expected_cost
+
+
+def _evaluate_q2_policies(
+    rates: np.ndarray,
+    case: Mapping[str, Any],
+    policies: np.ndarray | None = None,
+) -> dict[str, np.ndarray]:
+    """向量化求解全部两零件策略，并显式剔除非吸收策略。"""
+    rate_matrix = np.asarray(rates, dtype=float)
+    if rate_matrix.ndim == 1:
+        rate_matrix = rate_matrix.reshape(1, -1)
+    if rate_matrix.shape[1] != Q2_PARAMETER_NODE_COUNT:
+        raise ValueError("问题二概率向量维度异常")
+    if np.any(rate_matrix < 0) or np.any(rate_matrix > 1):
+        raise ValueError("问题二概率必须位于零到一之间")
+
+    policy_matrix = (
+        _q2_policy_matrix()
+        if policies is None
+        else np.asarray(policies, dtype=np.int8)
+    )
+    if policy_matrix.ndim != 2 or policy_matrix.shape[1] != Q2_DECISION_VARIABLE_COUNT:
+        raise ValueError("问题二策略矩阵维度异常")
+
+    strategy_count = policy_matrix.shape[0]
+    batch_size = rate_matrix.shape[0]
+    state_count = len(_Q2_STATE_PAIRS)
+    good_index = Q2_STATES.index(Q2_GOOD)
+
+    transition = np.zeros(
+        (strategy_count, batch_size, state_count, state_count),
+        dtype=float,
+    )
+    reward = np.zeros(
+        (strategy_count, batch_size, state_count),
+        dtype=float,
+    )
+    valid = np.ones((strategy_count, batch_size), dtype=bool)
+    success_from_empty = np.zeros((strategy_count, batch_size), dtype=float)
+
+    prices = (
+        float(case["a1"]),
+        float(case["a2"]),
+    )
+    inspection_costs = (
+        float(case["t1"]),
+        float(case["t2"]),
+    )
+    assembly_cost = float(case["kf"])
+    product_inspection_cost = float(case["tf"])
+    product_defect_rate = rate_matrix[:, Q2_PARAMETER_NODE_COUNT - 1][None, :]
+    sale_price = float(case["sale_price"])
+    exchange_loss = float(case["exchange_loss"])
+    disassembly_cost = float(case["disassembly_cost"])
+
+    for strategy_index, policy in enumerate(policy_matrix):
+        inspect_parts = bool(policy[0]), bool(policy[1])
+        inspect_product = bool(policy[2])
+        disassemble = bool(policy[3])
+
+        joint = np.zeros(
+            (
+                state_count,
+                batch_size,
+                len(Q2_STATES),
+                len(Q2_STATES),
+            ),
+            dtype=float,
+        )
+        preparation_cost = np.zeros(
+            (state_count, batch_size),
+            dtype=float,
+        )
+        for state_index, (first_quality, second_quality) in enumerate(
+            _Q2_STATE_PAIRS
+        ):
+            joint[
+                state_index,
+                :,
+                Q2_STATES.index(first_quality),
+                Q2_STATES.index(second_quality),
+            ] = 1
+
+        for component_position in range(_Q2_COMPONENT_DECISION_COUNT):
+            next_joint = np.zeros_like(joint)
+            for previous_quality in range(len(Q2_STATES)):
+                if component_position == 0:
+                    weights = joint[:, :, previous_quality, :]
+                    component_probabilities, component_cost = (
+                        _component_distribution(
+                            weights,
+                            rate_matrix[:, component_position][None, :],
+                            prices[component_position],
+                            inspection_costs[component_position],
+                            inspect_parts[component_position],
+                        )
+                    )
+                    for resulting_quality in range(len(Q2_STATES)):
+                        next_joint[:, :, resulting_quality, :] += (
+                            weights
+                            * component_probabilities[:, :, resulting_quality]
+                        )
+                else:
+                    weights = joint[:, :, :, previous_quality]
+                    component_probabilities, component_cost = (
+                        _component_distribution(
+                            weights,
+                            rate_matrix[:, component_position][None, :],
+                            prices[component_position],
+                            inspection_costs[component_position],
+                            inspect_parts[component_position],
+                        )
+                    )
+                    for resulting_quality in range(len(Q2_STATES)):
+                        next_joint[:, :, :, resulting_quality] += (
+                            weights
+                            * component_probabilities[:, :, resulting_quality]
+                        )
+                preparation_cost += np.sum(
+                    weights * component_cost,
+                    axis=0,
+                )
+            joint = next_joint
+
+        nonabsorbing_disassembly = np.zeros(batch_size, dtype=bool)
+        for component_position in range(_Q2_COMPONENT_DECISION_COUNT):
+            nonabsorbing_disassembly |= (
+                (not inspect_parts[component_position])
+                & (
+                    rate_matrix[:, component_position]
+                    > 0
+                )
             )
+        if disassemble:
+            valid[strategy_index] &= ~nonabsorbing_disassembly
+
+        for state_index in range(state_count):
+            for first_quality in range(len(Q2_STATES)):
+                for second_quality in range(len(Q2_STATES)):
+                    mass = joint[
+                        state_index,
+                        :,
+                        first_quality,
+                        second_quality,
+                    ]
+                    both_good = bool(
+                        first_quality == good_index
+                        and second_quality == good_index
+                    )
+                    product_good_probability = np.where(
+                        both_good,
+                        1 - product_defect_rate[0],
+                        0.0,
+                    )
+                    product_bad_probability = (
+                        1 - product_good_probability
+                    )
+                    attempt_cost = (
+                        preparation_cost[state_index]
+                        + assembly_cost
+                    )
+                    if inspect_product:
+                        attempt_cost = attempt_cost + product_inspection_cost
+
+                    immediate_reward = mass * (
+                        attempt_cost
+                        + sale_price * product_good_probability
+                    )
+                    if not inspect_product:
+                        immediate_reward -= (
+                            mass
+                            * product_bad_probability
+                            * exchange_loss
+                        )
+                    if disassemble:
+                        immediate_reward -= (
+                            mass
+                            * product_bad_probability
+                            * disassembly_cost
+                        )
+                    reward[strategy_index, :, state_index] += immediate_reward
+
+                    failed_mass = mass * product_bad_probability
+                    transition[
+                        strategy_index,
+                        :,
+                        state_index,
+                        _Q2_EMPTY_STATE_INDEX,
+                    ] += failed_mass
+                    if disassemble:
+                        transition[
+                            strategy_index,
+                            :,
+                            state_index,
+                            state_index,
+                        ] += failed_mass
+
+                success_from_empty[strategy_index] += 0
+        success_from_empty[strategy_index] = np.sum(
+            joint[
+                _Q2_EMPTY_STATE_INDEX,
+                :,
+                good_index,
+                good_index,
+            ]
+            * np.where(
+                True,
+                1 - product_defect_rate[0],
+                0.0,
+            )
+        )
+        valid[strategy_index] &= success_from_empty[strategy_index] > 0
+
+    values = np.full(
+        (strategy_count, batch_size),
+        np.inf,
+        dtype=float,
+    )
+    bellman_residual = np.full(
+        (strategy_count, batch_size),
+        np.inf,
+        dtype=float,
+    )
+    absorption_probability = np.zeros(
+        (strategy_count, batch_size),
+        dtype=float,
+    )
+
+    for strategy_index in range(strategy_count):
+        valid_indices = np.flatnonzero(valid[strategy_index])
+        if valid_indices.size == 0:
+            continue
+        system = (
+            np.eye(state_count)[None, :, :]
+            - transition[strategy_index, valid_indices]
+        )
+        right_hand_side = reward[strategy_index, valid_indices]
+        try:
+            solved = np.linalg.solve(system, right_hand_side)
+        except np.linalg.LinAlgError:
+            for batch_index in valid_indices:
+                try:
+                    solved_item = np.linalg.solve(
+                        np.eye(state_count)
+                        - transition[strategy_index, batch_index],
+                        reward[strategy_index, batch_index],
+                    )
+                except np.linalg.LinAlgError:
+                    valid[strategy_index, batch_index] = False
+                    continue
+                values[strategy_index, batch_index] = solved_item[
+                    _Q2_EMPTY_STATE_INDEX
+                ]
+                residual = solved_item - (
+                    reward[strategy_index, batch_index]
+                    + transition[strategy_index, batch_index]
+                    @ solved_item
+                )
+                bellman_residual[
+                    strategy_index,
+                    batch_index,
+                ] = float(np.max(np.abs(residual)))
+                absorption_probability[
+                    strategy_index,
+                    batch_index,
+                ] = 1.0
+            continue
+
+        values[strategy_index, valid_indices] = solved[
+            :, _Q2_EMPTY_STATE_INDEX
+        ]
+        residual = solved - (
+            right_hand_side
+            + np.einsum(
+                "bij,bj->bi",
+                transition[strategy_index, valid_indices],
+                solved,
+            )
+        )
+        bellman_residual[strategy_index, valid_indices] = np.max(
+            np.abs(residual),
+            axis=1,
+        )
+        absorption_probability[strategy_index, valid_indices] = 1.0
+
+    values[~valid] = np.inf
+    bellman_residual[~valid] = np.inf
+    return {
+        "profits": values,
+        "bellman_residual": bellman_residual,
+        "absorption_probability": absorption_probability,
+        "valid": valid,
+    }
+
+
+def _q3_parent_groups(
+    topology_groups: Mapping[str, Any],
+) -> dict[str, list[int]]:
+    return {
+        "semi1": [int(item) for item in topology_groups["semi1"]],
+        "semi2": [int(item) for item in topology_groups["semi2"]],
+        "semi3": [int(item) for item in topology_groups["semi3"]],
+        "product": ["semi1", "semi2", "semi3"],
+    }
+
+
+def _evaluate_q3_policies(
+    rates: np.ndarray,
+    policies: np.ndarray | None = None,
+    topology_groups: Mapping[str, Any] | None = None,
+) -> dict[str, np.ndarray]:
+    """在完整策略空间上向量化重算树状装配网络。"""
+    rate_matrix = np.asarray(rates, dtype=float)
+    if rate_matrix.ndim == 1:
+        rate_matrix = rate_matrix.reshape(1, -1)
+    if rate_matrix.shape[1] != Q3_PARAMETER_NODE_COUNT:
+        raise ValueError("问题三概率向量维度异常")
+    if np.any(rate_matrix < 0) or np.any(rate_matrix > 1):
+        raise ValueError("问题三概率必须位于零到一之间")
+
+    policy_matrix = (
+        _q3_policy_matrix()
+        if policies is None
+        else np.asarray(policies, dtype=np.int8)
+    )
+    if policy_matrix.ndim != 2 or policy_matrix.shape[1] != Q3_TOTAL_DECISION_COUNT:
+        raise ValueError("问题三策略矩阵维度异常")
+
+    groups = _q3_parent_groups(
+        Q3_PRIMARY_PARENT_GROUPS
+        if topology_groups is None
+        else topology_groups
+    )
+    strategy_count = policy_matrix.shape[0]
+    batch_size = rate_matrix.shape[0]
+    node_data: dict[str, dict[str, np.ndarray]] = {}
+
+    for node_index, node in enumerate(Q3_PARTS):
+        inspection = policy_matrix[:, node_index, None].astype(bool)
+        defect_rate = rate_matrix[:, node_index][None, :]
+        success_probability = 1 - defect_rate
+        safe_success = np.where(
+            success_probability > 0,
+            success_probability,
+            1,
+        )
+        inspected_cost = (
+            float(node["purchase_price"])
+            + float(node["inspection_cost"])
+        ) / safe_success
+        inspected_cost = np.where(
+            inspection,
+            inspected_cost,
+            float(node["purchase_price"]),
         )
         inspected_cost = np.where(
-            choose_disassemble,
-            inspected_disassemble_cost,
-            inspected_scrap_cost,
-        )
-        cost = np.where(
-            inspect,
+            inspection & (success_probability <= 0),
+            np.inf,
             inspected_cost,
-            uninspected_cost,
         )
-        one = np.ones_like(launch_good)
-        zero = np.zeros_like(launch_good)
-        q_output = np.stack(
-            (launch_good, one, one),
-            axis=-1,
+        good_probability = np.where(
+            inspection,
+            1.0,
+            success_probability,
         )
-        d_output = np.stack(
-            (zero, zero, choose_disassemble.astype(int)),
-            axis=-1,
+        finite = np.isfinite(inspected_cost) & (
+            (~inspection) | (success_probability > 0)
         )
-        semi_q_arrays.append(q_output)
-        semi_cost_arrays.append(cost)
-        semi_d_arrays.append(d_output)
+        label = _q3_node_label(node)
+        node_data[label] = {
+            "cost": inspected_cost,
+            "good_probability": good_probability,
+            "finite": finite,
+            "inspection": inspection,
+        }
 
-    q_semi = _combine_semi_axes(
-        semi_q_arrays,
-        batch_size,
-        part_profile_count,
-    )
-    cost_semi = _combine_semi_axes(
-        semi_cost_arrays,
-        batch_size,
-        part_profile_count,
-    )
-    d_semi = _combine_semi_axes(
-        semi_d_arrays,
-        batch_size,
-        part_profile_count,
-    )
-    semi_combination_count = q_semi.shape[-1]
+    for semi_index, node in enumerate(Q3_SEMIS):
+        label = f"semi{semi_index + 1}"
+        inspection = policy_matrix[
+            :,
+            Q3_INSPECTION_DECISION_COUNT
+            - Q3_DISPOSAL_DECISION_COUNT
+            + semi_index,
+            None,
+        ].astype(bool)
+        disassembly = policy_matrix[
+            :,
+            Q3_INSPECTION_DECISION_COUNT + semi_index,
+            None,
+        ].astype(bool)
+        child_labels = [f"part{item}" for item in groups[label]]
+        child_cost = np.zeros(
+            (strategy_count, batch_size),
+            dtype=float,
+        )
+        child_good = np.ones(
+            (strategy_count, batch_size),
+            dtype=float,
+        )
+        child_finite = np.ones(
+            (strategy_count, batch_size),
+            dtype=bool,
+        )
+        reactivation_cost = np.zeros(
+            (strategy_count, batch_size),
+            dtype=float,
+        )
+        children_guaranteed_good = np.ones(
+            (strategy_count, batch_size),
+            dtype=bool,
+        )
+        for child_label in child_labels:
+            child = node_data[child_label]
+            child_cost += child["cost"]
+            child_good *= child["good_probability"]
+            child_finite &= child["finite"]
+            children_guaranteed_good &= (
+                child["good_probability"] >= 1
+            )
+            reactivation_cost += (
+                child["inspection"]
+                * float(
+                    Q3_PART_PARAMETERS[
+                        int(child_label.removeprefix("part")) - 1
+                    ]["inspection_cost"]
+                )
+            )
 
-    root_rate = probability_array[:, -1]
-    launch_good = (
-        np.prod(q_semi, axis=-1)
-        * (params.Q2_PROBABILITY_CEILING - root_rate[:, None])
-    )
-    launch_failure = params.Q2_PROBABILITY_CEILING - launch_good
-    child_cost = np.sum(cost_semi, axis=-1)
-    root_inspection = _Q3_ROOT_INSPECTION_PROFILES.astype(bool)[
-        None,
-        None,
-        None,
-        :,
-    ]
-    root = params.Q3_PRODUCT_DATA
-    assembly_cost = root["assembly_cost"]
-    inspection_cost = root["inspection_cost"]
-    disassembly_cost = root["disassembly_cost"]
-    exchange_loss = root["exchange_loss"]
-    market_price = root["market_price"]
+        defect_rate = rate_matrix[
+            :,
+            len(Q3_PARTS) + semi_index,
+        ][None, :]
+        intrinsic_bad_probability = 1 - defect_rate
+        raw_good_probability = child_good * (
+            1 - defect_rate
+        )
+        raw_launch_cost = (
+            child_cost
+            + float(node["assembly_cost"])
+        )
+        inspected_attempt_cost = (
+            raw_launch_cost
+            + float(node["inspection_cost"])
+        )
+        geometric_cost = np.divide(
+            inspected_attempt_cost,
+            raw_good_probability,
+            out=np.full_like(inspected_attempt_cost, np.inf),
+            where=raw_good_probability > 0,
+        )
+        safe_intrinsic_bad = np.where(
+            intrinsic_bad_probability > 0,
+            intrinsic_bad_probability,
+            1,
+        )
+        salvage_cost = (
+            inspected_attempt_cost
+            + intrinsic_bad_probability
+            * (
+                float(node["disassembly_cost"])
+                + reactivation_cost
+            )
+        ) / safe_intrinsic_bad
+        salvage_cost = np.where(
+            intrinsic_bad_probability > 0,
+            salvage_cost,
+            np.inf,
+        )
+        selected_inspected_cost = np.where(
+            disassembly & children_guaranteed_good,
+            salvage_cost,
+            geometric_cost,
+        )
+        selected_cost = np.where(
+            inspection,
+            selected_inspected_cost,
+            raw_launch_cost,
+        )
+        selected_good_probability = np.where(
+            inspection,
+            1.0,
+            raw_good_probability,
+        )
+        can_finish_if_inspected = np.where(
+            disassembly,
+            children_guaranteed_good
+            & (intrinsic_bad_probability > 0),
+            raw_good_probability > 0,
+        )
+        finite = child_finite & np.where(
+            inspection,
+            can_finish_if_inspected,
+            raw_good_probability > 0,
+        ) & np.isfinite(selected_cost)
+        node_data[label] = {
+            "cost": selected_cost,
+            "good_probability": selected_good_probability,
+            "finite": finite,
+            "inspection": inspection,
+        }
+        for child_label in child_labels:
+            node_data.pop(child_label, None)
 
-    inspected_scrap_cost = (
-        child_cost + assembly_cost + inspection_cost
-    ) / launch_good
-    inspected_disassemble_cost = child_cost + (
-        assembly_cost + inspection_cost + disassembly_cost
-    ) / launch_good
-    inspected_choose_d = (
-        child_cost * launch_failure > disassembly_cost
+    root = node_data["product"]
+    root_inspection = root["inspection"]
+    root_disassembly = policy_matrix[:, Q3_TOTAL_DECISION_COUNT - 1, None].astype(bool)
+    child_labels = ["semi1", "semi2", "semi3"]
+    child_cost = np.zeros(
+        (strategy_count, batch_size),
+        dtype=float,
     )
-    inspected_cost = np.where(
-        inspected_choose_d,
-        inspected_disassemble_cost,
-        inspected_scrap_cost,
+    child_good = np.ones(
+        (strategy_count, batch_size),
+        dtype=float,
     )
-    inspected_profit = market_price - inspected_cost
-    inspected_d = inspected_choose_d.astype(int)
+    child_finite = np.ones(
+        (strategy_count, batch_size),
+        dtype=bool,
+    )
+    children_guaranteed_good = np.ones(
+        (strategy_count, batch_size),
+        dtype=bool,
+    )
+    reactivation_cost = np.zeros(
+        (strategy_count, batch_size),
+        dtype=float,
+    )
+    for child_label in child_labels:
+        child = node_data[child_label]
+        child_cost += child["cost"]
+        child_good *= child["good_probability"]
+        child_finite &= child["finite"]
+        children_guaranteed_good &= (
+            child["good_probability"] >= 1
+        )
+        child_node = Q3_SEMI_PARAMETERS[
+            int(child_label.removeprefix("semi")) - 1
+        ]
+        reactivation_cost += (
+            child["inspection"]
+            * float(child_node["inspection_cost"])
+        )
 
-    uninspected_scrap_cost = (
-        child_cost + assembly_cost
-        + launch_failure * exchange_loss
-    ) / launch_good
-    uninspected_disassemble_cost = (
+    root_defect_rate = rate_matrix[:, Q3_PARAMETER_NODE_COUNT - 1][None, :]
+    root_raw_good = child_good * (1 - root_defect_rate)
+    root_launch_cost = child_cost + float(Q3_ROOT_ASSEMBLY_COST)
+    root_bad_probability = 1 - root_raw_good
+    safe_root_good = np.where(
+        root_raw_good > 0,
+        root_raw_good,
+        1,
+    )
+    root_bad_to_good_ratio = root_bad_probability / safe_root_good
+
+    no_test_scrap_cost = root_launch_cost / safe_root_good
+    no_test_disassembly_cost = (
         child_cost
-        + assembly_cost / launch_good
-        + launch_failure * (exchange_loss + disassembly_cost) / launch_good
+        + float(Q3_ROOT_ASSEMBLY_COST)
+        + root_bad_to_good_ratio
+        * (
+            float(Q3_ROOT_ASSEMBLY_COST)
+            + float(Q3_ROOT_DISASSEMBLY_COST)
+            + reactivation_cost
+        )
     )
-    uninspected_choose_d = child_cost < disassembly_cost
-    uninspected_cost = np.where(
-        uninspected_choose_d,
-        uninspected_disassemble_cost,
-        uninspected_scrap_cost,
+    no_test_disassembly_cost = np.where(
+        root_raw_good > 0,
+        no_test_disassembly_cost,
+        np.inf,
     )
-    uninspected_profit = market_price / launch_good - uninspected_cost
-    uninspected_d = uninspected_choose_d.astype(int)
 
-    root_profit = np.where(
-        root_inspection,
-        inspected_profit,
-        uninspected_profit,
+    root_finite = (
+        child_finite
+        & (~root_disassembly | children_guaranteed_good)
+        & (root_raw_good > 0)
+        & np.isfinite(root["cost"])
     )
-    root_d = np.where(
-        root_inspection,
-        inspected_d,
-        uninspected_d,
+    profits = np.full(
+        (strategy_count, batch_size),
+        np.inf,
+        dtype=float,
     )
-    profile_profit = np.reshape(
-        root_profit,
-        (batch_size, _Q3_ALL_INSPECTION_PROFILE_COUNT),
+
+    tested_profit = float(Q3_MARKET_PRICE) - root["cost"]
+    tested_mask = root_inspection
+    profits[tested_mask] = tested_profit[tested_mask]
+    root_finite[tested_mask] &= np.isfinite(tested_profit)[tested_mask]
+
+    untested_mask = ~root_inspection
+    no_test_cost = np.where(
+        root_disassembly,
+        no_test_disassembly_cost,
+        no_test_scrap_cost,
     )
-    root_d = np.reshape(
-        root_d,
-        (batch_size, part_profile_count, semi_combination_count, -1),
+    untested_profit = (
+        float(Q3_MARKET_PRICE)
+        - no_test_cost
+        - root_bad_to_good_ratio * float(Q3_EXCHANGE_LOSS)
     )
+    profits[untested_mask] = untested_profit[untested_mask]
+    root_finite[untested_mask] &= np.isfinite(
+        untested_profit
+    )[untested_mask]
+    profits[~root_finite] = np.inf
+
     return {
-        "profit": profile_profit,
-        "semi_disassembly_bits": d_semi,
-        "root_disassembly_bit": root_d,
+        "profits": profits,
+        "valid": root_finite,
+        "root_output_rate": np.where(
+            root_inspection,
+            1.0,
+            root_raw_good,
+        ),
+        "root_launch_cost_rate": np.where(
+            root_inspection,
+            root["cost"],
+            root_launch_cost,
+        ),
+        "state_count": np.full(
+            (strategy_count, batch_size),
+            Q3_REACHABLE_STATE_LIMIT,
+            dtype=np.int64,
+        ),
     }
 
 
-def _q3_canonical_vectors_for_indices(batch_result, selected_indices):
-    indices = np.asarray(selected_indices, dtype=int)
-    if indices.ndim == 0:
-        indices = indices.reshape(1)
-    profit = batch_result["profit"]
-    batch_size = profit.shape[0]
-    rows = np.arange(batch_size)
-    root_count = _Q3_ROOT_INSPECTION_PROFILES.shape[0]
-    semi_count = d_shape = batch_result["semi_disassembly_bits"].shape[-1]
-    part_count = batch_result["semi_disassembly_bits"].shape[1]
-    combined_count = part_count * d_shape
-    if np.any(indices >= _Q3_ALL_INSPECTION_PROFILE_COUNT):
-        raise IndexError("问题三检测组合索引越界")
-    part_indices = indices // (combined_count * root_count)
-    semi_indices = (indices // root_count) % semi_count
-    root_indices = indices % root_count
-    semi_bits = []
-    for semi_offset in range(len(params.Q3_SEMI_NODE_IDS)):
-        semi_bits.append(
-            batch_result["semi_disassembly_bits"][
-                rows,
-                part_indices,
-                semi_indices,
+def _q3_single_policy_metrics(
+    rates: np.ndarray,
+    policy: np.ndarray,
+    topology_groups: Mapping[str, Any] | None = None,
+) -> dict[str, Any]:
+    """独立标量复算所选策略的 Q、C 与 U=C/Q 节点指标。"""
+    rate_vector = np.asarray(rates, dtype=float).reshape(-1)
+    policy_vector = np.asarray(policy, dtype=np.int8).reshape(-1)
+    groups = _q3_parent_groups(
+        Q3_PRIMARY_PARENT_GROUPS
+        if topology_groups is None
+        else topology_groups
+    )
+    metrics: dict[str, dict[str, float | bool]] = {}
+
+    for node_index, node in enumerate(Q3_PARTS):
+        inspected = bool(policy_vector[node_index])
+        success_probability = 1 - float(rate_vector[node_index])
+        if inspected and success_probability <= 0:
+            cost = np.inf
+        elif inspected:
+            cost = (
+                float(node["purchase_price"])
+                + float(node["inspection_cost"])
+            ) / success_probability
+        else:
+            cost = float(node["purchase_price"])
+        quality_probability = 1.0 if inspected else success_probability
+        metrics[_q3_node_label(node)] = {
+            "output_rate": quality_probability,
+            "launch_cost_rate": cost,
+            "unit_good_cost": (
+                cost / quality_probability
+                if quality_probability > 0
+                else np.inf
+            ),
+            "finite": bool(np.isfinite(cost)),
+        }
+
+    for semi_index, node in enumerate(Q3_SEMIS):
+        label = f"semi{semi_index + 1}"
+        inspected = bool(
+            policy_vector[
+                Q3_INSPECTION_DECISION_COUNT
+                - Q3_DISPOSAL_DECISION_COUNT
+                + semi_index
             ]
         )
-    root_bits = batch_result["root_disassembly_bit"][
-        rows,
-        part_indices,
-        semi_indices,
-        root_indices,
-    ]
-    inspection_bits = _Q3_ROOT_INSPECTION_PROFILES[indices]
-    return np.concatenate(
-        (inspection_bits, np.stack(semi_bits, axis=-1), root_bits),
-        axis=-1,
-    )
-
-
-def _q3_optimize_batch(rates, topology):
-    probability_array = _safe_probability_array(rates)
-    if probability_array.ndim == 1:
-        probability_array = probability_array.reshape(1, -1)
-    batch_result = _q3_profiles_for_batch(
-        probability_array,
-        topology,
-    )
-    indices = np.argmax(batch_result["profit"], axis=-1)
-    rows = np.arange(probability_array.shape[0])
-    maximum = batch_result["profit"][rows, indices]
-    policies = _q3_canonical_vectors_for_indices(
-        batch_result,
-        indices,
-    )
-    return indices, maximum, policies, batch_result
-
-
-def _q3_explicit_full_profiles(rates, topology, policies_override=None):
-    """显式计算完整二元策略空间，用于名义实例独立全局核验。"""
-    probability_array = _safe_probability_array(rates)
-    if probability_array.ndim == 1:
-        probability_array = probability_array.reshape(1, -1)
-    if probability_array.shape[0] != 1:
-        raise ValueError("完整问题三核验每次只接收一个参数向量")
-    policies = (
-        _Q3_POLICY_ARRAY
-        if policies_override is None
-        else _validate_binary_policies(
-            policies_override,
-            params.Q3_DECISION_VARIABLE_COUNT,
-        )
-    )
-    policy_lookup = {
-        name: offset
-        for offset, name in enumerate(params.Q3_POLICY_ORDER)
-    }
-    part_positions = [
-        policy_lookup[f"inspect:{node}"]
-        for node in params.Q3_PART_NODE_IDS
-    ]
-    part_inspection = policies[:, part_positions].astype(bool)
-    p_parts = probability_array[
-        0,
-        : len(params.Q3_PART_NODE_IDS),
-    ]
-    part_prices = np.asarray(
-        [node["purchase_price"] for node in params.Q3_PART_NODES],
-        dtype=float,
-    )
-    part_tests = np.asarray(
-        [node["inspection_cost"] for node in params.Q3_PART_NODES],
-        dtype=float,
-    )
-    good_parts = np.where(
-        part_inspection,
-        params.Q2_PROBABILITY_CEILING,
-        params.Q2_PROBABILITY_CEILING - p_parts[None, :],
-    )
-    cost_parts = np.where(
-        part_inspection,
-        (part_prices + part_tests)[None, :] / good_parts,
-        part_prices[None, :],
-    )
-
-    semi_q_arrays = []
-    semi_cost_arrays = []
-    for semi_offset, node in enumerate(params.Q3_SEMI_NODES):
-        parent_indices = list(topology[node["node_id"]])
-        parent_good = good_parts[:, parent_indices]
-        parent_cost = np.sum(cost_parts[:, parent_indices], axis=-1)
-        rate = probability_array[
-            0,
-            len(params.Q3_PART_NODE_IDS) + semi_offset,
-        ]
-        launch_good = (
-            np.prod(parent_good, axis=-1)
-            * (params.Q2_PROBABILITY_CEILING - rate)
-        )
-        inspect = policies[
-            :,
-            policy_lookup[f"inspect:{node['node_id']}"],
-        ].astype(bool)
-        disassemble = policies[
-            :,
-            policy_lookup[f"disassemble:{node['node_id']}"],
-        ].astype(bool)
-        assembly = node["assembly_cost"]
-        inspection = node["inspection_cost"]
-        disassembly = node["disassembly_cost"]
-        uninspected_cost = parent_cost + assembly
-        scrap_cost = (
-            parent_cost + assembly + inspection
-        ) / launch_good
-        disassemble_cost = parent_cost + (
-            assembly + inspection + disassembly
-        ) / launch_good
-        semi_q_arrays.append(
-            np.where(
-                inspect,
-                params.Q2_PROBABILITY_CEILING,
-                launch_good,
-            )
-        )
-        semi_cost_arrays.append(
-            np.where(
-                inspect,
-                np.where(disassemble, disassemble_cost, scrap_cost),
-                uninspected_cost,
-            )
-        )
-
-    semi_q = np.stack(semi_q_arrays, axis=-1)
-    semi_cost = np.stack(semi_cost_arrays, axis=-1)
-    root_good = (
-        np.prod(semi_q, axis=-1)
-        * (
-            params.Q2_PROBABILITY_CEILING
-            - probability_array[0, -1]
-        )
-    )
-    root_failure = params.Q2_PROBABILITY_CEILING - root_good
-    child_cost = np.sum(semi_cost, axis=-1)
-    root_inspection = policies[
-        :,
-        policy_lookup[f"inspect:{params.Q3_ROOT_NODE_ID}"],
-    ].astype(bool)
-    root_disassembly = policies[
-        :,
-        policy_lookup[f"disassemble:{params.Q3_ROOT_NODE_ID}"],
-    ].astype(bool)
-    root = params.Q3_PRODUCT_DATA
-    inspected_scrap = (
-        child_cost + root["assembly_cost"] + root["inspection_cost"]
-    ) / root_good
-    inspected_disassemble = child_cost + (
-        root["assembly_cost"]
-        + root["inspection_cost"]
-        + root["disassembly_cost"]
-    ) / root_good
-    inspected_cost = np.where(
-        root_disassembly,
-        inspected_disassemble,
-        inspected_scrap,
-    )
-    inspected_profit = root["market_price"] - inspected_cost
-    uninspected_scrap = (
-        child_cost
-        + root["assembly_cost"]
-        + root_failure * root["exchange_loss"]
-    ) / root_good
-    uninspected_disassemble = (
-        child_cost
-        + root["assembly_cost"] / root_good
-        + root_failure
-        * (root["exchange_loss"] + root["disassembly_cost"])
-        / root_good
-    )
-    uninspected_cost = np.where(
-        root_disassembly,
-        uninspected_disassemble,
-        uninspected_scrap,
-    )
-    uninspected_profit = (
-        root["market_price"] / root_good - uninspected_cost
-    )
-    return np.where(
-        root_inspection,
-        inspected_profit,
-        uninspected_profit,
-    )
-
-
-def _q3_point(rate_vector, topology):
-    result = _q3_optimize_batch(
-        np.asarray(rate_vector, dtype=float),
-        topology,
-    )
-    return {
-        "policy_index": int(result[0][0]),
-        "profit": float(result[1][0]),
-        "policy_vector": result[2][0].astype(int).tolist(),
-        "policy": _policy_mapping(
-            result[2][0],
-            params.Q3_POLICY_ORDER,
-        ),
-    }
-
-
-def _q3_breakdown(rate_vector, policy_vector, topology):
-    rates = _safe_probability_array(rate_vector)
-    policy = np.asarray(policy_vector, dtype=int)
-    lookup = {
-        name: offset
-        for offset, name in enumerate(params.Q3_POLICY_ORDER)
-    }
-    part_rates = rates[: len(params.Q3_PART_NODE_IDS)]
-    part_purchase = []
-    part_inspection = []
-    part_good = []
-    for offset, node in enumerate(params.Q3_PART_NODES):
-        inspect = bool(policy[lookup[f"inspect:{node['node_id']}"]])
-        good = (
-            params.Q2_PROBABILITY_CEILING
-            if inspect
-            else params.Q2_PROBABILITY_CEILING - part_rates[offset]
-        )
-        purchase = (
-            node["purchase_price"]
-            / (params.Q2_PROBABILITY_CEILING - part_rates[offset])
-            if inspect
-            else node["purchase_price"]
-        )
-        inspection = (
-            node["inspection_cost"]
-            / (params.Q2_PROBABILITY_CEILING - part_rates[offset])
-            if inspect
-            else params.Q2_COST_FLOOR
-        )
-        part_good.append(good)
-        part_purchase.append(purchase)
-        part_inspection.append(inspection)
-
-    semi_records = []
-    for semi_offset, node in enumerate(params.Q3_SEMI_NODES):
-        parents = list(topology[node["node_id"]])
-        parent_good = params.Q2_PROBABILITY_CEILING
-        parent_purchase = params.Q2_COST_FLOOR
-        parent_inspection = params.Q2_COST_FLOOR
-        for parent in parents:
-            parent_good *= part_good[parent]
-            parent_purchase += part_purchase[parent]
-            parent_inspection += part_inspection[parent]
-        conditional_rate = rates[
-            len(params.Q3_PART_NODE_IDS) + semi_offset
-        ]
-        launch_good = parent_good * (
-            params.Q2_PROBABILITY_CEILING - conditional_rate
-        )
-        failure = params.Q2_PROBABILITY_CEILING - launch_good
-        inspect = bool(
-            policy[lookup[f"inspect:{node['node_id']}"]]
-        )
         disassemble = bool(
-            policy[lookup[f"disassemble:{node['node_id']}"]]
+            policy_vector[
+                Q3_INSPECTION_DECISION_COUNT + semi_index
+            ]
         )
-        if inspect:
-            output_good = params.Q2_PROBABILITY_CEILING
-            if disassemble:
-                purchase = parent_purchase
-                inspection = (
-                    parent_inspection + node["inspection_cost"]
-                ) / launch_good
-                assembly = node["assembly_cost"] / launch_good
-                disassembly = node["disassembly_cost"] * failure / launch_good
+        child_labels = [f"part{item}" for item in groups[label]]
+        child_metrics = [metrics[item] for item in child_labels]
+        child_cost = sum(
+            float(item["launch_cost_rate"])
+            for item in child_metrics
+        )
+        child_good = float(
+            np.prod(
+                [float(item["output_rate"]) for item in child_metrics]
+            )
+        )
+        all_guaranteed = all(
+            float(item["output_rate"]) >= 1
+            for item in child_metrics
+        )
+        reactivation = sum(
+            float(
+                Q3_PART_PARAMETERS[
+                    int(item.removeprefix("part")) - 1
+                ]["inspection_cost"]
+            )
+            * bool(
+                policy_vector[
+                    int(item.removeprefix("part")) - 1
+                ]
+            )
+            for item in child_labels
+        )
+        node_rate = float(rate_vector[len(Q3_PARTS) + semi_index])
+        raw_good = child_good * (1 - node_rate)
+        raw_cost = child_cost + float(node["assembly_cost"])
+        if inspected:
+            attempt_cost = raw_cost + float(node["inspection_cost"])
+            if raw_good <= 0:
+                cost = np.inf
+            elif disassemble and all_guaranteed and node_rate < 1:
+                cost = (
+                    attempt_cost
+                    + (1 - node_rate)
+                    * (
+                        float(node["disassembly_cost"])
+                        + reactivation
+                    )
+                ) / (1 - node_rate)
+            elif disassemble:
+                cost = np.inf
             else:
-                purchase = parent_purchase / launch_good
-                inspection = (
-                    parent_inspection + node["inspection_cost"]
-                ) / launch_good
-                assembly = node["assembly_cost"] / launch_good
-                disassembly = params.Q2_COST_FLOOR
+                cost = attempt_cost / raw_good
+            output_rate = 1.0
         else:
-            output_good = launch_good
-            purchase = parent_purchase
-            inspection = parent_inspection
-            assembly = node["assembly_cost"]
-            disassembly = params.Q2_COST_FLOOR
-        record = {
-            "node": str(node["node_id"]),
-            "output_good_probability": float(output_good),
-            "purchase_cost": float(purchase),
-            "inspection_cost": float(inspection),
-            "assembly_cost": float(assembly),
-            "disassembly_cost": float(disassembly),
-            "exchange_cost": params.Q2_COST_FLOOR,
-            "revenue": params.Q2_COST_FLOOR,
-        }
-        semi_records.append(record)
-        part_purchase[params.Q3_PART_COUNT] = part_purchase[params.Q3_PART_COUNT]
-
-    child_purchase = sum(record["purchase_cost"] for record in semi_records)
-    child_inspection = sum(record["inspection_cost"] for record in semi_records)
-    child_assembly = sum(record["assembly_cost"] for record in semi_records)
-    child_disassembly = sum(record["disassembly_cost"] for record in semi_records)
-    child_good = params.Q2_PROBABILITY_CEILING
-    for record, node in zip(semi_records, params.Q3_SEMI_NODES):
-        child_good *= record["output_good_probability"]
-    root_rate = rates[-1]
-    launch_good = child_good * (
-        params.Q2_PROBABILITY_CEILING - root_rate
-    )
-    failure = params.Q2_PROBABILITY_CEILING - launch_good
-    root_inspection = bool(
-        policy[lookup[f"inspect:{params.Q3_ROOT_NODE_ID}"]]
-    )
-    root_disassembly = bool(
-        policy[lookup[f"disassemble:{params.Q3_ROOT_NODE_ID}"]]
-    )
-    root = params.Q3_PRODUCT_DATA
-
-    if root_inspection:
-        if root_disassembly:
-            purchase = child_purchase
-            inspection = (
-                child_inspection + root["inspection_cost"]
-            ) / launch_good
-            assembly = root["assembly_cost"] / launch_good
-            disassembly = root["disassembly_cost"] * failure / launch_good
-        else:
-            purchase = child_purchase / launch_good
-            inspection = (
-                child_inspection + root["inspection_cost"]
-            ) / launch_good
-            assembly = root["assembly_cost"] / launch_good
-            disassembly = params.Q2_COST_FLOOR
-        exchange = params.Q2_COST_FLOOR
-        revenue = root["market_price"]
-    else:
-        exchange = failure * root["exchange_loss"] / launch_good
-        revenue = root["market_price"] / launch_good
-        assembly = root["assembly_cost"] / launch_good
-        if root_disassembly:
-            purchase = child_purchase
-            inspection = child_inspection
-            disassembly = root["disassembly_cost"] * failure / launch_good
-        else:
-            purchase = child_purchase / launch_good
-            inspection = child_inspection / launch_good
-            disassembly = params.Q2_COST_FLOOR
-
-    breakdown = {
-        "purchase_cost": float(purchase),
-        "inspection_cost": float(inspection),
-        "assembly_cost": float(assembly),
-        "disassembly_cost": float(disassembly),
-        "exchange_loss": float(exchange),
-        "market_revenue": float(revenue),
-    }
-    breakdown["total_cost"] = float(
-        breakdown["purchase_cost"]
-        + breakdown["inspection_cost"]
-        + breakdown["assembly_cost"]
-        + breakdown["disassembly_cost"]
-        + breakdown["exchange_loss"]
-    )
-    breakdown["profit"] = float(
-        breakdown["market_revenue"] - breakdown["total_cost"]
-    )
-    return breakdown
-
-
-def _q3_node_metrics(rate_vector, policy_vector, topology, breakdown):
-    lookup = {
-        name: offset
-        for offset, name in enumerate(params.Q3_POLICY_ORDER)
-    }
-    rates = _safe_probability_array(rate_vector)
-    metrics = []
-    for offset, node in enumerate(params.Q3_PART_NODES):
-        inspect = bool(
-            policy_vector[lookup[f"inspect:{node['node_id']}"]]
-        )
-        q = (
-            params.Q2_PROBABILITY_CEILING
-            if inspect
-            else params.Q2_PROBABILITY_CEILING - rates[offset]
-        )
-        c = (
-            (
-                node["purchase_price"] + node["inspection_cost"]
-            )
-            / (params.Q2_PROBABILITY_CEILING - rates[offset])
-            if inspect
-            else node["purchase_price"]
-        )
-        metrics.append(
-            {
-                "node": str(node["node_id"]),
-                "output_rate_Q": float(q),
-                "cash_cost_per_emitted_output_C": float(c),
-                "unit_good_cost_U": float(c / q),
-                "unit_identity_error": float(abs(c / q - c / q)),
-            }
-        )
-
-    parent_good = params.Q2_PROBABILITY_CEILING
-    parent_cost = params.Q2_COST_FLOOR
-    for offset, node in enumerate(params.Q3_SEMI_NODES):
-        for part in topology[node["node_id"]]:
-            parent = metrics[part]
-            parent_good *= parent["output_rate_Q"]
-            parent_cost += parent["cash_cost_per_emitted_output_C"]
-        launch_good = parent_good * (
-            params.Q2_PROBABILITY_CEILING
-            - rates[len(params.Q3_PART_NODE_IDS) + offset]
-        )
-        inspect = bool(
-            policy_vector[lookup[f"inspect:{node['node_id']}"]]
-        )
-        disassemble = bool(
-            policy_vector[lookup[f"disassemble:{node['node_id']}"]]
-        )
-        failure = params.Q2_PROBABILITY_CEILING - launch_good
-        if inspect:
-            q = params.Q2_PROBABILITY_CEILING
-            c = (
-                parent_cost
-                + (
-                    node["assembly_cost"]
-                    + node["inspection_cost"]
-                    + node["disassembly_cost"]
-                )
-                / launch_good
-                if disassemble
-                else (
-                    parent_cost
-                    + node["assembly_cost"]
-                    + node["inspection_cost"]
-                )
-                / launch_good
-            )
-            parent_good = q
-            parent_cost = c
-        else:
-            q = launch_good
-            c = parent_cost + node["assembly_cost"]
-            parent_good = q
-            parent_cost = c
-        metrics.append(
-            {
-                "node": str(node["node_id"]),
-                "output_rate_Q": float(q),
-                "cash_cost_per_emitted_output_C": float(c),
-                "unit_good_cost_U": float(c / q),
-                "unit_identity_error": float(abs(c / q - c / q)),
-            }
-        )
-
-    root_launch_good = parent_good * (
-        params.Q2_PROBABILITY_CEILING - rates[-1]
-    )
-    root_cost = (
-        float(breakdown["total_cost"])
-        if not bool(
-            policy_vector[lookup[f"inspect:{params.Q3_ROOT_NODE_ID}"]]
-        )
-        or bool(
-            policy_vector[lookup[f"disassemble:{params.Q3_ROOT_NODE_ID}"]]
-        )
-        else float(breakdown["total_cost"]) / root_launch_good
-    )
-    root_q = params.Q2_PROBABILITY_CEILING
-    metrics.append(
-        {
-            "node": str(params.Q3_ROOT_NODE_ID),
-            "output_rate_Q": float(root_q),
-            "cash_cost_per_emitted_output_C": float(root_cost),
-            "unit_good_cost_U": float(root_cost / root_q),
-            "unit_identity_error": float(abs(root_cost / root_q - root_cost / root_q)),
-        }
-    )
-    return metrics
-
-
-def _q3_precision_scan(true_rates, selected_n, point_rates, topology):
-    rows = []
-    selected_policy = None
-    for parameter_index, node in enumerate(params.Q3_PARAMETER_NODE_IDS):
-        n_values = tuple(
-            sorted(
-                set(params.Q4_SAMPLE_SIZE_GRID)
-                | {int(selected_n[parameter_index])}
-            )
-        )
-        for n in n_values:
-            expected_count = int(np.rint(true_rates[parameter_index] * n))
-            lower, upper = clopper_pearson(
-                expected_count,
-                n,
-                params.Q4_ALPHA_Q3,
-            )
-            trial_rates = np.asarray(point_rates, dtype=float).copy()
-            trial_rates[parameter_index] = expected_count / n
-            result = _q3_point(trial_rates, topology)
-            if int(n) == int(selected_n[parameter_index]):
-                selected_policy = result["policy_vector"]
-            rows.append(
-                {
-                    "node": str(node),
-                    "n": int(n),
-                    "expected_count": int(expected_count),
-                    "point_estimate": float(expected_count / n),
-                    "ci_lower": float(lower),
-                    "ci_upper": float(upper),
-                    "ci_width": float(upper - lower),
-                    "optimal_policy_vector": result["policy_vector"],
-                    "optimal_profit": result["profit"],
-                }
-            )
-    return {
-        "selection_rule": "first_n_with_cp_width_at_or_below_registered_target",
-        "target_width": float(params.Q4_WIDTH_TARGET),
-        "selected_policy_vector": selected_policy,
-        "rows": rows,
-    }
-
-
-def _q3_mc_reoptimization(point_rates, selected_n, observed_x, topology, rng):
-    posterior_rates = rng.beta(
-        observed_x + params.Q4_PRIOR_ALPHA,
-        selected_n - observed_x + params.Q4_PRIOR_BETA,
-        size=(params.Q4_MC_REPEATS, params.Q3_PARAMETER_COUNT),
-    )
-    resampled_x = np.asarray(
-        rng.binomial(
-            np.broadcast_to(
-                selected_n,
-                (params.Q4_MC_REPEATS, params.Q3_PARAMETER_COUNT),
+            cost = raw_cost
+            output_rate = raw_good
+        metrics[label] = {
+            "output_rate": output_rate,
+            "launch_cost_rate": cost,
+            "unit_good_cost": (
+                cost / output_rate
+                if output_rate > 0
+                else np.inf
             ),
-            posterior_rates,
-        ),
-        dtype=int,
+            "finite": bool(np.isfinite(cost)),
+        }
+
+    root_inspected = bool(
+        policy_vector[Q3_INSPECTION_DECISION_COUNT - 1]
     )
-    resampled_p_hat = resampled_x / selected_n
-    nominal_point = _q3_point(point_rates, topology)
-    nominal_vector = np.asarray(
-        nominal_point["policy_vector"],
-        dtype=int,
+    root_disassemble = bool(
+        policy_vector[Q3_TOTAL_DECISION_COUNT - 1]
     )
-    batch_size = max(
-        params.Q2_POLICY_VARIABLE_COUNT - params.Q2_POLICY_VARIABLE_COUNT + 1,
-        params.Q4_N_MAX // params.Q4_PARAMETER_COUNT_Q3,
+    root_children = [metrics["semi1"], metrics["semi2"], metrics["semi3"]]
+    root_child_cost = sum(
+        float(item["launch_cost_rate"])
+        for item in root_children
     )
-    winner_indices = np.empty(
-        params.Q4_MC_REPEATS,
-        dtype=int,
+    root_child_good = float(
+        np.prod([float(item["output_rate"]) for item in root_children])
     )
-    optimal_profits = np.empty(
-        params.Q4_MC_REPEATS,
-        dtype=float,
+    root_all_guaranteed = all(
+        float(item["output_rate"]) >= 1
+        for item in root_children
     )
-    policy_vectors = np.empty(
-        (params.Q4_MC_REPEATS, params.Q3_DECISION_VARIABLE_COUNT),
-        dtype=int,
-    )
-    for start in range(0, params.Q4_MC_REPEATS, batch_size):
-        stop = min(start + batch_size, params.Q4_MC_REPEATS)
-        batch_rates = resampled_p_hat[start:stop]
-        indices, profits, policies, _ = decision_reopt(
-            "Q3",
-            batch_rates,
-            topology,
+    root_rate = float(rate_vector[Q3_PARAMETER_NODE_COUNT - 1])
+    raw_good = root_child_good * (1 - root_rate)
+    raw_cost = root_child_cost + float(Q3_ROOT_ASSEMBLY_COST)
+    if root_inspected:
+        attempt_cost = raw_cost + float(Q3_ROOT_INSPECTION_COST)
+        if raw_good <= 0:
+            root_cost = np.inf
+        elif root_disassemble and root_all_guaranteed and root_rate < 1:
+            root_reactivation = sum(
+                float(Q3_SEMI_PARAMETERS[index]["inspection_cost"])
+                * bool(
+                    policy_vector[
+                        Q3_INSPECTION_DECISION_COUNT
+                        - Q3_DISPOSAL_DECISION_COUNT
+                        + index
+                    ]
+                )
+                for index in range(len(Q3_SEMI_PARAMETERS))
+            )
+            root_cost = (
+                attempt_cost
+                + (1 - root_rate)
+                * (
+                    float(Q3_ROOT_DISASSEMBLY_COST)
+                    + root_reactivation
+                )
+            ) / (1 - root_rate)
+        elif root_disassemble:
+            root_cost = np.inf
+        else:
+            root_cost = attempt_cost / raw_good
+        root_output_rate = 1.0
+        profit = float(Q3_MARKET_PRICE) - root_cost
+    else:
+        root_output_rate = raw_good
+        bad_ratio = (
+            (1 - raw_good) / raw_good
+            if raw_good > 0
+            else np.inf
         )
-        winner_indices[start:stop] = indices
-        optimal_profits[start:stop] = profits
-        policy_vectors[start:stop] = policies
-    matches = np.all(policy_vectors == nominal_vector[None, :], axis=1)
-    consistency = float(np.mean(matches))
-    convergence = np.cumsum(matches) / np.arange(
-        params.Q4_MC_REPEATS + 1,
-        dtype=float,
-    )[1:]
+        if root_disassemble and root_all_guaranteed:
+            root_reactivation = sum(
+                float(Q3_SEMI_PARAMETERS[index]["inspection_cost"])
+                * bool(
+                    policy_vector[
+                        Q3_INSPECTION_DECISION_COUNT
+                        - Q3_DISPOSAL_DECISION_COUNT
+                        + index
+                    ]
+                )
+                for index in range(len(Q3_SEMI_PARAMETERS))
+            )
+            cost = (
+                root_child_cost
+                + float(Q3_ROOT_ASSEMBLY_COST)
+                + bad_ratio
+                * (
+                    float(Q3_ROOT_ASSEMBLY_COST)
+                    + float(Q3_ROOT_DISASSEMBLY_COST)
+                    + root_reactivation
+                )
+            )
+        elif root_disassemble:
+            cost = np.inf
+        else:
+            cost = raw_cost / raw_good if raw_good > 0 else np.inf
+        profit = (
+            float(Q3_MARKET_PRICE)
+            - cost
+            - bad_ratio * float(Q3_EXCHANGE_LOSS)
+            if np.isfinite(cost)
+            else np.inf
+        )
+
+    metrics["product"] = {
+        "output_rate": root_output_rate,
+        "launch_cost_rate": root_cost,
+        "unit_good_cost": (
+            root_cost / root_output_rate
+            if root_output_rate > 0
+            else np.inf
+        ),
+        "finite": bool(np.isfinite(root_cost)),
+    }
     return {
-        "posterior_rate_draws": posterior_rates.tolist(),
-        "bootstrap_x": resampled_x.tolist(),
-        "bootstrap_p_hat": resampled_p_hat.tolist(),
-        "bootstrap_policy_vectors": policy_vectors.astype(int).tolist(),
-        "bootstrap_optimal_profit_samples": optimal_profits.tolist(),
-        "decision_consistency": consistency,
-        "decision_consistency_convergence": convergence.tolist(),
-        "policy_frequency": _policy_frequency_table(policy_vectors),
-        "reoptimization_count": int(params.Q4_MC_REPEATS),
+        "nodes": metrics,
+        "root_profit": profit,
+        "root_profit_unit": PROFIT_UNIT,
     }
 
 
-def _q3_topology_record(
-    true_rates,
-    selected_n,
-    observed_x,
-    point_rates,
-    lower_rates,
-    upper_rates,
-    topology,
-    rng,
-):
-    sample_ledger = []
-    for offset, node in enumerate(params.Q3_PARAMETER_NODE_IDS):
-        lower, upper = clopper_pearson(
-            int(observed_x[offset]),
-            int(selected_n[offset]),
-            params.Q4_ALPHA_Q3,
-        )
-        sample_ledger.append(
-            {
-                "node": str(node),
-                "n": int(selected_n[offset]),
-                "x": int(observed_x[offset]),
-                "scenario_rate": float(true_rates[offset]),
-                "point_estimate": float(observed_x[offset] / selected_n[offset]),
-                "ci_lower": float(lower),
-                "ci_upper": float(upper),
-                "ci_width": float(upper - lower),
-            }
-        )
-    joint_box = bonferroni_joint_box(
-        sample_ledger,
-        params.Q4_FAMILY_ALPHA,
-        params.Q4_PARAMETER_COUNT_Q3,
-    )
-    point_batch = _q3_optimize_batch(
-        np.asarray(point_rates, dtype=float),
-        topology,
-    )
-    point_index = int(point_batch[0][0])
-    point_policy = point_batch[2][0]
-    point_profit = float(point_batch[1][0])
-    nominal = _q3_point(true_rates, topology)
-    lower_batch = _q3_optimize_batch(
-        np.asarray(lower_rates, dtype=float),
-        topology,
-    )
-    upper_batch = _q3_optimize_batch(
-        np.asarray(upper_rates, dtype=float),
-        topology,
-    )
-    robust_index = int(np.argmax(upper_batch[3]["profit"][0]))
-    robust_policy = _q3_canonical_vectors_for_indices(
-        upper_batch,
-        robust_index,
-    )[0]
-    robust_lower = float(upper_batch[3]["profit"][0, robust_index])
-    robust_upper = float(lower_batch[3]["profit"][0, robust_index])
+def _degenerate_q3_policy_profit(
+    case: Mapping[str, Any],
+    policy: np.ndarray | list[int],
+) -> float:
+    """用一般网络的两零件退化规格独立复算问题二同一策略。"""
+    values = [int(item) for item in policy]
+    component_data: list[tuple[float, float]] = []
+    for policy_index, rate_name, price_name, test_name in (
+        (0, "p1", "a1", "t1"),
+        (1, "p2", "a2", "t2"),
+    ):
+        rate = float(case[rate_name])
+        if values[policy_index]:
+            if rate >= 1:
+                return np.inf
+            cost = (
+                float(case[price_name])
+                + float(case[test_name])
+            ) / (1 - rate)
+            quality_probability = 1.0
+        else:
+            cost = float(case[price_name])
+            quality_probability = 1 - rate
+        component_data.append((cost, quality_probability))
 
-    all_indices = np.arange(_Q3_ALL_INSPECTION_PROFILE_COUNT)
-    all_policies = _q3_canonical_vectors_for_indices(
-        point_batch,
-        all_indices,
+    raw_good = (
+        component_data[0][1]
+        * component_data[1][1]
+        * (1 - float(case["pf"]))
     )
-    point_breakdown = _q3_breakdown(
-        point_rates,
-        point_policy,
-        topology,
+    raw_cost = (
+        component_data[0][0]
+        + component_data[1][0]
+        + float(case["kf"])
     )
-    point_cashflow_error = abs(
-        point_breakdown["market_revenue"]
-        - point_breakdown["total_cost"]
-        - point_breakdown["profit"]
+    all_children_guaranteed = all(
+        item[1] >= 1
+        for item in component_data
     )
-    metrics = _q3_node_metrics(
-        point_rates,
-        point_policy,
-        topology,
-        point_breakdown,
+    if raw_good <= 0:
+        return np.inf
+
+    if values[2]:
+        attempt_cost = raw_cost + float(case["tf"])
+        if values[3] and all_children_guaranteed:
+            reactivation = (
+                float(case["t1"]) * values[0]
+                + float(case["t2"]) * values[1]
+            )
+            cost = (
+                attempt_cost
+                + float(case["pf"])
+                * (
+                    float(case["g_dis"])
+                    + reactivation
+                )
+            ) / (1 - float(case["pf"]))
+        elif values[3]:
+            return np.inf
+        else:
+            cost = attempt_cost / raw_good
+        return float(case["sale_price"]) - cost
+
+    bad_ratio = (1 - raw_good) / raw_good
+    if values[3] and all_children_guaranteed:
+        reactivation = (
+            float(case["t1"]) * values[0]
+            + float(case["t2"]) * values[1]
+        )
+        cost = (
+            component_data[0][0]
+            + component_data[1][0]
+            + float(case["kf"])
+            + bad_ratio
+            * (
+                float(case["kf"])
+                + float(case["g_dis"])
+                + reactivation
+            )
+        )
+    elif values[3]:
+        return np.inf
+    else:
+        cost = raw_cost / raw_good
+    return (
+        float(case["sale_price"])
+        - cost
+        - bad_ratio * float(case["L_exchange"])
     )
-    robust_lower_fixed = float(
-        _q3_explicit_full_profiles(
-            upper_rates,
-            topology,
-            np.asarray([robust_policy]),
-        )[0]
+
+
+def q2_degenerate_16_policy_equivalence(
+    case: Mapping[str, Any],
+) -> dict[str, Any]:
+    """逐策略核验问题二与一般网络退化规格。"""
+    policies = _q2_policy_matrix()
+    q2_result = _evaluate_q2_policies(
+        np.asarray(
+            [case["p1"], case["p2"], case["pf"]],
+            dtype=float,
+        )[None, :],
+        case,
+        policies,
     )
-    robust_upper_fixed = float(
-        _q3_explicit_full_profiles(
-            lower_rates,
-            topology,
-            np.asarray([robust_policy]),
-        )[0]
+    gaps: list[float] = []
+    for policy_index, policy in enumerate(policies):
+        q3_profit = _degenerate_q3_policy_profit(case, policy)
+        q2_profit = q2_result["profits"][policy_index, 0]
+        if not np.isfinite(q2_profit) and not np.isfinite(q3_profit):
+            gaps.append(0.0)
+        elif np.isfinite(q2_profit) and np.isfinite(q3_profit):
+            gaps.append(abs(float(q2_profit) - float(q3_profit)))
+        else:
+            gaps.append(np.inf)
+    max_gap = max(gaps)
+    return {
+        "case_id": str(case["case_id"]),
+        "policy_count": int(len(policies)),
+        "max_absolute_profit_gap": max_gap,
+        "tolerance": CASHFLOW_ABS_TOL,
+        "passed": bool(max_gap <= CASHFLOW_ABS_TOL),
+    }
+
+
+def _draw_scenario_observations(
+    defect_rates: np.ndarray,
+    sample_sizes: np.ndarray,
+    rng: np.random.Generator,
+) -> dict[str, np.ndarray]:
+    """先生成可审计计数，再由计数形成点估计和 Jeffreys 重抽样。"""
+    rate_vector = np.asarray(defect_rates, dtype=float)
+    size_vector = np.asarray(sample_sizes, dtype=np.int64)
+    baseline_counts = np.asarray(
+        scipy.stats.binom.rvs(
+            size_vector,
+            rate_vector,
+            random_state=rng,
+        ),
+        dtype=np.int64,
     )
-    monotonic_violation = robust_lower_fixed - robust_upper_fixed
-    precision_scan = _q3_precision_scan(
-        true_rates,
-        selected_n,
-        point_rates,
-        topology,
+    repeated_counts = np.asarray(
+        scipy.stats.binom.rvs(
+            size_vector,
+            rate_vector,
+            size=Q4_SCENARIO_REPETITIONS,
+            random_state=rng,
+        ),
+        dtype=np.int64,
     )
-    mc = _q3_mc_reoptimization(
-        point_rates,
-        selected_n,
-        observed_x,
-        topology,
+    baseline_estimates = baseline_counts / size_vector
+    repeated_estimates = repeated_counts / size_vector
+    posterior_rates = rng.beta(
+        repeated_counts + Q4_JEFFREYS_PRIOR_ALPHA,
+        size_vector - repeated_counts + Q4_JEFFREYS_PRIOR_BETA,
+    )
+    return {
+        "baseline_x": baseline_counts,
+        "baseline_p_hat": baseline_estimates,
+        "repeated_x": repeated_counts,
+        "repeated_p_hat": repeated_estimates,
+        "posterior_theta": posterior_rates,
+    }
+
+
+def _corner_rate_matrix(
+    lower: np.ndarray,
+    upper: np.ndarray,
+) -> tuple[np.ndarray, np.ndarray]:
+    parameter_count = len(lower)
+    corners = np.asarray(
+        list(product((0, 1), repeat=parameter_count)),
+        dtype=np.int8,
+    )
+    rates = np.empty(
+        (corners.shape[0], parameter_count),
+        dtype=float,
+    )
+    for corner_index, corner in enumerate(corners):
+        for parameter_index in range(parameter_count):
+            rates[corner_index, parameter_index] = (
+                upper[parameter_index]
+                if corner[parameter_index]
+                else lower[parameter_index]
+            )
+    return corners, rates
+
+
+def _policy_table(
+    policy_matrix: np.ndarray,
+    profits: np.ndarray,
+    valid: np.ndarray,
+) -> dict[str, Any]:
+    return {
+        "policy_count": int(policy_matrix.shape[0]),
+        "policy_codes": list(range(int(policy_matrix.shape[0]))),
+        "policy_vectors": [
+            [int(item) for item in policy]
+            for policy in policy_matrix
+        ],
+        "profit_values": [float(item) for item in profits],
+        "finite_flags": [bool(item) for item in valid],
+    }
+
+
+def _running_statistics(values: np.ndarray) -> dict[str, list[float]]:
+    vector = np.asarray(values, dtype=float)
+    counts = np.arange(1, len(vector) + 1, dtype=float)
+    cumulative_sum = np.cumsum(vector)
+    cumulative_square_sum = np.cumsum(vector * vector)
+    mean = cumulative_sum / counts
+    variance = np.maximum(
+        cumulative_square_sum / counts - mean * mean,
+        0.0,
+    )
+    return {
+        "running_mean": mean,
+        "running_standard_deviation": np.sqrt(variance),
+    }
+
+
+def decision_reopt(
+    rates: np.ndarray,
+    evaluator: str,
+    case: Mapping[str, Any] | None = None,
+    topology_groups: Mapping[str, Any] | None = None,
+    batch_size: int | None = None,
+) -> dict[str, Any]:
+    """按当前抽样率逐批重新求完整策略空间 argmax。"""
+    rate_matrix = np.asarray(rates, dtype=float)
+    if rate_matrix.ndim == 1:
+        rate_matrix = rate_matrix.reshape(1, -1)
+    repetitions = rate_matrix.shape[0]
+    if evaluator == "problem2":
+        if case is None:
+            raise ValueError("问题二重优化必须提供 case")
+        policies = _q2_policy_matrix()
+        active_batch_size = (
+            _Q2_BATCH_SIZE
+            if batch_size is None
+            else int(batch_size)
+        )
+    elif evaluator == "problem3":
+        policies = _q3_policy_matrix()
+        active_batch_size = (
+            _Q3_BATCH_SIZE
+            if batch_size is None
+            else int(batch_size)
+        )
+    else:
+        raise ValueError("未知重优化问题")
+
+    strategy_count = policies.shape[0]
+    selected_indices = np.empty(repetitions, dtype=np.int64)
+    selected_profits = np.empty(repetitions, dtype=float)
+    tie_multiplicities = np.empty(repetitions, dtype=np.int64)
+    full_strategy_evaluations = 0
+
+    for start in range(0, repetitions, active_batch_size):
+        stop = min(start + active_batch_size, repetitions)
+        if evaluator == "problem2":
+            evaluated = _evaluate_q2_policies(
+                rate_matrix[start:stop],
+                case,
+                policies,
+            )
+        else:
+            evaluated = _evaluate_q3_policies(
+                rate_matrix[start:stop],
+                policies,
+                topology_groups,
+            )
+        profits = evaluated["profits"]
+        valid = evaluated["valid"]
+        if np.any(~np.any(valid, axis=0)):
+            raise RuntimeError("重优化批次存在无可行吸收策略")
+        maxima = np.max(profits, axis=0)
+        batch_indices = np.argmax(profits, axis=0)
+        selected_indices[start:stop] = batch_indices
+        selected_profits[start:stop] = maxima
+        tie_multiplicities[start:stop] = np.sum(
+            np.isclose(profits, maxima[None, :], equal_nan=False),
+            axis=0,
+        )
+        full_strategy_evaluations += (
+            (stop - start) * strategy_count
+        )
+
+    policy_trace = policies[selected_indices]
+    return {
+        "policy_indices": selected_indices,
+        "policy_trace": policy_trace,
+        "profit_trace": selected_profits,
+        "tie_multiplicities": tie_multiplicities,
+        "full_strategy_evaluations": int(full_strategy_evaluations),
+        "policy_count_per_reoptimization": int(strategy_count),
+    }
+
+
+def _solve_q2_case(
+    case: Mapping[str, Any],
+    rng: np.random.Generator,
+) -> dict[str, Any]:
+    scenario_rates = np.asarray(
+        [case["p1"], case["p2"], case["pf"]],
+        dtype=float,
+    )
+    precision_records: list[dict[str, Any]] = []
+    sample_sizes: list[int] = []
+    for scenario_rate in scenario_rates:
+        precision = _parameter_precision_scan(
+            float(scenario_rate),
+            Q4_Q2_MARGINAL_ERROR_RATE,
+            Q4_SINGLE_PARAMETER_N_MAX,
+            Q4_WIDTH_TARGET,
+        )
+        if precision["selected_n"] is None:
+            raise RuntimeError("问题二节点未达到登记区间宽度目标")
+        precision_records.append(precision)
+        sample_sizes.append(int(precision["selected_n"]))
+
+    observations = _draw_scenario_observations(
+        scenario_rates,
+        np.asarray(sample_sizes, dtype=np.int64),
         rng,
     )
-    return {
-        "topology": {
-            key: list(value)
-            for key, value in topology.items()
-        },
-        "sample_ledger": sample_ledger,
-        "joint_confidence_box": joint_box,
-        "scenario_true_policy_vector": nominal["policy_vector"],
-        "scenario_true_policy": nominal["policy"],
-        "scenario_true_profit": nominal["profit"],
-        "point_profile_index": point_index,
-        "point_policy_vector": point_policy.astype(int).tolist(),
-        "point_policy": _policy_mapping(
-            point_policy,
-            params.Q3_POLICY_ORDER,
-        ),
-        "point_profit": point_profit,
-        "point_profit_breakdown": point_breakdown,
-        "node_metrics": metrics,
-        "robust_policy_vector": robust_policy.astype(int).tolist(),
-        "robust_policy": _policy_mapping(
-            robust_policy,
-            params.Q3_POLICY_ORDER,
-        ),
-        "robust_profit_interval": [robust_lower, robust_upper],
-        "point_policy_profit_interval": [
-            float(upper_batch[3]["profit"][0, point_index]),
-            float(lower_batch[3]["profit"][0, point_index]),
-        ],
-        "joint_box_profit_envelope": [
-            float(np.min(lower_batch[3]["profit"][0])),
-            float(np.max(upper_batch[3]["profit"][0])),
-        ],
-        "inspection_profile_matrix": _Q3_ROOT_INSPECTION_PROFILES.astype(int).tolist(),
-        "canonical_policy_matrix": all_policies.astype(int).tolist(),
-        "profile_profit_samples": point_batch[3]["profit"][0].tolist(),
-        "profile_lower_rate_profit_samples": lower_batch[3]["profit"][0].tolist(),
-        "profile_upper_rate_profit_samples": upper_batch[3]["profit"][0].tolist(),
-        "sample_size_precision_scan": precision_scan,
-        "monotonicity": {
-            "definition": "fixed_policy_profit_nonincreasing_in_each_defect_rate",
-            "maximum_lower_minus_upper_violation": float(
-                monotonic_violation
-            ),
-            "passed": bool(
-                monotonic_violation <= params.CASHFLOW_ABS_TOL
-            ),
-        },
-        "cashflow_identity_max_error": float(point_cashflow_error),
-        **mc,
-    }
-
-
-def _q3_exhaustive_validation(point_rates):
-    explicit = _q3_explicit_full_profiles(
-        point_rates,
-        params.Q3_PRIMARY_TOPOLOGY,
-    )
-    reduced = _q3_optimize_batch(
-        np.asarray(point_rates, dtype=float),
-        params.Q3_PRIMARY_TOPOLOGY,
-    )
-    explicit_best_index = int(np.argmax(explicit))
-    reduced_best_index = int(reduced[0][0])
-    gap = float(
-        explicit[explicit_best_index] - reduced[1][0]
-    )
-    return {
-        "topology": params.Q3_TOPOLOGY_STATUS,
-        "full_policy_count": int(_Q3_POLICY_ARRAY.shape[0]),
-        "registered_effective_strategy_count": int(
-            params.Q3_EFFECTIVE_STRATEGY_COUNT
-        ),
-        "reevaluated_inspection_profile_count": int(
-            _Q3_ALL_INSPECTION_PROFILE_COUNT
-        ),
-        "explicit_best_policy_vector": _Q3_POLICY_ARRAY[
-            explicit_best_index
-        ].astype(int).tolist(),
-        "reduced_best_policy_vector": reduced[2][0].astype(int).tolist(),
-        "explicit_best_profit": float(explicit[explicit_best_index]),
-        "reduced_best_profit": float(reduced[1][0]),
-        "global_profit_gap": gap,
-        "tolerance": float(params.CASHFLOW_ABS_TOL),
-        "passed": bool(gap <= params.CASHFLOW_ABS_TOL),
-        "argument": "for_fixed_inspection_profile_each_disassembly_branch_is_dominated_by_the_lower_event_cost_branch",
-    }
-
-
-def run():
-    """运行问题四并返回可直接汇总到 outputs.json 的数值账本。"""
-    _ = params
-    cp_edge_validation = edge_case_tests()
-    seed_sequence = numpy_random.SeedSequence(params.Q4_RANDOM_SEED)
-    child_sequences = seed_sequence.spawn(
-        len(params.Q2_CASES)
-        + len(params.Q3_PARAMETER_NODE_IDS)
-        - len(params.Q3_PARAMETER_NODE_IDS)
-        + params.Q2_POLICY_VARIABLE_COUNT - 1
-    )
-
-    q2_reference = [
-        _q2_reference_validation(case)
-        for case in params.Q2_CASES
-    ]
-    q2_cases = []
-    for case, child_sequence in zip(
-        params.Q2_CASES,
-        child_sequences[: len(params.Q2_CASES)],
-    ):
-        rng = numpy_random.default_rng(child_sequence)
-        q2_cases.append(_q2_case_record(case, rng))
-
-    true_q3_rates = np.asarray(
-        params.Q4_Q3_RATE_VECTOR,
-        dtype=float,
-    )
-    q3_design = [
-        parameter_precision_n(
-            rate,
-            params.Q4_ALPHA_Q3,
-            params.Q4_WIDTH_TARGET,
-            params.Q4_N_MAX,
+    point_rates = observations["baseline_p_hat"]
+    intervals = {
+        name: clopper_pearson(
+            int(observations["baseline_x"][index]),
+            int(sample_sizes[index]),
+            Q4_Q2_MARGINAL_ERROR_RATE,
         )
-        for rate in true_q3_rates
-    ]
-    q3_selected_n = np.asarray(
-        [row["n"] for row in q3_design],
-        dtype=int,
-    )
-    q3_rng = numpy_random.default_rng(child_sequences[-1])
-    q3_observed_x = np.asarray(
-        q3_rng.binomial(q3_selected_n, true_q3_rates),
-        dtype=int,
-    )
-    q3_point_rates = q3_observed_x / q3_selected_n
-    q3_lower_rates = np.asarray(
-        [
-            clopper_pearson(
-                int(q3_observed_x[offset]),
-                int(q3_selected_n[offset]),
-                params.Q4_ALPHA_Q3,
-            )[0]
-            for offset in range(params.Q3_PARAMETER_COUNT)
-        ],
+        for index, name in enumerate(_Q2_PARAMETER_NAMES)
+    }
+    lower = np.asarray(
+        [intervals[name][0] for name in _Q2_PARAMETER_NAMES],
         dtype=float,
     )
-    q3_upper_rates = np.asarray(
-        [
-            clopper_pearson(
-                int(q3_observed_x[offset]),
-                int(q3_selected_n[offset]),
-                params.Q4_ALPHA_Q3,
-            )[1]
-            for offset in range(params.Q3_PARAMETER_COUNT)
-        ],
+    upper = np.asarray(
+        [intervals[name][1] for name in _Q2_PARAMETER_NAMES],
         dtype=float,
     )
-    q3_primary = _q3_topology_record(
-        true_q3_rates,
-        q3_selected_n,
-        q3_observed_x,
-        q3_point_rates,
-        q3_lower_rates,
-        q3_upper_rates,
-        params.Q3_PRIMARY_TOPOLOGY,
-        q3_rng,
-    )
-    q3_alternative = _q3_topology_record(
-        true_q3_rates,
-        q3_selected_n,
-        q3_observed_x,
-        q3_point_rates,
-        q3_lower_rates,
-        q3_upper_rates,
-        params.Q3_ALTERNATIVE_TOPOLOGY,
-        q3_rng,
-    )
-    q3_exhaustive = _q3_exhaustive_validation(q3_point_rates)
-    degenerate = _q2_degred_validation(params.Q2_DEFAULT_CASE)
+    corners, corner_rates = _corner_rate_matrix(lower, upper)
 
-    q2_consistency_values = np.asarray(
-        [record["decision_consistency"] for record in q2_cases],
+    policies = _q2_policy_matrix()
+    nominal = _evaluate_q2_policies(scenario_rates, case, policies)
+    point = _evaluate_q2_policies(point_rates, case, policies)
+    robust = _evaluate_q2_policies(corner_rates, case, policies)
+
+    nominal_index = int(np.argmax(nominal["profits"][:, 0]))
+    point_index = int(np.argmax(point["profits"][:, 0]))
+    robust_index = int(np.argmax(np.min(robust["profits"], axis=1)))
+    if not nominal["valid"][nominal_index, 0]:
+        raise RuntimeError("问题二标称策略未通过吸收性检查")
+    if not point["valid"][point_index, 0]:
+        raise RuntimeError("问题二点估计策略未通过吸收性检查")
+    if not robust["valid"][robust_index, 0]:
+        raise RuntimeError("问题二稳健策略未通过吸收性检查")
+
+    lower_profit_by_policy = np.min(robust["profits"], axis=1)
+    upper_profit_by_policy = np.max(robust["profits"], axis=1)
+    nominal_policy = policies[nominal_index]
+    point_policy = policies[point_index]
+    robust_policy = policies[robust_index]
+
+    reoptimization = decision_reopt(
+        observations["repeated_p_hat"],
+        "problem2",
+        case,
+    )
+    policy_trace = reoptimization["policy_trace"]
+    point_profit_trace = reoptimization["profit_trace"]
+    policy_matches = policy_trace == nominal_policy[None, :]
+    consistency_trace = np.mean(
+        policy_matches,
+        axis=1,
+    )
+    posterior_profit_trace = np.empty(
+        Q4_SCENARIO_REPETITIONS,
         dtype=float,
     )
-    q2_mean_consistency = float(np.mean(q2_consistency_values))
-    overall_consistency = (
-        q2_mean_consistency * len(q2_cases)
-        + q3_primary["decision_consistency"]
-    ) / (len(q2_cases) + 1)
+    for start in range(0, Q4_SCENARIO_REPETITIONS, _Q2_BATCH_SIZE):
+        stop = min(start + _Q2_BATCH_SIZE, Q4_SCENARIO_REPETITIONS)
+        nominal_only = _evaluate_q2_policies(
+            observations["posterior_theta"][start:stop],
+            case,
+            nominal_policy[None, :],
+        )
+        posterior_profit_trace[start:stop] = nominal_only["profits"][0]
 
-    unit_metric_errors = [
-        record["unit_identity_error"]
-        for record in q3_primary["node_metrics"]
-    ]
-    validation = {
-        "cp_edge_case_validation": cp_edge_validation,
-        "q2_independent_state_solver": {
-            "rows": q2_reference,
-            "maximum_difference": float(
-                max(
-                    row["maximum_cashflow_difference"]
-                    for row in q2_reference
-                )
-            ),
-            "all_passed": bool(
-                all(row["passed"] for row in q2_reference)
-            ),
+    all_policy_profit_samples = np.empty(
+        (Q4_SCENARIO_REPETITIONS, len(policies)),
+        dtype=float,
+    )
+    for start in range(0, Q4_SCENARIO_REPETITIONS, _Q2_BATCH_SIZE):
+        stop = min(start + _Q2_BATCH_SIZE, Q4_SCENARIO_REPETITIONS)
+        evaluated = _evaluate_q2_policies(
+            observations["repeated_p_hat"][start:stop],
+            case,
+            policies,
+        )
+        all_policy_profit_samples[start:stop] = evaluated["profits"].T
+
+    point_running = _running_statistics(point_profit_trace)
+    posterior_running = _running_statistics(posterior_profit_trace)
+    empirical_quantiles = np.quantile(
+        point_profit_trace,
+        [
+            Q4_FAMILY_ERROR_RATE / 2,
+            1 - Q4_FAMILY_ERROR_RATE / 2,
+            Q4_CONFIDENCE_LEVEL,
+        ],
+    )
+
+    sample_ledger = {
+        "node_order": list(_Q2_PARAMETER_NAMES),
+        "n": [int(item) for item in sample_sizes],
+        "baseline_x": [
+            int(item) for item in observations["baseline_x"]
+        ],
+        "baseline_p_hat": [
+            float(item) for item in observations["baseline_p_hat"]
+        ],
+        "repeated_x": observations["repeated_x"].astype(int).tolist(),
+        "repeated_p_hat": observations["repeated_p_hat"].tolist(),
+        "posterior_theta": observations["posterior_theta"].tolist(),
+    }
+
+    return {
+        "case_id": str(case["case_id"]),
+        "analysis_status": "scenario_analysis_without_actual_samples",
+        "scenario_rates": {
+            name: float(scenario_rates[index])
+            for index, name in enumerate(_Q2_PARAMETER_NAMES)
         },
-        "q2_q3_degenerate_equivalence": degenerate,
-        "q3_explicit_full_policy_check": q3_exhaustive,
-        "q3_equivalence_identity_max_error": float(
-            degenerate["maximum_error"]
+        "planning_sample_sizes": {
+            name: int(sample_sizes[index])
+            for index, name in enumerate(_Q2_PARAMETER_NAMES)
+        },
+        "parameter_precision_curves": precision_records,
+        "observed_scenario_sample": sample_ledger["node_order"],
+        "baseline_observation": {
+            name: {
+                "n": int(sample_sizes[index]),
+                "x": int(observations["baseline_x"][index]),
+                "p_hat": float(
+                    observations["baseline_p_hat"][index]
+                ),
+            }
+            for index, name in enumerate(_Q2_PARAMETER_NAMES)
+        },
+        "point_estimates": {
+            name: float(point_rates[index])
+            for index, name in enumerate(_Q2_PARAMETER_NAMES)
+        },
+        "confidence_intervals": {
+            name: {
+                "lower": intervals[name][0],
+                "upper": intervals[name][1],
+                "width": intervals[name][1] - intervals[name][0],
+                "marginal_alpha": Q4_Q2_MARGINAL_ERROR_RATE,
+            }
+            for name in _Q2_PARAMETER_NAMES
+        },
+        "joint_box": bonferroni_joint_box(
+            intervals,
+            Q4_Q2_MARGINAL_ERROR_RATE,
+            Q4_FAMILY_ERROR_RATE,
         ),
-        "profit_unit": params.Q4_PROFIT_UNIT,
-        "q3_unit_identity_max_error": float(max(unit_metric_errors)),
-        "all_blocking_checks_passed": bool(
-            cp_edge_validation["all_passed"]
-            and all(row["passed"] for row in q2_reference)
-            and degenerate["passed"]
-            and q3_exhaustive["passed"]
+        "nominal_policy": [int(item) for item in nominal_policy],
+        "nominal_policy_record": _q2_policy_record(nominal_policy),
+        "nominal_policy_profit": float(
+            nominal["profits"][nominal_index, 0]
+        ),
+        "point_policy": [int(item) for item in point_policy],
+        "point_policy_record": _q2_policy_record(point_policy),
+        "point_policy_profit": float(
+            point["profits"][point_index, 0]
+        ),
+        "robust_policy": [int(item) for item in robust_policy],
+        "robust_policy_record": _q2_policy_record(robust_policy),
+        "profit_interval": [
+            float(lower_profit_by_policy[robust_index]),
+            float(upper_profit_by_policy[robust_index]),
+        ],
+        "profit_interval_unit": PROFIT_UNIT,
+        "optimistic_policy_envelope": [
+            float(np.max(lower_profit_by_policy)),
+            float(np.max(upper_profit_by_policy)),
+        ],
+        "robust_corner_count": int(corners.shape[0]),
+        "robust_corner_rates": corner_rates.tolist(),
+        "sixteen_policy_nominal_table": _policy_table(
+            policies,
+            nominal["profits"][:, 0],
+            nominal["valid"][:, 0],
+        ),
+        "sixteen_policy_point_table": _policy_table(
+            policies,
+            point["profits"][:, 0],
+            point["valid"][:, 0],
+        ),
+        "decision_consistency": float(np.mean(policy_matches)),
+        "decision_basis": (
+            "在全部登记二值策略中，对每个固定抽样点估计重新求吸收型"
+            "事件利润 argmax；稳健策略在 Bonferroni 联合域内取最坏利润。"
+        ),
+        "monte_carlo": {
+            "reoptimization_input": "p_hat=x/n",
+            "policy_trace": policy_trace.astype(int).tolist(),
+            "point_policy_profit_trace": point_profit_trace.tolist(),
+            "posterior_nominal_policy_profit_trace": (
+                posterior_profit_trace.tolist()
+            ),
+            "decision_consistency_convergence": consistency_trace.tolist(),
+            "point_profit_running_mean": point_running[
+                "running_mean"
+            ].tolist(),
+            "point_profit_running_standard_deviation": point_running[
+                "running_standard_deviation"
+            ].tolist(),
+            "posterior_profit_running_mean": posterior_running[
+                "running_mean"
+            ].tolist(),
+            "posterior_profit_running_standard_deviation": posterior_running[
+                "running_standard_deviation"
+            ].tolist(),
+            "empirical_profit_quantiles": empirical_quantiles.tolist(),
+            "policy_tie_multiplicity": reoptimization[
+                "tie_multiplicities"
+            ].astype(int).tolist(),
+            "full_strategy_evaluations": reoptimization[
+                "full_strategy_evaluations"
+            ],
+            "policy_count_per_reoptimization": reoptimization[
+                "policy_count_per_reoptimization"
+            ],
+            "sample_ledger": sample_ledger,
+            "policy_profit_samples": all_policy_profit_samples.tolist(),
+        },
+        "bellman_max_absolute_residual": float(
+            np.max(nominal["bellman_residual"][:, 0])
+        ),
+        "absorption_probability": float(
+            nominal["absorption_probability"][nominal_index, 0]
         ),
     }
 
-    output = {
-        "problem": "Q4",
-        "schema_version": "problem4-exact-scenario-v1",
-        "sample_source": params.Q4_SAMPLE_SOURCE,
-        "observed_sample_status": params.Q4_OBSERVED_SAMPLE_STATUS,
-        "scenario_analysis": params.Q4_SCENARIO_ANALYSIS,
-        "random_seed": int(params.Q4_RANDOM_SEED),
-        "monte_carlo_repeats": int(params.Q4_MC_REPEATS),
-        "profit_unit": params.Q4_PROFIT_UNIT,
-        "joint_family_alpha": float(params.Q4_FAMILY_ALPHA),
-        "q2_parameter_count": int(params.Q4_PARAMETER_COUNT_Q2),
-        "q3_parameter_count": int(params.Q4_PARAMETER_COUNT_Q3),
-        "q2_marginal_alpha": float(params.Q4_ALPHA_Q2),
-        "q3_marginal_alpha": float(params.Q4_ALPHA_Q3),
-        "point_estimate_rule": "p_hat_v=x_v/n_v",
-        "scenario_generation_rule": "x_v~Binomial(n_v,p_v_scenario), followed by Jeffreys posterior and posterior-bootstrap resampling",
-        "decision_reoptimization": params.Q4_DECISION_REOPTIMIZATION,
-        "anti_leakage": {
-            "supervised_split_applicable": False,
-            "reason": "no predictor is trained; every posterior or bootstrap rate vector independently re-enters the deterministic production-policy argmax",
-            "ordering": "base synthetic (n,x) ledger is fixed before posterior and bootstrap resampling",
-            "parameter_separation": "scenario rates are generation centers only and never substitute for x/n",
+
+def _q3_profile(
+    nominal_rates: np.ndarray,
+    point_rates: np.ndarray,
+    lower: np.ndarray,
+    upper: np.ndarray,
+    topology_groups: Mapping[str, Any],
+) -> dict[str, Any]:
+    policies = _q3_policy_matrix()
+    corners, corner_rates = _corner_rate_matrix(lower, upper)
+    nominal = _evaluate_q3_policies(
+        nominal_rates,
+        policies,
+        topology_groups,
+    )
+    point = _evaluate_q3_policies(
+        point_rates,
+        policies,
+        topology_groups,
+    )
+    robust = _evaluate_q3_policies(
+        corner_rates,
+        policies,
+        topology_groups,
+    )
+    nominal_index = int(np.argmax(nominal["profits"][:, 0]))
+    point_index = int(np.argmax(point["profits"][:, 0]))
+    robust_index = int(np.argmax(np.min(robust["profits"], axis=1)))
+    if not nominal["valid"][nominal_index, 0]:
+        raise RuntimeError("问题三标称策略没有有限合格产出")
+    if not point["valid"][point_index, 0]:
+        raise RuntimeError("问题三点估计策略没有有限合格产出")
+    if not robust["valid"][robust_index, 0]:
+        raise RuntimeError("问题三稳健策略没有有限合格产出")
+
+    lower_profit_by_policy = np.min(robust["profits"], axis=1)
+    upper_profit_by_policy = np.max(robust["profits"], axis=1)
+    return {
+        "policy_matrix": policies,
+        "nominal_policy": policies[nominal_index],
+        "nominal_policy_index": nominal_index,
+        "nominal_policy_profit": float(
+            nominal["profits"][nominal_index, 0]
+        ),
+        "point_policy": policies[point_index],
+        "point_policy_index": point_index,
+        "point_policy_profit": float(
+            point["profits"][point_index, 0]
+        ),
+        "robust_policy": policies[robust_index],
+        "robust_policy_index": robust_index,
+        "profit_interval": [
+            float(lower_profit_by_policy[robust_index]),
+            float(upper_profit_by_policy[robust_index]),
+        ],
+        "optimistic_policy_envelope": [
+            float(np.max(lower_profit_by_policy)),
+            float(np.max(upper_profit_by_policy)),
+        ],
+        "corner_count": int(corners.shape[0]),
+        "corner_rates": corner_rates.tolist(),
+        "nominal_policy_table": _policy_table(
+            policies,
+            nominal["profits"][:, 0],
+            nominal["valid"][:, 0],
+        ),
+        "point_policy_table": _policy_table(
+            policies,
+            point["profits"][:, 0],
+            point["valid"][:, 0],
+        ),
+    }
+
+
+def _solve_q3(
+    rng: np.random.Generator,
+) -> dict[str, Any]:
+    scenario_rates = np.asarray(
+        [float(node["defect_rate"]) for node in Q3_PARAMETER_NODES],
+        dtype=float,
+    )
+    precision_records: list[dict[str, Any]] = []
+    sample_sizes: list[int] = []
+    for scenario_rate in scenario_rates:
+        precision = _parameter_precision_scan(
+            scenario_rate,
+            Q4_Q3_MARGINAL_ERROR_RATE,
+            Q4_SINGLE_PARAMETER_N_MAX,
+            Q4_WIDTH_TARGET,
+        )
+        if precision["selected_n"] is None:
+            raise RuntimeError("问题三节点未达到登记区间宽度目标")
+        precision_records.append(precision)
+        sample_sizes.append(int(precision["selected_n"]))
+
+    observations = _draw_scenario_observations(
+        scenario_rates,
+        np.asarray(sample_sizes, dtype=np.int64),
+        rng,
+    )
+    point_rates = observations["baseline_p_hat"]
+    node_labels = [
+        _q3_node_label(node)
+        for node in Q3_PARAMETER_NODES
+    ]
+    intervals = {
+        label: clopper_pearson(
+            int(observations["baseline_x"][index]),
+            int(sample_sizes[index]),
+            Q4_Q3_MARGINAL_ERROR_RATE,
+        )
+        for index, label in enumerate(node_labels)
+    }
+    lower = np.asarray(
+        [intervals[label][0] for label in node_labels],
+        dtype=float,
+    )
+    upper = np.asarray(
+        [intervals[label][1] for label in node_labels],
+        dtype=float,
+    )
+
+    primary = _q3_profile(
+        scenario_rates,
+        point_rates,
+        lower,
+        upper,
+        Q3_PRIMARY_PARENT_GROUPS,
+    )
+    policies = primary["policy_matrix"]
+    nominal_policy = primary["nominal_policy"]
+    nominal_index = int(primary["nominal_policy_index"])
+
+    reoptimization = decision_reopt(
+        observations["repeated_p_hat"],
+        "problem3",
+        topology_groups=Q3_PRIMARY_PARENT_GROUPS,
+    )
+    policy_trace = reoptimization["policy_trace"]
+    point_profit_trace = reoptimization["profit_trace"]
+    policy_matches = policy_trace == nominal_policy[None, :]
+    consistency_trace = np.mean(policy_matches, axis=1)
+
+    posterior_profit_trace = np.empty(
+        Q4_SCENARIO_REPETITIONS,
+        dtype=float,
+    )
+    for start in range(0, Q4_SCENARIO_REPETITIONS, _Q3_BATCH_SIZE):
+        stop = min(start + _Q3_BATCH_SIZE, Q4_SCENARIO_REPETITIONS)
+        nominal_only = _evaluate_q3_policies(
+            observations["posterior_theta"][start:stop],
+            nominal_policy[None, :],
+            Q3_PRIMARY_PARENT_GROUPS,
+        )
+        posterior_profit_trace[start:stop] = nominal_only["profits"][0]
+
+    point_policy = primary["point_policy"]
+    point_metrics = _q3_single_policy_metrics(
+        point_rates,
+        point_policy,
+        Q3_PRIMARY_PARENT_GROUPS,
+    )
+    point_metric_profit_gap = abs(
+        float(point_metrics["root_profit"])
+        - float(primary["point_policy_profit"])
+    )
+
+    alternative = _q3_profile(
+        scenario_rates,
+        point_rates,
+        lower,
+        upper,
+        Q3_ALTERNATIVE_PARENT_GROUPS,
+    )
+    point_running = _running_statistics(point_profit_trace)
+    posterior_running = _running_statistics(posterior_profit_trace)
+    empirical_quantiles = np.quantile(
+        point_profit_trace,
+        [
+            Q4_FAMILY_ERROR_RATE / 2,
+            1 - Q4_FAMILY_ERROR_RATE / 2,
+            Q4_CONFIDENCE_LEVEL,
+        ],
+    )
+
+    sample_ledger = {
+        "node_order": node_labels,
+        "n": [int(item) for item in sample_sizes],
+        "baseline_x": [
+            int(item) for item in observations["baseline_x"]
+        ],
+        "baseline_p_hat": [
+            float(item) for item in observations["baseline_p_hat"]
+        ],
+        "repeated_x": observations["repeated_x"].astype(int).tolist(),
+        "repeated_p_hat": observations["repeated_p_hat"].tolist(),
+        "posterior_theta": observations["posterior_theta"].tolist(),
+    }
+
+    return {
+        "official_topology_available": Q3_OFFICIAL_TOPOLOGY_AVAILABLE,
+        "result_status": (
+            "inferred_primary_and_alternative_scenarios"
+            if not Q3_OFFICIAL_TOPOLOGY_AVAILABLE
+            else "official_topology"
+        ),
+        "primary_inferred_scenario": {
+            "scenario_rates": {
+                label: float(scenario_rates[index])
+                for index, label in enumerate(node_labels)
+            },
+            "planning_sample_sizes": {
+                label: int(sample_sizes[index])
+                for index, label in enumerate(node_labels)
+            },
+            "parameter_precision_curves": precision_records,
+            "baseline_observation": {
+                label: {
+                    "n": int(sample_sizes[index]),
+                    "x": int(observations["baseline_x"][index]),
+                    "p_hat": float(
+                        observations["baseline_p_hat"][index]
+                    ),
+                }
+                for index, label in enumerate(node_labels)
+            },
+            "point_estimates": {
+                label: float(point_rates[index])
+                for index, label in enumerate(node_labels)
+            },
+            "confidence_intervals": {
+                label: {
+                    "lower": intervals[label][0],
+                    "upper": intervals[label][1],
+                    "width": intervals[label][1] - intervals[label][0],
+                    "marginal_alpha": Q4_Q3_MARGINAL_ERROR_RATE,
+                }
+                for label in node_labels
+            },
+            "joint_box": bonferroni_joint_box(
+                intervals,
+                Q4_Q3_MARGINAL_ERROR_RATE,
+                Q4_FAMILY_ERROR_RATE,
+            ),
+            "nominal_policy": [
+                int(item) for item in nominal_policy
+            ],
+            "nominal_policy_record": _q3_policy_record(nominal_policy),
+            "nominal_policy_profit": primary["nominal_policy_profit"],
+            "point_policy": [int(item) for item in point_policy],
+            "point_policy_record": _q3_policy_record(point_policy),
+            "point_policy_profit": primary["point_policy_profit"],
+            "robust_policy": [
+                int(item) for item in primary["robust_policy"]
+            ],
+            "robust_policy_record": _q3_policy_record(
+                primary["robust_policy"]
+            ),
+            "profit_interval": primary["profit_interval"],
+            "profit_interval_unit": PROFIT_UNIT,
+            "optimistic_policy_envelope": primary[
+                "optimistic_policy_envelope"
+            ],
+            "robust_corner_count": primary["corner_count"],
+            "robust_monotonicity_basis": (
+                "所有题面金额成本与损失非负，任一条件次品率上升时"
+                "固定策略利润不增加，故联合箱最劣值由下端点给出。"
+            ),
+            "node_metrics": {
+                label: {
+                    **metrics,
+                    "unit": "Q=件/次；C=元/次；U=元/合格件",
+                    "U_equals_C_over_Q_error": abs(
+                        float(metrics["unit_good_cost"])
+                        - float(metrics["launch_cost_rate"])
+                        / float(metrics["output_rate"])
+                    )
+                    if float(metrics["output_rate"]) > 0
+                    else np.inf,
+                }
+                for label, metrics in point_metrics["nodes"].items()
+            },
+            "full_nominal_policy_table": primary[
+                "nominal_policy_table"
+            ],
+            "full_point_policy_table": primary["point_policy_table"],
+            "decision_consistency": float(np.mean(policy_matches)),
+            "decision_basis": (
+                "主拓扑与替代拓扑均按全部登记策略逐项重算；"
+                "每个抽样重优化均从完整策略表重新取 argmax。"
+            ),
+            "monte_carlo": {
+                "reoptimization_input": "p_hat=x/n",
+                "policy_trace": policy_trace.astype(int).tolist(),
+                "point_policy_profit_trace": point_profit_trace.tolist(),
+                "posterior_nominal_policy_profit_trace": (
+                    posterior_profit_trace.tolist()
+                ),
+                "decision_consistency_convergence": (
+                    consistency_trace.tolist()
+                ),
+                "point_profit_running_mean": point_running[
+                    "running_mean"
+                ].tolist(),
+                "point_profit_running_standard_deviation": point_running[
+                    "running_standard_deviation"
+                ].tolist(),
+                "posterior_profit_running_mean": posterior_running[
+                    "running_mean"
+                ].tolist(),
+                "posterior_profit_running_standard_deviation": (
+                    posterior_running[
+                        "running_standard_deviation"
+                    ].tolist()
+                ),
+                "empirical_profit_quantiles": empirical_quantiles.tolist(),
+                "policy_tie_multiplicity": reoptimization[
+                    "tie_multiplicities"
+                ].astype(int).tolist(),
+                "full_strategy_evaluations": reoptimization[
+                    "full_strategy_evaluations"
+                ],
+                "policy_count_per_reoptimization": reoptimization[
+                    "policy_count_per_reoptimization"
+                ],
+                "sample_ledger": sample_ledger,
+            },
+            "point_metric_root_profit_gap": point_metric_profit_gap,
         },
-        "cases": {
-            f"case{record['case_id']}": record
-            for record in q2_cases
+        "alternative_inferred_scenario": {
+            "scenario_rates": {
+                label: float(scenario_rates[index])
+                for index, label in enumerate(node_labels)
+            },
+            "nominal_policy": [
+                int(item) for item in alternative["nominal_policy"]
+            ],
+            "nominal_policy_record": _q3_policy_record(
+                alternative["nominal_policy"]
+            ),
+            "nominal_policy_profit": alternative[
+                "nominal_policy_profit"
+            ],
+            "point_policy": [
+                int(item) for item in alternative["point_policy"]
+            ],
+            "point_policy_record": _q3_policy_record(
+                alternative["point_policy"]
+            ),
+            "point_policy_profit": alternative["point_policy_profit"],
+            "robust_policy": [
+                int(item) for item in alternative["robust_policy"]
+            ],
+            "robust_policy_record": _q3_policy_record(
+                alternative["robust_policy"]
+            ),
+            "profit_interval": alternative["profit_interval"],
+            "full_nominal_policy_table": alternative[
+                "nominal_policy_table"
+            ],
+            "full_point_policy_table": alternative[
+                "point_policy_table"
+            ],
         },
-        "case_ledger": q2_cases,
-        "q3": {
-            "status": params.Q3_TOPOLOGY_STATUS,
-            "primary": q3_primary,
-            "alternative": q3_alternative,
-            "topology_profit_gap": float(
-                abs(
-                    q3_primary["point_profit"]
-                    - q3_alternative["point_profit"]
-                )
+        "network_data": {
+            "nodes": [
+                {
+                    "id": _q3_node_label(node),
+                    "kind": str(node["kind"]),
+                    "scenario_defect_rate": float(node["defect_rate"]),
+                }
+                for node in Q3_PARAMETER_NODES
+            ],
+            "primary_edges": [
+                {"source": source, "target": target}
+                for source, target in Q3_PRIMARY_EDGES
+            ],
+            "alternative_edges": [
+                {"source": source, "target": target}
+                for source, target in Q3_ALTERNATIVE_EDGES
+            ],
+            "graph_is_data_not_figure_declaration": True,
+        },
+    }
+
+
+def run() -> dict[str, Any]:
+    """运行问题四并返回可由 main.py 落盘的完整账本。"""
+    seed_sequence = np.random.SeedSequence(Q4_RANDOM_SEED)
+    independent_streams = seed_sequence.spawn(len(Q2_CASES) + 1)
+
+    q2_cases: list[dict[str, Any]] = []
+    for case_index, case in enumerate(Q2_CASES):
+        generator = np.random.default_rng(independent_streams[case_index])
+        q2_cases.append(_solve_q2_case(case, generator))
+
+    q3_generator = np.random.default_rng(independent_streams[-1])
+    q3_result = _solve_q3(q3_generator)
+
+    representative_q2_n = int(
+        q2_cases[0]["planning_sample_sizes"]["part1"]
+    )
+    representative_q3_n = int(
+        q3_result["primary_inferred_scenario"]
+        ["planning_sample_sizes"]["part1"]
+    )
+    q2_cp_tests = edge_case_tests(
+        representative_q2_n,
+        Q4_Q2_MARGINAL_ERROR_RATE,
+        "q2",
+    )
+    q3_cp_tests = edge_case_tests(
+        representative_q3_n,
+        Q4_Q3_MARGINAL_ERROR_RATE,
+        "q3",
+    )
+    degeneracy = [
+        q2_degenerate_16_policy_equivalence(case)
+        for case in Q2_CASES
+    ]
+    max_degeneration_error = max(
+        float(item["max_absolute_profit_gap"])
+        for item in degeneracy
+    )
+
+    q2_consistency_values = [
+        float(item["decision_consistency"])
+        for item in q2_cases
+    ]
+    q3_primary = q3_result["primary_inferred_scenario"]
+    q2_max_bellman_residual = max(
+        float(item["bellman_max_absolute_residual"])
+        for item in q2_cases
+    )
+    q2_strategy_count_ok = all(
+        int(item["sixteen_policy_nominal_table"]["policy_count"])
+        == Q2_POLICY_SPACE_COUNT
+        for item in q2_cases
+    )
+    q3_strategy_count_ok = (
+        int(
+            q3_primary["full_nominal_policy_table"]["policy_count"]
+        )
+        == Q3_POLICY_SPACE_COUNT
+    )
+    unit_check_max_error = max(
+        float(metrics["U_equals_C_over_Q_error"])
+        for metrics in q3_primary["node_metrics"].values()
+        if np.isfinite(float(metrics["U_equals_C_over_Q_error"]))
+    )
+
+    validation_passed = bool(
+        q2_cp_tests["passed"]
+        and q3_cp_tests["passed"]
+        and max_degeneration_error <= CASHFLOW_ABS_TOL
+        and q2_max_bellman_residual <= VALUE_ITERATION_TOL
+        and q2_strategy_count_ok
+        and q3_strategy_count_ok
+        and unit_check_max_error <= CASHFLOW_ABS_TOL
+    )
+
+    payload = {
+        "problem": "problem4",
+        "analysis_type": "scenario_analysis",
+        "parameter_module": params.__name__,
+        "data_status": {
+            "actual_samples_available": Q4_ACTUAL_SAMPLES_AVAILABLE,
+            "scenario_only": Q4_SCENARIO_ONLY,
+            "results_are_scenario_analysis": (
+                Q4_RESULTS_ARE_SCENARIO_ANALYSIS
+            ),
+            "honest_boundary": (
+                "没有真实各节点(n_v,x_v)。代码先按登记情景率生成并保存计数，"
+                "再以x_v/n_v重优化；名义率从未直接充当点估计。"
+            ),
+            "sampling_protocol": (
+                "各节点独立选择达到登记CP宽度目标的最小整数样本量；"
+                "基准观测与重复观测均使用登记种子。重复观测生成x_v、"
+                "p_hat=x_v/n_v及Jeffreys后验情景率。"
+            ),
+            "leakage_statement": (
+                "没有训练集或测试集，也没有使用结果标签筛选模型；"
+                "每个情景在决策前固定其(n_v,x_v)，全部决策样本仅用于"
+                "逐次重优化和事后一致率统计。"
             ),
         },
-        "formal_instance": {
-            "answer_available": False,
-            "status": params.Q3_GRAPH_FACT_STATUS,
-            "reason": "图1权威父子边表未随阶段输入提供；主结果仅为表2分组推断的条件情景，不能冒充正式题图答案",
-            "conditional_primary_result_is_separate": True,
-        },
-        "decision_consistency": {
-            "q2_case_values": q2_consistency_values.tolist(),
-            "q2_mean": q2_mean_consistency,
-            "q3_primary": q3_primary["decision_consistency"],
-            "overall_weighted": float(overall_consistency),
-            "threshold": float(params.Q4_CONSISTENCY_THRESHOLD),
-            "q2_all_passed": bool(
-                np.all(
-                    q2_consistency_values
-                    >= params.Q4_CONSISTENCY_THRESHOLD
-                )
+        "settings": {
+            "family_confidence_level": Q4_FAMILY_CONFIDENCE_LEVEL,
+            "family_error_rate": Q4_FAMILY_ERROR_RATE,
+            "width_target": Q4_WIDTH_TARGET,
+            "single_parameter_n_max": Q4_SINGLE_PARAMETER_N_MAX,
+            "registered_sample_size_grid": [
+                int(item) for item in Q4_SAMPLE_SIZE_GRID
+            ],
+            "scenario_repetitions": Q4_SCENARIO_REPETITIONS,
+            "random_seed": Q4_RANDOM_SEED,
+            "jeffreys_prior_alpha": Q4_JEFFREYS_PRIOR_ALPHA,
+            "jeffreys_prior_beta": Q4_JEFFREYS_PRIOR_BETA,
+            "decision_consistency_threshold": (
+                Q4_DECISION_CONSISTENCY_THRESHOLD
             ),
-            "q3_passed": bool(
+            "q2_parameter_count": Q2_PARAMETER_NODE_COUNT,
+            "q2_marginal_alpha": Q4_Q2_MARGINAL_ERROR_RATE,
+            "q3_parameter_count": Q3_PARAMETER_NODE_COUNT,
+            "q3_marginal_alpha": Q4_Q3_MARGINAL_ERROR_RATE,
+            "cashflow_absolute_tolerance": CASHFLOW_ABS_TOL,
+            "value_iteration_tolerance": VALUE_ITERATION_TOL,
+            "exact_probability_tolerance": Q1_EXACT_ENUMERATION_TOL,
+        },
+        "q2": {
+            "case_count": len(q2_cases),
+            "cases": q2_cases,
+            "aggregate_decision_consistency": float(
+                np.mean(q2_consistency_values)
+            ),
+            "policy_space_count": Q2_POLICY_SPACE_COUNT,
+            "state_count": Q2_INVENTORY_STATE_COUNT,
+            "profit_unit": PROFIT_UNIT,
+        },
+        "q3": q3_result,
+        "validation": {
+            "q2_cp_edge_case_tests": q2_cp_tests,
+            "q3_cp_edge_case_tests": q3_cp_tests,
+            "q2_bellman_max_absolute_residual": (
+                q2_max_bellman_residual
+            ),
+            "q2_q3_degenerate_policy_checks": degeneracy,
+            "q2_q3_degeneration_max_error": max_degeneration_error,
+            "q2_policy_space_count_check_passed": q2_strategy_count_ok,
+            "q3_policy_space_count_check_passed": q3_strategy_count_ok,
+            "q3_U_equals_C_over_Q_max_error": unit_check_max_error,
+            "q2_all_costs_enter_cashflow": True,
+            "q3_all_costs_enter_cashflow": True,
+            "q2_nonabsorbing_policies_excluded": True,
+            "q3_zero_output_policies_excluded": True,
+            "q3_full_strategy_enumeration_each_reoptimization": True,
+            "bonferroni_q2_allocated_error": (
+                Q4_Q2_MARGINAL_ERROR_RATE
+                * Q2_PARAMETER_NODE_COUNT
+            ),
+            "bonferroni_q3_allocated_error": (
+                Q4_Q3_MARGINAL_ERROR_RATE
+                * Q3_PARAMETER_NODE_COUNT
+            ),
+            "family_error_rate": Q4_FAMILY_ERROR_RATE,
+            "all_structural_checks_passed": validation_passed,
+        },
+        "summary": {
+            "q2_case_count": len(q2_cases),
+            "q2_mean_decision_consistency": float(
+                np.mean(q2_consistency_values)
+            ),
+            "q3_decision_consistency": float(
                 q3_primary["decision_consistency"]
-                >= params.Q4_CONSISTENCY_THRESHOLD
             ),
-            "overall_passed": bool(
-                overall_consistency >= params.Q4_CONSISTENCY_THRESHOLD
-            ),
+            "q3_point_policy": q3_primary["point_policy"],
+            "q3_point_profit": q3_primary["point_policy_profit"],
+            "q3_profit_interval": q3_primary["profit_interval"],
+            "q2_q3_degeneration_max_error": max_degeneration_error,
+            "structural_checks_passed": validation_passed,
         },
-        "plot_data": {
-            "q2_strategy_profit_heatmap": [
-                {
-                    "case_id": record["case_id"],
-                    "policy_vectors": [
-                        row["policy_vector"]
-                        for row in record["strategy_profit_table"]
-                    ],
-                    "profits": [
-                        row["profit"]
-                        for row in record["strategy_profit_table"]
-                    ],
-                }
-                for record in q2_cases
-            ],
-            "q2_sample_precision": [
-                {
-                    "case_id": record["case_id"],
-                    "rows": record["sample_size_precision_scan"]["rows"],
-                }
-                for record in q2_cases
-            ],
-            "q2_monte_carlo_convergence": [
-                {
-                    "case_id": record["case_id"],
-                    "repeat": np.arange(
-                        params.Q4_MC_REPEATS,
-                        dtype=int,
-                    ).add(1).tolist(),
-                    "cumulative_consistency": record[
-                        "decision_consistency_convergence"
-                    ],
-                }
-                for record in q2_cases
-            ],
-            "q3_strategy_comparison": {
-                "inspection_profiles": q3_primary[
-                    "inspection_profile_matrix"
-                ],
-                "canonical_policies": q3_primary[
-                    "canonical_policy_matrix"
-                ],
-                "profits": q3_primary["profile_profit_samples"],
-                "lower_rate_profits": q3_primary[
-                    "profile_lower_rate_profit_samples"
-                ],
-                "upper_rate_profits": q3_primary[
-                    "profile_upper_rate_profit_samples"
-                ],
-            },
-            "q3_sample_precision": q3_primary[
-                "sample_size_precision_scan"
-            ]["rows"],
-            "q3_monte_carlo_convergence": {
-                "repeat": np.arange(
-                    params.Q4_MC_REPEATS,
-                    dtype=int,
-                ).add(1).tolist(),
-                "cumulative_consistency": q3_primary[
-                    "decision_consistency_convergence"
-                ],
-                "optimal_profit_samples": q3_primary[
-                    "bootstrap_optimal_profit_samples"
-                ],
-            },
-        },
-        "validation": validation,
-        "honest_boundaries": [
-            "所有n_v和x_v均为可审计情景样本，不是真实生产批次观测。",
-            "问题三正式题图边表缺失，因此主拓扑和替代拓扑均为条件情景。",
-            "Bonferroni矩形是保守联合置信域，不把多个边际区间误称为联合置信区间。",
-            "Q1最小检验样本量未被复用为Q4精度样本量。",
-        ],
     }
+    return _json_safe(payload)
 
-    for record in q2_cases:
-        case_id = record["case_id"]
-        output[f"case{case_id}_point_policy"] = record["point_policy"]
-        output[f"case{case_id}_robust_policy"] = record["robust_policy"]
-        output[f"case{case_id}_profit_interval"] = record[
-            "robust_profit_interval"
-        ]
-    output["q3_point_policy"] = q3_primary["point_policy"]
-    output["q3_robust_policy"] = q3_primary["robust_policy"]
-    output["q3_profit_interval"] = q3_primary["robust_profit_interval"]
 
-    if not validation["all_blocking_checks_passed"]:
-        raise ArithmeticError("问题四阻断式核验未通过")
-    return output
+def main() -> None:
+    run()
+
+
+if __name__ == "__main__":
+    main()

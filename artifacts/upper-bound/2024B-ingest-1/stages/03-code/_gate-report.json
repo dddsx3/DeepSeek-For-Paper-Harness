@@ -1,6 +1,6 @@
 {
   "stage": "code",
-  "code": 1,
+  "code": 2,
   "items": [
     {
       "id": "code_parity",
@@ -10,14 +10,14 @@
     },
     {
       "id": "code_name_consistency",
-      "ok": false,
-      "detail": "code/problem3.py：引用了 1 个**任何文件都没定义**的常量名（Q2_PROBABILITY_CEILON）—— 运行时必然 NameError。分片是\"一文件一次调用\"，各文件对不上名字是这类阶段的典型塌方；要么用 `params.py` 里已有的名字，要么在用到它的文件里定义。",
-      "code": 1
+      "ok": true,
+      "detail": "6 个代码文件：引用的常量名都有定义",
+      "code": 0
     },
     {
       "id": "ledger_keys_declared",
       "ok": true,
-      "detail": "已公布 74 个账本键 —— 阶段 4 照抄即可，不必猜",
+      "detail": "已公布 64 个账本键 —— 阶段 4 照抄即可，不必猜",
       "code": 0
     },
     {

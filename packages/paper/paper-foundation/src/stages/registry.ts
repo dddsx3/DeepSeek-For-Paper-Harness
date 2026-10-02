@@ -231,6 +231,8 @@ export const STAGES: ReadonlyArray<StageSpec> = [
       '01-prob-analysis/PROBLEM_ANALYSIS.md', '01-prob-analysis/PROBLEM_FACTS.json',
       '02-modeling/MODELING_REPORT.md', '02-modeling/DECLARATION.json',
       '03-code/RESULTS.md', '06-figure/figure-manifest.json', '04-result-sources/results.json',
+      // 复核的 major/minor 要传到论文里标注为"情景模拟/假设"——不 consume 就传不到
+      '08-review/COMP_REVIEW_VERDICT.json',
     ],
     produces: [D('paper/main.md', 'md', '论文正文（单文件）', 5120)],
     gates: ['paper_floor', 'paper_page_floor', 'no_latex_residue', 'upstream_min_chars', 'numbers_traced', 'paper_claim_check'],
