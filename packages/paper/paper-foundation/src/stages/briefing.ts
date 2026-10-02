@@ -313,6 +313,14 @@ const SKILLS: Readonly<Record<string, StageSkill>> = {
         + '实测代价：契约要求它、分片计划却没给它位置，于是 `main.py` 写了 `import params` '
         + '而该文件根本不存在，阶段 4 真跑代码时 ModuleNotFoundError，整轮白跑。'
         + '**`main.py` 与逐问脚本都要 `import params`，所以它必须先落地。**',
+      '**⛔ 跨文件的名字必须真的"可导入"（分片最大的塌方点，门禁 `code_name_consistency` 会拦）**：'
+        + '分片导致各文件独立生成，**最容易写出"任何文件都没定义"的名字**。三条铁律：'
+        + '① `from params import *` **只给 `params.py` 里的模块级常量**——运行时对象的属性'
+        + '（`source.Q2_EFFECTIVE_STRATEGY_COUNT`）**不是可导入的名字**（实测就有模型把 '
+        + '`source.X` 的属性当成裸名写进 `params.py` 的 `assert`，运行时必然 NameError）；'
+        + '② 用到某名字的文件里**没有**、`params.py` 里也**没有** → 必须在 `params.py` 里定义它；'
+        + '③ `assert` / 比较两边的名字**同样必须已定义**——别以为写在 `assert` 里就不用定义。'
+        + '自检：把你要用的每个大写名字在 `params.py` 或本文件里找一遍，找不到就是错的。',
       '**遵守 `METHOD_CLAIMS_MACHINE` 的签名**（阶段 2 已给）：`must` 里列的实现铁证必须真的出现在代码里，'
         + '`forbid` 里列的降级替代**一个都不许出现**。门禁 `claim_code_check` 零方向知识逐条核——'
         + '参考原话：*"凭印象退化成 plot/bar/scatter 是最常见的质量塌方"*，这条就是治它的。',

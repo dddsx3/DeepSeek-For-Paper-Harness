@@ -96,5 +96,5 @@
   "regate": {
     "reason": "形态判据放宽：标签数组(labels)与空数组(empty)合法——两条真实误判；产物未变，原地复评"
   },
-  "staleReason": "阶段 'code' 逐节点审计未通过 —— 下游前提不成立"
+  "staleReason": "阶段 'code' 门禁未通过（code 1）—— 下游前提不成立"
 }

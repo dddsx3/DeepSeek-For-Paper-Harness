@@ -240,7 +240,9 @@ const codeNameConsistency: GateFn = (input) => {
       problems.push(`${file}：引用了 ${String(stray.size)} 个**任何文件都没定义**的常量名`
         + `（${[...stray].slice(0, 6).join('、')}）—— 运行时必然 NameError。`
         + '分片是"一文件一次调用"，各文件对不上名字是这类阶段的典型塌方；'
-        + '要么用 `params.py` 里已有的名字，要么在用到它的文件里定义。')
+        + '要么用 `params.py` 里已有的名字，要么在用到它的文件里定义。'
+        + '⛔ 常见误区：`source.某名字` 这类**属性访问**不等于"该名字可导入"——'
+        + '`from params import *` 只给模块级常量；在 `params.py` 里补上定义即可。')
     }
   }
   return problems.length === 0

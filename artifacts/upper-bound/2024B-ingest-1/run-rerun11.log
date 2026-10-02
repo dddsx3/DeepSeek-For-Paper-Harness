@@ -4,3 +4,21 @@
   [deterministic] code: 分片 1/8 交付 code/main.py
   [deterministic] code: 分片 2/8 交付 code/params.py
   [deterministic] code: 分片 3/8 交付 code/problem1.py
+  [deterministic] code: 分片 4/8 交付 code/problem2.py
+  [deterministic] code: 分片 5/8 交付 code/problem3.py
+  [deterministic] code: 回答未正常结束（阶段 'code' 的回答被 max-tokens 截断 —— 这不是"写错了哪里"，是产出超过了单次调用的输出上限；分），改为"压缩"请求重问一次
+  [deterministic] code: 分片 6/8 交付 code/problem4.py
+  [deterministic] code: 分片 7/8 交付 RESULTS.md
+  [deterministic] code: 分片 8/8 交付 DELIVERABLES.json
+[STAGE NEXT] 只跑了 'code'，到此即停。检查 artifacts\upper-bound\2024B-ingest-1\stages 后，放行 = 再执行一次 --stages --stage-next。
+  ❌ code: 门禁 code 1（0=通过 1=硬失败 2=无法判定）：code_name_consistency、delivery_audit
+
+STAGE CHAIN FAILED — 1 个阶段没通过（产物与通行证在 artifacts\upper-bound\2024B-ingest-1\stages）。
+===== 第 2 次 --stage-next =====
+[STAGE CHAIN] artifacts\upper-bound\2024B-ingest-1\stages
+  题面问数（数出来的）：4
+  [deterministic] code: 分片 1/8 交付 code/main.py
+  [deterministic] code: 分片 2/8 交付 code/params.py
+  [deterministic] code: 分片 3/8 交付 code/problem1.py
+  [deterministic] code: 分片 4/8 交付 code/problem2.py
+  [deterministic] code: 回答未正常结束（阶段 'code' 的回答被 max-tokens 截断 —— 这不是"写错了哪里"，是产出超过了单次调用的输出上限；分），改为"压缩"请求重问一次
