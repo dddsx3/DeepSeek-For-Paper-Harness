@@ -195,14 +195,61 @@ export function buildAllowlist(sources: ReadonlyArray<string | null>): ReadonlyS
   return out
 }
 
+/**
+ * 账本数值的**四舍五入变体**（移植参考 `facts_audit.py::_collect_result_numbers`）。
+ *
+ * 为什么必须有：论文正文写"最优期望成本 15.88 元"是**正常写作**，而账本里存的是
+ * `15.8765432`——`buildAllowlist` 只收字面量，于是这个四舍五入值会被判成"没有出生证明"，
+ * 门禁就在惩罚一个写法完全正确的模型。参考对这件事的注释说得更直白：
+ * *"正文写 7.01×10⁻⁸，源里存 7.0089e-08 这类合法四舍五入……宁可放宽也不误伤真实值"*。
+ *
+ * 放宽的边界是**有界的**：变体全部由账本真值派生（2/3/4 位小数 + 小值尾数），
+ * 所以任何变体与真值的偏差都在千分之几以内——**编造的数不会因此蒙混过关**。
+ *
+ * @param source - 账本文本（`results.json`），可能为 `null`。
+ * @param out - 就地追加变体字面量。
+ */
+export function addRoundedVariants(source: string | null, out: Set<string>): void {
+  if (source === null) return
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(source)
+  } catch {
+    return // 账本坏了由铸数/门禁那边报，这里不重复报
+  }
+  for (const v of numericLeavesOf(parsed)) {
+    for (const digits of [2, 3, 4]) {
+      out.add(normalizeLiteral(String(Number(v.toFixed(digits)))))
+    }
+    // 科学计数法小值：把尾数归一到 [1,10) 再多记几位——救"正文写 7.01，源里存 7.0089e-08"
+    // 这类量级差太大、普通字面匹配够不着的合法写法。
+    if (v !== 0 && Math.abs(v) < 1e-2) {
+      const mantissa = Math.abs(v) * Math.pow(10, Math.floor(Math.log10(Math.abs(v))))
+      for (const digits of [2, 3, 4]) {
+        out.add(normalizeLiteral(String(Number(mantissa.toFixed(digits)))))
+      }
+    }
+  }
+}
+
+/** 递归收集 JSON 里所有有限数值（账本用；**不过滤键名**——账本每个数都是结果）。 */
+function numericLeavesOf(value: unknown, depth = 0): ReadonlyArray<number> {
+  if (depth > 12) return []
+  if (typeof value === 'number') return Number.isFinite(value) ? [value] : []
+  if (Array.isArray(value)) return value.flatMap(v => numericLeavesOf(v, depth + 1))
+  if (typeof value === 'object' && value !== null) {
+    return Object.values(value as Record<string, unknown>).flatMap(v => numericLeavesOf(v, depth + 1))
+  }
+  return []
+}
+
 /** 递归收集一个 JSON 值里**所有数组的长度**（每个长度都是一个可核的"数"）。 */
 function arrayLengthsOf(value: unknown, depth = 0): ReadonlyArray<number> {
   if (depth > 12) return [] // 防深递归；声明文件的嵌套很浅
   if (Array.isArray(value)) {
     return [value.length, ...value.flatMap(v => arrayLengthsOf(v, depth + 1))]
   }
-  if (typeof value === 'object' && value !== null) {
-    return Object.values(value as Record<string, unknown>).flatMap(v => arrayLengthsOf(v, depth + 1))
+  if (typeof value === 'object' && value !== null) {    return Object.values(value as Record<string, unknown>).flatMap(v => arrayLengthsOf(v, depth + 1))
   }
   return []
 }

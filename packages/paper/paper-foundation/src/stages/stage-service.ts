@@ -47,6 +47,7 @@ import { Context, Service } from '@deepseek-ai/cordis'
 import { createUserMessage, type GenerateOptions } from '@deepseek-ai/dsh-llm'
 import { deterministicRunner, type DeterministicOutcome } from './deterministic.ts'
 import { runCodeAndMintResults } from './execute-and-mint.ts'
+import { resolvePaperAnchors } from './anchor-resolve.ts'
 import { assembleShards, planCodeShards, planModelingShards, type CodeShard } from './code-shard.ts'
 import { assembleFigureAnswers, planShard, scriptShards, type FigureShard } from './figure-script-shard.ts'
 import { auditPromptOf, parseAuditVerdict } from './audit.ts'
@@ -508,13 +509,28 @@ export class PaperStageChainService extends Service {
       // 阶段 3 的 harness 侧后处理：**真跑代码并铸数**。模型只声明数在哪
       // （RESULT_SOURCES.json），账本由真实执行的产物字节铸成——数不由模型持有。
       afterModel: async (spec, stagesRoot) => {
-        if (spec.id !== 'result-sources') return
-        const outcome = await runCodeAndMintResults(stagesRoot)
-        this.config.onDeterministicOutcome?.({
-          stage: 'result-sources',
-          summary: '执行 code/main.py（exit ' + String(outcome.exitCode) + '），按声明铸出 '
-            + String(outcome.minted) + ' 条账目',
-        })
+        if (spec.id === 'result-sources') {
+          const outcome = await runCodeAndMintResults(stagesRoot)
+          this.config.onDeterministicOutcome?.({
+            stage: 'result-sources',
+            summary: '执行 code/main.py（exit ' + String(outcome.exitCode) + '），按声明铸出 '
+              + String(outcome.minted) + ' 条账目',
+          })
+          return
+        }
+        // 阶段 9 的 harness 侧后处理：**把正文里的结果锚点换成账本真值**。
+        // 没有这一步，`{R-Q2-case5-profit}` 会原样印进最终 Word（见 anchor-resolve.ts 的模块头）。
+        // 换不掉的**原样保留**，由门禁 `paper_claim_check` 判硬失败——不许猜、不许置空。
+        if (spec.id === 'paper') {
+          const done = await resolvePaperAnchors(stagesRoot)
+          if (done.total > 0) {
+            this.config.onDeterministicOutcome?.({
+              stage: 'paper',
+              summary: `结果锚点：替换 ${String(done.resolved)} 条，未能落地 ${String(done.unresolved)} 条`
+                + (done.unresolved === 0 ? '' : '（由门禁 paper_claim_check 判硬失败）'),
+            })
+          }
+        }
       },
       // ── 逐节点审计（用户新增约束）：交付前由**独立角色**审一遍 ──────────────
       // 独立性：审计只拿到"契约（任务陈述 + 产出清单 + 门禁 id）+ 本阶段产物 + 上游产物名
