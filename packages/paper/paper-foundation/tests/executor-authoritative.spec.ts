@@ -235,7 +235,9 @@ describe('P2-1 executor-authoritative FORMAL chain', () => {
     expect(manifest).toBeDefined()
     expect(manifest!.informal).toBe(false)
     expect(manifest!.gates['review']).toBe(true)
-  })
+    // 显式超时：这条端到端链要真跑一次执行 + 提升产物，机器忙时（全量套件 169 个文件
+    // 并行 + 流水线在跑）会超过 vitest 的 5 秒默认值 —— 那是**负载**，不是缺陷。
+  }, 120_000)
 
   it('attack 1: a model-injected runnerCommand is refused and the run is blocked with no Result', async () => {
     const { ir, engine, runId, outcome } = await harness(polarContainer({
