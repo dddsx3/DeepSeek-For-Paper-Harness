@@ -48,6 +48,7 @@ import { createUserMessage, type GenerateOptions } from '@deepseek-ai/dsh-llm'
 import { deterministicRunner, type DeterministicOutcome } from './deterministic.ts'
 import { runCodeAndMintResults } from './execute-and-mint.ts'
 import { resolvePaperAnchors } from './anchor-resolve.ts'
+import { CODE_PY_RE, undefinedConstNames, type UndefinedNameFinding } from './code-names.ts'
 import { assembleShards, planCodeShards, planModelingShards, type CodeShard } from './code-shard.ts'
 import { assembleFigureAnswers, planShard, scriptShards, type FigureShard } from './figure-script-shard.ts'
 import { auditPromptOf, parseAuditVerdict } from './audit.ts'
@@ -99,6 +100,33 @@ export const STAGE_CHAIN_SYSTEM = [
   '只产出简报要求的那个形态；那些判据是 harness 会逐条量你的，不是建议。',
   '不要输出任何解释性开场白或结束语——你的回答会被按契约直接解析。',
 ].join('\n')
+
+/**
+ * 阶段 3 分片的**名字重问总预算**（跨分片共享）。
+ *
+ * 为什么要有上限：重问是补救路径，不是常规路径。无上限会退化成"模型写多少就重问多少"，
+ * 而这一整套机械性改造的目的恰恰是**不靠反复试**。四次足以覆盖"某一片漏定义几个常量"
+ * 这个真实形态（实测一次最多 2 个名字、且只出现在一片里）。
+ */
+const MAX_NAME_REPAIRS = 4
+
+/**
+ * 单片重问时追加的指令（把"哪几个名字、怎么修"说到不必猜）。
+ *
+ * @param finding - 该片引用了但没有任何文件定义的常量名。
+ * @returns 追加到原 prompt 末尾的段落。
+ */
+function nameRepairNote(finding: UndefinedNameFinding): string {
+  return '\n\n---\n\n## ⛔ 你上一版里有**未定义的名字**（会导致运行时 NameError，必须先修）\n\n'
+    + `本文件引用了这些**任何文件都没定义**的常量名：\n\n`
+    + finding.names.map(n => `- \`${n}\``).join('\n')
+    + '\n\n修法只有两种，**必须**选一种落地：'
+    + '① 改用 `params.py` 已定义的名字（上面那份列表里的）；'
+    + '② 在本文件里定义它（例如 `' + (finding.names[0] ?? 'NAME') + ' = ...`，值从 '
+    + '`PROBLEM_FACTS.json` 或建模报告取）。'
+    + '\n\n**不许**继续引用未定义的名字，也不许把它们留成"以后会有人补"。'
+    + '重新输出**修正后的完整文件**（不要只给补丁片段）。'
+}
 
 /** 服务的配置。 */
 export interface StageChainConfig {
@@ -355,6 +383,9 @@ export class PaperStageChainService extends Service {
         if (spec.id === 'code') {
           const shards = planCodeShards(spec, prompt, await this.problemCount())
           const answers: string[] = []
+          // 单片名字重问的**总预算**（跨分片共享）：重问是补救不是常规路径——
+          // 无上限会变成"模型写多少就重问多少"，预算封顶才是机械性改造。
+          let nameRepairs = 0
           for (const shard of shards) {
             // **后续分片必须看到前面的产出**（与阶段 2 同一条约束，见下面那段注释）。
             //
@@ -387,21 +418,60 @@ export class PaperStageChainService extends Service {
             // 从 `params.py` 的**已交付正文**里提取全部定义的名字，作为**显式白名单**
             // 交给后续分片——不再只靠"给你看代码自己找"。结构化列表比代码更难忽视。
             const paramsAnswer = answers[shards.findIndex(s => s.deliverable === 'code/params.py')] ?? ''
-            const definedNames = [...new Set(
-              paramsAnswer
+            const namesIn = (body: string): ReadonlyArray<string> => [...new Set(
+              body
                 .replace(/"""[\s\S]*?"""/g, ' ').replace(/'''[\s\S]*?'''/g, ' ')
                 .replace(/#[^\n]*/g, ' ').replace(/"[^"\n]*"/g, ' ').replace(/'[^'\n]*'/g, ' ')
                 .matchAll(/^\s*(?:([A-Za-z_]\w*)\s*(?::[^=\n]*)?=|(?:def|class)\s+([A-Za-z_]\w*))/gm)
             )].flatMap(m => [m[1], m[2]].filter((x): x is string => typeof x === 'string' && x.length > 1))
+            const definedNames = namesIn(paramsAnswer)
+            // **本阶段其它文件里已定义的名字**：只说"哪些名字已经被用过"——防的是
+            // "同一个量在 A 文件叫 X、在 B 文件又发明一个 Y"（分片之间对不上名）。
+            // 但**不许跨文件直接引用**：各文件是独立模块，跨文件用必须显式 import；
+            // 所以这里明说"要共享就该进 params.py，不在列表里就在本文件里定义"。
+            const earlierNames = [...new Set(answers.flatMap(namesIn))].filter(n => !definedNames.includes(n))
             const nameRegistry = definedNames.length === 0 ? '' :
               '\n\n---\n\n## ⛔ `params.py` 里**已定义**的名字（**只能引用这些**从 params 导入；'
               + '不在列表里的名字必须在本文件里定义，否则运行时必然 NameError）\n\n'
               + definedNames.join(', ')
+              + (earlierNames.length === 0 ? '' :
+                '\n\n**本阶段更早的文件里已定义**（这些名字**不能**跨文件直接引用——各文件是独立模块；'
+                + '你要用同名量就在本文件里定义，或改从 `params` 取）：\n\n' + earlierNames.join(', '))
+              + '\n\n**收尾自检（必做）**：把你本文件里用到的每个**大写名字**逐个在'
+              + '①上面 `params.py` 列表 ②本文件自身 里找一遍。两处都没有 → **不要提交**，'
+              + '先在本文件里定义它。`assert` / 比较表达式两边的名字同样要过这一关。'
             const prior = carried.length === 0
               ? ''
               : '\n\n---\n\n## 本阶段**已产出**的文件（必须与之保持一致：名字、签名、单位都以它们为准）\n\n'
                 + carried.map(c => `### \`${c.name}\`\n\n${c.body}`).join('\n\n')
-            answers.push(await singleCall(spec, shard.prompt + prior + nameRegistry))
+            let answer = await singleCall(spec, shard.prompt + prior + nameRegistry)
+            // ── 单片名字自检（**机械性改造**：不再等整阶段 8 片跑完被门禁拦回）──
+            //
+            // 判据与门禁 `code_name_consistency` **同一份实现**（`code-names.ts`）。
+            // 实测代价：每次撞上未定义名字 → 整阶段 8 片重跑（约 10 分钟 + 8 次调用），
+            // 而且模型下一轮会换一组新名字继续撞（Q4_SCENARIO_NODE_COUNT → Q2_PART*_COSTS）。
+            // 这里在**收到那一片的当下**就用同一条判据自查，只重问**那一片**（每片最多一次）。
+            // 门禁保留为最终兜底：重问后仍不合规 → 照旧判硬失败（不许静默放行）。
+            if (CODE_PY_RE.test(shard.deliverable) && nameRepairs < MAX_NAME_REPAIRS) {
+              const built: Array<readonly [string, string]> = []
+              shards.slice(0, at).forEach((s2, k) => {
+                const body = answers[k]
+                if (body !== undefined && CODE_PY_RE.test(s2.deliverable)) built.push([s2.deliverable, body])
+              })
+              built.push([shard.deliverable, answer])
+              const mine = undefinedConstNames(built).find(f => f.file === shard.deliverable)
+              if (mine !== undefined) {
+                nameRepairs += 1
+                this.config.onDeterministicOutcome?.({
+                  stage: spec.id,
+                  summary: `分片 ${String(shard.index)}/${String(shard.total)} 自查发现 `
+                    + `${String(mine.names.length)} 个未定义常量名（${mine.names.slice(0, 3).join('、')}）`
+                    + `→ 只重问这一片（第 ${String(nameRepairs)}/${String(MAX_NAME_REPAIRS)} 次）`,
+                })
+                answer = await singleCall(spec, shard.prompt + prior + nameRegistry + nameRepairNote(mine))
+              }
+            }
+            answers.push(answer)
             this.config.onDeterministicOutcome?.({
               stage: spec.id,
               summary: `分片 ${String(shard.index)}/${String(shard.total)} 交付 ${shard.deliverable}`,
