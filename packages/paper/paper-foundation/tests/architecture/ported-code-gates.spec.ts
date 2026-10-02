@@ -168,6 +168,73 @@ describe('facts_audit —— 代码裸数字（移植 facts_audit.py，**警告�
 })
 
 // ══════════════════════════════════════════════════════════════════════════
+describe('delivery_audit —— 声明的交付物与磁盘一致（移植 delivery_audit.py）', () => {
+  const list = (artifacts: ReadonlyArray<unknown>, key = 'artifacts') =>
+    JSON.stringify({ [key]: artifacts })
+
+  it('清单不存在 / 不是合法 JSON / 没有清单数组 → 1（不是 2：清单是硬契约）', () => {
+    expect(run('delivery_audit', input({})).code).toBe(1)
+    expect(run('delivery_audit', input({ 'DELIVERABLES.json': '{坏' })).code).toBe(1)
+    expect(run('delivery_audit', input({ 'DELIVERABLES.json': '{"stage":"03-code"}' })).code).toBe(1)
+    expect(run('delivery_audit', input({ 'DELIVERABLES.json': list([]) })).code).toBe(1)
+  })
+
+  it('键名 `deliverables` 与 `artifacts` 都认（判据是**一致**，不是键名）', () => {
+    const one = [{ path: 'code/main.py', min_bytes: 5 }]
+    expect(run('delivery_audit', input({ 'code/main.py': 'print(1)', 'DELIVERABLES.json': list(one) })).code).toBe(0)
+    expect(run('delivery_audit', input({ 'code/main.py': 'print(1)', 'DELIVERABLES.json': list(one, 'deliverables') })).code).toBe(0)
+  })
+
+  it('**运行期产物**（代码里会写出、门禁时还没生成）放行并记账', () => {
+    const i = input({
+      'code/main.py': 'json.dump(out, open("outputs.json", "w"))',
+      'DELIVERABLES.json': list([{ path: 'code/outputs.json', kind: 'json', min_bytes: 100 }]),
+    })
+    const v = run('delivery_audit', i)
+    expect(v.code).toBe(0)
+    expect(v.items[0]?.detail).toContain('运行期产物')
+  })
+
+  it('**声明的交付物没人产出**（磁盘没有、代码里也不写）→ 1', () => {
+    const i = input({
+      'code/main.py': 'print(1)',
+      'DELIVERABLES.json': list([{ path: 'code/ghost.json', kind: 'json' }]),
+    })
+    const v = run('delivery_audit', i)
+    expect(v.code).toBe(1)
+    expect(v.items[0]?.detail).toContain('没人产出')
+  })
+
+  it('存在但是空的 / 小于自己声明的 `min_bytes` → 1', () => {
+    const empty = input({ 'RESULTS.md': '', 'DELIVERABLES.json': list([{ path: 'RESULTS.md' }]) })
+    expect(run('delivery_audit', empty).code).toBe(1)
+    const small = input({ 'RESULTS.md': '短', 'DELIVERABLES.json': list([{ path: 'RESULTS.md', min_bytes: 500 }]) })
+    const v = run('delivery_audit', small)
+    expect(v.code).toBe(1)
+    expect(v.items[0]?.detail).toContain('min_bytes')
+  })
+
+  it('目录型声明：目录下有产物才算数', () => {
+    const okDir = input({ 'code/a.py': 'x = 1', 'DELIVERABLES.json': list([{ path: 'code/' }]) })
+    expect(run('delivery_audit', okDir).code).toBe(0)
+    const emptyDir = input({ 'DELIVERABLES.json': list([{ path: 'code/' }]) })
+    expect(run('delivery_audit', emptyDir).code).toBe(1)
+  })
+
+  it('**零误报**：声明与磁盘一致的正常清单 → 0', () => {
+    const i = input({
+      'code/main.py': 'print(1)',
+      'RESULTS.md': '结果'.repeat(300),
+      'DELIVERABLES.json': list([
+        { path: 'code/main.py', kind: 'py', min_bytes: 5, desc: '入口' },
+        { path: 'RESULTS.md', kind: 'md', min_bytes: 100, desc: '结果说明' },
+      ]),
+    })
+    expect(run('delivery_audit', i).code).toBe(0)
+  })
+})
+
+// ══════════════════════════════════════════════════════════════════════════
 describe('paper_claim_check —— 结果锚点必须落地（阶段 9 的"装配而非推理"）', () => {
   const ledger = JSON.stringify({ results: [{ result_id: 'R-Q1-p', name: 'p', value: 0.1, unit: '' }] })
 

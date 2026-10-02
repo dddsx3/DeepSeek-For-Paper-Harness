@@ -14,8 +14,10 @@
  * | 片 | 交付 | 形态 |
  * |---|---|---|
  * | 1 | `code/main.py`（编排入口） | 原文 |
- * | 2..N+1 | `code/problemK.py`（逐问实现，K = 1..题面问数） | 原文 |
- * | N+2 | `RESULTS.md` + `DELIVERABLES.json` | JSON 信封 |
+ * | 2 | `code/params.py`（题面给定值与模型常数的唯一落点） | 原文 |
+ * | 3 | `code/data_check.py`（数据预检，契约要求"确认数据没问题后再写求解代码"） | 原文 |
+ * | 4..N+3 | `code/problemK.py`（逐问实现，K = 1..题面问数） | 原文 |
+ * | 末两片 | `RESULTS.md` / `DELIVERABLES.json` | 原文 |
  *
  * 每一片的 prompt = **完整阶段简报** + 一句"本次只产出 X"。简报里已有逐问模型
  * 与上游上下文，所以每一片都能独立写出该文件；重复的只是输入令牌——
@@ -70,6 +72,14 @@ export function planCodeShards(spec: StageSpec, prompt: string, problemCount: nu
   // 这是"契约要求的文件，管线没给它交付槽位"的又一例（与 `_figbase`、阶段 3 看不见
   // FIGURE_MANIFEST 同类）。**契约要什么，分片计划就得给它一片。**
   const params = 'code/params.py'
+  // **`code/data_check.py` 也要有自己的一片**。契约明写"写求解代码之前先写
+  // `data_check.py`——逐文件打印 sheet 名、行数、列名、缺失值比例"（参考 comp-code
+  // Step 2.5，治的是"58% 训练数据静默丢失"），但分片计划里没有它的位置。
+  // 这与 `params.py` 是**同一类缺陷**：契约要什么，分片计划就得给它一片——
+  // 否则模型在"只产出 code/problemK.py"的指令下永远不会交出这个文件，
+  // 而契约那句话就成了空话（实测：`data_check.py` 只出现在简报里，从未被产出）。
+  // 放在逐问实现**之前**：契约要求"确认数据没问题后再写求解代码"。
+  const precheck = 'code/data_check.py'
   const perProblem = Array.from({ length: Math.max(problemCount, 0) }, (_, i) => `code/problem${String(i + 1)}.py`)
   const rest = deliverables.filter(f => f !== entry && f !== params && !/^code\/problem\d+\.py$/.test(f))
 
@@ -98,6 +108,7 @@ export function planCodeShards(spec: StageSpec, prompt: string, problemCount: nu
   const shards: Array<{ deliverable: string }> = [
     { deliverable: entry },
     { deliverable: params },
+    { deliverable: precheck },
     ...perProblem.map(f => ({ deliverable: f })),
     ...rest.map(f => ({ deliverable: f })),
   ]

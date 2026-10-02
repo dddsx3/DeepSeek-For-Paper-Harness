@@ -216,7 +216,10 @@ function fakeDeliverable(spec: StageSpec, file: string): string {
   if (file === 'DELIVERABLES.json') {
     return JSON.stringify({
       deliverables: [
-        { file: 'code/main.py', kind: 'other', min_bytes: 500, desc: '编排入口：依次跑问题1-4' },
+        // `min_bytes` 要与**夹具自己那份**文件相容 —— `delivery_audit` 会拿它逐条核
+        // （声明 500 而夹具的 main.py 只有几十字节 = 门禁判硬失败；那是夹具不自洽，不是契约错）。
+        { file: 'code/main.py', kind: 'other', min_bytes: 10, desc: '编排入口：依次跑问题1-4' },
+        { file: 'code/data_check.py', kind: 'other', min_bytes: 10, desc: '数据预检' },
         { file: 'RESULTS.md', kind: 'md', min_bytes: 1024, desc: '结果说明' },
       ],
       // **阶段 3 必须公布"它到底写了哪些键"**：阶段 4 的 `json_path` 只能照抄这里，
@@ -332,6 +335,8 @@ function fakeCallModel(): StageRunContext['callModel'] {
         'json.dump({"a": 12.5, "b": 7.25}, open("outputs.json", "w"))',
         '',
       ].join('\n')
+      // 契约要求"写求解代码之前先写 data_check.py"，分片计划也给了它一片
+      files['code/data_check.py'] = 'print("数据预检：无外部数据文件，核对参数域")\n'
     }
     if (spec.id === 'improve') {
       files['paper/_improvement_rounds/round1.md'] = '# 第 1 轮\n\n改前稿。\n'

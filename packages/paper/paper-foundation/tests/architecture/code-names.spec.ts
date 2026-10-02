@@ -79,6 +79,13 @@ describe('undefinedConstNames —— 判据本身（含**零误报**用例）', 
     expect(undefinedConstNames([['code/p.py', 'x = q4_count + ABC + AB\n']])).toEqual([])
   })
 
+  it('**零误报**：字符串里的转义引号不能让后面的内容被当成真代码', () => {
+    // 实测撞到过：`"…PROBLEM_FACTS…"` 里带转义引号时，旧的正则只吃掉 `"…\"`，
+    // 于是 `PROBLEM_FACTS` 露在"代码"里 → 假阳性。
+    const src = 'print("数据预检：逐条核对 \\"PROBLEM_FACTS\\" 参数域")\n'
+    expect(undefinedConstNames([['code/data_check.py', src]])).toEqual([])
+  })
+
   it('没有 `code/*.py` 时返回空（调用方自己去判"无法判定"）', () => {
     expect(undefinedConstNames([['RESULTS.md', 'Q4_X']])).toEqual([])
   })
