@@ -381,11 +381,26 @@ export class PaperStageChainService extends Service {
             want('code/main.py')
             const at = shards.indexOf(shard)
             if (at > 0) want(shards[at - 1]?.deliverable ?? '')
+            // **名字注册表**（借鉴参考 comp-code Step 3.0 规则 3："写 utils.py 雏形
+            // （哪怕暂时为空），避免'先写 problem1 → import utils → utils 还没创建'"）：
+            // 从 `params.py` 的**已交付正文**里提取全部定义的名字，作为**显式白名单**
+            // 交给后续分片——不再只靠"给你看代码自己找"。结构化列表比代码更难忽视。
+            const paramsAnswer = answers[shards.findIndex(s => s.deliverable === 'code/params.py')] ?? ''
+            const definedNames = [...new Set(
+              paramsAnswer
+                .replace(/"""[\s\S]*?"""/g, ' ').replace(/'''[\s\S]*?'''/g, ' ')
+                .replace(/#[^\n]*/g, ' ').replace(/"[^"\n]*"/g, ' ').replace(/'[^'\n]*'/g, ' ')
+                .matchAll(/^\s*(?:([A-Za-z_]\w*)\s*(?::[^=\n]*)?=|(?:def|class)\s+([A-Za-z_]\w*))/gm)
+            )].flatMap(m => [m[1], m[2]].filter((x): x is string => typeof x === 'string' && x.length > 1))
+            const nameRegistry = definedNames.length === 0 ? '' :
+              '\n\n---\n\n## ⛔ `params.py` 里**已定义**的名字（**只能引用这些**从 params 导入；'
+              + '不在列表里的名字必须在本文件里定义，否则运行时必然 NameError）\n\n'
+              + definedNames.join(', ')
             const prior = carried.length === 0
               ? ''
               : '\n\n---\n\n## 本阶段**已产出**的文件（必须与之保持一致：名字、签名、单位都以它们为准）\n\n'
                 + carried.map(c => `### \`${c.name}\`\n\n${c.body}`).join('\n\n')
-            answers.push(await singleCall(spec, shard.prompt + prior))
+            answers.push(await singleCall(spec, shard.prompt + prior + nameRegistry))
             this.config.onDeterministicOutcome?.({
               stage: spec.id,
               summary: `分片 ${String(shard.index)}/${String(shard.total)} 交付 ${shard.deliverable}`,

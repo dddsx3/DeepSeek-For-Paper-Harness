@@ -11,19 +11,19 @@
     {
       "id": "code_name_consistency",
       "ok": false,
-      "detail": "code/params.py：引用了 1 个**任何文件都没定义**的常量名（Q2_EFFECTIVE_STRATEGY_COUNT）—— 运行时必然 NameError。分片是\"一文件一次调用\"，各文件对不上名字是这类阶段的典型塌方；要么用 `params.py` 里已有的名字，要么在用到它的文件里定义。",
+      "detail": "code/problem3.py：引用了 1 个**任何文件都没定义**的常量名（Q2_PROBABILITY_CEILON）—— 运行时必然 NameError。分片是\"一文件一次调用\"，各文件对不上名字是这类阶段的典型塌方；要么用 `params.py` 里已有的名字，要么在用到它的文件里定义。",
       "code": 1
     },
     {
       "id": "ledger_keys_declared",
       "ok": true,
-      "detail": "已公布 20 个账本键 —— 阶段 4 照抄即可，不必猜",
+      "detail": "已公布 74 个账本键 —— 阶段 4 照抄即可，不必猜",
       "code": 0
     },
     {
       "id": "numbers_traced",
       "ok": true,
-      "detail": "1 个文本产物的 17 个数字全部有出生证明（题面给定值 / 声明的常数）",
+      "detail": "1 个文本产物的 13 个数字全部有出生证明（题面给定值 / 声明的常数）",
       "code": 0
     },
     {
