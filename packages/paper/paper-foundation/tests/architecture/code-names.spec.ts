@@ -37,6 +37,27 @@ describe('definitionsIn —— 哪些写法算"定义了一个名字"', () => {
     const d = definitionsIn(src)
     for (const n of ['A', 'B', 'f', 'C', 'numpy', 'I', 'F', 'E']) expect(d.has(n), n).toBe(true)
   })
+
+  it('**海象运算符** `NAME := …` 也算定义（实测的假阳性：`if X := bool(…)`）', () => {
+    const src = 'if INACTIVE_DISASSEMBLY_FIXED_TO_ZERO := bool(cfg):\n    pass\n'
+    expect(definitionsIn(src).has('INACTIVE_DISASSEMBLY_FIXED_TO_ZERO')).toBe(true)
+    expect(undefinedConstNames([['code/params.py', src]])).toEqual([])
+  })
+
+  it('**元组解包** `A, B = …` 与 `for A, B in …` 都算', () => {
+    expect(definitionsIn('A, B = 1, 2\n').has('B')).toBe(true)
+    expect(definitionsIn('for K, V in items:\n    pass\n').has('V')).toBe(true)
+  })
+
+  it('**括号式导入** `from x import (A, B)`（含 `as`）都算', () => {
+    const d = definitionsIn('from params import (\n    ALPHA,\n    BETA as B2,\n)\n')
+    expect(d.has('ALPHA')).toBe(true)
+    expect(d.has('B2')).toBe(true)
+  })
+
+  it('`global X` 也算绑定', () => {
+    expect(definitionsIn('def f():\n    global TOL\n    TOL = 1\n').has('TOL')).toBe(true)
+  })
 })
 
 describe('undefinedConstNames —— 判据本身（含**零误报**用例）', () => {

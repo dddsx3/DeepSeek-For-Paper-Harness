@@ -89,6 +89,39 @@ describe('claim_code_check —— 声称 ↔ 代码实现（移植 claim_code_ch
     expect(v.code).toBe(0)
     expect(v.items[0]?.detail).toContain('METHOD_CLAIMS_MACHINE')
   })
+
+  it('**家规形态** `<!-- BEGIN X -->…<!-- END X -->` 也认（实测声明文件用的就是它）', () => {
+    const block = '<!-- BEGIN METHOD_CLAIMS_MACHINE -->\nM1 | must: LpInteger | forbid: linprog\n<!-- END METHOD_CLAIMS_MACHINE -->'
+    const ok = input({ 'code/main.py': 'x = 1\nv = LpInteger' }, { 'DECLARATION.json': block })
+    const v = run('claim_code_check', ok)
+    expect(v.code).toBe(0)
+    expect(v.items[0]?.detail).toContain('通用合同核对了 1 条签名')
+    // forbid 命中 → 硬失败（合同真的被执行了，不是被忽略）
+    const bad = input({ 'code/main.py': 'from scipy.optimize import linprog\nv = LpInteger' }, { 'DECLARATION.json': block })
+    expect(run('claim_code_check', bad).code).toBe(1)
+  })
+
+  it('合同块**只从 DECLARATION.json 读得到**也算数（实测块就写在那里）', () => {
+    const block = '<!-- BEGIN METHOD_CLAIMS_MACHINE -->\nM1 | must: LpInteger\n<!-- END METHOD_CLAIMS_MACHINE -->'
+    const i = input({ 'code/main.py': 'v = LpInteger' }, { 'DECLARATION.json': block })
+    expect(run('claim_code_check', i).items[0]?.detail).toContain('1 条签名')
+  })
+
+  it('**零误报**：蒙特卡洛声称只要有随机抽样就算实现（不该要求队列结构）', () => {
+    const i = input(
+      { 'code/main.py': 'import random\nfor _ in range(1000):\n    x = random.uniform(0, 1)' },
+      { 'MODELING_REPORT.md': '本文用蒙特卡洛模拟情景重抽样。' },
+    )
+    expect(run('claim_code_check', i).code).toBe(0)
+  })
+
+  it('**零误报**：只声明蒙特卡洛却写确定性计算 → 1（真该拦的那种）', () => {
+    const i = input(
+      { 'code/main.py': 'total = a * 3 + 7' },
+      { 'MODELING_REPORT.md': '本文用蒙特卡洛模拟情景。' },
+    )
+    expect(run('claim_code_check', i).code).toBe(1)
+  })
 })
 
 // ══════════════════════════════════════════════════════════════════════════
@@ -203,6 +236,18 @@ describe('delivery_audit —— 声明的交付物与磁盘一致（移植 deliv
     const v = run('delivery_audit', i)
     expect(v.code).toBe(1)
     expect(v.items[0]?.detail).toContain('没人产出')
+  })
+
+  it('**`.py` 不在磁盘上 → 1**（源码不可能"等运行时再生成"）', () => {
+    // 实测（2024B）：`code/data_check.py` 被声明、main.py 里也有 `data_check.json`，
+    // 旧判据靠"词干出现过"把它当成运行期产物放行 —— 假通过。
+    const i = input({
+      'code/main.py': 'x = _write_json("data_check.json")',
+      'DELIVERABLES.json': list([{ path: 'code/data_check.py', kind: 'py', min_bytes: 200 }]),
+    })
+    const v = run('delivery_audit', i)
+    expect(v.code).toBe(1)
+    expect(v.items[0]?.detail).toContain('源码')
   })
 
   it('存在但是空的 / 小于自己声明的 `min_bytes` → 1', () => {
