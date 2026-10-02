@@ -129,7 +129,16 @@ function answerFor(stage: string): string {
     case 'modeling':
       return envelope({
         // 逐条认领阶段 1 的能力项（门禁 `modeling_coverage` 按 id 逐字核）
-        'DECLARATION.json': JSON.stringify({ entries: [], models: [{ id: 'MS-1', checklist_refs: ['CAP-1'] }] }),
+        // 逐条认领阶段 1 的能力项（门禁 `modeling_coverage` 按 id 逐字核）；
+        // 结构要完整（门禁 `modeling_self_check`：符号表/公式/约束非空、有 objective、逐问有模型）。
+        'DECLARATION.json': JSON.stringify({
+          symbols: [{ id: 'S-A', statement: 'a' }],
+          equations: [{ id: 'EQ-1', statement: 'y = ax' }],
+          models: [
+            { id: 'MS-1', problem_refs: ['P1', 'P2'], checklist_refs: ['CAP-1'], objective: '最小化检测成本' },
+          ],
+          result_constraints: ['lambda r: r["a"] >= 0'],
+        }),
         'MODELING_REPORT.md': '建模报告……'.repeat(200),
       })
     case 'code':
