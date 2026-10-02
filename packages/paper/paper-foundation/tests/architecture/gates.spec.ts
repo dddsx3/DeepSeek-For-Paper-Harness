@@ -281,7 +281,7 @@ describe('未实现的判据给 2，**绝不给 0**', () => {
     // `ModelSpec.checklist_refs` 真的产出，判据落在"id 逐字命中"上——不再是"待定义形态"。
     // S7 删掉了 `paper_claim_check`：判据落在"正文里残留的结果锚点"上（账本已由阶段 4 铸出），
     // 落地的那部分由 harness 在阶段 9 的 afterModel 里换成真值。
-    const unimplemented = ['capability_check', 'modeling_self_check', 'delivery_audit']
+    const unimplemented = ['capability_check', 'modeling_self_check']
     for (const id of unimplemented) {
       const v = run(id, input({}))
       expect(v.code, `${id} 应当是 2（无法判定）`).toBe(2)

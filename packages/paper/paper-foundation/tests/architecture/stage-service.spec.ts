@@ -141,11 +141,17 @@ function answerFor(stage: string): string {
           'json.dump({"a": 3.5, "b": 9.25}, open("outputs.json", "w"))',
           '',
         ].join('\n'),
+        'code/data_check.py': 'print("数据预检：无外部数据文件，逐条核对 PROBLEM_FACTS 参数域")\n',
         'code/problem1.py': 'print(1)\n',
         'code/problem2.py': 'print(2)\n',
         'RESULTS.md': '结果说明……'.repeat(90),
         'DELIVERABLES.json': JSON.stringify({
-          deliverables: [{ file: 'code/main.py', kind: 'other', min_bytes: 500, desc: '编排入口' }],
+          // `min_bytes` 必须与夹具里那份 main.py 的真实体量相容 —— `delivery_audit` 会拿它
+          // 逐条核（声明 500 而夹具只有几十字节 = 门禁判硬失败，那是夹具的错、不是契约的错）。
+          deliverables: [
+            { file: 'code/main.py', kind: 'other', min_bytes: 10, desc: '编排入口' },
+            { file: 'code/data_check.py', kind: 'other', min_bytes: 10, desc: '数据预检' },
+          ],
           // 阶段 3 公布账本键 —— 阶段 4 的 json_path 只能照抄这里（见 ledger_keys_declared）
           ledger_keys: [{ json_path: 'a', name: '指标A', unit: '%' }, { json_path: 'b', name: '指标B', unit: '%' }],
         }),
@@ -296,16 +302,19 @@ describe('阶段链服务 —— 真的接进了 provider 缝', () => {
     const modelingPassport = await readPassport(stagesRoot, stageOf('modeling'))
     expect(modelingPassport?.audit?.score).toBeCloseTo(0.85, 5)
     expect(modelingPassport?.audit?.verdict).toBe('pass')
-    // 阶段 3 分片：问数 2 → 6 次调用（入口 + params + problem1 + problem2 + RESULTS.md + DELIVERABLES.json）
+    // 阶段 3 分片：问数 2 → 7 次调用（入口 + params + data_check + problem1 + problem2
+    // + RESULTS.md + DELIVERABLES.json）
     // `params.py` 自成一档是因为契约要求它（"题面给定值唯一落点"）而原来没有槽位——
     // 于是 main.py 写了 `import params` 却没人交这个文件，阶段 4 跑代码直接 ModuleNotFoundError。
+    // `data_check.py` 同理（契约要求"写求解代码之前先写它"，计划里同样没有槽位）。
     // 尾两个文件也各自成片：原来打成一个信封，一次要吐十几 KB 散文 + 十几 KB JSON，
     // 被 max-tokens 截断（实测），整轮调用白跑。
     const codeCalls = prompts.filter(p => p.includes('stages/03-code/'))
-    expect(codeCalls.length).toBe(6)
+    expect(codeCalls.length).toBe(7)
+    expect(codeCalls.filter(p => p.includes('只产出 `code/data_check.py`')).length).toBe(1)
     expect(codeCalls.filter(p => p.includes('只产出 `code/params.py`')).length).toBe(1)
     expect(codeCalls.filter(p => p.includes('只产出 `code/problem1.py`')).length).toBe(1)
-    // 简报调用要按**分片**数：阶段 2 分 2 片（IR 声明 + 富散文）、阶段 3 分 6 片。
+    // 简报调用要按**分片**数：阶段 2 分 2 片（IR 声明 + 富散文）、阶段 3 分 7 片。
     // 判据落在"每个模型阶段都收到了简报"上（下面那行按目录名核），这里只核总数不为零。
     const briefCalls = prompts.filter(p => !p.includes('你是**独立审计员**'))
     expect(briefCalls.length).toBeGreaterThanOrEqual(modelStages.length)
@@ -333,7 +342,7 @@ describe('阶段链服务 —— 真的接进了 provider 缝', () => {
     expect(outcomes.map(o => o.stage)).toEqual(['prob-analysis', 'modeling', 'code'])
     // 阶段 4 的模型阶段数 = 3（prob-analysis/modeling/code），之后的一个都没发。
     // 计数只算**简报**调用：每个模型阶段还会额外发一次逐节点审计（那是设计要求的）。
-    // 简报按**分片**发（阶段 2 两片、阶段 3 六片），所以数调用次数会把"分片"当成
+    // 简报按**分片**发（阶段 2 两片、阶段 3 七片），所以数调用次数会把"分片"当成
     // "多跑了一个阶段"。判据要落在**收到简报的阶段集合**上——那才是这条测试的本意。
     const briefs = prompts.filter(p => !p.includes('你是**独立审计员**'))
     const briefedStages = new Set(briefs.flatMap(p => [...p.matchAll(/stages\/(\d\d-[a-z-]+)\//g)].map(m => m[1])))

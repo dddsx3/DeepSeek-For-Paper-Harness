@@ -1712,13 +1712,106 @@ const paperClaimCheck: GateFn = (input) => {
 }
 
 /**
+ * **声明的交付物与磁盘一致**（移植 `delivery_audit.py`）。
+ *
+ * 参考的判据是"`DELIVERABLES.json` 声明的每个交付物**真的存在且非空**"。
+ * 直接照搬会误报——本 harness 的清单里**混着两类东西**（实测 2024B 的 14 条）：
+ * - **阶段产物**：`code/*.py`、`RESULTS.md`、`DELIVERABLES.json` —— 门禁时**必须在**；
+ * - **运行期产物**：`code/problem1.json`、`code/outputs.json` —— 由阶段 4 真跑代码才生成，
+ *   阶段 3 的门禁时**必然不在**。把后者判成失败，就是在惩罚一份完全正确的清单。
+ *
+ * 所以三类分别判：
+ * 1. 在磁盘上 → 非空 + 满足自己声明的 `min_bytes`（否则**硬失败**）；
+ * 2. 不在磁盘上、但**代码里写得出它**（源码出现该文件名或其去扩展名形态）→ 运行期产物，放行并记账；
+ * 3. 不在磁盘上、代码里也找不到 → **硬失败**：声明了一个没人产出的交付物。
+ */
+const deliveryAudit: GateFn = (input) => {
+  const id = 'delivery_audit'
+  const raw = input.files.get('DELIVERABLES.json') ?? null
+  if (raw === null) return fail(id, '`DELIVERABLES.json` 不存在 —— 没有可核的产出清单')
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(raw)
+  } catch (error) {
+    return fail(id, `\`DELIVERABLES.json\` 不是合法 JSON（${String(error).slice(0, 80)}）—— 清单读不出来就无从核对`)
+  }
+  // 键名两种都认：契约写的是 `deliverables`，实测模型写的是 `artifacts`。
+  // 只认一种会把"键名差异"变成"一条交付物都没声明"的假硬失败——判据是**一致**，不是键名。
+  const o = parsed as Record<string, unknown>
+  const list = [o['deliverables'], o['artifacts']].find(Array.isArray) as ReadonlyArray<unknown> | undefined
+  if (list === undefined) {
+    return fail(id, '`DELIVERABLES.json` 里没有 `deliverables` / `artifacts` 数组 —— 没有可核的清单')
+  }
+  if (list.length === 0) return fail(id, '`DELIVERABLES.json` 的交付物清单是空的 —— 声明了零个产出')
+
+  // 代码文本：判"运行期产物"的凭据（源码里出现文件名 = 代码会写出它）。
+  const codeText = [...input.files.entries()]
+    .filter(([n]) => /\.py$/i.test(n))
+    .map(([, body]) => body)
+    .join('\n')
+  const problems: string[] = []
+  const runtime: string[] = []
+  let present = 0
+  for (const [i, entry] of list.entries()) {
+    const at = `第 ${String(i + 1)} 条`
+    if (typeof entry !== 'object' || entry === null) {
+      problems.push(`${at} 不是对象（应为 \`{path, kind, min_bytes, desc}\`）`)
+      continue
+    }
+    const e = entry as Record<string, unknown>
+    const path = typeof e['path'] === 'string' ? e['path'] : (typeof e['file'] === 'string' ? e['file'] : '')
+    if (path === '') {
+      problems.push(`${at} 缺 \`path\`（声明的交付物在哪）`)
+      continue
+    }
+    // 目录型声明：判"目录下有产物"而不是"这个路径是个文件"
+    if (path.endsWith('/') || !/\.[A-Za-z0-9]+$/.test(path)) {
+      const kids = [...input.files.keys()].filter(k => k.startsWith(path.endsWith('/') ? path : `${path}/`))
+      if (kids.length === 0) problems.push(`${path} 声明为目录，但目录下没有任何产物`)
+      else present += 1
+      continue
+    }
+    const size = input.sizes?.get(path)
+      ?? (input.files.has(path) ? Buffer.byteLength(input.files.get(path) ?? '', 'utf8') : null)
+    if (size === null) {
+      const base = path.split('/').pop() ?? path
+      const stem = base.replace(/\.[A-Za-z0-9]+$/, '')
+      if (codeText.includes(base) || (stem !== '' && codeText.includes(stem))) runtime.push(path)
+      else {
+        problems.push(`${path}：既不在磁盘上、代码里也没有任何地方写出它 —— `
+          + '声明的交付物**没人产出**（要么让代码真的写出它，要么把它从清单里去掉）')
+      }
+      continue
+    }
+    present += 1
+    if (size === 0) {
+      problems.push(`${path} 存在但是**空的**`)
+      continue
+    }
+    const min = e['min_bytes']
+    if (typeof min === 'number' && min > 0 && size < min) {
+      problems.push(`${path} 只有 ${String(size)} 字节 < 自己声明的 \`min_bytes\` ${String(min)}`)
+    }
+  }
+  if (problems.length > 0) {
+    return fail(id, `${String(problems.length)} 条声明与磁盘不一致 —— ` + problems.slice(0, 4).join('；')
+      + '。清单是"我交付了什么"的对外声明，它必须与磁盘一致；'
+      + '运行期产物（阶段 4 真跑代码才生成的 JSON）可以不在磁盘上，但**代码里必须真的写出它**。')
+  }
+  const runtimeNote = runtime.length === 0 ? ''
+    : `；其中 ${String(runtime.length)} 条是运行期产物（阶段 4 真跑后才有，代码里会写出：`
+      + `${runtime.slice(0, 3).join('、')}${runtime.length > 3 ? '…' : ''}）`
+  return ok(id, `声明的 ${String(list.length)} 条交付物：${String(present)} 条在磁盘上且非空、`
+    + '满足各自的 `min_bytes`' + runtimeNote)
+}
+
+/**
  * 门禁登记表。
  *
  * **未实现的判据给 `2`**，并在 `detail` 里写明"需要什么才算实现"——它们不是"忘了写"，
  * 是如实标注能力边界。给 `0` 是静默放行，比没有门禁更糟。
  */
-export const GATES: ReadonlyMap<string, GateFn> = new Map<string, GateFn>([
-  // ── 阶段 1 ────────────────────────────────────────────────────────────
+export const GATES: ReadonlyMap<string, GateFn> = new Map<string, GateFn>([  // ── 阶段 1 ────────────────────────────────────────────────────────────
   ['prob_analysis_floor', i => byteFloor(i, 'prob_analysis_floor', 'PROBLEM_ANALYSIS.md', 1500)],
   ['figure_manifest_anchors', figureManifestAnchors],
   ['figure_manifest_count', figureManifestCount],
@@ -1822,9 +1915,7 @@ export const GATES: ReadonlyMap<string, GateFn> = new Map<string, GateFn>([
     return ok(id, `账本 ${String(results.length)} 条，全部来自真实执行；形态：`
       + Object.entries(kinds).map(([k, n]) => `${k} ${String(n)}`).join('、'))
   }],
-  ['delivery_audit', () => cannot('delivery_audit',
-    '未实现：参考的 delivery_audit.py 要核对 DELIVERABLES.json 声明的每个交付物**真的存在且非空**。'
-    + '需要先确定本 harness 的交付物清单形态（与零数字通道的 Result 如何对应）。')],
+  ['delivery_audit', deliveryAudit],
   ['leakage_audit', leakageAudit],
   ['no_render', noRender],
   // ── 阶段 4/5 ──────────────────────────────────────────────────────────

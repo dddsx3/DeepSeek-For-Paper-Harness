@@ -21,22 +21,27 @@ describe('code-shard —— 分片计划', () => {
     // 推理占用 → 被 max-tokens 截断，**整轮 7 次调用白跑**。
     // 改成"一次调用只产出一个文件"（与阶段 2 的 `planModelingShards` 同构）。
     expect(shards.map(s => s.deliverable)).toEqual([
-      'code/main.py', 'code/params.py', 'code/problem1.py', 'code/problem2.py', 'code/problem3.py', 'code/problem4.py',
+      'code/main.py', 'code/params.py', 'code/data_check.py',
+      'code/problem1.py', 'code/problem2.py', 'code/problem3.py', 'code/problem4.py',
       'RESULTS.md', 'DELIVERABLES.json',
     ])
     for (const s of shards) {
-      expect(s.total).toBe(8)
+      expect(s.total).toBe(9)
       expect(s.prompt).toContain(briefing)
       expect(s.prompt).toContain(`分片 ${String(s.index)}/${String(s.total)}`)
       // 每一片都是"只产出这一个文件"的物态（信封片已拆掉）
       expect(s.prompt).toContain(`只产出 \`${s.deliverable}\``)
       expect(s.prompt).not.toContain('JSON 信封')
     }
-    // `params.py` 有自己的一片（契约要求它，分片计划就得给它槽位）
+    // `params.py` / `data_check.py` 各有自己的一片（契约要求它们，分片计划就得给槽位）
     expect(shards[1]?.deliverable).toBe('code/params.py')
+    expect(shards[2]?.deliverable).toBe('code/data_check.py')
+    // `data_check.py` 必须在逐问实现**之前**（契约："确认数据没问题后再写求解代码"）
+    expect(shards.findIndex(s => s.deliverable === 'code/data_check.py'))
+      .toBeLessThan(shards.findIndex(s => s.deliverable === 'code/problem1.py'))
     // 剩余交付物各自成片（不再是打包信封）
-    expect(shards[6]?.deliverable).toBe('RESULTS.md')
-    expect(shards[7]?.deliverable).toBe('DELIVERABLES.json')
+    expect(shards[7]?.deliverable).toBe('RESULTS.md')
+    expect(shards[8]?.deliverable).toBe('DELIVERABLES.json')
   })
 
   it('问数 0 → 单片回退（问数未知时拆片无从拆；code_parity 会如实给 2）', () => {
@@ -47,13 +52,14 @@ describe('code-shard —— 分片计划', () => {
 })
 
 describe('code-shard —— 组装过原契约', () => {
-  it('八片回答组装成 JSON 信封，键与注册表契约一致', () => {
+  it('九片回答组装成 JSON 信封，键与注册表契约一致', () => {
     const shards = planCodeShards(spec, briefing, 2)
     // 每片交一个文件（信封片已拆掉——见分片计划那条用例）
     const answers = shards.map(s => `# ${s.deliverable} 的内容`)
     const envelope = JSON.parse(assembleShards(shards, answers)) as { files: Record<string, string> }
     expect(Object.keys(envelope.files).sort()).toEqual([
-      'DELIVERABLES.json', 'RESULTS.md', 'code/main.py', 'code/params.py', 'code/problem1.py', 'code/problem2.py',
+      'DELIVERABLES.json', 'RESULTS.md', 'code/data_check.py', 'code/main.py', 'code/params.py',
+      'code/problem1.py', 'code/problem2.py',
     ])
   })
 
