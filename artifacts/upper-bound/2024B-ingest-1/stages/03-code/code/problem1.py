@@ -1,881 +1,980 @@
-"""Exact binomial sampling designs for Problem 1.
-
-The module distinguishes the nominal-tail-only diagnostic from the operational
-fixed-sample design that also uses the registered alternative rate and Type II
-error.  It uses exact integer-support binomial probabilities and a finite
-likelihood-ratio random walk; no normal approximation or unbounded procedure is
-used.
-"""
+# -*- coding: utf-8 -*-
+"""问题一：精确二项整数枚举、OC 曲线与有限 SPRT 对照。"""
 
 from __future__ import annotations
 
 import math
-from functools import lru_cache
-from typing import Any
-
-import scipy.stats
+from collections.abc import Iterable, Sequence
 
 import params
+from params import *  # noqa: F401,F403
+from scipy.stats import binom
 
 
-__all__ = [
-    "binomial_cdf",
-    "binomial_upper_tail",
-    "solve",
-]
+def _validate_probability(probability: float, name: str) -> float:
+    value = float(probability)
+    if not math.isfinite(value) or value < 0 or value > 1:
+        raise ValueError(f"{name} 必须位于概率域内")
+    return value
 
 
-def _checked_probability(value: float, name: str) -> float:
-    probability = float(value)
-    if not math.isfinite(probability) or probability < 0.0 or probability > 1.0:
-        raise ValueError(f"{name} must be finite and belong to [0, 1]")
-    return probability
-
-
-def _binomial_pmf(x: int, n: int, probability: float) -> float:
-    if x < 0 or x > n:
-        return 0.0
-    return float(scipy.stats.binom.pmf(x, n, probability))
-
-
-@lru_cache(maxsize=None)
-def binomial_cdf(n: int, k: int, probability: float) -> float:
-    """Return P(X <= k) by exact integer-support enumeration."""
+def _validate_counts(n: int, threshold: int) -> None:
     if n < 1:
-        raise ValueError("Binomial sample size must be positive")
-    probability = _checked_probability(probability, "binomial probability")
-    if k < 0:
-        return 0.0
-    if k >= n:
-        return 1.0
-    terms = (_binomial_pmf(x, n, probability) for x in range(k + 1))
-    return math.fsum(terms)
+        raise ValueError("样本量必须为正整数")
+    if threshold < -1 or threshold > n:
+        raise ValueError("二项计数阈值越界")
 
 
-@lru_cache(maxsize=None)
-def binomial_upper_tail(n: int, threshold: int, probability: float) -> float:
-    """Return P(X >= threshold) by exact integer-support enumeration."""
-    if n < 1:
-        raise ValueError("Binomial sample size must be positive")
-    probability = _checked_probability(probability, "binomial probability")
-    if threshold <= 0:
-        return 1.0
-    if threshold > n:
-        return 0.0
-    terms = (_binomial_pmf(x, n, probability) for x in range(threshold, n + 1))
-    return math.fsum(terms)
-
-
-def _log_ratio(numerator: float, denominator: float) -> float:
-    if numerator == 0.0 and denominator > 0.0:
-        return -math.inf
-    if denominator == 0.0 and numerator > 0.0:
-        return math.inf
-    if numerator == 0.0 and denominator == 0.0:
-        raise ValueError("A likelihood ratio cannot have zero numerator and denominator")
-    return math.log(numerator / denominator)
-
-
-def log_likelihood_ratio(
-    defects: int,
-    observations: int,
-    null_rate: float,
-    alternative_rate: float,
+def exact_integer_enumeration(
+    n: int,
+    cutoff: int,
+    probability: float,
+    tail: str,
 ) -> float:
-    """Log likelihood ratio for a Bernoulli/binomial random walk state."""
-    if defects < 0 or observations < 0 or defects > observations:
-        raise ValueError("Invalid likelihood-ratio lattice state")
-    null_rate = _checked_probability(null_rate, "null rate")
-    alternative_rate = _checked_probability(
-        alternative_rate, "alternative rate"
+    """逐个整数计数求和，作为 scipy.stats.binom 尾概率的独立复核。"""
+    _validate_counts(n, cutoff)
+    probability = _validate_probability(probability, "binomial_probability")
+    probabilities = (
+        float(binom.pmf(count, n, probability))
+        for count in range(n + 1)
     )
-    good_defect_likelihood = _log_ratio(alternative_rate, null_rate)
-    good_likelihood = _log_ratio(
-        1.0 - alternative_rate,
-        1.0 - null_rate,
+    if tail == "upper":
+        selected = probabilities
+    elif tail == "lower":
+        selected = (
+            float(binom.pmf(count, n, probability))
+            for count in range(cutoff + 1)
+        )
+    else:
+        raise ValueError(f"未知尾概率类型: {tail}")
+    return math.fsum(selected)
+
+
+def _upper_tail(n: int, threshold: int, probability: float) -> float:
+    """P(X >= threshold)，threshold 为零时表示从零开始求和。"""
+    _validate_counts(n, threshold)
+    probability = _validate_probability(probability, "tail_probability")
+    return float(binom.sf(threshold - 1, n, probability))
+
+
+def _lower_tail(n: int, threshold: int, probability: float) -> float:
+    """P(X <= threshold)。"""
+    _validate_counts(n, threshold)
+    probability = _validate_probability(probability, "tail_probability")
+    return float(binom.cdf(threshold, n, probability))
+
+
+def _is_nondecreasing(values: Sequence[float], tolerance: float) -> bool:
+    return all(
+        current + tolerance >= previous
+        for previous, current in zip(values, values[1:])
     )
-    return defects * good_defect_likelihood + (
-        observations - defects
-    ) * good_likelihood
+
+
+def _is_nonincreasing(values: Sequence[float], tolerance: float) -> bool:
+    return all(
+        current <= previous + tolerance
+        for previous, current in zip(values, values[1:])
+    )
 
 
 def _find_rejection_scheme(
-    p0: float = params.Q1_NOMINAL_RATE,
-    alpha: float = params.Q1_REJECT_ALPHA,
+    delta: float,
+    beta: float,
     *,
-    p_alt: float | None = None,
-    minimum_power: float | None = None,
-    numeric_tol: float = params.Q1_NUMERIC_TOL,
-) -> dict[str, Any]:
-    """Find the lexicographically first feasible integer rejection scheme.
+    require_power: bool,
+) -> dict[str, object]:
+    """按样本量、阈值作字典序搜索最小拒收方案。
 
-    With ``minimum_power=None`` the search uses only the nominal upper-tail
-    constraint and is explicitly a diagnostic.  Supplying both ``p_alt`` and
-    ``minimum_power`` activates the registered operational power constraint.
+    ``require_power=False`` 只使用题面拒收置信约束；``True`` 再加入
+    登记的备择率幅度与第二类错误上限。后者是条件运营方案，不冒充
+    仅由题面两个事实唯一决定的样本量。
     """
-    p0 = _checked_probability(p0, "nominal rate")
-    alpha = _checked_probability(alpha, "Type I error")
-    if p0 >= 1.0:
-        raise ValueError("A finite rejection design requires a nominal rate below one")
-    if p_alt is not None:
-        p_alt = _checked_probability(p_alt, "alternative rate")
-        if p_alt <= p0:
-            raise ValueError("The operational alternative must exceed the nominal rate")
-    if minimum_power is not None:
-        minimum_power = _checked_probability(
-            minimum_power, "minimum operational power"
-        )
-        if p_alt is None:
-            raise ValueError("Operational power requires an alternative rate")
-    if minimum_power is None and p_alt is None:
-        search_basis = "nominal_tail_constraint_only"
-    else:
-        search_basis = "registered_operational_power_design"
+    p0 = _validate_probability(P0, "p0")
+    delta = _validate_probability(delta, "delta")
+    beta = _validate_probability(beta, "beta")
+    if not require_power and delta < 0:
+        raise ValueError("超标幅度不能为负")
 
-    n = 1
-    while True:
-        for rejection_threshold in range(1, n + 1):
-            reject_tail_at_p0 = binomial_upper_tail(
-                n, rejection_threshold, p0
-            )
-            if reject_tail_at_p0 > alpha:
+    p_alt = p0 + delta
+    if p_alt > 1:
+        raise ValueError("备择率超出概率域")
+    power_floor = 1 - beta
+
+    for n in range(1, Q1_N_MAX + 1):
+        for r in range(n + 1):
+            reject_tail = _upper_tail(n, r, p0)
+            if reject_tail > ALPHA_REJECT + Q1_NUMERIC_TOL:
                 continue
 
-            power_at_p_alt = None
-            if p_alt is not None:
-                power_at_p_alt = 1.0 - binomial_upper_tail(
-                    n, rejection_threshold, p_alt
-                )
-            if (
-                minimum_power is not None
-                and power_at_p_alt + numeric_tol < minimum_power
-            ):
+            power_at_alt = _upper_tail(n, r, p_alt)
+            if require_power and power_at_alt < power_floor - Q1_NUMERIC_TOL:
                 continue
 
-            alpha_violation = max(0.0, reject_tail_at_p0 - alpha)
-            power_violation = 0.0
-            if minimum_power is not None:
-                power_violation = max(
-                    0.0,
-                    minimum_power - float(power_at_p_alt),
-                )
             return {
                 "n": n,
-                "r": rejection_threshold,
-                "decision_rule": "reject when X >= r",
+                "r": r,
+                "decision_rule": "X>=r 时拒收，否则接收",
                 "p0": p0,
-                "alpha": alpha,
-                "p_alt": p_alt,
-                "minimum_power": minimum_power,
-                "reject_tail_at_p0": reject_tail_at_p0,
-                "reject_tail_at_p_alt": (
-                    None
-                    if p_alt is None
-                    else binomial_upper_tail(n, rejection_threshold, p_alt)
+                "p_alt": p_alt if require_power else None,
+                "beta": beta if require_power else None,
+                "rejection_probability_at_p0": reject_tail,
+                "power_at_p_alt": power_at_alt if require_power else None,
+                "alpha_margin": ALPHA_REJECT - reject_tail,
+                "power_margin": (
+                    power_at_alt - power_floor if require_power else None
                 ),
-                "power_at_p_alt": power_at_p_alt,
-                "search_basis": search_basis,
-                "search_used_alternative_rate": minimum_power is not None,
-                "search_used_type_ii_error": minimum_power is not None,
-                "tie_break": "lexicographically smallest (n, r)",
-                "alpha_constraint_violation": alpha_violation,
-                "power_constraint_violation": power_violation,
-                "constraints_pass": max(alpha_violation, power_violation)
-                <= numeric_tol,
+                "tested_n_count": n,
+                "tested_threshold_count_at_selected_n": r + 1,
+                "tie_break_rule": Q1_TIE_BREAK_RULE,
+                "search_upper_bound": Q1_N_MAX,
             }
-        n += 1
 
-
-def _find_acceptance_scheme(
-    p0: float = params.Q1_NOMINAL_RATE,
-    acceptance_confidence: float = params.Q1_ACCEPT_CONFIDENCE,
-    numeric_tol: float = params.Q1_NUMERIC_TOL,
-) -> dict[str, Any]:
-    """Find the minimum n and, at that n, the largest feasible integer c."""
-    p0 = _checked_probability(p0, "nominal rate")
-    acceptance_confidence = _checked_probability(
-        acceptance_confidence, "acceptance confidence"
+    raise RuntimeError(
+        "拒收方案搜索达到登记上界仍未找到可行整数方案"
     )
-    n = 1
-    while True:
-        for acceptance_threshold in range(n, -1, -1):
-            acceptance_probability = binomial_cdf(
-                n, acceptance_threshold, p0
-            )
-            if acceptance_probability + numeric_tol < acceptance_confidence:
+
+
+def _find_acceptance_scheme() -> dict[str, object]:
+    """搜索题面接收置信约束下的最小样本量，并取最大可行阈值。"""
+    p0 = _validate_probability(P0, "p0")
+    for n in range(1, Q1_N_MAX + 1):
+        for c in range(n, -1, -1):
+            acceptance_probability = _lower_tail(n, c, p0)
+            if acceptance_probability + Q1_NUMERIC_TOL < ACCEPT_CONFIDENCE:
                 continue
             return {
                 "n": n,
-                "c": acceptance_threshold,
-                "decision_rule": "accept when X <= c",
+                "c": c,
+                "decision_rule": "X<=c 时接收，否则拒收",
                 "p0": p0,
-                "acceptance_confidence": acceptance_confidence,
-                "minimum_acceptance_probability": acceptance_confidence,
+                "required_confidence": ACCEPT_CONFIDENCE,
                 "acceptance_probability_at_p0": acceptance_probability,
-                "search_basis": "registered_nominal_cdf_constraint",
-                "tie_break": (
-                    "minimum n, then lexicographically largest c"
+                "confidence_margin": (
+                    acceptance_probability - ACCEPT_CONFIDENCE
                 ),
-                "acceptance_constraint_violation": max(
-                    0.0,
-                    acceptance_confidence - acceptance_probability,
-                ),
-                "constraints_pass": max(
-                    0.0,
-                    acceptance_confidence - acceptance_probability,
-                )
-                <= numeric_tol,
+                "decision_is_nontrivial": c < n,
+                "tested_n_count": n,
+                "tested_threshold_count_at_selected_n": c + 1,
+                "tie_break_rule": "minimum_n_then_largest_feasible_c",
+                "search_upper_bound": Q1_N_MAX,
             }
-        n += 1
+
+    raise RuntimeError(
+        "接收方案搜索达到登记上界仍未找到可行整数方案"
+    )
 
 
-def _sprt_random_walk(
+def _verify_rejection_minimality(
+    selected: dict[str, object],
+    delta: float,
+    beta: float,
+    *,
+    require_power: bool,
+) -> dict[str, object]:
+    n_star = int(selected["n"])
+    r_star = int(selected["r"])
+    p_alt = P0 + delta
+    smaller_feasible_n = []
+
+    for n in range(1, n_star):
+        for r in range(n + 1):
+            reject_tail = _upper_tail(n, r, P0)
+            if reject_tail > ALPHA_REJECT + Q1_NUMERIC_TOL:
+                continue
+            if require_power:
+                power = _upper_tail(n, r, p_alt)
+                if power < 1 - beta - Q1_NUMERIC_TOL:
+                    continue
+            smaller_feasible_n.append(n)
+            break
+
+    selected_tail = _upper_tail(n_star, r_star, P0)
+    feasible_at_selected = (
+        selected_tail <= ALPHA_REJECT + Q1_NUMERIC_TOL
+    )
+    if require_power:
+        feasible_at_selected = feasible_at_selected and (
+            _upper_tail(n_star, r_star, p_alt)
+            >= 1 - beta - Q1_NUMERIC_TOL
+        )
+
+    return {
+        "smaller_feasible_n_count": len(smaller_feasible_n),
+        "smaller_feasible_n": smaller_feasible_n,
+        "selected_scheme_feasible": feasible_at_selected,
+        "minimality_passed": not smaller_feasible_n and feasible_at_selected,
+    }
+
+
+def _verify_acceptance_minimality(
+    selected: dict[str, object],
+) -> dict[str, object]:
+    n_star = int(selected["n"])
+    c_star = int(selected["c"])
+    smaller_feasible_n = []
+
+    for n in range(1, n_star):
+        feasible = any(
+            _lower_tail(n, c, P0)
+            >= ACCEPT_CONFIDENCE - Q1_NUMERIC_TOL
+            for c in range(n + 1)
+        )
+        if feasible:
+            smaller_feasible_n.append(n)
+
+    selected_feasible = (
+        _lower_tail(n_star, c_star, P0)
+        >= ACCEPT_CONFIDENCE - Q1_NUMERIC_TOL
+    )
+    return {
+        "smaller_feasible_n_count": len(smaller_feasible_n),
+        "smaller_feasible_n": smaller_feasible_n,
+        "selected_scheme_feasible": selected_feasible,
+        "minimality_passed": (
+            not smaller_feasible_n and selected_feasible
+        ),
+    }
+
+
+def _classify_log_likelihood_ratio(
+    log_ratio: float,
+    observed_count: int,
+    truncation_n: int,
+    acceptance_boundary: float,
+    rejection_boundary: float,
+    truncation_threshold: float,
+) -> str:
+    if log_ratio <= acceptance_boundary + Q1_NUMERIC_TOL:
+        return "accept_boundary"
+    if log_ratio >= rejection_boundary - Q1_NUMERIC_TOL:
+        return "reject_boundary"
+    if observed_count == truncation_n:
+        if log_ratio >= truncation_threshold - Q1_NUMERIC_TOL:
+            return "truncated_reject"
+        return "truncated_accept"
+    return "continue"
+
+
+def likelihood_ratio_random_walk(
+    truncation_n: int,
     probability: float,
-    horizon: int,
-    accept_boundary: float,
-    reject_boundary: float,
     p0: float,
     p_alt: float,
-) -> dict[str, Any]:
-    """Evaluate an exact finite likelihood_ratio_random_walk by state recursion."""
-    probability = _checked_probability(probability, "walk probability")
-    if horizon < 1:
-        raise ValueError("The finite SPRT horizon must be positive")
-    if not reject_boundary < accept_boundary:
-        raise ValueError("SPRT boundaries must satisfy reject < accept")
+    beta: float,
+) -> dict[str, object]:
+    """以精确伯努利路径质量递推有限似然比随机游走。"""
+    if truncation_n < 1:
+        raise ValueError("SPRT 截断样本量必须为正整数")
+    probability = _validate_probability(probability, "walk_probability")
+    p0 = _validate_probability(p0, "walk_null_rate")
+    p_alt = _validate_probability(p_alt, "walk_alternative_rate")
+    beta = _validate_probability(beta, "walk_type_ii_error")
+    if p_alt <= p0:
+        raise ValueError("SPRT 备择率必须高于原假设率")
 
-    states: dict[tuple[int, int], float] = {(0, 0): 1.0}
-    decision_probabilities = {"accept": 0.0, "reject": 0.0}
+    defect_log_increment = math.log(p_alt / p0)
+    good_log_increment = math.log((1 - p_alt) / (1 - p0))
+    acceptance_boundary = math.log(beta / (1 - ALPHA_REJECT))
+    rejection_boundary = math.log((1 - beta) / ALPHA_REJECT)
+    truncation_threshold = math.log(1 / (1 - beta))
+
+    continuation: dict[tuple[int, int], float] = {(0, 0): 1.0}
     survival_probabilities: list[float] = []
-    expected_samples = 0.0
+    accepted_by_boundary: list[float] = []
+    rejected_by_boundary: list[float] = []
+    accepted_by_truncation: list[float] = []
+    rejected_by_truncation: list[float] = []
+    survival_after_draw: list[float] = []
 
-    for observations in range(horizon + 1):
-        next_states: dict[tuple[int, int], float] = {}
-        continuing_mass = 0.0
-        for (state_observations, defects), mass in states.items():
-            log_lr = log_likelihood_ratio(
-                defects,
-                state_observations,
-                p0,
-                p_alt,
+    for observed_count in range(truncation_n):
+        survival_probabilities.append(math.fsum(continuation.values()))
+        next_continuation: dict[tuple[int, int], float] = {}
+        accept_boundary_mass = 0.0
+        reject_boundary_mass = 0.0
+        accept_truncation_mass = 0.0
+        reject_truncation_mass = 0.0
+
+        for (seen, defect_count), _ in continuation.items():
+            next_seen = seen + 1
+            if defect_count < seen:
+                next_defect_count = defect_count + 1
+            else:
+                next_defect_count = defect_count
+
+            log_ratio = (
+                next_defect_count * defect_log_increment
+                + (next_seen - next_defect_count) * good_log_increment
             )
-            if log_lr <= accept_boundary:
-                decision_probabilities["accept"] += mass
-                continue
-            if log_lr >= reject_boundary:
-                decision_probabilities["reject"] += mass
-                continue
-            if state_observations >= horizon:
-                forced_decision = (
-                    "accept" if log_lr >= 0.0 else "reject"
+            path_probability = float(
+                binom.pmf(next_defect_count, next_seen, probability)
+            )
+            region = _classify_log_likelihood_ratio(
+                log_ratio,
+                next_seen,
+                truncation_n,
+                acceptance_boundary,
+                rejection_boundary,
+                truncation_threshold,
+            )
+
+            if region == "accept_boundary":
+                accept_boundary_mass += path_probability
+            elif region == "reject_boundary":
+                reject_boundary_mass += path_probability
+            elif region == "truncated_accept":
+                accept_truncation_mass += path_probability
+            elif region == "truncated_reject":
+                reject_truncation_mass += path_probability
+            else:
+                next_continuation[(next_seen, next_defect_count)] = (
+                    path_probability
                 )
-                decision_probabilities[forced_decision] += mass
-                continue
 
-            continuing_mass += mass
-            expected_samples += mass
-            next_states[(state_observations + 1, defects + 1)] = (
-                next_states.get((state_observations + 1, defects + 1), 0.0)
-                + mass * probability
-            )
-            next_states[(state_observations + 1, defects)] = (
-                next_states.get((state_observations + 1, defects), 0.0)
-                + mass * (1.0 - probability)
-            )
+        continuation = next_continuation
+        accepted_by_boundary.append(accept_boundary_mass)
+        rejected_by_boundary.append(reject_boundary_mass)
+        accepted_by_truncation.append(accept_truncation_mass)
+        rejected_by_truncation.append(reject_truncation_mass)
+        survival_after_draw.append(math.fsum(continuation.values()))
 
-        if observations < horizon:
-            survival_probabilities.append(continuing_mass)
-        states = next_states
+    if continuation:
+        raise RuntimeError("有限 SPRT 在登记截断点后仍有未分类路径")
 
-    sample_size_pmf: list[float] = []
-    if len(survival_probabilities) == horizon:
-        sample_size_pmf.append(survival_probabilities[0])
-        sample_size_pmf.extend(
-            survival_probabilities[index - 1] - survival_probabilities[index]
-            for index in range(1, horizon)
-        )
-        sample_size_pmf.append(survival_probabilities[-1])
-    else:
-        sample_size_pmf = [1.0 - math.fsum(decision_probabilities.values())]
-
-    expected_from_pmf = math.fsum(
-        (index + 1) * probability_mass
-        for index, probability_mass in enumerate(sample_size_pmf)
+    accepted_at_boundary = math.fsum(accepted_by_boundary)
+    rejected_at_boundary = math.fsum(rejected_by_boundary)
+    accepted_at_truncation = math.fsum(accepted_by_truncation)
+    rejected_at_truncation = math.fsum(rejected_by_truncation)
+    accept_probability = (
+        accepted_at_boundary + accepted_at_truncation
     )
-    probability_sum = math.fsum(decision_probabilities.values())
+    reject_probability = (
+        rejected_at_boundary + rejected_at_truncation
+    )
+    expected_samples = math.fsum(survival_probabilities)
+
     return {
         "probability": probability,
+        "truncation_n": truncation_n,
         "expected_samples": expected_samples,
-        "expected_samples_from_pmf": expected_from_pmf,
-        "expected_sample_identity_error": abs(
-            expected_samples - expected_from_pmf
-        ),
-        "accept_probability": decision_probabilities["accept"],
-        "reject_probability": decision_probabilities["reject"],
-        "decision_probability_sum": probability_sum,
-        "decision_probability_sum_error": abs(probability_sum - 1.0),
-        "sample_size_pmf": sample_size_pmf,
-        "survival_probability": survival_probabilities,
+        "acceptance_probability": accept_probability,
+        "rejection_probability": reject_probability,
+        "type_ii_error": accept_probability,
+        "power": reject_probability,
+        "terminal_probability_sum": accept_probability + reject_probability,
+        "acceptance_boundary": acceptance_boundary,
+        "rejection_boundary": rejection_boundary,
+        "truncation_threshold": truncation_threshold,
+        "defect_log_increment": defect_log_increment,
+        "good_log_increment": good_log_increment,
+        "accepted_at_boundary_probability": accepted_at_boundary,
+        "rejected_at_boundary_probability": rejected_at_boundary,
+        "accepted_at_truncation_probability": accepted_at_truncation,
+        "rejected_at_truncation_probability": rejected_at_truncation,
+        "survival_before_draw": survival_probabilities,
+        "survival_after_draw": survival_after_draw,
+        "acceptance_cdf_after_draw": [
+            math.fsum(accepted_by_boundary[: draw + 1])
+            + math.fsum(accepted_by_truncation[: draw + 1])
+            for draw in range(truncation_n)
+        ],
+        "rejection_cdf_after_draw": [
+            math.fsum(rejected_by_boundary[: draw + 1])
+            + math.fsum(rejected_by_truncation[: draw + 1])
+            for draw in range(truncation_n)
+        ],
     }
 
 
-def _sprt_boundary_trace(
-    horizon: int,
-    accept_boundary: float,
-    reject_boundary: float,
+def _sprt_boundary_grid(
+    truncation_n: int,
     p0: float,
     p_alt: float,
-) -> list[dict[str, Any]]:
-    """Return the exact integer continuation band at every observation count."""
-    trace: list[dict[str, Any]] = []
-    for observations in range(horizon + 1):
-        continuing_states = [
-            defects
-            for defects in range(observations + 1)
-            if reject_boundary
-            < log_likelihood_ratio(
-                defects,
-                observations,
-                p0,
-                p_alt,
+    beta: float,
+) -> dict[str, object]:
+    defect_log_increment = math.log(p_alt / p0)
+    good_log_increment = math.log((1 - p_alt) / (1 - p0))
+    acceptance_boundary = math.log(beta / (1 - ALPHA_REJECT))
+    rejection_boundary = math.log((1 - beta) / ALPHA_REJECT)
+    truncation_threshold = math.log(1 / (1 - beta))
+
+    sample_counts: list[int] = []
+    defect_counts: list[int] = []
+    log_ratios: list[float] = []
+    regions: list[str] = []
+
+    for observed_count in range(truncation_n + 1):
+        for defect_count in range(observed_count + 1):
+            log_ratio = (
+                defect_count * defect_log_increment
+                + (observed_count - defect_count) * good_log_increment
             )
-            < accept_boundary
-        ]
-        trace.append(
-            {
-                "n": observations,
-                "lower_continue_x": (
-                    continuing_states[0] if continuing_states else None
-                ),
-                "upper_continue_x": (
-                    continuing_states[-1] if continuing_states else None
-                ),
-                "interior_state_count": len(continuing_states),
-            }
-        )
-    return trace
-
-
-def _probability_anchors(parameter_source: Any) -> list[float]:
-    """Build deterministic OC anchors solely from registered Q1 values."""
-    p0 = parameter_source.Q1_NOMINAL_RATE
-    anchors = {0.0, 1.0, p0}
-    for delta in parameter_source.Q1_DELTA_GRID:
-        candidates = {p0 + delta, p0 - delta}
-        for beta in parameter_source.Q1_BETA_GRID:
-            candidates.add(p0 + delta * beta)
-            candidates.add(p0 - delta * beta)
-        for candidate in candidates:
-            if 0.0 <= candidate <= 1.0:
-                anchors.add(float(candidate))
-    return sorted(anchors)
-
-
-def _registered_consistency(parameter_source: Any) -> dict[str, bool]:
-    tolerance = parameter_source.Q1_NUMERIC_TOL
-    operational = parameter_source.Q1_CASE95_OPERATIONAL_CONSTRAINTS
-    diagnostic = parameter_source.Q1_CASE95_NOMINAL_ONLY_CONSTRAINTS
-    acceptance = parameter_source.Q1_CASE90_CONSTRAINTS
-    checks = {
-        "operational_p0": abs(
-            operational["p0"] - parameter_source.Q1_NOMINAL_RATE
-        )
-        <= tolerance,
-        "operational_alpha": abs(
-            operational["alpha"] - parameter_source.Q1_REJECT_ALPHA
-        )
-        <= tolerance,
-        "operational_delta": abs(
-            operational["delta"] - parameter_source.Q1_ALTERNATIVE_DELTA
-        )
-        <= tolerance,
-        "operational_beta": abs(
-            operational["beta"] - parameter_source.Q1_TYPE_II_ERROR
-        )
-        <= tolerance,
-        "operational_p_alt": abs(
-            operational["p_alt"] - parameter_source.Q1_ALTERNATIVE_RATE
-        )
-        <= tolerance,
-        "diagnostic_p0": abs(
-            diagnostic["p0"] - parameter_source.Q1_NOMINAL_RATE
-        )
-        <= tolerance,
-        "diagnostic_alpha": abs(
-            diagnostic["alpha"] - parameter_source.Q1_REJECT_ALPHA
-        )
-        <= tolerance,
-        "acceptance_p0": abs(
-            acceptance["p0"] - parameter_source.Q1_NOMINAL_RATE
-        )
-        <= tolerance,
-        "acceptance_confidence": abs(
-            acceptance["acceptance_confidence"]
-            - parameter_source.Q1_ACCEPT_CONFIDENCE
-        )
-        <= tolerance,
-    }
-    if not all(checks.values()):
-        raise RuntimeError("Registered Problem 1 constraints are internally inconsistent")
-    return checks
-
-
-def solve(parameter_source=params) -> dict[str, Any]:
-    """Run all Problem 1 exact designs and return the JSON-ready ledger."""
-    p = parameter_source
-    tolerance = p.Q1_NUMERIC_TOL
-    registered_checks = _registered_consistency(p)
-
-    operational_constraints = p.Q1_CASE95_OPERATIONAL_CONSTRAINTS
-    operational = _find_rejection_scheme(
-        operational_constraints["p0"],
-        operational_constraints["alpha"],
-        p_alt=operational_constraints["p_alt"],
-        minimum_power=operational_constraints["minimum_power"],
-        numeric_tol=tolerance,
-    )
-    operational.update(
-        {
-            "unit": "tests",
-            "answer_scope": (
-                "conditional minimum under the registered alternative rate "
-                "and Type II error design"
-            ),
-            "is_operational_recommendation": True,
-        }
-    )
-
-    nominal_constraints = p.Q1_CASE95_NOMINAL_ONLY_CONSTRAINTS
-    nominal_only = _find_rejection_scheme(
-        nominal_constraints["p0"],
-        nominal_constraints["alpha"],
-        p_alt=operational_constraints["p_alt"],
-        minimum_power=None,
-        numeric_tol=tolerance,
-    )
-    nominal_only.update(
-        {
-            "unit": "tests",
-            "answer_scope": (
-                "diagnostic minimum using only the nominal upper-tail condition"
-            ),
-            "is_operational_recommendation": False,
-            "identification_warning": (
-                "the nominal-tail condition alone does not impose a minimum "
-                "power at the registered alternative rate"
-            ),
-        }
-    )
-
-    acceptance_constraints = p.Q1_CASE90_CONSTRAINTS
-    acceptance = _find_acceptance_scheme(
-        acceptance_constraints["p0"],
-        acceptance_constraints["acceptance_confidence"],
-        numeric_tol=tolerance,
-    )
-    acceptance.update(
-        {
-            "unit": "tests",
-            "answer_scope": "minimum under the registered nominal CDF constraint",
-        }
-    )
-
-    alpha = float(operational["alpha"])
-    beta = float(p.Q1_TYPE_II_ERROR)
-    p0 = float(operational["p0"])
-    p_alt = float(operational["p_alt"])
-    fixed_n = int(operational["n"])
-    accept_boundary = math.log((1.0 - beta) / alpha)
-    reject_boundary = math.log(beta / (1.0 - alpha))
-
-    walk_at_p0 = _sprt_random_walk(
-        p0,
-        fixed_n,
-        accept_boundary,
-        reject_boundary,
-        p0,
-        p_alt,
-    )
-    walk_at_p_alt = _sprt_random_walk(
-        p_alt,
-        fixed_n,
-        accept_boundary,
-        reject_boundary,
-        p0,
-        p_alt,
-    )
-
-    sprt_alpha_violation = max(
-        0.0,
-        float(walk_at_p0["reject_probability"]) - alpha,
-    )
-    sprt_power_violation = max(
-        0.0,
-        float(operational["minimum_power"])
-        - (1.0 - float(walk_at_p_alt["reject_probability"])),
-    )
-    sprt_constraints_pass = max(
-        sprt_alpha_violation,
-        sprt_power_violation,
-    ) <= tolerance
-    sprt_expected_not_worse = (
-        float(walk_at_p0["expected_samples"]) <= fixed_n + tolerance
-        and float(walk_at_p_alt["expected_samples"]) <= fixed_n + tolerance
-    )
-    sprt_selected = sprt_constraints_pass and sprt_expected_not_worse
-
-    finite_sprt = {
-        "method": p.Q1_SPRT_METHOD,
-        "method_signature": "finite_likelihood_ratio_random_walk",
-        "finite_horizon": True,
-        "horizon_n": fixed_n,
-        "p0": p0,
-        "p_alt": p_alt,
-        "alpha": alpha,
-        "beta": beta,
-        "accept_log_likelihood_boundary": accept_boundary,
-        "reject_log_likelihood_boundary": reject_boundary,
-        "truncation_rule": (
-            "at the horizon accept when log LR is nonnegative, otherwise reject"
-        ),
-        "expected_n_at_p0": walk_at_p0["expected_samples"],
-        "expected_n_at_p_alt": walk_at_p_alt["expected_samples"],
-        "reject_probability_at_p0": walk_at_p0["reject_probability"],
-        "reject_probability_at_p_alt": walk_at_p_alt["reject_probability"],
-        "power_at_p_alt": 1.0 - walk_at_p_alt["reject_probability"],
-        "alpha_constraint_violation": sprt_alpha_violation,
-        "power_constraint_violation": sprt_power_violation,
-        "exact_tail_constraints_pass": sprt_constraints_pass,
-        "expected_samples_not_worse_than_fixed": sprt_expected_not_worse,
-        "selected": sprt_selected,
-        "walk_at_p0": walk_at_p0,
-        "walk_at_p_alt": walk_at_p_alt,
-        "boundary_trace": _sprt_boundary_trace(
-            fixed_n,
-            accept_boundary,
-            reject_boundary,
-            p0,
-            p_alt,
-        ),
-    }
-
-    selection_reasons: list[str] = []
-    if not sprt_constraints_pass:
-        selection_reasons.append("finite truncation failed an exact tail constraint")
-    if not sprt_expected_not_worse:
-        selection_reasons.append("finite SPRT did not improve both expected sample sizes")
-    if not selection_reasons:
-        selection_reasons.append("finite SPRT passed the registered comparison rule")
-
-    selection = {
-        "selected_method": "finite_sprt" if sprt_selected else "fixed_sample",
-        "fixed_sample_n": fixed_n,
-        "selected_expected_n_at_p0": (
-            float(walk_at_p0["expected_samples"])
-            if sprt_selected
-            else fixed_n
-        ),
-        "selected_expected_n_at_p_alt": (
-            float(walk_at_p_alt["expected_samples"])
-            if sprt_selected
-            else fixed_n
-        ),
-        "comparison_rule": (
-            "select finite SPRT only if exact tail constraints pass and "
-            "both expected sample sizes are no larger"
-        ),
-        "reason_codes": selection_reasons,
-    }
-
-    sensitivity_rows: list[dict[str, Any]] = []
-    for delta in p.Q1_DELTA_GRID:
-        for type_ii_error in p.Q1_BETA_GRID:
-            alternative_rate = p0 + delta
-            scheme = _find_rejection_scheme(
-                p0,
-                alpha,
-                p_alt=alternative_rate,
-                minimum_power=1.0 - type_ii_error,
-                numeric_tol=tolerance,
+            sample_counts.append(observed_count)
+            defect_counts.append(defect_count)
+            log_ratios.append(log_ratio)
+            regions.append(
+                _classify_log_likelihood_ratio(
+                    log_ratio,
+                    observed_count,
+                    truncation_n,
+                    acceptance_boundary,
+                    rejection_boundary,
+                    truncation_threshold,
+                )
             )
-            sensitivity_rows.append(
-                {
-                    "registered_delta": delta,
-                    "registered_type_ii_error": type_ii_error,
-                    "target_power": 1.0 - type_ii_error,
-                    "p_alt": alternative_rate,
-                    "n": scheme["n"],
-                    "r": scheme["r"],
-                    "reject_tail_at_p0": scheme["reject_tail_at_p0"],
-                    "power_at_p_alt": scheme["power_at_p_alt"],
-                    "constraints_pass": scheme["constraints_pass"],
-                }
-            )
-
-    base_sensitivity = next(
-        row
-        for row in sensitivity_rows
-        if row["registered_delta"] == p.Q1_ALTERNATIVE_DELTA
-        and row["registered_type_ii_error"] == p.Q1_TYPE_II_ERROR
-    )
-    for row in sensitivity_rows:
-        row["n_difference_from_operational_design"] = (
-            int(row["n"]) - fixed_n
-        )
-
-    oc_rows: list[dict[str, Any]] = []
-    for probability in _probability_anchors(p):
-        oc_rows.append(
-            {
-                "p": probability,
-                "case95_operational_power_reject_probability": (
-                    binomial_upper_tail(
-                        operational["n"],
-                        operational["r"],
-                        probability,
-                    )
-                ),
-                "case95_operational_power_accept_probability": (
-                    binomial_cdf(
-                        operational["n"],
-                        int(operational["r"]) - 1,
-                        probability,
-                    )
-                ),
-                "case95_nominal_only_diagnostic_reject_probability": (
-                    binomial_upper_tail(
-                        nominal_only["n"],
-                        nominal_only["r"],
-                        probability,
-                    )
-                ),
-                "case95_nominal_only_diagnostic_accept_probability": (
-                    binomial_cdf(
-                        nominal_only["n"],
-                        int(nominal_only["r"]) - 1,
-                        probability,
-                    )
-                ),
-                "case90_receive_accept_probability": binomial_cdf(
-                    acceptance["n"],
-                    acceptance["c"],
-                    probability,
-                ),
-            }
-        )
-
-    reject_probabilities = [
-        float(row["case95_operational_power_reject_probability"])
-        for row in oc_rows
-    ]
-    operational_accept_probabilities = [
-        float(row["case95_operational_power_accept_probability"])
-        for row in oc_rows
-    ]
-    receive_accept_probabilities = [
-        float(row["case90_receive_accept_probability"])
-        for row in oc_rows
-    ]
-    rejection_monotonicity_violation = max(
-        (
-            max(0.0, later - earlier)
-            for earlier, later in zip(
-                reject_probabilities,
-                reject_probabilities[1:],
-            )
-        ),
-        default=0.0,
-    )
-    operational_acceptance_monotonicity_violation = max(
-        (
-            max(0.0, earlier - later)
-            for earlier, later in zip(
-                operational_accept_probabilities,
-                operational_accept_probabilities[1:],
-            )
-        ),
-        default=0.0,
-    )
-    receive_monotonicity_violation = max(
-        (
-            max(0.0, earlier - later)
-            for earlier, later in zip(
-                receive_accept_probabilities,
-                receive_accept_probabilities[1:],
-            )
-        ),
-        default=0.0,
-    )
-
-    cdf_crosscheck_error = max(
-        abs(
-            binomial_cdf(operational["n"], operational["r"], p0)
-            - float(scipy.stats.binom.cdf(operational["r"], operational["n"], p0))
-        ),
-        abs(
-            binomial_cdf(acceptance["n"], acceptance["c"], p0)
-            - float(scipy.stats.binom.cdf(acceptance["c"], acceptance["n"], p0))
-        ),
-    )
-    tail_crosscheck_error = abs(
-        float(operational["reject_tail_at_p0"])
-        - float(
-            scipy.stats.binom.sf(
-                int(operational["r"]) - 1,
-                int(operational["n"]),
-                p0,
-            )
-        )
-    )
-    sensitivity_constraint_failures = sum(
-        not bool(row["constraints_pass"]) for row in sensitivity_rows
-    )
-    sprt_probability_conservation_error = max(
-        float(walk_at_p0["decision_probability_sum_error"]),
-        float(walk_at_p_alt["decision_probability_sum_error"]),
-    )
-    sprt_expected_identity_error = max(
-        float(walk_at_p0["expected_sample_identity_error"]),
-        float(walk_at_p_alt["expected_sample_identity_error"]),
-    )
-
-    validation_checks = {
-        "registered_constraints_consistent": all(registered_checks.values()),
-        "operational_case95_constraints_pass": bool(
-            operational["constraints_pass"]
-        ),
-        "nominal_only_diagnostic_constraint_pass": bool(
-            nominal_only["constraints_pass"]
-        ),
-        "case90_constraint_pass": bool(acceptance["constraints_pass"]),
-        "sensitivity_constraints_all_pass": sensitivity_constraint_failures == 0,
-        "rejection_probability_monotone_in_p": (
-            rejection_monotonicity_violation <= tolerance
-        ),
-        "operational_acceptance_monotone_in_p": (
-            operational_acceptance_monotonicity_violation <= tolerance
-        ),
-        "case90_acceptance_monotone_in_p": (
-            receive_monotonicity_violation <= tolerance
-        ),
-        "exact_cdf_crosscheck_pass": cdf_crosscheck_error <= tolerance,
-        "exact_tail_crosscheck_pass": tail_crosscheck_error <= tolerance,
-        "finite_sprt_probability_conservation_pass": (
-            sprt_probability_conservation_error <= tolerance
-        ),
-        "finite_sprt_expected_identity_pass": (
-            sprt_expected_identity_error <= tolerance
-        ),
-        "finite_sprt_boundaries_finite": (
-            math.isfinite(accept_boundary) and math.isfinite(reject_boundary)
-        ),
-    }
-    all_validation_checks_pass = all(validation_checks.values())
-    if not all_validation_checks_pass:
-        raise RuntimeError("Problem 1 structural validation failed")
-
-    validation = {
-        "checks": validation_checks,
-        "all_passed": all_validation_checks_pass,
-        "numeric_tolerance": tolerance,
-        "registered_constraint_checks": registered_checks,
-        "rejection_monotonicity_max_violation": (
-            rejection_monotonicity_violation
-        ),
-        "operational_acceptance_monotonicity_max_violation": (
-            operational_acceptance_monotonicity_violation
-        ),
-        "case90_acceptance_monotonicity_max_violation": (
-            receive_monotonicity_violation
-        ),
-        "cdf_crosscheck_max_error": cdf_crosscheck_error,
-        "tail_crosscheck_max_error": tail_crosscheck_error,
-        "sensitivity_constraint_failure_count": (
-            sensitivity_constraint_failures
-        ),
-        "sprt_probability_conservation_max_error": (
-            sprt_probability_conservation_error
-        ),
-        "sprt_expected_identity_max_error": sprt_expected_identity_error,
-    }
 
     return {
-        "problem": "Q1",
+        "sample_count": sample_counts,
+        "defect_count": defect_counts,
+        "log_likelihood_ratio": log_ratios,
+        "region": regions,
+        "acceptance_boundary": acceptance_boundary,
+        "rejection_boundary": rejection_boundary,
+        "truncation_threshold": truncation_threshold,
+    }
+
+
+def _summarize_sprt_design(
+    design: dict[str, object],
+    fixed_n: int,
+) -> dict[str, object]:
+    truncation_n = int(design["n"])
+    p_alt = float(design["p_alt"])
+    beta = float(design["beta"])
+    null_walk = likelihood_ratio_random_walk(
+        truncation_n, P0, P0, p_alt, beta
+    )
+    alternative_walk = likelihood_ratio_random_walk(
+        truncation_n, p_alt, P0, p_alt, beta
+    )
+
+    alpha_constraint_passed = (
+        null_walk["rejection_probability"]
+        <= ALPHA_REJECT + Q1_NUMERIC_TOL
+    )
+    power_constraint_passed = (
+        alternative_walk["rejection_probability"]
+        >= 1 - beta - Q1_NUMERIC_TOL
+    )
+    expected_null_passed = (
+        null_walk["expected_samples"]
+        <= fixed_n + Q1_NUMERIC_TOL
+    )
+    expected_alternative_passed = (
+        alternative_walk["expected_samples"]
+        <= fixed_n + Q1_NUMERIC_TOL
+    )
+    admissible = (
+        alpha_constraint_passed
+        and power_constraint_passed
+        and expected_null_passed
+        and expected_alternative_passed
+    )
+
+    return {
+        "delta": design["delta"],
+        "beta": beta,
+        "p_alt": p_alt,
+        "fixed_n": fixed_n,
+        "truncation_n": truncation_n,
+        "expected_n_at_p0": null_walk["expected_samples"],
+        "expected_n_at_p_alt": alternative_walk["expected_samples"],
+        "rejection_probability_at_p0": null_walk[
+            "rejection_probability"
+        ],
+        "type_ii_error_at_p_alt": alternative_walk[
+            "acceptance_probability"
+        ],
+        "power_at_p_alt": alternative_walk["rejection_probability"],
+        "alpha_constraint_passed": alpha_constraint_passed,
+        "power_constraint_passed": power_constraint_passed,
+        "expected_n_at_p0_constraint_passed": expected_null_passed,
+        "expected_n_at_p_alt_constraint_passed": (
+            expected_alternative_passed
+        ),
+        "admissible": admissible,
+        "probability_closure_residual_at_p0": abs(
+            null_walk["terminal_probability_sum"] - 1
+        ),
+        "probability_closure_residual_at_p_alt": abs(
+            alternative_walk["terminal_probability_sum"] - 1
+        ),
+    }
+
+
+def run() -> dict[str, object]:
+    """执行问题一全部精确计算并返回可序列化结果账本。"""
+    _ = params
+    p0 = _validate_probability(P0, "P0")
+    delta = _validate_probability(
+        Q1_ALTERNATIVE_DELTA,
+        "Q1_ALTERNATIVE_DELTA",
+    )
+    beta = _validate_probability(
+        Q1_TYPE_II_ERROR,
+        "Q1_TYPE_II_ERROR",
+    )
+    if delta <= 0:
+        raise ValueError("登记备择幅度必须为正")
+    if p0 + delta > 1:
+        raise ValueError("登记备择率超出概率域")
+    if not 0 < beta < 1:
+        raise ValueError("登记第二类错误必须位于概率域内部")
+    if ALPHA_REJECT <= 0 or ALPHA_REJECT >= 1:
+        raise ValueError("拒收第一类错误越界")
+    if ACCEPT_CONFIDENCE <= 0 or ACCEPT_CONFIDENCE >= 1:
+        raise ValueError("接收置信水平越界")
+
+    confidence_only = _find_rejection_scheme(
+        delta,
+        beta,
+        require_power=False,
+    )
+    operational = _find_rejection_scheme(
+        delta,
+        beta,
+        require_power=True,
+    )
+    acceptance = _find_acceptance_scheme()
+
+    confidence_only_verification = _verify_rejection_minimality(
+        confidence_only,
+        delta,
+        beta,
+        require_power=False,
+    )
+    operational_verification = _verify_rejection_minimality(
+        operational,
+        delta,
+        beta,
+        require_power=True,
+    )
+    acceptance_verification = _verify_acceptance_minimality(acceptance)
+
+    delta_grid = Q1_DELTA_GRID
+    beta_grid = Q1_BETA_GRID
+    sensitivity_designs: list[dict[str, object]] = []
+
+    for delta_value in delta_grid:
+        for beta_value in beta_grid:
+            design = _find_rejection_scheme(
+                delta_value,
+                beta_value,
+                require_power=True,
+            )
+            row = {
+                "delta": delta_value,
+                "beta": beta_value,
+                "p_alt": design["p_alt"],
+                "n": design["n"],
+                "r": design["r"],
+                "rejection_probability_at_p0": design[
+                    "rejection_probability_at_p0"
+                ],
+                "power_at_p_alt": design["power_at_p_alt"],
+                "alpha_margin": design["alpha_margin"],
+                "power_margin": design["power_margin"],
+                "registered_baseline": (
+                    abs(delta_value - delta) <= Q1_NUMERIC_TOL
+                    and abs(beta_value - beta) <= Q1_NUMERIC_TOL
+                ),
+            }
+            sensitivity_designs.append(design)
+            sensitivity_rows = locals().get("sensitivity_rows", [])
+            sensitivity_rows.append(row)
+
+    delta_monotonicity = []
+    for delta_value in delta_grid:
+        selected_rows = [
+            row
+            for row in sensitivity_rows
+            if abs(row["delta"] - delta_value) <= Q1_NUMERIC_TOL
+        ]
+        selected_rows.sort(key=lambda row: row["beta"])
+        delta_monotonicity.append(
+            {
+                "delta": delta_value,
+                "n_in_beta_order": [
+                    row["n"] for row in selected_rows
+                ],
+                "beta_in_order": [
+                    row["beta"] for row in selected_rows
+                ],
+                "n_nonincreasing_as_beta_rises": (
+                    _is_nonincreasing(
+                        [row["n"] for row in selected_rows],
+                        Q1_NUMERIC_TOL,
+                    )
+                ),
+            }
+        )
+
+    beta_monotonicity = []
+    for beta_value in beta_grid:
+        selected_rows = [
+            row
+            for row in sensitivity_rows
+            if abs(row["beta"] - beta_value) <= Q1_NUMERIC_TOL
+        ]
+        selected_rows.sort(key=lambda row: row["delta"])
+        beta_monotonicity.append(
+            {
+                "beta": beta_value,
+                "n_in_delta_order": [
+                    row["n"] for row in selected_rows
+                ],
+                "delta_in_order": [
+                    row["delta"] for row in selected_rows
+                ],
+                "n_nondecreasing_as_delta_rises": (
+                    _is_nondecreasing(
+                        [row["n"] for row in selected_rows],
+                        Q1_NUMERIC_TOL,
+                    )
+                ),
+            }
+        )
+
+    oc_probabilities = []
+    oc_confidence_only_rejection = []
+    oc_operational_rejection = []
+    oc_case90_acceptance = []
+    for probability in Q1_OC_GRID:
+        oc_probabilities.append(probability)
+        oc_confidence_only_rejection.append(
+            _upper_tail(
+                int(confidence_only["n"]),
+                int(confidence_only["r"]),
+                probability,
+            )
+        )
+        oc_operational_rejection.append(
+            _upper_tail(
+                int(operational["n"]),
+                int(operational["r"]),
+                probability,
+            )
+        )
+        oc_case90_acceptance.append(
+            _lower_tail(
+                int(acceptance["n"]),
+                int(acceptance["c"]),
+                probability,
+            )
+        )
+
+    fixed_n = int(operational["n"])
+    sprt_null = likelihood_ratio_random_walk(
+        fixed_n,
+        p0,
+        p0,
+        float(operational["p_alt"]),
+        beta,
+    )
+    sprt_alternative = likelihood_ratio_random_walk(
+        fixed_n,
+        float(operational["p_alt"]),
+        p0,
+        float(operational["p_alt"]),
+        beta,
+    )
+
+    sprt_alpha_constraint = (
+        sprt_null["rejection_probability"]
+        <= ALPHA_REJECT + Q1_NUMERIC_TOL
+    )
+    sprt_power_constraint = (
+        sprt_alternative["rejection_probability"]
+        >= 1 - beta - Q1_NUMERIC_TOL
+    )
+    sprt_expected_null_constraint = (
+        sprt_null["expected_samples"] <= fixed_n + Q1_NUMERIC_TOL
+    )
+    sprt_expected_alternative_constraint = (
+        sprt_alternative["expected_samples"]
+        <= fixed_n + Q1_NUMERIC_TOL
+    )
+    sprt_selected = (
+        sprt_alpha_constraint
+        and sprt_power_constraint
+        and sprt_expected_null_constraint
+        and sprt_expected_alternative_constraint
+    )
+
+    expected_rejection_boundary_residual = abs(
+        sprt_null["rejection_boundary"] - Q1_SPRT_A
+    )
+    expected_truncation_threshold_residual = abs(
+        sprt_null["truncation_threshold"] - Q1_SPRT_B
+    )
+
+    sprt_by_design = []
+    for design in sensitivity_designs:
+        sprt_by_design.append(
+            _summarize_sprt_design(design, fixed_n)
+        )
+
+    boundary_grid = _sprt_boundary_grid(
+        fixed_n,
+        p0,
+        float(operational["p_alt"]),
+        beta,
+    )
+
+    direct_confidence_only_tail = exact_integer_enumeration(
+        int(confidence_only["n"]),
+        int(confidence_only["r"]),
+        p0,
+        "upper",
+    )
+    direct_operational_tail_at_p0 = exact_integer_enumeration(
+        fixed_n,
+        int(operational["r"]),
+        p0,
+        "upper",
+    )
+    direct_operational_tail_at_p_alt = exact_integer_enumeration(
+        fixed_n,
+        int(operational["r"]),
+        float(operational["p_alt"]),
+        "upper",
+    )
+    direct_acceptance_tail = exact_integer_enumeration(
+        int(acceptance["n"]),
+        int(acceptance["c"]),
+        p0,
+        "lower",
+    )
+
+    exact_residuals = {
+        "confidence_only_case95": abs(
+            direct_confidence_only_tail
+            - confidence_only["rejection_probability_at_p0"]
+        ),
+        "operational_case95_at_p0": abs(
+            direct_operational_tail_at_p0
+            - operational["rejection_probability_at_p0"]
+        ),
+        "operational_case95_at_p_alt": abs(
+            direct_operational_tail_at_p_alt
+            - operational["power_at_p_alt"]
+        ),
+        "case90": abs(
+            direct_acceptance_tail
+            - acceptance["acceptance_probability_at_p0"]
+        ),
+    }
+    exact_residuals_passed = all(
+        residual <= Q1_NUMERIC_TOL
+        for residual in exact_residuals.values()
+    )
+
+    oc_monotonicity = {
+        "confidence_only_rejection_nondecreasing": _is_nondecreasing(
+            oc_confidence_only_rejection,
+            Q1_NUMERIC_TOL,
+        ),
+        "operational_rejection_nondecreasing": _is_nondecreasing(
+            oc_operational_rejection,
+            Q1_NUMERIC_TOL,
+        ),
+        "case90_acceptance_nonincreasing": _is_nonincreasing(
+            oc_case90_acceptance,
+            Q1_NUMERIC_TOL,
+        ),
+        "probe_probability_count": len(oc_probabilities),
+    }
+
+    sprt_probability_closure_passed = all(
+        summary["probability_closure_residual_at_p0"]
+        <= Q1_NUMERIC_TOL
+        and summary["probability_closure_residual_at_p_alt"]
+        <= Q1_NUMERIC_TOL
+        for summary in sprt_by_design
+    )
+    fixed_scheme_checks_passed = (
+        confidence_only_verification["minimality_passed"]
+        and operational_verification["minimality_passed"]
+        and acceptance_verification["minimality_passed"]
+        and exact_residuals_passed
+        and all(oc_monotonicity.values())
+        and all(
+            item["n_nonincreasing_as_beta_rises"]
+            for item in delta_monotonicity
+        )
+        and all(
+            item["n_nondecreasing_as_delta_rises"]
+            for item in beta_monotonicity
+        )
+        and sprt_probability_closure_passed
+        and expected_rejection_boundary_residual
+        <= Q1_NUMERIC_TOL
+        and expected_truncation_threshold_residual
+        <= Q1_NUMERIC_TOL
+    )
+
+    case95 = dict(operational)
+    case95.update(
+        {
+            "interpretation": (
+                "仅以题面拒收置信要求并另加登记备择率与第二类错误的"
+                "条件运营最小方案"
+            ),
+            "mode": Q1_CASE95_MODE,
+            "design_basis": Q1_CASE95_DESIGN_BASIS,
+            "confidence_only_n": confidence_only["n"],
+            "confidence_only_r": confidence_only["r"],
+            "confidence_only_reject_tail": confidence_only[
+                "rejection_probability_at_p0"
+            ],
+            "confidence_only_status": (
+                "separately_reported_because_power_constraints_are_not_in_"
+                "the_problem_facts"
+            ),
+        }
+    )
+
+    return {
+        "problem": "problem1",
         "method": {
-            "fixed_sample": p.Q1_METHOD,
-            "fixed_sample_signature": "exact_integer_enumeration",
-            "probability_kernel": "scipy.stats.binom.pmf over integer support",
-            "finite_sprt": p.Q1_SPRT_METHOD,
-            "finite_sprt_signature": "finite_likelihood_ratio_random_walk",
+            "fixed_sampling": "exact_integer_enumeration",
+            "tail_probability_backend": "scipy.stats.binom",
+            "integer_threshold_search": True,
             "normal_approximation_used": False,
-            "tie_break": "lexicographic integer enumeration",
+            "tie_break_rule": Q1_TIE_BREAK_RULE,
+            "operational_power_constraint_is_conditional": True,
         },
-        "parameter_provenance": {
-            "nominal_rate_fact_id": "F-NOMINAL",
-            "reject_confidence_fact_id": "F-CONF-REJECT",
-            "accept_confidence_fact_id": "F-CONF-ACCEPT",
-            "operational_design_basis": (
-                operational_constraints["basis"]
+        "parameters": {
+            "p0": p0,
+            "alpha_reject": ALPHA_REJECT,
+            "accept_confidence": ACCEPT_CONFIDENCE,
+            "registered_delta": delta,
+            "registered_beta": beta,
+            "registered_p_alt": float(operational["p_alt"]),
+            "numeric_tolerance": Q1_NUMERIC_TOL,
+            "search_upper_bound": Q1_N_MAX,
+            "provenance_note": (
+                "备择幅度与第二类错误是建模设计常数，不是题面直接事实"
             ),
-            "nominal_only_diagnostic_basis": nominal_constraints["basis"],
-            "operational_constraints": operational_constraints,
-            "nominal_only_constraints": nominal_constraints,
-            "acceptance_constraints": acceptance_constraints,
         },
-        "case95_operational_power": operational,
-        "case95_nominal_only_diagnostic": nominal_only,
-        "case90": acceptance,
-        "fixed_sample_comparison": {
-            "scheme_basis": "case95_operational_power",
-            "n": fixed_n,
-            "expected_n_at_p0": fixed_n,
-            "expected_n_at_p_alt": fixed_n,
-            "maximum_tests": fixed_n,
-        },
-        "finite_sprt_comparison": finite_sprt,
-        "scheme_selection": selection,
-        "oc_curve": {
-            "anchor_construction": (
-                "registered nominal rate, delta grid, beta grid, "
-                "and probability endpoints"
+        "case95_confidence_only": {
+            **confidence_only,
+            "interpretation": (
+                "只使用题面拒收置信约束的最小整数方案"
             ),
-            "rows": oc_rows,
+            "design_basis": "problem_fact_confidence_only",
+        },
+        "operational_case95": operational,
+        "case95": case95,
+        "case90": {
+            **acceptance,
+            "accept_tail": acceptance["acceptance_probability_at_p0"],
+            "interpretation": "题面接收置信约束下的最小整数方案",
         },
         "sensitivity": {
-            "design_parameters_vary": ["registered_delta", "registered_type_ii_error"],
+            "delta_grid": list(delta_grid),
+            "beta_grid": list(beta_grid),
             "rows": sensitivity_rows,
-            "operational_base_row": base_sensitivity,
+            "delta_monotonicity": delta_monotonicity,
+            "beta_monotonicity": beta_monotonicity,
         },
-        "sample_size_vs_confidence": {
-            "x_axis_meaning": "target power equals one minus Type II error",
-            "rows": [
-                {
-                    "registered_delta": row["registered_delta"],
-                    "target_power": row["target_power"],
-                    "minimum_n": row["n"],
-                    "r": row["r"],
-                }
-                for row in sensitivity_rows
+        "sensitivity_grid": sensitivity_rows,
+        "oc_curve": {
+            "probability": oc_probabilities,
+            "confidence_only_case95_rejection_probability": (
+                oc_confidence_only_rejection
+            ),
+            "operational_case95_rejection_probability": (
+                oc_operational_rejection
+            ),
+            "case90_acceptance_probability": oc_case90_acceptance,
+            "operational_case95_reject_indicator": [
+                probability >= P0
+                for probability in oc_probabilities
+            ],
+            "case90_receive_indicator": [
+                probability <= P0
+                for probability in oc_probabilities
             ],
         },
-        "two_case_sample_size": {
-            "rows": [
-                {
-                    "case": "case95_operational_power",
-                    "n": operational["n"],
-                    "threshold": operational["r"],
-                },
-                {
-                    "case": "case95_nominal_only_diagnostic",
-                    "n": nominal_only["n"],
-                    "threshold": nominal_only["r"],
-                },
-                {
-                    "case": "case90",
-                    "n": acceptance["n"],
-                    "threshold": acceptance["c"],
-                },
-            ]
+        "sprt": {
+            "method": "likelihood_ratio_random_walk",
+            "finite": True,
+            "orientation": "log_likelihood_ratio_p_alt_over_p0",
+            "n_truncate": fixed_n,
+            "expected_n_at_p0": sprt_null["expected_samples"],
+            "expected_n_at_p_alt": sprt_alternative["expected_samples"],
+            "expected_n": sprt_alternative["expected_samples"],
+            "rejection_probability_at_p0": sprt_null[
+                "rejection_probability"
+            ],
+            "type_ii_error_at_p_alt": sprt_alternative[
+                "acceptance_probability"
+            ],
+            "power_at_p_alt": sprt_alternative["rejection_probability"],
+            "acceptance_boundary": sprt_null["acceptance_boundary"],
+            "rejection_boundary": sprt_null["rejection_boundary"],
+            "truncation_threshold": sprt_null["truncation_threshold"],
+            "truncation_rule": Q1_SPRT_TRUNCATION_RULE,
+            "alpha_constraint_passed": sprt_alpha_constraint,
+            "power_constraint_passed": sprt_power_constraint,
+            "expected_n_at_p0_constraint_passed": (
+                sprt_expected_null_constraint
+            ),
+            "expected_n_at_p_alt_constraint_passed": (
+                sprt_expected_alternative_constraint
+            ),
+            "selected": sprt_selected,
+            "selection_rule": (
+                "exact_error_constraints_and_both_expected_counts_pass"
+            ),
+            "stop_probability_at_p0": {
+                "acceptance_cdf_after_draw": sprt_null[
+                    "acceptance_cdf_after_draw"
+                ],
+                "rejection_cdf_after_draw": sprt_null[
+                    "rejection_cdf_after_draw"
+                ],
+                "survival_after_draw": sprt_null[
+                    "survival_after_draw"
+                ],
+            },
+            "stop_probability_at_p_alt": {
+                "acceptance_cdf_after_draw": sprt_alternative[
+                    "acceptance_cdf_after_draw"
+                ],
+                "rejection_cdf_after_draw": sprt_alternative[
+                    "rejection_cdf_after_draw"
+                ],
+                "survival_after_draw": sprt_alternative[
+                    "survival_after_draw"
+                ],
+            },
+            "boundary_grid": boundary_grid,
+            "by_delta_beta_design": sprt_by_design,
+            "registered_boundary_alias_residuals": {
+                "rejection_boundary": expected_rejection_boundary_residual,
+                "truncation_threshold": expected_truncation_threshold_residual,
+            },
         },
-        "validation": validation,
+        "validation": {
+            "confidence_only_minimality": (
+                confidence_only_verification
+            ),
+            "operational_case95_minimality": operational_verification,
+            "case90_minimality": acceptance_verification,
+            "exact_enumeration_residuals": exact_residuals,
+            "exact_enumeration_residuals_passed": (
+                exact_residuals_passed
+            ),
+            "oc_monotonicity": oc_monotonicity,
+            "sprt_probability_closure_passed": (
+                sprt_probability_closure_passed
+            ),
+            "fixed_scheme_checks_passed": fixed_scheme_checks_passed,
+            "sprt_admissible_for_replacement": sprt_selected,
+            "all_required_fixed_checks_passed": (
+                fixed_scheme_checks_passed
+            ),
+        },
     }

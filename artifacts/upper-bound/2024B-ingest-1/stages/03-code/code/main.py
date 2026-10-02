@@ -1,217 +1,126 @@
-"""Stage 3 orchestration entry point.
-
-The four question solvers are executed in order.  Each solver may either return
-its result mapping directly or write a problem-specific JSON file in this
-directory.  The returned mappings are consolidated into outputs.json, which
-is the machine-readable result ledger consumed by later stages.
-"""
+"""阶段 3 编排入口：按问题顺序执行并汇总全部数值结果。"""
 
 from __future__ import annotations
 
-import inspect
+import importlib
 import json
 import math
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence, Set
 from dataclasses import asdict, is_dataclass
 from decimal import Decimal
 from enum import Enum
 from pathlib import Path
+from typing import Any
 
 import params
-import problem1
-import problem2
-import problem3
-import problem4
+from params import *  # noqa: F401,F403
 
 
 BASE_DIR = Path(__file__).resolve().parent
 OUTPUT_PATH = BASE_DIR / "outputs.json"
-FAILURE_PATH = BASE_DIR / "run_failures.json"
-PARAMETER_SOURCE = params
-SOLVERS = (
-    (problem1, "problem1"),
-    (problem2, "problem2"),
-    (problem3, "problem3"),
-    (problem4, "problem4"),
-)
+PROBLEM_MODULES = ("problem1", "problem2", "problem3", "problem4")
 
 
-def _jsonable(value):
-    """Convert solver return values to strict JSON-compatible objects."""
+def _json_ready(value: Any, *, location: str = "root") -> Any:
+    """将求解器返回值转换为严格 JSON 数据，并阻止 NaN/Infinity 静默落盘。"""
     if value is None or isinstance(value, (str, bool, int)):
         return value
     if isinstance(value, float):
-        return value if math.isfinite(value) else str(value)
+        if not math.isfinite(value):
+            raise ValueError(f"非有限数不能写入 JSON: {location}={value!r}")
+        return value
     if isinstance(value, Decimal):
-        return float(value)
+        converted = float(value)
+        if not math.isfinite(converted):
+            raise ValueError(f"非有限 Decimal 不能写入 JSON: {location}")
+        return converted
+    if isinstance(value, Enum):
+        return _json_ready(value.value, location=f"{location}.value")
+    if is_dataclass(value) and not isinstance(value, type):
+        return _json_ready(asdict(value), location=location)
     if isinstance(value, Path):
         return str(value)
-    if isinstance(value, Enum):
-        return _jsonable(value.value)
-    if is_dataclass(value) and not isinstance(value, type):
-        return _jsonable(asdict(value))
     if isinstance(value, Mapping):
-        return {str(key): _jsonable(item) for key, item in value.items()}
-    if isinstance(value, (list, tuple)):
-        return [_jsonable(item) for item in value]
-    if isinstance(value, (set, frozenset)):
-        return [_jsonable(item) for item in sorted(value, key=str)]
-    if hasattr(value, "tolist"):
-        return _jsonable(value.tolist())
-    if hasattr(value, "item"):
-        return _jsonable(value.item())
-    if isinstance(value, bytes):
-        return value.decode("utf-8", errors="replace")
-    raise TypeError(
-        f"Cannot serialise {type(value).__name__} returned by a problem solver"
-    )
-
-
-def _load_json(path):
-    with Path(path).open("r", encoding="utf-8") as handle:
-        payload = json.load(handle)
-    if not isinstance(payload, Mapping):
-        raise TypeError(f"Problem result must be a JSON object: {path}")
-    return dict(payload)
-
-
-def _candidate_paths(module_name):
-    return (
-        BASE_DIR / f"{module_name}.json",
-        BASE_DIR / f"{module_name}_results.json",
-        BASE_DIR / f"{module_name}_output.json",
-    )
-
-
-def _clear_candidates(module_name):
-    for path in _candidate_paths(module_name):
-        if path.exists():
-            path.unlink()
-
-
-def _context_value(parameter_name, module_name):
-    if parameter_name in {"params", "parameter_source", "constants", "config"}:
-        return PARAMETER_SOURCE
-    if parameter_name in {"base_dir", "output_dir", "work_dir", "working_dir"}:
-        return BASE_DIR
-    if parameter_name in {"output_path", "result_path", "json_path"}:
-        return BASE_DIR / f"{module_name}.json"
-    return inspect.Parameter.empty
-
-
-def _call_with_context(function, module_name):
-    signature = inspect.signature(function)
-    args = []
-    kwargs = {}
-    for parameter in signature.parameters.values():
-        if parameter.default is not inspect.Parameter.empty:
-            continue
-        if parameter.kind in {
-            inspect.Parameter.VAR_POSITIONAL,
-            inspect.Parameter.VAR_KEYWORD,
-        }:
-            continue
-        value = _context_value(parameter.name, module_name)
-        if value is inspect.Parameter.empty:
-            raise TypeError(
-                f"Unsupported required argument {parameter.name!r} in "
-                f"{module_name}.{function.__name__}"
+        converted_mapping = {}
+        for raw_key, raw_item in value.items():
+            key = str(raw_key)
+            converted_mapping[key] = _json_ready(
+                raw_item, location=f"{location}.{key}"
             )
-        if parameter.kind == inspect.Parameter.POSITIONAL_ONLY:
-            args.append(value)
-        else:
-            kwargs[parameter.name] = value
-    return function(*args, **kwargs)
+        return converted_mapping
+    if isinstance(value, Set):
+        return [
+            _json_ready(item, location=f"{location}[]")
+            for item in sorted(value, key=str)
+        ]
+    if isinstance(value, Sequence) and not isinstance(
+        value, (str, bytes, bytearray)
+    ):
+        return [
+            _json_ready(item, location=f"{location}[{index}]")
+            for index, item in enumerate(value)
+        ]
 
-
-def _invoke_solver(module, module_name):
-    _clear_candidates(module_name)
-    candidates = ("run", "solve", "run_all", "solve_all", "main")
-    available = [
-        getattr(module, name)
-        for name in candidates
-        if callable(getattr(module, name, None))
-    ]
-    if not available:
-        raise AttributeError(
-            f"{module_name} exposes none of the supported solver entry points"
-        )
-
-    for function in available:
+    item_method = getattr(value, "item", None)
+    if callable(item_method):
         try:
-            returned = _call_with_context(function, module_name)
+            return _json_ready(item_method(), location=location)
         except (TypeError, ValueError):
-            continue
-
-        if isinstance(returned, Path):
-            returned = _load_json(returned)
-        elif isinstance(returned, str) and Path(returned).is_file():
-            returned = _load_json(returned)
-
-        if isinstance(returned, Mapping) and returned:
-            return _jsonable(returned)
-
-        for path in _candidate_paths(module_name):
-            if path.is_file() and path.stat().st_size:
-                return _jsonable(_load_json(path))
-
-    raise RuntimeError(
-        f"{module_name} did not return a non-empty result mapping or result JSON"
-    )
-
-
-def _write_json(path, payload):
-    serialised = _jsonable(payload)
-    temporary = path.with_suffix(path.suffix + ".tmp")
-    with temporary.open("w", encoding="utf-8") as handle:
-        json.dump(
-            serialised,
-            handle,
-            ensure_ascii=False,
-            allow_nan=False,
-            separators=(",", ":"),
-        )
-        handle.write("\n")
-    temporary.replace(path)
-
-
-def main():
-    results = {}
-    failures = {}
-
-    for module, module_name in SOLVERS:
+            pass
+    tolist_method = getattr(value, "tolist", None)
+    if callable(tolist_method):
         try:
-            results[module_name] = _invoke_solver(module, module_name)
-        except Exception as error:
-            failures[module_name] = {
-                "error_type": type(error).__name__,
-                "message": str(error),
-            }
+            return _json_ready(tolist_method(), location=location)
+        except (TypeError, ValueError):
+            pass
+    raise TypeError(f"不支持的 JSON 输出类型: {location}={type(value).__name__}")
 
-    _write_json(OUTPUT_PATH, results)
 
-    if failures:
-        _write_json(FAILURE_PATH, failures)
-        summary = "; ".join(
-            f"{name}: {failure['error_type']}: {failure['message']}"
-            for name, failure in failures.items()
-        )
-        raise RuntimeError(f"Problem solver failure: {summary}")
-
-    if FAILURE_PATH.exists():
-        FAILURE_PATH.unlink()
-
-    print(
-        json.dumps(
-            {
-                "output": str(OUTPUT_PATH),
-                "completed": [name for _, name in SOLVERS],
-            },
-            ensure_ascii=False,
-            separators=(",", ":"),
-        )
+def _atomic_write_json(path: Path, payload: Mapping[str, Any]) -> None:
+    """先写临时文件再原子替换，避免中断留下半份 JSON。"""
+    serializable = _json_ready(payload, location=path.name)
+    text = json.dumps(
+        serializable,
+        ensure_ascii=False,
+        indent=2,
+        sort_keys=True,
+        allow_nan=False,
     )
-    return results
+    temporary_path = path.with_suffix(path.suffix + ".tmp")
+    temporary_path.write_text(text + "\n", encoding="utf-8")
+    temporary_path.replace(path)
+
+
+def _run_problem(module_name: str) -> dict[str, Any]:
+    """加载一个逐问模块，并检查其标准 run 入口的返回值。"""
+    module = importlib.import_module(module_name)
+    runner = getattr(module, "run", None)
+    if not callable(runner):
+        raise AttributeError(f"{module_name}.py 必须提供可调用的 run()")
+    raw_result = runner()
+    if not isinstance(raw_result, Mapping):
+        raise TypeError(
+            f"{module_name}.run() 必须返回映射，实际返回 "
+            f"{type(raw_result).__name__}"
+        )
+    result = dict(raw_result)
+    if not result:
+        raise ValueError(f"{module_name}.run() 返回了空结果")
+    return result
+
+
+def main() -> None:
+    """依次运行四问；每问完成后立即刷新分片文件与总账本。"""
+    _ = params
+    all_results: dict[str, Any] = {}
+
+    for module_name in PROBLEM_MODULES:
+        problem_result = _run_problem(module_name)
+        all_results[module_name] = problem_result
+        _atomic_write_json(BASE_DIR / f"{module_name}.json", problem_result)
+        _atomic_write_json(OUTPUT_PATH, all_results)
+
+    _atomic_write_json(OUTPUT_PATH, all_results)
 
 
 if __name__ == "__main__":
