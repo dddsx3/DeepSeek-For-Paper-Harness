@@ -1,126 +1,148 @@
-"""阶段 3 编排入口：按问题顺序执行并汇总全部数值结果。"""
+"""编排问题一至问题四，并将真实执行结果写入 JSON。"""
 
 from __future__ import annotations
 
 import importlib
+import inspect
 import json
-import math
-from collections.abc import Mapping, Sequence, Set
-from dataclasses import asdict, is_dataclass
-from decimal import Decimal
-from enum import Enum
+from collections.abc import Mapping
 from pathlib import Path
+from types import ModuleType
 from typing import Any
 
 import params
-from params import *  # noqa: F401,F403
+import problem1
+import problem2
+import problem3
+import problem4
 
 
-BASE_DIR = Path(__file__).resolve().parent
-OUTPUT_PATH = BASE_DIR / "outputs.json"
-PROBLEM_MODULES = ("problem1", "problem2", "problem3", "problem4")
+_PROBLEM_MODULES = (
+    problem1,
+    problem2,
+    problem3,
+    problem4,
+)
+_RUNNER_NAMES = ("run", "run_problem", "solve", "solve_problem", "main")
+_OUTPUT_DIRECTORY = Path(__file__).resolve().parent
 
 
-def _json_ready(value: Any, *, location: str = "root") -> Any:
-    """将求解器返回值转换为严格 JSON 数据，并阻止 NaN/Infinity 静默落盘。"""
-    if value is None or isinstance(value, (str, bool, int)):
-        return value
-    if isinstance(value, float):
-        if not math.isfinite(value):
-            raise ValueError(f"非有限数不能写入 JSON: {location}={value!r}")
-        return value
-    if isinstance(value, Decimal):
-        converted = float(value)
-        if not math.isfinite(converted):
-            raise ValueError(f"非有限 Decimal 不能写入 JSON: {location}")
-        return converted
-    if isinstance(value, Enum):
-        return _json_ready(value.value, location=f"{location}.value")
-    if is_dataclass(value) and not isinstance(value, type):
-        return _json_ready(asdict(value), location=location)
+def _json_default(value: Any) -> Any:
+    """Convert common scientific-Python scalar containers to JSON values."""
     if isinstance(value, Path):
         return str(value)
-    if isinstance(value, Mapping):
-        converted_mapping = {}
-        for raw_key, raw_item in value.items():
-            key = str(raw_key)
-            converted_mapping[key] = _json_ready(
-                raw_item, location=f"{location}.{key}"
-            )
-        return converted_mapping
-    if isinstance(value, Set):
-        return [
-            _json_ready(item, location=f"{location}[]")
-            for item in sorted(value, key=str)
-        ]
-    if isinstance(value, Sequence) and not isinstance(
-        value, (str, bytes, bytearray)
-    ):
-        return [
-            _json_ready(item, location=f"{location}[{index}]")
-            for index, item in enumerate(value)
-        ]
-
-    item_method = getattr(value, "item", None)
-    if callable(item_method):
-        try:
-            return _json_ready(item_method(), location=location)
-        except (TypeError, ValueError):
-            pass
-    tolist_method = getattr(value, "tolist", None)
-    if callable(tolist_method):
-        try:
-            return _json_ready(tolist_method(), location=location)
-        except (TypeError, ValueError):
-            pass
-    raise TypeError(f"不支持的 JSON 输出类型: {location}={type(value).__name__}")
+    if hasattr(value, "tolist"):
+        return value.tolist()
+    if hasattr(value, "item"):
+        return value.item()
+    if hasattr(value, "_asdict"):
+        return value._asdict()
+    if hasattr(value, "__dict__"):
+        return value.__dict__
+    raise TypeError(f"Object of type {type(value).__name__} is not JSON serializable")
 
 
-def _atomic_write_json(path: Path, payload: Mapping[str, Any]) -> None:
-    """先写临时文件再原子替换，避免中断留下半份 JSON。"""
-    serializable = _json_ready(payload, location=path.name)
-    text = json.dumps(
-        serializable,
+def _write_json(path: Path, payload: Any) -> None:
+    """Atomically write one machine-readable JSON artifact."""
+    serialized = json.dumps(
+        payload,
         ensure_ascii=False,
-        indent=2,
-        sort_keys=True,
         allow_nan=False,
+        default=_json_default,
     )
     temporary_path = path.with_suffix(path.suffix + ".tmp")
-    temporary_path.write_text(text + "\n", encoding="utf-8")
+    temporary_path.write_text(serialized + "\n", encoding="utf-8")
     temporary_path.replace(path)
 
 
-def _run_problem(module_name: str) -> dict[str, Any]:
-    """加载一个逐问模块，并检查其标准 run 入口的返回值。"""
-    module = importlib.import_module(module_name)
-    runner = getattr(module, "run", None)
-    if not callable(runner):
-        raise AttributeError(f"{module_name}.py 必须提供可调用的 run()")
-    raw_result = runner()
-    if not isinstance(raw_result, Mapping):
-        raise TypeError(
-            f"{module_name}.run() 必须返回映射，实际返回 "
-            f"{type(raw_result).__name__}"
+def _resolve_runner(module: ModuleType) -> Any:
+    """Resolve the standard no-argument runner exported by a problem module."""
+    for runner_name in _RUNNER_NAMES:
+        candidate = getattr(module, runner_name, None)
+        if callable(candidate):
+            return candidate
+    raise AttributeError(
+        f"Module {module.__name__!r} exports none of the supported runners: "
+        + ", ".join(_RUNNER_NAMES)
+    )
+
+
+def _invoke(module: ModuleType) -> Mapping[str, Any]:
+    runner = _resolve_runner(module)
+    signature = inspect.signature(runner)
+    required_parameters = [
+        parameter
+        for parameter in signature.parameters.values()
+        if parameter.default is inspect.Parameter.empty
+        and parameter.kind
+        in (
+            inspect.Parameter.POSITIONAL_ONLY,
+            inspect.Parameter.POSITIONAL_OR_KEYWORD,
         )
-    result = dict(raw_result)
-    if not result:
-        raise ValueError(f"{module_name}.run() 返回了空结果")
+    ]
+    if required_parameters:
+        raise TypeError(
+            f"Runner for {module.__name__} must be callable without arguments; "
+            f"required parameters were {[item.name for item in required_parameters]}"
+        )
+    result = runner()
+    if not isinstance(result, Mapping):
+        raise TypeError(
+            f"Runner for {module.__name__} must return a mapping, "
+            f"but returned {type(result).__name__}"
+        )
     return result
 
 
+def _problem_artifact_name(module: ModuleType) -> str:
+    suffix = module.__name__.rsplit(".", maxsplit=1)[-1]
+    return f"{suffix}.json"
+
+
+def _run_problem(module: ModuleType) -> dict[str, Any]:
+    payload = dict(_invoke(module))
+    artifact_name = _problem_artifact_name(module)
+    _write_json(_OUTPUT_DIRECTORY / artifact_name, payload)
+    return payload
+
+
+def run_all() -> dict[str, Any]:
+    """Run every question in order and create the aggregate results ledger."""
+    problem_results: dict[str, Any] = {}
+    completed_modules: list[str] = []
+    artifact_files: dict[str, str] = {}
+
+    try:
+        for module in _PROBLEM_MODULES:
+            module_name = module.__name__.rsplit(".", maxsplit=1)[-1]
+            problem_results[module_name] = _run_problem(module)
+            completed_modules.append(module_name)
+            artifact_files[module_name] = _problem_artifact_name(module)
+    except Exception as error:
+        _write_json(
+            _OUTPUT_DIRECTORY / "run_error.json",
+            {
+                "status": "failed",
+                "completed_modules": completed_modules,
+                "error_type": type(error).__name__,
+                "error_message": str(error),
+            },
+        )
+        raise
+
+    aggregate = {
+        "status": "completed",
+        "parameters_module": params.__name__,
+        "execution_order": completed_modules,
+        "problem_artifacts": artifact_files,
+        "problems": problem_results,
+    }
+    _write_json(_OUTPUT_DIRECTORY / "outputs.json", aggregate)
+    return aggregate
+
+
 def main() -> None:
-    """依次运行四问；每问完成后立即刷新分片文件与总账本。"""
-    _ = params
-    all_results: dict[str, Any] = {}
-
-    for module_name in PROBLEM_MODULES:
-        problem_result = _run_problem(module_name)
-        all_results[module_name] = problem_result
-        _atomic_write_json(BASE_DIR / f"{module_name}.json", problem_result)
-        _atomic_write_json(OUTPUT_PATH, all_results)
-
-    _atomic_write_json(OUTPUT_PATH, all_results)
+    run_all()
 
 
 if __name__ == "__main__":
