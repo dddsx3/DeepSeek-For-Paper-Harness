@@ -1862,12 +1862,105 @@ const deliveryAudit: GateFn = (input) => {
 }
 
 /**
+ * **建模阶段的结构自检**（参考的 9 项自检里**可机械化的那几项**）。
+ *
+ * 参考把这 9 项自检写成了人工清单，其中"问题递进性检查"被它自己标注为最关键、
+ * 且明确是人工项——那一项**机械判不了**，本门禁如实不判（写进 detail，不假装判过）。
+ * 其余几项都能落在 `DECLARATION.json` 的**结构**上，而且判据全是"有没有、空不空"，
+ * 没有语义猜测，所以零误报面：
+ * - 符号表 / 公式 / 约束清单非空（空 = 这一块根本没做）；
+ * - 每个 `ModelSpec` 有非空的 `objective`（没有目标 = 不是模型，是一段散文）；
+ * - **逐问覆盖**：题面有几问，就要有几条 `ModelSpec` 认领它们
+ *   （缺一问意味着那一问没建模，而报告照样能写得很长）；
+ * - `result_constraints` 的**形态**：必须是 lambda 或含比较运算符的表达式
+ *   （模糊自然语言不算机器可核的约束——契约明写"不许用模糊自然语言"）。
+ */
+const modelingSelfCheck: GateFn = (input) => {
+  const id = 'modeling_self_check'
+  const raw = input.files.get('DECLARATION.json') ?? null
+  if (raw === null) return cannot(id, '本阶段没有 `DECLARATION.json` —— 没有可自检的声明')
+  let declared: Record<string, unknown>
+  try {
+    const parsed: unknown = JSON.parse(raw)
+    if (typeof parsed !== 'object' || parsed === null) return fail(id, '`DECLARATION.json` 不是 JSON 对象')
+    declared = parsed as Record<string, unknown>
+  } catch (error) {
+    return fail(id, `\`DECLARATION.json\` 不是合法 JSON（${String(error).slice(0, 80)}）`
+      + ' —— 声明文件是整个下游的机器契约，它必须能被解析')
+  }
+  const listOf = (key: string): ReadonlyArray<Record<string, unknown>> =>
+    Array.isArray(declared[key]) ? (declared[key] as ReadonlyArray<Record<string, unknown>>).filter(
+      (x): x is Record<string, unknown> => typeof x === 'object' && x !== null,
+    ) : []
+  // 键名宽容（判据是**结构完整**，不是命名习惯）：契约叫 `model_specs`，但实测夹具与
+  // 部分模型会写 `models` / `specs`。只认一种会把"键名差异"变成"没有任何模型声明"的假硬失败。
+  const firstList = (...keys: ReadonlyArray<string>): ReadonlyArray<Record<string, unknown>> => {
+    for (const k of keys) { const v = listOf(k); if (v.length > 0) return v }
+    return []
+  }
+  const problems: string[] = []
+  if (listOf('symbols').length === 0) problems.push('符号表 `symbols` 是空的（没有可对照的符号定义）')
+  if (listOf('equations').length === 0) problems.push('`equations` 是空的 —— 一条公式都没有')
+  const specs = firstList('model_specs', 'models', 'specs')
+  if (specs.length === 0) {
+    problems.push('`model_specs` 是空的 —— 没有任何模型声明')
+  } else {
+    const noObjective = specs.filter((s) => {
+      const o = s['objective']
+      // 门槛取 4 个字符：中文里"最大化期望利润"只有 7 字，卡 8 会误伤；
+      // 而空串 / "无" / "待定" 这类占位一律拦得住。
+      return typeof o !== 'string' || o.trim().length < 4
+    })
+    if (noObjective.length > 0) {
+      problems.push(`${String(noObjective.length)} 个 \`ModelSpec\` 的 \`objective\` 为空或过短 —— `
+        + '没有目标函数/决策目标的不是模型，是一段散文')
+    }
+    // 逐问覆盖：只问题数已知时判（问数未知时无从判，`code_parity` 那边同一条纪律）
+    if (input.problemCount > 0) {
+      const refs = specs.flatMap((s) => {
+        const r = s['problem_refs'] ?? s['problem_ref']
+        return Array.isArray(r) ? r.filter((x): x is string => typeof x === 'string') : (typeof r === 'string' ? [r] : [])
+      })
+      const missing = Array.from({ length: input.problemCount }, (_, i) => i + 1).filter((n) => {
+        // 三种常见写法都认（`R-Q1` / `Q1` / `P1`）——判据是**覆盖**，不是命名习惯。
+        const re = new RegExp(`(?:^|[^A-Za-z0-9])(?:R-)?Q${String(n)}(?![0-9])|(?:^|[^A-Za-z0-9])P${String(n)}(?![0-9])`, 'i')
+        return !refs.some(r => re.test(r))
+      })
+      if (missing.length > 0) {
+        problems.push(`这 ${String(missing.length)} 问没有任何 \`ModelSpec\` 认领：`
+          + `${missing.map(n => `第 ${String(n)} 问`).join('、')} —— 缺一问就是那一问没建模`)
+      }
+    }
+  }
+  const constraints: unknown = declared['result_constraints'] ?? declared['constraints']
+  const constraintCount = Array.isArray(constraints) ? constraints.length : 0
+  if (!Array.isArray(constraints) || constraints.length === 0) {
+    problems.push('`result_constraints` 是空的 —— 约束没有机器可核的表达')
+  } else {
+    const vague = constraints.filter(c => typeof c !== 'string' || !/(lambda|<=|>=|==|!=|<|>)/.test(c))
+    if (vague.length > 0) {
+      problems.push(`${String(vague.length)} 条 \`result_constraints\` 既不是 lambda 也不含比较运算符`
+        + ' —— 模糊自然语言不算机器可核的约束')
+    }
+  }
+  // 机械判不了的那一项**如实说出来**，不假装判过。
+  const note = '；⚠ "问题递进性检查"与"灵敏度计划"在报告散文里，机械判不了，未纳入本判据'
+  if (problems.length > 0) {
+    return fail(id, `${String(problems.length)} 项结构自检没过 —— ${problems.slice(0, 4).join('；')}${note}`)
+  }
+  return ok(id, `符号表 ${String(listOf('symbols').length)} 条、公式 ${String(listOf('equations').length)} 条、`
+    + `模型 ${String(specs.length)} 个（都有 objective）、约束 ${String(constraintCount)} 条且形态可核`
+    + `${input.problemCount > 0 ? '，逐问都有模型认领' : ''}${note}`)
+}
+
+/**
  * 门禁登记表。
  *
  * **未实现的判据给 `2`**，并在 `detail` 里写明"需要什么才算实现"——它们不是"忘了写"，
  * 是如实标注能力边界。给 `0` 是静默放行，比没有门禁更糟。
  */
-export const GATES: ReadonlyMap<string, GateFn> = new Map<string, GateFn>([  // ── 阶段 1 ────────────────────────────────────────────────────────────
+export const GATES: ReadonlyMap<string, GateFn> = new Map<string, GateFn>([
+  // ── 阶段 1 ────────────────────────────────────────────────────────────
   ['prob_analysis_floor', i => byteFloor(i, 'prob_analysis_floor', 'PROBLEM_ANALYSIS.md', 1500)],
   ['figure_manifest_anchors', figureManifestAnchors],
   ['figure_manifest_count', figureManifestCount],
@@ -1883,9 +1976,7 @@ export const GATES: ReadonlyMap<string, GateFn> = new Map<string, GateFn>([  // 
   ['numbers_traced', numbersTraced],
   ['no_claimed_verification', noClaimedVerification],
   ['modeling_coverage', modelingCoverage],
-  ['modeling_self_check', () => cannot('modeling_self_check',
-    '未实现：参考的 9 项自检含"问题递进性检查"（参考自己标注为"最关键"且是人工项）。'
-    + '可机械化的那几项（逐问数、目标/公式/约束非零、符号表存在、灵敏度计划）待实现。')],
+  ['modeling_self_check', modelingSelfCheck],
   // ── 阶段 3 ────────────────────────────────────────────────────────────
   ['code_parity', codeParity],
   ['code_name_consistency', codeNameConsistency],

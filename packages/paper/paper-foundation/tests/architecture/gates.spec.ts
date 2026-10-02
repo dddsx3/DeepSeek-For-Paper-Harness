@@ -281,7 +281,10 @@ describe('未实现的判据给 2，**绝不给 0**', () => {
     // `ModelSpec.checklist_refs` 真的产出，判据落在"id 逐字命中"上——不再是"待定义形态"。
     // S7 删掉了 `paper_claim_check`：判据落在"正文里残留的结果锚点"上（账本已由阶段 4 铸出），
     // 落地的那部分由 harness 在阶段 9 的 afterModel 里换成真值。
-    const unimplemented = ['capability_check', 'modeling_self_check']
+    // S7 又删掉 `modeling_self_check`：判据落在 `DECLARATION.json` 的**结构**上
+    // （符号表/公式/约束非空、每个 ModelSpec 有 objective、逐问覆盖、约束形态可核），
+    // 机械判不了的两项（问题递进性、灵敏度计划）在 detail 里如实说明、不假装判过。
+    const unimplemented = ['capability_check']
     for (const id of unimplemented) {
       const v = run(id, input({}))
       expect(v.code, `${id} 应当是 2（无法判定）`).toBe(2)
@@ -958,5 +961,70 @@ describe('code_name_consistency —— 引用的常量名必须有定义', () =>
 
   it('没有 `code/*.py` → 记 `2`（没有可核的代码，不当通过）', () => {
     expect(run1({ 'RESULTS.md': 'x' }).code).toBe(2)
+  })
+})
+
+// ══════════════════════════════════════════════════════════════════════════
+describe('modeling_self_check —— 建模阶段的**结构**自检（参考 9 项里可机械化的那几项）', () => {
+  const decl = (over: Record<string, unknown> = {}): string => JSON.stringify({
+    symbols: [{ id: 'S-P', statement: 'p' }],
+    equations: [{ id: 'EQ-1', statement: 'X~Bin(n,p)' }],
+    model_specs: [
+      { id: 'MS-1', objective: '最小化期望检测数', problem_refs: ['R-Q1'] },
+      { id: 'MS-2', objective: '最大化期望利润', problem_refs: ['R-Q2'] },
+    ],
+    result_constraints: ['lambda r: r["p"] <= 0.1'],
+    ...over,
+  })
+  const run1 = (files: Record<string, string>, problemCount = 2) =>
+    runGates(['modeling_self_check'], input(files, {}, problemCount))
+
+  it('结构齐备 → 0，并把"机械判不了的那两项"如实写在结论里', () => {
+    const v = run1({ 'DECLARATION.json': decl() })
+    expect(v.code).toBe(0)
+    expect(v.items[0]?.detail).toContain('逐问都有模型认领')
+    expect(v.items[0]?.detail).toContain('机械判不了')
+  })
+
+  it('没有声明文件 → 2；声明文件不是合法 JSON → 1（下游的机器契约必须可解析）', () => {
+    expect(run1({}).code).toBe(2)
+    expect(run1({ 'DECLARATION.json': '{坏' }).code).toBe(1)
+  })
+
+  it('符号表 / 公式 / 模型 / 约束任一为空 → 1', () => {
+    expect(run1({ 'DECLARATION.json': decl({ symbols: [] }) }).code).toBe(1)
+    expect(run1({ 'DECLARATION.json': decl({ equations: [] }) }).code).toBe(1)
+    expect(run1({ 'DECLARATION.json': decl({ model_specs: [] }) }).code).toBe(1)
+    expect(run1({ 'DECLARATION.json': decl({ result_constraints: [] }) }).code).toBe(1)
+  })
+
+  it('`objective` 为空 → 1（没有目标的不是模型，是一段散文）', () => {
+    const v = run1({ 'DECLARATION.json': decl({ model_specs: [{ id: 'MS-1', objective: '', problem_refs: ['R-Q1', 'R-Q2'] }] }) })
+    expect(v.code).toBe(1)
+    expect(v.items[0]?.detail).toContain('objective')
+  })
+
+  it('**逐问覆盖**：缺一问 → 1，并点名是哪一问', () => {
+    const v = run1({ 'DECLARATION.json': decl({ model_specs: [{ id: 'MS-1', objective: '最小化检测数', problem_refs: ['R-Q1'] }] }) })
+    expect(v.code).toBe(1)
+    expect(v.items[0]?.detail).toContain('第 2 问')
+  })
+
+  it('**零误报**：问数未知（0）时不判逐问覆盖', () => {
+    expect(run1({ 'DECLARATION.json': decl() }, 0).code).toBe(0)
+  })
+
+  it('**零误报**：`Q1` / `P1` 这些写法同样算认领（判据是覆盖，不是命名习惯）', () => {
+    const d = decl({ model_specs: [
+      { id: 'MS-1', objective: '最小化检测数', problem_ref: 'Q1' },
+      { id: 'MS-2', objective: '最大化期望利润', problem_refs: ['P2'] },
+    ] })
+    expect(run1({ 'DECLARATION.json': d }).code).toBe(0)
+  })
+
+  it('约束写成模糊自然语言 → 1（契约明写不许用模糊自然语言）', () => {
+    const v = run1({ 'DECLARATION.json': decl({ result_constraints: ['要保证成本不超过预算'] }) })
+    expect(v.code).toBe(1)
+    expect(v.items[0]?.detail).toContain('比较运算符')
   })
 })

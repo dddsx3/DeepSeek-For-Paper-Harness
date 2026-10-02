@@ -231,14 +231,19 @@ function fakeDeliverable(spec: StageSpec, file: string): string {
       ],
     })
   }
-  // 阶段 2 的 IR 声明：**逐条认领阶段 1 的能力项**（门禁 `modeling_coverage` 按 id 逐字核）。
+  // 阶段 2 的 IR 声明：**逐条认领阶段 1 的能力项**（门禁 `modeling_coverage` 按 id 逐字核），
+  // 且**结构完整**（门禁 `modeling_self_check` 要求符号表/公式/约束非空、每个模型有 objective、
+  // 逐问都有模型认领）——夹具不完整会让阶段 2 直接判硬失败，链在第 2 阶段就断。
   if (file === 'DECLARATION.json') {
     return JSON.stringify({
-      symbols: [], assumptions: [], equations: [],
+      symbols: [{ id: 'S-T', statement: 'T', meaning: '温度' }],
+      assumptions: [],
+      equations: [{ id: 'EQ-1', statement: '∂T/∂t = a∇²T' }],
       models: [
-        { id: 'MS-1', problem_refs: ['P1'], checklist_refs: ['CAP-1'] },
-        { id: 'MS-3', problem_refs: ['P3'], checklist_refs: ['CAP-2'] },
+        { id: 'MS-1', problem_refs: ['P1', 'P2'], checklist_refs: ['CAP-1'], objective: '求温度场分布与干燥完成时刻' },
+        { id: 'MS-3', problem_refs: ['P3', 'P4'], checklist_refs: ['CAP-2'], objective: '反解干燥完成时刻' },
       ],
+      result_constraints: ['lambda r: r["t_star"] > 0'],
       model_constants: [],
     })
   }
