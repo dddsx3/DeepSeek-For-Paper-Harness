@@ -445,14 +445,21 @@ export class PaperStageChainService extends Service {
               : '\n\n---\n\n## 本阶段**已产出**的文件（必须与之保持一致：名字、签名、单位都以它们为准）\n\n'
                 + carried.map(c => `### \`${c.name}\`\n\n${c.body}`).join('\n\n')
             let answer = await singleCall(spec, shard.prompt + prior + nameRegistry)
-            // ── 单片名字自检（**机械性改造**：不再等整阶段 8 片跑完被门禁拦回）──
+            // ── 单片名字自检（**机械性改造**：不再等整阶段 9 片跑完被门禁拦回）──
             //
             // 判据与门禁 `code_name_consistency` **同一份实现**（`code-names.ts`）。
-            // 实测代价：每次撞上未定义名字 → 整阶段 8 片重跑（约 10 分钟 + 8 次调用），
+            // 实测代价：每次撞上未定义名字 → 整阶段重跑（十几分钟 + 9 次调用），
             // 而且模型下一轮会换一组新名字继续撞（Q4_SCENARIO_NODE_COUNT → Q2_PART*_COSTS）。
             // 这里在**收到那一片的当下**就用同一条判据自查，只重问**那一片**（每片最多一次）。
             // 门禁保留为最终兜底：重问后仍不合规 → 照旧判硬失败（不许静默放行）。
-            if (CODE_PY_RE.test(shard.deliverable) && nameRepairs < MAX_NAME_REPAIRS) {
+            //
+            // ⛔ **前提：共享契约 `params.py` 已经交付**。它是所有脚本 `from params import *`
+            // 的落点；在它出现之前，`main.py` 里引用 `Q1_P0` 这类名字是**完全正确**的写法，
+            // 此时自查会把它们全判成"未定义"→ 重问 → 模型为了"消除未定义"反而可能把常数
+            // 内联成字面量，**正好违反"常数只从 params 取"的纪律**。
+            // 所以自查从 params 片交付之后才开始（`planCodeShards` 保证它固定在第 2 片）。
+            const sharedReady = answers.some((_, k) => shards[k]?.deliverable === 'code/params.py')
+            if (sharedReady && CODE_PY_RE.test(shard.deliverable) && nameRepairs < MAX_NAME_REPAIRS) {
               const built: Array<readonly [string, string]> = []
               shards.slice(0, at).forEach((s2, k) => {
                 const body = answers[k]
