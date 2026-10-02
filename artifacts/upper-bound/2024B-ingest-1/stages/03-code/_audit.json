@@ -1,75 +1,80 @@
 {
   "stage": "code",
   "verdict": "fail",
-  "score": 0.35,
+  "score": 0.48,
   "structureOk": true,
   "requirementCompliance": [
     {
-      "item": "code/main.py（py，≥500 字节）存在并具备四问顺序编排结构",
+      "item": "code/main.py 为 Python 文件且不少于 500 字节，并按问题一至问题四顺序执行后汇总",
       "done": true,
-      "note": "文件实际为 5964 字节，PROBLEM_MODULES 按 problem1、problem2、problem3、problem4 循环调用并汇总。"
+      "note": "main.py 为 9228 字节，QUESTION_MODULES 明确包含 problem1—problem4，入口循环执行、汇总并重新读取 outputs.json 校验。"
     },
     {
-      "item": "code/ 中提供逐问 problem*.py，文件数不少于题面问数",
+      "item": "code/ 中逐问 problem*.py 文件数不少于题面问数",
       "done": true,
-      "note": "problem1.py、problem2.py、problem3.py、problem4.py 四个逐问实现文件均存在，且被 main.py 调度。"
+      "note": "可见 problem1.py、problem2.py、problem3.py、problem4.py，共四个逐问模块；code_parity 已通过。"
     },
     {
-      "item": "RESULTS.md（md，≥1024 字节）提供结果说明",
+      "item": "RESULTS.md 为 Markdown 文件且不少于 1024 字节",
       "done": true,
-      "note": "RESULTS.md 实际为 10326 字节，包含四问方法、结果账本引用、核验项、情景边界和阻断说明。"
+      "note": "RESULTS.md 为 11720 字节，格式和篇幅门槛满足。"
     },
     {
-      "item": "DELIVERABLES.json（json）提供 kind/min_rows/min_bytes/desc 的机器可校验产出清单",
+      "item": "DELIVERABLES.json 为合法 JSON，产出项声明 kind、min_rows、min_bytes、desc",
       "done": true,
-      "note": "可见 artifacts 条目均包含 kind、min_rows、min_bytes、desc，目录、入口、逐问实现及结果文件均已登记。"
+      "note": "可见清单采用结构化 deliverables 数组，所列核心产出包含契约要求的四个字段。"
     },
     {
-      "item": "本阶段只提供代码与结果说明，不写渲染代码、不产出图像字节",
+      "item": "数字由实际执行的代码产生",
       "done": true,
-      "note": "交付中未见渲染模块或图像文件，且 no_render 机械门禁已通过。"
+      "note": "四问均有计算实现，main.py 执行并落盘结果，且 numbers_traced 门禁已通过。"
     },
     {
-      "item": "四问数字由真跑代码产生并完成汇总",
+      "item": "本阶段不包含渲染代码或图像字节",
+      "done": true,
+      "note": "可见代码仅进行统计、动态规划、情景抽样和 JSON 落盘，未见渲染实现，且 no_render 门禁已通过。"
+    },
+    {
+      "item": "四问均有与题面具体实例相对应的计算结果",
       "done": false,
-      "note": "当前 Q2 参数注册结构与 problem2、problem4 的适配器不兼容，入口无法完成四问真跑，不能把现有结果文件作为本次运行的可靠凭证。"
+      "note": "问题三只给出 conditional scenario；RESULTS.md 明确承认正式图1边表缺失，problem3 的正式实例状态仍为阻断，因而没有针对题面图1给出具体策略和指标。"
     },
     {
-      "item": "题面给定参数进入实际计算、目标函数或判定条件，而非仅在参数表中登记",
+      "item": "RESULTS.md 对四问运行结果作出结果说明",
       "done": false,
-      "note": "Q2 的 price1、test1、price2、test2 在可见适配路径中无法读取；问题三的正式父节点边表也未进入正式模型。"
+      "note": "文件主要复述建模方法、预期产物和未来取数方式，没有列出本次运行得到的样本量、临界值、六种问题二策略与利润、问题三情景结果或问题四一致率等关键结果。"
     }
   ],
   "findings": [
     {
       "severity": "fatal",
-      "where": "code/params.py 的 Q2Case/Q2_CASES；code/problem2.py 的 _parse_case/load_cases；code/problem4.py 的 _normalize_q2_case",
-      "issue": "按当前可见定义，Q2_CASES 中的 Q2Case 是扁平 dataclass，成本字段名为 price1、test1、price2、test2。problem2._parse_case 对这些字段只查找 a1、t1、a2、t2 或嵌套的 part1、part2，忽略实际字段名；load_cases 又直接把 Q2_CASES 传入，因此首个案例在解析零件成本时即会抛出 KeyError。problem4._normalize_q2_case 对同一扁平案例也遗漏这些字段。零配件购买单价和检测成本因而没有进入问题二、问题四的计算路径。",
-      "fix": "统一 Q2 参数模式：在两个适配器中显式接受 price1/test1/price2/test2，或将 Q2_CASES 规范化为适配器期待的嵌套结构；清空旧输出后从 main.py 重新运行，并增加六种情形的回归测试和四问成功汇总断言。"
+      "where": "code/problem2.py:_component_transition",
+      "issue": "对 current_quality == _EMPTY 且执行零件检测的分支，期望采购数和检测数均应为 1/(1-defect_rate)，期望准备费用应为 (purchase_price+inspection_cost)/(1-defect_rate)。当前代码却返回 test_count=1+1/(1-defect_rate)、preparation_cost=inspection_cost+(purchase_price+inspection_cost)/(1-defect_rate)，无依据地多计一次检测；该错误会改变所有采用零件检测策略的单位成本、利润排序和最优决策。该额外首检只可能适用于已有坏件状态，不能适用于 _EMPTY。",
+      "fix": "拆分 _EMPTY 与已有 _BAD 的分支：_EMPTY 直接使用几何采购并逐件检测；只有拆解回来的已有坏件才先计一次重检，再进入几何重购。修正后重新计算全部六种情形并做跨模块现金流核验。"
     },
     {
       "severity": "fatal",
-      "where": "code/problem4.py 的 _q2_build_mrp 与 _q2_mrp_value",
-      "issue": "可见状态转移模型没有终止或吸收的交付状态。合格销售分支调用 add(index, state, good_probability, ...)，成功销售后仍回到同一零配件状态；因此转移矩阵含有可达闭合类，随后直接对 I-P 调用 np.linalg.solve 和 np.linalg.inv。该矩阵是随机的，I-P 数学上奇异，不能给出有限的单位合格交付价值，结果会报奇异或产生数值失真。",
-      "fix": "增加明确的吸收交付状态，或改用严格的单次生产周期/更新方程；每次求解后检查转移矩阵谱半径、单位期望成本和逐事件账本残差，确保闭环模型具有有限且可复核的值。"
+      "where": "code/problem3.py、RESULTS.md 第四/八节、DELIVERABLES.json 的 problem3 产物",
+      "issue": "题面问题三要求针对图1这一具体两级、八零件装配系统给出决策和指标，但产物明确将正式实例阻断，只提交主、替代条件拓扑。条件敏感性分析不能替代指定图1的正式答案。",
+      "fix": "补充图1的权威父子边表或可校验拓扑输入到上游，再由 problem3.py 对该正式网络计算具体策略、单位利润和节点指标；正式结果与条件情景应使用不同状态标识。"
     },
     {
       "severity": "major",
-      "where": "code/problem3.py 的 build_network；code/params.py 的 Q3_OFFICIAL_EDGE_LIST 与情景拓扑；RESULTS.md 的问题三部分",
-      "issue": "题面事实表只确认二道工序、八个零配件，没有提供图1的父节点边表；代码也明确将 Q3_OFFICIAL_EDGE_LIST 设为 None，并把正式问题三及问题四中的问题三重解标为阻断。当前网络实现还明确只接受零配件层、半成品层和成品根节点的两级 DAG，不能覆盖题面所说的任意 m 道工序。因此 3/3/2 和 2/2/4 只能作为隔离的条件情景，不能构成图1的正式决策或指标结果。",
-      "fix": "补充原图1或经核验的唯一父节点边表，并将正式拓扑映射到节点编号；扩展网络引擎以支持一般 m,n 的 DAG，再重新运行问题三及问题四的问题三重解。条件拓扑结果必须继续与正式结果隔离。"
+      "where": "code/params.py:Q1_ALTERNATIVE_DELTA、Q1_TYPE_II_ERROR；code/problem1.py:_find_rejection_scheme；DELIVERABLES.json:problem1.case95.n",
+      "issue": "题面事实只给 p0=10% 和 95% 拒收置信要求，代码却把 p_alt=15%、beta=10% 的功效约束纳入“最小检测次数”搜索。因此 case95.n 是复合运营约束下的条件最小值，并非仅由题面置信条件确定的最小值；清单位号又未在名称中体现该条件。",
+      "fix": "明确区分“仅按题面置信约束的最小方案”和“给定备择率、功效及风险偏好下的运营方案”，在结果键名和说明中直接附带适用前提，并补充选择备择率与 beta 的建模依据。"
     },
     {
-      "severity": "minor",
-      "where": "code/params.py 的 Q4_ACTUAL_SAMPLES_AVAILABLE=False；RESULTS.md 的问题四部分",
-      "issue": "问题四没有企业实际批次的 (n_v,x_v) 观测，代码按登记的情景次品率生成样本后再做 Clopper–Pearson 区间和重优化。产物已明确标注为情景分析，因此没有把情景中心冒充真实估计，但它不能被表述为基于实际抽样观测的完整重解。",
-      "fix": "若交付要求实测重解，应提供并保存每个参数的观测计数后重新计算；若接受假设情景，则在下游所有结果中保留 scenario-only 标识和解释边界。"
+      "severity": "major",
+      "where": "RESULTS.md",
+      "issue": "结果说明没有任何本次真跑的关键数值或具体决策，主要内容是实现流程、文件用途和预期核验项的复述；这不足以让读者仅凭 RESULTS.md 判断四问得到了什么结果。",
+      "fix": "由 outputs.json 自动生成结果摘要表，至少写入问题一 n/r、问题二六种最优策略及利润、问题三正式或条件状态与指标、问题四一致率及稳健策略，并列出实际核验通过/失败值，避免手工抄数。"
     }
   ],
   "missing": [
-    "修复 Q2 参数适配及 Q4 状态方程后，由 main.py 真跑新生成并通过四问验证的 outputs.json 与汇总结果。",
-    "问题三图1的正式父节点边表或原始图的可唯一校验映射，以及据此生成的正式问题三、问题四中问题三的决策和指标结果。"
+    "问题三图1的权威父子边表或拓扑输入，以及基于该正式拓扑计算的具体决策方案与指标结果",
+    "RESULTS.md 中基于本次运行输出生成的四问关键数值、阈值、策略、利润和核验结论"
   ],
   "model": "space-bunny-free",
-  "at": "2026-09-28T16:58:37.200Z"
+  "at": "2026-09-29T05:37:17.565Z"
 }

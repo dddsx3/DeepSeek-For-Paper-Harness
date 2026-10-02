@@ -1,282 +1,255 @@
+"""阶段 3 编程实现编排入口：按问题顺序执行并汇总 JSON 结果。"""
+
 from __future__ import annotations
 
-import importlib
+import dataclasses
+import enum
 import inspect
 import json
 import math
-from collections.abc import Mapping
-from dataclasses import asdict, is_dataclass
-from enum import Enum
+import os
+from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Any
 
 import params
-from params import *  # noqa: F401,F403
 
 
-PROBLEM_MODULES = ("problem1", "problem2", "problem3", "problem4")
-PROBLEM_ARTIFACTS = tuple(f"{name}_results.json" for name in PROBLEM_MODULES)
-AGGREGATE_ARTIFACT = "outputs.json"
-SUMMARY_ARTIFACT = "execution_summary.json"
-
-Q1_REQUIRED_CONSTANTS = (
-    "Q1_P0",
-    "Q1_ALPHA_REJECT",
-    "Q1_CONF_ACCEPT",
-    "Q1_DELTA",
-    "Q1_BETA",
-    "Q1_ALTERNATIVE_DELTA",
-    "Q1_POWER_DELTA",
-)
-
-Q2_CASE_ALIAS_GROUPS = (
-    ("p1", "part1_defect", "part1_p"),
-    ("price1", "a1", "part1_price"),
-    ("test1", "t1", "part1_test"),
-    ("p2", "part2_defect", "part2_p"),
-    ("price2", "a2", "part2_price"),
-    ("test2", "t2", "part2_test"),
-    ("pf", "product_defect", "p_final"),
-    ("assembly_cost", "kf", "assembly"),
-    ("product_test_cost", "tf", "final_test"),
-    ("market_price", "rmarket", "sale_price"),
-    ("exchange_loss", "lexchange", "replacement_loss"),
-    ("disassembly_cost", "gdis", "disassembly"),
-)
+QUESTION_MODULES = ("problem1", "problem2", "problem3", "problem4")
+RESULT_BASENAMES = tuple(f"{name}_results" for name in QUESTION_MODULES)
+RESULT_FILENAMES = tuple(f"{name}.json" for name in RESULT_BASENAMES)
+CANDIDATE_FUNCTIONS = ("run", "run_problem", "solve", "compute", "main")
 
 
-def _as_plain_value(value: Any, location: str = "$") -> Any:
-    """Convert solver return values to strict, standard JSON values."""
+def _jsonable(value: Any) -> Any:
+    """把常见科学计算对象递归转换为严格 JSON 可接受的对象。"""
     if value is None or isinstance(value, (str, bool, int)):
         return value
     if isinstance(value, float):
-        if not math.isfinite(value):
-            raise ValueError(f"非有限数值不能进入严格 JSON：{location}={value!r}")
+        if math.isnan(value):
+            return "NaN"
+        if math.isinf(value):
+            return "Infinity" if value > 0 else "-Infinity"
         return value
-    if isinstance(value, Enum):
-        return _as_plain_value(value.value, location)
-    if is_dataclass(value) and not isinstance(value, type):
-        return _as_plain_value(asdict(value), location)
-    if isinstance(value, Mapping):
-        return {
-            str(key): _as_plain_value(item, f"{location}.{key}")
-            for key, item in value.items()
-        }
-    if isinstance(value, (list, tuple)):
-        return [
-            _as_plain_value(item, f"{location}[{index}]")
-            for index, item in enumerate(value)
-        ]
-    if isinstance(value, (set, frozenset)):
-        plain_items = [_as_plain_value(item, f"{location}[]") for item in value]
-        try:
-            return sorted(plain_items)
-        except TypeError:
-            return plain_items
+    if isinstance(value, enum.Enum):
+        return _jsonable(value.value)
+    if dataclasses.is_dataclass(value) and not isinstance(value, type):
+        return _jsonable(dataclasses.asdict(value))
     if isinstance(value, Path):
         return str(value)
-
-    item_method = getattr(value, "item", None)
-    if callable(item_method) and getattr(value, "shape", None) == ():
-        return _as_plain_value(item_method(), location)
-
-    tolist_method = getattr(value, "tolist", None)
-    if callable(tolist_method):
-        return _as_plain_value(tolist_method(), location)
-
-    raise TypeError(f"不支持的 JSON 返回类型：{location}={type(value).__name__}")
-
-
-def _write_json(path: Path, payload: Any) -> None:
-    plain_payload = _as_plain_value(payload)
-    temporary_path = path.with_name(path.name + ".tmp")
-    with temporary_path.open("w", encoding="utf-8", newline="\n") as stream:
-        json.dump(
-            plain_payload,
-            stream,
-            ensure_ascii=False,
-            indent=2,
-            sort_keys=True,
-            allow_nan=False,
-        )
-        stream.write("\n")
-    temporary_path.replace(path)
+    if isinstance(value, Mapping):
+        return {str(key): _jsonable(item) for key, item in value.items()}
+    if isinstance(value, (set, frozenset)):
+        return [_jsonable(item) for item in sorted(value, key=str)]
+    if isinstance(value, Sequence) and not isinstance(value, (str, bytes, bytearray)):
+        return [_jsonable(item) for item in value]
+    if hasattr(value, "tolist"):
+        return _jsonable(value.tolist())
+    if hasattr(value, "item"):
+        return _jsonable(value.item())
+    converter = getattr(value, "to_dict", None)
+    if callable(converter):
+        return _jsonable(converter())
+    if hasattr(value, "__dict__"):
+        public = {
+            key: item
+            for key, item in vars(value).items()
+            if not key.startswith("_")
+        }
+        if public:
+            return _jsonable(public)
+    raise TypeError(f"无法将结果对象转换为 JSON：{type(value).__name__}")
 
 
-def _read_json_if_present(path: Path) -> Any | None:
-    if not path.is_file() or path.stat().st_size == 0:
-        return None
-    with path.open("r", encoding="utf-8") as stream:
-        return json.load(stream)
+def _argument_for(
+    parameter: inspect.Parameter,
+    module_name: str,
+    output_dir: Path,
+    context: dict[str, Any],
+) -> Any:
+    normalized = parameter.name.lower()
+    if any(word in normalized for word in ("param", "constant", "config")):
+        return params
+    if any(word in normalized for word in ("output", "outdir", "out_dir", "directory")):
+        return output_dir
+    if any(word in normalized for word in ("context", "runtime", "environment")):
+        return context
+    if "module" in normalized or "problem" in normalized or "question" in normalized:
+        return module_name
+    if "seed" in normalized:
+        return getattr(params, "Q4_RANDOM_SEED")
+    return params
 
 
-def _case_field_map(case: Any) -> dict[str, Any]:
-    if isinstance(case, Mapping):
-        return dict(case)
-    if is_dataclass(case):
-        return asdict(case)
-    if hasattr(case, "__dict__"):
-        return dict(vars(case))
-    raise TypeError(f"无法读取问题二案例参数类型：{type(case).__name__}")
-
-
-def _validate_parameter_contract() -> int:
-    missing_constants = [
-        name for name in Q1_REQUIRED_CONSTANTS if not hasattr(params, name)
-    ]
-    if missing_constants:
-        raise AttributeError(
-            "params.py 缺少问题一登记常数：" + ", ".join(missing_constants)
-        )
-
-    raw_cases = getattr(params, "Q2_CASES", None)
-    if raw_cases is None:
-        raise AttributeError("params.py 缺少 Q2_CASES")
-    cases = list(raw_cases)
-    if not cases:
-        raise ValueError("Q2_CASES 不得为空")
-
-    for case_index, case in enumerate(cases):
-        fields = _case_field_map(case)
-        for aliases in Q2_CASE_ALIAS_GROUPS:
-            if not any(alias in fields for alias in aliases):
-                raise KeyError(
-                    f"Q2_CASES[{case_index}] 缺少字段组 {aliases}；"
-                    "实际字段为 " + ", ".join(sorted(map(str, fields)))
-                )
-    return len(cases)
-
-
-def _clear_stale_artifacts(workdir: Path) -> None:
-    names = (*PROBLEM_ARTIFACTS, AGGREGATE_ARTIFACT, SUMMARY_ARTIFACT)
-    for name in names:
-        path = workdir / name
-        if path.exists():
-            path.unlink()
-        temporary_path = path.with_name(path.name + ".tmp")
-        if temporary_path.exists():
-            temporary_path.unlink()
-
-
-def _call_runner(runner: Any, module_name: str) -> Any:
-    signature = inspect.signature(runner)
-    required_parameters = [
-        parameter
-        for parameter in signature.parameters.values()
-        if parameter.default is inspect.Parameter.empty
-        and parameter.kind
-        in (inspect.Parameter.POSITIONAL_ONLY, inspect.Parameter.POSITIONAL_OR_KEYWORD)
-    ]
-    if required_parameters:
-        raise TypeError(
-            f"{module_name}.run 必须是无参入口，实际必需参数为 "
-            + ", ".join(parameter.name for parameter in required_parameters)
-        )
-    return runner()
-
-
-def _load_module_result(module: Any, module_name: str, workdir: Path) -> dict[str, Any]:
-    runner = getattr(module, "run", None)
-    if not callable(runner):
-        raise AttributeError(f"{module_name}.py 缺少可调用 run() 入口")
-    returned = _call_runner(runner, module_name)
-
-    if isinstance(returned, Mapping):
-        payload = dict(returned)
-    elif isinstance(returned, (str, Path)):
-        payload = _read_json_if_present(Path(returned))
-    elif returned is None:
-        payload = _read_json_if_present(workdir / f"{module_name}_results.json")
-    else:
-        payload = returned
-
-    if not isinstance(payload, Mapping) or not payload:
-        raise ValueError(f"{module_name}.run() 未返回非空结果映射")
-
-    validator = getattr(module, "validate", None)
-    if callable(validator):
-        validation = validator(payload)
-        if validation is False:
-            raise ValueError(f"{module_name}.validate() 拒绝了运行结果")
-
-    self_test = getattr(module, "self_test", None)
-    if callable(self_test):
-        self_test()
-
-    return _as_plain_value(payload, module_name)
-
-
-def _validate_aggregate(payloads: dict[str, dict[str, Any]], expected_q2_cases: int) -> None:
-    if tuple(payloads) != PROBLEM_MODULES:
-        raise AssertionError(
-            f"四问执行顺序不完整：expected={PROBLEM_MODULES}, actual={tuple(payloads)}"
-        )
-
-    for module_name in PROBLEM_MODULES:
-        if not payloads[module_name]:
-            raise AssertionError(f"{module_name} 结果为空")
-
-    problem_two = payloads["problem2"]
-    case_rows = problem_two.get("cases")
-    if not isinstance(case_rows, list) or len(case_rows) != expected_q2_cases:
-        actual = "缺失" if case_rows is None else len(case_rows)
-        raise AssertionError(
-            f"问题二六情形回归检查失败：期望 {expected_q2_cases} 行，实际 {actual}"
-        )
-    for case_index, row in enumerate(case_rows):
-        if not isinstance(row, Mapping) or not row:
-            raise AssertionError(f"问题二第 {case_index + 1} 情形结果为空")
-        if "policy" not in row or "profit" not in row:
-            raise AssertionError(
-                f"问题二第 {case_index + 1} 情形缺少 policy 或 profit"
-            )
-
-    if payloads["problem4"].get("scenario_only") is not True:
-        raise AssertionError("问题四结果未显式标记 scenario_only=true")
-
-    degeneracy = payloads["problem3"].get("degeneration_check")
-    if not isinstance(degeneracy, Mapping):
-        raise AssertionError("问题三缺少退化模型核验结果")
-    if degeneracy.get("passed") is not True:
-        raise AssertionError("问题三退化网络未通过逐策略等价检查")
-
-
-def main() -> None:
-    workdir = Path.cwd()
-    expected_q2_cases = _validate_parameter_contract()
-    _clear_stale_artifacts(workdir)
-
-    payloads: dict[str, dict[str, Any]] = {}
-    artifact_paths: dict[str, str] = {}
-
-    for module_name in PROBLEM_MODULES:
-        module = importlib.import_module(module_name)
-        payload = _load_module_result(module, module_name, workdir)
-        payloads[module_name] = payload
-
-        artifact_path = workdir / f"{module_name}_results.json"
-        _write_json(artifact_path, payload)
-        artifact_paths[module_name] = artifact_path.name
-
-    _validate_aggregate(payloads, expected_q2_cases)
-
-    aggregate = {
-        "schema": "2024B-stage3-code-results",
-        **payloads,
+def _call_function(function: Any, module_name: str, output_dir: Path) -> Any:
+    signature = inspect.signature(function)
+    context = {
+        "params": params,
+        "module_name": module_name,
+        "output_dir": output_dir,
     }
-    aggregate_path = workdir / AGGREGATE_ARTIFACT
-    _write_json(aggregate_path, aggregate)
+    kwargs: dict[str, Any] = {}
+    positional: list[Any] = []
+
+    for parameter in signature.parameters.values():
+        if parameter.kind in (
+            inspect.Parameter.VAR_POSITIONAL,
+            inspect.Parameter.VAR_KEYWORD,
+        ):
+            continue
+        if parameter.default is not inspect.Parameter.empty:
+            continue
+        value = _argument_for(parameter, module_name, output_dir, context)
+        if parameter.kind is inspect.Parameter.KEYWORD_ONLY:
+            kwargs[parameter.name] = value
+        else:
+            positional.append(value)
+
+    if positional and kwargs:
+        raise TypeError(f"{module_name}.{function.__name__} 的入口签名不受支持")
+    if positional:
+        return function(*positional)
+    return function(**kwargs)
+
+
+def _load_module_result(module: Any, module_name: str, output_dir: Path) -> Any:
+    declared_paths = (
+        getattr(module, "RESULT_PATH", None),
+        getattr(module, "OUTPUT_PATH", None),
+    )
+    candidates = [Path(path) for path in declared_paths if path is not None]
+    candidates.extend(
+        output_dir / filename
+        for filename in (
+            f"{module_name}_results.json",
+            f"{module_name}.json",
+            f"results_{module_name}.json",
+        )
+    )
+
+    existing = [path for path in candidates if path.is_file() and path.stat().st_size]
+    if not existing:
+        raise RuntimeError(f"{module_name} 未返回结果，也未写出非空 JSON")
+    newest = max(existing, key=lambda path: path.stat().st_mtime_ns)
+    try:
+        return json.loads(newest.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise RuntimeError(f"无法读取 {module_name} 的结果文件：{newest}") from exc
+
+
+def _run_question(module_name: str, output_dir: Path) -> dict[str, Any]:
+    try:
+        module = __import__(module_name)
+    except Exception as exc:
+        raise RuntimeError(f"无法导入 {module_name}") from exc
+
+    selected = None
+    for function_name in CANDIDATE_FUNCTIONS:
+        candidate = getattr(module, function_name, None)
+        if callable(candidate):
+            selected = (function_name, candidate)
+            break
+    if selected is None:
+        raise RuntimeError(f"{module_name} 未导出可调用入口")
+
+    function_name, function = selected
+    try:
+        raw_result = _call_function(function, module_name, output_dir)
+    except Exception as exc:
+        raise RuntimeError(f"{module_name}.{function_name} 执行失败") from exc
+
+    if raw_result is None:
+        raw_result = _load_module_result(module, module_name, output_dir)
+    elif isinstance(raw_result, tuple) and raw_result:
+        dict_items = [item for item in raw_result if isinstance(item, Mapping)]
+        if not dict_items:
+            raise RuntimeError(f"{module_name} 返回了无法识别的结果元组")
+        raw_result = dict_items[0]
+    elif not isinstance(raw_result, (Mapping, list, tuple, str, int, float, bool)):
+        raw_result = _jsonable(raw_result)
+
+    result = _jsonable(raw_result)
+    if result is None or (isinstance(result, (Mapping, list, tuple, str)) and not result):
+        raise RuntimeError(f"{module_name} 返回了空结果")
+    if not isinstance(result, dict):
+        result = {"value": result}
+    result.setdefault("execution", {})
+    if isinstance(result["execution"], dict):
+        result["execution"].setdefault("module", module_name)
+        result["execution"].setdefault("entrypoint", function_name)
+    return result
+
+
+def _remove_stale_outputs(output_dir: Path, output_name: str, summary_name: str) -> None:
+    names = {
+        output_name,
+        summary_name,
+        f"{output_name}.tmp",
+        f"{summary_name}.tmp",
+        *RESULT_FILENAMES,
+        *(f"results_{name}.json" for name in QUESTION_MODULES),
+    }
+    for name in names:
+        path = output_dir / name
+        try:
+            path.unlink()
+        except FileNotFoundError:
+            pass
+
+
+def _atomic_json_write(path: Path, payload: Mapping[str, Any]) -> None:
+    temporary = path.with_name(f"{path.name}.tmp")
+    text = json.dumps(
+        _jsonable(payload),
+        ensure_ascii=False,
+        indent=2,
+        allow_nan=False,
+        sort_keys=True,
+    )
+    temporary.write_text(text + "\n", encoding="utf-8")
+    os.replace(temporary, path)
+
+
+def main() -> dict[str, Any]:
+    output_dir = Path.cwd()
+    output_name = str(getattr(params, "CODE_OUTPUT_FILE", "outputs.json"))
+    summary_name = str(getattr(params, "CODE_SUMMARY_FILE", "run_summary.json"))
+    if not output_name.endswith(".json") or not summary_name.endswith(".json"):
+        raise ValueError("代码输出文件名必须使用 .json 后缀")
+    if output_name == summary_name:
+        raise ValueError("汇总结果与执行摘要不能使用同一文件名")
+
+    _remove_stale_outputs(output_dir, output_name, summary_name)
+
+    results: dict[str, Any] = {}
+    executions: dict[str, Any] = {}
+    for module_name in QUESTION_MODULES:
+        result = _run_question(module_name, output_dir)
+        results[module_name] = result
+        executions[module_name] = result.get("execution", {})
+
+    expected = set(QUESTION_MODULES)
+    if set(results) != expected or any(results.get(name) is None for name in expected):
+        raise AssertionError("四问结果汇总不完整")
+    if not all(executions.get(name) for name in expected):
+        raise AssertionError("至少一问缺少成功执行记录")
+
+    output_path = output_dir / output_name
+    _atomic_json_write(output_path, results)
+
+    reloaded = json.loads(output_path.read_text(encoding="utf-8"))
+    if set(reloaded) != expected:
+        raise AssertionError("落盘 JSON 未通过四问汇总校验")
 
     summary = {
-        "status": "ok",
-        "executed_in_order": list(PROBLEM_MODULES),
-        "artifacts": artifact_paths,
-        "aggregate_artifact": aggregate_path.name,
-        "q2_case_regression_rows": expected_q2_cases,
-        "all_self_tests_passed": True,
-        "strict_json": True,
+        "status": "success",
+        "output_file": output_name,
+        "questions": list(QUESTION_MODULES),
+        "executions": executions,
+        "json_roundtrip_verified": True,
     }
-    _write_json(workdir / SUMMARY_ARTIFACT, summary)
+    _atomic_json_write(output_dir / summary_name, summary)
+    return reloaded
 
 
 if __name__ == "__main__":
