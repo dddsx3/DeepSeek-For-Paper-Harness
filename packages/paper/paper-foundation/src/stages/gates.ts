@@ -1299,23 +1299,41 @@ export interface MethodClaim {
 }
 
 /**
- * 解析建模阶段的机器可核合同块 `<!-- METHOD_CLAIMS_MACHINE ... -->`。
+ * 解析建模阶段的机器可核合同块。**两种写法都认**：
+ * - 参考形态：`<!-- METHOD_CLAIMS_MACHINE` … `-->`（块头直接跟名字）；
+ * - 本仓库的**家规形态**：`<!-- BEGIN METHOD_CLAIMS_MACHINE -->` … `<!-- END … -->`
+ *   ——与 `FIGURE_MANIFEST` / `ARCH_DECLARATION` 一致。
  *
- * 格式（参考 `claim_code_check.py::_parse_contract` 逐字对齐）：
+ * ⛔ 只认参考那一种会**假阴性**：实测 2024B 的 `DECLARATION.json` 里
+ * `method_claims_machine_block` 用的就是家规形态，于是门禁报"无合同块、仅内置安全网生效"
+ * ——合同一直都在（8 条签名），只是解析器没认出来。**漏认 = 这条门禁白建**。
+ *
+ * 格式（每行一条）：
  * ```
- * <!-- METHOD_CLAIMS_MACHINE
  * M1 | must: LpInteger, GRB.INTEGER | forbid: 就近配车, p_median
- * -->
  * ```
  * 语义：`must` **至少命中一个**即算实现（need_any，防误判）；`forbid` 命中任一即铁证降级。
  */
 export function parseMethodClaims(text: string): ReadonlyArray<MethodClaim> {
-  const block = /<!--\s*METHOD_CLAIMS_MACHINE\s*([\s\S]*?)-->/i.exec(text)
-  if (block === null) return []
+  // 家规形态优先：`<!-- BEGIN NAME -->` … `<!-- END NAME -->`。**不能**用一条"懒匹配到
+  // 最近的 `-->`"的正则去覆盖它——那样匹配到的是 BEGIN 标记自己的结束符，块体是空的
+  // （实测就是这么把 8 条签名读成 0 条的）。
+  const houseOpen = /<!--\s*BEGIN\s+METHOD_CLAIMS_MACHINE\s*-->/i.exec(text)
+  let body: string | null = null
+  if (houseOpen !== null) {
+    const rest = text.slice(houseOpen.index + houseOpen[0].length)
+    const endIdx = rest.search(/<!--\s*END\s+METHOD_CLAIMS_MACHINE/i)
+    // 没有 END 标记也认（模型漏写收尾不该让整块合同失效）：取到下一个注释或 4000 字符。
+    body = endIdx >= 0 ? rest.slice(0, endIdx) : rest.slice(0, 4000)
+  } else {
+    // 参考形态：`<!-- METHOD_CLAIMS_MACHINE` 后直接跟内容，直到 `-->`。
+    body = /<!--\s*METHOD_CLAIMS_MACHINE\s+([\s\S]*?)-->/i.exec(text)?.[1] ?? null
+  }
+  if (body === null) return []
   const out: MethodClaim[] = []
-  for (const raw of (block[1] ?? '').split('\n')) {
+  for (const raw of body.split('\n')) {
     const line = raw.trim()
-    if (line === '' || line.startsWith('#')) continue
+    if (line === '' || line.startsWith('#') || line.startsWith('<!--') || line.startsWith('-->')) continue
     const parts = line.split('|').map(p => p.trim())
     let must: string[] = []
     let forbid: string[] = []
@@ -1341,11 +1359,17 @@ interface MethodRule {
 }
 
 /**
- * 内置安全网：**仅两条**通用灾难级降级，不按方向扩充（扩充是 `METHOD_CLAIMS_MACHINE` 的活）。
+ * 内置安全网：**仅三条**通用灾难级降级，不按方向扩充（扩充是 `METHOD_CLAIMS_MACHINE` 的活）。
  *
- * 触发词全部沿用参考收紧后的版本。参考对裸词"排队/泊松"的注释值得照抄一遍：
+ * 触发词沿用参考收紧后的版本。参考对裸词"排队/泊松"的注释值得照抄一遍：
  * 裸词会被论文背景与文献综述误命中（"交通排队现象""数据服从泊松分布"），
  * 于是方法明明是确定性优化却被判"声称随机仿真但没实现"——**误报比漏报更贵**。
+ *
+ * ⛔ **与参考的一处刻意偏离**：参考把"蒙特卡洛"与"排队/泊松到达"收在同一条规则里，
+ * 而它的 `need_any` 只认到达过程与队列结构。那样一来"用蒙特卡洛做情景重抽样"的题
+ * （2024B 就是）会被判"声称蒙特卡洛却没有到达采样"——**那是误报**：蒙特卡洛不蕴含队列。
+ * 所以这里拆成两条：队列/离散事件那条沿用参考的强判据；蒙特卡洛那条只要求
+ * "真的有随机抽样"（random/sample/choice/bootstrap/重抽样/固定种子）。
  */
 const METHOD_RULES: ReadonlyArray<MethodRule> = [
   {
@@ -1361,9 +1385,9 @@ const METHOD_RULES: ReadonlyArray<MethodRule> = [
       + '若实际用 scipy.optimize.linprog 且变量全连续 → 名不副实，改代码或改声称。',
   },
   {
-    name: '随机仿真(泊松到达/指数服务/蒙特卡洛/排队)',
+    name: '排队/离散事件仿真(泊松到达/指数服务/队列)',
     claimKw: [
-      '蒙特卡洛', 'Monte\\s*Carlo', '\\bM/M/', '离散事件', '随机仿真', '到达过程',
+      '\\bM/M/', '离散事件', '随机仿真', '到达过程',
       '泊松到达', '泊松过程', '[Pp]oisson\\s*(?:arrival|process|到达|过程)',
       '排队(?:仿真|模型|系统|网络|论)',
     ],
@@ -1374,10 +1398,24 @@ const METHOD_RULES: ReadonlyArray<MethodRule> = [
       '\\bqueue\\b', 'heapq', 'simpy', 'interarrival',
       '到达时刻', '到达间隔', 'arrival_time', 'event_list', 'SimTime',
     ],
-    hint: '声称泊松/排队/蒙特卡洛仿真，但代码里找不到到达过程采样或队列/事件结构'
+    hint: '声称泊松/排队/离散事件仿真，但代码里找不到到达过程采样或队列/事件结构'
       + '（poisson 到达 / queue / heapq / 到达时刻推进）。'
       + '若只是给固定响应时间加一点指数噪声（如 base + exponential(0.3)）→ 不是仿真，'
       + '必须补真到达采样+队列状态，或把声称改成"解析近似/敏感性扰动"。',
+  },
+  {
+    name: '蒙特卡洛/随机抽样',
+    claimKw: ['蒙特卡洛', 'Monte\\s*Carlo', '随机抽样', '重抽样', 'bootstrap', 'Bootstrap'],
+    // 蒙特卡洛的"实现铁证"就是**真的有随机数**：抽样本、按分布采样、重抽样、
+    // 固定种子后重复 —— 命中任一即算实现（need_any）。一处都没有，
+    // 那这个声称就是名不副实（写的其实是确定性计算）。
+    needAny: [
+      'random', 'sample', 'choice', 'poisson', 'normal\\s*\\(', 'uniform',
+      'bootstrap', '重抽样', 'seed', '种子', 'randint', 'rand\\(',
+    ],
+    hint: '声称蒙特卡洛/随机抽样，但代码里找不到任何随机数来源'
+      + '（random / sample / choice / 按分布采样 / 重抽样 / 固定种子）。'
+      + '若实际是确定性计算 → 改声称（"解析计算"/"情景枚举"），别写蒙特卡洛。',
   },
 ]
 
@@ -1387,7 +1425,7 @@ const METHOD_RULES: ReadonlyArray<MethodRule> = [
  * 两层，都是"代码有没有背叛建模声称"的方向无关核对：
  * - (A) 通用合同（主）：执行建模阶段自己写的 `must`/`forbid` 签名，脚本零方向知识
  *   ——数模/NLP/CV/RL 全靠同一引擎，加新方向不改脚本、不堆规则库；
- * - (B) 内置安全网（兜底）：整数规划 / 随机仿真两条通用灾难级降级。
+ * - (B) 内置安全网（兜底）：整数规划 / 排队仿真 / 蒙特卡洛三条通用灾难级降级。
  *
  * 参考原话：*"凭印象退化成 plot/bar/scatter 是最常见的质量塌方"*，这条就是治它的。
  */
@@ -1397,10 +1435,17 @@ const claimCodeCheck: GateFn = (input) => {
   if (sources.length === 0) {
     return cannot(id, '本阶段没有 `code/*.py` —— 没有可核的实现，无法判断声称与代码是否一致')
   }
-  // 声称来源：上游 MODELING_REPORT.md（阶段 2 的机器合同块就在这里）+ 本阶段 RESULTS.md。
+  // 声称来源：上游 `MODELING_REPORT.md` + **上游 `DECLARATION.json`** + 本阶段 `RESULTS.md`。
+  //
+  // ⛔ `DECLARATION.json` 这一路**必须带上**：实测（2024B）机器合同块并不在报告里，
+  // 而是在声明文件里（`method_claims_machine` 8 条 + `method_claims_machine_block`
+  // 的 HTML 注释块 + `logic_contract_machine` 八键 + `cross_problem_ledger`）。
+  // 只读报告的第一版因此报了"无 `METHOD_CLAIMS_MACHINE` 合同块，仅内置安全网生效"
+  // ——**假阴性**：合同一直都在，只是门禁没去看它。漏读一路来源 = 这条门禁白建。
   // 参考还会并入 paper/sections，但论文在阶段 9，本阶段看不到——如实少一路来源。
   const claimText = [
     input.upstream.get('MODELING_REPORT.md') ?? '',
+    input.upstream.get('DECLARATION.json') ?? '',
     input.files.get('RESULTS.md') ?? '',
   ].join('\n')
   if (claimText.trim() === '') {
@@ -1435,8 +1480,9 @@ const claimCodeCheck: GateFn = (input) => {
       + '（合同 must/forbid 签名由建模阶段针对本题所填，方向无关）。')
   }
   const contractNote = contract.length === 0
-    ? '；⚠ `MODELING_REPORT.md` 无 `METHOD_CLAIMS_MACHINE` 合同块 —— 仅内置安全网生效，'
-      + '本题特有方法**无人核**（建议阶段 2 补机器可核签名）'
+    ? '；⚠ 上游产物里找不到 `METHOD_CLAIMS_MACHINE` 合同块 —— 仅内置安全网生效，'
+      + '本题特有方法**无人核**（建议阶段 2 补机器可核签名：'
+      + '`<!-- BEGIN METHOD_CLAIMS_MACHINE -->` 一行一条 `M1 | must: … | forbid: …`）'
     : `；通用合同核对了 ${String(contract.length)} 条签名`
   return ok(id, `内置安全网检查了 ${String(checked)} 类方法声称，全部有实现铁证${contractNote}`)
 }
@@ -1776,8 +1822,18 @@ const deliveryAudit: GateFn = (input) => {
     if (size === null) {
       const base = path.split('/').pop() ?? path
       const stem = base.replace(/\.[A-Za-z0-9]+$/, '')
-      if (codeText.includes(base) || (stem !== '' && codeText.includes(stem))) runtime.push(path)
-      else {
+      // **`.py` 是源码交付物，不是运行期产物** —— 磁盘上没有就是没有交付。
+      // 实测（2024B）：`code/data_check.py` 被声明、`main.py` 里也 `import` 了它，
+      // 但**没有任何分片产出这个文件**，阶段 4 真跑代码必然 ModuleNotFoundError。
+      // 旧判据用"文件名/词干在代码里出现过"就放行，于是把它当成了"运行期产物"
+      // ——**假通过**：那一个词干来自 `data_check.json`（另一个东西）。
+      // 源码文件只认"在磁盘上"，运行期产物才认"代码里会写出它"。
+      if (/\.py$/i.test(path)) {
+        problems.push(`${path}：声明为**源码**交付物，但磁盘上没有 —— `
+          + '源码不可能"等运行时再生成"，这就是没交付（运行时必然 ModuleNotFoundError）')
+      } else if (codeText.includes(base) || (stem !== '' && codeText.includes(stem))) {
+        runtime.push(path)
+      } else {
         problems.push(`${path}：既不在磁盘上、代码里也没有任何地方写出它 —— `
           + '声明的交付物**没人产出**（要么让代码真的写出它，要么把它从清单里去掉）')
       }

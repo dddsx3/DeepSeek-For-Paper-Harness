@@ -32,16 +32,43 @@ function strip(src: string): string {
     .replace(/'[^'\n]*'/g, ' ')
 }
 
-/** 该段代码"定义"了哪些名字（赋值/def/class/import/for/with/except 的绑定）。 */
+/**
+ * 该段代码"定义"了哪些名字（赋值/def/class/import/for/with/except 的绑定）。
+ *
+ * ⛔ 这几条形态**都踩过坑**，每一条都对应一次真实误报：
+ * - **海象运算符 `NAME := …`**：实测（2024B 的 `params.py`）
+ *   `if INACTIVE_DISASSEMBLY_FIXED_TO_ZERO := bool(…)` 被判成"未定义的常量名"
+ *   ——它明明就在定义。漏了它，门禁会去修一个不存在的问题。
+ * - **元组解包 `A, B = …`**：与海象同类（左边不止一个名字）。
+ * - **括号式 `from x import (A, B)`**：跨行导入很常见。
+ * - **`global` / `nonlocal`**：声明也是绑定。
+ */
 export function definitionsIn(code: string): ReadonlySet<string> {
   const out = new Set<string>()
-  for (const m of code.matchAll(/^\s*([A-Za-z_]\w*)\s*(?::[^=\n]*)?=/gm)) out.add(m[1] ?? '')
+  // 单名赋值（含注解）：`A = …` / `A: float = …`
+  for (const m of code.matchAll(/^\s*([A-Za-z_]\w*)\s*(?::[^=\n]*)?=(?!=)/gm)) out.add(m[1] ?? '')
+  // 元组解包：`A, B = …`（左边可能带括号）
+  for (const m of code.matchAll(/^\s*\(?((?:[A-Za-z_]\w*\s*,\s*)+[A-Za-z_]\w*)\s*(?::[^=\n]*)?=/gm)) {
+    for (const n of (m[1] ?? '').split(',')) out.add(n.trim())
+  }
+  // 海象运算符：`NAME := …`（任何位置）
+  for (const m of code.matchAll(/(?<![.\w])([A-Za-z_]\w*)\s*:=/g)) out.add(m[1] ?? '')
   for (const m of code.matchAll(/^\s*(?:def|class)\s+([A-Za-z_]\w*)/gm)) out.add(m[1] ?? '')
   for (const m of code.matchAll(/^\s*import\s+([A-Za-z_]\w*)/gm)) out.add(m[1] ?? '')
+  for (const m of code.matchAll(/^\s*from\s+[\w.]+\s+import\s+\(([^)]*)\)/gm)) {
+    for (const n of (m[1] ?? '').split(',')) {
+      const name = n.trim().split(/\s+as\s+/).pop()?.trim() ?? ''
+      if (/^[A-Za-z_]\w*$/.test(name)) out.add(name)
+    }
+  }
   for (const m of code.matchAll(/^\s*from\s+[\w.]+\s+import\s+([A-Za-z_]\w*)/gm)) out.add(m[1] ?? '')
   for (const m of code.matchAll(/\bfor\s+([A-Za-z_]\w*)\s+in\b/g)) out.add(m[1] ?? '')
+  for (const m of code.matchAll(/\bfor\s+(\(?[A-Za-z_]\w*(?:\s*,\s*[A-Za-z_]\w*)+\)?)\s+in\b/g)) {
+    for (const n of (m[1] ?? '').replace(/[()]/g, '').split(',')) out.add(n.trim())
+  }
   for (const m of code.matchAll(/\bwith\b[^:\n]*\bas\s+([A-Za-z_]\w*)/g)) out.add(m[1] ?? '')
   for (const m of code.matchAll(/\bexcept\b[^:\n]*\bas\s+([A-Za-z_]\w*)/g)) out.add(m[1] ?? '')
+  for (const m of code.matchAll(/^\s*(?:global|nonlocal)\s+([A-Za-z_]\w*)/gm)) out.add(m[1] ?? '')
   return out
 }
 
