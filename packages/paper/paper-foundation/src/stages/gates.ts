@@ -43,6 +43,7 @@ import { FIGURE_DECLARATIONS_FILE, FIGURE_MANIFEST_FILE, parseFigureDeclarations
 export const FIGURE_PLAN_FILE = 'FIGURE_PLAN.json'
 import { numericShapeOf, parseResultSources, RESULTS_LEDGER_FILE } from './execute-and-mint.ts'
 import { addRoundedVariants, auditFiles, buildAllowlist, commentLines, verificationClaims } from './number-audit.ts'
+import { CODE_PY_RE, undefinedConstNames } from './code-names.ts'
 import {
   ANCHOR_REPORT_FILE, anchorsIn, blankFencedCode, parseAnchorReport,
 } from './anchor-resolve.ts'
@@ -202,55 +203,22 @@ const paperPageFloor: GateFn = (input) => {
  */
 const codeNameConsistency: GateFn = (input) => {
   const id = 'code_name_consistency'
-  const files = [...input.files.entries()].filter(([f]) => /^code\/[A-Za-z0-9_]+\.py$/.test(f))
+  const files = [...input.files.entries()].filter(([f]) => CODE_PY_RE.test(f))
   if (files.length === 0) return cannot(id, '没有 `code/*.py` —— 没有可核的代码')
-
-  /** 去掉注释、单行字符串、三引号块（判据只在"真代码"上成立）。 */
-  const strip = (s: string): string => s
-    .replace(/"""[\s\S]*?"""/g, ' ')
-    .replace(/'''[\s\S]*?'''/g, ' ')
-    .replace(/#[^\n]*/g, ' ')
-    .replace(/"[^"\n]*"/g, ' ')
-    .replace(/'[^'\n]*'/g, ' ')
-
-  /** 该段代码"定义"了哪些名字（赋值/def/class/import/for/with/except 的绑定）。 */
-  const defsOf = (code: string): ReadonlySet<string> => {
-    const out = new Set<string>()
-    for (const m of code.matchAll(/^\s*([A-Za-z_]\w*)\s*(?::[^=\n]*)?=/gm)) out.add(m[1] ?? '')
-    for (const m of code.matchAll(/^\s*(?:def|class)\s+([A-Za-z_]\w*)/gm)) out.add(m[1] ?? '')
-    for (const m of code.matchAll(/^\s*import\s+([A-Za-z_]\w*)/gm)) out.add(m[1] ?? '')
-    for (const m of code.matchAll(/^\s*from\s+[\w.]+\s+import\s+([A-Za-z_]\w*)/gm)) out.add(m[1] ?? '')
-    for (const m of code.matchAll(/\bfor\s+([A-Za-z_]\w*)\s+in\b/g)) out.add(m[1] ?? '')
-    for (const m of code.matchAll(/\bwith\b[^:\n]*\bas\s+([A-Za-z_]\w*)/g)) out.add(m[1] ?? '')
-    for (const m of code.matchAll(/\bexcept\b[^:\n]*\bas\s+([A-Za-z_]\w*)/g)) out.add(m[1] ?? '')
-    return out
+  // 判据只有一份：与阶段 3 分片循环的**单片自检**共用（`code-names.ts`）。
+  // 共用是刻意的——分片在收到那一片的当下就用同一条判据自查并只重问那一片，
+  // 不必等整阶段 8 片跑完再被门禁拦回（那一次重跑的代价是 8 次模型调用）。
+  const findings = undefinedConstNames(files)
+  if (findings.length === 0) {
+    return ok(id, `${String(files.length)} 个代码文件：引用的常量名都有定义`)
   }
-
-  const stripped = files.map(([f, raw]) => [f, strip(raw)] as const)
-  const definedAnywhere = new Set<string>()
-  for (const [, code] of stripped) for (const n of defsOf(code)) definedAnywhere.add(n)
-
-  const problems: string[] = []
-  for (const [file, code] of stripped) {
-    const here = defsOf(code)
-    const stray = new Set<string>()
-    for (const m of code.matchAll(/(?<![.\w])([A-Z][A-Z0-9_]{3,})\b/g)) {
-      const name = m[1] ?? ''
-      if (here.has(name) || definedAnywhere.has(name)) continue
-      stray.add(name)
-    }
-    if (stray.size > 0) {
-      problems.push(`${file}：引用了 ${String(stray.size)} 个**任何文件都没定义**的常量名`
-        + `（${[...stray].slice(0, 6).join('、')}）—— 运行时必然 NameError。`
-        + '分片是"一文件一次调用"，各文件对不上名字是这类阶段的典型塌方；'
-        + '要么用 `params.py` 里已有的名字，要么在用到它的文件里定义。'
-        + '⛔ 常见误区：`source.某名字` 这类**属性访问**不等于"该名字可导入"——'
-        + '`from params import *` 只给模块级常量；在 `params.py` 里补上定义即可。')
-    }
-  }
-  return problems.length === 0
-    ? ok(id, `${String(files.length)} 个代码文件：引用的常量名都有定义`)
-    : fail(id, problems.slice(0, 3).join('；'))
+  const problems = findings.map(f => `${f.file}：引用了 ${String(f.names.length)} 个**任何文件都没定义**的常量名`
+    + `（${f.names.slice(0, 6).join('、')}）—— 运行时必然 NameError。`
+    + '分片是"一文件一次调用"，各文件对不上名字是这类阶段的典型塌方；'
+    + '要么用 `params.py` 里已有的名字，要么在用到它的文件里定义。'
+    + '⛔ 常见误区：`source.某名字` 这类**属性访问**不等于"该名字可导入"——'
+    + '`from params import *` 只给模块级常量；在 `params.py` 里补上定义即可。')
+  return fail(id, problems.slice(0, 3).join('；'))
 }
 
 /** 逐问奇偶校验：代码文件数必须 ≥ 题面问数。 */
