@@ -1887,8 +1887,13 @@ const deliveryAudit: GateFn = (input) => {
       } else if (codeText.includes(base) || (stem !== '' && codeText.includes(stem))) {
         runtime.push(path)
       } else {
-        problems.push(`${path}：既不在磁盘上、代码里也没有任何地方写出它 —— `
-          + '声明的交付物**没人产出**（要么让代码真的写出它，要么把它从清单里去掉）')
+        // **警告级**：非 `.py` 的声明找不到产出凭据。为什么不当硬失败——
+        // 运行期产物的名字可能是**拼出来的**（`f"problem{i}.json"`），此时"字面量不出现"
+        // 并不能证明它没人产出。而这件事有**权威判据**：阶段 4 铸数时会按 locator 真解析
+        // 一次，解析不到就整轮失败（"locator 不存在 —— 代码没有写出声明的产物"）。
+        // 让权威判据去判，门禁只把疑点报出来——**宁可漏报，不可误报**。
+        runtime.push(`${path}（⚠ 磁盘上没有、代码里也没找到它的名字——`
+          + '若它是拼出来的路径可忽略；阶段 4 铸数会按 locator 真核一次）')
       }
       continue
     }
@@ -1976,6 +1981,14 @@ const modelingSelfCheck: GateFn = (input) => {
     Array.isArray(declared[key]) ? (declared[key] as ReadonlyArray<Record<string, unknown>>).filter(
       (x): x is Record<string, unknown> => typeof x === 'object' && x !== null,
     ) : []
+  /**
+   * 某个键的**数组条目数**（不看元素类型）。
+   *
+   * 与 `listOf` 的分工：判"空不空"用这个，判"条目内容"用 `listOf`。
+   * 为什么必须分开：`symbols: ["p", "n"]`（字符串数组）也是合法写法，而 `listOf` 会把
+   * 非对象条目过滤掉 → 计数 0 → 误报"符号表是空的"。**判空只该看有没有东西**。
+   */
+  const countOf = (key: string): number => (Array.isArray(declared[key]) ? (declared[key] as unknown[]).length : 0)
   // 键名宽容（判据是**结构完整**，不是命名习惯）：契约叫 `model_specs`，但实测夹具与
   // 部分模型会写 `models` / `specs`。只认一种会把"键名差异"变成"没有任何模型声明"的假硬失败。
   const firstList = (...keys: ReadonlyArray<string>): ReadonlyArray<Record<string, unknown>> => {
@@ -1983,11 +1996,21 @@ const modelingSelfCheck: GateFn = (input) => {
     return []
   }
   const problems: string[] = []
-  if (listOf('symbols').length === 0) problems.push('符号表 `symbols` 是空的（没有可对照的符号定义）')
-  if (listOf('equations').length === 0) problems.push('`equations` 是空的 —— 一条公式都没有')
+  /** 非阻断的观察（"这一项没核到"，不是"这一项错了"）——只写进结论。 */
+  const extraNotes: string[] = []
+  if (countOf('symbols') === 0) problems.push('符号表 `symbols` 是空的（没有可对照的符号定义）')
+  if (countOf('equations') === 0) problems.push('`equations` 是空的 —— 一条公式都没有')
+  // 模型声明的**原始条目数**（不看元素类型）：判"空不空"只看有没有东西。
+  // `listOf` 会把非对象条目过滤掉，拿它判空会把 `model_specs: ["MS-1"]` 这类写法误报成"没有模型"。
+  const rawSpecs = ['model_specs', 'models', 'specs']
+    .map(k => declared[k])
+    .find((v): v is unknown[] => Array.isArray(v) && v.length > 0)
   const specs = firstList('model_specs', 'models', 'specs')
-  if (specs.length === 0) {
+  if (rawSpecs === undefined) {
     problems.push('`model_specs` 是空的 —— 没有任何模型声明')
+  } else if (specs.length === 0) {
+    // 有声明、但没有一条是对象 → **逐项内容未核**，如实说，不判"没有模型"。
+    extraNotes.push('⚠ 模型声明的条目不是对象形态（逐项 `objective`/`problem_refs` 未核）')
   } else {
     const noObjective = specs.filter((s) => {
       const o = s['objective']
@@ -2030,11 +2053,13 @@ const modelingSelfCheck: GateFn = (input) => {
   // 机械判不了的那一项**如实说出来**，不假装判过。
   const note = '；⚠ "问题递进性检查"与"灵敏度计划"在报告散文里，机械判不了，未纳入本判据'
   if (problems.length > 0) {
-    return fail(id, `${String(problems.length)} 项结构自检没过 —— ${problems.slice(0, 4).join('；')}${note}`)
+    return fail(id, `${String(problems.length)} 项结构自检没过 —— ${problems.slice(0, 4).join('；')}`
+      + `${extraNotes.length === 0 ? '' : '；' + extraNotes.join('；')}${note}`)
   }
-  return ok(id, `符号表 ${String(listOf('symbols').length)} 条、公式 ${String(listOf('equations').length)} 条、`
+  return ok(id, `符号表 ${String(countOf('symbols'))} 条、公式 ${String(countOf('equations'))} 条、`
     + `模型 ${String(specs.length)} 个（都有 objective）、约束 ${String(constraintCount)} 条且形态可核`
-    + `${input.problemCount > 0 ? '，逐问都有模型认领' : ''}${note}`)
+    + `${input.problemCount > 0 ? '，逐问都有模型认领' : ''}`
+    + `${extraNotes.length === 0 ? '' : '；' + extraNotes.join('；')}${note}`)
 }
 
 /**
@@ -2168,8 +2193,13 @@ const cashflowBranchesDeclared: GateFn = (input) => {
     return fail(id, '`cashflow_rule` 既不是结构也不是字符串（形态不认识）—— 应为 '
       + '`{"branches": [{"when": …, "terms": […]}, …]}`')
   }
-  const branches = (rule as Record<string, unknown>)['branches']
-  if (!Array.isArray(branches) || branches.length === 0) {
+  const rawBranches = (rule as Record<string, unknown>)['branches']
+  // 形态宽容（判据是"分支清单在不在"，不是"它是数组还是字典"）：
+  // 数组 `[{when, terms}, …]` 与字典 `{"分支名": {when, terms}, …}` 都认。
+  const branches: ReadonlyArray<unknown> = Array.isArray(rawBranches)
+    ? rawBranches
+    : (typeof rawBranches === 'object' && rawBranches !== null ? Object.values(rawBranches) : [])
+  if (branches.length === 0) {
     return fail(id, '`cashflow_rule.branches` 缺失或是空的 —— 没有分支清单，'
       + '"每个决策的每一支计哪些项"就没人定死')
   }
