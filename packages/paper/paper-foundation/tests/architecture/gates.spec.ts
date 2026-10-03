@@ -1033,6 +1033,21 @@ describe('modeling_self_check —— 建模阶段的**结构**自检（参考 9 
     expect(v.code).toBe(1)
     expect(v.items[0]?.detail).toContain('比较运算符')
   })
+
+  it('**零误报**：`{id, expression}` 对象形态也算（实测模型后来就写成了这样，信息更全）', () => {
+    const d = decl({ result_constraints: [
+      { id: 'RC-1', expression: 'lambda n, p: abs(sum(...)-1) <= TOL' },
+      { id: 'RC-2', expr: 'lambda r: r["x"] >= 0' },
+    ] })
+    const v = run1({ 'DECLARATION.json': d })
+    expect(v.code).toBe(0)
+    expect(v.items[0]?.detail).toContain('约束 2 条')
+  })
+
+  it('**零误报**：键名不认识但内容像表达式也认（判据是内容，不是键名）', () => {
+    const d = decl({ result_constraints: [{ id: 'RC-1', my_rule: 'lambda r: r["y"] < 1' }] })
+    expect(run1({ 'DECLARATION.json': d }).code).toBe(0)
+  })
 })
 
 // ══════════════════════════════════════════════════════════════════════════

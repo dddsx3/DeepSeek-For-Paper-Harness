@@ -1915,6 +1915,33 @@ const deliveryAudit: GateFn = (input) => {
 }
 
 /**
+ * 从一条 `result_constraints` 里取出**表达式文本**——字符串与对象形态都认。
+ *
+ * 为什么必须两种都认（实测踩过）：第一版只接受字符串，而模型后来写成了
+ * `{"id": "RC-Q1-PMF-SUM", "expression": "lambda n,p: …<=…"}`——**信息更全**（还带 id），
+ * 却因为 `typeof c !== 'string'` 被判成"既不是 lambda 也不含比较运算符"。
+ * 判据是**表达式能不能机器核**，不是"它是不是一个裸字符串"。
+ *
+ * @param entry - 一条约束（字符串 / 含 `expression` 等字段的对象 / 其它）。
+ * @returns 表达式文本；认不出来返回空串。
+ */
+function expressionOf(entry: unknown): string {
+  if (typeof entry === 'string') return entry
+  if (typeof entry !== 'object' || entry === null) return ''
+  const o = entry as Record<string, unknown>
+  // 常见键名优先
+  for (const key of ['expression', 'expr', 'lambda', 'formula', 'constraint', 'rule', 'check', 'condition']) {
+    const v = o[key]
+    if (typeof v === 'string' && v.trim() !== '') return v
+  }
+  // 兜底：对象里**任何一个**看起来像表达式的字符串字段（键名不限——判据是内容不是键名）
+  for (const v of Object.values(o)) {
+    if (typeof v === 'string' && /(lambda|<=|>=|==|!=|<|>)/.test(v)) return v
+  }
+  return ''
+}
+
+/**
  * **建模阶段的结构自检**（参考的 9 项自检里**可机械化的那几项**）。
  *
  * 参考把这 9 项自检写成了人工清单，其中"问题递进性检查"被它自己标注为最关键、
@@ -1994,10 +2021,10 @@ const modelingSelfCheck: GateFn = (input) => {
   if (!Array.isArray(constraints) || constraints.length === 0) {
     problems.push('`result_constraints` 是空的 —— 约束没有机器可核的表达')
   } else {
-    const vague = constraints.filter(c => typeof c !== 'string' || !/(lambda|<=|>=|==|!=|<|>)/.test(c))
+    const vague = constraints.filter(c => !/(lambda|<=|>=|==|!=|<|>)/.test(expressionOf(c)))
     if (vague.length > 0) {
-      problems.push(`${String(vague.length)} 条 \`result_constraints\` 既不是 lambda 也不含比较运算符`
-        + ' —— 模糊自然语言不算机器可核的约束')
+      problems.push(`${String(vague.length)} 条 \`result_constraints\` 里找不到 lambda 或比较运算符`
+        + '（字符串形态与 `{id, expression}` 对象形态**都认**）—— 模糊自然语言不算机器可核的约束')
     }
   }
   // 机械判不了的那一项**如实说出来**，不假装判过。
