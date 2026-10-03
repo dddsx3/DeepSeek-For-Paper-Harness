@@ -66,14 +66,24 @@ export function definitionsIn(code: string): ReadonlySet<string> {
   // 海象运算符：`NAME := …`（任何位置）
   for (const m of code.matchAll(/(?<![.\w])([A-Za-z_]\w*)\s*:=/g)) out.add(m[1] ?? '')
   for (const m of code.matchAll(/^\s*(?:def|class)\s+([A-Za-z_]\w*)/gm)) out.add(m[1] ?? '')
-  for (const m of code.matchAll(/^\s*import\s+([A-Za-z_]\w*)/gm)) out.add(m[1] ?? '')
+  // **`import X as Y` 绑定的是 Y**（实测：`main.py` 写 `import params as PARAMETERS`，
+  // 之后 `getattr(PARAMETERS, name)`——旧正则只捕获 `params`，于是 `PARAMETERS` 被判成
+  // "任何文件都没定义"）。带点路径 `import a.b.c` 绑定的是 `a`。
+  for (const m of code.matchAll(/^\s*import\s+([\w.]+)(?:\s+as\s+([A-Za-z_]\w*))?[ \t]*(?:#.*)?$/gm)) {
+    const alias = m[2]
+    if (alias !== undefined && alias !== '') out.add(alias)
+    else out.add((m[1] ?? '').split('.')[0] ?? '')
+  }
+  // `from X import Y as Z` 绑定 Z（括号式在上一条里已处理 `as`）。
+  for (const m of code.matchAll(/^\s*from\s+[\w.]+\s+import\s+([A-Za-z_]\w*)(?:\s+as\s+([A-Za-z_]\w*))?[ \t]*(?:#.*)?$/gm)) {
+    out.add(m[2] ?? m[1] ?? '')
+  }
   for (const m of code.matchAll(/^\s*from\s+[\w.]+\s+import\s+\(([^)]*)\)/gm)) {
     for (const n of (m[1] ?? '').split(',')) {
       const name = n.trim().split(/\s+as\s+/).pop()?.trim() ?? ''
       if (/^[A-Za-z_]\w*$/.test(name)) out.add(name)
     }
   }
-  for (const m of code.matchAll(/^\s*from\s+[\w.]+\s+import\s+([A-Za-z_]\w*)/gm)) out.add(m[1] ?? '')
   for (const m of code.matchAll(/\bfor\s+([A-Za-z_]\w*)\s+in\b/g)) out.add(m[1] ?? '')
   for (const m of code.matchAll(/\bfor\s+(\(?[A-Za-z_]\w*(?:\s*,\s*[A-Za-z_]\w*)+\)?)\s+in\b/g)) {
     for (const n of (m[1] ?? '').replace(/[()]/g, '').split(',')) out.add(n.trim())
@@ -106,8 +116,16 @@ export function undefinedConstNames(
   const out: UndefinedNameFinding[] = []
   for (const [file, code] of stripped) {
     const here = definitionsIn(code)
+    // **引用扫描要先把 import 行清掉**：`from params import DEFAULTS as P` 里的
+    // `DEFAULTS` 是**来源名**，不是本模块的引用——本模块绑定的是别名 `P`。
+    // 不清掉它，每个"用别名导入大写常量"的文件都会被误报（实测模型就爱这么写）。
+    // 定义扫描仍用未清空的文本（import 绑定在上面已经算过了）。
+    const useText = code
+      .split('\n')
+      .map(l => (/^\s*(?:import|from)\s/.test(l) ? '' : l))
+      .join('\n')
     const stray = new Set<string>()
-    for (const m of code.matchAll(/(?<![.\w])([A-Z][A-Z0-9_]{3,})\b/g)) {
+    for (const m of useText.matchAll(/(?<![.\w])([A-Z][A-Z0-9_]{3,})\b/g)) {
       const name = m[1] ?? ''
       if (here.has(name) || definedAnywhere.has(name)) continue
       stray.add(name)

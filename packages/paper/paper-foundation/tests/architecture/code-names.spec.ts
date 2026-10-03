@@ -82,6 +82,23 @@ describe('definitionsIn —— 哪些写法算"定义了一个名字"', () => {
   it('`global X` 也算绑定', () => {
     expect(definitionsIn('def f():\n    global TOL\n    TOL = 1\n').has('TOL')).toBe(true)
   })
+
+  it('**`import X as Y` 绑定的是 Y**（实测：`import params as PARAMETERS`）', () => {
+    const src = [
+      'import params as PARAMETERS',
+      'name = PARAMETERS.__name__',
+      'value = getattr(PARAMETERS, "P0")',
+    ].join('\n')
+    expect(undefinedConstNames([['code/main.py', src]])).toEqual([])
+    expect(definitionsIn(src).has('PARAMETERS')).toBe(true)
+    // 没有 as：`import a.b.c` 绑定的是 `a`
+    expect(definitionsIn('import os.path\n').has('os')).toBe(true)
+  })
+
+  it('**`from X import Y as Z` 绑定的是 Z**', () => {
+    const src = 'from params import DEFAULTS as P\nlimit = P["k"]\n'
+    expect(undefinedConstNames([['code/main.py', src]])).toEqual([])
+  })
 })
 
 describe('undefinedConstNames —— 判据本身（含**零误报**用例）', () => {
