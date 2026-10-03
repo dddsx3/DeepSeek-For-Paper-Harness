@@ -1273,13 +1273,58 @@ function pySources(input: GateInput): ReadonlyArray<readonly [string, string]> {
 }
 
 /**
- * 去掉**整行注释**（保留行号），防注释里的词骗过扫描。
+ * 声称核对专用的**代码净化**：去三引号块 + 去**行内**注释（引号感知）。
  *
- * 对应参考 `claim_code_check.py::_load_code`：它只跳整行注释，不跳行内注释——
- * 移植时保持同一口径，否则本文件的判据会比参考松/紧，两边不可比。
+ * ⛔ 比参考更进一步是**刻意的**：参考只跳整行注释，而它的注释写着意图是
+ * *"防注释里写 poisson 骗过检测"*。行内注释同样会骗过它——实测模型写
+ * `x = 1  # 这里不用就近配车` 就被判成"出现降级签名"。判据的方向是"代码有没有
+ * 真的做那件事"，注释不执行，所以两边都该去掉。真代码一个字都不少：
+ * `linprog(...)` 这样的**调用**照样命中。
+ *
+ * @param src - 源码。
+ * @returns 去掉注释与字符串块后的代码文本（行号映射保留）。
  */
-function stripFullLineComments(src: string): string {
-  return src.split('\n').map(line => (line.trimStart().startsWith('#') ? '' : line)).join('\n')
+function stripCommentsForClaims(src: string): string {
+  return blankTripleQuoted(src).split('\n').map(stripLineComment).join('\n')
+}
+
+/**
+ * 这个模式在代码里有没有**肯定式**命中（"真的用了"而不是"声明没用"）？
+ *
+ * 判据：逐个匹配看上下文，**只要有一个不是否定式就算命中**。
+ * - 后面紧跟 `: False` / `= False` / `: 0` / `= None` → 否定式（合规自审字典/开关）；
+ * - 前面紧跟 `not` / `no` / `without` / `避免` / `禁止` / `未使用` … → 否定式；
+ * - 其余（真调用、真字符串值、真参数名）→ 肯定式。
+ *
+ * 为什么必须这样：`forbid` 的语义是"命中任一即铁证降级"，而模型会**主动登记**
+ * "我没用降级方法"（实测 `{"unbounded_sprt": False}`）。把登记当降级，
+ * 一是惩罚守约的模型，二是**必然无限循环**——它每轮都会这样登记。
+ *
+ * @param pattern - 建模阶段写的 forbid 签名（可能是正则，也可能非法）。
+ * @param code - 已去注释的代码文本。
+ * @returns 存在肯定式命中则 true。
+ */
+function positiveHit(pattern: string, code: string): boolean {
+  let re: RegExp
+  try {
+    re = new RegExp(pattern, 'gi')
+  } catch {
+    re = new RegExp(pattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi')
+  }
+  for (const m of code.matchAll(re)) {
+    const at = m.index
+    const len = m[0].length
+    if (len === 0) continue
+    const after = code.slice(at + len, at + len + 20)
+    // `{"X": False}` / `X = False` / `X: 0` / `X = None` —— 否定式登记
+    if (/^\s*["']?\s*[:=]\s*(?:False|false|0|None|null)\b/.test(after)) continue
+    const before = code.slice(Math.max(0, at - 20), at)
+    // `not X` / `without X` / `避免使用 X` / `未使用 X` —— 否定式语境
+    if (/(?:not|no|without|avoid)\s*$/i.test(before)) continue
+    if (/(?:避免|禁止|不得|没有|未|不)(?:使用|采用|选用|用|依赖)?\s*$/.test(before)) continue
+    return true
+  }
+  return false
 }
 
 /** 按正则搜；正则非法则退化为字面量搜（防上游写的模式编译报错拖垮整道闸）。 */
@@ -1451,7 +1496,11 @@ const claimCodeCheck: GateFn = (input) => {
   if (claimText.trim() === '') {
     return cannot(id, '既没有上游 `MODELING_REPORT.md` 也没有本阶段 `RESULTS.md` —— 没有可核的方法声称')
   }
-  const codeText = sources.map(([, src]) => stripFullLineComments(src)).join('\n')
+  // ⛔ 代码文本要**连行内注释一起去掉**（不是只去整行注释）。
+  // 参考只跳整行注释，实测因此产生硬失败假阳性：模型在合规自审字典里写
+  // `"normal_approximation_as_primary": False`（**声明"没用它"**）被判成"出现降级签名"。
+  // 注释同理（"这里不用就近配车，改用精确枚举"会把 forbid 词命中）。
+  const codeText = sources.map(([, src]) => stripCommentsForClaims(src)).join('\n')
 
   const problems: string[] = []
   let checked = 0
@@ -1467,7 +1516,11 @@ const claimCodeCheck: GateFn = (input) => {
     if (c.must.length > 0 && !c.must.some(p => safeSearch(p, codeText))) {
       problems.push(`[合同 ${c.id}·must] 声称需实现但代码找不到任一必备签名：${c.must.join('、')}`)
     }
-    const hitForbid = c.forbid.filter(p => safeSearch(p, codeText))
+    // **`forbid` 只算"真的用了"，不算"声明没用"**。判据是"命中任一即铁证降级"，
+    // 但一个"否定式命中"恰恰是**守约的证据**：实测模型写
+    // `{"unbounded_sprt": False}` / `if not use_linprog:` —— 那是它主动登记"没用降级方法"。
+    // 把这判成降级等于惩罚守约的模型，而且会**无限循环**（它每轮都会这样登记）。
+    const hitForbid = c.forbid.filter(p => positiveHit(p, codeText))
     if (hitForbid.length > 0) {
       problems.push(`[合同 ${c.id}·forbid] 代码出现建模报告明令禁止的降级签名：${hitForbid.join('、')}`)
     }
@@ -2034,6 +2087,96 @@ const capabilityCheck: GateFn = (input) => {
 }
 
 /**
+ * **现金流规则必须按决策分支展开** —— 治的是"决策对账目毫无影响"这类最贵的语义缺陷。
+ *
+ * 为什么要有它：审计连拦两轮都点在同一个地方（`code/problem2.py` 的
+ * `failure_processing = loss if disassemble else loss`——两种决策返回值完全相同，
+ * 于是"拆不拆"在策略比较里彻底失效），而编码阶段每轮换个写法继续错。
+ * 根因不在编码：**建模合同里的 `cashflow_rule` 是一句散文**（实测原文
+ * *"解析递推与逐轮事件账本并列计算"*），它说了用两种方法算，却没说什么分支计哪些项
+ * ——编码阶段只能自己编账，而它每次都编错同一个地方。
+ *
+ * 参考的原则是*"编码阶段是纯执行者，因此建模阶段必须把所有决策做完"*，
+ * 所以判据落在**建模产物**上：`cashflow_rule` 必须是按分支展开的结构，
+ * 每个分支写清 `when`（判定条件）与 `terms`（这一支计入的每一项，带符号）。
+ *
+ * 判据只判**结构与形态**（有没有、空不空），不判语义——语义归独立审计。
+ * 一处**有歧义**的只给警告：两个分支的 `terms` 完全相同（那是"决策没进账目"的
+ * 签名，但也可能是两个分支确实同账）。
+ */
+const cashflowBranchesDeclared: GateFn = (input) => {
+  const id = 'cashflow_branches_declared'
+  const raw = input.files.get('DECLARATION.json') ?? null
+  if (raw === null) return cannot(id, '本阶段没有 `DECLARATION.json` —— 没有可核的实现合同')
+  let declared: Record<string, unknown>
+  try {
+    const parsed: unknown = JSON.parse(raw)
+    if (typeof parsed !== 'object' || parsed === null) return fail(id, '`DECLARATION.json` 不是 JSON 对象')
+    declared = parsed as Record<string, unknown>
+  } catch (error) {
+    return fail(id, `\`DECLARATION.json\` 不是合法 JSON（${String(error).slice(0, 60)}）`)
+  }
+  // 键的位置宽容（写在顶层或 `implementation_contract` 里都算），形态严格。
+  const ic = declared['implementation_contract']
+  const rule = (typeof ic === 'object' && ic !== null
+    ? (ic as Record<string, unknown>)['cashflow_rule']
+    : undefined) ?? declared['cashflow_rule']
+  if (rule === undefined) {
+    return fail(id, '`DECLARATION.json` 里没有 `implementation_contract.cashflow_rule` —— '
+      + '现金流规则是"编码阶段不自行选择"的硬要求；缺了它，编码阶段只能自己编账'
+      + '（实测代价：审计连拦两轮，都是"拆解决策对利润毫无影响"这一类）')
+  }
+  if (typeof rule === 'string') {
+    return fail(id, '`cashflow_rule` 还是**一句散文**（' + `"${rule.slice(0, 40)}…"` + '）—— '
+      + '它必须按**决策分支**展开成结构：`{"branches": [{"when": "该分支的判定条件", '
+      + '"terms": ["这一支计入的每一项（带符号）", …]}, …]}`。'
+      + '散文只说了"用两种方法算"，没说什么分支计哪些项，编码阶段就只能自己编——'
+      + '而它每次都编错同一个地方')
+  }
+  if (typeof rule !== 'object' || rule === null) {
+    return fail(id, '`cashflow_rule` 既不是结构也不是字符串（形态不认识）—— 应为 '
+      + '`{"branches": [{"when": …, "terms": […]}, …]}`')
+  }
+  const branches = (rule as Record<string, unknown>)['branches']
+  if (!Array.isArray(branches) || branches.length === 0) {
+    return fail(id, '`cashflow_rule.branches` 缺失或是空的 —— 没有分支清单，'
+      + '"每个决策的每一支计哪些项"就没人定死')
+  }
+  const problems: string[] = []
+  const termSets: string[][] = []
+  branches.forEach((b, i) => {
+    const at = `第 ${String(i + 1)} 个分支`
+    if (typeof b !== 'object' || b === null) {
+      problems.push(`${at} 不是对象（应为 \`{when, terms}\`）`)
+      return
+    }
+    const e = b as Record<string, unknown>
+    const when = typeof e['when'] === 'string' ? e['when'].trim() : ''
+    if (when.length < 2) problems.push(`${at} 缺 \`when\`（该分支的判定条件）`)
+    const terms = Array.isArray(e['terms']) ? e['terms'] : null
+    if (terms === null || terms.length === 0) {
+      problems.push(`${at} 的 \`terms\` 缺失或为空（这一支计入哪些费用/收益，要逐项写）`)
+      return
+    }
+    const clean = terms.filter((t): t is string => typeof t === 'string' && t.trim() !== '').map(t => t.trim())
+    if (clean.length !== terms.length) problems.push(`${at} 的 \`terms\` 里有空项`)
+    if (clean.length > 0) termSets.push(clean)
+  })
+  const dup = termSets.find((s, i) => termSets.findIndex(o => o.length === s.length && o.every((x, k) => x === s[k])) !== i)
+  const dupNote = dup === undefined
+    ? ''
+    : `；⚠ 有两个分支的 \`terms\` **完全相同**（${dup.slice(0, 2).join('、')}…）——`
+      + '那通常是"这个决策根本没进账目"的签名（实测：`loss if disassemble else loss`），'
+      + '请确认这两支确实同账，否则其中一支漏了它自己的费用/收益'
+  if (problems.length > 0) {
+    return fail(id, `${String(problems.length)} 处 \`cashflow_rule\` 结构不合规 —— `
+      + `${problems.slice(0, 4).join('；')}${dupNote}`)
+  }
+  return ok(id, `现金流规则按 ${String(branches.length)} 个决策分支展开，每个分支都有判定条件与逐项 \`terms\``
+    + dupNote)
+}
+
+/**
  * 门禁登记表。
  *
  * **未实现的判据给 `2`**，并在 `detail` 里写明"需要什么才算实现"——它们不是"忘了写"，
@@ -2054,6 +2197,8 @@ export const GATES: ReadonlyMap<string, GateFn> = new Map<string, GateFn>([
   ['no_claimed_verification', noClaimedVerification],
   ['modeling_coverage', modelingCoverage],
   ['modeling_self_check', modelingSelfCheck],
+  // 现金流规则必须按决策分支展开（治"决策对账目毫无影响"——审计连拦两轮的同一个缺陷）
+  ['cashflow_branches_declared', cashflowBranchesDeclared],
   // ── 阶段 3 ────────────────────────────────────────────────────────────
   ['code_parity', codeParity],
   ['code_name_consistency', codeNameConsistency],

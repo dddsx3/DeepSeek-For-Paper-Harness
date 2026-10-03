@@ -116,7 +116,10 @@ export const STAGES: ReadonlyArray<StageSpec> = [
       D('DECLARATION.json', 'json', 'IR 声明（Symbol/Assumption/Equation/ModelSpec）——**2a 次调用**'),
       D('MODELING_REPORT.md', 'md', '建模求解报告（富散文：推理、被否方案、难点）——**2b 次调用**', 1500),
     ],
-    gates: ['modeling_floor', 'numbers_traced', 'no_claimed_verification', 'modeling_coverage', 'modeling_self_check'],
+    gates: ['modeling_floor', 'numbers_traced', 'no_claimed_verification', 'modeling_coverage', 'modeling_self_check',
+      // 现金流规则必须按决策分支展开：审计连拦两轮都点在"拆解决策对利润毫无影响"，
+      // 根因是建模合同里的 `cashflow_rule` 只是一句散文 —— 编码阶段只能自己编账。
+      'cashflow_branches_declared'],
     contractRules: ['analysis_per_question', 'evaluation_four_elements', 'floor_analysis', 'floor_evaluation'],
     rollbackTo: ['prob-analysis'], guidedFallback: 'T2',
     premise: '**两次调用，不是一次**：2a 只声明 IR 条目（小、结构化、可被 check_container 自检）；'
