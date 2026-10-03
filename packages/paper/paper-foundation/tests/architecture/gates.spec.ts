@@ -1100,3 +1100,49 @@ describe('capability_check —— 逐句表 ↔ 能力清单（阶段 1 的"漏�
     expect(v.code).toBe(0)
   })
 })
+
+// ══════════════════════════════════════════════════════════════════════════
+describe('cashflow_branches_declared —— 现金流规则必须按决策分支展开', () => {
+  const decl = (rule: unknown): string => JSON.stringify({
+    symbols: [{ id: 'S-A' }], equations: [{ id: 'EQ-1' }],
+    models: [{ id: 'MS-1', objective: '最大化利润', problem_refs: ['R-Q1'] }],
+    result_constraints: ['lambda r: r["x"] > 0'],
+    implementation_contract: { cashflow_rule: rule },
+  })
+  const run1 = (rule: unknown) => runGates(['cashflow_branches_declared'], input({ 'DECLARATION.json': decl(rule) }))
+
+  it('**散文形态 → 1**（实测 2024B 就是这种："解析递推与逐轮事件账本并列计算"）', () => {
+    const v = run1('解析递推与逐轮事件账本并列计算')
+    expect(v.code).toBe(1)
+    expect(v.items[0]?.detail).toContain('散文')
+  })
+
+  it('结构正确 → 0', () => {
+    const v = run1({ branches: [
+      { when: '成品检测', terms: ['-检测费', '-报废处理'] },
+      { when: '成品不检测且退回品拆解', terms: ['-拆解费', '+回收价值', '-调换损失'] },
+    ] })
+    expect(v.code).toBe(0)
+    expect(v.items[0]?.detail).toContain('2 个决策分支')
+  })
+
+  it('缺 `cashflow_rule` / `branches` 为空 / `terms` 为空 → 1', () => {
+    expect(runGates(['cashflow_branches_declared'], input({ 'DECLARATION.json': JSON.stringify({ symbols: [{ id: 'S' }] }) })).code).toBe(1)
+    expect(run1({ branches: [] }).code).toBe(1)
+    expect(run1({ branches: [{ when: '成品检测', terms: [] }] }).code).toBe(1)
+  })
+
+  it('**警告级**：两个分支 `terms` 完全相同 → 仍是 0，但点名它（"决策没进账目"的签名）', () => {
+    const v = run1({ branches: [
+      { when: '成品检测', terms: ['-拆解费', '+回收价值'] },
+      { when: '成品不检测', terms: ['-拆解费', '+回收价值'] },
+    ] })
+    expect(v.code).toBe(0)
+    expect(v.items[0]?.detail).toContain('完全相同')
+  })
+
+  it('**零误报**：写在顶层 `cashflow_rule` 也算（键的位置宽容）', () => {
+    const d = JSON.stringify({ cashflow_rule: { branches: [{ when: '恒温干燥', terms: ['-能耗费'] }] } })
+    expect(runGates(['cashflow_branches_declared'], input({ 'DECLARATION.json': d })).code).toBe(0)
+  })
+})

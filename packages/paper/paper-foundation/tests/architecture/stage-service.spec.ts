@@ -138,6 +138,11 @@ function answerFor(stage: string): string {
             { id: 'MS-1', problem_refs: ['P1', 'P2'], checklist_refs: ['CAP-1'], objective: '最小化检测成本' },
           ],
           result_constraints: ['lambda r: r["a"] >= 0'],
+          // 门禁 `cashflow_branches_declared`：现金流规则要按决策分支展开（不能是一句散文）
+          implementation_contract: { cashflow_rule: { branches: [
+            { when: '成品检测', terms: ['-检测费用', '-报废处理'] },
+            { when: '成品不检测且退回品拆解', terms: ['-拆解费用', '+回收零件价值', '-调换损失'] },
+          ] } },
         }),
         'MODELING_REPORT.md': '建模报告……'.repeat(200),
       })

@@ -122,6 +122,47 @@ describe('claim_code_check —— 声称 ↔ 代码实现（移植 claim_code_ch
     )
     expect(run('claim_code_check', i).code).toBe(1)
   })
+
+  // ── `forbid` 的否定式命中：这一组全是**实测踩过的假阳性**（每一条都曾让阶段硬失败）──
+  it('**零误报**：合规自审字典 `{"X": False}` 是"声明没用"，不是降级', () => {
+    // 实测（2024B 阶段 3 第 6 次）：模型在自审字典里登记
+    // `"normal_approximation_as_primary": False` / `"unbounded_sprt": False`，
+    // 门禁读成"出现降级签名"→ 硬失败。那是**守约的证据**，而且每轮都会这样登记 → 必然死循环。
+    const code = [
+      'x = {',
+      '    "exact_integer_enumeration": True,',
+      '    "normal_approximation_as_primary": False,',
+      '    "unbounded_sprt": False,',
+      '}',
+    ].join('\n')
+    const i = input({ 'code/problem1.py': code }, { 'DECLARATION.json': contract('M1 | must: exact_integer_enumeration | forbid: normal_approximation_as_primary, unbounded_sprt') })
+    expect(run('claim_code_check', i).code).toBe(0)
+  })
+
+  it('**零误报**：行内注释里提到禁词不算命中（参考只跳整行注释，不够）', () => {
+    const code = 'y = 1  # 这里不用 normal_approximation_as_primary，改用精确枚举\nz = exact_integer_enumeration\n'
+    const i = input({ 'code/problem1.py': code }, { 'DECLARATION.json': contract('M1 | must: exact_integer_enumeration | forbid: normal_approximation_as_primary') })
+    expect(run('claim_code_check', i).code).toBe(0)
+  })
+
+  it('**零误报**：否定式条件 `if not X:` 不算命中', () => {
+    const code = 'if not unbounded_sprt:\n    use(exact_integer_enumeration)\n'
+    const i = input({ 'code/problem1.py': code }, { 'DECLARATION.json': contract('M1 | must: exact_integer_enumeration | forbid: unbounded_sprt') })
+    expect(run('claim_code_check', i).code).toBe(0)
+  })
+
+  it('**判别力还在**：真的调用了禁词 / 真的把它当字符串值用 → 仍然判 1', () => {
+    const called = input(
+      { 'code/problem1.py': 'from scipy.stats import norm\nres = normal_approximation_as_primary(p, n)\nv = exact_integer_enumeration' },
+      { 'DECLARATION.json': contract('M1 | must: exact_integer_enumeration | forbid: normal_approximation_as_primary') },
+    )
+    expect(run('claim_code_check', called).code).toBe(1)
+    const asValue = input(
+      { 'code/problem1.py': 'strategy = "就近配车"\nv = LpInteger' },
+      { 'DECLARATION.json': contract('M1 | must: LpInteger | forbid: 就近配车') },
+    )
+    expect(run('claim_code_check', asValue).code).toBe(1)
+  })
 })
 
 // ══════════════════════════════════════════════════════════════════════════

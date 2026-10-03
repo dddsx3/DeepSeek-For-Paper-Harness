@@ -244,6 +244,11 @@ function fakeDeliverable(spec: StageSpec, file: string): string {
         { id: 'MS-3', problem_refs: ['P3', 'P4'], checklist_refs: ['CAP-2'], objective: '反解干燥完成时刻' },
       ],
       result_constraints: ['lambda r: r["t_star"] > 0'],
+      // 门禁 `cashflow_branches_declared`：现金流规则要按决策分支展开（不能是一句散文）
+      implementation_contract: { cashflow_rule: { branches: [
+        { when: '恒温干燥', terms: ['-能耗费用'] },
+        { when: '变温干燥', terms: ['-能耗费用', '-变温附加成本'] },
+      ] } },
       model_constants: [],
     })
   }
