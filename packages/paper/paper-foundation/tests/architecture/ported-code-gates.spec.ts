@@ -269,14 +269,17 @@ describe('delivery_audit —— 声明的交付物与磁盘一致（移植 deliv
     expect(v.items[0]?.detail).toContain('运行期产物')
   })
 
-  it('**声明的交付物没人产出**（磁盘没有、代码里也不写）→ 1', () => {
+  it('**声明的交付物找不到产出凭据 → 警告级**（0，但点名；权威判据在阶段 4 的铸数）', () => {
+    // 为什么不当硬失败：运行期产物的名字可能是**拼出来的**（`f"problem{i}.json"`），
+    // 此时"字面量不出现"不能证明它没人产出。而这件事有权威判据——阶段 4 铸数时按 locator
+    // 真解析一次，解析不到就整轮失败。门禁只报疑点（**宁可漏报，不可误报**）。
     const i = input({
       'code/main.py': 'print(1)',
       'DELIVERABLES.json': list([{ path: 'code/ghost.json', kind: 'json' }]),
     })
     const v = run('delivery_audit', i)
-    expect(v.code).toBe(1)
-    expect(v.items[0]?.detail).toContain('没人产出')
+    expect(v.code).toBe(0)
+    expect(v.items[0]?.detail).toContain('代码里也没找到它的名字')
   })
 
   it('**`.py` 不在磁盘上 → 1**（源码不可能"等运行时再生成"）', () => {
