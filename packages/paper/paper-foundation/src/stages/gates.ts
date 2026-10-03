@@ -1939,7 +1939,11 @@ const modelingSelfCheck: GateFn = (input) => {
     declared = parsed as Record<string, unknown>
   } catch (error) {
     return fail(id, `\`DECLARATION.json\` 不是合法 JSON（${String(error).slice(0, 80)}）`
-      + ' —— 声明文件是整个下游的机器契约，它必须能被解析')
+      + ' —— 声明文件是整个下游的机器契约，它必须能被解析。'
+      + '**最常见的两个原因**（都修一次就好）：① 字符串里有**未转义的换行**'
+      + '（长文本要写成一行，或用 `\\n` 转义）；② 字符串**引号没闭合**'
+      + '（实测：`"S-ALPHAV` 少了一个 `"`）。'
+      + '报错里的行号就是出问题的位置附近——**整段重写那一条**，不要在错误处打补丁。')
   }
   const listOf = (key: string): ReadonlyArray<Record<string, unknown>> =>
     Array.isArray(declared[key]) ? (declared[key] as ReadonlyArray<Record<string, unknown>>).filter(
