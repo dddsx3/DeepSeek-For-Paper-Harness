@@ -282,16 +282,27 @@ describe('delivery_audit —— 声明的交付物与磁盘一致（移植 deliv
     expect(v.items[0]?.detail).toContain('代码里也没找到它的名字')
   })
 
-  it('**`.py` 不在磁盘上 → 1**（源码不可能"等运行时再生成"）', () => {
-    // 实测（2024B）：`code/data_check.py` 被声明、main.py 里也有 `data_check.json`，
-    // 旧判据靠"词干出现过"把它当成运行期产物放行 —— 假通过。
+  it('**`.py` 被 `import` 却不在磁盘上 → 1**（运行时必然 ModuleNotFoundError）', () => {
+    // 实测（2024B）：`code/validation.py` 被声明、`main.py` 里也 `import validation`，
+    // 但分片计划没有它的槽位 —— 谁都产不出这个文件，阶段 4 真跑必然 ModuleNotFoundError。
     const i = input({
-      'code/main.py': 'x = _write_json("data_check.json")',
-      'DELIVERABLES.json': list([{ path: 'code/data_check.py', kind: 'py', min_bytes: 200 }]),
+      'code/main.py': 'import validation\nvalidation.verify()',
+      'DELIVERABLES.json': list([{ path: 'code/validation.py', kind: 'py', min_bytes: 200 }]),
     })
     const v = run('delivery_audit', i)
     expect(v.code).toBe(1)
-    expect(v.items[0]?.detail).toContain('源码')
+    expect(v.items[0]?.detail).toContain('import')
+  })
+
+  it('**零误报**：`.py` 声明了但没人 `import` → 只警告（0），并给出清理建议', () => {
+    // 谁都没引用的源码文件只是清单噪音，不值得一个硬失败。
+    const i = input({
+      'code/main.py': 'print(1)',
+      'DELIVERABLES.json': list([{ path: 'code/helper.py', kind: 'py' }]),
+    })
+    const v = run('delivery_audit', i)
+    expect(v.code).toBe(0)
+    expect(v.items[0]?.detail).toContain('从清单里去掉')
   })
 
   it('存在但是空的 / 小于自己声明的 `min_bytes` → 1', () => {

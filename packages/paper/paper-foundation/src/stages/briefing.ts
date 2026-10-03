@@ -427,6 +427,13 @@ const SKILLS: Readonly<Record<string, StageSkill>> = {
         + '（**不能信任优化器的 constraints_ok 字段**），'
         + '并在 `RESULTS.md` 末尾写 `<!-- AUDIT_OK source=results.json -->` 凭证。'
         + '没有这行凭证 = 约束没验过。基线/对照情景**必须过同一套审计**。',
+      '**⛔ 不要发明分片计划之外的源码文件**（门禁 `delivery_audit` 会硬失败）：'
+        + '本阶段每个分片只产出固定清单里的一个文件（`main.py` / `params.py` / `data_check.py` /'
+        + ' `problem1..N.py` / `RESULTS.md` / `DELIVERABLES.json`）。实测踩过：模型在'
+        + ' `DELIVERABLES.json` 里声明 `code/validation.py`、`main.py` 里也 `import validation`，'
+        + '但**没有任何分片能产出这个文件**——阶段 4 真跑代码必然 ModuleNotFoundError，整轮白跑。'
+        + '要加辅助函数就写进 `params.py`（共享常量与校验）或对应的 `problem*.py`（该问私有），'
+        + '并把清单里的条目与磁盘保持一致。',
       '**数据预检脚本**（参考 comp-code Step 2.5，**本阶段有一个独立分片**）：'
         + '`code/data_check.py`——逐文件打印 sheet 名、行数、列名、缺失值比例、异常值。'
         + '契约要求"确认数据没问题后再写求解代码"。'

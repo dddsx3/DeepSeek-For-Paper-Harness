@@ -1850,6 +1850,8 @@ const deliveryAudit: GateFn = (input) => {
     .join('\n')
   const problems: string[] = []
   const runtime: string[] = []
+  /** 非阻断的观察（清单里多写了一行之类）——写进结论，不计入失败。 */
+  const notes: string[] = []
   let present = 0
   for (const [i, entry] of list.entries()) {
     const at = `第 ${String(i + 1)} 条`
@@ -1882,8 +1884,20 @@ const deliveryAudit: GateFn = (input) => {
       // ——**假通过**：那一个词干来自 `data_check.json`（另一个东西）。
       // 源码文件只认"在磁盘上"，运行期产物才认"代码里会写出它"。
       if (/\.py$/i.test(path)) {
-        problems.push(`${path}：声明为**源码**交付物，但磁盘上没有 —— `
-          + '源码不可能"等运行时再生成"，这就是没交付（运行时必然 ModuleNotFoundError）')
+        // **分两种**：被代码 `import` 的（运行时必然 ModuleNotFoundError，硬失败）
+        // 与没人引用的（只是清单里多写了一行，警告）。
+        // 实测两种都出现过：`data_check.py` 被 `main.py` import 却没人产出（危险）；
+        // `validation.py` 同样被 import（危险）。而一个谁都没引用的 `.py` 声明只是噪音。
+        const imported = new RegExp(`(?:import\\s+|from\\s+)${stem.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`).test(codeText)
+        if (imported) {
+          problems.push(`${path}：被代码 \`import\`，但**磁盘上没有**、分片计划也没有它的槽位 —— `
+            + `运行时必然 ModuleNotFoundError。修法：把它的内容**并进 \`main.py\` / \`params.py\` / 对应的 \`problem*.py\`**`
+            + `（本阶段的分片计划只给固定槽位，**不许发明额外的源码文件**），`
+            + `然后把这条声明从清单里去掉`)
+        } else {
+          notes.push(`${path}：声明的源码文件不存在，但代码里也没有 \`import ${stem}\` —— `
+            + '把它从清单里去掉（本阶段不产出额外的源码文件）')
+        }
       } else if (codeText.includes(base) || (stem !== '' && codeText.includes(stem))) {
         runtime.push(path)
       } else {
@@ -1915,8 +1929,10 @@ const deliveryAudit: GateFn = (input) => {
   const runtimeNote = runtime.length === 0 ? ''
     : `；其中 ${String(runtime.length)} 条是运行期产物（阶段 4 真跑后才有，代码里会写出：`
       + `${runtime.slice(0, 3).join('、')}${runtime.length > 3 ? '…' : ''}）`
+  const notesNote = notes.length === 0 ? ''
+    : `；⚠ ${String(notes.length)} 条待清理（${notes[0]?.slice(0, 90) ?? ''}）`
   return ok(id, `声明的 ${String(list.length)} 条交付物：${String(present)} 条在磁盘上且非空、`
-    + '满足各自的 `min_bytes`' + runtimeNote)
+    + '满足各自的 `min_bytes`' + runtimeNote + notesNote)
 }
 
 /**
