@@ -491,7 +491,9 @@ describe('`_figbase` 提供的名字 ⊇ 契约点名的名字', () => {
     const probe = `import sys; sys.path.insert(0, 'figures'); from _figbase import ${names.join(', ')}; print('ok')`
     const r = spawnSync('python', ['-c', probe], { cwd: root, encoding: 'utf8', timeout: 180_000 })
     expect(r.stdout ?? '', `python 导入失败：${(r.stderr ?? '').slice(-400)}`).toContain('ok')
-  })
+    // 显式超时：这条要真起一个 python 子进程做导入探针，全量套件并行 + 机器忙时
+    // 会超过 vitest 的 5 秒默认值 —— 那是**负载**，不是缺陷（孤立跑稳定通过）。
+  }, 120_000)
 })
 
 /**

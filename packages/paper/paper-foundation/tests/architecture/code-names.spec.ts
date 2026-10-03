@@ -49,6 +49,30 @@ describe('definitionsIn —— 哪些写法算"定义了一个名字"', () => {
     expect(definitionsIn('for K, V in items:\n    pass\n').has('V')).toBe(true)
   })
 
+  it('**括号式多行解包**（实测浪费了三次阶段尝试的假阳性）', () => {
+    // `params.py` 用这个写法把六个情形字典绑到六个名字上：最后一个名字后面是
+    // "换行 + 逗号 + `) = `"，单行正则抓不到 → 六个名字全被判成"任何文件都没定义"。
+    const src = [
+      'Q2_CASES = {"C1": {"part_rates": (0.10, 0.10)}}',
+      'Q2_CASE_LIST = tuple(Q2_CASES[c] for c in Q2_CASES)',
+      '(',
+      '    Q2_CASE1,',
+      '    Q2_CASE2,',
+      '    Q2_CASE6,',
+      ') = Q2_CASE_LIST',
+      'rate = Q2_CASE1["part_rates"]',
+    ].join('\n')
+    expect(undefinedConstNames([['code/params.py', src]])).toEqual([])
+  })
+
+  it('**判别力**：`(a, b) == c` 这类比较不是解包（`=` 后面不能是 `=` 或 `>`）', () => {
+    // 若被当成解包，a/b 会被记成"已定义"——那是假阴性（更危险：真未定义的名字漏报）。
+    const defs = definitionsIn('ok = (a, b) == pair\n')
+    expect(defs.has('a')).toBe(false)
+    expect(defs.has('b')).toBe(false)
+    expect(defs.has('ok')).toBe(true)
+  })
+
   it('**括号式导入** `from x import (A, B)`（含 `as`）都算', () => {
     const d = definitionsIn('from params import (\n    ALPHA,\n    BETA as B2,\n)\n')
     expect(d.has('ALPHA')).toBe(true)

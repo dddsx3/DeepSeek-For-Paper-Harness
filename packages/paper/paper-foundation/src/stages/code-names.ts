@@ -51,6 +51,18 @@ export function definitionsIn(code: string): ReadonlySet<string> {
   for (const m of code.matchAll(/^\s*\(?((?:[A-Za-z_]\w*\s*,\s*)+[A-Za-z_]\w*)\s*(?::[^=\n]*)?=/gm)) {
     for (const n of (m[1] ?? '').split(',')) out.add(n.trim())
   }
+  // **括号式多行解包**：`(A,\n    B,\n    C,\n) = X`。
+  // ⛔ 单行正则抓不到它——最后一个名字后面是"换行 + 逗号 + `) = `"，不是 `\s*=`。
+  // 实测代价：`params.py` 用这个写法把六个情形字典绑到六个名字上，结果六个名字
+  // 全被判成"任何文件都没定义"，**三次阶段尝试（第 2/4/5 次）浪费在同一处**。
+  // 要求括号内只含标识符与逗号、且 `=` 不是 `==`/`<=`/`>=` 的一部分——
+  // 防止把 `(a, b) == c` 这类比较当成解包。
+  for (const m of code.matchAll(/\(([\sA-Za-z0-9_,]*)\)\s*=(?![=>])/g)) {
+    for (const n of (m[1] ?? '').split(',')) {
+      const name = n.trim()
+      if (/^[A-Za-z_]\w*$/.test(name)) out.add(name)
+    }
+  }
   // 海象运算符：`NAME := …`（任何位置）
   for (const m of code.matchAll(/(?<![.\w])([A-Za-z_]\w*)\s*:=/g)) out.add(m[1] ?? '')
   for (const m of code.matchAll(/^\s*(?:def|class)\s+([A-Za-z_]\w*)/gm)) out.add(m[1] ?? '')
