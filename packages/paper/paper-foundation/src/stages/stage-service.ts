@@ -46,7 +46,7 @@ import { join } from 'node:path'
 import { Context, Service } from '@deepseek-ai/cordis'
 import { createUserMessage, type GenerateOptions } from '@deepseek-ai/dsh-llm'
 import { deterministicRunner, type DeterministicOutcome } from './deterministic.ts'
-import { runCodeAndMintResults } from './execute-and-mint.ts'
+import { runCodeAndMintResults, smokeRunCode } from './execute-and-mint.ts'
 import { resolvePaperAnchors } from './anchor-resolve.ts'
 import { CODE_PY_RE, undefinedConstNames, type UndefinedNameFinding } from './code-names.ts'
 import { assembleShards, planCodeShards, planModelingShards, type CodeShard } from './code-shard.ts'
@@ -586,6 +586,17 @@ export class PaperStageChainService extends Service {
       // 阶段 3 的 harness 侧后处理：**真跑代码并铸数**。模型只声明数在哪
       // （RESULT_SOURCES.json），账本由真实执行的产物字节铸成——数不由模型持有。
       afterModel: async (spec, stagesRoot) => {
+        // 阶段 3 的**冒烟运行**：交付的代码此前从没被执行过，第一个执行它的环节是阶段 4，
+        // 而它之前隔着一次独立审计。实测代价：审计的第一条 fatal 是"常量被定义为元组、
+        // 却按字典下标索引，首次求解即 TypeError"——10 秒的执行就能抓到，却烧掉一次审计
+        // 裁决外加下一轮 9 片重跑。失败走与阶段 4 运行时失败**同一条回路**
+        // （回执写 `_runtime-failure.txt`，`priorRuntimeFindings` 注入下一轮简报）。
+        if (spec.id === 'code') {
+          const smoke = await smokeRunCode(stagesRoot)
+          this.config.onDeterministicOutcome?.({ stage: 'code', summary: smoke.summary })
+          if (smoke.failure !== null) throw new Error(smoke.failure)
+          return
+        }
         if (spec.id === 'result-sources') {
           const outcome = await runCodeAndMintResults(stagesRoot)
           this.config.onDeterministicOutcome?.({

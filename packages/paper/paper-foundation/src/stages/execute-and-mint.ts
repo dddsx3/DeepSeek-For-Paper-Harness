@@ -32,7 +32,7 @@
 
 import { spawnSync } from 'node:child_process'
 import { existsSync } from 'node:fs'
-import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { resolveJsonPath } from '../produce/interpretation-producer.ts'
 import { markStaleFrom, readPassport, writePassport } from './handoff.ts'
@@ -57,6 +57,76 @@ export const RUNTIME_FAILURE_FILE = '_runtime-failure.txt'
 
 /** 代码执行入口（相对 `code/`）。 */
 export const CODE_ENTRY = 'main.py'
+
+/**
+ * 阶段 3 的**冒烟运行**结论。
+ *
+ * `failure` 非 null 时，`afterModel` 会把它抛出去让本阶段失败——走的是与阶段 4
+ * 运行时失败**同一条回路**（回执写在 `_runtime-failure.txt`，`priorRuntimeFindings`
+ * 注入下一轮简报）。
+ */
+export interface SmokeRunOutcome {
+  /** 给 `onDeterministicOutcome` 的一句话（人读）。 */
+  readonly summary: string
+  /** 非空 = 代码跑不起来，本阶段应当失败。 */
+  readonly failure: string | null
+}
+
+/**
+ * 真跑一次 `code/main.py`（环境与阶段 4 完全一致：cwd = `code/`、同一入口、同一超时）。
+ *
+ * ## 为什么阶段 3 也要跑一次
+ *
+ * 在这之前，阶段 3 交付的代码**从没被执行过**——第一个执行它的环节是阶段 4，
+ * 而在它之前隔着一次独立审计。实测代价：审计的第一条 fatal 是
+ * *"Q1_DECISION_DIRECTIONS 被定义为元组，却被按下标索引字符串，首次求解即 TypeError"*
+ * ——一个 10 秒的执行就能抓到的缺陷，烧掉了一次独立审计的裁决，
+ * 外加下一轮 9 片重跑（约一小时）。**先让代码跑起来，再谈别的。**
+ *
+ * ## 三条边界
+ *
+ * 1. **超时不是失败**：竞赛级求解可能就是要跑很久；超时记"未判定，不阻断"，
+ *    交由阶段 4 用同一个超时真跑。判据是"跑不起来"（非 0 退出），不是"跑得慢"。
+ * 2. **spawn 失败不是失败**：python 不在 PATH 之类是环境问题，记未判定。
+ * 3. **探针不是交付**：运行新产生的文件（结果账本等）在跑完后**删掉**——
+ *    它们不是模型交付的产物，留着会让门禁的 `min_bytes` 判据看到一份"运行结果"
+ *    而不是"声明与磁盘一致"；阶段 4 会从头再跑一遍，什么都不丢。
+ */
+export async function smokeRunCode(stagesRoot: string): Promise<SmokeRunOutcome> {
+  const codeDir = join(stagesRoot, stageDirName(stageOf('code')), 'code')
+  if (!existsSync(join(codeDir, CODE_ENTRY))) {
+    return { summary: '冒烟运行跳过：code/main.py 不存在（由门禁报）', failure: null }
+  }
+  const timeoutMs = Number(process.env['PAPER_CODE_RUN_TIMEOUT_MS'] ?? '') > 0
+    ? Number(process.env['PAPER_CODE_RUN_TIMEOUT_MS'])
+    : 600_000
+  // 快照：跑完后把**新增**的文件删掉（探针不是交付，见上）。
+  const before = new Set((await readdir(codeDir).catch(() => [] as string[])))
+  const run = spawnSync('python', [CODE_ENTRY], { cwd: codeDir, encoding: 'utf8', timeout: timeoutMs })
+  const created = (await readdir(codeDir).catch(() => [] as string[])).filter(n => !before.has(n))
+  for (const n of created) await rm(join(codeDir, n), { force: true }).catch(() => { /* 删不掉就算了，阶段 4 会覆盖 */ })
+
+  if (run.error !== undefined) {
+    return { summary: `冒烟运行未判定（spawn 失败：${String(run.error).slice(0, 80)}）—— 不阻断`, failure: null }
+  }
+  if (run.signal !== null) {
+    return { summary: `冒烟运行超时（${String(timeoutMs)}ms 被杀）—— 未判定，不阻断（阶段 4 用同一超时真跑）`, failure: null }
+  }
+  if (run.status === 0) {
+    return { summary: '冒烟运行通过（python code/main.py 退出码 0）', failure: null }
+  }
+  const tail = (run.stderr || '(空)').split('\n').filter(l => l.trim() !== '').slice(-10).join('\n').slice(0, 1800)
+  const last = (run.stderr || '').split('\n').filter(l => l.trim() !== '').slice(-1)[0]?.slice(0, 140) ?? '(空)'
+  await writeFile(join(stagesRoot, stageDirName(stageOf('code')), RUNTIME_FAILURE_FILE),
+    `<!-- 阶段 3 冒烟运行失败（python code/main.py 退出码 ${String(run.status)}）。`
+    + '环境与阶段 4 完全一致（cwd=code/）。修完代码再交付——别让独立审计替你执行代码。 -->\n\n'
+    + `${tail}\n`, 'utf8').catch(() => { /* 落盘失败不掩盖原失败 */ })
+  return {
+    summary: `冒烟运行失败（退出码 ${String(run.status)}）：${last}`,
+    failure: `交付的代码跑不起来（python code/main.py 退出码 ${String(run.status)}）：${last}`
+      + ' —— 完整栈在 `_runtime-failure.txt`。这是执行就能抓到的缺陷，修完再交付。',
+  }
+}
 
 /** 一条"数在哪"的声明。 */
 export interface ResultSource {
