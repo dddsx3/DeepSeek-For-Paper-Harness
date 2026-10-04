@@ -72,6 +72,8 @@ export interface SmokeRunOutcome {
   readonly failure: string | null
   /** 失败时的 stderr 尾部（定向修复要用：里面是 traceback 与肇事文件/行号）。 */
   readonly traceback: string
+  /** 失败前写出的报告（`data_check.json` 这类——"为什么失败"的直接证据，清理前抢救下来）。 */
+  readonly artifacts: ReadonlyArray<readonly [string, string]>
 }
 
 /**
@@ -97,7 +99,7 @@ export interface SmokeRunOutcome {
 export async function smokeRunCode(stagesRoot: string): Promise<SmokeRunOutcome> {
   const codeDir = join(stagesRoot, stageDirName(stageOf('code')), 'code')
   if (!existsSync(join(codeDir, CODE_ENTRY))) {
-    return { summary: '冒烟运行跳过：code/main.py 不存在（由门禁报）', failure: null, traceback: '' }
+    return { summary: '冒烟运行跳过：code/main.py 不存在（由门禁报）', failure: null, traceback: '', artifacts: [] }
   }
   const timeoutMs = Number(process.env['PAPER_CODE_RUN_TIMEOUT_MS'] ?? '') > 0
     ? Number(process.env['PAPER_CODE_RUN_TIMEOUT_MS'])
@@ -108,16 +110,28 @@ export async function smokeRunCode(stagesRoot: string): Promise<SmokeRunOutcome>
   const before = new Set((await readdir(codeDir).catch(() => [] as string[])))
   const run = spawnSync('python', [CODE_ENTRY], { cwd: codeDir, encoding: 'utf8', timeout: timeoutMs })
   const created = (await readdir(codeDir).catch(() => [] as string[])).filter(n => !before.has(n))
+  // ⛔ 失败时**先取报告内容再清理**：崩溃前写出的报告（如数据预检的 data_check.json）
+  // 是"为什么失败"的直接证据——清理后再修，模型只看到"precheck failed"却看不到
+  // 发现了什么，只能瞎猜（实测 5 轮修复全耗在这上面）。
+  const artifacts: Array<readonly [string, string]> = []
+  if (run.status !== 0 && run.status !== null) {
+    for (const n of created) {
+      if (!/\.(json|txt|md|csv)$/i.test(n)) continue
+      const body = await readFile(join(codeDir, n), 'utf8').catch(() => null)
+      if (body !== null) artifacts.push([n, body.slice(0, 6000)])
+      if (artifacts.length >= 4) break
+    }
+  }
   for (const n of created) await rm(join(codeDir, n), { force: true }).catch(() => { /* 删不掉就算了，阶段 4 会覆盖 */ })
 
   if (run.error !== undefined) {
-    return { summary: `冒烟运行未判定（spawn 失败：${String(run.error).slice(0, 80)}）—— 不阻断`, failure: null, traceback: '' }
+    return { summary: `冒烟运行未判定（spawn 失败：${String(run.error).slice(0, 80)}）—— 不阻断`, failure: null, traceback: '', artifacts: [] }
   }
   if (run.signal !== null) {
-    return { summary: `冒烟运行超时（${String(timeoutMs)}ms 被杀）—— 未判定，不阻断（阶段 4 用同一超时真跑）`, failure: null, traceback: '' }
+    return { summary: `冒烟运行超时（${String(timeoutMs)}ms 被杀）—— 未判定，不阻断（阶段 4 用同一超时真跑）`, failure: null, traceback: '', artifacts: [] }
   }
   if (run.status === 0) {
-    return { summary: '冒烟运行通过（python code/main.py 退出码 0）', failure: null, traceback: '' }
+    return { summary: '冒烟运行通过（python code/main.py 退出码 0）', failure: null, traceback: '', artifacts: [] }
   }
   const tail = (run.stderr || '(空)').split('\n').filter(l => l.trim() !== '').slice(-10).join('\n').slice(0, 1800)
   const last = (run.stderr || '').split('\n').filter(l => l.trim() !== '').slice(-1)[0]?.slice(0, 140) ?? '(空)'
@@ -130,6 +144,7 @@ export async function smokeRunCode(stagesRoot: string): Promise<SmokeRunOutcome>
     failure: `交付的代码跑不起来（python code/main.py 退出码 ${String(run.status)}）：${last}`
       + ' —— 完整栈在 `_runtime-failure.txt`。这是执行就能抓到的缺陷，修完再交付。',
     traceback: tail,
+    artifacts,
   }
 }
 
