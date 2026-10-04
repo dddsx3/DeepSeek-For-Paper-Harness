@@ -32,7 +32,7 @@
 
 import { spawnSync } from 'node:child_process'
 import { existsSync } from 'node:fs'
-import { mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises'
+import { copyFile, mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { resolveJsonPath } from '../produce/interpretation-producer.ts'
 import { markStaleFrom, readPassport, writePassport } from './handoff.ts'
@@ -100,6 +100,8 @@ export async function smokeRunCode(stagesRoot: string): Promise<SmokeRunOutcome>
   const timeoutMs = Number(process.env['PAPER_CODE_RUN_TIMEOUT_MS'] ?? '') > 0
     ? Number(process.env['PAPER_CODE_RUN_TIMEOUT_MS'])
     : 600_000
+  // 执行环境先备好（在快照**之前**拷——这样下面的清理不会把它当运行产物删掉）
+  await stageCodeInputs(stagesRoot, codeDir)
   // 快照：跑完后把**新增**的文件删掉（探针不是交付，见上）。
   const before = new Set((await readdir(codeDir).catch(() => [] as string[])))
   const run = spawnSync('python', [CODE_ENTRY], { cwd: codeDir, encoding: 'utf8', timeout: timeoutMs })
@@ -326,6 +328,29 @@ export function parseResultSources(raw: string): ReadonlyArray<ResultSource> {
  * @returns 铸造结论（进日志与检查点报告）。
  * @throws 代码非零退出、locator 读不到、值不是有限数时抛错（**具名**）。
  */
+/**
+ * 把题面事实放进**执行环境**（cwd = `code/`）。
+ *
+ * 为什么必须：执行环境的 cwd 是 `code/`，而 `PROBLEM_FACTS.json` 在 `01-prob-analysis/` ——
+ * 契约要求 `data_check.py` 在运行时逐条核对事实的参数域与单位（我加的那条），于是代码
+ * 会在运行时读它。不布进环境就是**契约要求一件环境里做不到的事**：实测冒烟运行报
+ * `FileNotFoundError: PROBLEM_FACTS.json was not found`。
+ *
+ * @param stagesRoot - `stages/` 根目录。
+ * @param codeDir - 执行环境（`code/` 目录的绝对路径）。
+ */
+export async function stageCodeInputs(stagesRoot: string, codeDir: string): Promise<void> {
+  const facts = join(stagesRoot, stageDirName(stageOf('prob-analysis')), 'PROBLEM_FACTS.json')
+  if (existsSync(facts)) await copyFile(facts, join(codeDir, 'PROBLEM_FACTS.json')).catch(() => { /* 拷不了让运行时自己报 */ })
+}
+
+/**
+ * 真跑 `code/main.py` 并按声明铸数。
+ *
+ * @param stagesRoot - `stages/` 根目录。
+ * @returns 铸造结论（进日志与检查点报告）。
+ * @throws 代码非零退出、locator 读不到、值不是有限数时抛错（**具名**）。
+ */
 export async function runCodeAndMintResults(stagesRoot: string): Promise<ExecuteMintResult> {
   const codeDir = join(stagesRoot, stageDirName(stageOf('code')), 'code')
   // RESULT_SOURCES 是**本阶段**（result-sources）的产物；代码在上一阶段（code）。
@@ -341,6 +366,8 @@ export async function runCodeAndMintResults(stagesRoot: string): Promise<Execute
   if (!existsSync(entry)) {
     throw new Error(`代码入口不在：code/${CODE_ENTRY} —— 没有可执行的编排入口`)
   }
+  // 执行环境先备好：题面事实进 cwd（data_check 之类的预检脚本要在运行时读它）
+  await stageCodeInputs(stagesRoot, codeDir)
   const timeoutMs = Number(process.env['PAPER_CODE_RUN_TIMEOUT_MS'] ?? '') > 0
     ? Number(process.env['PAPER_CODE_RUN_TIMEOUT_MS'])
     : 600_000

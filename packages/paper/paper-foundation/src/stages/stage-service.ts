@@ -47,9 +47,10 @@ import { Context, Service } from '@deepseek-ai/cordis'
 import { createUserMessage, type GenerateOptions } from '@deepseek-ai/dsh-llm'
 import { deterministicRunner, type DeterministicOutcome } from './deterministic.ts'
 import { runCodeAndMintResults, smokeRunCode } from './execute-and-mint.ts'
+import { spawnSync } from 'node:child_process'
 import { resolvePaperAnchors } from './anchor-resolve.ts'
 import { CODE_PY_RE, undefinedConstNames, type UndefinedNameFinding } from './code-names.ts'
-import { assembleShards, planCodeShards, planModelingShards, type CodeShard } from './code-shard.ts'
+import { assembleShards, planCodeShards, planModelingShards, stripOneFence, type CodeShard } from './code-shard.ts'
 import { assembleFigureAnswers, planShard, scriptShards, type FigureShard } from './figure-script-shard.ts'
 import { auditPromptOf, parseAuditVerdict } from './audit.ts'
 import { skillTaskOf } from './briefing.ts'
@@ -109,6 +110,46 @@ export const STAGE_CHAIN_SYSTEM = [
  * 这个真实形态（实测一次最多 2 个名字、且只出现在一片里）。
  */
 const MAX_NAME_REPAIRS = 4
+
+/**
+ * 阶段 3 分片的**语法重问总预算**（跨分片共享，与名字重问分开计）。
+ *
+ * 为什么需要它：实测 8 次尝试**全部**栽在"交付的 Python 语法坏了"
+ * （`unmatched ']'` / `unterminated string literal` / `closing parenthesis does not match`…）
+ * ——单片 33-84KB，超出单次输出的可靠上限，截断落进文件里就是语法错。
+ * 之前这类缺陷要到**整阶段结束**（冒烟运行）才被发现，一次就是一小时级的 9 片白跑。
+ */
+const MAX_SYNTAX_REPAIRS = 4
+
+/**
+ * 用 **Python 自己的解析器**查一段源码的语法；返回最后一行错误信息，合法返回 null。
+ *
+ * 为什么不写正则：括号配平、三引号、f-string、续行……任何手写判据都有漏网，
+ * 而 `ast.parse` 就是这门语言的权威判据，且一次约 50ms。
+ */
+function pythonSyntaxError(src: string): string | null {
+  const probe = spawnSync('python', ['-c', 'import ast,sys; ast.parse(sys.stdin.read())'], {
+    input: src, encoding: 'utf8', timeout: 30_000,
+  })
+  if (probe.status === 0) return null
+  const line = (probe.stderr || '').split('\n').filter(l => l.trim() !== '').slice(-1)[0]
+  return (line ?? '语法错误（解析器没有给出详细信息）').slice(0, 200)
+}
+
+/**
+ * 语法重问时追加的指令（把"为什么坏、怎么避免"说到不必猜）。
+ *
+ * @param problem - Python 解析器报的那一行错误。
+ */
+function syntaxRepairNote(problem: string): string {
+  return '\n\n---\n\n## ⛔ 你上一版的回答**不是合法的 Python**（解析器原话）\n\n'
+    + `> ${problem}\n\n`
+    + '这几乎总是**产出被单次输出的上限截断**：文件写到一半就停了。修法（按优先级）：\n'
+    + '① **删掉大段注释与重复的解释性散文**——逻辑一行不少，字数减半；\n'
+    + '② 同样的校验/账本结构**写成循环或表驱动**，不要逐条展开；\n'
+    + '③ 确保文件以**完整的顶层结构**结束（最后一行必须是一个完整语句的结尾）。\n'
+    + '重新输出**修正后的完整文件**（不要只给补丁片段）。'
+}
 
 /**
  * 单片重问时追加的指令（把"哪几个名字、怎么修"说到不必猜）。
@@ -383,9 +424,10 @@ export class PaperStageChainService extends Service {
         if (spec.id === 'code') {
           const shards = planCodeShards(spec, prompt, await this.problemCount())
           const answers: string[] = []
-          // 单片名字重问的**总预算**（跨分片共享）：重问是补救不是常规路径——
+          // 单片名字/语法重问的**总预算**（跨分片共享，各自封顶）：重问是补救不是常规路径——
           // 无上限会变成"模型写多少就重问多少"，预算封顶才是机械性改造。
           let nameRepairs = 0
+          let syntaxRepairs = 0
           for (const shard of shards) {
             // **后续分片必须看到前面的产出**（与阶段 2 同一条约束，见下面那段注释）。
             //
@@ -476,6 +518,26 @@ export class PaperStageChainService extends Service {
                     + `→ 只重问这一片（第 ${String(nameRepairs)}/${String(MAX_NAME_REPAIRS)} 次）`,
                 })
                 answer = await singleCall(spec, shard.prompt + prior + nameRegistry + nameRepairNote(mine))
+              }
+            }
+            // ── 单片**语法**自检：截断是这类分片的最大塌方源 ──
+            //
+            // 实测 8 次尝试全部栽在"交付的 Python 语法坏了"（`unmatched ']'` /
+            // `unterminated string literal`…）——单片 33-84KB 超出单次输出的可靠上限，
+            // 截断落进文件里就是语法错；而它此前要到**整阶段结束**（冒烟运行）才被发现，
+            // 一次就是一小时级的 9 片白跑。在收到那一片的当下用 Python 自己的解析器
+            // （`ast.parse`）查一遍，坏片只重问那一片（每片最多一次，跨片共享预算）。
+            // 冒烟运行保留为整阶段兜底。
+            if (CODE_PY_RE.test(shard.deliverable) && syntaxRepairs < MAX_SYNTAX_REPAIRS) {
+              const problem = pythonSyntaxError(stripOneFence(answer))
+              if (problem !== null) {
+                syntaxRepairs += 1
+                this.config.onDeterministicOutcome?.({
+                  stage: spec.id,
+                  summary: `分片 ${String(shard.index)}/${String(shard.total)} 语法不合法（${problem.slice(0, 60)}）`
+                    + `→ 只重问这一片（第 ${String(syntaxRepairs)}/${String(MAX_SYNTAX_REPAIRS)} 次）`,
+                })
+                answer = await singleCall(spec, shard.prompt + prior + nameRegistry + syntaxRepairNote(problem))
               }
             }
             answers.push(answer)
