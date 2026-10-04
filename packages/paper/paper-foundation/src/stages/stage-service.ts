@@ -41,8 +41,8 @@
  * @module @deepseek-ai/dsh-paper-foundation/stages/stage-service
  */
 
-import { readFile, writeFile } from 'node:fs/promises'
-import { join } from 'node:path'
+import { mkdir, readFile, writeFile } from 'node:fs/promises'
+import { dirname, join } from 'node:path'
 import { Context, Service } from '@deepseek-ai/cordis'
 import { createUserMessage, type GenerateOptions } from '@deepseek-ai/dsh-llm'
 import { deterministicRunner, type DeterministicOutcome } from './deterministic.ts'
@@ -783,29 +783,35 @@ export class PaperStageChainService extends Service {
     singleCall: (spec: StageSpec, prompt: string) => Promise<string>,
     smoke: SmokeRunOutcome,
   ): Promise<string | null> {
-    const target = smokeTargetFile(smoke.traceback)
-    if (target === null) return null
-    const rel = `code/${target}`
-    const abs = join(stagesRoot, stageDirName(stageOf('code')), rel)
-    const current = await readFile(abs, 'utf8').catch(() => null)
-    if (current === null) return null
-    const repaired = await singleCall(spec, smokeRepairPrompt(target, smoke.traceback, current))
+    // **肇事链可能跨文件**：traceback 最内层在 params.py，但正确的修法可能改 caller
+    // （problem3.py）——实测："q3_rate_map() takes 0 positional arguments but 1 was given"，
+    // 模型只修 params.py 的签名，caller 在另一个文件里，它看不到 → 越修越坏。
+    // 所以把 traceback 涉及的**全部**我们的文件（≤3 个）都给它，并允许输出多文件信封。
+    const involved = smokeInvolvedFiles(smoke.traceback)
+    if (involved.length === 0) return null
+    const contents = new Map<string, string>()
+    for (const name of involved) {
+      const body = await readFile(join(stagesRoot, stageDirName(stageOf('code')), 'code', name), 'utf8').catch(() => null)
+      if (body === null) return null
+      contents.set(name, body)
+    }
+    const innermost = involved[involved.length - 1] ?? ''
+    const repaired = await singleCall(spec, smokeRepairPrompt(involved, smoke.traceback, contents))
     const body = stripOneFence(repaired)
-    // 语法过检才落盘：修复回答同样会被截断，落一个坏文件等于把好文件改坏。
-    const problem = pythonSyntaxError(body)
-    if (problem !== null) {
+    // 回答两种形态都认：多文件信封 `{"files": {...}}`，或单文件原文（= 只改最内层）。
+    const written = await writeSmokeRepair(stagesRoot, innermost, body, pythonSyntaxError)
+    if (written === null) {
       this.config.onDeterministicOutcome?.({
         stage: spec.id,
-        summary: `定向修复的文件仍不是合法 Python（${problem.slice(0, 60)}）—— 保留原文件`,
+        summary: '定向修复的回答没有通过语法过检 —— 保留原文件',
       })
       return null
     }
-    await writeFile(abs, body, 'utf8')
     this.config.onDeterministicOutcome?.({
       stage: spec.id,
-      summary: `定向修复：\`${rel}\` 已按 traceback 重写（${String(Buffer.byteLength(body, 'utf8'))} 字节），再跑一次冒烟`,
+      summary: `定向修复：${written.map(f => `\`${f}\``).join('、')} 已按 traceback 重写，再跑一次冒烟`,
     })
-    return rel
+    return innermost
   }
 }
 
@@ -817,40 +823,57 @@ function stageIndexOf(id: StageId): number {
 }
 
 /**
- * 从 traceback 里找出**肇事文件**（最后一个 `File "xxx.py"` 的名字；找不到给 null）。
+ * 从 traceback 提取**全部帧**（基名+行号，按出现顺序、去重）——修复需要看到整条调用链。
  *
- * 取**最后一个**而不是第一个：外层通常是 `main.py`（编排入口），真正抛错的是最内层。
+ * ⛔ 路径里**允许反斜杠**：Python 的帧是模块的**绝对路径**（实测
+ * `File "D:\...\code\params.py", line 575, in record`），旧写法 `[^"\\]` 一遇到
+ * Windows 反斜杠就整帧失配 → 找不到肇事文件 → 定向修复静默失效。
  *
  * @param traceback - 冒烟运行的 stderr 尾部。
- * @returns `code/` 下的文件名（如 `problem3.py`）；解析不出给 null。
+ * @returns 涉及的文件名（`code/` 下的 `.py`，最多 3 个：最外层 + 最内层优先）。
  */
-export function smokeTargetFile(traceback: string): string | null {
-  // ⛔ 路径里**允许反斜杠**：Python 的帧是模块的**绝对路径**（实测
-  // `File "D:\...\code\params.py", line 575, in record`），旧写法 `[^"\\]` 一遇到
-  // Windows 反斜杠就整帧失配 → 找不到肇事文件 → 定向修复静默失效。
-  const names = [...traceback.matchAll(/File\s+"([^"]+\.py)"/g)].map(m => (m[1] ?? '').split(/[\\/]/).pop() ?? '')
-  const last = names[names.length - 1]
-  return last === undefined || last === '' || !CODE_PY_RE.test(`code/${last}`) ? null : last
+export function smokeInvolvedFiles(traceback: string): ReadonlyArray<string> {
+  const names: string[] = []
+  for (const m of traceback.matchAll(/File\s+"([^"]+\.py)",\s*line\s+\d+/g)) {
+    const name = (m[1] ?? '').split(/[\\/]/).pop() ?? ''
+    if (name === '' || !CODE_PY_RE.test(`code/${name}`)) continue
+    if (!names.includes(name)) names.push(name)
+  }
+  if (names.length <= 3) return names
+  // 只保留最外层与最内层（中间的帧通常是同一条链的重复）
+  return [names[0] ?? '', names[names.length - 1] ?? ''].filter((n, i, a) => n !== '' && a.indexOf(n) === i)
 }
 
 /**
- * 定向修复的 prompt：traceback + 肇事文件当前内容 → 只要修好的完整文件。
+ * 定向修复的 prompt：traceback + **全部涉案文件**的当前内容 → 输出修好的文件。
  *
- * @param file - 肇事文件名（如 `problem3.py`）。
+ * 允许多文件的原因（实测）：只给最内层文件时，模型改了 `params.py` 的函数签名，
+ * 而 caller 在 `problem3.py` 里——它看不到，越修越坏。
+ *
+ * @param files - 涉案文件名（按调用链顺序）。
  * @param traceback - 冒烟运行的 stderr 尾部。
- * @param current - 该文件当前内容。
+ * @param contents - 文件名 → 当前内容。
  */
-export function smokeRepairPrompt(file: string, traceback: string, current: string): string {
+export function smokeRepairPrompt(
+  files: ReadonlyArray<string>,
+  traceback: string,
+  contents: ReadonlyMap<string, string>,
+): string {
+  const multi = files.length > 1
   return [
-    '你是修复 Python 代码的执行者。下面是一次**真实运行**的 traceback 与肇事文件的当前内容。',
-    '**只输出修复后的完整文件**——从第一个字符到最后一个字符都是它，不要解释、不要代码围栏、不要补丁片段。',
+    '你是修复 Python 代码的执行者。下面是一次**真实运行**的 traceback 与涉案文件的当前内容。',
+    multi
+      ? '**输出 JSON 信封** `{"files": {"code/<文件名>": "<修复后的完整内容>", …}}`——'
+        + `键必须恰为这些：${files.map(f => `\`code/${f}\``).join('、')}（只需要改动的文件也要给完整内容）。`
+      : '**只输出修复后的完整文件**——从第一个字符到最后一个字符都是它，不要解释、不要代码围栏、不要补丁片段。',
     '',
     '修复纪律（违反任何一条都算没修好）：',
     '- **改动最小**：只修 traceback 指到的问题；不要重构、不要改名、不要"顺手优化"、',
     '  **不要弱化任何校验与断言**（它们是约束闭环复算的一部分）。',
-    '- **不碰其它文件**：你看不到它们，也不要假设它们会变。',
+    '- **跨文件要一致**：改一个函数的签名/返回值，就必须同步改**所有**调用方'
+      + '（caller 可能不在本文件——先在给出的其它文件里搜一遍）。',
     '- 写紧凑：注释只写"为什么"；推理与产出共享同一次调用的输出预算，写太长会被截断。',
-    '- 上一版是**语法残骸或运行时崩溃**，所以文件必须以完整顶层结构结束。',
+    '- 上一版是**运行时崩溃**，所以文件必须以完整顶层结构结束。',
     '- 遇到 `RecursionError`：找**没有向终止条件推进**的递归（循环参数没变、基例永不到达），'
       + '改成显式循环或修正基例——**不要**调 `sys.setrecursionlimit` 掩盖它。',
     '',
@@ -858,12 +881,50 @@ export function smokeRepairPrompt(file: string, traceback: string, current: stri
     '',
     traceback,
     '',
-    `## 肇事文件 code/${file} 的当前内容`,
-    '',
-    '```python',
-    current,
-    '```',
+    ...files.flatMap(f => [`## 涉案文件 code/${f} 的当前内容`, '', '```python', contents.get(f) ?? '', '```', '']),
   ].join('\n')
+}
+
+/**
+ * 把修复回答落盘：多文件信封与单文件原文两种形态都认；**每个文件语法过检才写**。
+ *
+ * @returns 实际写回的文件相对名（`code/x.py`）；有一个文件不合法就全部放弃（返回 null）
+ *   ——部分落盘会让下一次冒烟跑在一个"半新半旧"的代码库上，那比不改更糟。
+ */
+async function writeSmokeRepair(
+  stagesRoot: string,
+  innermost: string,
+  answer: string,
+  syntaxOf: (src: string) => string | null,
+): Promise<ReadonlyArray<string> | null> {
+  const codeDir = join(stagesRoot, stageDirName(stageOf('code')), 'code')
+  const writeOne = async (name: string, body: string): Promise<ReadonlyArray<string> | null> => {
+    const problem = syntaxOf(body)
+    if (problem !== null) return null
+    const abs = join(codeDir, name)
+    await mkdir(dirname(abs), { recursive: true })
+    await writeFile(abs, body, 'utf8')
+    return [`code/${name}`]
+  }
+  // 信封形态优先探测（`{"files": {...}}`）；不是 JSON 就当单文件原文。
+  try {
+    const parsed: unknown = JSON.parse(answer)
+    if (typeof parsed === 'object' && parsed !== null && Array.isArray((parsed as { files?: unknown }).files) === false) {
+      const files = (parsed as { files?: Record<string, unknown> }).files
+      if (typeof files === 'object' && files !== null) {
+        const written: string[] = []
+        for (const [name, body] of Object.entries(files)) {
+          if (typeof body !== 'string') return null
+          const base = name.split(/[\\/]/).pop() ?? name
+          const w = await writeOne(base, body)
+          if (w === null) return null
+          written.push(...(w as ReadonlyArray<string>))
+        }
+        return written.length > 0 ? written : null
+      }
+    }
+  } catch { /* 不是 JSON → 单文件原文 */ }
+  return writeOne(innermost, answer)
 }
 
 /**
