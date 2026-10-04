@@ -660,7 +660,7 @@ export class PaperStageChainService extends Service {
           // 指到的往往只是**一个文件里的一处**。定向修复 = 1 次调用（traceback + 肇事文件
           // → 只要修好的完整文件）+ 再跑一次冒烟；最多 3 轮。修不动才让本阶段失败
           // （回执照旧写 `_runtime-failure.txt`，下一轮简报里还有它）。
-          for (let round = 1; round <= 3; round += 1) {
+          for (let round = 1; round <= 5; round += 1) {
             const smoke = await smokeRunCode(stagesRoot)
             this.config.onDeterministicOutcome?.({
               stage: 'code',
@@ -670,7 +670,7 @@ export class PaperStageChainService extends Service {
             const repaired = await this.repairSmokeFailure(spec, stagesRoot, singleCall, smoke)
             if (repaired === null) throw new Error(smoke.failure)
           }
-          throw new Error('冒烟运行 3 轮定向修复后仍跑不起来 —— 回执在 `_runtime-failure.txt`')
+          throw new Error('冒烟运行 5 轮定向修复后仍跑不起来 —— 回执在 `_runtime-failure.txt`')
         }
         if (spec.id === 'result-sources') {
           const outcome = await runCodeAndMintResults(stagesRoot)
@@ -851,6 +851,8 @@ export function smokeRepairPrompt(file: string, traceback: string, current: stri
     '- **不碰其它文件**：你看不到它们，也不要假设它们会变。',
     '- 写紧凑：注释只写"为什么"；推理与产出共享同一次调用的输出预算，写太长会被截断。',
     '- 上一版是**语法残骸或运行时崩溃**，所以文件必须以完整顶层结构结束。',
+    '- 遇到 `RecursionError`：找**没有向终止条件推进**的递归（循环参数没变、基例永不到达），'
+      + '改成显式循环或修正基例——**不要**调 `sys.setrecursionlimit` 掩盖它。',
     '',
     '## traceback（python code/main.py 的 stderr 尾部）',
     '',
