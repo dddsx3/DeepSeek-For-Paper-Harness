@@ -329,7 +329,9 @@ describe('W4 red-team leaves on the producing EXECUTE path', () => {
     expect(guidance).toBeDefined()
     expect(guidance).toContain('DA-RAW')
     expect(guidance).toContain('R-OUT')
-  })
+    // 显式超时：全量套件并行 + 机器忙时会超过 vitest 的 5 秒默认值（孤立跑稳定通过）——
+    // 那是负载，不是缺陷；假红会掩盖真回归。
+  }, 120_000)
 })
 
 /** harness() with an externally created provider so `seen` is inspectable. */
