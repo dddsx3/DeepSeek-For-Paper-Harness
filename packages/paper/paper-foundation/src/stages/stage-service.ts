@@ -853,11 +853,13 @@ export function smokeInvolvedFiles(traceback: string): ReadonlyArray<string> {
  * @param files - 涉案文件名（按调用链顺序）。
  * @param traceback - 冒烟运行的 stderr 尾部。
  * @param contents - 文件名 → 当前内容。
+ * @param artifacts - 运行崩溃前写出的报告（修复要先读它——它说明失败的确切原因）。
  */
 export function smokeRepairPrompt(
   files: ReadonlyArray<string>,
   traceback: string,
   contents: ReadonlyMap<string, string>,
+  artifacts: ReadonlyArray<readonly [string, string]> = [],
 ): string {
   const multi = files.length > 1
   return [
@@ -882,6 +884,11 @@ export function smokeRepairPrompt(
     traceback,
     '',
     ...files.flatMap(f => [`## 涉案文件 code/${f} 的当前内容`, '', '```python', contents.get(f) ?? '', '```', '']),
+    ...(artifacts.length === 0 ? [] : [
+      '## 运行崩溃前写出的报告（**先读它**——它说明了失败的确切原因）',
+      '',
+      ...artifacts.flatMap(([name, body]) => [`### code/${name}`, '', '```', body, '```', '']),
+    ]),
   ].join('\n')
 }
 
