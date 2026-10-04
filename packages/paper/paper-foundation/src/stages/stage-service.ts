@@ -46,7 +46,7 @@ import { join } from 'node:path'
 import { Context, Service } from '@deepseek-ai/cordis'
 import { createUserMessage, type GenerateOptions } from '@deepseek-ai/dsh-llm'
 import { deterministicRunner, type DeterministicOutcome } from './deterministic.ts'
-import { runCodeAndMintResults, smokeRunCode } from './execute-and-mint.ts'
+import { runCodeAndMintResults, smokeRunCode, type SmokeRunOutcome } from './execute-and-mint.ts'
 import { spawnSync } from 'node:child_process'
 import { resolvePaperAnchors } from './anchor-resolve.ts'
 import { CODE_PY_RE, undefinedConstNames, type UndefinedNameFinding } from './code-names.ts'
@@ -57,7 +57,7 @@ import { skillTaskOf } from './briefing.ts'
 import { readPassport } from './handoff.ts'
 import { REJECTED_ANSWER_FILE, runStages, type StageOutcome, type StageRunContext } from './runner.ts'
 import type { StageSpec } from './registry.ts'
-import { STAGES, stageDirName, type StageId } from './registry.ts'
+import { STAGES, stageDirName, stageOf, type StageId } from './registry.ts'
 
 /** 读一个文件；不存在返回 null（**不返回空串**）。 */
 async function readFileMaybe(path: string): Promise<string | null> {
@@ -656,10 +656,21 @@ export class PaperStageChainService extends Service {
         // 裁决外加下一轮 9 片重跑。失败走与阶段 4 运行时失败**同一条回路**
         // （回执写 `_runtime-failure.txt`，`priorRuntimeFindings` 注入下一轮简报）。
         if (spec.id === 'code') {
-          const smoke = await smokeRunCode(stagesRoot)
-          this.config.onDeterministicOutcome?.({ stage: 'code', summary: smoke.summary })
-          if (smoke.failure !== null) throw new Error(smoke.failure)
-          return
+          // **冒烟失败先修，不要整阶段重来**：一次 9 片重生成 ≈ 1-2 小时，而 traceback
+          // 指到的往往只是**一个文件里的一处**。定向修复 = 1 次调用（traceback + 肇事文件
+          // → 只要修好的完整文件）+ 再跑一次冒烟；最多 3 轮。修不动才让本阶段失败
+          // （回执照旧写 `_runtime-failure.txt`，下一轮简报里还有它）。
+          for (let round = 1; round <= 3; round += 1) {
+            const smoke = await smokeRunCode(stagesRoot)
+            this.config.onDeterministicOutcome?.({
+              stage: 'code',
+              summary: round === 1 ? smoke.summary : `第 ${String(round)} 轮冒烟：${smoke.summary}`,
+            })
+            if (smoke.failure === null) return
+            const repaired = await this.repairSmokeFailure(spec, stagesRoot, singleCall, smoke)
+            if (repaired === null) throw new Error(smoke.failure)
+          }
+          throw new Error('冒烟运行 3 轮定向修复后仍跑不起来 —— 回执在 `_runtime-failure.txt`')
         }
         if (spec.id === 'result-sources') {
           const outcome = await runCodeAndMintResults(stagesRoot)
@@ -750,6 +761,52 @@ export class PaperStageChainService extends Service {
     const text = await readFileMaybe(join(this.config.stagesRoot, '00-input', 'problem.txt'))
     return text === null ? 0 : countProblems(text)
   }
+
+  /**
+   * 冒烟失败的**定向修复**：traceback + 肇事文件 → 只要一个修好的完整文件。
+   *
+   * 返回 null = 这轮修不动（修出的文件语法不合法 / 找不到肇事文件），调用方照旧失败；
+   * 返回非 null = 已把修复后的文件写回磁盘（语法过检），调用方再跑一次冒烟。
+   *
+   * 三条纪律：**改动最小**（只修 traceback 指到的问题，不许重构/改名/"顺手优化"）、
+   * **只动肇事文件**（其它文件的内容模型根本看不到）、**语法过检才落盘**
+   * （修复回答同样会被截断——落一个坏文件等于把好文件改坏）。
+   *
+   * @param spec - 阶段（用于取模型路由）。
+   * @param stagesRoot - `stages/` 根目录。
+   * @param singleCall - 单次模型调用（阶段 3 的 `callModel` 对本阶段会走分片逻辑，不能复用）。
+   * @param smoke - 冒烟运行结论（含 traceback）。
+   */
+  private async repairSmokeFailure(
+    spec: StageSpec,
+    stagesRoot: string,
+    singleCall: (spec: StageSpec, prompt: string) => Promise<string>,
+    smoke: SmokeRunOutcome,
+  ): Promise<string | null> {
+    const target = smokeTargetFile(smoke.traceback)
+    if (target === null) return null
+    const rel = `code/${target}`
+    const abs = join(stagesRoot, stageDirName(stageOf('code')), rel)
+    const current = await readFile(abs, 'utf8').catch(() => null)
+    if (current === null) return null
+    const repaired = await singleCall(spec, smokeRepairPrompt(target, smoke.traceback, current))
+    const body = stripOneFence(repaired)
+    // 语法过检才落盘：修复回答同样会被截断，落一个坏文件等于把好文件改坏。
+    const problem = pythonSyntaxError(body)
+    if (problem !== null) {
+      this.config.onDeterministicOutcome?.({
+        stage: spec.id,
+        summary: `定向修复的文件仍不是合法 Python（${problem.slice(0, 60)}）—— 保留原文件`,
+      })
+      return null
+    }
+    await writeFile(abs, body, 'utf8')
+    this.config.onDeterministicOutcome?.({
+      stage: spec.id,
+      summary: `定向修复：\`${rel}\` 已按 traceback 重写（${String(Buffer.byteLength(body, 'utf8'))} 字节），再跑一次冒烟`,
+    })
+    return rel
+  }
 }
 
 /** 阶段序号（未知 id 直接抛错——静默当 1 会让"从哪续跑"算错）。 */
@@ -757,6 +814,51 @@ function stageIndexOf(id: StageId): number {
   const found = STAGES.find(s => s.id === id)
   if (found === undefined) throw new Error(`unknown stage id: ${String(id)}`)
   return found.index
+}
+
+/**
+ * 从 traceback 里找出**肇事文件**（最后一个 `File "xxx.py"` 的名字；找不到给 null）。
+ *
+ * 取**最后一个**而不是第一个：外层通常是 `main.py`（编排入口），真正抛错的是最内层。
+ *
+ * @param traceback - 冒烟运行的 stderr 尾部。
+ * @returns `code/` 下的文件名（如 `problem3.py`）；解析不出给 null。
+ */
+export function smokeTargetFile(traceback: string): string | null {
+  const names = [...traceback.matchAll(/File\s+"([^"\\]+\.py)"/g)].map(m => (m[1] ?? '').split(/[\\/]/).pop() ?? '')
+  const last = names[names.length - 1]
+  return last === undefined || last === '' || !CODE_PY_RE.test(`code/${last}`) ? null : last
+}
+
+/**
+ * 定向修复的 prompt：traceback + 肇事文件当前内容 → 只要修好的完整文件。
+ *
+ * @param file - 肇事文件名（如 `problem3.py`）。
+ * @param traceback - 冒烟运行的 stderr 尾部。
+ * @param current - 该文件当前内容。
+ */
+export function smokeRepairPrompt(file: string, traceback: string, current: string): string {
+  return [
+    '你是修复 Python 代码的执行者。下面是一次**真实运行**的 traceback 与肇事文件的当前内容。',
+    '**只输出修复后的完整文件**——从第一个字符到最后一个字符都是它，不要解释、不要代码围栏、不要补丁片段。',
+    '',
+    '修复纪律（违反任何一条都算没修好）：',
+    '- **改动最小**：只修 traceback 指到的问题；不要重构、不要改名、不要"顺手优化"、',
+    '  **不要弱化任何校验与断言**（它们是约束闭环复算的一部分）。',
+    '- **不碰其它文件**：你看不到它们，也不要假设它们会变。',
+    '- 写紧凑：注释只写"为什么"；推理与产出共享同一次调用的输出预算，写太长会被截断。',
+    '- 上一版是**语法残骸或运行时崩溃**，所以文件必须以完整顶层结构结束。',
+    '',
+    '## traceback（python code/main.py 的 stderr 尾部）',
+    '',
+    traceback,
+    '',
+    `## 肇事文件 code/${file} 的当前内容`,
+    '',
+    '```python',
+    current,
+    '```',
+  ].join('\n')
 }
 
 /**
