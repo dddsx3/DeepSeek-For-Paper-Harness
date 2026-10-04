@@ -825,7 +825,10 @@ function stageIndexOf(id: StageId): number {
  * @returns `code/` 下的文件名（如 `problem3.py`）；解析不出给 null。
  */
 export function smokeTargetFile(traceback: string): string | null {
-  const names = [...traceback.matchAll(/File\s+"([^"\\]+\.py)"/g)].map(m => (m[1] ?? '').split(/[\\/]/).pop() ?? '')
+  // ⛔ 路径里**允许反斜杠**：Python 的帧是模块的**绝对路径**（实测
+  // `File "D:\...\code\params.py", line 575, in record`），旧写法 `[^"\\]` 一遇到
+  // Windows 反斜杠就整帧失配 → 找不到肇事文件 → 定向修复静默失效。
+  const names = [...traceback.matchAll(/File\s+"([^"]+\.py)"/g)].map(m => (m[1] ?? '').split(/[\\/]/).pop() ?? '')
   const last = names[names.length - 1]
   return last === undefined || last === '' || !CODE_PY_RE.test(`code/${last}`) ? null : last
 }

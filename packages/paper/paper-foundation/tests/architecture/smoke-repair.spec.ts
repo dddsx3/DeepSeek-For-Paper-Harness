@@ -30,6 +30,17 @@ describe('smokeTargetFile —— 从 traceback 找肇事文件', () => {
     expect(smokeTargetFile('  File "code/problem1.py", line 3, in f\nValueError: x')).toBe('problem1.py')
     expect(smokeTargetFile('ValueError: nothing to look at')).toBeNull()
   })
+
+  it('**绝对路径（Windows 反斜杠）也要认**——实测的静默失效：Python 的帧是模块绝对路径', () => {
+    // 旧写法 `[^"\\]` 一遇到反斜杠就整帧失配 → 找不到肇事文件 → 定向修复静默失效，
+    // 冒烟失败直接退化成"整阶段失败"（修复回路一次都没跑过）。
+    const t = [
+      '    _h1_partition in _all_partitions,',
+      '  File "D:\\deepseek modex\\harness\\stages\\03-code\\code\\params.py", line 575, in record',
+      'ValueError: 参数登记校验失败：q3_partition_contains_h1',
+    ].join('\n')
+    expect(smokeTargetFile(t)).toBe('params.py')
+  })
 })
 
 describe('smokeRepairPrompt —— 修复指令要说清纪律', () => {
