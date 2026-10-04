@@ -118,8 +118,10 @@ const MAX_NAME_REPAIRS = 4
  * （`unmatched ']'` / `unterminated string literal` / `closing parenthesis does not match`…）
  * ——单片 33-84KB，超出单次输出的可靠上限，截断落进文件里就是语法错。
  * 之前这类缺陷要到**整阶段结束**（冒烟运行）才被发现，一次就是一小时级的 9 片白跑。
+ * 预算取 9（平均每片一次）：实测 4 片里 3 片被截断，预算 4 次撑不满一轮；
+ * 上限仍然有界——9 次重问 ≈ 45 分钟，与"整阶段失败重跑"同量级但成功率高得多。
  */
-const MAX_SYNTAX_REPAIRS = 4
+const MAX_SYNTAX_REPAIRS = 9
 
 /**
  * 用 **Python 自己的解析器**查一段源码的语法；返回最后一行错误信息，合法返回 null。
