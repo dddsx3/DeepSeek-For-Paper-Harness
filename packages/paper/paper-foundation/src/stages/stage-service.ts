@@ -124,7 +124,7 @@ const MAX_NAME_REPAIRS = 4
 const MAX_SYNTAX_REPAIRS = 9
 
 /**
- * 用 **Python 自己的解析器**查一段源码的语法；返回最后一行错误信息，合法返回 null。
+ * 用 Python 自己的解析器查一段源码的语法；返回最后一行错误信息，合法返回 null。
  *
  * 为什么不写正则：括号配平、三引号、f-string、续行……任何手写判据都有漏网，
  * 而 `ast.parse` 就是这门语言的权威判据，且一次约 50ms。
@@ -136,6 +136,25 @@ function pythonSyntaxError(src: string): string | null {
   if (probe.status === 0) return null
   const line = (probe.stderr || '').split('\n').filter(l => l.trim() !== '').slice(-1)[0]
   return (line ?? '语法错误（解析器没有给出详细信息）').slice(0, 200)
+}
+
+/**
+ * 剥掉**尾部的非代码包装**（最多 3 行）——只救"完整代码 + 末尾包装泄漏"这一形态。
+ *
+ * 实测：模型的真代码在 `__all__ = …` 结束，回答末尾却拖着中转的路由/包装标记
+ * （`]<]minimax[>[</content>`）。判据是**剥完能解析**——如果剥了 3 行还不行，
+ * 说明坏处在文件中间（真截断/真语法错），这里不动它，交给重问/冒烟运行。
+ *
+ * @param body - 已剥围栏的回答。
+ * @returns 剥离后的文本；没有可剥离的尾部时返回 null。
+ */
+function salvageTrailingJunk(body: string): string | null {
+  const lines = body.split('\n')
+  for (let drop = 1; drop <= 3 && drop < lines.length; drop += 1) {
+    const candidate = lines.slice(0, lines.length - drop).join('\n')
+    if (pythonSyntaxError(candidate) === null) return candidate
+  }
+  return null
 }
 
 /**
@@ -530,9 +549,30 @@ export class PaperStageChainService extends Service {
             // 一次就是一小时级的 9 片白跑。在收到那一片的当下用 Python 自己的解析器
             // （`ast.parse`）查一遍，坏片只重问那一片（每片最多一次，跨片共享预算）。
             // 冒烟运行保留为整阶段兜底。
-            if (CODE_PY_RE.test(shard.deliverable) && syntaxRepairs < MAX_SYNTAX_REPAIRS) {
-              const problem = pythonSyntaxError(stripOneFence(answer))
-              if (problem !== null) {
+            // ── 单片**语法**自检：截断与中转包装泄漏是这类分片的最大塌方源 ──
+            //
+            // 实测两类毒源：① 单片 33-84KB 超出可靠输出上限，截断落进文件就是语法错；
+            // ② **中转流的包装泄漏**——真代码在 `__all__ = …` 就结束了，回答末尾却拖着
+            // `]<]minimax[>[</content>`（上游路由标签 + 包装闭合标记）。
+            // 所以这里是**验证-重问小循环**（每片最多 2 次重问，每次都复检）：
+            // 先试"尾部垃圾剥离"（≤3 行、剥完能解析——只救"完整代码+尾巴包装"这一形态，
+            // 救不了才重问并附解析器原话）。冒烟运行保留为整阶段兜底。
+            if (CODE_PY_RE.test(shard.deliverable)) {
+              for (let pass = 0; pass < 3; pass += 1) {
+                let body = stripOneFence(answer)
+                let problem = pythonSyntaxError(body)
+                if (problem === null) break
+                const salvaged = salvageTrailingJunk(body)
+                if (salvaged !== null) {
+                  this.config.onDeterministicOutcome?.({
+                    stage: spec.id,
+                    summary: `分片 ${String(shard.index)}/${String(shard.total)} 尾部剥离 `
+                      + `${String(body.split('\n').length - salvaged.split('\n').length)} 行非代码包装`,
+                  })
+                  answer = salvaged
+                  break
+                }
+                if (syntaxRepairs >= MAX_SYNTAX_REPAIRS) break
                 syntaxRepairs += 1
                 this.config.onDeterministicOutcome?.({
                   stage: spec.id,
