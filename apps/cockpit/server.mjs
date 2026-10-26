@@ -28,7 +28,7 @@
 import { createServer } from 'node:http'
 import { createHash } from 'node:crypto'
 import { readFile, writeFile, mkdir, appendFile } from 'node:fs/promises'
-import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
 import { join, dirname, extname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -41,20 +41,31 @@ const falseBlockPath = join(studyDir, 'falseblock.jsonl')
 // gitignored local file; the KEY never goes back to the UI (masked tail only)
 // and never into the repository. Runs inject the ACTIVE profile's route into
 // the child env — different keys = different accounts = costs stay separated.
-const settingsPath = resolve(here, 'cockpit-settings.json')
+// 2026-10-27 governance: the settings file moved OUT of the source tree into
+// the user data home ($DPH_HOME, default ~/.dph) so a fresh clone cannot ship
+// or read machine-local credentials. Legacy repo-local files are still read
+// for backward compatibility; saves always go to the primary path.
+const dphHome = process.env.DPH_HOME || join(process.env.USERPROFILE || process.env.HOME || '.', '.dph')
+const settingsPath = process.env.COCKPIT_SETTINGS
+  || join(dphHome, 'cockpit', 'cockpit-settings.json')
+const legacySettingsPath = resolve(here, 'cockpit-settings.json')
 // TASK 行动任务书 E2: engine-format pricing table (USD/1k) handed to every
 // spawned run via PAPER_PRICING_JSON; see pricing.usd.json for rates/sources.
 const pricingFile = resolve(here, 'pricing.usd.json')
 function loadSettings() {
-  try {
-    const doc = JSON.parse(readFileSync(settingsPath, 'utf8'))
-    if (!Array.isArray(doc.profiles)) return { profiles: [], activeId: null }
-    return doc
-  } catch {
-    return { profiles: [], activeId: null }
+  for (const candidate of [settingsPath, legacySettingsPath]) {
+    try {
+      const doc = JSON.parse(readFileSync(candidate, 'utf8'))
+      if (!Array.isArray(doc.profiles)) return { profiles: [], activeId: null }
+      return doc
+    } catch {
+      // try the next candidate; fall through when both are absent
+    }
   }
+  return { profiles: [], activeId: null }
 }
 function saveSettings(doc) {
+  mkdirSync(dirname(settingsPath), { recursive: true })
   writeFileSync(settingsPath, JSON.stringify(doc, null, 2) + '\n', 'utf8')
 }
 function maskKey(key) {

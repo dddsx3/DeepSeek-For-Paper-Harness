@@ -1,0 +1,13 @@
+{
+  "profiles": [
+    {
+      "id": "profile-example",
+      "name": "example-relay",
+      "endpoint": "https://your-relay.example.com/v1",
+      "model": "your-model-id",
+      "provider": "openai-compatible-relay",
+      "apiKey": "在此粘贴你的 API key（本文件是示例；真实配置放 $DPH_HOME/cockpit/cockpit-settings.json，不入库）"
+    }
+  ],
+  "activeId": "profile-example"
+}
