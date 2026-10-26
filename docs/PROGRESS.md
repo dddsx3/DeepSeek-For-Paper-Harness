@@ -3,17 +3,19 @@
 > 自动区由脚本维护，手写区（轮次日志）每轮收口时由执行者追加一节——格式见 PM-HANDBOOK §10。
 
 <!-- board:auto:start -->
-> 生成于 2026-10-26 17:22（本地时间）· 由 `pnpm run progress:board` 再生成；本节之下为手写轮次日志（只增不删）。
+> 生成于 2026-10-26 17:26（本地时间）· 由 `pnpm run progress:board` 再生成；本节之下为手写轮次日志（只增不删）。
 
 | 指标 | 值 |
 |---|---|
-| 分支 / HEAD | `main` @ `98c24d20ac docs(history): 2026-10-27 历史重写记录（4个密钥字面量替换+CSV路径清除；commit-map与备份bundle位置存档）` |
+| 分支 / HEAD | `main` @ `8bbb645b69 fix(hooks): pre-push typecheck 用 pnpm 启动在无 pnpm 机器上被 lefthook 静默跳过(127)——改 npm 启动使门禁真正生效；手册 §7 记录该事故并立钩子自检纪律` |
 | 未推送提交 | 0（常态应为 0，PM-HANDBOOK §7） |
-| 工作树脏文件 | 7（收口前必须为 0，PM-HANDBOOK §7） |
+| 工作树脏文件 | 0（收口前必须为 0，PM-HANDBOOK §7） |
 | 设计债：已修 / 缓解 / open | 14 / 3 / **15**（共 32，见 [DESIGN-DEBTS.md](./DESIGN-DEBTS.md)） |
 
 ### 最近提交（≤15）
 
+- `8bbb645b69 fix(hooks): pre-push typecheck 用 pnpm 启动在无 pnpm 机器上被 lefthook 静默跳过(127)——改 npm 启动使门禁真正生效；手册 §7 记录该事故并立钩子自检纪律`
+- `a53abe66e9 docs(pm): PM-HANDBOOK 流程宪法生效——分支/门禁矩阵/测试三层/真实运行协议/交付发布/推送纪律/TASK八步/demo语料同步/进度四件套/安全/事故管理；pre-push 增加密钥扫描；新增 progress:board 仪表盘生成器与治理轮轮次日志`
 - `98c24d20ac docs(history): 2026-10-27 历史重写记录（4个密钥字面量替换+CSV路径清除；commit-map与备份bundle位置存档）`
 - `e69faf77ff chore(runs): demo 运行输出目录出库（每次重生成，不再让 demo 跑一次脏一次工作树）`
 - `2c4d8fd698 docs(debts): 台账补 DEMO-CORPUS 条目——P2/P3 demo 语料冻结早于 placeholder_chapter 门禁（09-18 vs 09-23），量具失效实锤；P1 demo 全绿佐证链路本身通`
@@ -27,9 +29,8 @@
 - `59d0b6207c chore(security): 移除运行脚本中的明文 API key（改由环境变量提供，历史重写另行清除）`
 - `37077fc598 docs(handoff): 2026-10-06 交接 —— 阶段 3 收敛中，防线全建成，7 条假阳性的坑`
 - `2d3981dc47 fix(code): 分片语法修复升级为**验证-重问循环** + 尾部包装剥离`
-- `792b830f61 feat(briefing): 写明代码的运行环境形态（cwd=code/，事实拷为相对路径；预检报告不 raise）`
-- `d8ad16a1d4 feat(code): 冒烟失败时**先抢救报告再清理**，修复 prompt 里带上它`
 <!-- board:auto:end -->
+
 
 
 ## 轮次日志（只增不删）
