@@ -1195,9 +1195,12 @@ const modelingCoverage: GateFn = (input) => {
     const parsed: unknown = JSON.parse(raw)
     // 数组键名两种都认：生成器产出的是 `capabilities`，而参考工作流的旧形态是 `items`。
     // 只认一种会把"形态差异"变成"一条能力项都没有"的假硬失败——而这条门禁的判据
-    // 本该是**覆盖**，不是**键名**。
+    // 本该是**覆盖**，不是**键名**。顶层数组同理（2026-10-27 2024B-mcgrox-1 实测：
+    // 简报只教条目形态，模型按最字面读法产出顶层数组——与 capability_check 同批修复）。
     const o = parsed as { capabilities?: unknown; items?: unknown }
-    const caps = Array.isArray(o.capabilities) ? o.capabilities : o.items
+    const caps = Array.isArray(parsed)
+      ? parsed
+      : Array.isArray(o.capabilities) ? o.capabilities : o.items
     if (!Array.isArray(caps)) {
       return fail(id, 'CAPABILITY_CHECKLIST.json 里没有 `capabilities`（或 `items`）数组 —— 对照表形态不对')
     }
