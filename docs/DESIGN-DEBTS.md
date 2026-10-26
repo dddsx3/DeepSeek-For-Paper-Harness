@@ -42,12 +42,12 @@
 | 编号（旧） | 严重级 | 层 | 状态 | 条目 | 证据 / 下一步 |
 |---|---|---|---|---|---|
 | STAGE-3 | ⛔ | L1 | open（快照记录） | **13 阶段链卡在阶段 3 收敛**：模型代码不过冒烟，7 条门禁假阳性是主要摩擦（"判形式不判实质"） | `artifacts/upper-bound/2024B-ingest-1/HANDOFF-2026-10-06.md`（当前最前线） |
-| DEMO-CORPUS | ◆ | L1 | open（已核实，2026-10-27） | **TASK-P2/P3 demo 语料落后于门禁演化**：语料冻结于 09-18（`2ddd4dd43a`），`placeholder_chapter` 等新门 09-23 引入（`ed37868092`）→ `test:p2:demo` 0/4、`test:p3:demo` 0/5（legal 全被 DRIFT:placeholder_chapter 熔断）；**P1 demo 全绿**（3/3+2/2+9 门）证明链路本身通。这是"量具失效"（形态 4）的活例：旧自检口径（接手手册 §5"跑 demo 应 5/5+6/6"）已不可用 | 修法：按现行容器契约补齐 fake 语料的 narrative 章节，或在 demo runner 显式标注其对应的历史门禁集；CI 中这两个 job 目前恒红，掩盖真回归 |
+| DEMO-CORPUS | ◆ | L1 | **已修（已核实，2026-10-27）** | **TASK-P2/P3 demo 语料落后于门禁演化**：语料冻结于 09-18（`2ddd4dd43a`），`placeholder_chapter` 等新门 09-23 引入（`ed37868092`）→ `test:p2:demo` 0/4、`test:p3:demo` 0/5（legal 全被 DRIFT:placeholder_chapter 熔断）；**P1 demo 全绿**（3/3+2/2+9 门）证明链路本身通。这是"量具失效"（形态 4）的活例：旧自检口径（接手手册 §5"跑 demo 应 5/5+6/6"）已不可用 | 修法：按现行容器契约补齐 fake 语料的 narrative 章节，或在 demo runner 显式标注其对应的历史门禁集；CI 中这两个 job 目前恒红，掩盖真回归 |
 | GATE-FP | ⛔ | L1 | open（快照记录） | 门禁假阳性 7 连（真实事故，2024B 实测）——harness 侧缺陷被读成"模型不行"的最大现役来源 | 同上 §"7 条门禁假阳性的坑"；修法纪律=形态 6（让对象以正确形态到达，不是改判定） |
 | P0 | ⛔ | L1 | open（快照记录） | 2024B 阶段 8 复核 4 条致命建模缺陷（task_misread×2、cross_problem×2）→ ROLLBACK 待重跑 | `PENDING-FIXES.md` §P0（含独立复算验收判据；用户已选甲路线，待复核） |
 | E1/B1 | ⛔ | L1 | **缓解** | T3 闭集模板 × 开放题不适配；demo 数字 `0.731` 曾泄漏进真题交付 | 方法族路由 + `route_mismatch` 检测已建（`cli.ts:1317`）；`0.731` 现仅存在于 T3 演示夹具（`src/produce/template-fill.ts:153`）。**待真实运行回归验证开放题不再走 T3** |
 | E4 | ◆ | L1 | **已修（已核实，2026-10-27）** | 空交付未 fail-fast（24.8 分钟产出空文本进评审） | `executor.ts:278-289` `revisionDestroysDraft`：修订文本坍缩<50% 或丢失任一章节标题即拒（按真实事故"编辑模型返回任务书"而建）；空文本必被拒 |
-| O2 | ◆ | L2 | open（已核实） | cockpit 所有运行共享 `cockpit-out`，BLOCKED 运行的 reportPath 指向上一次 DELIVERED 的报告 | `server.mjs:284` 仍 `--out outRoot` 共享目录；修法=按 runKey 隔离子目录 |
+| O2 | ◆ | L2 | **已修（已核实，2026-10-27）** | cockpit 所有运行共享 cockpit-out，BLOCKED 运行的 reportPath 指向上一次 DELIVERED 的报告 | 按 run 隔离输出子目录 + 诚实空交付语义（cockpit-run.json 标记按 runKey 解析；10 项端点冒烟过，含 BLOCKED 不回退旧报告的负对照） |
 | P1 | ◆ | L1 | **缓解** | 配图文字溢出被裁 | 渲染层已修（2026-09-28，见 PENDING-FIXES §P1 根因更正）；**待重跑后逐张目视复核** |
 | P2 | △ | L1 | open（快照记录） | 阶段 5 通行证缺审计结论（诚实性缺口） | `PENDING-FIXES.md` §P2；修法=补跑 `--stage-regate` |
 | P4 | △ | L1 | **缓解** | `execution-producer.spec.ts` 负载下偶发失败（Worker OOM） | 子进程类已加有界重试；残留需改根 `vitest.config.ts`（processBoundTests/maxWorkers） |
@@ -55,7 +55,7 @@
 | G5 | ◆ | L1 | open | 改进循环：不存在（内测 0/5） | 路线图 W12 |
 | G6 | △ | L1 | open | 对抗复核 `v5-adversarial.ts` 有设计未接链 | HANDOFF §6 G6 |
 | MQUAL-遗留 | △ | L1 | open | 探针执行器 B1–B7、CE-1/CE-2、F3/F4 阈值库（W10 落地后的遗留） | `artifacts/handoff/W10-MQUAL/W10-REPORT.md` |
-| C4-6 | ○ | L1 | open | 架构图 C4-6 对齐自检未在 CI 中运行 | HANDOFF §6"已完成但仍需收口" |
+| C4-6 | ○ | L1 | **已修（已核实，2026-10-27）** | 架构图 C4-6 对齐自检未在 CI 中运行 | figure-w9.spec（31 用例，含负对照）接入 paper-harness.yml——trunk push 首次真正执行该 spec（PR 路径 ci.yml 本已覆盖） |
 | X1/X2 | ◆ | L4 | open | 中转侧：v4-pro 下架；v4-flash 被映射到 hy3 | 外部依赖问题；建议启动冒烟（1-token 探测显示可用模型） |
 | P3-1 | ◆ | L1 | open（快照记录） | 真实评审者语义假杀率未测量 | `artifacts/handoff/TASK-P3/known-risks.md` |
 | P3-7 | ○ | — | open（快照记录） | master `check:ci:static` 遗留 ~20 条 lint/doc/knip 债 | known-risks P3-7 |
