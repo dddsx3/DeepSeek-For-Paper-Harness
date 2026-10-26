@@ -68,6 +68,26 @@ EOF
 ],"fatal_count":0}
 ```
 
+### 量化 rubric（可选，但改进循环依赖它——NeurIPS 模板式评分的移植）
+
+在 `COMP_REVIEW_VERDICT.json` 里加一个 `rubric` 块，给本次复核一个**可跨轮对比**的量化分：
+
+```json
+{"findings":[…],"fatal_count":0,
+ "rubric":{"dimensions":[
+   {"id":"modeling_correctness","score":0.7,"weight":0.30,"evidence":"Q2 把调换损失重复计入两处"},
+   {"id":"delivery_completeness","score":0.8,"weight":0.20,"evidence":"问题 4 的重做要求有落点"},
+   {"id":"number_traceability","score":0.9,"weight":0.20,"evidence":"抽查 8 个结果锚点全部对上账本"},
+   {"id":"format_figures","score":0.8,"weight":0.15,"evidence":"图 3 的轴标签缺单位"},
+   {"id":"honesty","score":0.6,"weight":0.15,"evidence":"外推口吻 3 处未标注情景模拟"}],
+ "total":0.76}}
+```
+
+- **五个维度与默认权重**（和 =1）：建模正确性 `modeling_correctness` 0.30 ／ 交付完整性 `delivery_completeness` 0.20 ／ 数字可溯源 `number_traceability` 0.20 ／ 格式与图表 `format_figures` 0.15 ／ 诚实性（已知缺陷披露质量）`honesty` 0.15。
+- 每条 `score`/`weight` ∈ [0,1]；`total` 必须 ≈ Σ(score·weight)（容差 0.01，`review_rubric` 门禁核算；权重和也必须 =1）。
+- **每条维度都要给 `evidence`**——打分不给证据就是自我偏好膨胀（AI-Scientist 的实证教训：自动评审给自己打分越打越高）。
+- 用途：改进循环（auto-paper-improvement-loop）每轮把 `total` 记进 `PAPER_IMPROVEMENT_STATE.json` 的 `rounds[].score`，最后三轮极差 ≤0.02 即以 `score-plateau` 终止。**分数只用于横向对比与终止判定，不给 fatal 提供赦免**——有 fatal 照旧回滚。
+
 ## Step 4: 硬门禁（⛔ 有 fatal 不许放行）
 
 ```bash

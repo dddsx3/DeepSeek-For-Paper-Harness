@@ -82,6 +82,83 @@ describe('移植**意图**，不移植字面比较', () => {
   })
 })
 
+/**
+ * `review_rubric` —— 评审量化 rubric（ECOSYSTEM-SURVEY 引入，来源 AI-Scientist）。
+ *
+ * 契约是**可选**的：旧语料的 verdict 没有 rubric 块，这条门禁对"读不到 rubric"一律放行
+ * （文件缺失与 JSON 损坏由同阶段的 `review_fatal_count` 负责）——新判据不许把存量打红。
+ * 读得到时才核：维度非空、score/weight ∈[0,1]、权重和 =1（±0.01）、total ≈ Σ(score·weight)（±0.01）。
+ */
+describe('review_rubric —— 可选契约：缺失放行，形态与数值自洽才放行', () => {
+  const verdict = (rubric: unknown): string =>
+    JSON.stringify(rubric === undefined ? { findings: [], fatal_count: 0 } : { findings: [], fatal_count: 0, rubric })
+  const dim = (id: string, score: number, weight: number): Record<string, unknown> => ({ id, score, weight, evidence: '证据' })
+  /** 规范五维（简报教的默认权重），total 按加权算出——合法 rubric 的基准形态。 */
+  const canonical = (): Record<string, unknown> => ({
+    dimensions: [
+      dim('modeling_correctness', 0.7, 0.3),
+      dim('delivery_completeness', 0.8, 0.2),
+      dim('number_traceability', 0.9, 0.2),
+      dim('format_figures', 0.8, 0.15),
+      dim('honesty', 0.6, 0.15),
+    ],
+    total: 0.7 * 0.3 + 0.8 * 0.2 + 0.9 * 0.2 + 0.8 * 0.15 + 0.6 * 0.15,
+  })
+
+  it('**没有 rubric → 0**（向后兼容：旧语料没有这个块；verdict 整个缺失同理）', () => {
+    expect(run('review_rubric', input({ 'COMP_REVIEW_VERDICT.json': verdict(undefined) })).code).toBe(0)
+    expect(run('review_rubric', input({})).code).toBe(0)
+    expect(run('review_rubric', input({ 'COMP_REVIEW_VERDICT.json': '{ 坏的' })).code).toBe(0)
+  })
+
+  it('合法 rubric（规范五维、权重和 1、total 自洽）→ 0', () => {
+    const v = run('review_rubric', input({ 'COMP_REVIEW_VERDICT.json': verdict(canonical()) }))
+    expect(v.code, v.items[0]?.detail).toBe(0)
+    expect(v.items[0]?.detail).toContain('5 个维度')
+  })
+
+  it('**权重和 ≠ 1 → 硬失败**（不同权重之和的 total 没有可比性）', () => {
+    const rubric = { dimensions: [dim('a', 0.5, 0.5), dim('b', 0.5, 0.4)], total: 0.45 }
+    const v = run('review_rubric', input({ 'COMP_REVIEW_VERDICT.json': verdict(rubric) }))
+    expect(v.code).toBe(1)
+    expect(v.items[0]?.detail).toContain('权重之和')
+  })
+
+  it('**score 越界 → 硬失败**（[0,1] 之外没有"分数"的语义）', () => {
+    const rubric = { dimensions: [dim('a', 1.2, 1)], total: 1.2 }
+    const v = run('review_rubric', input({ 'COMP_REVIEW_VERDICT.json': verdict(rubric) }))
+    expect(v.code).toBe(1)
+    expect(v.items[0]?.detail).toContain('score')
+  })
+
+  it('**total 与加权和对不上 → 硬失败**（手工另写一个数会让"分数平台"失真）', () => {
+    const rubric = { dimensions: [dim('a', 0.5, 1)], total: 0.9 }
+    const v = run('review_rubric', input({ 'COMP_REVIEW_VERDICT.json': verdict(rubric) }))
+    expect(v.code).toBe(1)
+    expect(v.items[0]?.detail).toContain('total')
+  })
+
+  it('**容差边界**：total 偏 0.008（≤0.01）放行——浮点噪声不许误杀', () => {
+    const rubric = { dimensions: [dim('a', 0.5, 1)], total: 0.508 }
+    expect(run('review_rubric', input({ 'COMP_REVIEW_VERDICT.json': verdict(rubric) })).code).toBe(0)
+  })
+
+  it('**dimensions 为空 / rubric 不是对象 / 缺 total → 硬失败**', () => {
+    expect(run('review_rubric', input({ 'COMP_REVIEW_VERDICT.json': verdict({ dimensions: [], total: 0.5 }) })).code).toBe(1)
+    expect(run('review_rubric', input({ 'COMP_REVIEW_VERDICT.json': verdict([dim('a', 0.5, 1)]) })).code).toBe(1)
+    expect(run('review_rubric', input({ 'COMP_REVIEW_VERDICT.json': verdict({ dimensions: [dim('a', 0.5, 1)] }) })).code).toBe(1)
+  })
+
+  it('**负对照（§4.4）**：合法与非法只差一个字段，判据能区分（一个只能放行的门禁不是门禁）', () => {
+    const good = run('review_rubric', input({ 'COMP_REVIEW_VERDICT.json': verdict(canonical()) }))
+    const bad = run('review_rubric', input({
+      'COMP_REVIEW_VERDICT.json': verdict({ ...canonical(), total: 0.99 }),
+    }))
+    expect(good.code).toBe(0)
+    expect(bad.code).toBe(1)
+  })
+})
+
 describe('阶段 7 的 LaTeX 残留与页数地板', () => {
   it('LaTeX 残留 → 硬失败并点名命令；产出 .tex 也硬失败', () => {
     const bad = run('no_latex_residue', input({ 'paper/main.md': '正文\n\\cite{ref1}\n' }))
@@ -143,6 +220,57 @@ describe('阶段 8 终止条件（round-5 的两条）', () => {
     expect(noTerm.code).toBe(1)
     expect(noTerm.items[0]?.detail).toContain('termination')
     expect(run('improve_terminated', input({ 'PAPER_IMPROVEMENT_STATE.json': state([9, 4, 1], 'timeout') })).code).toBe(1)
+  })
+})
+
+/**
+ * `score-plateau` —— 第三条终止路（评审量化 rubric 引入后新增）。
+ *
+ * 它消费 `rounds[].score`（该轮评审 rubric 的 total，可选字段）：最后三轮全部在且
+ * 极差 ≤0.02 才算"分数进平台"。**approved / no-progress 的既有用例一条不许动**——
+ * 这条只新增允许集成员，不改旧判据。
+ */
+describe('阶段 8 终止条件 —— score-plateau（量化分平台即停）', () => {
+  const withScores = (scores: ReadonlyArray<number | undefined>, termination = 'score-plateau'): string =>
+    JSON.stringify({
+      rounds: scores.map((s, i) => (s === undefined ? { defects: 5 - i } : { defects: 5 - i, score: s })),
+      termination,
+    })
+
+  it('最后三轮分数进平台（极差 ≤0.02）→ 停并如实报告', () => {
+    const v = run('improve_terminated', input({ 'PAPER_IMPROVEMENT_STATE.json': withScores([0.7, 0.62, 0.61, 0.605, 0.61]) }))
+    expect(v.code, v.items[0]?.detail).toBe(0)
+    expect(v.items[0]?.detail).toContain('score')
+  })
+
+  it('**分数仍在上升 → 拦**（平台还没到，不许提前宣布）', () => {
+    const v = run('improve_terminated', input({ 'PAPER_IMPROVEMENT_STATE.json': withScores([0.5, 0.6, 0.7]) }))
+    expect(v.code).toBe(1)
+    expect(v.items[0]?.detail).toContain('仍在变化')
+  })
+
+  it('**名义极差恰为 0.02 → 放行**（浮点表示略超 0.02，epsilon 防边界误杀）', () => {
+    // 0.62 − 0.60 在 IEEE-754 里是 0.020000000000000018 —— 裸比较会把真平台判成上升
+    const v = run('improve_terminated', input({ 'PAPER_IMPROVEMENT_STATE.json': withScores([0.6, 0.62, 0.61]) }))
+    expect(v.code, v.items[0]?.detail).toBe(0)
+  })
+
+  it('**最后三轮有轮次缺 score → 拦**（缺分不许编数，这条路就走不通）', () => {
+    const v = run('improve_terminated', input({ 'PAPER_IMPROVEMENT_STATE.json': withScores([0.6, undefined, 0.61]) }))
+    expect(v.code).toBe(1)
+    expect(v.items[0]?.detail).toContain('score')
+  })
+
+  it('**不足 3 轮 → 拦**（没有"平台"可言）', () => {
+    const v = run('improve_terminated', input({ 'PAPER_IMPROVEMENT_STATE.json': withScores([0.6, 0.61]) }))
+    expect(v.code).toBe(1)
+    expect(v.items[0]?.detail).toContain('3 轮')
+  })
+
+  it('**负对照（§4.4）**：同一串分数，理由换成不在允许集的值照样拦（判据锚在"原因+序列一致"上）', () => {
+    const v = run('improve_terminated', input({ 'PAPER_IMPROVEMENT_STATE.json': withScores([0.6, 0.62, 0.61], 'converged') }))
+    expect(v.code).toBe(1)
+    expect(v.items[0]?.detail).toContain('允许集')
   })
 })
 

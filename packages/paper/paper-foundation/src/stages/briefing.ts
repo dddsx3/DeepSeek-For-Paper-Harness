@@ -741,6 +741,15 @@ const SKILLS: Readonly<Record<string, StageSkill>> = {
       '每条 finding 必须给 `where`（在哪）、`evidence`（证据）、`fix`（怎么修）。',
       '三视角评审**分别**从三个角度读同一份产物（方法是否成立 / 数字是否可信 / 论证是否自洽），'
         + '并把缺陷合进同一份 verdict。',
+      '**量化 rubric（可选，但改进循环依赖它）**：在 `COMP_REVIEW_VERDICT.json` 里加一个 `rubric` 块——'
+        + '`{"dimensions":[{"id":"modeling_correctness","score":0.7,"weight":0.3,"evidence":"…"},…],"total":0.76}`。'
+        + '五个维度与默认权重（权重和必须 =1）：建模正确性 `modeling_correctness` 0.30 / 交付完整性 '
+        + '`delivery_completeness` 0.20 / 数字可溯源 `number_traceability` 0.20 / 格式与图表 '
+        + '`format_figures` 0.15 / 诚实性（已知缺陷披露质量）`honesty` 0.15。'
+        + '每条 `score`、`weight` ∈ [0,1]，且每条都要给 `evidence`——打分不给证据就是自我偏好膨胀；'
+        + '`total` 必须 ≈ Σ(score·weight)（容差 0.01，门禁 `review_rubric` 会核算）。'
+        + '这个分是改进循环 `score-plateau` 终止条件的输入：改进阶段每轮把 total 记进 `rounds[].score`。'
+        + '分数只用于横向对比与终止判定，**不给 fatal 提供赦免**——有 fatal 照旧回滚。',
       '**诚实边界要写进结论**：本复核与答题同源、有共同盲区，'
         + '**显著降漏网率但非万无一失**——不许把它当成"已证明无误"。',
     ],
@@ -757,6 +766,8 @@ const SKILLS: Readonly<Record<string, StageSkill>> = {
         + '没有它，回灌机制不知道该把这条发现送回哪个阶段。',
       '**每条 finding 必须写 `impact`**（这条缺陷如果没被发现会造成什么）'
         + '与 **`acceptance_test`**（怎么验证修好了——可复算的判据）。',
+      '**`rubric`（若产出）自检**：维度 ≥1、权重和 =1（±0.01）、每条 score/weight ∈[0,1]、'
+        + '`total` ≈ Σ(score·weight)（±0.01）。',
     ],
   },
   paper: {
@@ -841,10 +852,15 @@ const SKILLS: Readonly<Record<string, StageSkill>> = {
     how: [
       '**每一轮必须记录缺陷数**：写进 `PAPER_IMPROVEMENT_STATE.json` 的 `rounds[].defects`。'
         + '没有这个计数，"有没有进展"就无法判定，整条循环也就没有终止依据。',
-      '**终止条件只有两条，必须命中其中一条**：'
+      '**每轮的评审量化分（可选）**：若该轮复核产出了量化 rubric，把 `total` 记进 `rounds[].score`——'
+        + '它是 `score-plateau` 终止条件的原始数据。没产出 rubric 的轮次就**不写 score**'
+        + '（不许写 0 冒充，也不许编一个数）。',
+      '**终止条件三条，必须命中其中一条**：'
         + '① `termination: "approved"`——检查器报**零缺陷**时**立即停止**；'
         + '② `termination: "no-progress"`——"进展"的定义是**缺陷数严格下降**，'
-        + '连续三轮没有下降则停止。',
+        + '连续三轮没有下降则停止；'
+        + '③ `termination: "score-plateau"`——最后三轮都带有限 `score` 且极差 ≤0.02：'
+        + '量化分进平台即"再改也是在噪声里打转"，停止。',
       '**必须**在 `termination` 里写明命中哪一条。没有 `termination` 字段即门禁硬失败。',
     ],
     forbidden: [
@@ -856,7 +872,8 @@ const SKILLS: Readonly<Record<string, StageSkill>> = {
     ],
     selfCheck: [
       '`PAPER_IMPROVEMENT_STATE.json` 含 `rounds[].defects`（每轮一个数）与 `termination`。',
-      '`termination` 是 `approved` 或 `no-progress` 之一，且与缺陷数序列一致。',
+      '`termination` 是 `approved` / `no-progress` / `score-plateau` 之一，且与轮次序列一致'
+        + '（score-plateau 还要求最后三轮都带有限 `score`，极差 ≤0.02）。',
       '`paper/_improvement_rounds/` 下的轮次文件齐全，未被覆盖。',
     ],
   },

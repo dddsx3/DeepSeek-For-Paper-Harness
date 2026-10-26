@@ -226,7 +226,11 @@ export const STAGES: ReadonlyArray<StageSpec> = [
       D('COMP_REVIEW.md', 'md', '逻辑对抗复核（含 L5 三视角评审）'),
       D('COMP_REVIEW_VERDICT.json', 'json', 'findings[] + fatal_count —— **fatal>0 必须回滚**'),
     ],
-    gates: ['review_fatal_count'],
+    gates: ['review_fatal_count',
+      // 评审量化 rubric（ECOSYSTEM-SURVEY 引入，来源 AI-Scientist）：可选契约——
+      // 旧语料没有 rubric 照常放行；产出后核"维度非空 / 权重和 1 / total 自洽"，
+      // 总分供改进循环的 score-plateau 终止条件消费
+      'review_rubric'],
     contractRules: [], rollbackTo: ['modeling', 'code'], guidedFallback: 'T3',
     premise: '**L5 由本阶段承载**，不是与它并列的第二套评审：三视角（reviewPersonasOf）在本阶段内部跑，'
       + '外加 comp-review 的 fatal_count 门。',
@@ -252,14 +256,17 @@ export const STAGES: ReadonlyArray<StageSpec> = [
     id: 'improve', index: 10, kind: 'model', title: '论文改进循环', skillId: 'auto-paper-improvement-loop',
     consumes: ['09-paper/paper/main.md', '08-review/COMP_REVIEW_VERDICT.json'],
     produces: [
-      D('PAPER_IMPROVEMENT_STATE.json', 'json', '改进状态：轮次、缺陷数序列、终止原因'),
+      D('PAPER_IMPROVEMENT_STATE.json', 'json', '改进状态：轮次、缺陷数序列、每轮可选的评审量化分 score、终止原因'),
       D('paper/_improvement_rounds/', 'dir', '每一轮的稿子（保留全部轮次）'),
     ],
     gates: ['improve_terminated'],
     contractRules: [], rollbackTo: ['paper'],
-    premise: '**终止条件是两条，不是"超时"**（round-5 的结论：缺的不是额度，是终止条件）：'
+    premise: '**终止条件是三条，不是"超时"**（round-5 的结论：缺的不是额度，是终止条件）：'
       + '① **批准即收口**——检查器报零缺陷时立即停；② **三轮无进展即停**——"进展" = 缺陷数**严格下降**，'
-      + '连续三轮无下降则停并**如实报告未收敛**（不自行宣布定稿）。',
+      + '连续三轮无下降则停并**如实报告未收敛**（不自行宣布定稿）；'
+      + '③ **分数平台即停（score-plateau）**——最后三轮都带评审量化分（该轮 review rubric 的 total，'
+      + '由阶段 8 的 `review_rubric` 门禁核算）且极差 ≤0.02。score 是可选字段：'
+      + '没有量化分的运行走①②，前两条判据不受影响。',
   },
   {
     id: 'format-profile', index: 11, kind: 'model', title: '解析格式要求', skillId: 'format-profile',

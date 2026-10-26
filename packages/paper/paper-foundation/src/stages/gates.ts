@@ -254,6 +254,86 @@ const reviewFatalCount: GateFn = (input) => {
     : fail(id, `fatal_count = ${String(fatal)} —— 必须回滚到归属阶段修正后重跑，不许进阶段 7`)
 }
 
+/**
+ * `review_rubric` —— 评审的**量化 rubric**（ECOSYSTEM-SURVEY 引入项，来源 AI-Scientist 的量化评审）。
+ *
+ * 为什么需要它：review 阶段原来只产出缺陷清单（`findings[]`），缺一个**可跨轮、跨运行对比**
+ * 的量化分——改进循环的 `score-plateau` 终止条件（`improve_terminated`）直接消费它。
+ *
+ * **向后兼容是刻意的**：rubric 是 verdict 里的**可选**块。verdict 文件缺失、JSON 损坏、
+ * 或没有 `rubric` 键时一律放行——前两件事由同阶段的 `review_fatal_count` 负责报，
+ * 本门禁只在**读得到 rubric** 时才发言。旧语料与全部既有夹具因此不被新判据打红。
+ *
+ * 产出后核四条（形态合法 + 数值自洽才算"量化"）：维度非空；每条 `score`/`weight` 是
+ * [0,1] 内的有限数；权重和 =1（±0.01）；`total` ≈ Σ(score·weight)（±0.01）。
+ * `evidence` 由简报与技能教学，这里**不**做硬校验——先把机械可判的数值一致性立起来
+ * （GATE-FP 纪律：宁可漏，不误报；证据质量留给逐条人审计）。
+ */
+const RUBRIC_TOL = 0.01
+
+const reviewRubric: GateFn = (input) => {
+  const id = 'review_rubric'
+  const raw = text(input, 'COMP_REVIEW_VERDICT.json')
+  if (raw === null) return ok(id, 'verdict 文件不在，更没有 rubric —— 本门禁不发言（文件缺失由 review_fatal_count 报）')
+  let parsed: { rubric?: unknown }
+  try {
+    parsed = JSON.parse(raw) as { rubric?: unknown }
+  } catch {
+    return ok(id, 'verdict 不是合法 JSON，读不到 rubric —— 本门禁不发言（JSON 损坏由 review_fatal_count 报）')
+  }
+  const rubric = parsed.rubric
+  if (rubric === undefined || rubric === null) {
+    return ok(id, 'verdict 里没有 rubric 块 —— 可选契约（旧语料/旧运行没有它，照常放行）')
+  }
+  if (typeof rubric !== 'object' || Array.isArray(rubric)) {
+    return fail(id, 'rubric 必须是对象：`{dimensions:[{id, score, weight, evidence}], total}`')
+  }
+  const o = rubric as { dimensions?: unknown; total?: unknown }
+  if (!Array.isArray(o.dimensions) || o.dimensions.length === 0) {
+    return fail(id, 'rubric.dimensions 不存在或为空 —— 至少对一个维度打分，否则它不是量化评审')
+  }
+  const problems: string[] = []
+  let weightSum = 0
+  let weightedSum = 0
+  o.dimensions.forEach((d, i) => {
+    const at = `维度 ${String(i + 1)}`
+    if (typeof d !== 'object' || d === null) {
+      problems.push(`${at} 不是对象（应为 \`{id, score, weight, evidence}\`）`)
+      return
+    }
+    const e = d as Record<string, unknown>
+    const named = typeof e['id'] === 'string' && e['id'].trim() !== ''
+    const dimId = named ? (e['id'] as string).trim() : '?'
+    if (!named) problems.push(`${at} 缺非空 \`id\` —— 没有名字的维度无法跨轮对比`)
+    const score = e['score']
+    const scoreOk = typeof score === 'number' && Number.isFinite(score) && score >= 0 && score <= 1
+    if (!scoreOk) problems.push(`${at}（${dimId}）的 \`score\` 不是 [0,1] 内的有限数`)
+    const weight = e['weight']
+    const weightOk = typeof weight === 'number' && Number.isFinite(weight) && weight >= 0 && weight <= 1
+    if (!weightOk) problems.push(`${at}（${dimId}）的 \`weight\` 不是 [0,1] 内的有限数`)
+    // 形态坏掉的维度不进加权和——它自己已经是一条 problem，别再放大 total 的偏差
+    if (scoreOk && weightOk) {
+      weightSum += weight
+      weightedSum += score * weight
+    }
+  })
+  if (problems.length > 0) {
+    return fail(id, `rubric 有 ${String(problems.length)} 条形态问题 —— ${problems.slice(0, 4).join('；')}`)
+  }
+  if (Math.abs(weightSum - 1) > RUBRIC_TOL) {
+    return fail(id, `rubric 维度权重之和是 ${weightSum.toFixed(3)}，不是 1（容差 ${String(RUBRIC_TOL)}）——`
+      + '权重不和为 1，total 就没有跨轮可比性')
+  }
+  const total = o.total
+  if (typeof total !== 'number' || !Number.isFinite(total)) {
+    return fail(id, 'rubric.total 缺失或不是数字 —— 没有总分，改进循环的 score-plateau 无从比较')
+  }
+  return Math.abs(total - weightedSum) <= RUBRIC_TOL
+    ? ok(id, `rubric 合法：${String(o.dimensions.length)} 个维度、权重和 1、total ${total.toFixed(3)} 与加权分一致`)
+    : fail(id, `rubric.total ${total.toFixed(3)} ≠ Σ(score·weight) ${weightedSum.toFixed(3)}（容差 ${String(RUBRIC_TOL)}）——`
+      + '总分必须由维度加权得出，手工另写一个数会让"分数平台"失真')
+}
+
 /** 严格单文件产出（阶段 9 的核心纪律）。 */
 const profileSingleFile: GateFn = (input) => {
   const id = 'profile_single_file'
@@ -443,7 +523,22 @@ const ledgerKeysDeclared: GateFn = (input) => {
   return ok(id, `已公布 ${String(keys.length)} 个账本键 —— 阶段 4 照抄即可，不必猜`)
 }
 
-/** 阶段 8 的终止条件（round-5 的两条）。 */
+/** score-plateau 的噪声带：最后三轮评审量化分的极差 ≤0.02 视为"进平台"。 */
+const SCORE_PLATEAU_NOISE = 0.02
+/**
+ * 浮点保护：0.71 − 0.69 在 IEEE-754 里是 0.020000000000000018——名义极差恰为 0.02 的平台
+ * 会被裸比较判成"仍在上升"。score 来自模型的两位小数输出，这种边界必须放行（GATE-FP 纪律）。
+ */
+const SCORE_PLATEAU_EPSILON = 1e-9
+
+/**
+ * 改进循环的终止条件 —— round-5 的两条 + `score-plateau`（评审量化 rubric 引入后的第三条）。
+ *
+ * **approved / no-progress 的判据保持原样**（round-5 的结论不动）；第三条消费阶段 8 新增的
+ * 量化 rubric（`review_rubric`）：最后三轮的 `rounds[].score`（该轮评审 rubric 的 total）
+ * 全部在且极差 ≤0.02 —— 量化分已进平台，继续改只是在噪声里打转。
+ * `score` 是**可选**字段：旧语料没有它不算违规，只是这条路走不通（缺分不许编数）。
+ */
 const improveTerminated: GateFn = (input) => {
   const id = 'improve_terminated'
   const raw = text(input, 'PAPER_IMPROVEMENT_STATE.json')
@@ -454,7 +549,7 @@ const improveTerminated: GateFn = (input) => {
   } catch {
     return fail(id, 'PAPER_IMPROVEMENT_STATE.json 不是合法 JSON')
   }
-  const rounds = Array.isArray(parsed.rounds) ? parsed.rounds as ReadonlyArray<{ defects?: unknown }> : null
+  const rounds = Array.isArray(parsed.rounds) ? parsed.rounds as ReadonlyArray<{ defects?: unknown; score?: unknown }> : null
   if (rounds === null) return cannot(id, 'rounds 不是数组 —— 无法判定终止条件')
   const counts = rounds.map(r => Number(r.defects ?? Number.NaN))
   if (counts.some(c => !Number.isFinite(c))) return cannot(id, '某一轮缺 defects 计数 —— 无法判定"进展"')
@@ -469,7 +564,25 @@ const improveTerminated: GateFn = (input) => {
       return ok(id, `三轮无进展即停（缺陷数 ${counts.slice(-3).join(' → ')}）—— 如实报告未收敛`)
     }
   }
-  return fail(id, `终止原因 '${termination}' 不在允许集（approved / no-progress）`)
+  // score-plateau：最后三轮的评审量化分全部在、且极差 ≤0.02 —— 分数不再上升。
+  if (termination === 'score-plateau') {
+    if (rounds.length < 3) {
+      return fail(id, `score-plateau 需要至少 3 轮才有"平台"可言（实际 ${String(rounds.length)} 轮）`)
+    }
+    const last3 = rounds.slice(-3).map(r => (r.score === undefined ? Number.NaN : Number(r.score)))
+    if (last3.some(s => !Number.isFinite(s))) {
+      return fail(id, 'score-plateau 要求最后三轮都带有限的 `rounds[].score`（该轮评审 rubric 的 total）——'
+        + '有轮次缺 score 或不是数字。没产出 rubric 的轮次就缺着，不许写 0 或编一个数冒充')
+    }
+    const hi = Math.max(...last3)
+    const lo = Math.min(...last3)
+    const spread = hi - lo
+    return spread <= SCORE_PLATEAU_NOISE + SCORE_PLATEAU_EPSILON
+      ? ok(id, `分数平台即停（最后三轮 score ${last3.map(s => s.toFixed(3)).join(' → ')}，极差 ${spread.toFixed(3)}）—— 如实报告未收敛`)
+      : fail(id, `最后三轮 score 极差 ${spread.toFixed(3)} > ${SCORE_PLATEAU_NOISE.toFixed(2)} —— 量化分仍在变化，`
+        + '不许以 score-plateau 终止（若缺陷数也无进展，改用 no-progress）')
+  }
+  return fail(id, `终止原因 '${termination}' 不在允许集（approved / no-progress / score-plateau）`)
 }
 
 // ── 阶段 4/5：图对账、声明完整性、风格与几何 ────────────────────────────────
@@ -2398,6 +2511,8 @@ export const GATES: ReadonlyMap<string, GateFn> = new Map<string, GateFn>([
   ['diagram_geometry', diagramGeometry],
   // ── 阶段 6 ────────────────────────────────────────────────────────────
   ['review_fatal_count', reviewFatalCount],
+  // 评审量化 rubric（可选契约）：缺失放行（旧语料兼容），产出后核形态与数值自洽
+  ['review_rubric', reviewRubric],
   // ── 阶段 7 ────────────────────────────────────────────────────────────
   ['paper_floor', i => byteFloor(i, 'paper_floor', 'paper/main.md', 5120)],
   // 论文里的每个数字必须能追到：题面给定值 / 声明的常数 / harness 铸出的结果（F2 的对账）
