@@ -106,3 +106,8 @@ artifacts/handoff/*/*.log
 artifacts/upper-bound/*/*.log
 artifacts/upper-bound/*/figures/
 artifacts/upper-bound/*/data/
+
+# —— demo 运行输出（每次跑 demo 重生成；2026-10-27 治理出库）——
+artifacts/handoff/TASK-P1/demo/output/
+artifacts/handoff/TASK-P2/demo-v2/output/
+artifacts/handoff/TASK-P3/demo-v3/output/
