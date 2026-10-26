@@ -92,3 +92,8 @@ artifacts/handoff/baseline-26.console.log
 # 除 README 外整目录不入库（运行日志与审计文件含机器本地信息）。规约见 runs/README.md。
 runs/*
 !runs/README.md
+
+# —— 大体积竞赛数据附件（不入库）——
+# CUMCM 2024 E 题官方附件二（~490MB）；曾走 Git LFS，2026-10-27 起出库。
+# 获取方式见 bench/problems/2024-E/README.md
+bench/problems/2024-E/attachment-2.csv

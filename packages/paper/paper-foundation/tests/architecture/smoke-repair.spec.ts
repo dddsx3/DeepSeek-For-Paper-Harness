@@ -31,7 +31,7 @@ describe('smokeInvolvedFiles —— 从 traceback 提取**整条调用链**', ()
     // 冒烟失败直接退化成"整阶段失败"（修复回路一次都没跑过）。
     const t = [
       '    _h1_partition in _all_partitions,',
-      '  File "D:\\deepseek modex\\harness\\stages\\03-code\\code\\params.py", line 575, in record',
+      '  File "C:\\work\\paper-run\\stages\\03-code\\code\\params.py", line 575, in record',
       'ValueError: 参数登记校验失败：q3_partition_contains_h1',
     ].join('\n')
     expect(smokeInvolvedFiles(t)).toEqual(['params.py'])
