@@ -53,6 +53,8 @@ import { renderE1DirectDraft } from './produce/e1-direct.ts'
 import { chapterTitleOf, frameworkOf, perQuestionChaptersOf, perQuestionSectionsOf, questionOrdinal, questionRequirements, questionTitlesOf } from './produce/per-question.ts'
 import type { DeliveryGrade } from './delivery/delivery-grade.ts'
 import { runVerificationV1V4 } from './verification/v-structure.ts'
+// V7 sympy 符号通道的调用侧入口（形态 6 镜像修复：判定早已写好，缺的是调用）。
+import { v7AdvisoryFindings, type V7Observation } from './verification/v7-sympy.ts'
 import { ModelingIr } from './ir/store.ts'
 import { sha256Hex } from './ir/index.ts'
 import { resolveRunPolicy } from './policy.ts'
@@ -1739,6 +1741,27 @@ ${microTeaching.map((m, i) => `${String(i + 1)}. ${m}`).join(String.fromCharCode
         : runVerificationV1V4(this.options.ir)
           .filter(f => !f.ok)
           .map(f => ({ kind: f.rule, reason: f.detail }))
+      // ── V7 sympy 符号通道（观察级接链，形态 6 镜像修复）────────────────
+      // `runV7Check`（DIM/DOM/RES 判定）与脚本早已存在，却从未被调用——判定
+      // 写了、调用侧没接，与 W8.12 的 critical-gate 传递洞同一形态。这里把它的
+      // 发现接进与 V1–V4 **相同**的 fail-soft 标注流：
+      //   · 归宿在 L6 闭环——落交付附录的已知缺陷表（显式接受），不新增任何
+      //     硬拒绝路径（`gradeDelivery` 的致命清单是封闭的，未知 kind 一律落
+      //     MARKED 标注；`severityOfKind` 对未知 kind 给最宽的 minor）；
+      //   · 懒降级——python/sympy 缺席时 `runV7Check` 返回 V7-EXEC，与真发现
+      //     同路、同样只是观察（C3：未执行按未通过同级），链路绝不因符号计算
+      //     环境缺席而崩溃或拦交付；store 里无可锚声明时干脆不 spawn；
+      //   · 调用侧自身的任何异常也降级为一条观察——观察级语义不容许它 throw。
+      // 与 vFindings 同一守卫：strict-tolerance 的 grade input 保持逐字节不变。
+      const v7Observations: ReadonlyArray<V7Observation> = (() => {
+        const ir = this.options.ir
+        if (this.options.deliveryGradeMode !== 'fail-soft' || ir === undefined) return []
+        try {
+          return v7AdvisoryFindings(ir.list())
+        } catch (error) {
+          return [{ kind: 'V7_ERROR', reason: `观察级（sympy 符号通道）：调用侧异常 ${(error as Error).message}` }]
+        }
+      })()
       const gateFailures = verdict.decision.failures
       // W8.12 (E1 direct delivery): when the run got here via the fallback,
       // the receive layer's terminal failure joins the grade input — it is an
@@ -1829,7 +1852,17 @@ ${microTeaching.map((m, i) => `${String(i + 1)}. ${m}`).join(String.fromCharCode
           : []
       const gradeInput = this.options.deliveryGradeMode === 'strict-tolerance'
         ? [...gateFailures, ...reviewFailures]
-        : [...gateFailures, ...reviewFailures, ...vFindings, ...receiveFailures, ...digitFindings, ...blankFindings, ...finalTextFindings]
+        : [
+          ...gateFailures,
+          ...reviewFailures,
+          ...vFindings,
+          // V7 观察级条目与 V1–V4 findings 走同一条 fail-soft 组合（见上）。
+          ...v7Observations,
+          ...receiveFailures,
+          ...digitFindings,
+          ...blankFindings,
+          ...finalTextFindings,
+        ]
       const deliveryPath: DeliveryPath = deliveryPathEarly
       // ── 致命条件接上**真实判定**（D4 的修法）────────────────────────
       // 旧代码把 `executionFailed` 与 `referenceCatastrophe` 写死为 false，
@@ -4462,34 +4495,34 @@ ${microTeaching.map((m, i) => `${String(i + 1)}. ${m}`).join(String.fromCharCode
     const tools: ReadonlyArray<ToolSpec> = [
       ...extraTools,
       {
-      name: SELF_CHECK_TOOL_NAME,
-      description: [
-        'Validate a candidate ir-container-v1 BEFORE you submit it.',
-        'Returns the list of problems that would make the container refused at admission.',
-        'It only checks what is checkable before your code runs (parse, entries shape, duplicate ids, per-sub-problem ModelSpec, Result locators, assumption anchors).',
-        'It does NOT check numeric_config.json keys or jsonPath values — those exist only after your code runs.',
-        'Call it as many times as you like before your final answer.',
-      ].join(' '),
-      parameters: {
-        type: 'object',
-        properties: {
-          container_json: { type: 'string', description: 'the full JSON container text you are about to submit' },
+        name: SELF_CHECK_TOOL_NAME,
+        description: [
+          'Validate a candidate ir-container-v1 BEFORE you submit it.',
+          'Returns the list of problems that would make the container refused at admission.',
+          'It only checks what is checkable before your code runs (parse, entries shape, duplicate ids, per-sub-problem ModelSpec, Result locators, assumption anchors).',
+          'It does NOT check numeric_config.json keys or jsonPath values — those exist only after your code runs.',
+          'Call it as many times as you like before your final answer.',
+        ].join(' '),
+        parameters: {
+          type: 'object',
+          properties: {
+            container_json: { type: 'string', description: 'the full JSON container text you are about to submit' },
+          },
+          required: ['container_json'],
+          additionalProperties: false,
         },
-        required: ['container_json'],
-        additionalProperties: false,
-      },
-      run: (args) => {
-        const containerText = typeof args['container_json'] === 'string' ? args['container_json'] : ''
-        if (containerText.length === 0) {
-          return ['参数不合法', '  - container_json 缺失或不是字符串——把完整的容器文本放进这个参数。'].join(String.fromCharCode(10))
-        }
-        const verdict = runSelfCheckSafely(selfCheck, containerText)
-        return [
-          verdict.summary,
-          ...verdict.problems.map(p => `  - ${p}`),
-          ...(verdict.notChecked.length === 0 ? [] : ['（本工具判不了的：', ...verdict.notChecked.map(n => `  · ${n}`), '）']),
-        ].join(String.fromCharCode(10))
-      },
+        run: (args) => {
+          const containerText = typeof args['container_json'] === 'string' ? args['container_json'] : ''
+          if (containerText.length === 0) {
+            return ['参数不合法', '  - container_json 缺失或不是字符串——把完整的容器文本放进这个参数。'].join(String.fromCharCode(10))
+          }
+          const verdict = runSelfCheckSafely(selfCheck, containerText)
+          return [
+            verdict.summary,
+            ...verdict.problems.map(p => `  - ${p}`),
+            ...(verdict.notChecked.length === 0 ? [] : ['（本工具判不了的：', ...verdict.notChecked.map(n => `  · ${n}`), '）']),
+          ].join(String.fromCharCode(10))
+        },
       },
     ]
 
