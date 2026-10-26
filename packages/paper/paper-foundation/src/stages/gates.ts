@@ -44,6 +44,7 @@ export const FIGURE_PLAN_FILE = 'FIGURE_PLAN.json'
 import { numericShapeOf, parseResultSources, RESULTS_LEDGER_FILE } from './execute-and-mint.ts'
 import { addRoundedVariants, auditFiles, buildAllowlist, commentLines, verificationClaims } from './number-audit.ts'
 import { CODE_PY_RE, undefinedConstNames } from './code-names.ts'
+import { runInvariantScan } from '../verification/invariant-scan.ts'
 import {
   ANCHOR_REPORT_FILE, anchorsIn, blankFencedCode, parseAnchorReport,
 } from './anchor-resolve.ts'
@@ -341,6 +342,74 @@ const profileSingleFile: GateFn = (input) => {
   return extra.length === 0
     ? ok(id, '只产出了 _text_profile.json')
     : fail(id, `除 _text_profile.json 外还产出了：${extra.join('、')} —— 本阶段只准出一个文件`)
+}
+
+/**
+ * **声明式不变量随机扫描**（LEAN-ASSESSMENT §6 中间路径 a/b 的落地门禁）。
+ *
+ * 模型在 DECLARATION.json 里**可选**声明 `invariants[]`（sympy 可解析的不等式/恒等式）
+ * 与每个符号的 `range {low, high}`；本门禁把声明变量域均匀采样 20000 点，逐条验证。
+ * 直击的真实缺陷形态（2024B PENDING-FIXES F-002/F-003）：单位口径漏除、守恒项整项丢失——
+ * 这类错误 property 扫描一个下午能钉住，形式化证明反而要先形式化整个模型。
+ *
+ * 严重级语义（P2 按需）：未声明不变量 → ok（本门是 opt-in 的，采用率由简报教学驱动）；
+ * 声明了但扫描违约/表达式不可解析 → **硬失败**（声明了就该守约，这不是误报是自相矛盾）；
+ * 设施缺失（无 python/sympy）→ 2（无法判定，绝不因此崩链）。
+ * 引用无界符号的不变量跳过扫描并在 detail 点名（不因声明不全而误杀）。
+ */
+const declaredInvariantScan: GateFn = (input) => {
+  const id = 'declared_invariant_scan'
+  const raw = input.upstream.get('DECLARATION.json') ?? input.files.get('DECLARATION.json') ?? null
+  if (raw === null) return cannot(id, '上游没有 DECLARATION.json —— 无从读取不变量声明')
+  let decl: { symbols?: unknown; invariants?: unknown }
+  try {
+    decl = JSON.parse(raw) as { symbols?: unknown; invariants?: unknown }
+  } catch {
+    return fail(id, 'DECLARATION.json 不是合法 JSON')
+  }
+  const invariants = Array.isArray(decl.invariants) ? decl.invariants : []
+  if (invariants.length === 0) {
+    return ok(id, '未声明 invariants[] —— 本门按需启用（声明不变量后即受随机扫描约束，'
+      + '见简报「不变量声明」；这是直击单位口径/守恒缺陷的低价验证通道）')
+  }
+  // 变量域：只有带 range 的符号才可扫描
+  const bounds = new Map<string, { low: number; high: number }>()
+  for (const s of (Array.isArray(decl.symbols) ? decl.symbols : []) as ReadonlyArray<Record<string, unknown>>) {
+    const name = typeof s['symbol'] === 'string' ? s['symbol'] : typeof s['id'] === 'string' ? s['id'] : null
+    const range = s['range'] as { low?: unknown; high?: unknown } | undefined
+    if (name === null || typeof range !== 'object' || range === null) continue
+    const low = Number(range['low'])
+    const high = Number(range['high'])
+    if (Number.isFinite(low) && Number.isFinite(high) && high > low) bounds.set(name, { low, high })
+  }
+  const scannable = (invariants as ReadonlyArray<Record<string, unknown>>).filter((inv) => {
+    const expr = typeof inv['expr'] === 'string' ? inv['expr'] : ''
+    const vars = Array.isArray(inv['vars']) ? inv['vars'] : []
+    return expr !== '' && vars.length > 0 && vars.every(v => bounds.has(String(v)))
+  })
+  const skipped = invariants.length - scannable.length
+  if (scannable.length === 0) {
+    return cannot(id, `${String(invariants.length)} 条不变量都引用了无 range 的符号 —— 无法采样；`
+      + '给相关符号补 `range {low, high}` 后本门即可扫描（不因声明不全而误杀）')
+  }
+  const findings = runInvariantScan({
+    variables: [...bounds.entries()].map(([name, r]) => ({ name, low: r.low, high: r.high })),
+    invariants: scannable.map(inv => ({
+      id: String(inv['id'] ?? 'INV-?'),
+      expr: String(inv['expr']),
+      vars: (inv['vars'] as ReadonlyArray<unknown>).map(String),
+    })),
+    samples: 20000,
+    seed: 0,
+  })
+  const broken = findings.filter(f => !f.ok)
+  if (broken.length > 0) {
+    return fail(id, `不变量扫描未通过（${String(broken.length)}/${String(findings.length)} 条）：`
+      + broken.map(f => `[${f.rule}] ${f.detail}`).join('；').slice(0, 600)
+      + '。修法：改模型/改约束使其在声明域上成立，或诚实收窄声明域——不改判定。')
+  }
+  return ok(id, `${String(scannable.length)} 条不变量在 20000 点随机扫描下全部成立`
+    + (skipped > 0 ? `（另 ${String(skipped)} 条因引用无界符号被跳过）` : ''))
 }
 
 const profileValidJson: GateFn = (input) => {
@@ -2391,6 +2460,7 @@ export const GATES: ReadonlyMap<string, GateFn> = new Map<string, GateFn>([
   ['figure_manifest_anchors', figureManifestAnchors],
   ['figure_manifest_count', figureManifestCount],
   ['capability_check', capabilityCheck],
+  ['declared_invariant_scan', declaredInvariantScan],
   // 阶段 1 另有锚点契约（E1 的锚，保真门 B3/B4 依赖它）
   ['anchor_presence', anchorPresence],
   // ── 阶段 2 ────────────────────────────────────────────────────────────

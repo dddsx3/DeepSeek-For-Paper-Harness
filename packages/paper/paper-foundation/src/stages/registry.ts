@@ -119,7 +119,10 @@ export const STAGES: ReadonlyArray<StageSpec> = [
     gates: ['modeling_floor', 'numbers_traced', 'no_claimed_verification', 'modeling_coverage', 'modeling_self_check',
       // 现金流规则必须按决策分支展开：审计连拦两轮都点在"拆解决策对利润毫无影响"，
       // 根因是建模合同里的 `cashflow_rule` 只是一句散文 —— 编码阶段只能自己编账。
-      'cashflow_branches_declared'],
+      'cashflow_branches_declared',
+      // 声明式不变量随机扫描（LEAN-ASSESSMENT 中间路径 a/b）：opt-in（DECLARATION.invariants[]），
+      // 未声明即过；声明即受 20000 点采样验证——直击 F-002/F-003 的单位口径/守恒缺陷形态。
+      'declared_invariant_scan'],
     contractRules: ['analysis_per_question', 'evaluation_four_elements', 'floor_analysis', 'floor_evaluation'],
     rollbackTo: ['prob-analysis'], guidedFallback: 'T2',
     premise: '**两次调用，不是一次**：2a 只声明 IR 条目（小、结构化、可被 check_container 自检）；'
