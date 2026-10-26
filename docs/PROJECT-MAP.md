@@ -138,6 +138,9 @@ apps/paper-shell/src/cli.ts ──spawn/组合──► cockpit/server.mjs（子
 | [`PM-HANDBOOK.md`](./PM-HANDBOOK.md) | **流程宪法**：一切开发行为（分支/门禁/测试/真实运行/交付/推送/TASK 制/demo/安全/事故）的约束 |
 | [`DESIGN-DEBTS.md`](./DESIGN-DEBTS.md) | 现在有什么问题、哪些已修（含状态核实） |
 | [`PROGRESS.md`](./PROGRESS.md) | 开发进度仪表盘（自动区脚本生成 + 轮次日志） |
+| [`FEATURE-MATRIX.md`](./FEATURE-MATRIX.md) | 功能实现全量梳理（✅/🟡/🟠/❌/📋 + 证据锚点 + 路线图） |
+| [`ECOSYSTEM-SURVEY.md`](./ECOSYSTEM-SURVEY.md) | 开源同类项目调研：可引入功能 / 应避免缺陷 / 真实缺口 |
+| [`LEAN-ASSESSMENT.md`](./LEAN-ASSESSMENT.md) | Lean 形式化引入评估（S1 咨询件：现在不必要，触发条件留档） |
 | `docs/upper-bound-architecture.md` | **现行架构权威**（2026-09-22 重写；与旧文档冲突以它为准） |
 | `docs/dph-plan-and-redlines.md` | 总书/PRD 仓库内忠实摘录 + 红线 N1–N34 原文 |
 | `HANDOFF.md`（根） | 历史交接快照链（2026-09-24 前的有效交接；顶部指针指向最新） |
