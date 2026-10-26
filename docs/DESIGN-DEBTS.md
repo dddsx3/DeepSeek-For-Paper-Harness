@@ -46,7 +46,7 @@
 | GATE-FP | ⛔ | L1 | open（快照记录） | 门禁假阳性 7 连（真实事故，2024B 实测）——harness 侧缺陷被读成"模型不行"的最大现役来源 | 同上 §"7 条门禁假阳性的坑"；修法纪律=形态 6（让对象以正确形态到达，不是改判定） |
 | P0 | ⛔ | L1 | open（快照记录） | 2024B 阶段 8 复核 4 条致命建模缺陷（task_misread×2、cross_problem×2）→ ROLLBACK 待重跑 | `PENDING-FIXES.md` §P0（含独立复算验收判据；用户已选甲路线，待复核） |
 | E1/B1 | ⛔ | L1 | **缓解** | T3 闭集模板 × 开放题不适配；demo 数字 `0.731` 曾泄漏进真题交付 | 方法族路由 + `route_mismatch` 检测已建（`cli.ts:1317`）；`0.731` 现仅存在于 T3 演示夹具（`src/produce/template-fill.ts:153`）。**待真实运行回归验证开放题不再走 T3** |
-| E4 | ◆ | L1 | open（待核实细节） | 空交付未 fail-fast（24.8 分钟产出空文本进评审） | 未见 produce/revise 路径的最小长度前置校验；`executor.ts:1772` 的空白章节处理是 MARKED 标注路径，不是 fail-fast |
+| E4 | ◆ | L1 | **已修（已核实，2026-10-27）** | 空交付未 fail-fast（24.8 分钟产出空文本进评审） | `executor.ts:278-289` `revisionDestroysDraft`：修订文本坍缩<50% 或丢失任一章节标题即拒（按真实事故"编辑模型返回任务书"而建）；空文本必被拒 |
 | O2 | ◆ | L2 | open（已核实） | cockpit 所有运行共享 `cockpit-out`，BLOCKED 运行的 reportPath 指向上一次 DELIVERED 的报告 | `server.mjs:284` 仍 `--out outRoot` 共享目录；修法=按 runKey 隔离子目录 |
 | P1 | ◆ | L1 | **缓解** | 配图文字溢出被裁 | 渲染层已修（2026-09-28，见 PENDING-FIXES §P1 根因更正）；**待重跑后逐张目视复核** |
 | P2 | △ | L1 | open（快照记录） | 阶段 5 通行证缺审计结论（诚实性缺口） | `PENDING-FIXES.md` §P2；修法=补跑 `--stage-regate` |
