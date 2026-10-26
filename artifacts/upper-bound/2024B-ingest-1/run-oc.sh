@@ -4,7 +4,8 @@ R=artifacts/upper-bound/2024B-ingest-1
 export PAPER_PROBE_BASE_URL=https://opencode.ai/zen/v1
 export PAPER_PROBE_MODEL=space-bunny-free
 export PAPER_PROBE_PROVIDER=opencode
-export PAPER_PROBE_API_KEY=***REMOVED***
+# 密钥已移除（2026-10-27 安全治理）：运行前在环境或 .env.<profile> 中提供 PAPER_PROBE_API_KEY
+export PAPER_PROBE_API_KEY="${PAPER_PROBE_API_KEY:?请先提供 PAPER_PROBE_API_KEY（见 .env.example 的 profile 机制）}"
 # **不关闭思考**（用户硬约束）：default = 不发送 reasoning 参数，模型自行决定（实测会返回 reasoning_content）
 export PAPER_PROBE_REASONING=default
 # **非流式**：实测"max-tokens 截断只在流式下反复出现"，且 SSE 断流（fetch failed）在非流式下不存在

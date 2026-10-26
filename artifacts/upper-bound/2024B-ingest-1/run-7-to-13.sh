@@ -4,7 +4,8 @@ R=artifacts/upper-bound/2024B-ingest-1
 export PAPER_PROBE_BASE_URL=https://opencode.ai/zen/v1
 export PAPER_PROBE_MODEL=space-bunny-free
 export PAPER_PROBE_PROVIDER=opencode
-export PAPER_PROBE_API_KEY=***REMOVED***
+# 密钥已移除（2026-10-27 安全治理）：运行前在环境或 .env.<profile> 中提供 PAPER_PROBE_API_KEY
+export PAPER_PROBE_API_KEY="${PAPER_PROBE_API_KEY:?请先提供 PAPER_PROBE_API_KEY（见 .env.example 的 profile 机制）}"
 export PAPER_PROBE_REASONING=default
 # 流式 + 空闲看门狗：180s 无字节即判失败（比非流式的"等满总时长"快 10 倍）
 export PAPER_IDLE_TIMEOUT_MS=180000
