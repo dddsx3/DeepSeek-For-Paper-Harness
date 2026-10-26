@@ -60,6 +60,13 @@ import { FAKE_CONTAINER, FAKE_E1, FAKE_T3_FILL } from './fake-fixtures.ts'
 
 const here = dirname(fileURLToPath(import.meta.url))
 
+// 2026-10-27 治理：运行时状态不落源码树 —— 持久化根与默认输出目录统一放
+// 仓库根 runs/（gitignored）；PAPER_RUN_DIR 可整体覆盖（绝对路径）。
+const runDirRoot = process.env.PAPER_RUN_DIR !== undefined && process.env.PAPER_RUN_DIR !== ''
+  ? resolve(process.env.PAPER_RUN_DIR)
+  : resolve(here, '../../../runs')
+const persistBase = join(runDirRoot, 'persist')
+
 /**
  * W8.6-C2/F1: the human truth label for a bench problem (bench/
  * TRUTH-FAMILIES.json). Matched by the problem file's directory name
@@ -119,13 +126,14 @@ const requestTimeoutMs = ((): number => {
   return Number.isFinite(raw) && raw > 0 ? raw : 60_000
 })()
 
-async function buildContext(shellRoot: string, display?: { provider: string; model: string }): Promise<{
+async function buildContext(display?: { provider: string; model: string }): Promise<{
   ctx: Context
   baseRoot: string
   dispose: () => Promise<void>
 }> {
   const ctx = new Context()
-  const baseRoot = await mkdtemp(join(shellRoot, 'paper-shell-persist-'))
+  await mkdir(persistBase, { recursive: true })
+  const baseRoot = await mkdtemp(join(persistBase, 'paper-shell-persist-'))
   await ctx.plugin(Storage)
   const backend = new JsonStorageBackend(baseRoot)
   ctx.storage.backend.register('json', backend)
@@ -539,7 +547,7 @@ ${String(result.unverifiable.length)} / ${String(result.claims.length)} 条断�
     console.error(`invalid --mode '${rawMode}' (expected fast|strict|exploratory)`)
     return 2
   }
-  const outDir = parsed.out !== undefined ? String(parsed.out) : join(here, 'out')
+  const outDir = parsed.out !== undefined ? String(parsed.out) : join(runDirRoot, 'out')
   // W12-C1：切片根目录（与 execute 的调用点同一作用域，暂停时要读它）。
   const slicesRoot = join(outDir, 'slices')
   // ── 热重启：`--resume <slicesRoot>` ────────────────────────────────
@@ -652,7 +660,7 @@ ${String(result.unverifiable.length)} / ${String(result.claims.length)} 条断�
   const display = replayMeta !== undefined
     ? { provider: replayMeta.provider, model: replayMeta.model }
     : route === undefined ? undefined : { provider: route.provider, model: route.model }
-  const { ctx, baseRoot, dispose } = await buildContext(here, display)
+  const { ctx, baseRoot, dispose } = await buildContext(display)
   if (!fake && replayPath === undefined) {
     if (route === undefined) {
       // Unreachable (guarded above), but keep the type narrow for the audit.

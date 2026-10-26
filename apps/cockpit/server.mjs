@@ -101,10 +101,13 @@ async function buildEngineContext() {
   return mod
 }
 
-const shellRoot = resolve(here, '../paper-shell')
-const problemsDir = join(shellRoot, 'cockpit-problems')
-const outRoot = join(shellRoot, 'cockpit-out')
-const persistRoot = join(shellRoot, 'paper-shell-persist-cockpit')
+// 2026-10-27 治理：cockpit 的题目上传与运行输出落仓库根 runs/（gitignored），
+// 不再写进 apps/paper-shell 源码树；PAPER_RUN_DIR 与 paper-shell 同源覆盖。
+const runDirRoot = process.env.PAPER_RUN_DIR !== undefined && process.env.PAPER_RUN_DIR !== ''
+  ? resolve(process.env.PAPER_RUN_DIR)
+  : resolve(here, '../../runs')
+const problemsDir = join(runDirRoot, 'cockpit-problems')
+const outRoot = join(runDirRoot, 'cockpit-out')
 
 const FAKE_T3_DEMO = resolve(here, '../../artifacts/handoff/TASK-M1/samples/course-work.md')
 
@@ -180,10 +183,11 @@ function parseMultipart(buffer, contentType) {
   return parts
 }
 
-/** The shell's persistence roots: mkdtemp(here + 'paper-shell-persist-*')
- *  inside apps/paper-shell/src (one temp dir per CLI invocation, holding a
- *  storage-domain JSON document with tables.{runs,nodes,events,artifacts}). */
-const persistBase = resolve(shellRoot, 'src')
+/** The shell's persistence roots: mkdtemp(<runs>/persist + 'paper-shell-persist-*')
+ *  (2026-10-27 governance moved them out of apps/paper-shell/src; one temp dir
+ *  per CLI invocation, holding a storage-domain JSON document with
+ *  tables.{runs,nodes,events,artifacts}). */
+const persistBase = join(runDirRoot, 'persist')
 
 function listRunDirs() {
   if (!existsSync(persistBase)) return []

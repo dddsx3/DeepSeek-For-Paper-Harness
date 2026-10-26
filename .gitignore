@@ -97,3 +97,12 @@ runs/*
 # CUMCM 2024 E 题官方附件二（~490MB）；曾走 Git LFS，2026-10-27 起出库。
 # 获取方式见 bench/problems/2024-E/README.md
 bench/problems/2024-E/attachment-2.csv
+
+# —— artifacts 分层防线（2026-10-27）——
+# artifacts/ 只进决策文档与不可变过程记录；运行产物一律写仓库根 runs/
+# （见 runs/README.md）。以下目录级规则防止新的运行日志重新混入 artifacts
+# （对已 tracked 的历史文件无影响——gitignore 不改变已跟踪状态）。
+artifacts/handoff/*/*.log
+artifacts/upper-bound/*/*.log
+artifacts/upper-bound/*/figures/
+artifacts/upper-bound/*/data/

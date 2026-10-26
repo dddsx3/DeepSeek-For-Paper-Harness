@@ -1,8 +1,9 @@
 name: CI master
 
+# 2026-10-27 治理：master 分支是官方上游快照（冻结于 fork 点），产品线在 main
+# （主门禁 = paper-harness.yml）。master push 触发不再有意义，改为仅手动
+# dispatch（保留 runner 基准等自托管演练入口）。
 on:
-  push:
-    branches: [master]
   workflow_dispatch:
     inputs:
       suite:
