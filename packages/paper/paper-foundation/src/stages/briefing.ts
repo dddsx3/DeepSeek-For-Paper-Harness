@@ -90,7 +90,7 @@ const SKILLS: Readonly<Record<string, StageSkill>> = {
       '**FIGURE_MANIFEST 块**：夹在 `<!-- BEGIN FIGURE_MANIFEST -->` 与 `<!-- END FIGURE_MANIFEST -->` 之间。'
         + '段头式写法（与参考一致）：先写 `DATA=<n>` 再逐行列数据图名，然后 `DRAWIO=<n>`、`TIKZ=<n>`、'
         + '`GPTIMG=0`、`ALL=<n>`。每条以 `fig_` 或 `tikz_` 开头；每张图在正文里都要有一处说明它的图表类型。',
-      `**图表预算（硬性，门禁 \`figure_manifest_count\` 按这条判）**：`
+      '**图表预算（硬性，门禁 `figure_manifest_count` 按这条判）**：'
         + '**本轮的**目标页数与目标张数按你的题面问数算出，见下方「本轮图表预算」一节。'
         + '这个数不是拍脑袋，是从参考实现的逐题范例反推的：'
         + '`figure-distribution-exemplars.md` 里竞赛 A/B/C 题（25-30 页正文）分别配 15/13/14 张数据图，'
@@ -127,7 +127,7 @@ const SKILLS: Readonly<Record<string, StageSkill>> = {
         + '（凭空造一张路线图比缺一张更糟）。节点标签要短（**不得**写具体结果数值，也**不得**整张图都是'
         + '"数据采集/建立模型"这类万能词）。'
         + '另外：**这块只声明 `DRAWIO`/`TIKZ` 段的图**，不要把数据图（`DATA` 段）也写进来。',
-      '**CAPABILITY_CHECKLIST.json**：每条 = `{ id, required_output, machine_check, source_sentence }`。'
+      '**CAPABILITY_CHECKLIST.json**：**顶层数组**（不是包在对象里），每条 = `{ id, required_output, machine_check, source_sentence }`。'
         + '`machine_check` 要写成**别人能照着核**的句子（"问题 2 给出 16 种策略的期望成本表"），'
         + '不是"建模合理"。',
       '**`DATA_FACTS.json`（数据台账，题型无关的契约）**：逐个变量登记 '
@@ -552,7 +552,7 @@ const SKILLS: Readonly<Record<string, StageSkill>> = {
         + '要改图（拆分/合并/换型）用 `plan_deviations: [{"from","to","reason"}]` 申报；'
         + '**要放弃某张图也申报**（`to` 留空 + 写明理由，例如"账本只有两个点，连成曲线会虚构'
         + '并不存在的单调关系"）——申报放弃会被放行并留痕，静默不画才是漏渲染。',
-      `**但交付总量有下限（门禁 \`figure_plan_budget\` 按这条判）**：`
+      '**但交付总量有下限（门禁 `figure_plan_budget` 按这条判）**：'
         + '**本轮的**目标页数与目标张数见下方「本轮图表预算」一节。'
         + '申报放弃的机制是对的，**总量却不是无限的**：实测：阶段 1 规划 14 张，'
         + '本阶段 11 条申报里 7 条是放弃，最后只剩 7 张——每条放弃的理由都真实（账本确实没那些数），'
@@ -1035,9 +1035,9 @@ export function stageBriefing(
     L.push(`- 题面子问题数：**${String(Math.max(problemCount, 1))}** 问`
       + (problemCount === 0 ? '（数不出，按 1 问保守估算）' : ''))
     L.push(`- **${budgetSentence(FIGURE_BUDGET, problemCount)}**`)
-    L.push(`- 依据：参考 \`figure-distribution-exemplars.md\` 的逐题范例——竞赛 A/B/C 题`
-      + `（25-30 页正文）配 15/13/14 张数据图，华为杯（约 60 页正文）配 28-32 张，`
-      + `**密度稳定在每页正文 0.5 张**；页数按"每问 6 页 + 首尾 6 页"推，不低于既有的 20 页地板。`)
+    L.push('- 依据：参考 `figure-distribution-exemplars.md` 的逐题范例——竞赛 A/B/C 题'
+      + '（25-30 页正文）配 15/13/14 张数据图，华为杯（约 60 页正文）配 28-32 张，'
+      + '**密度稳定在每页正文 0.5 张**；页数按"每问 6 页 + 首尾 6 页"推，不低于既有的 20 页地板。')
     L.push('- 容差 ±3 张：**落在区间内即合格**，少几张不必慌；**越界才拦**。')
     L.push(`- **绝对底线 ${String(FIGURE_COUNT_HARD_FLOOR)} 张**（参考 \`comp-prob-analysis\` 的 HARD_FLOOR）：`
       + '少于 3 张数据图判"工作严重不完整"，**容差不得把这条底线拉低**。')
@@ -1142,7 +1142,7 @@ export function answerFormOf(spec: StageSpec): string {
         : '')
   }
   const keys = owned.map(p => p.file)
-  return `你的回答必须**只有一个** JSON 对象，形如 \`{"files": {…}}\`：`
+  return '你的回答必须**只有一个** JSON 对象，形如 `{"files": {…}}`：'
     + `顶层键是 \`files\`，它下面**恰好**这几个键——${keys.map(k => `\`${k}\``).join('、')}——`
     + '每个键的值就是那份文件的完整内容（字符串）。'
     + '除这一个 JSON 对象外**不得有任何其它字符**：不要解释、不要推理过程、不要代码围栏、'

@@ -113,7 +113,10 @@ function byteFloor(input: GateInput, id: string, name: string, min: number): Gat
  * 单看①会把置信水平、概率、坐标轴全打成"分类指标"；这正是本项目反复出现的
  * "数字被当成它不代表的量"的同一个病。
  */
-const CLASSIFICATION_METRIC = /准确率|精确率|精准率|召回率|查全率|查准率|F1|F-1|AUC|ROC|混淆矩阵|分类(?:器|模型|指标|任务|准确|精度)|accuracy|precision|recall|f1[-_ ]?score|confusion|classif/i
+const CLASSIFICATION_METRIC = new RegExp(
+  '准确率|精确率|精准率|召回率|查全率|查准率|F1|F-1|AUC|ROC|混淆矩阵'
+  + '|分类(?:器|模型|指标|任务|准确|精度)'
+  + '|accuracy|precision|recall|f1[-_ ]?score|confusion|classif', 'i')
 const NEAR_ONE = /0\.9[9]\d*|1\.000|100\.0\s*%/
 
 const leakageAudit: GateFn = (input) => {
@@ -278,7 +281,7 @@ const profileValidJson: GateFn = (input) => {
 }
 
 /** 报告必须存在——**即使全部检查通过也要出报告**（参考的明确纪律）。 */
-const formatCheckReport: GateFn = (input) =>
+const formatCheckReport: GateFn = input =>
   byteFloor(input, 'format_check_report', 'DOCX_FORMAT_CHECK_REPORT.md', 200)
 
 /** FIGURE_MANIFEST 锚点与命名前缀（阶段 1）。 */
@@ -331,7 +334,7 @@ const figureManifestCount: GateFn = (input) => {
   if (data + flow < budget.lo) {
     return fail(id, `数据图 ${String(data)} 张 + 流程图/示意图 ${String(flow)} 张 = ${String(data + flow)} 张，`
       + `低于下限 ${String(budget.lo)} 张 —— 图集撑不起论文篇幅。${sentence}`
-      + `（推理密集型题可把差额补在 TikZ 推导/构造图上，那也是达标路径。）`)
+      + '（推理密集型题可把差额补在 TikZ 推导/构造图上，那也是达标路径。）')
   }
   // 上限只卡 DATA：防"为凑数硬加数据曲线稀释重点"
   if (data > budget.hi) {
@@ -460,10 +463,10 @@ const improveTerminated: GateFn = (input) => {
   if (termination === 'approved') return ok(id, '批准即收口（检查器报零缺陷）')
   // 三轮无进展：最后三轮的缺陷数**没有严格下降**
   if (counts.length >= 3) {
-    const last3 = counts.slice(-3)
-    const noProgress = !(last3[0]! > last3[1]! && last3[1]! > last3[2]!)
+    const [a, b, c] = counts.slice(-3)
+    const noProgress = !(a > b && b > c)
     if (noProgress && termination === 'no-progress') {
-      return ok(id, `三轮无进展即停（缺陷数 ${last3.join(' → ')}）—— 如实报告未收敛`)
+      return ok(id, `三轮无进展即停（缺陷数 ${counts.slice(-3).join(' → ')}）—— 如实报告未收敛`)
     }
   }
   return fail(id, `终止原因 '${termination}' 不在允许集（approved / no-progress）`)
@@ -574,7 +577,7 @@ const figureManifestReconcile: GateFn = (input) => {
   // `figure_completeness` 是同一条纪律）。
   const imageKeys = [...new Set([...input.files.keys(), ...(input.sizes?.keys() ?? [])])]
   const rendered = imageKeys
-    .filter(f => /^figures\/fig_[A-Za-z0-9_]+\.(png|pdf|svg|jpg|jpeg)$/i.test(f))
+    .filter(f => /^figures\/fig_\w+\.(?:png|pdf|svg|jpe?g)$/i.test(f))
     .map(figureIdOf)
   const missing = [...new Set([...planned, ...declared])].filter(n => !rendered.includes(n))
   const untracked = rendered.filter(n => !planned.includes(n) && !declared.includes(n))
@@ -632,7 +635,9 @@ const CJK_TEXT = /[\u3000-\u303f\u3400-\u4dbf\u4e00-\u9fff\uff00-\uffef]/
  * 判据是"**点名**"，不是"含 generic 兜底"：`"Microsoft YaHei", sans-serif` 合格
  * （前面的名字 cairosvg 解析得到），裸 `sans-serif` 不合格（会落到无中日韩字形的默认字体）。
  */
-const CJK_CAPABLE_FONT = /(?:YaHei|SimHei|SimSun|PingFang|Noto Sans CJK|Source Han|Hiragino|Heiti|Songti|KaiTi|FangSong|WenQuanYi|Droid Sans Fallback)/i
+const CJK_CAPABLE_FONT = new RegExp(
+  'YaHei|SimHei|SimSun|PingFang|Noto Sans CJK|Source Han'
+  + '|Hiragino|Heiti|Songti|KaiTi|FangSong|WenQuanYi|Droid Sans Fallback', 'i')
 
 /**
  * 阶段 4 的风格门禁（`figure_style_rules`）—— 把参考 `setup_style` 的规范
@@ -1891,9 +1896,9 @@ const deliveryAudit: GateFn = (input) => {
         const imported = new RegExp(`(?:import\\s+|from\\s+)${stem.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`).test(codeText)
         if (imported) {
           problems.push(`${path}：被代码 \`import\`，但**磁盘上没有**、分片计划也没有它的槽位 —— `
-            + `运行时必然 ModuleNotFoundError。修法：把它的内容**并进 \`main.py\` / \`params.py\` / 对应的 \`problem*.py\`**`
-            + `（本阶段的分片计划只给固定槽位，**不许发明额外的源码文件**），`
-            + `然后把这条声明从清单里去掉`)
+            + '运行时必然 ModuleNotFoundError。修法：把它的内容**并进 `main.py` / `params.py` / 对应的 `problem*.py`**'
+            + '（本阶段的分片计划只给固定槽位，**不许发明额外的源码文件**），'
+            + '然后把这条声明从清单里去掉')
         } else {
           notes.push(`${path}：声明的源码文件不存在，但代码里也没有 \`import ${stem}\` —— `
             + '把它从清单里去掉（本阶段不产出额外的源码文件）')
@@ -2116,7 +2121,12 @@ const capabilityCheck: GateFn = (input) => {
   let capIds: ReadonlySet<string>
   try {
     const parsed: unknown = JSON.parse(checklistRaw)
-    const list = (parsed as { capabilities?: unknown }).capabilities ?? (parsed as { items?: unknown }).items
+    // 顶层数组也认：简报只教了"每条的字段形态"（{id,...}），没教信封形态——模型按最字面
+    // 的读法产出顶层数组（2026-10-27 2024B-mcgrox-1 实测，6.8KB 全合规内容被此判据硬杀）。
+    // 与 modeling_coverage 的键名宽容同一先例：判据是**覆盖**，不是信封形态。
+    const list = Array.isArray(parsed)
+      ? parsed
+      : (parsed as { capabilities?: unknown }).capabilities ?? (parsed as { items?: unknown }).items
     capIds = new Set((Array.isArray(list) ? list : [])
       .map(c => (typeof c === 'object' && c !== null ? (c as { id?: unknown }).id : undefined))
       .filter((x): x is string => typeof x === 'string' && x !== ''))
@@ -2396,7 +2406,7 @@ export const GATES: ReadonlyMap<string, GateFn> = new Map<string, GateFn>([
     const need = ['PROBLEM_ANALYSIS.md', 'MODELING_REPORT.md', 'RESULTS.md']
     const short = need.filter(n => (i.upstream.get(n) ?? '').length < 500)
     return short.length === 0
-      ? ok(id, `上游三件产物各 ≥500 字符`)
+      ? ok(id, '上游三件产物各 ≥500 字符')
       : fail(id, `上游产物过短或缺失：${short.join('、')} —— 论文没有可装配的原料`)
   }],
   ['paper_claim_check', paperClaimCheck],

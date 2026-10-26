@@ -118,6 +118,18 @@ jobs:
       - name: W1 negative controls (every indicator must go red)
         run: node bench/negative-controls/run-all.mjs
 
+      # C4-6 (DESIGN-DEBTS §C): the architecture-diagram engine's alignment
+      # self-check — same-layer mid-axis deviation ≤4px, enforced inside
+      # renderArchitectureSvg — existed only as a spec with no caller on the
+      # product trunk: ci.yml is pull_request-only (its coverage lane does run
+      # this file), and this workflow, the ONLY push-to-main gate, ran no
+      # paper-foundation vitest at all. figure-w9.spec.ts pins the whole
+      # six-mechanism C4 engine, INCLUDING the counter-example (a hand-misaligned
+      # row must go red, not just pass on generated output), so the check cannot
+      # rot into a tautology.
+      - name: C4-6 architecture alignment self-check
+        run: pnpm exec vitest run --project=thread-safe packages/paper/paper-foundation/tests/figure/figure-w9.spec.ts
+
       # P1-5: FORMAL end-to-end demo + pass corpus. A REAL node child runs
       # the paper leaf's code; Result/Claim are minted from the real output
       # bytes; the v1 report is rendered (IR-injected numbers); nine gates

@@ -151,7 +151,7 @@ describe('阶段 4 的风格门禁 —— `setup_style` 规范的可核形态', 
   const decls = (caption: string): string =>
     JSON.stringify({ figures: [{ figure_id: 'fig_a', chart_type: 'line', data_refs: ['RES-A'], caption }] })
   const svg = (text: string): string =>
-    `<svg xmlns="http://www.w3.org/2000/svg" width="200" height="100" viewBox="0 0 200 100">\n`
+    '<svg xmlns="http://www.w3.org/2000/svg" width="200" height="100" viewBox="0 0 200 100">\n'
     + `<rect x="0" y="0" width="200" height="100" fill="#FFFFFF"/>\n${text}\n</svg>\n`
 
   it('健康图 → 0（字号/边界/对比度 + 配色 + 无图内标题）', () => {
@@ -196,7 +196,7 @@ describe('阶段 5 的几何门禁 —— 只读 SVG 字节', () => {
   const label = (x: number, y: number, text = '常物性求解'): string =>
     `<text x="${String(x)}" y="${String(y)}" text-anchor="middle" font-family="serif" font-size="12" fill="#000000">${text}</text>`
   const wrap = (body: string): string =>
-    `<svg xmlns="http://www.w3.org/2000/svg" width="400" height="240" viewBox="0 0 400 240">\n`
+    '<svg xmlns="http://www.w3.org/2000/svg" width="400" height="240" viewBox="0 0 400 240">\n'
     + `<rect x="0" y="0" width="400" height="240" fill="#FFFFFF"/>\n${body}\n</svg>\n`
 
   it('按构造对齐 → 0', () => {
@@ -593,7 +593,7 @@ describe('figure_style_rules —— 中文字体必须点名', () => {
   const svgWith = (family: string): string => [
     '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 680 420">',
     `<text x="10" y="20" font-family="${family}" font-size="12" fill="#222222">接收概率</text>`,
-    `<text x="10" y="40" font-family="monospace" font-size="11" fill="#222222">0.6412</text>`,
+    '<text x="10" y="40" font-family="monospace" font-size="11" fill="#222222">0.6412</text>',
     '<rect x="0" y="0" width="10" height="10" fill="#0072B2"/>',
     '</svg>',
   ].join('')
@@ -709,30 +709,33 @@ describe('figure_completeness —— 残图红线（有风格 ≠ 能读）', ()
  * 这类错误只能靠"扫字节"发现，所以立一条守卫：`src/` 下任何文件都不许含控制字符
  * （`\t`/`\n`/`\r` 除外）。
  */
+/** 两个控制字符扫描共用同一 walk（sonarjs no-identical-functions：原本在两个用例里逐字重复）。 */
+const walkTsFiles = async (dir: string): Promise<string[]> => {
+  const { readdir } = await import('node:fs/promises')
+  const { join } = await import('node:path')
+  const entries = await readdir(dir, { withFileTypes: true })
+  const out: string[] = []
+  for (const e of entries) {
+    const child = join(dir, e.name)
+    if (e.isDirectory()) out.push(...await walkTsFiles(child))
+    else if (/\.ts$/.test(e.name)) out.push(child)
+  }
+  return out
+}
+
 describe('源码卫生 —— 不许有控制字符（事故：退格符让正则静默失效）', () => {
   it('`src/` 下的源文件都不含控制字符（\t \n \r 除外）', async () => {
-    const { readdir, readFile } = await import('node:fs/promises')
+    const { readFile } = await import('node:fs/promises')
     const { fileURLToPath } = await import('node:url')
-    const { join } = await import('node:path')
     // 用 fileURLToPath 而不是 URL.pathname：后者在 Windows 上给出
     // `D:\D:\...` 这种带盘符重复与前导斜杠的路径（实测踩过）。
     const root = fileURLToPath(new URL('../../src/', import.meta.url))
-    const walk = async (dir: string): Promise<string[]> => {
-      const entries = await readdir(dir, { withFileTypes: true })
-      const out: string[] = []
-      for (const e of entries) {
-        const child = join(dir, e.name)
-        if (e.isDirectory()) out.push(...await walk(child))
-        else if (/\.ts$/.test(e.name)) out.push(child)
-      }
-      return out
-    }
-    const files = await walk(root)
+    const files = await walkTsFiles(root)
     expect(files.length).toBeGreaterThan(50)
     const offenders: string[] = []
     for (const f of files) {
       const text = await readFile(f, 'utf8')
-      const bad = [...text].filter(ch => {
+      const bad = [...text].filter((ch) => {
         const c = ch.charCodeAt(0)
         return (c < 32 && ch !== '\t' && ch !== '\n' && ch !== '\r') || c === 127
       })
@@ -753,26 +756,15 @@ describe('源码卫生 —— 不许有控制字符（事故：退格符让正�
    * 这比原事故更值得防：测试是最后一道判据，它静默失效时没有任何东西会红。
    */
   it('`tests/` 下的测试文件也不含控制字符（守卫自己也会踩这个坑）', async () => {
-    const { readdir, readFile } = await import('node:fs/promises')
+    const { readFile } = await import('node:fs/promises')
     const { fileURLToPath } = await import('node:url')
-    const { join } = await import('node:path')
     const root = fileURLToPath(new URL('../', import.meta.url))
-    const walk = async (dir: string): Promise<string[]> => {
-      const entries = await readdir(dir, { withFileTypes: true })
-      const out: string[] = []
-      for (const e of entries) {
-        const child = join(dir, e.name)
-        if (e.isDirectory()) out.push(...await walk(child))
-        else if (/\.ts$/.test(e.name)) out.push(child)
-      }
-      return out
-    }
-    const files = await walk(root)
+    const files = await walkTsFiles(root)
     expect(files.length).toBeGreaterThan(20)
     const offenders: string[] = []
     for (const f of files) {
       const text = await readFile(f, 'utf8')
-      const bad = [...text].filter(ch => {
+      const bad = [...text].filter((ch) => {
         const c = ch.charCodeAt(0)
         return (c < 32 && ch !== '\t' && ch !== '\n' && ch !== '\r') || c === 127
       })
@@ -1070,6 +1062,18 @@ describe('capability_check —— 逐句表 ↔ 能力清单（阶段 1 的"漏�
     ]))
     expect(v.code).toBe(0)
     expect(v.items[0]?.detail).toContain('"决策/目标/机制" 2 条')
+  })
+
+  it('**顶层数组信封**也认（2026-10-27 实测：简报只教条目形态，模型按最字面读法产出数组）', () => {
+    const arrayChecklist = JSON.stringify([
+      { id: 'C-Q1-PLAN', required_output: '抽样方案', source_sentence: '请设计检测方案。' },
+      { id: 'C-Q2-MODEL', required_output: '决策', source_sentence: '请作出决策。' },
+    ])
+    const v = run1(table([
+      '| S01 | 请设计检测方案。 | 目标 | C-Q1-PLAN |',
+      '| S02 | 请作出决策。 | 决策 | C-Q2-MODEL |',
+    ]), arrayChecklist)
+    expect(v.code).toBe(0)
   })
 
   it('缺输入 / 没有可解析的逐句表 → 2（不是通过）', () => {
