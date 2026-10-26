@@ -464,7 +464,7 @@ const improveTerminated: GateFn = (input) => {
   // 三轮无进展：最后三轮的缺陷数**没有严格下降**
   if (counts.length >= 3) {
     const [a, b, c] = counts.slice(-3)
-    const noProgress = !(a > b && b > c)
+    const noProgress = !(a !== undefined && b !== undefined && c !== undefined && a > b && b > c)
     if (noProgress && termination === 'no-progress') {
       return ok(id, `三轮无进展即停（缺陷数 ${counts.slice(-3).join(' → ')}）—— 如实报告未收敛`)
     }
