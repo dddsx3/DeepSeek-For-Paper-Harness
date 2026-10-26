@@ -148,8 +148,14 @@ async function main() {
         continue
       }
       const finalDir = join(result.finalRoot, result.runId, 'final')
-      const files = await readdir(finalDir)
-      const report = await readFile(join(finalDir, files[0]), 'utf8')
+      // The promoter's sink writes the report as a FILE (currently named
+      // `final`) next to the persisted `figures/` and `data/` directories —
+      // read the first regular file, never `files[0]` (a directory read dies
+      // with EISDIR).
+      const finalEntries = await readdir(finalDir, { withFileTypes: true })
+      const reportName = finalEntries.find((e) => e.isFile())?.name
+      if (reportName === undefined) throw new Error(`no report file promoted under ${finalDir}`)
+      const report = await readFile(join(finalDir, reportName), 'utf8')
       const id = String(def.title)
       const caseOut = join(OUT_ROOT, id)
       mkdirSync(caseOut, { recursive: true })
