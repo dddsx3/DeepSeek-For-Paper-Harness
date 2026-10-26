@@ -124,6 +124,10 @@
 1. **收口即推**：门禁全绿 + 台账更新 → 当轮内推送。超过一天未推的已收口工作 = 违规（本地积压是丢失与分叉的根源）。
 2. **推送前**：§3 对应门禁、工作树干净、`progress:board` 已刷新、轮次日志已写。
 3. **pre-push 钩子**（lefthook）：`verify-no-secrets` + `typecheck`——**禁止 `--no-verify` 绕过**；钩子红了就是真问题。
+   ⚠️ **钩子静默跳过是真实发生过的事故**（2026-10-27：typecheck 任务用了 `pnpm`，而 pnpm 不在本机
+   PATH → lefthook 把 127 当 skip，推送照常通过，typecheck 实际从未把关）。因此：钩子任务一律用
+   node 自带工具链（npm/node_modules/.bin），且每隔几轮手动 `npx lefthook run pre-push` 亲眼确认两个
+   任务都是 ✔️ 而不是 🥊。
 4. 远端失败（网络/代理）：**不许为了"绕过网络"做任何历史操作**；留待网络恢复（先例：2026-10-27 治理轮推送延后数小时）。
 5. `upstream` remote 只读：仅选择性 merge 官方更新，永不自动合入，永不指向本产品分支。
 6. LFS 配额意识：大文件走 gitignore + 外部获取说明（先例：bench 2024-E CSV），禁止回退到"先传上去再说"。

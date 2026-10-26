@@ -55,5 +55,10 @@ pre-push:
     # remote regardless of what else is being pushed (PM-HANDBOOK §11).
     - name: no secrets in tracked files
       run: node_modules/.bin/tsx scripts/verify-no-secrets.ts
+    # npm, not pnpm: npm ships with node on every dev machine, while pnpm is
+    # not guaranteed on PATH — a not-found command makes lefthook SKIP the job
+    # silently (127), which is how the old pnpm form silently stopped gating
+    # pushes on this machine (found 2026-10-27). The script itself is
+    # package-manager-agnostic (tsc + tsdown).
     - name: typecheck
-      run: pnpm run typecheck
+      run: npm run typecheck
