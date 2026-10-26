@@ -18,6 +18,8 @@
  *   GET  /api/runs                  → run list
  *   GET  /api/runs/:id              → run projection (record + nodes + events)
  *   GET  /api/runs/:id/stream       → SSE incremental event stream (afterSeq)
+ *   GET  /api/report                → one run's report.md preview (?runKey/?runId; O2: per-run out dir)
+ *   GET  /api/runs/:id/download     → one run's deliverable.zip (O2: per-run out dir)
  *   GET  /api/manifest              → manifest verify projection (badge)
  *   POST /api/falseblock            → archive one FALSE_BLOCK claim (研究档案)
  *   GET  /api/falseblock            → read the adjudication trail
@@ -28,7 +30,7 @@
 import { createServer } from 'node:http'
 import { createHash } from 'node:crypto'
 import { readFile, writeFile, mkdir, appendFile } from 'node:fs/promises'
-import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs'
 import { join, dirname, extname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -107,6 +109,10 @@ const runDirRoot = process.env.PAPER_RUN_DIR !== undefined && process.env.PAPER_
   ? resolve(process.env.PAPER_RUN_DIR)
   : resolve(here, '../../runs')
 const problemsDir = join(runDirRoot, 'cockpit-problems')
+// O2 (DESIGN-DEBTS §C): outRoot is only the PARENT directory. Every
+// submission spawns into its own isolated `run-<timestamp>-<slug>/` subdir,
+// so a BLOCKED run can never point at the previous DELIVERED run's
+// report.md / deliverable.zip — each projection reads the entry's own dir.
 const outRoot = join(runDirRoot, 'cockpit-out')
 
 const FAKE_T3_DEMO = resolve(here, '../../artifacts/handoff/TASK-M1/samples/course-work.md')
@@ -237,10 +243,57 @@ function listRunIds() {
 // Run submission: spawn the real shell CLI (same entry as the CLI user)
 // ---------------------------------------------------------------------------
 
-const activeRuns = new Map() // runKey → { status, startedAt, runId? }
+const activeRuns = new Map() // runKey → { status, startedAt, runId?, outDir?, ... }
+let latestOutDir = null // O2: newest submission's isolated out dir (in-memory fast path for /api/report)
+
+/** O2: resolve a runKey/runId to that submission's isolated out dir — the
+ *  live activeRuns entries first, then the cockpit-run.json markers on disk
+ *  (the cockpit may have been restarted since the run finished). */
+function resolveRunOutDir(id) {
+  if (typeof id !== 'string' || id === '') return null
+  for (const [key, entry] of activeRuns) {
+    if (key === id || entry.runId === id) return entry.outDir ?? null
+  }
+  if (!existsSync(outRoot)) return null
+  for (const name of readdirSync(outRoot)) {
+    if (!name.startsWith('run-')) continue
+    const markerPath = join(outRoot, name, 'cockpit-run.json')
+    if (!existsSync(markerPath)) continue
+    try {
+      const marker = JSON.parse(readFileSync(markerPath, 'utf8'))
+      if (marker.runKey === id || marker.runId === id) return join(outRoot, name)
+    } catch { /* unreadable marker — keep scanning */ }
+  }
+  return null
+}
+
+/** O2: the out dir the param-less /api/report preview shows — the latest
+ *  submission this session, or (after a restart) the newest run-* dir on
+ *  disk. A missing report.md there stays an honest miss; it never falls
+ *  back to an older run's report. */
+function latestRunOutDir() {
+  if (latestOutDir !== null) return latestOutDir
+  if (!existsSync(outRoot)) return null
+  let newest = null
+  let newestMtime = -1
+  for (const name of readdirSync(outRoot)) {
+    if (!name.startsWith('run-')) continue
+    try {
+      const mtime = statSync(join(outRoot, name)).mtimeMs
+      if (mtime > newestMtime) { newestMtime = mtime; newest = join(outRoot, name) }
+    } catch { /* raced removal — skip */ }
+  }
+  return newest
+}
 
 async function submitRun(problemPath, tier, mode, useFake, profileId, dataPaths = [], failSoft = true) {
   const runKey = `run-${Date.now().toString(36)}`
+  // O2: every submission gets its own isolated output dir under outRoot —
+  // ms-stamped + problem-name slug so the dir is self-describing on disk.
+  const slugSource = problemPath.split(/[\\/]/).pop() ?? 'problem'
+  const slug = slugSource.replace(/\.[^.]*$/, '').replace(/[^\w一-龥]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40) || 'problem'
+  const stamp = new Date().toISOString().replace(/[:.]/g, '-')
+  const outDir = join(outRoot, `run-${stamp}-${slug}`)
   // Route resolution: the ACTIVE cockpit profile wins; a request-level
   // profileId picks a non-active one; no profile = fall back to the process
   // env (previous behaviour). Different profiles = different accounts =
@@ -275,8 +328,20 @@ async function submitRun(problemPath, tier, mode, useFake, profileId, dataPaths 
       PAPER_DAILY_BUDGET_USD: String(process.env.COCKPIT_RUN_BUDGET_USD ?? '0.5'),
     }
   }
-  const entry = { status: 'starting', startedAt: new Date().toISOString(), tier, mode, fake: useFake, runId: null, reportPath: null, error: null, profile: useFake ? null : (routeEnv.PAPER_PROBE_MODEL ?? null), cancelled: false, child: null }
+  const entry = { status: 'starting', startedAt: new Date().toISOString(), tier, mode, fake: useFake, runId: null, outDir, reportPath: null, error: null, profile: useFake ? null : (routeEnv.PAPER_PROBE_MODEL ?? null), cancelled: false, child: null }
   activeRuns.set(runKey, entry)
+  // O2: mkdir the per-run dir BEFORE spawn. outDir itself is created
+  // non-recursively so a name collision fails loud instead of two runs
+  // silently sharing one output dir.
+  try {
+    mkdirSync(outRoot, { recursive: true })
+    mkdirSync(outDir)
+  } catch (error) {
+    entry.status = 'FAILED'
+    entry.error = `创建运行输出目录失败:${String(error.message ?? error).slice(0, 160)}`
+    return runKey
+  }
+  latestOutDir = outDir
   void (async () => {
     try {
       entry.status = 'running'
@@ -285,7 +350,7 @@ async function submitRun(problemPath, tier, mode, useFake, profileId, dataPaths 
       // (an .exe, no shell) with tsx as an --import loader — robust on both.
       const { spawn } = await import('node:child_process')
       const repoRoot = resolve(here, '../..')
-      const args = ['--import', 'tsx/esm', 'apps/paper-shell/src/cli.ts', 'run', problemPath, '--tier', tier, '--mode', mode, '--out', outRoot]
+      const args = ['--import', 'tsx/esm', 'apps/paper-shell/src/cli.ts', 'run', problemPath, '--tier', tier, '--mode', mode, '--out', outDir]
       if (useFake) args.push('--fake')
       // W4/P0-10: the uploaded data attachments become --data flags, and
       // the mass-tier default is fail-soft so a paper with content and
@@ -318,11 +383,30 @@ async function submitRun(problemPath, tier, mode, useFake, profileId, dataPaths 
       entry.status = entry.cancelled === true
         ? 'CANCELLED'
         : delivered ? 'DELIVERED' : blocked ? 'BLOCKED' : 'FAILED'
-      entry.reportPath = join(outRoot, 'report.md')
+      // O2: advertise the report path ONLY when THIS run's own report.md
+      // exists — a BLOCKED run must show no report rather than the previous
+      // delivered run's one (the O2 symptom); /api/report carries the
+      // honest "未生成" reason for the empty-delivery case.
+      const runReportPath = join(outDir, 'report.md')
+      entry.reportPath = existsSync(runReportPath) ? runReportPath : null
       entry.outputHead = stdout.slice(-1_200)
     } catch (error) {
       entry.status = 'FAILED'
       entry.error = String(error).slice(0, 200)
+    } finally {
+      // O2: write the cockpit-owned run marker ONCE at terminal state so
+      // runKey/runId → outDir resolution survives a cockpit restart. This is
+      // cockpit bookkeeping in the cockpit-owned out dir — not engine state,
+      // and never inside deliverable.zip (the shell ships an explicit file
+      // list), so run products stay 只进不改.
+      try {
+        writeFileSync(join(outDir, 'cockpit-run.json'), `${JSON.stringify({
+          runKey,
+          runId: entry.runId,
+          status: entry.status,
+          finishedAt: new Date().toISOString(),
+        }, null, 2)}\n`, 'utf8')
+      } catch { /* best-effort; the live map still resolves this session */ }
     }
   })()
   return runKey
@@ -664,23 +748,47 @@ const server = createServer(async (req, res) => {
       }
       return json(res, 200, { ok: true, runKey, status: 'cancelling' })
     }
-    // Report preview (projection only): the latest run's report.md, read
-    // straight out of the out dir. Nothing engine-side is computed here.
+    // Report preview (projection only): ONE submission's report.md, read
+    // straight out of that run's own out dir (O2). ?runKey/?runId pick the
+    // run explicitly; without a param the latest submission is used. A run
+    // with no report.md (BLOCKED/FAILED/still running) says so — never a
+    // stale file from another run. Nothing engine-side is computed here.
     if (req.method === 'GET' && url.pathname === '/api/report') {
-      const reportPath = join(outRoot, 'report.md')
+      const requestedKey = url.searchParams.get('runKey')
+      const requestedId = url.searchParams.get('runId')
+      let outDir = null
+      if (requestedKey !== null || requestedId !== null) {
+        outDir = (requestedKey !== null ? resolveRunOutDir(requestedKey) : null)
+          ?? (requestedId !== null ? resolveRunOutDir(requestedId) : null)
+        if (outDir === null) {
+          return json(res, 404, { ok: false, reason: '找不到该运行的输出目录(运行不存在,或驾驶舱重启后无该运行的标记)' })
+        }
+      } else {
+        outDir = latestRunOutDir()
+        if (outDir === null) {
+          return json(res, 200, { ok: false, reason: '还没有任何运行——提交一次运行后这里会有报告全文。' })
+        }
+      }
+      const reportPath = join(outDir, 'report.md')
       if (!existsSync(reportPath)) {
-        return json(res, 200, { ok: false, reason: '报告尚未生成——运行完成后这里会有全文。' })
+        return json(res, 200, { ok: false, reason: '本次运行未生成报告——运行仍在进行,或被门禁拦截/失败(拦截时输出原文见运行卡片)。' })
       }
       const text = readFileSync(reportPath, 'utf8').slice(0, 200_000)
       return json(res, 200, { ok: true, path: reportPath, text })
     }
-    // W4/P0-10: mass-tier deliverable download — serve the latest run's
-    // deliverable.zip (report.md + run-report + sha256, byte-deterministic).
-    // Placed BEFORE the generic /api/runs/:id prefix catcher.
+    // W4/P0-10: mass-tier deliverable download — serve the REQUESTED run's
+    // own deliverable.zip (report.md + run-report + sha256, byte-
+    // deterministic) from its isolated out dir (O2). Placed BEFORE the
+    // generic /api/runs/:id prefix catcher.
     if (req.method === 'GET' && url.pathname.startsWith('/api/runs/') && url.pathname.endsWith('/download')) {
-      const zipPath = join(outRoot, 'deliverable.zip')
+      const id = url.pathname.split('/')[3]
+      const runOutDir = resolveRunOutDir(id)
+      if (runOutDir === null) {
+        return json(res, 404, { ok: false, reason: '找不到该运行的输出目录(运行不存在,或驾驶舱重启后无该运行的标记)' })
+      }
+      const zipPath = join(runOutDir, 'deliverable.zip')
       if (!existsSync(zipPath)) {
-        return json(res, 404, { ok: false, reason: '交付物尚未生成(运行失败或仍在进行)' })
+        return json(res, 404, { ok: false, reason: '交付物尚未生成(运行失败、被拦截或仍在进行)' })
       }
       const bytes = readFileSync(zipPath)
       res.writeHead(200, {

@@ -222,7 +222,9 @@ function mergeActive(rec) {
   e.shell.tier = rec.tier ?? e.shell.tier;
   e.shell.mode = rec.mode ?? e.shell.mode;
   e.shell.fake = rec.fake ?? e.shell.fake;
-  e.shell.reportPath = rec.reportPath || e.shell.reportPath;
+  // O2: server null is authoritative for a finished run with no report
+  // (BLOCKED/FAILED) — never keep a stale path from an earlier poll.
+  e.shell.reportPath = rec.reportPath ?? e.shell.reportPath;
   e.shell.outputHead = rec.outputHead || e.shell.outputHead;
   if (e.runId && !e.hydrated) hydrate(e, false);
   return e;
@@ -1603,16 +1605,23 @@ function initDeliveryZone() {
     a.click();
     toast('已请求下载交付物 zip(若无文件则浏览器会报 404)');
   });
-  // 页面内预览最近一次运行的 report.md 全文(投影只读;用户反馈:只给路径无法直接看初稿)
+  // 页面内预览当前选中运行自己的 report.md 全文(投影只读;O2:按运行隔离——
+  // runKey/runId 定位该运行自己的输出目录,被拦截的运行如实显示未生成,
+  // 不再看磁盘上"最新的一份"以免串到上一次运行)
   $('btnPreviewReport').addEventListener('click', async () => {
     const btn = $('btnPreviewReport');
     const view = $('reportView');
     const on = view.style.display !== 'none';
     if (on) { view.style.display = 'none'; btn.textContent = '在页面里看初稿'; return; }
+    const e = selectedEntry();
+    if (!e) return;
     btn.disabled = true;
     btn.textContent = '读取中…';
     try {
-      const body = await apiFetch('/api/report');
+      const q = new URLSearchParams();
+      if (e.runId) q.set('runId', e.runId);
+      if (e.runKey) q.set('runKey', e.runKey);
+      const body = await apiFetch('/api/report' + (q.toString() ? `?${q}` : ''));
       if (!body.ok) { view.textContent = body.reason || '报告尚未生成。'; }
       else { view.textContent = body.text; }
       view.style.display = 'block';
