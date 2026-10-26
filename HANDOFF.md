@@ -1,5 +1,10 @@
 # DPH 交接文档 —— 给下一个执行者
 
+> **🔵 2026-10-27 —— 新接手者请先读 [`docs/PROJECT-MAP.md`](./docs/PROJECT-MAP.md)**
+> （维护者地图：项目是什么、承重模块、命令与生产/测试分离规约）+
+> [`docs/DESIGN-DEBTS.md`](./docs/DESIGN-DEBTS.md)（全部已知问题与已核实状态）。
+> 2026-10-27 治理轮确立了 `runs/` 运行产物体系与 `.env.<profile>` 凭据机制，见 PROJECT-MAP §5。
+>
 > **🔴 2026-10-06 —— 本轮交接请看 [`artifacts/upper-bound/2024B-ingest-1/HANDOFF-2026-10-06.md`](./artifacts/upper-bound/2024B-ingest-1/HANDOFF-2026-10-06.md)**
 > 那是**当前有效**的交接（阶段 1/2 已过、卡在阶段 3：门禁与防线全建成、模型代码仍在收敛；
 > 7 条门禁假阳性的坑、中转的流包装泄漏、运维三个坑、重启手册都在那份里）。
