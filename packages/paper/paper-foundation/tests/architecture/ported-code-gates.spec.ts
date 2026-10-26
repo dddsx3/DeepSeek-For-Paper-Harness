@@ -7,7 +7,7 @@
  */
 
 import { describe, expect, it } from 'vitest'
-import { GATES, runGates, type GateInput } from '../../src/stages/gates.ts'
+import { runGates, type GateInput } from '../../src/stages/gates.ts'
 
 function input(files: Record<string, string>, upstream: Record<string, string> = {}): GateInput {
   return { files: new Map(Object.entries(files)), upstream: new Map(Object.entries(upstream)), problemCount: 4 }
