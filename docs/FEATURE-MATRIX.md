@@ -36,7 +36,7 @@
 | 数字零通道铸造（code→jsonPath→Result） | ✅ | 项目存在理由（红线 N20），红队攻击 0 绕过 |
 | 代码 provenance 守卫（6 包覆盖） | ✅ | `apps/paper-shell/src/code-provenance.ts` |
 | 冒烟失败定向修复（traceback→单文件→重跑） | ✅ | `smoke-repair.spec.ts` 行为钉 |
-| 模型代码 property-based 测试 / 量纲检查 | ❌ | 见 LEAN-ASSESSMENT §7 中间路径 a/b |
+| 模型代码 property-based 测试 / 量纲检查 | ✅ | declared_invariant_scan 门禁（2026-10-27 落地）：DECLARATION 可选 invariants[]+range，20000 点采样验证 |
 
 ## D. 图表
 
@@ -67,7 +67,7 @@
 | review 阶段（COMP_REVIEW + ROLLBACK 拦截） | ✅ | 2024B 实战抓出 4 条致命建模缺陷并拦下阶段 9 |
 | 九门交付门禁电池 + 四档交付语义 | ✅ | `delivery/` 37 模块；预算耗尽=ESCALATE |
 | 语义指纹三通道复验（L4） | ✅ | `verification/semantic-fingerprint.ts` |
-| 符号通道（sympy，v7） | 🟡 | `v7-sympy.ts` 在库；接链深度待核实（见 LEAN-ASSESSMENT） |
+| 符号通道（sympy，v7） | ✅ | 已接链为观察级 findings（进 L6 闭环有归宿，不阻断交付）；升级路径见 LEAN-ASSESSMENT |
 | 三视角对抗评审（L5） | 🟡 | 已实现；价值待 E2 后测量（8.1③ 诚实结论） |
 | v5-adversarial 接链（G6） | ❌→🟠 | 设计在库未接链；路线图 W13 |
 | 引用真实性校验（claim→source 对齐） | ❌ | 现有 references 门只查格式/存在性地板；**对照调研确认的真实缺口** |
@@ -113,6 +113,8 @@
 | G-直出-3：过程可见/可取消/成本可见 | 🟡 | 驾驶舱侧大半已修，待真实运行全链验证 |
 | 内测九维 | 22/45 | 三个 0/5：入口/去AI味/改进循环 |
 | MVP-1~5 | 1✅ 2✅ 3⚠️ 4⚠️ 5✅(修后待复测) | 成本恒 0 已修（E5/O3 落地） |
+
+| 评审量化 rubric（五维加权分） | ✅ | review_rubric 门禁 + COMP_REVIEW_VERDICT 可选评分块 评分 + improve 第三终止因 score-plateau（2026-10-27） |
 
 ## K. 路线图（预计实现，按依赖排序）
 
