@@ -51,5 +51,9 @@ pre-merge-commit:
 
 pre-push:
   jobs:
+    # Fast fail first: a credential-shaped literal must never reach the public
+    # remote regardless of what else is being pushed (PM-HANDBOOK §11).
+    - name: no secrets in tracked files
+      run: node_modules/.bin/tsx scripts/verify-no-secrets.ts
     - name: typecheck
       run: pnpm run typecheck

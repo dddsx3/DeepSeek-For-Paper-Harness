@@ -135,7 +135,9 @@ apps/paper-shell/src/cli.ts ──spawn/组合──► cockpit/server.mjs（子
 | 文档 | 角色 |
 |---|---|
 | **本文** | 项目是什么、东西在哪、怎么跑（唯一权威入口） |
+| [`PM-HANDBOOK.md`](./PM-HANDBOOK.md) | **流程宪法**：一切开发行为（分支/门禁/测试/真实运行/交付/推送/TASK 制/demo/安全/事故）的约束 |
 | [`DESIGN-DEBTS.md`](./DESIGN-DEBTS.md) | 现在有什么问题、哪些已修（含状态核实） |
+| [`PROGRESS.md`](./PROGRESS.md) | 开发进度仪表盘（自动区脚本生成 + 轮次日志） |
 | `docs/upper-bound-architecture.md` | **现行架构权威**（2026-09-22 重写；与旧文档冲突以它为准） |
 | `docs/dph-plan-and-redlines.md` | 总书/PRD 仓库内忠实摘录 + 红线 N1–N34 原文 |
 | `HANDOFF.md`（根） | 历史交接快照链（2026-09-24 前的有效交接；顶部指针指向最新） |
@@ -145,12 +147,14 @@ apps/paper-shell/src/cli.ts ──spawn/组合──► cockpit/server.mjs（子
 | `artifacts/handoff/TASK-INDEX.md` | 全部 TASK 的主台账（v2 任务书时代 → PW → 上限解放） |
 | `.agents/notes/` | 架构决策记录（ADR 风格，2252 个文件） |
 
-**新接手者阅读顺序**：本文 → DESIGN-DEBTS → upper-bound-architecture §1–§2 →
-HANDOFF-2026-10-06 → dph-plan-and-redlines §4。
+**新接手者阅读顺序**：本文 → PM-HANDBOOK（开工前必读）→ PROGRESS（当前状态）→
+DESIGN-DEBTS open 区 → upper-bound-architecture §1–§2 → HANDOFF-2026-10-06 →
+dph-plan-and-redlines §4。
 
 ## §7 治理史
 
-- **2026-10-27**（本轮）：安全快照 tag `pre-reorg-2026-10-27`；清除 4 处泄漏密钥
-  （3 把真实 key，历史重写见 `_archive` 注记）；新增 `verify-no-secrets` 门禁；
-  cockpit 凭据迁 DPH_HOME；建立 `runs/` 运行产物体系并把 persist/输出/cockpit 目录
-  迁出源码树；bench 大 CSV 出库；ci-master 收敛为手动；本地图与债务台账建档。
+- **2026-10-27**（治理轮，已推送 GitHub main `98c24d20ac`）：安全快照；清除 4 处泄漏密钥
+  （3 把真实 key）+ git 历史重写（`docs/HISTORY-REWRITE-2026-10-27.md`，`.git` 647MB→168MB）；
+  新增 `verify-no-secrets` 门禁（ci 静态聚合 + pre-push）；cockpit 凭据迁 DPH_HOME；
+  建立 `runs/` 运行产物体系并把 persist/输出/cockpit 目录迁出源码树；bench 大 CSV 出库；
+  ci-master 收敛为手动；本文 + DESIGN-DEBTS + PROGRESS 三件套建档；**PM-HANDBOOK 流程宪法生效**。

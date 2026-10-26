@@ -4,7 +4,7 @@ English | [中文](README.zh.md)
 
 **DeepSeek-For-Paper-Harness** is an independent agent harness product for paper-writing workflows. It adopts the open-source [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) (dsh) as its technical foundation — reusing the Cordis plugin system and the session/tool-execution stack — and builds a durable, auditable writing-workflow layer on top. The product is independent of its foundation: the CLI entry (`dph`), branding, user-data directory (`DPH_HOME`, default `~/.dph`), and default branch are entirely its own, and upstream is synced selectively through the `upstream` remote only.
 
-> **Maintainers / 接手者**：start from [`docs/PROJECT-MAP.md`](docs/PROJECT-MAP.md) — the single authoritative entry for architecture, load-bearing modules, run/test commands, and the production/test separation rules (`runs/` directory, `.env.<profile>` credentials). Known issues and their verified status live in [`docs/DESIGN-DEBTS.md`](docs/DESIGN-DEBTS.md).
+> **Maintainers / 接手者**：start from [`docs/PROJECT-MAP.md`](docs/PROJECT-MAP.md) — the single authoritative entry for architecture, load-bearing modules, run/test commands, and the production/test separation rules (`runs/` directory, `.env.<profile>` credentials). All development workflow constraints (branching, gates, delivery, push, task process) are codified in [`docs/PM-HANDBOOK.md`](docs/PM-HANDBOOK.md) — read it before your first commit. Current progress: [`docs/PROGRESS.md`](docs/PROGRESS.md); known issues: [`docs/DESIGN-DEBTS.md`](docs/DESIGN-DEBTS.md).
 
 ## What it does
 
