@@ -42,6 +42,7 @@
 | 编号（旧） | 严重级 | 层 | 状态 | 条目 | 证据 / 下一步 |
 |---|---|---|---|---|---|
 | STAGE-3 | ⛔ | L1 | open（快照记录） | **13 阶段链卡在阶段 3 收敛**：模型代码不过冒烟，7 条门禁假阳性是主要摩擦（"判形式不判实质"） | `artifacts/upper-bound/2024B-ingest-1/HANDOFF-2026-10-06.md`（当前最前线） |
+| DEMO-CORPUS | ◆ | L1 | open（已核实，2026-10-27） | **TASK-P2/P3 demo 语料落后于门禁演化**：语料冻结于 09-18（`2ddd4dd43a`），`placeholder_chapter` 等新门 09-23 引入（`ed37868092`）→ `test:p2:demo` 0/4、`test:p3:demo` 0/5（legal 全被 DRIFT:placeholder_chapter 熔断）；**P1 demo 全绿**（3/3+2/2+9 门）证明链路本身通。这是"量具失效"（形态 4）的活例：旧自检口径（接手手册 §5"跑 demo 应 5/5+6/6"）已不可用 | 修法：按现行容器契约补齐 fake 语料的 narrative 章节，或在 demo runner 显式标注其对应的历史门禁集；CI 中这两个 job 目前恒红，掩盖真回归 |
 | GATE-FP | ⛔ | L1 | open（快照记录） | 门禁假阳性 7 连（真实事故，2024B 实测）——harness 侧缺陷被读成"模型不行"的最大现役来源 | 同上 §"7 条门禁假阳性的坑"；修法纪律=形态 6（让对象以正确形态到达，不是改判定） |
 | P0 | ⛔ | L1 | open（快照记录） | 2024B 阶段 8 复核 4 条致命建模缺陷（task_misread×2、cross_problem×2）→ ROLLBACK 待重跑 | `PENDING-FIXES.md` §P0（含独立复算验收判据；用户已选甲路线，待复核） |
 | E1/B1 | ⛔ | L1 | **缓解** | T3 闭集模板 × 开放题不适配；demo 数字 `0.731` 曾泄漏进真题交付 | 方法族路由 + `route_mismatch` 检测已建（`cli.ts:1317`）；`0.731` 现仅存在于 T3 演示夹具（`src/produce/template-fill.ts:153`）。**待真实运行回归验证开放题不再走 T3** |
