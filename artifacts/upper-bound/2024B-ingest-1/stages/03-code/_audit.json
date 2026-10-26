@@ -1,80 +1,110 @@
 {
   "stage": "code",
   "verdict": "fail",
-  "score": 0.48,
+  "score": 0.44,
   "structureOk": true,
   "requirementCompliance": [
     {
-      "item": "code/main.py 为 Python 文件且不少于 500 字节，并按问题一至问题四顺序执行后汇总",
-      "done": true,
-      "note": "main.py 为 9228 字节，QUESTION_MODULES 明确包含 problem1—problem4，入口循环执行、汇总并重新读取 outputs.json 校验。"
-    },
-    {
-      "item": "code/ 中逐问 problem*.py 文件数不少于题面问数",
-      "done": true,
-      "note": "可见 problem1.py、problem2.py、problem3.py、problem4.py，共四个逐问模块；code_parity 已通过。"
-    },
-    {
-      "item": "RESULTS.md 为 Markdown 文件且不少于 1024 字节",
-      "done": true,
-      "note": "RESULTS.md 为 11720 字节，格式和篇幅门槛满足。"
-    },
-    {
-      "item": "DELIVERABLES.json 为合法 JSON，产出项声明 kind、min_rows、min_bytes、desc",
-      "done": true,
-      "note": "可见清单采用结构化 deliverables 数组，所列核心产出包含契约要求的四个字段。"
-    },
-    {
-      "item": "数字由实际执行的代码产生",
-      "done": true,
-      "note": "四问均有计算实现，main.py 执行并落盘结果，且 numbers_traced 门禁已通过。"
-    },
-    {
-      "item": "本阶段不包含渲染代码或图像字节",
-      "done": true,
-      "note": "可见代码仅进行统计、动态规划、情景抽样和 JSON 落盘，未见渲染实现，且 no_render 门禁已通过。"
-    },
-    {
-      "item": "四问均有与题面具体实例相对应的计算结果",
+      "item": "提供 code/main.py（py，≥500 字节）作为依次运行四问并汇总的编排入口",
       "done": false,
-      "note": "问题三只给出 conditional scenario；RESULTS.md 明确承认正式图1边表缺失，problem3 的正式实例状态仍为阻断，因而没有针对题面图1给出具体策略和指标。"
+      "note": "文件大小、扩展名、问题顺序和汇总框架均具备，但当前问题一必现端点异常，入口无法完成四问真跑。"
     },
     {
-      "item": "RESULTS.md 对四问运行结果作出结果说明",
+      "item": "code/ 中提供与四个题面问题一一对应的 problem*.py，文件数不少于题面问数",
+      "done": true,
+      "note": "已提供 problem1.py、problem2.py、problem3.py、problem4.py，共四个逐问模块，名称与题面问数一致。"
+    },
+    {
+      "item": "提供 RESULTS.md（md，≥1024 字节）作为结果说明",
+      "done": true,
+      "note": "RESULTS.md 为 9863 字节，说明了四问模型、账本、约束复核及条件情景边界。"
+    },
+    {
+      "item": "提供 DELIVERABLES.json（json），逐项声明 kind、min_rows、min_bytes、desc",
+      "done": true,
+      "note": "文件为有效 JSON，静态交付项均声明了契约要求的四类字段，并另列 ledger_keys。"
+    },
+    {
+      "item": "四问数字均由当前代码真跑产生",
       "done": false,
-      "note": "文件主要复述建模方法、预期产物和未来取数方式，没有列出本次运行得到的样本量、临界值、六种问题二策略与利润、问题三情景结果或问题四一致率等关键结果。"
+      "note": "code/problem1.py 的 OC 网格包含 p=0，而精确二项和审计在 x>0 时调用 math.log(0)，当前源码不能完成问题一真跑。"
+    },
+    {
+      "item": "问题一实现抽样次数最小化及两种置信度情形的计算代码",
+      "done": false,
+      "note": "已有精确二项枚举与 SPRT 实现，但端点崩溃使拒收与接收情形不能生成结果，且 OC 概率标反。"
+    },
+    {
+      "item": "问题二覆盖表 1 六种情形、四个生产决策及全部给定成本参数",
+      "done": true,
+      "note": "可见代码从 F-T1-C1 至 F-T1-C6 读取精确参数，穷举 Z1、Z2、C、D，并在状态转移中使用采购、检测、拆解等成本；未发现题面成本被声明后完全未进入模型的证据。"
+    },
+    {
+      "item": "问题三针对题面图 1 的具体装配结构给出决策实现",
+      "done": false,
+      "note": "一般 DAG 求解器已经实现，但题面事实表只给出 2 道工序、8 个零配件的规模，没有图 1 的父子连接边；当前 H1 明确只是条件拓扑，因而没有完成针对原图结构的决策。"
+    },
+    {
+      "item": "问题四实现经抽样检测后重做问题二、问题三的代码",
+      "done": false,
+      "note": "已实现抽样设计、CP 区间和重复抽样流程，但 CP 端点公式与内部公式使用了不相容的置信度口径；此外当前输出只是合成情景，不是题面所述经验抽样样本的重解。"
+    },
+    {
+      "item": "本阶段仅包含代码与结果说明，不包含渲染代码或图像字节",
+      "done": true,
+      "note": "所列产物均为源码、输入副本、结果说明和交付清单，未发现图像文件或可见渲染实现。"
     }
   ],
   "findings": [
     {
       "severity": "fatal",
-      "where": "code/problem2.py:_component_transition",
-      "issue": "对 current_quality == _EMPTY 且执行零件检测的分支，期望采购数和检测数均应为 1/(1-defect_rate)，期望准备费用应为 (purchase_price+inspection_cost)/(1-defect_rate)。当前代码却返回 test_count=1+1/(1-defect_rate)、preparation_cost=inspection_cost+(purchase_price+inspection_cost)/(1-defect_rate)，无依据地多计一次检测；该错误会改变所有采用零件检测策略的单位成本、利润排序和最优决策。该额外首检只可能适用于已有坏件状态，不能适用于 _EMPTY。",
-      "fix": "拆分 _EMPTY 与已有 _BAD 的分支：_EMPTY 直接使用几何采购并逐件检测；只有拆解回来的已有坏件才先计一次重检，再进入几何重购。修正后重新计算全部六种情形并做跨模块现金流核验。"
+      "where": "code/problem1.py:_direct_binom_cdf、_probability_grid、_fixed_case_payload",
+      "issue": "概率网格明确包含 0.0。直接二项和对 c≥1 的情形计算 x>0 项时执行 math.log(rate)，因此在 rate=0 时必然抛出 ValueError。拒收方案的 direct_upper 和接收方案的直接概率审计都会走到该分支，导致问题一及总编排不能成功完成。",
+      "fix": "在 _direct_binom_cdf 中显式处理 p=0 和 p=1 端点（p=0 时仅 x=0 有质量，p=1 时仅 x=n 有质量），或使用经端点测试的稳定实现；随后从 main.py 完整重跑四问并重新生成全部结果账本。"
+    },
+    {
+      "severity": "major",
+      "where": "code/problem1.py:_fixed_case_payload 的 oc_curve",
+      "issue": "拒收规则为 X≥c 时应使用 P(X≤c-1) 作为接收概率、P(X≥c) 作为拒收概率；接收规则为 X≤c 时应使用 P(X≤c) 作为接收概率、P(X>c) 作为拒收概率。代码却在两种方向下统一写入 accept_probability=P(X≤c)、reject_probability=1-P(X≤c-1)，两概率在 X=c 处重叠且总和可大于 1。",
+      "fix": "按 direction 分别构造 OC 概率，并增加 sum(accept_probability, reject_probability)=1 以及与 decision_rule 一致性测试。"
     },
     {
       "severity": "fatal",
-      "where": "code/problem3.py、RESULTS.md 第四/八节、DELIVERABLES.json 的 problem3 产物",
-      "issue": "题面问题三要求针对图1这一具体两级、八零件装配系统给出决策和指标，但产物明确将正式实例阻断，只提交主、替代条件拓扑。条件敏感性分析不能替代指定图1的正式答案。",
-      "fix": "补充图1的权威父子边表或可校验拓扑输入到上游，再由 problem3.py 对该正式网络计算具体策略、单位利润和节点指标；正式结果与条件情景应使用不同状态标识。"
+      "where": "code/problem4.py:_cp_interval_array",
+      "issue": "零次品和全部次品端点使用 (1-alpha)^(1/n) 与 alpha^(1/n)，内部计数却使用 alpha/2 与 1-alpha/2 的 Clopper–Pearson 分位数。这混用了单侧端点公式和双侧区间公式，不是同一个置信水平下的 CP 区间，并会改变期望区间宽度、样本量和稳健策略。",
+      "fix": "若 Bonferroni 矩形域需要双侧同时区间，应在零计数和满计数端点使用 1-alpha/2 与 (alpha/2)^(1/n)；同时增加覆盖概率、单调性和已知 Beta 端点测试。"
+    },
+    {
+      "severity": "fatal",
+      "where": "code/problem3.py:build_h1_context、params.py 中 H1 条件边表及 RESULTS.md 问题三部分",
+      "issue": "H1 父子连接关系无法由题面事实表核实；F-FIG1 仅给出工序数和零件数。产物虽诚实标注 conditional_H1_not_original_figure_fact，但条件情景不能替代题面要求的图 1 具体决策方案。",
+      "fix": "从原图或经核验的上游结构化输入取得每个半成品与成品的子节点列表，将其登记为题面事实后重新运行问题三；若无法取得，应将问题三标为阻断未完成，而不是以条件情景完成整阶段。"
     },
     {
       "severity": "major",
-      "where": "code/params.py:Q1_ALTERNATIVE_DELTA、Q1_TYPE_II_ERROR；code/problem1.py:_find_rejection_scheme；DELIVERABLES.json:problem1.case95.n",
-      "issue": "题面事实只给 p0=10% 和 95% 拒收置信要求，代码却把 p_alt=15%、beta=10% 的功效约束纳入“最小检测次数”搜索。因此 case95.n 是复合运营约束下的条件最小值，并非仅由题面置信条件确定的最小值；清单位号又未在名称中体现该条件。",
-      "fix": "明确区分“仅按题面置信约束的最小方案”和“给定备择率、功效及风险偏好下的运营方案”，在结果键名和说明中直接附带适用前提，并补充选择备择率与 beta 的建模依据。"
+      "where": "code/params.py 的 Q1_EFFECT_DELTA_ABS、Q1_TYPE2_ERROR_REJECT、Q1_TYPE2_ERROR_ACCEPT",
+      "issue": "题面只给出 10% 标称值及 95%/90% 信度，没有给出 5 个百分点效应差和 10% 第二类错误率。这两个新增参数直接决定“最小样本量”和接收/拒收界，因而当前具体方案只是条件方案，并非仅由题面条件确定。",
+      "fix": "由上游报告确认并登记抽样设计的效应差与错误率准则，或改用题面置信度能够直接定义的接收/拒收统计量；在未获确认前将所有主方案明确标为条件情景并提供完整敏感性结论。"
     },
     {
       "severity": "major",
-      "where": "RESULTS.md",
-      "issue": "结果说明没有任何本次真跑的关键数值或具体决策，主要内容是实现流程、文件用途和预期核验项的复述；这不足以让读者仅凭 RESULTS.md 判断四问得到了什么结果。",
-      "fix": "由 outputs.json 自动生成结果摘要表，至少写入问题一 n/r、问题二六种最优策略及利润、问题三正式或条件状态与指标、问题四一致率及稳健策略，并列出实际核验通过/失败值，避免手工抄数。"
+      "where": "code/params.py 与 code/problem4.py 的 Q4_TARGET_CP_HALFWIDTH、Q4_JOINT_CONFIDENCE、Q4_MONTE_CARLO_REPETITIONS、random_seed，以及 RESULTS.md 问题四部分",
+      "issue": "目标 CP 半宽、联合置信度、重复次数和合成情景不是题面给定值。它们确实进入了样本量和决策计算，并非死参数，但当前问题四结果只代表固定真值生成的合成样本，不能被当作题面假设下经验抽样数据的重新求解。",
+      "fix": "明确取得并批准抽样设计准则，增加实际观测样本输入模式；若本题只能做条件演示，应为每个假设生成完整情景矩阵和敏感性结果，并禁止把单一 synthetic realization 表述为问题四唯一答案。"
+    },
+    {
+      "severity": "major",
+      "where": "RESULTS.md 开篇及结尾 <!-- AUDIT_OK source=results.json -->",
+      "issue": "说明宣称四问已完成并给出 AUDIT_OK，但当前问题一源码存在必然触发的端点异常，且本轮实际产物清单没有展示与当前源码绑定的成功运行账本，因此该完成声明不可采信。",
+      "fix": "修复并完整执行 main.py，确认四个问题状态均成功、约束账本无失败后，再由本次运行结果重新生成 RESULTS.md 和审计标记。"
     }
   ],
   "missing": [
-    "问题三图1的权威父子边表或拓扑输入，以及基于该正式拓扑计算的具体决策方案与指标结果",
-    "RESULTS.md 中基于本次运行输出生成的四问关键数值、阈值、策略、利润和核验结论"
+    "图 1 的机器可读父子连接关系或经验证的拓扑事实。",
+    "与当前修正后源码绑定、四问均成功执行的结果账本。",
+    "问题一最小样本设计所用效应差和第二类错误率准则的题面或已批准上游依据。",
+    "问题四抽样宽度、联合置信度及合成情景边界的已批准上游依据。"
   ],
   "model": "space-bunny-free",
-  "at": "2026-09-29T05:37:17.565Z"
+  "at": "2026-10-07T08:18:00.095Z"
 }

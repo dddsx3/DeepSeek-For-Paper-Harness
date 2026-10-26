@@ -2,27 +2,27 @@
   "passportVersion": 1,
   "stage": "modeling",
   "index": 2,
-  "at": "2026-09-28T11:23:35.456Z",
+  "at": "2026-10-03T02:36:36.930Z",
   "status": "passed",
-  "cleanliness": "unverified-gates",
+  "cleanliness": "clean",
   "inputDigest": "fff91c502b14e0faf423774d4fc405add4f6ceb546fa1cef72fc89d990d0f98b",
   "artifacts": {
-    "DECLARATION.json": "0f813e0607416e7ce82fb39ce2afe1a94f1763ea175fcdd614ffd12d71ef2a93",
-    "MODELING_REPORT.md": "9dd47f27a4cf21455e891aa03df0ba2f89e84e75f800e19d77d9f7ac381ecc45"
+    "DECLARATION.json": "bad2dc05dd71f33adf8f1dea04988a0b06bafd59f676b367fc77bf7f3dcbb7f4",
+    "MODELING_REPORT.md": "a2e324e88a92d6fa8274e1cd93e160b548e79d215d118d49057b61cb2a0c2aae"
   },
   "gate": {
-    "code": 2,
+    "code": 0,
     "items": [
       {
         "id": "modeling_floor",
         "ok": true,
-        "detail": "MODELING_REPORT.md 56200 字节 ≥ 1500",
+        "detail": "MODELING_REPORT.md 46862 字节 ≥ 1500",
         "code": 0
       },
       {
         "id": "numbers_traced",
         "ok": true,
-        "detail": "1 个文本产物的 264 个数字全部有出生证明（题面给定值 / 声明的常数）",
+        "detail": "1 个文本产物的 121 个数字全部有出生证明（题面给定值 / 声明的常数）",
         "code": 0
       },
       {
@@ -39,70 +39,76 @@
       },
       {
         "id": "modeling_self_check",
-        "ok": false,
-        "detail": "未实现：参考的 9 项自检含\"问题递进性检查\"（参考自己标注为\"最关键\"且是人工项）。可机械化的那几项（逐问数、目标/公式/约束非零、符号表存在、灵敏度计划）待实现。",
-        "code": 2
+        "ok": true,
+        "detail": "符号表 38 条、公式 21 条、模型 4 个（都有 objective）、约束 30 条且形态可核，逐问都有模型认领；⚠ \"问题递进性检查\"与\"灵敏度计划\"在报告散文里，机械判不了，未纳入本判据",
+        "code": 0
+      },
+      {
+        "id": "cashflow_branches_declared",
+        "ok": true,
+        "detail": "现金流规则按 11 个决策分支展开，每个分支都有判定条件与逐项 `terms`",
+        "code": 0
       }
     ]
   },
-  "unverifiedGates": [
-    "modeling_self_check"
-  ],
   "audit": {
     "stage": "modeling",
     "verdict": "pass",
-    "score": 0.94,
+    "score": 0.92,
     "structureOk": true,
     "requirementCompliance": [
       {
-        "item": "2a 产出独立的 DECLARATION.json JSON IR 声明（Symbol/Assumption/Equation/ModelSpec）",
+        "item": "按硬性要求分为 2a 与 2b 两次调用交付",
         "done": true,
-        "note": "实际文件为 46333 字节的 JSON；可见部分采用 stage、schema、model_constants、symbols 等结构化声明，未混入建模报告正文。截断部分不作缺项判断。"
+        "note": "可见交付边界符合拆分要求：2a 为独立的结构化 DECLARATION.json，2b 为独立的 MODELING_REPORT.md，未见将声明与富散文合成同一产物的形态。"
       },
       {
-        "item": "2b 产出独立的 MODELING_REPORT.md 建模求解报告，且不少于 1500 字节",
+        "item": "2a 仅声明 Symbol、Assumption、Equation、ModelSpec 等 IR 内容",
         "done": true,
-        "note": "实际文件为 56200 字节的 Markdown 报告；可见内容包含问题归因、假设、输入事实、概率与成本建模、状态递推、方法取舍和难点分析，明显超过最低长度要求。"
+        "note": "DECLARATION.json 主体为结构化 IR 声明，已见 Symbol 条目及 MS-Q1 至 MS-Q4 的模型规格引用；未写入执行所得的最终数值结论。"
       },
       {
-        "item": "2a 与 2b 分开交付并保持职责边界",
+        "item": "DECLARATION.json 为合法 JSON 并覆盖四个问题",
         "done": true,
-        "note": "DECLARATION.json 与 MODELING_REPORT.md 分别承担结构化 IR 声明和富散文报告，未见将两类内容合成同一交付物的迹象。"
+        "note": "文件大小为 67305 字节，可见 JSON 结构完整，包含需求映射、模型常数、符号及模型规格引用；四个问题的规格均有对应引用。"
       },
       {
-        "item": "建模阶段不输出最终数值结论，需要计算的结果交由阶段 3 真跑并使用结果锚点",
+        "item": "2b 产出不少于 1500 字节的富散文建模求解报告",
         "done": true,
-        "note": "报告明确声明不执行代码、不报告最优样本量、临界界、策略利润等最终结果，并将这些结果留给阶段 3 的结果锚点；可见数值均为题面输入或显式登记的模型设计常数。"
+        "note": "MODELING_REPORT.md 为 46862 字节；可见内容包含方法归因、假设及开关、参数口径、现金流难点、题面约束溯源、数据缺口和被拒建模路径的说明，符合富散文要求。"
       },
       {
-        "item": "题面问题 1 的统计检测模型已覆盖",
+        "item": "本阶段禁止写入最终数值结论",
         "done": true,
-        "note": "报告覆盖标称次品率 10%、95% 拒收置信约束和 90% 接收置信约束，建立二项固定样本及有上限序贯检测比较，并明确把可识别超标幅度和第二类错误率登记为额外设计假设。"
+        "note": "报告明确声明不填写样本量、判定界值、最优策略、利润和区间宽度等执行结果，相关位置保留 R-… 结果锚点，交由后续真跑阶段解析。"
       },
       {
-        "item": "题面问题 2 的生产决策模型及表 1 六种情形已覆盖",
+        "item": "题面四问及生产、拆解、调换机制进入模型",
         "done": true,
-        "note": "报告建立零件检测、成品检测和不合格成品拆解的联合策略空间及状态递推，覆盖采购、检测、装配、拆解、调换损失和重复处置，并逐项绑定表 1 六种情形的参数。"
+        "note": "可见内容分别覆盖二项抽样与序贯设计、问题2随机服务链与现金流、问题3装配有向图、问题4精确区间与稳健重决策；题面缺失的图1父子边表被明确标为数据缺口并仅作条件拓扑，没有冒充题面事实。"
       },
       {
-        "item": "题面问题 3 的一般装配网络和具体规模已覆盖",
+        "item": "给定参数与约束不是死参数",
         "done": true,
-        "note": "报告用有向装配图、子节点集合和节点状态递推参数化一般的 m 道工序、n 个零配件模型，并绑定 2 道工序、8 个零配件、3 个半成品和成品的成本及条件次品率；原图边表缺失被明确标为条件拓扑。"
-      },
-      {
-        "item": "题面问题 4 的抽样不确定性传播与重决策已覆盖",
-        "done": true,
-        "note": "报告建立了问题 2 和问题 3 缺陷率的抽样区间、联合覆盖、情景重算和稳健决策传播，并区分题面情景参数与实际观测估计。"
-      },
-      {
-        "item": "题面附录中的质量传导、拆解、调换和单位约束已落入模型",
-        "done": true,
-        "note": "报告明确使用正品输入后的条件次品率，保留装配本征次品事件，区分拆解费用与调换损失，并将金额统一按元/件处理。"
+        "note": "可见符号和报告口径已将次品率、采购及检测成本、装配成本、售价、调换损失和拆解费送入检测、回收、调换和现金流递推；cashflow_branches_declared 与 modeling_coverage 门禁亦已通过。"
       }
     ],
-    "findings": [],
+    "findings": [
+      {
+        "severity": "minor",
+        "where": "DECLARATION.json 的 SYM-C、SYM-Z 及 MODELING_REPORT.md 的符号说明",
+        "issue": "符号 c 同时表示问题1的判定界值和问题2四元决策中的成品检测位。问题语境能够暂时区分，但全局 IR 和后续代码实现中存在覆盖或误读风险。",
+        "fix": "将问题2的该决策位改为 z_3、u_F 等无冲突名称，并同步更新相关方程、ModelSpec、账本状态及报告符号表。"
+      },
+      {
+        "severity": "minor",
+        "where": "DECLARATION.json/model_constants 中的 q1_effect_delta_abs、q1_type2_error_reject、q1_type2_error_accept、q4_joint_confidence、q4_target_cp_halfwidth 等设计常数",
+        "issue": "这些参数并非题面给定值，却会改变最小样本量、区间精度或稳健决策。产物已将其明确标为非题面设计常数并作了条件化说明，因而不构成伪装成题面事实的 fatal 问题，但后续不能据此宣称存在唯一最优方案。",
+        "fix": "为相应结果锚点携带参数情景 ID 或完整参数元组；将未给定参数下的结果表述为条件最优，并同时交付已规划的敏感性结果或参数解族。"
+      }
+    ],
     "missing": [],
     "model": "space-bunny-free",
-    "at": "2026-09-28T11:23:35.454Z"
+    "at": "2026-10-03T02:36:36.926Z"
   }
 }

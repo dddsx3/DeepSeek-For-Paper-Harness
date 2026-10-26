@@ -86,3 +86,9 @@ artifacts/handoff/baseline-22.console.log
 artifacts/handoff/baseline-24.console.log
 artifacts/handoff/baseline-25.console.log
 artifacts/handoff/baseline-26.console.log
+
+# —— 真实运行产物（2026-10-27 治理）——
+# 所有真实运行（paper-shell / cockpit / 手工循环脚本）的输出统一落仓库根 runs/，
+# 除 README 外整目录不入库（运行日志与审计文件含机器本地信息）。规约见 runs/README.md。
+runs/*
+!runs/README.md

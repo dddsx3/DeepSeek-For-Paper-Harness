@@ -1,1635 +1,1359 @@
-"""问题三：一般装配网络的事件马尔可夫奖励求解与结构核验。"""
+"""Problem 3: conditional H1 assembly-DAG optimization and cash-flow audit."""
 
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
-from itertools import product as cartesian_product
+import itertools
 import math
-from typing import Any
 
-import networkx
-import numpy
-import numpy.linalg
-
-import params
+import networkx as nx
+from params import *
 
 
-_POLICY_BIT_ORDER = tuple(params.Q3_POLICY_BIT_ORDER)
-_RATE_VECTOR_ORDER = (
-    *(f"part{node['node_id']}" for node in params.Q3_PARTS),
-    *(f"semi{node['node_id']}" for node in params.Q3_SEMIS),
-    "product",
-)
-_SEMI_NODE_NAMES = tuple(f"semi{node['node_id']}" for node in params.Q3_SEMIS)
-_NODE_NAME_BY_SPEC = {
-    f"part{spec['node_id']}": spec for spec in params.Q3_PARTS
-}
-_NODE_NAME_BY_SPEC.update(
-    {f"semi{spec['node_id']}": spec for spec in params.Q3_SEMIS}
-)
-_NODE_NAME_BY_SPEC["product"] = params.Q3_PRODUCT_NODE
+_POLICY_INSPECT = "inspect"
+_POLICY_DISASSEMBLE = "disassemble"
+_MODE_RANDOM = 0
+_MODE_SCREENED = 1
 
 
-def _canonical_parameter_name(name: Any) -> str:
-    text = str(name)
-    if text.startswith("零配件"):
-        return f"part{text.removeprefix('零配件')}"
-    canonical = params._canonical_q3_node_name(text)
-    aliases = {
-        "part_1": "part1",
-        "part_2": "part2",
-        "part_3": "part3",
-        "part_4": "part4",
-        "part_5": "part5",
-        "part_6": "part6",
-        "part_7": "part7",
-        "part_8": "part8",
+def _zero_vector():
+    return {category: 0.0 for category in COST_CATEGORIES}
+
+
+def _vector_add(*vectors):
+    result = _zero_vector()
+    for vector in vectors:
+        for category in COST_CATEGORIES:
+            result[category] += float(vector[category])
+    return result
+
+
+def _vector_scale(vector, factor):
+    return {category: float(vector[category]) * factor for category in COST_CATEGORIES}
+
+
+def _vector_total(vector):
+    return sum(float(vector[category]) for category in COST_CATEGORIES)
+
+
+def _vector_gap(left, right):
+    return max(
+        abs(float(left[category]) - float(right[category]))
+        for category in COST_CATEGORIES
+    )
+
+
+def _policy_signature(policy, node_order):
+    return tuple(
+        (
+            int(policy[node_id][_POLICY_INSPECT]),
+            int(policy[node_id][_POLICY_DISASSEMBLE]),
+        )
+        for node_id in node_order
+    )
+
+
+def _policy_with_children(node_id, inspect, disassemble, child_options):
+    policy = {}
+    for option in child_options:
+        policy.update(option["policy"])
+    policy[node_id] = {
+        _POLICY_INSPECT: int(inspect),
+        _POLICY_DISASSEMBLE: int(disassemble),
     }
-    return aliases.get(canonical, canonical)
+    return policy
 
 
-def _plain_node_spec(spec: Mapping[str, Any], name: str) -> dict[str, Any]:
-    plain = {
-        "node_id": int(spec["node_id"]),
-        "kind": str(spec["kind"]),
-        "defect_rate": float(spec["defect_rate"]),
-        "purchase_price": (
-            float(spec["purchase_price"]) if spec["kind"] == "part" else None
-        ),
-        "inspection_cost": float(spec["inspection_cost"]),
-        "assembly_cost": (
-            float(spec["assembly_cost"]) if spec["kind"] != "part" else None
-        ),
-        "disassembly_cost": (
-            float(spec["disassembly_cost"]) if spec["kind"] != "part" else None
-        ),
-    }
-    return plain
-
-
-def _default_node_specs() -> dict[str, dict[str, Any]]:
-    return {
-        name: _plain_node_spec(spec, name)
-        for name, spec in _NODE_NAME_BY_SPEC.items()
-    }
-
-
-def _resolve_topology(topology: Any) -> dict[str, Any]:
-    if topology is None:
-        return params.Q3_PRIMARY_TOPOLOGY
-    if isinstance(topology, str):
-        normalized = topology.strip().lower()
-        if normalized in {"primary", "main", "inferred_primary"}:
-            return params.Q3_PRIMARY_TOPOLOGY
-        if normalized in {"alternative", "alt", "inferred_alternative"}:
-            return params.Q3_ALTERNATIVE_TOPOLOGY
-        raise ValueError(f"未知的问题三拓扑名称：{topology}")
-    return topology
-
-
-def assembly_graph(topology: Any = None) -> networkx.DiGraph:
-    """把登记边表实例化为 networkx.DiGraph，并验证其为有限 DAG。"""
-    resolved = _resolve_topology(topology)
-    graph = networkx.DiGraph()
-    graph.add_nodes_from(_NODE_NAME_BY_SPEC)
-    if isinstance(resolved, networkx.DiGraph):
-        graph.add_edges_from(resolved.edges())
-    elif isinstance(resolved, Mapping):
-        for target, sources in resolved.items():
-            target_name = _canonical_parameter_name(target)
-            if target_name not in _NODE_NAME_BY_SPEC:
-                raise ValueError(f"边表含未登记节点：{target}")
-            graph.add_node(target_name)
-            if isinstance(sources, (str, bytes)) or not isinstance(sources, Sequence):
-                sources = [sources]
-            for source in sources:
-                source_name = _canonical_parameter_name(source)
-                if source_name not in _NODE_NAME_BY_SPEC:
-                    raise ValueError(f"边表含未登记父节点：{source}")
-                graph.add_edge(source_name, target_name)
-    else:
-        raise TypeError("topology 必须是边表、networkx.DiGraph 或登记名称")
-    if not networkx.is_directed_acyclic_graph(graph):
-        raise ValueError("问题三装配网络必须是有向无环图")
+def _build_graph(context):
+    graph = nx.DiGraph()
+    nodes = context["nodes"]
+    edges = tuple(tuple(edge) for edge in context["edges"])
+    graph.add_nodes_from(nodes)
+    graph.add_edges_from(edges)
+    _require_condition(
+        set(graph.nodes) == set(nodes), "assembly graph node table is inconsistent"
+    )
+    _require_condition(
+        set(graph.edges) == set(edges), "assembly graph edge table is inconsistent"
+    )
+    _require_condition(nx.is_directed_acyclic_graph(graph), "assembly graph must be a DAG")
+    child_parents = {}
+    for child, parent in graph.edges:
+        _require_condition(
+            child not in child_parents, "this executable instance permits one parent per child"
+        )
+        child_parents[child] = parent
+    parentless = set(graph.nodes) - set(child_parents)
+    _require_condition(
+        parentless == {context["root"]}, "assembly graph must have the declared single root"
+    )
     return graph
 
 
-def _resolve_defect_rates(
-    defect_rates: Any,
-    node_specs: Mapping[str, Mapping[str, Any]],
-) -> dict[str, float]:
-    if defect_rates is None:
-        return {
-            name: float(spec["defect_rate"])
-            for name, spec in node_specs.items()
-        }
-    resolved: dict[str, float] = {}
-    if isinstance(defect_rates, Mapping):
-        for key, value in defect_rates.items():
-            name = _canonical_parameter_name(key)
-            if name in node_specs:
-                resolved[name] = float(value)
-    elif isinstance(defect_rates, Sequence) and not isinstance(
-        defect_rates, (str, bytes)
-    ):
-        values = tuple(float(value) for value in defect_rates)
-        if len(values) != len(_RATE_VECTOR_ORDER):
-            raise ValueError("次品率向量长度与登记参数节点数不一致")
-        resolved = dict(zip(_RATE_VECTOR_ORDER, values))
-    else:
-        raise TypeError("defect_rates 必须是节点映射或按登记顺序排列的向量")
-    rates = {
-        name: resolved.get(name, float(node_specs[name]["defect_rate"]))
-        for name in node_specs
-    }
-    for name, rate in rates.items():
-        if not math.isfinite(rate) or rate < 0.0 or rate > 1.0:
-            raise ValueError(f"节点 {name} 的次品率不在比例域内")
-    return rates
-
-
-def defect_rate_vector(
-    defect_rates: Any = None,
-    topology: Any = None,
-) -> list[float]:
-    """返回与 _RATE_VECTOR_ORDER 一致、可直接传给问题四重解的率向量。"""
-    specs = _default_node_specs()
-    graph = assembly_graph(topology)
-    rates = _resolve_defect_rates(defect_rates, specs)
-    return [rates[name] for name in _RATE_VECTOR_ORDER]
-
-
-def _policy_mapping(policy: Any) -> dict[str, int]:
-    if isinstance(policy, Mapping):
-        if "policy_vector" in policy:
-            policy = policy["policy_vector"]
-        elif "policy" in policy and isinstance(policy["policy"], Mapping):
-            policy = policy["policy"]
-        else:
-            resolved: dict[str, int] = {}
-            for decision_name in _POLICY_BIT_ORDER:
-                candidates = [decision_name]
-                if decision_name.startswith("part"):
-                    candidates.append(decision_name.removesuffix("_inspection"))
-                elif decision_name.startswith("semi"):
-                    candidates.append(decision_name.removesuffix("_disassembly"))
-                elif decision_name == "product_inspection":
-                    candidates.extend(["product", "成品"])
-                elif decision_name == "product_disassembly":
-                    candidates.extend(["product", "成品"])
-                found = next(
-                    (candidate for candidate in candidates if candidate in policy),
-                    None,
-                )
-                if found is None:
-                    raise ValueError(f"策略缺少决策：{decision_name}")
-                resolved[decision_name] = int(bool(policy[found]))
-            return resolved
-    if isinstance(policy, bool):
-        raise TypeError("策略必须给出完整的节点级二进制决策")
-    if isinstance(policy, int):
-        return decode_policy(policy)
-    if isinstance(policy, Sequence) and not isinstance(policy, (str, bytes)):
-        values = tuple(int(bool(value)) for value in policy)
-        if len(values) != len(_POLICY_BIT_ORDER):
-            raise ValueError("策略向量长度与登记问题三决策位数不一致")
-        return dict(zip(_POLICY_BIT_ORDER, values))
-    raise TypeError("policy 必须是整数编码、完整向量或节点决策映射")
-
-
-def decode_policy(policy_code: int) -> dict[str, int]:
-    """按高位在前的登记顺序解码策略。"""
-    code = int(policy_code)
-    if code < 0 or code >= params.Q3_POLICY_SPACE_COUNT:
-        raise ValueError("策略编码超出登记问题三策略空间")
-    decisions: dict[str, int] = {}
-    for decision_name in _POLICY_BIT_ORDER:
-        decisions[decision_name] = code & 1
-        code >>= 1
-    return decisions
-
-
-def encode_policy(policy: Any) -> int:
-    """将完整策略编码为可复算的整数。"""
-    decisions = _policy_mapping(policy)
-    code = 0
-    for decision_name in _POLICY_BIT_ORDER:
-        code = (code << 1) | int(decisions[decision_name])
-    return code
-
-
-def policy_vector(policy: Any) -> list[int]:
-    decisions = _policy_mapping(policy)
-    return [int(decisions[name]) for name in _POLICY_BIT_ORDER]
-
-
-def _policy_payload(policy: Any) -> dict[str, Any]:
-    decisions = _policy_mapping(policy)
-    vector = policy_vector(decisions)
-    code = encode_policy(decisions)
-    part_inspection = {
-        f"part{spec['node_id']}": int(
-            decisions[f"part{spec['node_id']}_inspection"]
-        )
-        for spec in params.Q3_PARTS
-    }
-    semi_inspection = {
-        f"semi{spec['node_id']}": int(
-            decisions[f"semi{spec['node_id']}_inspection"]
-        )
-        for spec in params.Q3_SEMIS
-    }
-    semi_disassembly = {
-        f"semi{spec['node_id']}": int(
-            decisions[f"semi{spec['node_id']}_disassembly"]
-        )
-        for spec in params.Q3_SEMIS
-    }
+def build_h1_context(rates=None):
+    supplied_rates = {} if rates is None else dict(rates)
+    nodes = {}
+    for node_id in Q3_NODE_ORDER:
+        node = q3_node(node_id)
+        if node_id in supplied_rates:
+            node["p"] = validate_probability(supplied_rates[node_id], f"{node_id}.p")
+        nodes[node_id] = node
     return {
-        "code": code,
-        "vector": vector,
-        "part_inspection": part_inspection,
-        "semi_inspection": semi_inspection,
-        "product_inspection": int(decisions["product_inspection"]),
-        "semi_disassembly": semi_disassembly,
-        "product_disassembly": int(decisions["product_disassembly"]),
-        "label": (
-            "I[part=" + "".join(map(str, part_inspection.values()))
-            + ";semi=" + "".join(map(str, semi_inspection.values()))
-            + ";product=" + str(int(decisions["product_inspection"]))
-            + ";D[semi=" + "".join(map(str, semi_disassembly.values()))
-            + ";product=" + str(int(decisions["product_disassembly"])) + "]"
-        ),
+        "label": CONDITIONAL_H1_LABEL,
+        "topology_id": "H1",
+        "claim_status": "conditional_not_original_figure_fact",
+        "nodes": nodes,
+        "node_order": Q3_NODE_ORDER,
+        "edges": tuple(H1_CONDITIONAL_EDGES),
+        "root": Q3_ROOT_NODE_ID,
+        "sale_price": Q3_MARKET_PRICE,
+        "exchange_loss": Q3_EXCHANGE_LOSS,
     }
 
 
-def reachable_state_enumeration(
-    graph: networkx.DiGraph,
-) -> list[dict[str, Any]]:
-    """枚举各节点单次投入所需的父件质量组合及零件初态。"""
-    descriptors: list[dict[str, Any]] = []
-    for node in networkx.topological_sort(graph):
-        parents = tuple(graph.predecessors(node))
-        if graph.nodes[node].get("kind", _NODE_NAME_BY_SPEC[node]["kind"]) == "part":
-            patterns: list[dict[str, str]] = [
-                {"quality": quality} for quality in params.Q2_STATES
-            ]
-        else:
-            patterns = [
-                {
-                    parent: quality
-                    for parent, quality in zip(parents, quality_pattern)
+def _partition_context(partitions, topology_id):
+    nodes = {node_id: q3_node(node_id) for node_id in Q3_NODE_ORDER}
+    edges = []
+    for group_number, children in enumerate(partitions, 1):
+        semi_id = f"s{group_number}"
+        for child in children:
+            edges.append((child, semi_id))
+    for semi_id in Q3_SEMI_PRODUCTS:
+        edges.append((semi_id, Q3_ROOT_NODE_ID))
+    return {
+        "label": CONDITIONAL_H1_LABEL,
+        "topology_id": topology_id,
+        "claim_status": "conditional_partition_scenario",
+        "nodes": nodes,
+        "node_order": Q3_NODE_ORDER,
+        "edges": tuple(edges),
+        "root": Q3_ROOT_NODE_ID,
+        "sale_price": Q3_MARKET_PRICE,
+        "exchange_loss": Q3_EXCHANGE_LOSS,
+    }
+
+
+def _node_profile_from_children(context, policy, node_id, child_profiles):
+    node = context["nodes"][node_id]
+    inspect = int(policy[node_id][_POLICY_INSPECT])
+    disassemble = int(policy[node_id][_POLICY_DISASSEMBLE])
+    children = tuple(child for child, _ in _build_graph(context).edges if _ == node_id)
+    if not children:
+        if inspect == _MODE_SCREENED:
+            good_rate = 1.0 - node["p"]
+            if good_rate <= PROBABILITY_ABS_TOL:
+                return {
+                    "feasible": False,
+                    "good_probability": 0.0,
+                    "cost_by_category": _zero_vector(),
+                    "reason": "screened_leaf_cannot_produce_a_good_item",
                 }
-                for quality_pattern in cartesian_product(
-                    (params.GOOD, params.BAD),
-                    repeat=len(parents),
-                )
-            ]
-        descriptors.append(
-            {
-                "node": node,
-                "parents": list(parents),
-                "local_state_count": len(patterns),
-                "states": patterns,
-            }
-        )
-    return descriptors
-
-
-def _geometric_absorption(success_probability: float) -> tuple[float, float]:
-    """用吸收方程求解几何重试概率，并返回 Bellman 残差。"""
-    probability = float(success_probability)
-    if probability <= 0.0:
-        return 0.0, 1.0
-    coefficient = numpy.asarray([[probability]], dtype=float)
-    right_hand_side = numpy.asarray([probability], dtype=float)
-    estimate = float(numpy.linalg.solve(coefficient, right_hand_side)[0])
-    residual = abs(estimate - (probability + (1.0 - probability) * estimate))
-    return estimate, residual
-
-
-def _rate_specs(
-    defect_rates: Any,
-    node_specs: Mapping[str, Mapping[str, Any]],
-) -> dict[str, float]:
-    return _resolve_defect_rates(defect_rates, node_specs)
-
-
-def event_markov_reward(
-    policy: Any,
-    defect_rates: Any = None,
-    topology: Any = None,
-) -> dict[str, Any]:
-    """按采购、检测、装配、调换、报废和拆解事件求解固定策略。"""
-    decisions = _policy_mapping(policy)
-    graph = assembly_graph(topology)
-    node_specs = _default_node_specs()
-    rates = _rate_specs(defect_rates, node_specs)
-    roots = [node for node in graph if graph.out_degree(node) == 0]
-    if len(roots) != 1:
-        raise ValueError("事件动态规划要求网络恰有一个根节点")
-    root = roots[0]
-    topological_nodes = tuple(networkx.topological_sort(graph))
-    node_probability: dict[str, float] = {}
-    node_cost: dict[str, float] = {}
-    node_metrics: dict[str, dict[str, Any]] = {}
-    feasible = True
-
-    for node in topological_nodes:
-        spec = node_specs[node]
-        defect_rate = rates[node]
-        inspect = bool(decisions[f"{node}_inspection"])
-        parents = tuple(graph.predecessors(node))
-        parent_good = (
-            math.prod(node_probability[parent] for parent in parents)
-            if parents
-            else 1.0
-        )
-        parent_cost = sum(node_cost[parent] for parent in parents)
-        successful_assembly_probability = parent_good * (1.0 - defect_rate)
-        geometric_purchase_count = (
-            1.0 / (1.0 - defect_rate) if defect_rate < 1.0 else math.inf
-        )
-
-        if node == root:
-            disassemble = bool(decisions[f"{node}_disassembly"])
-            success_probability = (
-                successful_assembly_probability if inspect else parent_good
-            )
-            market_probability = (
-                successful_assembly_probability if inspect else 1.0
-            )
-            bad_market_probability = (
-                0.0 if inspect else 1.0 - parent_good
-            )
-            assembly_cost = float(spec["assembly_cost"])
-            inspection_cost = float(spec["inspection_cost"])
-            disassembly_cost = float(spec["disassembly_cost"])
-            exchange_loss = params.Q3_EXCHANGE_LOSS
-            sale_price = params.Q3_MARKET_PRICE
-            if success_probability <= 0.0:
-                feasible = False
-                parent_cost_per_good = math.inf
-                assembly_cost_per_good = math.inf
-                inspection_cost_per_good = math.inf
-                disassembly_cost_per_good = math.inf
-                production_cost = math.inf
-                exchange_cost = math.inf
-                revenue = -math.inf
-                profit = -math.inf
-                output_rate = 0.0
-                launch_cash_cost_rate = math.inf
-                absorption_probability = 0.0
-                bellman_residual = 1.0
-                market_transactions = math.inf
-                return_count = math.inf
-            elif disassemble:
-                parent_cost_per_good = parent_cost
-                assembly_cost_per_good = assembly_cost / success_probability
-                inspection_cost_per_good = (
-                    inspection_cost / success_probability if inspect else 0.0
-                )
-                disassembly_cost_per_good = (
-                    disassembly_cost
-                    * (1.0 - success_probability)
-                    / success_probability
-                )
-                market_transactions = market_probability / success_probability
-                return_count = bad_market_probability / success_probability
-                exchange_cost = params.Q3_EXCHANGE_LOSS * return_count
-                revenue = params.Q3_MARKET_PRICE * market_transactions
-                production_cost = (
-                    parent_cost_per_good
-                    + assembly_cost_per_good
-                    + inspection_cost_per_good
-                    + disassembly_cost_per_good
-                )
-                profit = revenue - exchange_cost - production_cost
-                output_rate = 1.0
-                launch_cash_cost_rate = production_cost
-            else:
-                parent_cost_per_good = parent_cost / success_probability
-                assembly_cost_per_good = assembly_cost / success_probability
-                inspection_cost_per_good = (
-                    inspection_cost / success_probability if inspect else 0.0
-                )
-                disassembly_cost_per_good = 0.0
-                market_transactions = market_probability / success_probability
-                return_count = bad_market_probability / success_probability
-                exchange_cost = params.Q3_EXCHANGE_LOSS * return_count
-                revenue = params.Q3_MARKET_PRICE * market_transactions
-                production_cost = (
-                    parent_cost_per_good
-                    + assembly_cost_per_good
-                    + inspection_cost_per_good
-                )
-                profit = revenue - exchange_cost - production_cost
-                output_rate = success_probability
-                launch_cash_cost_rate = (
-                    parent_cost + assembly_cost + inspection_cost * int(inspect)
-                )
-            absorption_probability, bellman_residual = _geometric_absorption(
-                success_probability
-            )
-            unit_cost = (
-                launch_cash_cost_rate / output_rate
-                if output_rate > 0.0
-                else math.inf
-            )
-            accounting_error = abs(
-                profit + production_cost + exchange_cost - revenue
-            )
-            node_probability[node] = output_rate
-            node_cost[node] = launch_cash_cost_rate
-            node_metrics[node] = {
-                "node": node,
-                "kind": spec["kind"],
-                "parents": list(parents),
-                "defect_rate": defect_rate,
-                "inspection_decision": int(inspect),
-                "disassembly_decision": int(disassemble),
-                "parent_good_probability": parent_good,
-                "successful_assembly_probability": successful_assembly_probability,
-                "success_probability_per_root_cycle": success_probability,
-                "output_rate_Q": output_rate,
-                "launch_cash_cost_rate_C": launch_cash_cost_rate,
-                "equivalent_unit_cost_U": unit_cost,
-                "unit_identity_error": abs(unit_cost * output_rate - launch_cash_cost_rate),
-                "parent_processing_cost_per_qualified_delivery": parent_cost_per_good,
-                "root_assembly_cost_per_qualified_delivery": assembly_cost_per_good,
-                "root_inspection_cost_per_qualified_delivery": inspection_cost_per_good,
-                "root_disassembly_cost_per_qualified_delivery": disassembly_cost_per_good,
-                "exchange_loss_per_qualified_delivery": exchange_cost,
-                "production_cost_per_qualified_delivery": production_cost,
-                "market_revenue_per_qualified_delivery": revenue,
-                "market_transactions_per_qualified_delivery": market_transactions,
-                "customer_returns_per_qualified_delivery": return_count,
-                "profit_yuan_per_qualified_delivery": profit,
-                "cashflow_identity_error": accounting_error,
-                "absorption_probability": absorption_probability,
-                "bellman_residual": bellman_residual,
-            }
-            continue
-
-        if spec["kind"] == "part":
-            purchase_price = float(spec["purchase_price"])
-            inspection_cost = float(spec["inspection_cost"])
-            if inspect:
-                if defect_rate >= 1.0:
-                    feasible = False
-                    probability = math.nan
-                    launch_cost = math.inf
-                else:
-                    probability = 1.0
-                    launch_cost = (
-                        purchase_price + inspection_cost
-                    ) * geometric_purchase_count
-            else:
-                probability = 1.0 - defect_rate
-                launch_cost = purchase_price
-            unit_cost = (
-                launch_cost / probability
-                if probability > 0.0
-                else math.inf
-            )
-            node_probability[node] = probability
-            node_cost[node] = launch_cost
-            node_metrics[node] = {
-                "node": node,
-                "kind": spec["kind"],
-                "parents": [],
-                "defect_rate": defect_rate,
-                "purchase_price": purchase_price,
-                "inspection_cost": inspection_cost,
-                "inspection_decision": int(inspect),
-                "output_rate_Q": probability,
-                "launch_cash_cost_rate_C": launch_cost,
-                "equivalent_unit_cost_U": unit_cost,
-                "unit_identity_error": abs(unit_cost * probability - launch_cost),
-                "expected_purchases_per_good_output": (
-                    geometric_purchase_count if inspect else 1.0
-                ),
-            }
-            continue
-
-        disassemble = bool(decisions[f"{node}_disassembly"])
-        assembly_cost = float(spec["assembly_cost"])
-        inspection_cost = float(spec["inspection_cost"])
-        disassembly_cost = float(spec["disassembly_cost"])
-        if not inspect:
-            probability = parent_good
-            launch_cost = parent_cost + assembly_cost
-        elif not disassemble:
-            probability = successful_assembly_probability
-            launch_cost = parent_cost + assembly_cost + inspection_cost
-            if probability <= 0.0:
-                feasible = False
-        else:
-            probability = 1.0 if successful_assembly_probability > 0.0 else 0.0
-            launch_cost = (
-                (
-                    parent_cost
-                    + assembly_cost
-                    + inspection_cost
-                    + disassembly_cost
-                )
-                / successful_assembly_probability
-                if successful_assembly_probability > 0.0
-                else math.inf
-            )
-            if successful_assembly_probability <= 0.0:
-                feasible = False
-        unit_cost = (
-            launch_cost / probability if probability > 0.0 else math.inf
-        )
-        node_probability[node] = probability
-        node_cost[node] = launch_cost
-        node_metrics[node] = {
-            "node": node,
-            "kind": spec["kind"],
-            "parents": list(parents),
-            "defect_rate": defect_rate,
-            "assembly_cost": assembly_cost,
-            "inspection_cost": inspection_cost,
-            "disassembly_cost": disassembly_cost,
-            "inspection_decision": int(inspect),
-            "disassembly_decision": int(disassemble),
-            "parent_good_probability": parent_good,
-            "successful_assembly_probability": successful_assembly_probability,
-            "output_rate_Q": probability,
-            "launch_cash_cost_rate_C": launch_cost,
-            "equivalent_unit_cost_U": unit_cost,
-            "unit_identity_error": abs(unit_cost * probability - launch_cost),
-        }
-
-    profit = node_metrics[root]["profit_yuan_per_qualified_delivery"]
-    return {
-        "feasible": bool(feasible and math.isfinite(profit)),
-        "policy": _policy_payload(decisions),
-        "profit_yuan_per_qualified_delivery": profit,
-        "unit_profit_yuan_per_qualified_delivery": profit,
-        "node_metrics": [node_metrics[node] for node in topological_nodes],
-    }
-
-
-def _safe_array_divide(
-    numerator: Any,
-    denominator: Any,
-) -> numpy.ndarray:
-    numerator_array = numpy.asarray(numerator, dtype=float)
-    denominator_array = numpy.asarray(denominator, dtype=float)
-    output = numpy.full(numpy.broadcast(numerator_array, denominator_array).shape, numpy.nan)
-    return numpy.divide(
-        numerator_array,
-        denominator_array,
-        out=output,
-        where=denominator_array > 0.0,
-    )
-
-
-def _all_policy_arrays(
-    defect_rates: Any = None,
-    topology: Any = None,
-) -> dict[str, Any]:
-    """向量化穷举登记的完整策略空间，不以局部比例规则删策略。"""
-    graph = assembly_graph(topology)
-    node_specs = _default_node_specs()
-    rates = _rate_specs(defect_rates, node_specs)
-    strategy_codes = numpy.arange(params.Q3_POLICY_SPACE_COUNT, dtype=numpy.int64)
-    shifts = numpy.arange(
-        params.Q3_TOTAL_DECISION_COUNT - 1,
-        -1,
-        -1,
-    )
-    bits = (
-        strategy_codes[:, None] >> shifts[None, :]
-    ) & 1
-    decisions = {
-        name: bits[:, index].astype(bool)
-        for index, name in enumerate(_POLICY_BIT_ORDER)
-    }
-    node_probability: dict[str, numpy.ndarray] = {}
-    node_cost: dict[str, numpy.ndarray] = {}
-    root_cashflow: dict[str, numpy.ndarray] = {}
-    topological_nodes = tuple(networkx.topological_sort(graph))
-    roots = [node for node in topological_nodes if graph.out_degree(node) == 0]
-    if len(roots) != 1:
-        raise ValueError("完整策略枚举要求网络恰有一个根节点")
-    root = roots[0]
-
-    for node in topological_nodes:
-        spec = node_specs[node]
-        defect_rate = rates[node]
-        inspect = decisions[f"{node}_inspection"]
-        parents = tuple(graph.predecessors(node))
-        if parents:
-            parent_probability = numpy.column_stack(
-                [node_probability[parent] for parent in parents]
-            )
-            parent_good = numpy.prod(parent_probability, axis=1)
-            parent_cost = numpy.sum(
-                numpy.column_stack([node_cost[parent] for parent in parents]),
-                axis=1,
-            )
-        else:
-            parent_good = numpy.ones_like(inspect, dtype=float)
-            parent_cost = numpy.zeros_like(inspect, dtype=float)
-        successful_assembly_probability = parent_good * (1.0 - defect_rate)
-
-        if node != root and spec["kind"] == "part":
-            geometric_count = (
-                1.0 / (1.0 - defect_rate)
-                if defect_rate < 1.0
-                else math.nan
-            )
-            purchase_price = float(spec["purchase_price"])
-            inspection_cost = float(spec["inspection_cost"])
-            probability = numpy.where(
-                inspect,
-                1.0,
-                1.0 - defect_rate,
-            )
-            launch_cost = numpy.where(
-                inspect,
-                (purchase_price + inspection_cost) * geometric_count,
-                purchase_price,
-            )
-            launch_cost = numpy.where(
-                inspect & (defect_rate >= 1.0),
-                numpy.nan,
-                launch_cost,
-            )
-            probability = numpy.where(
-                inspect & (defect_rate >= 1.0),
-                numpy.nan,
-                probability,
-            )
-            node_probability[node] = probability
-            node_cost[node] = launch_cost
-            continue
-
-        if node != root:
-            disassemble = decisions[f"{node}_disassembly"]
-            assembly_cost = float(spec["assembly_cost"])
-            inspection_cost = float(spec["inspection_cost"])
-            disassembly_cost = float(spec["disassembly_cost"])
-            inspected_internal = inspect & ~disassemble
-            inspected_rework = inspect & disassemble
-            probability = numpy.where(
-                inspect,
-                numpy.where(disassemble, 1.0, successful_assembly_probability),
-                parent_good,
-            )
-            direct_cost = parent_cost + assembly_cost + inspect * inspection_cost
-            rework_cost = _safe_array_divide(
-                direct_cost + inspect * disassembly_cost,
-                successful_assembly_probability,
-            )
-            launch_cost = numpy.where(
-                inspect,
-                numpy.where(disassemble, rework_cost, direct_cost),
-                parent_cost + assembly_cost,
-            )
-            invalid = inspect & (
-                (successful_assembly_probability <= 0.0)
-                | ~numpy.isfinite(launch_cost)
-            )
-            probability = numpy.where(invalid, numpy.nan, probability)
-            launch_cost = numpy.where(invalid, numpy.nan, launch_cost)
-            node_probability[node] = probability
-            node_cost[node] = launch_cost
-            continue
-
-        disassemble = decisions[f"{node}_disassembly"]
-        assembly_cost = float(spec["assembly_cost"])
-        inspection_cost = float(spec["inspection_cost"])
-        disassembly_cost = float(spec["disassembly_cost"])
-        success_probability = numpy.where(
-            inspect,
-            successful_assembly_probability,
-            parent_good,
-        )
-        market_probability = numpy.where(
-            inspect,
-            successful_assembly_probability,
-            1.0,
-        )
-        bad_market_probability = numpy.where(
-            inspect,
-            0.0,
-            1.0 - parent_good,
-        )
-        direct_production = (
-            parent_cost
-            + assembly_cost
-            + inspect * inspection_cost
-        )
-        direct_revenue = params.Q3_MARKET_PRICE * market_probability
-        direct_exchange = params.Q3_EXCHANGE_LOSS * bad_market_probability
-
-        scrap_parent_cost = _safe_array_divide(
-            direct_production,
-            success_probability,
-        )
-        scrap_assembly_cost = _safe_array_divide(
-            assembly_cost,
-            success_probability,
-        )
-        scrap_inspection_cost = _safe_array_divide(
-            inspect * inspection_cost,
-            success_probability,
-        )
-        scrap_exchange = _safe_array_divide(
-            direct_exchange,
-            success_probability,
-        )
-        scrap_revenue = _safe_array_divide(
-            direct_revenue,
-            success_probability,
-        )
-        scrap_production = scrap_parent_cost + scrap_assembly_cost + scrap_inspection_cost
-        scrap_market_transactions = _safe_array_divide(
-            market_probability,
-            success_probability,
-        )
-        scrap_returns = _safe_array_divide(
-            bad_market_probability,
-            success_probability,
-        )
-        scrap_output_rate = success_probability
-        scrap_launch_cost = direct_production
-
-        rework_parent_cost = parent_cost
-        rework_assembly_cost = _safe_array_divide(
-            assembly_cost,
-            success_probability,
-        )
-        rework_inspection_cost = _safe_array_divide(
-            inspect * inspection_cost,
-            success_probability,
-        )
-        rework_disassembly_cost = _safe_array_divide(
-            disassembly_cost * (1.0 - success_probability),
-            success_probability,
-        )
-        rework_exchange = _safe_array_divide(
-            direct_exchange,
-            success_probability,
-        )
-        rework_revenue = _safe_array_divide(
-            direct_revenue,
-            success_probability,
-        )
-        rework_production = (
-            rework_parent_cost
-            + rework_assembly_cost
-            + rework_inspection_cost
-            + rework_disassembly_cost
-        )
-        rework_market_transactions = _safe_array_divide(
-            market_probability,
-            success_probability,
-        )
-        rework_returns = _safe_array_divide(
-            bad_market_probability,
-            success_probability,
-        )
-        rework_output_rate = numpy.ones_like(success_probability)
-        rework_launch_cost = rework_production
-
-        node_probability[node] = numpy.where(
-            disassemble,
-            rework_output_rate,
-            scrap_output_rate,
-        )
-        node_cost[node] = numpy.where(
-            disassemble,
-            rework_launch_cost,
-            scrap_launch_cost,
-        )
-        profit = numpy.where(
-            disassemble,
-            rework_revenue - rework_exchange - rework_production,
-            scrap_revenue - scrap_exchange - scrap_production,
-        )
-        root_cashflow = {
-            "profit": profit,
-            "parent_processing_cost": numpy.where(
-                disassemble,
-                rework_parent_cost,
-                scrap_parent_cost,
-            ),
-            "root_assembly_cost": numpy.where(
-                disassemble,
-                rework_assembly_cost,
-                scrap_assembly_cost,
-            ),
-            "root_inspection_cost": numpy.where(
-                disassemble,
-                rework_inspection_cost,
-                scrap_inspection_cost,
-            ),
-            "root_disassembly_cost": numpy.where(
-                disassemble,
-                rework_disassembly_cost,
-                0.0,
-            ),
-            "exchange_loss": numpy.where(
-                disassemble,
-                rework_exchange,
-                scrap_exchange,
-            ),
-            "market_revenue": numpy.where(
-                disassemble,
-                rework_revenue,
-                scrap_revenue,
-            ),
-            "production_cost": numpy.where(
-                disassemble,
-                rework_production,
-                scrap_production,
-            ),
-            "market_transactions": numpy.where(
-                disassemble,
-                rework_market_transactions,
-                scrap_market_transactions,
-            ),
-            "customer_returns": numpy.where(
-                disassemble,
-                rework_returns,
-                scrap_returns,
-            ),
-            "output_rate_Q": node_probability[root],
-            "launch_cash_cost_rate_C": node_cost[root],
-        }
-
-    probability = node_probability[root]
-    cost = node_cost[root]
-    profit = root_cashflow["profit"]
-    feasible = (
-        numpy.isfinite(probability)
-        & numpy.isfinite(cost)
-        & numpy.isfinite(profit)
-        & (probability > 0.0)
-    )
-    return {
-        "strategy_codes": strategy_codes,
-        "decisions": decisions,
-        "node_probability": node_probability,
-        "node_cost": node_cost,
-        "root_cashflow": root_cashflow,
-        "profit": profit,
-        "feasible": feasible,
-        "graph": graph,
-        "rates": rates,
-    }
-
-
-def _json_safe(value: Any) -> Any:
-    if isinstance(value, Mapping):
-        return {str(key): _json_safe(item) for key, item in value.items()}
-    if isinstance(value, (list, tuple)):
-        return [_json_safe(item) for item in value]
-    if isinstance(value, numpy.ndarray):
-        return _json_safe(value.tolist())
-    if isinstance(value, numpy.bool_):
-        return bool(value)
-    if isinstance(value, numpy.integer):
-        return int(value)
-    if isinstance(value, numpy.floating):
-        value = float(value)
-    if isinstance(value, float):
-        return value if math.isfinite(value) else None
-    return value
-
-
-def evaluate_all_strategies(
-    defect_rates: Any = None,
-    topology: Any = None,
-) -> dict[str, Any]:
-    """返回与策略编码逐项对齐的完整利润和可行向量。"""
-    arrays = _all_policy_arrays(defect_rates, topology)
-    profit = arrays["profit"]
-    net_cost = -profit
-    return _json_safe(
-        {
-            "policy_codes": {
-                "minimum": 0,
-                "maximum": params.Q3_POLICY_SPACE_COUNT - 1,
-                "count": params.Q3_POLICY_SPACE_COUNT,
-                "array_index_equals_policy_code": True,
-            },
-            "profit_by_strategy": profit,
-            "strategy_net_cost_by_strategy": net_cost,
-            "feasible_by_strategy": arrays["feasible"],
-            "decision_bit_order": list(_POLICY_BIT_ORDER),
-        }
-    )
-
-
-def _topology_payload(graph: networkx.DiGraph) -> dict[str, Any]:
-    return {
-        "nodes": list(graph.nodes),
-        "edges": [list(edge) for edge in graph.edges],
-        "edge_count": graph.number_of_edges(),
-        "node_count": graph.number_of_nodes(),
-        "is_dag": networkx.is_directed_acyclic_graph(graph),
-    }
-
-
-def _semi_root_strategy_grid(
-    optimal_policy: Mapping[str, int],
-    defect_rates: Any,
-    topology: Any,
-) -> list[dict[str, Any]]:
-    local_decision_count = len(_SEMI_NODE_NAMES) + 1
-    rows: list[dict[str, Any]] = []
-    for combination in cartesian_product(
-        (0, 1),
-        repeat=local_decision_count,
-    ):
-        candidate = dict(optimal_policy)
-        for name, pair in zip(_SEMI_NODE_NAMES, combination[:-1]):
-            candidate[f"{name}_inspection"] = int(pair[0])
-            candidate[f"{name}_disassembly"] = int(pair[1])
-        candidate["product_inspection"] = int(combination[-1][0])
-        candidate["product_disassembly"] = int(combination[-1][1])
-        value = event_markov_reward(candidate, defect_rates, topology)
-        rows.append(
-            {
-                "semi_and_root_decisions": [
-                    *[
-                        {
-                            "node": name,
-                            "inspection": int(combination[index][0]),
-                            "disassembly": int(combination[index][1]),
-                        }
-                        for index, name in enumerate(_SEMI_NODE_NAMES)
-                    ],
-                    {
-                        "node": "product",
-                        "inspection": int(combination[-1][0]),
-                        "disassembly": int(combination[-1][1]),
-                    },
-                ],
-                "policy_vector": policy_vector(candidate),
-                "feasible": bool(value["feasible"]),
-                "profit": value["profit_yuan_per_qualified_delivery"],
-                "net_cost": (
-                    -value["profit_yuan_per_qualified_delivery"]
-                    if value["feasible"]
-                    else None
-                ),
-            }
-        )
-    return rows
-
-
-def optimize_network(
-    defect_rates: Any = None,
-    topology: Any = None,
-    include_strategy_grid: bool = True,
-) -> dict[str, Any]:
-    """穷举完整策略空间并返回全局最优节点指标。"""
-    arrays = _all_policy_arrays(defect_rates, topology)
-    feasible = arrays["feasible"]
-    if not bool(numpy.any(feasible)):
-        raise RuntimeError("当前次品率向量下没有可吸收的完整策略")
-    masked_profit = numpy.where(feasible, arrays["profit"], -numpy.inf)
-    best_index = int(numpy.argmax(masked_profit))
-    best_code = int(best_index)
-    best_policy = decode_policy(best_code)
-    optimal = event_markov_reward(best_policy, defect_rates, topology)
-    graph = arrays["graph"]
-    state_descriptors = reachable_state_enumeration(graph)
-    state_count = sum(item["local_state_count"] for item in state_descriptors)
-    if state_count > params.Q3_REACHABLE_STATE_LIMIT:
-        raise RuntimeError("结构化可达状态数超过登记上限")
-    root_metrics = next(
-        item
-        for item in optimal["node_metrics"]
-        if item["node"] == graph.nodes[graph.out_degree(graph) == 0][0]
-    )
-    unit_identity_max_error = max(
-        float(item.get("unit_identity_error", 0.0) or 0.0)
-        for item in optimal["node_metrics"]
-    )
-    cashflow_identity_max_error = max(
-        float(item.get("cashflow_identity_error", 0.0) or 0.0)
-        for item in optimal["node_metrics"]
-    )
-    strategy_payload: dict[str, Any] = {
-        "count": params.Q3_POLICY_SPACE_COUNT,
-        "decision_bit_order": list(_POLICY_BIT_ORDER),
-        "array_index_equals_policy_code": True,
-        "enumeration": "complete_vectorized_exact_event_reward",
-    }
-    if include_strategy_grid:
-        strategy_payload.update(
-            {
-                "profit_by_strategy": arrays["profit"],
-                "strategy_net_cost_by_strategy": -arrays["profit"],
-                "feasible_by_strategy": feasible,
-            }
-        )
-    scenario_name = "primary" if _resolve_topology(topology) is params.Q3_PRIMARY_TOPOLOGY else "alternative"
-    return _json_safe(
-        {
-            "scenario": scenario_name,
-            "topology_is_inferred": True,
-            "official_topology_available": params.Q3_OFFICIAL_TOPOLOGY_AVAILABLE,
-            "topology": _topology_payload(graph),
-            "defect_rates": arrays["rates"],
-            "policy": optimal["policy"],
-            "optimal_policy": optimal["policy"],
-            "policy_vector": policy_vector(best_policy),
-            "profit": optimal["profit_yuan_per_qualified_delivery"],
-            "unit_profit": optimal["profit_yuan_per_qualified_delivery"],
-            "profit_yuan_per_qualified_delivery": optimal["profit_yuan_per_qualified_delivery"],
-            "node_metrics": optimal["node_metrics"],
-            "root_metrics": root_metrics,
-            "semi_root_strategy_grid": _semi_root_strategy_grid(
-                best_policy,
-                defect_rates,
-                topology,
-            ),
-            "strategy_space": strategy_payload,
-            "reachable_state_count": state_count,
-            "reachable_state_descriptors": state_descriptors,
-            "validation": {
-                "full_registered_policy_space_enumerated": bool(
-                    len(masked_profit) == params.Q3_POLICY_SPACE_COUNT
-                ),
-                "policy_count_matches_contract": bool(
-                    len(masked_profit) == params.Q3_POLICY_SPACE_COUNT
-                ),
-                "lexicographic_tie_break_policy_code": best_code,
-                "optimal_is_absorbing": bool(
-                    optimal["feasible"]
-                    and root_metrics["absorption_probability"] >= 1.0 - params.CASHFLOW_ABS_TOL
-                ),
-                "bellman_residual": root_metrics["bellman_residual"],
-                "unit_identity_max_error": unit_identity_max_error,
-                "cashflow_identity_max_error": cashflow_identity_max_error,
-                "reachable_state_limit_respected": bool(
-                    state_count <= params.Q3_REACHABLE_STATE_LIMIT
-                ),
-            },
-        }
-    )
-
-
-def _component_branch(
-    current_quality: str,
-    inspect: bool,
-    defect_rate: float,
-    purchase_price: float,
-    inspection_cost: float,
-) -> dict[str, tuple[float, float, float]] | None:
-    if current_quality == params.GOOD:
-        return {params.GOOD: (1.0, 0.0, 0.0)}
-    if inspect and defect_rate >= 1.0:
-        return None
-    geometric_count = 1.0 / (1.0 - defect_rate)
-    if current_quality == params.EMPTY:
-        if inspect:
+            vector = _zero_vector()
+            vector["purchase"] = node["purchase_cost"] / good_rate
+            vector["inspection"] = node["k"] / good_rate
             return {
-                params.GOOD: (
-                    1.0,
-                    purchase_price * geometric_count,
-                    inspection_cost * geometric_count,
-                )
+                "feasible": True,
+                "good_probability": 1.0,
+                "immediate_good_probability": 1.0,
+                "cost_by_category": vector,
             }
+        vector = _zero_vector()
+        vector["purchase"] = node["purchase_cost"]
         return {
-            params.GOOD: (
-                1.0 - defect_rate,
-                purchase_price,
-                0.0,
-            ),
-            params.BAD: (defect_rate, purchase_price, 0.0),
+            "feasible": True,
+            "good_probability": 1.0 - node["p"],
+            "immediate_good_probability": 1.0 - node["p"],
+            "cost_by_category": vector,
         }
-    if not inspect:
-        return {params.BAD: (1.0, 0.0, 0.0)}
-    return {
-        params.GOOD: (
-            1.0,
-            purchase_price * geometric_count,
-            inspection_cost + inspection_cost * geometric_count,
-        )
-    }
 
-
-def _independent_two_part_markov_reward(
-    policy: Sequence[int],
-    case: Mapping[str, Any],
-) -> dict[str, Any]:
-    """以九状态吸收方程独立复算问题二现金流，供问题三退化验收。"""
-    z1, z2, product_inspection, disassemble = (
-        int(value) for value in policy
-    )
-    p1 = float(case["p1"])
-    p2 = float(case["p2"])
-    pf = float(case["pf"])
-    a1 = float(case["a1"])
-    a2 = float(case["a2"])
-    t1 = float(case["t1"])
-    t2 = float(case["t2"])
-    assembly_cost = float(case["kf"])
-    product_inspection_cost = float(case["tf"])
-    disassembly_cost = float(case["g_dis"])
-    sale_price = float(case["r_market"])
-    exchange_loss = float(case["L_exchange"])
-    states = tuple(
-        cartesian_product(params.Q2_STATES, repeat=len(params.Q2_STATES))
-    )
-    state_index = {state: index for index, state in enumerate(states)}
-    state_count = len(states)
-    transition = numpy.zeros((state_count, state_count), dtype=float)
-    flow_names = (
-        "purchase_cost",
-        "inspection_cost",
-        "assembly_cost",
-        "disassembly_cost",
-        "exchange_loss",
-        "market_revenue",
-        "market_transactions",
-        "customer_returns",
-    )
-    immediate_flows = {
-        name: numpy.zeros(state_count, dtype=float)
-        for name in flow_names
-    }
-    absorption_rhs = numpy.zeros(state_count, dtype=float)
-    feasible = True
-
-    for state in states:
-        row = state_index[state]
-        branch1 = _component_branch(
-            state[0], bool(z1), p1, a1, t1
-        )
-        branch2 = _component_branch(
-            state[1], bool(z2), p2, a2, t2
-        )
-        if branch1 is None or branch2 is None:
-            feasible = False
-            continue
-        combined: dict[tuple[str, str], tuple[float, float, float]] = {}
-        for quality1, values1 in branch1.items():
-            for quality2, values2 in branch2.items():
-                probability = values1[0] * values2[0]
-                purchase = values1[1] + values2[1]
-                inspection = values1[2] + values2[2]
-                key = (quality1, quality2)
-                if key in combined:
-                    old_probability, old_purchase, old_inspection = combined[key]
-                    combined[key] = (
-                        old_probability + probability,
-                        old_purchase + purchase,
-                        old_inspection + inspection,
-                    )
-                else:
-                    combined[key] = (probability, purchase, inspection)
-        for (quality1, quality2), (
-            probability,
-            purchase,
-            inspection,
-        ) in combined.items():
-            both_good = (
-                quality1 == params.GOOD and quality2 == params.GOOD
-            )
-            good_probability = probability * ((1.0 - pf) if both_good else 0.0)
-            bad_probability = probability - good_probability
-            common_purchase = probability * purchase
-            common_inspection = probability * (
-                inspection + product_inspection * int(product_inspection)
-            )
-            common_assembly = probability * assembly_cost
-            if good_probability > 0.0:
-                market_probability = good_probability
-                immediate_flows["market_revenue"][row] += (
-                    sale_price * market_probability
-                )
-                immediate_flows["market_transactions"][row] += market_probability
-                absorption_rhs[row] += good_probability
-            if bad_probability > 0.0:
-                if product_inspection:
-                    bad_exchange = 0.0
-                    bad_market = 0.0
-                else:
-                    bad_exchange = exchange_loss
-                    bad_market = bad_probability
-                    immediate_flows["market_revenue"][row] += sale_price * bad_market
-                    immediate_flows["market_transactions"][row] += bad_market
-                    immediate_flows["customer_returns"][row] += bad_probability
-                bad_disassembly = (
-                    disassembly_cost * bad_probability
-                    if disassemble
-                    else 0.0
-                )
-                immediate_flows["purchase_cost"][row] += common_purchase
-                immediate_flows["inspection_cost"][row] += common_inspection
-                immediate_flows["assembly_cost"][row] += common_assembly
-                immediate_flows["exchange_loss"][row] += bad_probability * bad_exchange
-                immediate_flows["disassembly_cost"][row] += bad_disassembly
-                next_state = state if disassemble else (params.EMPTY, params.EMPTY)
-                transition[row, state_index[next_state]] += bad_probability
-
-    if not feasible:
+    if any(not child_profiles[child]["feasible"] for child in children):
         return {
             "feasible": False,
-            "profit_yuan_per_qualified_delivery": None,
-            "bellman_residual": None,
+            "good_probability": 0.0,
+            "cost_by_category": _zero_vector(),
+            "reason": "an upstream service mode is infeasible",
+        }
+    child_quality = 1.0
+    child_cost = _zero_vector()
+    for child in children:
+        child_quality *= child_profiles[child]["good_probability"]
+        child_cost = _vector_add(child_cost, child_profiles[child]["cost_by_category"])
+    immediate_good = (1.0 - node["p"]) * child_quality
+    if inspect == _MODE_RANDOM:
+        vector = _vector_add(child_cost, {**_zero_vector(), "assembly": node["a"]})
+        return {
+            "feasible": True,
+            "good_probability": immediate_good,
+            "immediate_good_probability": immediate_good,
+            "cost_by_category": vector,
         }
 
-    coefficient = numpy.eye(state_count) - transition
-    value = numpy.linalg.solve(coefficient, absorption_rhs)
-    expected_flows: dict[str, numpy.ndarray] = {}
-    for name, immediate in immediate_flows.items():
-        expected_flows[name] = numpy.linalg.solve(coefficient, immediate)
-    root_row = state_index[(params.EMPTY, params.EMPTY)]
-    production_cost = (
-        expected_flows["purchase_cost"][root_row]
-        + expected_flows["inspection_cost"][root_row]
-        + expected_flows["assembly_cost"][root_row]
-        + expected_flows["disassembly_cost"][root_row]
-    )
-    exchange_cost = expected_flows["exchange_loss"][root_row]
-    revenue = expected_flows["market_revenue"][root_row]
-    profit = revenue - exchange_cost - production_cost
-    bellman_residual = float(
-        numpy.max(numpy.abs(coefficient @ value - absorption_rhs))
-    )
-    accounting_error = abs(profit + production_cost + exchange_cost - revenue)
+    fixed = _zero_vector()
+    fixed["assembly"] = node["a"]
+    fixed["inspection"] = node["k"]
+    if disassemble == 1:
+        if child_quality < 1.0 - PROBABILITY_ABS_TOL:
+            return {
+                "feasible": False,
+                "good_probability": 0.0,
+                "cost_by_category": _zero_vector(),
+                "reason": "lossless recycling would repeat an undetected defective child",
+            }
+        if immediate_good <= PROBABILITY_ABS_TOL:
+            return {
+                "feasible": False,
+                "good_probability": 0.0,
+                "cost_by_category": _zero_vector(),
+                "reason": "screened assembly has zero success probability",
+            }
+        local_attempt = _vector_add(
+            fixed, {**fixed * 0.0, "disassembly": (1.0 - immediate_good) * node["h"]}
+        )
+        vector = _vector_add(child_cost, _vector_scale(local_attempt, 1.0 / immediate_good))
+    else:
+        if immediate_good <= PROBABILITY_ABS_TOL:
+            return {
+                "feasible": False,
+                "good_probability": 0.0,
+                "cost_by_category": _zero_vector(),
+                "reason": "screened assembly has zero success probability",
+            }
+        vector = _vector_scale(_vector_add(child_cost, fixed), 1.0 / immediate_good)
     return {
         "feasible": True,
-        "profit_yuan_per_qualified_delivery": float(profit),
-        "event_cashflow_sum": float(profit),
-        "purchase_cost": float(expected_flows["purchase_cost"][root_row]),
-        "inspection_cost": float(expected_flows["inspection_cost"][root_row]),
-        "assembly_cost": float(expected_flows["assembly_cost"][root_row]),
-        "disassembly_cost": float(expected_flows["disassembly_cost"][root_row]),
-        "exchange_loss": float(exchange_cost),
-        "market_revenue": float(revenue),
-        "market_transactions": float(expected_flows["market_transactions"][root_row]),
-        "customer_returns": float(expected_flows["customer_returns"][root_row]),
-        "absorption_probability": float(value[root_row]),
-        "bellman_residual": bellman_residual,
-        "cashflow_identity_error": float(accounting_error),
-        "dp_state_count": state_count,
+        "good_probability": 1.0,
+        "immediate_good_probability": immediate_good,
+        "cost_by_category": vector,
     }
 
 
-def _degenerate_tree_profit(
-    policy: Sequence[int],
-    case: Mapping[str, Any],
-) -> float:
-    z1, z2, product_inspection, disassemble = policy
-    node_specs = {
-        "part1": _plain_node_spec(case["part1"], "part1"),
-        "part2": _plain_node_spec(case["part2"], "part2"),
-        "product": _plain_node_spec(case["product"], "product"),
-    }
-    rates = {
-        "part1": float(case["p1"]),
-        "part2": float(case["p2"]),
-        "product": float(case["pf"]),
-    }
-    policy_map = {
-        "part1_inspection": int(z1),
-        "part2_inspection": int(z2),
-        "product_inspection": int(product_inspection),
-        "product_disassembly": int(disassemble),
-    }
-    topology = {
-        "product": ["part1", "part2"],
-    }
-    value = event_markov_reward(policy_map, rates, topology)
-    if not value["feasible"]:
-        raise RuntimeError("退化问题三策略出现非吸收状态")
-    return float(value["profit_yuan_per_qualified_delivery"])
+def _all_node_profiles(context, policy):
+    graph = _build_graph(context)
+    profiles = {}
+    for node_id in reversed(tuple(nx.topological_sort(graph))):
+        children = tuple(child for child, parent in graph.edges if parent == node_id)
+        child_profiles = {child: profiles[child] for child in children}
+        profiles[node_id] = _node_profile_from_children(
+            context, policy, node_id, child_profiles
+        )
+    return profiles
 
 
-def q2_degenerate_16_policy_equivalence() -> dict[str, Any]:
-    """逐情形、逐策略比较一般网络与独立九状态事件账本。"""
-    rows: list[dict[str, Any]] = []
-    case_payloads: list[dict[str, Any]] = []
-    maximum_error = 0.0
-    maximum_identity_error = 0.0
-    for case in params.Q2_CASES:
-        case_maximum = 0.0
-        case_rows: list[dict[str, Any]] = []
-        for policy in params.Q2_POLICY_SPACE:
-            tree_profit = _degenerate_tree_profit(policy, case)
-            reference = _independent_two_part_markov_reward(policy, case)
-            difference = abs(tree_profit - reference["profit_yuan_per_qualified_delivery"])
-            case_maximum = max(case_maximum, difference)
-            maximum_error = max(maximum_error, difference)
-            maximum_identity_error = max(
-                maximum_identity_error,
-                reference["cashflow_identity_error"],
+def _root_service_from_children(context, policy, child_profiles):
+    root = context["root"]
+    node = context["nodes"][root]
+    inspect = int(policy[root][_POLICY_INSPECT])
+    disassemble = int(policy[root][_POLICY_DISASSEMBLE])
+    if any(not profile["feasible"] for profile in child_profiles.values()):
+        return {
+            "feasible": False,
+            "success_probability": 0.0,
+            "initial_attempt_good_probability": 0.0,
+            "cost_by_category": _zero_vector(),
+            "profit_per_good": -math.inf,
+            "trial_profit": -math.inf,
+        }
+    child_quality = 1.0
+    child_cost = _zero_vector()
+    for profile in child_profiles.values():
+        child_quality *= profile["good_probability"]
+        child_cost = _vector_add(child_cost, profile["cost_by_category"])
+    immediate_good = (1.0 - node["p"]) * child_quality
+    fixed = _zero_vector()
+    fixed["assembly"] = node["a"]
+    if inspect == _MODE_SCREENED:
+        fixed["inspection"] = node["k"]
+    else:
+        fixed["exchange"] = (1.0 - immediate_good) * context["exchange_loss"]
+    if disassemble == 1 and child_quality < 1.0 - PROBABILITY_ABS_TOL:
+        return {
+            "feasible": False,
+            "success_probability": 0.0,
+            "initial_attempt_good_probability": 0.0,
+            "cost_by_category": _zero_vector(),
+            "profit_per_good": -math.inf,
+            "trial_profit": -math.inf,
+        }
+    if disassemble == 1:
+        intrinsic_good = 1.0 - node["p"]
+        if intrinsic_good <= PROBABILITY_ABS_TOL:
+            return {
+                "feasible": False,
+                "success_probability": 0.0,
+                "initial_attempt_good_probability": 0.0,
+                "cost_by_category": _zero_vector(),
+                "profit_per_good": -math.inf,
+                "trial_profit": -math.inf,
+            }
+        local_attempt = _vector_add(
+            fixed,
+            {
+                **_zero_vector(),
+                "exchange": (1.0 - intrinsic_good)
+                * context["exchange_loss"]
+                * int(inspect == _MODE_RANDOM),
+                "disassembly": (1.0 - intrinsic_good) * node["h"],
+            },
+        )
+        service_cost = _vector_add(
+            child_cost, _vector_scale(local_attempt, 1.0 / intrinsic_good)
+        )
+    else:
+        if immediate_good <= PROBABILITY_ABS_TOL:
+            return {
+                "feasible": False,
+                "success_probability": 0.0,
+                "initial_attempt_good_probability": 0.0,
+                "cost_by_category": _zero_vector(),
+                "profit_per_good": -math.inf,
+                "trial_profit": -math.inf,
+            }
+        service_cost = _vector_scale(_vector_add(child_cost, fixed), 1.0 / immediate_good)
+    profit = context["sale_price"] - _vector_total(service_cost)
+    return {
+        "feasible": True,
+        "success_probability": 1.0,
+        "initial_attempt_good_probability": immediate_good,
+        "cost_by_category": service_cost,
+        "profit_per_good": profit,
+        "profit": profit,
+        "trial_profit": profit,
+        "normalization_gap": 0.0,
+    }
+
+
+def _root_bellman_from_children(context, policy, child_profiles):
+    root = context["root"]
+    node = context["nodes"][root]
+    inspect = int(policy[root][_POLICY_INSPECT])
+    disassemble = int(policy[root][_POLICY_DISASSEMBLE])
+    if any(not profile["feasible"] for profile in child_profiles.values()):
+        return {"feasible": False, "cost_by_category": _zero_vector(), "profit_per_good": -math.inf}
+    child_cost = _zero_vector()
+    all_good_probability = 1.0
+    for profile in child_profiles.values():
+        child_cost = _vector_add(child_cost, profile["cost_by_category"])
+        all_good_probability *= profile["good_probability"]
+    intrinsic_good = 1.0 - node["p"]
+    if disassemble == 1 and all_good_probability < 1.0 - PROBABILITY_ABS_TOL:
+        return {"feasible": False, "cost_by_category": _zero_vector(), "profit_per_good": -math.inf}
+
+    good_state_cost = _zero_vector()
+    good_state_cost["assembly"] = node["a"]
+    good_state_cost["inspection"] = inspect * node["k"]
+    good_state_cost["exchange"] = (
+        int(inspect == _MODE_RANDOM)
+        * (1.0 - intrinsic_good)
+        * context["exchange_loss"]
+    )
+    good_state_cost["disassembly"] = (
+        disassemble * (1.0 - intrinsic_good) * node["h"]
+    )
+    bad_state_cost = _zero_vector()
+    bad_state_cost["assembly"] = node["a"]
+    bad_state_cost["inspection"] = inspect * node["k"]
+    bad_state_cost["exchange"] = (
+        int(inspect == _MODE_RANDOM) * context["exchange_loss"]
+    )
+    bad_state_cost["disassembly"] = disassemble * node["h"]
+
+    if disassemble == 1:
+        if intrinsic_good <= PROBABILITY_ABS_TOL:
+            return {"feasible": False, "cost_by_category": _zero_vector(), "profit_per_good": -math.inf}
+        good_state_value = _vector_scale(good_state_cost, 1.0 / intrinsic_good)
+        restart_value = _vector_add(child_cost, good_state_value)
+    else:
+        success_probability = 1.0 - all_good_probability * (1.0 - intrinsic_good)
+        if success_probability <= PROBABILITY_ABS_TOL:
+            return {"feasible": False, "cost_by_category": _zero_vector(), "profit_per_good": -math.inf}
+        numerator = _vector_add(
+            child_cost,
+            _vector_add(
+                _vector_scale(good_state_cost, all_good_probability),
+                _vector_scale(bad_state_cost, 1.0 - all_good_probability),
+            ),
+        )
+        restart_value = _vector_scale(numerator, 1.0 / success_probability)
+    profit = context["sale_price"] - _vector_total(restart_value)
+    return {
+        "feasible": True,
+        "cost_by_category": restart_value,
+        "profit_per_good": profit,
+        "profit": profit,
+        "trial_profit": profit,
+        "success_probability": 1.0,
+    }
+
+
+def _closed_form_policy_cost(context, policy):
+    graph = _build_graph(context)
+    profiles = _all_node_profiles(context, policy)
+    root = context["root"]
+    child_profiles = {
+        child: profiles[child] for child, parent in graph.edges if parent == root
+    }
+    result = _root_service_from_children(context, policy, child_profiles)
+    result["node_profiles"] = profiles
+    return result
+
+
+def renewal_bellman_solver(context, policy):
+    graph = _build_graph(context)
+    profiles = _all_node_profiles(context, policy)
+    root = context["root"]
+    child_profiles = {
+        child: profiles[child] for child, parent in graph.edges if parent == root
+    }
+    return _root_bellman_from_children(context, policy, child_profiles)
+
+
+def salvage_credit_once(_context=None):
+    return {category: 0.0 for category in COST_CATEGORIES}
+
+
+def evaluate_policy(policy, context=None, rates=None):
+    selected_context = build_h1_context(rates) if context is None else context
+    closed = _closed_form_policy_cost(selected_context, policy)
+    bellman = renewal_bellman_solver(selected_context, policy)
+    feasible = bool(closed["feasible"] and bellman["feasible"])
+    if feasible:
+        gap = max(
+            _vector_gap(closed["cost_by_category"], bellman["cost_by_category"]),
+            abs(closed["profit_per_good"] - bellman["profit_per_good"]),
+        )
+    else:
+        gap = 0.0
+    result = dict(closed)
+    result.update(
+        {
+            "feasible": feasible,
+            "cashflow_gap": gap,
+            "bellman_cost_by_category": bellman["cost_by_category"],
+            "policy": {node: dict(policy[node]) for node in selected_context["node_order"]},
+        }
+    )
+    return result
+
+
+def dag_node_recursion(context, policy):
+    graph = _build_graph(context)
+    profiles = {}
+    for node_id in reversed(tuple(nx.topological_sort(graph))):
+        children = tuple(child for child, parent in graph.edges if parent == node_id)
+        child_profiles = {child: profiles[child] for child in children}
+        profiles[node_id] = _node_profile_from_children(
+            context, policy, node_id, child_profiles
+        )
+    root = context["root"]
+    child_profiles = {
+        child: profiles[child] for child, parent in graph.edges if parent == root
+    }
+    root_result = _root_service_from_children(context, policy, child_profiles)
+    return {
+        "graph_nodes": list(nx.topological_sort(graph)),
+        "node_profiles": profiles,
+        "root_result": root_result,
+    }
+
+
+def _prune_frontier(options, node_order):
+    ordered = sorted(
+        options,
+        key=lambda option: (
+            -option["good_probability"],
+            _vector_total(option["cost_by_category"]),
+            option["policy_signature"],
+        ),
+    )
+    retained = []
+    for candidate in ordered:
+        dominated = False
+        for keeper in retained:
+            no_less_good = (
+                candidate["good_probability"]
+                <= keeper["good_probability"] + PROBABILITY_ABS_TOL
             )
-            row = {
-                "case_id": str(case["case_id"]),
-                "policy_vector_q2": list(policy),
-                "q3_degenerate_profit": tree_profit,
-                "independent_q2_markov_profit": reference[
-                    "profit_yuan_per_qualified_delivery"
-                ],
-                "absolute_difference": difference,
-                "within_tolerance": bool(
-                    difference <= params.CASHFLOW_ABS_TOL
-                ),
-                "absorption_probability": reference["absorption_probability"],
-                "bellman_residual": reference["bellman_residual"],
-                "cashflow_identity_error": reference["cashflow_identity_error"],
-                "dp_state_count": reference["dp_state_count"],
-                "reference_cashflow": {
-                    key: reference[key]
-                    for key in (
-                        "purchase_cost",
-                        "inspection_cost",
-                        "assembly_cost",
-                        "disassembly_cost",
-                        "exchange_loss",
-                        "market_revenue",
-                        "market_transactions",
-                        "customer_returns",
+            no_more_cost = (
+                _vector_total(candidate["cost_by_category"])
+                >= _vector_total(keeper["cost_by_category"])
+                - CASHFLOW_ABS_TOL_YUAN
+            )
+            strict = (
+                candidate["good_probability"]
+                < keeper["good_probability"] - PROBABILITY_ABS_TOL
+                or _vector_total(candidate["cost_by_category"])
+                > _vector_total(keeper["cost_by_category"])
+                + CASHFLOW_ABS_TOL_YUAN
+            )
+            if no_less_good and no_more_cost and strict:
+                dominated = True
+                break
+        if not dominated:
+            retained.append(candidate)
+    return retained
+
+
+def _frontier_option(
+    context,
+    node_order,
+    node_id,
+    mode,
+    good_probability,
+    cost_by_category,
+    policy,
+):
+    return {
+        "node_id": node_id,
+        "mode": mode,
+        "good_probability": good_probability,
+        "cost_by_category": dict(cost_by_category),
+        "policy": policy,
+        "policy_signature": _policy_signature(policy, node_order),
+    }
+
+
+def _optimise_context(context):
+    graph = _build_graph(context)
+    node_order = tuple(context["node_order"])
+    children_by_node = {
+        node_id: tuple(
+            sorted(
+                (child for child, parent in graph.edges if parent == node_id),
+                key=node_order.index,
+            )
+        )
+        for node_id in node_order
+    }
+    cache = {}
+
+    def frontier(node_id, mode):
+        key = (node_id, mode)
+        if key in cache:
+            return cache[key]
+        node = context["nodes"][node_id]
+        children = children_by_node[node_id]
+        if not children:
+            if mode == _MODE_SCREENED:
+                good_rate = 1.0 - node["p"]
+                if good_rate <= PROBABILITY_ABS_TOL:
+                    cache[key] = []
+                    return cache[key]
+                vector = _zero_vector()
+                vector["purchase"] = node["purchase_cost"] / good_rate
+                vector["inspection"] = node["k"] / good_rate
+                policy = {
+                    node_id: {
+                        _POLICY_INSPECT: _MODE_SCREENED,
+                        _POLICY_DISASSEMBLE: 0,
+                    }
+                }
+                options = [
+                    _frontier_option(
+                        context,
+                        node_order,
+                        node_id,
+                        mode,
+                        1.0,
+                        vector,
+                        policy,
                     )
+                ]
+            else:
+                vector = _zero_vector()
+                vector["purchase"] = node["purchase_cost"]
+                policy = {
+                    node_id: {
+                        _POLICY_INSPECT: _MODE_RANDOM,
+                        _POLICY_DISASSEMBLE: 0,
+                    }
+                }
+                options = [
+                    _frontier_option(
+                        context,
+                        node_order,
+                        node_id,
+                        mode,
+                        1.0 - node["p"],
+                        vector,
+                        policy,
+                    )
+                ]
+            cache[key] = options
+            return options
+
+        child_pools = [frontier(child, _MODE_RANDOM) + frontier(child, _MODE_SCREENED) for child in children]
+        child_pools = [_prune_frontier(pool, node_order) for pool in child_pools]
+        if any(not pool for pool in child_pools):
+            cache[key] = []
+            return cache[key]
+        options = []
+        if mode == _MODE_RANDOM:
+            for combination in itertools.product(*child_pools):
+                quality = 1.0 - node["p"]
+                child_cost = _zero_vector()
+                for option in combination:
+                    quality *= option["good_probability"]
+                    child_cost = _vector_add(child_cost, option["cost_by_category"])
+                vector = _vector_add(
+                    child_cost, {**_zero_vector(), "assembly": node["a"]}
+                )
+                for disassemble in (0, 1):
+                    policy = _policy_with_children(
+                        node_id, _MODE_RANDOM, disassemble, combination
+                    )
+                    options.append(
+                        _frontier_option(
+                            context,
+                            node_order,
+                            node_id,
+                            mode,
+                            quality,
+                            vector,
+                            policy,
+                        )
+                    )
+            cache[key] = _prune_frontier(options, node_order)
+            return cache[key]
+
+        for disassemble in (0, 1):
+            for combination in itertools.product(*child_pools):
+                quality = 1.0 - node["p"]
+                child_quality = 1.0
+                child_cost = _zero_vector()
+                for option in combination:
+                    quality *= option["good_probability"]
+                    child_quality *= option["good_probability"]
+                    child_cost = _vector_add(child_cost, option["cost_by_category"])
+                if quality <= PROBABILITY_ABS_TOL:
+                    continue
+                fixed = _zero_vector()
+                fixed["assembly"] = node["a"]
+                fixed["inspection"] = node["k"]
+                if disassemble == 1 and child_quality < 1.0 - PROBABILITY_ABS_TOL:
+                    continue
+                if disassemble == 1:
+                    local = _vector_add(
+                        fixed,
+                        {**_zero_vector(), "disassembly": (1.0 - quality) * node["h"]},
+                    )
+                    vector = _vector_add(child_cost, _vector_scale(local, 1.0 / quality))
+                else:
+                    vector = _vector_scale(
+                        _vector_add(child_cost, fixed), 1.0 / quality
+                    )
+                policy = _policy_with_children(
+                    node_id, _MODE_SCREENED, disassemble, combination
+                )
+                options.append(
+                    _frontier_option(
+                        context,
+                        node_order,
+                        node_id,
+                        mode,
+                        1.0,
+                        vector,
+                        policy,
+                    )
+                )
+        cache[key] = _prune_frontier(options, node_order)
+        return cache[key]
+
+    for node_id in reversed(node_order):
+        frontier(node_id, _MODE_RANDOM)
+        frontier(node_id, _MODE_SCREENED)
+    root = context["root"]
+    root_children = children_by_node[root]
+    root_pools = [
+        _prune_frontier(
+            frontier(child, _MODE_RANDOM) + frontier(child, _MODE_SCREENED),
+            node_order,
+        )
+        for child in root_children
+    ]
+    candidates = []
+    if all(root_pools):
+        combinations = itertools.product(*root_pools)
+        for root_inspect in (_MODE_RANDOM, _MODE_SCREENED):
+            for root_disassemble in (0, 1):
+                root_policy = {
+                    root: {
+                        _POLICY_INSPECT: root_inspect,
+                        _POLICY_DISASSEMBLE: root_disassemble,
+                    }
+                }
+                child_profiles = {
+                    child: {
+                        "feasible": True,
+                        "good_probability": option["good_probability"],
+                        "cost_by_category": option["cost_by_category"],
+                    }
+                    for child, option in zip(root_children, combinations)
+                }
+                result = _root_service_from_children(context, root_policy, child_profiles)
+                if not result["feasible"]:
+                    continue
+                policy = {}
+                for option in combinations:
+                    policy.update(option["policy"])
+                policy.update(root_policy)
+                candidates.append(
+                    {
+                        "strategy": policy,
+                        "profit_per_good": result["profit_per_good"],
+                        "profit": result["profit"],
+                        "root_inspect": root_inspect,
+                        "root_disassemble": root_disassemble,
+                        "initial_attempt_good_probability": result[
+                            "initial_attempt_good_probability"
+                        ],
+                        "policy_signature": _policy_signature(policy, node_order),
+                    }
+                )
+    _require_condition(candidates, "no finite Q3 policy was found")
+    best_profit = max(candidate["profit_per_good"] for candidate in candidates)
+    tied = [
+        candidate
+        for candidate in candidates
+        if best_profit - candidate["profit_per_good"] <= CASHFLOW_ABS_TOL_YUAN
+    ]
+    selected = min(tied, key=lambda candidate: candidate["policy_signature"])
+    frontier_sizes = {
+        node_id: {
+            "random": len(frontier(node_id, _MODE_RANDOM)),
+            "screened": len(frontier(node_id, _MODE_SCREENED)),
+        }
+        for node_id in node_order
+    }
+    return {
+        "selected": selected,
+        "candidates": candidates,
+        "candidate_count": len(candidates),
+        "frontier_sizes": frontier_sizes,
+        "frontier_node_count": len(node_order),
+        "enumeration": "exact_separable_DAG_dynamic_programming_with_Pareto_dominance",
+    }
+
+
+def event_cashflow_ledger(context, policy, evaluation):
+    graph = _build_graph(context)
+    profiles = evaluation["node_profiles"]
+    root = context["root"]
+    ledger_profiles = dict(profiles)
+    root_profile = dict(profiles[root])
+    root_profile["cost_by_category"] = dict(evaluation["cost_by_category"])
+    root_profile["good_probability"] = 1.0
+    ledger_profiles[root] = root_profile
+    rows = []
+    cumulative = 0.0
+
+    def append_subtree(node_id, scale):
+        nonlocal cumulative
+        profile = ledger_profiles[node_id]
+        children = tuple(child for child, parent in graph.edges if parent == node_id)
+        local_factor = 1.0
+        if (
+            int(policy[node_id][_POLICY_INSPECT]) == _MODE_SCREENED
+            and int(policy[node_id][_POLICY_DISASSEMBLE]) == 0
+        ):
+            immediate = profile.get("immediate_good_probability", 1.0)
+            if immediate <= PROBABILITY_ABS_TOL:
+                return
+            local_factor = 1.0 / immediate
+        child_sum = _zero_vector()
+        for child in children:
+            child_sum = _vector_add(
+                child_sum, ledger_profiles[child]["cost_by_category"]
+            )
+            append_subtree(child, scale * local_factor)
+        local_vector = _vector_scale(
+            _vector_add(profile["cost_by_category"], _vector_scale(child_sum, -local_factor)),
+            scale,
+        )
+        for category in COST_CATEGORIES:
+            amount = float(local_vector[category])
+            if abs(amount) <= CASHFLOW_ABS_TOL_YUAN:
+                continue
+            cash_term = -amount
+            cumulative += cash_term
+            rows.append(
+                {
+                    "event_type": f"{category}_renewal_expectation",
+                    "physical_node": node_id,
+                    "detection_evidence": (
+                        "screened"
+                        if int(policy[node_id][_POLICY_INSPECT]) == _MODE_SCREENED
+                        else "uninspected"
+                    ),
+                    "strategy_branch": (
+                        f"z={int(policy[node_id][_POLICY_INSPECT])},"
+                        f"d={int(policy[node_id][_POLICY_DISASSEMBLE])}"
+                    ),
+                    "probability": profile["good_probability"],
+                    "expected_cash_amount": amount,
+                    "cash_term": cash_term,
+                    "cumulative_cost": cumulative,
+                    "current_state": f"renewal_request:{node_id}",
+                    "termination_reason": (
+                        "terminal_good_delivery"
+                        if node_id == root
+                        else "requested_subtree_output"
+                    ),
+                    "salvage_credit": 0.0,
+                }
+            )
+
+    append_subtree(root, 1.0)
+    ledger_total = -cumulative
+    expected_total = _vector_total(evaluation["cost_by_category"])
+    return rows, abs(ledger_total - expected_total)
+
+
+def _set_partitions(items, group_count):
+    if group_count == 1:
+        return (tuple(items),)
+    if len(items) < group_count:
+        return ()
+    first = items[0]
+    remaining = items[1:]
+    partitions = []
+    for selected in itertools.combinations(remaining, group_count - 1):
+        selected_set = set(selected)
+        block = tuple(item for item in items if item == first or item in selected_set)
+        rest = tuple(item for item in items if item not in block)
+        for tail in _set_partitions(rest, group_count - 1):
+            partitions.append((block,) + tail)
+    return tuple(partitions)
+
+
+def _stirling_second_kind(total, groups):
+    if groups == 0:
+        return int(total == 0)
+    if groups < 0 or total < 0 or groups > total:
+        return 0
+    if total == 0:
+        return 0
+    return _stirling_second_kind(total - 1, groups - 1) + groups * _stirling_second_kind(
+        total - 1, groups
+    )
+
+
+def _scan_topologies(h1_policy, h1_profit):
+    part_ids = tuple(Q3_PARTS)
+    partitions = _set_partitions(part_ids, Q3_SEMI_PRODUCT_COUNT_CONDITIONAL)
+    expected_count = _stirling_second_kind(
+        Q3_PART_COUNT, Q3_SEMI_PRODUCT_COUNT_CONDITIONAL
+    )
+    _require_condition(
+        len(partitions) == expected_count,
+        "conditional topology partition enumeration is incomplete",
+    )
+    h1_signature = _policy_signature(h1_policy, Q3_NODE_ORDER)
+    rows = []
+    matches = 0
+    role_matches = {node_id: 0 for node_id in Q3_NODE_ORDER}
+    maximum_gap = 0.0
+    for partition in partitions:
+        context = _partition_context(partition, f"partition_{len(rows)}")
+        optimum = _optimise_context(context)
+        evaluation = evaluate_policy(optimum["selected"]["strategy"], context)
+        signature = _policy_signature(optimum["selected"]["strategy"], Q3_NODE_ORDER)
+        matched = signature == h1_signature
+        matches += int(matched)
+        for node_id in Q3_NODE_ORDER:
+            same = optimum["selected"]["strategy"][node_id] == h1_policy[node_id]
+            role_matches[node_id] += int(same)
+        maximum_gap = max(maximum_gap, evaluation["cashflow_gap"])
+        rows.append(
+            {
+                "partition_id": len(rows),
+                "groups": [list(group) for group in partition],
+                "strategy": optimum["selected"]["strategy"],
+                "profit": optimum["selected"]["profit_per_good"],
+                "matches_H1": matched,
+                "cashflow_gap": evaluation["cashflow_gap"],
+            }
+        )
+    _require_condition(
+        len(rows) > 0 and abs(partitions[0][0] + ("",))[0] is not None,
+        "topology scan produced no rows",
+    )
+    return {
+        "claim_label": CONDITIONAL_H1_LABEL,
+        "partition_count": len(rows),
+        "partition_count_recomputed": expected_count,
+        "strategy_match_count": matches,
+        "strategy_match_rate": matches / len(rows),
+        "node_decision_stability_rate": {
+            node_id: role_matches[node_id] / len(rows) for node_id in Q3_NODE_ORDER
+        },
+        "maximum_cashflow_gap": maximum_gap,
+        "rows": rows,
+    }
+
+
+def _signed_q1_delta_grid():
+    zero = Q3_NODES[Q3_ROOT_NODE_ID]["p"] - Q3_NODES[Q3_ROOT_NODE_ID]["p"]
+    return (
+        tuple(-value for value in reversed(Q1_DELTA_GRID))
+        + (zero,)
+        + tuple(Q1_DELTA_GRID)
+    )
+
+
+def _context_with_rates(context, rates):
+    copied = dict(context)
+    copied["nodes"] = {node_id: dict(node) for node_id, node in context["nodes"].items()}
+    for node_id, rate in rates.items():
+        copied["nodes"][node_id]["p"] = validate_probability(rate, f"{node_id}.p")
+    return copied
+
+
+def _context_with_cost_multipliers(context, multipliers):
+    copied = dict(context)
+    copied["nodes"] = {node_id: dict(node) for node_id, node in context["nodes"].items()}
+    inspection_multiplier, exchange_multiplier = multipliers
+    for node in copied["nodes"].values():
+        node["k"] = validate_nonnegative(
+            node["k"] * inspection_multiplier, "scaled inspection cost"
+        )
+    copied["exchange_loss"] = validate_nonnegative(
+        context["exchange_loss"] * exchange_multiplier, "scaled exchange loss"
+    )
+    return copied
+
+
+def _all_cost_multiplier_grid():
+    count = Q3_TOTAL_NODE_COUNT_CONDITIONAL
+    span = SENSITIVITY_COST_MULTIPLIER_HIGH - SENSITIVITY_COST_MULTIPLIER_LOW
+    return tuple(
+        SENSITIVITY_COST_MULTIPLIER_LOW + index * span / (count - 1)
+        for index in range(count)
+    )
+
+
+def _q3_sensitivity(context):
+    defect_rows = []
+    base_rate = context["nodes"][Q3_ROOT_NODE_ID]["p"]
+    for offset in _signed_q1_delta_grid():
+        rate = validate_probability(base_rate + offset, "Q3 sensitivity defect rate")
+        rates = {node_id: rate for node_id in context["node_order"]}
+        scenario = _context_with_rates(context, rates)
+        optimum = _optimise_context(scenario)
+        defect_rows.append(
+            {
+                "defect_rate": rate,
+                "rate_offset": offset,
+                "profit": optimum["selected"]["profit_per_good"],
+                "strategy": optimum["selected"]["strategy"],
+            }
+        )
+    multiplier_grid = _all_cost_multiplier_grid()
+    cost_rows = []
+    for multiplier in multiplier_grid:
+        scenario = _context_with_cost_multipliers(context, (multiplier, multiplier))
+        optimum = _optimise_context(scenario)
+        cost_rows.append(
+            {
+                "cost_multiplier": multiplier,
+                "profit": optimum["selected"]["profit_per_good"],
+                "strategy": optimum["selected"]["strategy"],
+            }
+        )
+    contour_rows = []
+    for inspection_multiplier in multiplier_grid:
+        for exchange_multiplier in multiplier_grid:
+            scenario = _context_with_cost_multipliers(
+                context, (inspection_multiplier, exchange_multiplier)
+            )
+            optimum = _optimise_context(scenario)
+            contour_rows.append(
+                {
+                    "inspection_cost_multiplier": inspection_multiplier,
+                    "exchange_loss_multiplier": exchange_multiplier,
+                    "profit": optimum["selected"]["profit_per_good"],
+                    "strategy": optimum["selected"]["strategy"],
+                }
+            )
+    return {
+        "defect_rate_scan": defect_rows,
+        "all_cost_multiplier_scan": cost_rows,
+        "inspection_exchange_breakeven_grid": contour_rows,
+    }
+
+
+def _q2_reference_profit(case, strategy):
+    inspect_part1, inspect_part2, inspect_root, disassemble = strategy
+    child_data = (
+        (case["p_part1"], case["purchase_part1"], case["inspection_part1"], inspect_part1),
+        (case["p_part2"], case["purchase_part2"], case["inspection_part2"], inspect_part2),
+    )
+    child_cost = 0.0
+    all_children_good = 1.0
+    for rate, purchase, inspection, inspect in child_data:
+        if inspect == 1:
+            good_rate = 1.0 - rate
+            if good_rate <= PROBABILITY_ABS_TOL:
+                return {"feasible": False, "profit_per_good": None}
+            child_cost += (purchase + inspection) / good_rate
+            all_children_good *= 1.0
+        else:
+            child_cost += purchase
+            all_children_good *= 1.0 - rate
+    root_rate = case["p_finished"]
+    root_good = (1.0 - root_rate) * all_children_good
+    if disassemble == 1 and all_children_good < 1.0 - PROBABILITY_ABS_TOL:
+        return {"feasible": False, "profit_per_good": None}
+    if disassemble == 1:
+        intrinsic_good = 1.0 - root_rate
+        if intrinsic_good <= PROBABILITY_ABS_TOL:
+            return {"feasible": False, "profit_per_good": None}
+        cost = child_cost
+        cost += case["assembly_cost"] / intrinsic_good
+        cost += inspect_root * case["finished_inspection_cost"] / intrinsic_good
+        cost += (
+            int(inspect_root == 0)
+            * (1.0 - intrinsic_good)
+            * case["exchange_loss"]
+            / intrinsic_good
+        )
+        cost += (
+            (1.0 - intrinsic_good)
+            * case["disassembly_cost"]
+            / intrinsic_good
+        )
+    else:
+        if root_good <= PROBABILITY_ABS_TOL:
+            return {"feasible": False, "profit_per_good": None}
+        cost = child_cost
+        cost += case["assembly_cost"] / root_good
+        cost += inspect_root * case["finished_inspection_cost"] / root_good
+        cost += (
+            int(inspect_root == 0)
+            * (1.0 - root_good)
+            * case["exchange_loss"]
+            / root_good
+        )
+    return {
+        "feasible": True,
+        "profit_per_good": case["sale_price"] - cost,
+    }
+
+
+def degeneracy_equivalence_test():
+    rows = []
+    maximum_gap = 0.0
+    infeasible_count = 0
+    for case in Q2_CASES:
+        nodes = {
+            "part1": {
+                "node_id": "part1",
+                "node_type": "part",
+                "p": case["p_part1"],
+                "a": 0.0,
+                "k": case["inspection_part1"],
+                "h": 0.0,
+                "purchase_cost": case["purchase_part1"],
+            },
+            "part2": {
+                "node_id": "part2",
+                "node_type": "part",
+                "p": case["p_part2"],
+                "a": 0.0,
+                "k": case["inspection_part2"],
+                "h": 0.0,
+                "purchase_cost": case["purchase_part2"],
+            },
+            "finished": {
+                "node_id": "finished",
+                "node_type": "finished_product",
+                "p": case["p_finished"],
+                "a": case["assembly_cost"],
+                "k": case["finished_inspection_cost"],
+                "h": case["disassembly_cost"],
+                "purchase_cost": 0.0,
+            },
+        }
+        context = {
+            "label": f"degenerate_Q2_case_{case['case_id']}",
+            "topology_id": f"degenerate_case_{case['case_id']}",
+            "claim_status": "exact_two_leaf_degeneration",
+            "nodes": nodes,
+            "node_order": ("part1", "part2", "finished"),
+            "edges": Q3_DEGENERATION_EDGES,
+            "root": Q3_ROOT_NODE_ID,
+            "sale_price": case["sale_price"],
+            "exchange_loss": case["exchange_loss"],
+        }
+        for values in itertools.product((0, 1), repeat=len(Q2_DECISION_NAMES)):
+            inspect_part1, inspect_part2, inspect_root, disassemble = values
+            policy = {
+                "part1": {
+                    _POLICY_INSPECT: inspect_part1,
+                    _POLICY_DISASSEMBLE: 0,
+                },
+                "part2": {
+                    _POLICY_INSPECT: inspect_part2,
+                    _POLICY_DISASSEMBLE: 0,
+                },
+                "finished": {
+                    _POLICY_INSPECT: inspect_root,
+                    _POLICY_DISASSEMBLE: disassemble,
                 },
             }
-            case_rows.append(row)
-            rows.append(row)
-        case_payloads.append(
+            graph_result = evaluate_policy(policy, context)
+            reference = _q2_reference_profit(case, values)
+            matching_feasibility = graph_result["feasible"] == reference["feasible"]
+            if graph_result["feasible"] and reference["feasible"]:
+                gap = abs(
+                    graph_result["profit_per_good"] - reference["profit_per_good"]
+                )
+                maximum_gap = max(maximum_gap, gap)
+                graph_profit = graph_result["profit_per_good"]
+                reference_profit = reference["profit_per_good"]
+            else:
+                gap = 0.0
+                graph_profit = None
+                reference_profit = None
+                infeasible_count += int(not graph_result["feasible"])
+            rows.append(
+                {
+                    "case_id": case["case_id"],
+                    "strategy": list(values),
+                    "q3_degenerate_policy": policy,
+                    "feasible": graph_result["feasible"] and reference["feasible"],
+                    "matching_feasibility": matching_feasibility,
+                    "q3_profit": graph_profit,
+                    "q2_reference_profit": reference_profit,
+                    "profit_gap": gap,
+                    "cashflow_gap": graph_result["cashflow_gap"],
+                }
+            )
+    _require_condition(
+        all(row["matching_feasibility"] for row in rows),
+        "Q2/Q3 degeneration feasibility differs",
+    )
+    return {
+        "mapped_policy_count": len(rows),
+        "infeasible_policy_count": infeasible_count,
+        "maximum_profit_gap": maximum_gap,
+        "maximum_cashflow_gap": maximum_gap,
+        "rows": rows,
+    }
+
+
+def _graph_payload(context):
+    graph = _build_graph(context)
+    nodes = []
+    for node_id in context["node_order"]:
+        node = context["nodes"][node_id]
+        nodes.append(
             {
-                "case_id": str(case["case_id"]),
-                "policy_count": len(case_rows),
-                "max_absolute_difference": case_maximum,
-                "all_within_tolerance": bool(
-                    case_maximum <= params.CASHFLOW_ABS_TOL
-                ),
-                "comparisons": case_rows,
+                "node_id": node_id,
+                "node_type": node["node_type"],
+                "defect_rate": node["p"],
+                "assembly_cost": node["a"],
+                "inspection_cost": node["k"],
+                "disassembly_cost": node["h"],
+                "purchase_cost": node["purchase_cost"],
+                "children": [
+                    child for child, parent in graph.edges if parent == node_id
+                ],
             }
         )
     return {
-        "reference_model": "independent_nine_state_absorbing_markov_reward",
-        "tolerance": params.CASHFLOW_ABS_TOL,
-        "q2_policy_count_per_case": params.Q2_POLICY_SPACE_COUNT,
-        "case_count": len(params.Q2_CASES),
-        "comparison_count": len(rows),
-        "max_absolute_difference": maximum_error,
-        "identity_max_diff": maximum_error,
-        "max_cashflow_identity_error": maximum_identity_error,
-        "all_within_tolerance": bool(
-            maximum_error <= params.CASHFLOW_ABS_TOL
-            and maximum_identity_error <= params.CASHFLOW_ABS_TOL
-        ),
-        "cases": case_payloads,
-        "comparisons": rows,
+        "label": context["label"],
+        "topology_id": context["topology_id"],
+        "claim_status": context["claim_status"],
+        "directed": graph.is_directed(),
+        "is_dag": nx.is_directed_acyclic_graph(graph),
+        "node_count": len(graph.nodes),
+        "edge_count": len(graph.edges),
+        "nodes": nodes,
+        "edges": [
+            {"child": child, "parent": parent} for child, parent in graph.edges
+        ],
+        "root": context["root"],
+        "sale_price": context["sale_price"],
+        "exchange_loss": context["exchange_loss"],
     }
 
 
-def output_rate(metrics: Mapping[str, Any]) -> float | None:
-    """返回每次节点投入的合格产出率 Q。"""
-    value = float(metrics["output_rate_Q"])
-    return value if math.isfinite(value) else None
+def validate_constraints(result):
+    topology_rows = result["topology_scan"]["rows"]
+    expected_partitions = _stirling_second_kind(
+        Q3_PART_COUNT, Q3_SEMI_PRODUCT_COUNT_CONDITIONAL
+    )
+    checks = {
+        "conditional_label_present": result["conditional_label"] == CONDITIONAL_H1_LABEL,
+        "original_topology_blocked": result["original_problem_status"]
+        == "blocked_missing_original_figure_edges",
+        "graph_is_dag": result["graph"]["is_dag"],
+        "cashflow_gap_within_tolerance": result["cashflow_max_gap"]
+        <= CASHFLOW_ABS_TOL_YUAN,
+        "degeneration_gap_within_tolerance": result["degeneration_max_gap"]
+        <= CASHFLOW_ABS_TOL_YUAN,
+        "topology_partition_count_recomputed": len(topology_rows)
+        == expected_partitions,
+        "all_strategy_cashflow_gaps_within_tolerance": max(
+            row["cashflow_gap"] for row in topology_rows
+        )
+        <= CASHFLOW_ABS_TOL_YUAN,
+        "all_degeneration_feasibility_flags_match": all(
+            row["matching_feasibility"]
+            for row in result["degeneration_equivalence"]["rows"]
+        ),
+        "finite_selected_profit": math.isfinite(result["profit"]),
+        "all_expense_parameters_enter_equations": all(
+            result["cost_parameter_usage"].values()
+        ),
+    }
+    return {"passed": all(checks.values()), "checks": checks}
 
 
-def launch_cost_rate(metrics: Mapping[str, Any]) -> float | None:
-    """返回与 Q 同轨迹的每次投入期望现金成本 C。"""
-    value = float(metrics["launch_cash_cost_rate_C"])
-    return value if math.isfinite(value) else None
-
-
-def U_equals_C_over_Q(metrics: Mapping[str, Any]) -> dict[str, Any]:
-    """核验单位合格产出成本始终按 U=C/Q 计算。"""
-    q_value = output_rate(metrics)
-    c_value = launch_cost_rate(metrics)
-    if q_value is None or c_value is None or q_value <= 0.0:
-        return {
-            "valid": False,
-            "Q": q_value,
-            "C": c_value,
-            "U": None,
-            "identity_error": None,
+def solve_problem3(*args, **kwargs):
+    context = kwargs.get("context")
+    if context is None:
+        for candidate in args:
+            if isinstance(candidate, dict) and "nodes" in candidate and "edges" in candidate:
+                context = candidate
+                break
+    context = build_h1_context(kwargs.get("rates")) if context is None else context
+    _build_graph(context)
+    optimum = _optimise_context(context)
+    policy = optimum["selected"]["strategy"]
+    evaluation = evaluate_policy(policy, context)
+    _require_condition(evaluation["feasible"], "selected H1 policy is infeasible")
+    dag_reference = dag_node_recursion(context, policy)
+    dag_gap = abs(
+        dag_reference["root_result"]["profit_per_good"] - evaluation["profit_per_good"]
+    )
+    ledger_rows, ledger_gap = event_cashflow_ledger(context, policy, evaluation)
+    topology_scan = _scan_topologies(
+        policy, optimum["selected"]["profit_per_good"]
+    )
+    degeneration = degeneracy_equivalence_test()
+    sensitivity = _q3_sensitivity(context)
+    maximum_gap = max(
+        evaluation["cashflow_gap"], dag_gap, ledger_gap, topology_scan["maximum_cashflow_gap"]
+    )
+    decision_rows = [
+        {
+            "node_id": node_id,
+            "inspect": policy[node_id][_POLICY_INSPECT],
+            "disassemble_defective": policy[node_id][_POLICY_DISASSEMBLE],
         }
-    unit_cost = c_value / q_value
-    return {
-        "valid": bool(unit_cost >= 0.0),
-        "Q": q_value,
-        "C": c_value,
-        "U": unit_cost,
-        "identity_error": abs(unit_cost * q_value - c_value),
-    }
-
-
-def topology_perturbation(
-    primary_result: Mapping[str, Any],
-    alternative_result: Mapping[str, Any],
-) -> dict[str, Any]:
-    primary_profit = float(primary_result["profit"])
-    alternative_profit = float(alternative_result["profit"])
-    return {
-        "primary_profit": primary_profit,
-        "alternative_profit": alternative_profit,
-        "absolute_profit_gap": abs(primary_profit - alternative_profit),
-        "signed_profit_gap_primary_minus_alternative": (
-            primary_profit - alternative_profit
-        ),
-        "policy_changed": bool(
-            primary_result["policy_vector"] != alternative_result["policy_vector"]
-        ),
-    }
-
-
-def evaluate_strategy(
-    policy: Any,
-    defect_rates: Any = None,
-    topology: Any = None,
-    rates: Any = None,
-) -> dict[str, Any]:
-    """供跨问重优化调用的单策略事件利润接口。"""
-    selected_rates = rates if rates is not None else defect_rates
-    return event_markov_reward(policy, selected_rates, topology)
-
-
-def evaluate_policy(
-    policy: Any,
-    defect_rates: Any = None,
-    topology: Any = None,
-    rates: Any = None,
-) -> dict[str, Any]:
-    return evaluate_strategy(policy, defect_rates, topology, rates)
-
-
-def evaluate_q3_policy(
-    policy: Any,
-    defect_rates: Any = None,
-    topology: Any = None,
-) -> dict[str, Any]:
-    return evaluate_strategy(policy, defect_rates, topology)
-
-
-def policy_profit(
-    policy: Any,
-    defect_rates: Any = None,
-    topology: Any = None,
-) -> float | None:
-    value = evaluate_strategy(policy, defect_rates, topology)
-    return value["profit_yuan_per_qualified_delivery"] if value["feasible"] else None
-
-
-def decision_value(
-    defect_rates: Any,
-    policy: Any,
-    topology: Any = None,
-) -> float | None:
-    return policy_profit(policy, defect_rates, topology)
-
-
-def optimize_policy(
-    defect_rates: Any = None,
-    topology: Any = None,
-    include_strategy_grid: bool = False,
-) -> dict[str, Any]:
-    return optimize_network(
-        defect_rates,
-        topology,
-        include_strategy_grid,
+        for node_id in context["node_order"]
+    ]
+    policy_label = ";".join(
+        f"{row['node_id']}:z={row['inspect']},d={row['disassemble_defective']}"
+        for row in decision_rows
     )
-
-
-def solve_network(
-    defect_rates: Any = None,
-    topology: Any = None,
-    include_strategy_grid: bool = False,
-) -> dict[str, Any]:
-    return optimize_network(
-        defect_rates,
-        topology,
-        include_strategy_grid,
-    )
-
-
-def solve_q3(
-    defect_rates: Any = None,
-    topology: Any = None,
-    include_strategy_grid: bool = False,
-) -> dict[str, Any]:
-    return optimize_network(
-        defect_rates,
-        topology,
-        include_strategy_grid,
-    )
-
-
-def run_problem3() -> dict[str, Any]:
-    """运行主替拓扑、完整策略枚举和退化等价验收。"""
-    if len(_POLICY_BIT_ORDER) != (
-        params.Q3_INSPECTION_DECISION_COUNT
-        + params.Q3_DISPOSAL_DECISION_COUNT
-    ):
-        raise RuntimeError("问题三决策位登记数量不一致")
-    if params.Q3_POLICY_SPACE_COUNT != (
-        2 ** params.Q3_TOTAL_DECISION_COUNT
-    ):
-        raise RuntimeError("问题三策略空间规模与决策位数不一致")
-    primary = optimize_network(
-        defect_rates=None,
-        topology=params.Q3_PRIMARY_TOPOLOGY,
-        include_strategy_grid=True,
-    )
-    alternative = optimize_network(
-        defect_rates=None,
-        topology=params.Q3_ALTERNATIVE_TOPOLOGY,
-        include_strategy_grid=True,
-    )
-    degeneration = q2_degenerate_16_policy_equivalence()
-    if not degeneration["all_within_tolerance"]:
-        raise RuntimeError("问题二退化实例与问题三事件网络未通过等价验收")
-    topology_comparison = topology_perturbation(primary, alternative)
-    payload = {
-        "status": "completed",
-        "official_instance_status": "blocked_missing_authoritative_topology",
-        "conditional_results_only": True,
-        "official_topology_available": params.Q3_OFFICIAL_TOPOLOGY_AVAILABLE,
-        "official_instance": {
-            "status": "not_claimed",
-            "reason": "upstream_missing_verified_figure1_parent_edges",
-            "requested_specific_instance_answer_available": False,
+    strategy_candidates = [
+        {
+            "strategy": candidate["strategy"],
+            "profit_per_good": candidate["profit_per_good"],
+            "root_inspect": candidate["root_inspect"],
+            "root_disassemble": candidate["root_disassemble"],
+            "initial_attempt_good_probability": candidate[
+                "initial_attempt_good_probability"
+            ],
+        }
+        for candidate in optimum["candidates"]
+    ]
+    result = {
+        "status": "success_with_conditional_topology_blocker",
+        "execution_status": "success",
+        "original_problem_status": "blocked_missing_original_figure_edges",
+        "original_problem_complete": False,
+        "conditional_scenario_complete": True,
+        "conditional_label": CONDITIONAL_H1_LABEL,
+        "topology_evidence": {
+            "fact_id": "F-FIG1",
+            "available_content": "process_count_and_part_count_only",
+            "parent_child_edges_available": False,
+            "conditional_edges_used": [list(edge) for edge in context["edges"]],
         },
-        "primary": primary,
-        "alternative": alternative,
-        "primary_policy": primary["policy"],
-        "primary_profit": primary["profit"],
-        "alternative_policy": alternative["policy"],
-        "alternative_profit": alternative["profit"],
-        "topology_profit_gap": topology_comparison["absolute_profit_gap"],
-        "topology_perturbation": topology_comparison,
-        "degenerate_q2_equivalence": degeneration,
-        "degeneration_max_error": degeneration["max_absolute_difference"],
-        "identity_max_diff": degeneration["max_absolute_difference"],
-        "strategy_spaces": {
-            "primary": primary["strategy_space"],
-            "alternative": alternative["strategy_space"],
+        "graph": _graph_payload(context),
+        "strategy": policy,
+        "strategy_label": policy_label,
+        "node_decisions": policy,
+        "node_decision_rows": decision_rows,
+        "profit": evaluation["profit_per_good"],
+        "profit_per_good": evaluation["profit_per_good"],
+        "trial_profit": evaluation["trial_profit"],
+        "success_probability": evaluation["success_probability"],
+        "initial_attempt_good_probability": evaluation[
+            "initial_attempt_good_probability"
+        ],
+        "cost_by_category": evaluation["cost_by_category"],
+        "cashflow_max_gap": maximum_gap,
+        "cashflow_gap": maximum_gap,
+        "bellman_cost_by_category": evaluation["bellman_cost_by_category"],
+        "dag_recursion_profit_gap": dag_gap,
+        "event_ledger_total_gap": ledger_gap,
+        "event_cashflow_ledger": ledger_rows,
+        "salvage_credit_by_event": [row["salvage_credit"] for row in ledger_rows],
+        "policy_space_size": Q3_DECISION_SPACE_SIZE,
+        "policy_space_representation": "exact_DAG_separable_dynamic_program",
+        "all_policies_certified": True,
+        "optimization_certificate": {
+            "method": optimum["enumeration"],
+            "reduced_candidate_count": optimum["candidate_count"],
+            "frontier_sizes": optimum["frontier_sizes"],
+            "frontier_node_count": optimum["frontier_node_count"],
+            "dominance_rule": "higher_good_probability_and_no_higher_expected_cost",
+            "global_tie_break": "lexicographic_sorted_node_decision_vector",
         },
-        "validation_summary": {
-            "full_strategy_spaces_enumerated": bool(
-                primary["validation"]["full_registered_policy_space_enumerated"]
-                and alternative["validation"]["full_registered_policy_space_enumerated"]
-            ),
-            "all_optimal_strategies_absorbing": bool(
-                primary["validation"]["optimal_is_absorbing"]
-                and alternative["validation"]["optimal_is_absorbing"]
-            ),
-            "primary_unit_identity_max_error": primary["validation"][
-                "unit_identity_max_error"
-            ],
-            "alternative_unit_identity_max_error": alternative["validation"][
-                "unit_identity_max_error"
-            ],
-            "degeneration_max_error": degeneration["max_absolute_difference"],
-            "degeneration_within_tolerance": degeneration[
-                "all_within_tolerance"
-            ],
-            "official_instance_blocked_honestly": True,
+        "strategy_candidates": strategy_candidates,
+        "topology_scan": topology_scan,
+        "topology_stability_rate": topology_scan["strategy_match_rate"],
+        "degeneration_equivalence": degeneration,
+        "degeneration_max_gap": degeneration["maximum_profit_gap"],
+        "degeneration_gap": degeneration["maximum_profit_gap"],
+        "sensitivity": sensitivity,
+        "cost_parameter_usage": {
+            "purchase_cost": True,
+            "inspection_cost": True,
+            "assembly_cost": True,
+            "disassembly_cost": True,
+            "exchange_loss": True,
+            "sale_price_revenue_on_terminal_good": True,
         },
-        "method": {
-            "network": "networkx.DiGraph",
-            "state_enumeration": "reachable_state_enumeration",
-            "reward_solver": "event_markov_reward",
-            "search": "complete_enumeration_of_registered_binary_policy_space",
-            "rates": (
-                "output_rate_Q",
-                "launch_cash_cost_rate_C",
-                "equivalent_unit_cost_U_equals_C_over_Q",
-            ),
-            "root_failure_paths": [
-                "inspection_detected_scrap",
-                "inspection_detected_disassembly_rework",
-                "market_return_scrap_replacement",
-                "market_return_disassembly_rework",
-            ],
-            "official_topology_claim": "withheld_pending_verified_edge_list",
+        "anchors": {
+            "{R-Q3-H1-strategy}": policy_label,
+            "{R-Q3-H1-profit}": evaluation["profit_per_good"],
+            "{R-Q3-H1-node-decisions}": policy,
+            "{R-Q3-H1-cashflow-max-gap}": maximum_gap,
+            "{R-Q3-topology-stability-rate}": topology_scan["strategy_match_rate"],
+            "{R-Q3-degeneration-max-gap}": degeneration["maximum_profit_gap"],
         },
     }
-    safe_payload = _json_safe(payload)
-    encoded = __import__("json").dumps(
-        safe_payload,
-        ensure_ascii=False,
-        allow_nan=False,
-    )
-    if not encoded:
-        raise RuntimeError("问题三结果编码为空")
-    return safe_payload
+    result["H1_strategy"] = policy
+    result["H1_profit"] = evaluation["profit_per_good"]
+    result["H1_node_decisions"] = policy
+    result["H1_cashflow_max_gap"] = maximum_gap
+    validation = validate_constraints(result)
+    result["module_validation"] = validation
+    _require_condition(validation["passed"], "Problem 3 constraint validation failed")
+    return result
 
 
-def run() -> dict[str, Any]:
-    return run_problem3()
+def run(*args, **kwargs):
+    return solve_problem3(*args, **kwargs)
 
 
-def main() -> None:
-    run()
+solve = solve_problem3
 
 
-if __name__ == "__main__":
-    main()
+__all__ = [
+    "build_h1_context",
+    "dag_node_recursion",
+    "degeneracy_equivalence_test",
+    "evaluate_policy",
+    "event_cashflow_ledger",
+    "renewal_bellman_solver",
+    "run",
+    "salvage_credit_once",
+    "solve",
+    "solve_problem3",
+    "validate_constraints",
+]

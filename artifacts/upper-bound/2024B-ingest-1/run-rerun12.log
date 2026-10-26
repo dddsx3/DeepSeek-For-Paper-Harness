@@ -52,3 +52,58 @@ STAGE CHAIN FAILED — 1 个阶段没通过（产物与通行证在 artifacts\up
   [deterministic] code: 分片 6/8 交付 code/problem4.py
   [deterministic] code: 分片 7/8 交付 RESULTS.md
   [deterministic] code: 分片 8/8 交付 DELIVERABLES.json
+  [deterministic] code: 逐节点审计（space-bunny-free）：fail，质量分 0.20，要求 5/7 项完成，5 条 findings
+[STAGE NEXT] 只跑了 'code'，到此即停。检查 artifacts\upper-bound\2024B-ingest-1\stages 后，放行 = 再执行一次 --stages --stage-next。
+  ❌ code: 逐节点审计未通过：审计未通过：3 条 fatal（code/problem4.py:_Q2_STATE_PAIRS 至 _Q2_EMPTY_STATE_INDEX；code/main.py 导入 problem4：params.py 中 Q2_POLICY_SPACE_COUNT=16，因此 ；code/problem1.py:_find_rejection_scheme、_find_statement_only_rejection_scheme：两个搜索函数中的 raise RuntimeError 与外层 for n 循环）；质量分 0.20 < 阈值 0.70；交付结构不完整（缺：由当前入口成功运行生成且可审计的 code/problem1.json、code/problem2.json、code/problem3.json、code/problem4.json 和 code/outputs.json）；2 项要求未完成（由 main.py 按问题一至问题四顺序真实执行并汇总结果——依据：入口在导入 problem4 时即会触发状态索引 KeyError；修复后 problem1 的拒收搜索也会在首个样本量；结果数值由真跑代码产生并可由结果账本追溯——依据：当前代码没有成功运行路径，实际交付中也未提供可验证的 outputs.json 及四个 problem*.json 真跑） —— 低于阈值不允许交付（审计结论见 _audit.json）
+
+STAGE CHAIN FAILED — 1 个阶段没通过（产物与通行证在 artifacts\upper-bound\2024B-ingest-1\stages）。
+===== 第 6 次 --stage-next =====
+[STAGE CHAIN] artifacts\upper-bound\2024B-ingest-1\stages
+  题面问数（数出来的）：4
+  [deterministic] modeling: 回答未正常结束（阶段 'modeling' 的回答被 max-tokens 截断 —— 这不是"写错了哪里"，是产出超过了单次调用的输出），改为"压缩"请求重问一次
+  [deterministic] modeling: 分片 1/2 交付 DECLARATION.json
+  [deterministic] modeling: 分片 2/2 交付 MODELING_REPORT.md
+  [deterministic] modeling: 逐节点审计（space-bunny-free）：pass，质量分 0.91，要求 6/6 项完成，0 条 findings
+[STAGE NEXT] 只跑了 'modeling'，到此即停。检查 artifacts\upper-bound\2024B-ingest-1\stages 后，放行 = 再执行一次 --stages --stage-next。
+  🟡 modeling: 门禁全过但**有 1 条无法判定**（modeling_self_check）——已如实记在通行证上（`cleanliness: unverified-gates`）；这些缺口使本阶段不能计入 CLEAN。
+
+STAGE CHAIN OK — 1 个阶段签发通行证（其中 1 个带未判定门禁，缺口已记在 PASSED 上）。产物在 artifacts\upper-bound\2024B-ingest-1\stages
+===== 第 7 次 --stage-next =====
+[STAGE CHAIN] artifacts\upper-bound\2024B-ingest-1\stages
+  题面问数（数出来的）：4
+  [deterministic] code: 分片 1/8 交付 code/main.py
+  [deterministic] code: 分片 2/8 交付 code/params.py
+  [deterministic] code: 回答未正常结束（模型调用未正常结束（finish=error：provider returned HTTP 200 with an em），改为"压缩"请求重问一次
+  [deterministic] code: 分片 3/8 交付 code/problem1.py
+  [deterministic] code: 分片 4/8 交付 code/problem2.py
+  [deterministic] code: 分片 5/8 交付 code/problem3.py
+  [deterministic] code: 分片 6/8 交付 code/problem4.py
+  [deterministic] code: 分片 7/8 交付 RESULTS.md
+  [deterministic] code: 分片 8/8 交付 DELIVERABLES.json
+[STAGE NEXT] 只跑了 'code'，到此即停。检查 artifacts\upper-bound\2024B-ingest-1\stages 后，放行 = 再执行一次 --stages --stage-next。
+  ❌ code: 门禁 code 1（0=通过 1=硬失败 2=无法判定）：code_name_consistency、delivery_audit
+
+STAGE CHAIN FAILED — 1 个阶段没通过（产物与通行证在 artifacts\upper-bound\2024B-ingest-1\stages）。
+===== 第 8 次 --stage-next =====
+[STAGE CHAIN] artifacts\upper-bound\2024B-ingest-1\stages
+  题面问数（数出来的）：4
+  [deterministic] code: 分片 1/8 交付 code/main.py
+  [deterministic] code: 分片 2/8 交付 code/params.py
+  [deterministic] code: 分片 3/8 交付 code/problem1.py
+  [deterministic] code: 分片 4/8 交付 code/problem2.py
+  [deterministic] code: 分片 5/8 交付 code/problem3.py
+  [deterministic] code: 分片 6/8 交付 code/problem4.py
+  [deterministic] code: 分片 7/8 交付 RESULTS.md
+  [deterministic] code: 分片 8/8 交付 DELIVERABLES.json
+[STAGE NEXT] 只跑了 'code'，到此即停。检查 artifacts\upper-bound\2024B-ingest-1\stages 后，放行 = 再执行一次 --stages --stage-next。
+  ❌ code: 门禁 code 1（0=通过 1=硬失败 2=无法判定）：code_name_consistency、delivery_audit
+
+STAGE CHAIN FAILED — 1 个阶段没通过（产物与通行证在 artifacts\upper-bound\2024B-ingest-1\stages）。
+===== 第 9 次 --stage-next =====
+[STAGE CHAIN] artifacts\upper-bound\2024B-ingest-1\stages
+  题面问数（数出来的）：4
+  [deterministic] code: 分片 1/9 交付 code/main.py
+  [deterministic] code: 分片 2/9 交付 code/params.py
+  [deterministic] code: 分片 3/9 交付 code/data_check.py
+  [deterministic] code: 分片 4/9 交付 code/problem1.py
+  [deterministic] code: 分片 5/9 自查发现 1 个未定义常量名（RATE_LOWER_BOND）→ 只重问这一片（第 1/4 次）

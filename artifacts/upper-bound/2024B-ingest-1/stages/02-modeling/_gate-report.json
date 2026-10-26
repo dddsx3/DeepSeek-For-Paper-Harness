@@ -1,17 +1,17 @@
 {
   "stage": "modeling",
-  "code": 2,
+  "code": 0,
   "items": [
     {
       "id": "modeling_floor",
       "ok": true,
-      "detail": "MODELING_REPORT.md 47166 字节 ≥ 1500",
+      "detail": "MODELING_REPORT.md 46862 字节 ≥ 1500",
       "code": 0
     },
     {
       "id": "numbers_traced",
       "ok": true,
-      "detail": "1 个文本产物的 160 个数字全部有出生证明（题面给定值 / 声明的常数）",
+      "detail": "1 个文本产物的 121 个数字全部有出生证明（题面给定值 / 声明的常数）",
       "code": 0
     },
     {
@@ -28,9 +28,15 @@
     },
     {
       "id": "modeling_self_check",
-      "ok": false,
-      "detail": "未实现：参考的 9 项自检含\"问题递进性检查\"（参考自己标注为\"最关键\"且是人工项）。可机械化的那几项（逐问数、目标/公式/约束非零、符号表存在、灵敏度计划）待实现。",
-      "code": 2
+      "ok": true,
+      "detail": "符号表 38 条、公式 21 条、模型 4 个（都有 objective）、约束 30 条且形态可核，逐问都有模型认领；⚠ \"问题递进性检查\"与\"灵敏度计划\"在报告散文里，机械判不了，未纳入本判据",
+      "code": 0
+    },
+    {
+      "id": "cashflow_branches_declared",
+      "ok": true,
+      "detail": "现金流规则按 11 个决策分支展开，每个分支都有判定条件与逐项 `terms`",
+      "code": 0
     }
   ]
 }

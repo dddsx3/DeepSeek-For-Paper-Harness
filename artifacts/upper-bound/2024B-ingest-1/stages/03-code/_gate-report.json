@@ -1,6 +1,6 @@
 {
   "stage": "code",
-  "code": 2,
+  "code": 0,
   "items": [
     {
       "id": "code_parity",
@@ -11,26 +11,26 @@
     {
       "id": "code_name_consistency",
       "ok": true,
-      "detail": "6 个代码文件：引用的常量名都有定义",
+      "detail": "7 个代码文件：引用的常量名都有定义",
       "code": 0
     },
     {
       "id": "ledger_keys_declared",
       "ok": true,
-      "detail": "已公布 64 个账本键 —— 阶段 4 照抄即可，不必猜",
+      "detail": "已公布 7 个账本键 —— 阶段 4 照抄即可，不必猜",
       "code": 0
     },
     {
       "id": "numbers_traced",
       "ok": true,
-      "detail": "1 个文本产物的 13 个数字全部有出生证明（题面给定值 / 声明的常数）",
+      "detail": "1 个文本产物的 1 个数字全部有出生证明（题面给定值 / 声明的常数）",
       "code": 0
     },
     {
       "id": "delivery_audit",
-      "ok": false,
-      "detail": "未实现：参考的 delivery_audit.py 要核对 DELIVERABLES.json 声明的每个交付物**真的存在且非空**。需要先确定本 harness 的交付物清单形态（与零数字通道的 Result 如何对应）。",
-      "code": 2
+      "ok": true,
+      "detail": "声明的 10 条交付物：10 条在磁盘上且非空、满足各自的 `min_bytes`",
+      "code": 0
     },
     {
       "id": "leakage_audit",
@@ -42,6 +42,24 @@
       "id": "no_render",
       "ok": true,
       "detail": "没有图像产物（渲染归阶段 4）",
+      "code": 0
+    },
+    {
+      "id": "claim_code_check",
+      "ok": true,
+      "detail": "内置安全网检查了 1 类方法声称，全部有实现铁证；通用合同核对了 1 条签名",
+      "code": 0
+    },
+    {
+      "id": "data_ingest_check",
+      "ok": true,
+      "detail": "扫描 7 个 .py：所有 Excel 读取都显式声明了 sheet_name（无静默首表陷阱）",
+      "code": 0
+    },
+    {
+      "id": "facts_audit",
+      "ok": true,
+      "detail": "⚠ 警告级（不阻断）：12 处数字字面量既不在白名单也不在题面给定值/模型常数里（code/main.py:334 值=95 tokens = (\"reject\", \"95\", \"high\") if reject else (\"accept\", ；code/main.py:334 值=90 tokens = (\"reject\", \"95\", \"high\") if reject else (\"accept\", ；code/main.py:386 值=0.1 p0 = float(_param((\"Q1_P0\", \"Q1_NOMINAL_RATE\", \"NOMINAL_DEFE…）—— 若它是模型常数，登记进 `DECLARATION.json` 的 `model_constants`；若是题面给定值，走 `params.py`",
       "code": 0
     }
   ]
