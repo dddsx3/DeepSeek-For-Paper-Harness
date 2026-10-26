@@ -8,7 +8,8 @@ export HTTP_PROXY=http://127.0.0.1:62549
 export PAPER_PROBE_BASE_URL=https://www.mhcoding.ai/v1
 export PAPER_PROBE_MODEL=gpt-6-luna
 export PAPER_PROBE_PROVIDER=mhcoding
-export PAPER_PROBE_API_KEY=***REMOVED***
+# 密钥已移除（2026-10-27 安全治理）：运行前在环境或 .env.<profile> 中提供 PAPER_PROBE_API_KEY
+export PAPER_PROBE_API_KEY="${PAPER_PROBE_API_KEY:?请先提供 PAPER_PROBE_API_KEY（见 .env.example 的 profile 机制）}"
 # **不关闭思考**（用户硬约束：数学建模与模型能力强相关，不能因中转原因让步）
 export PAPER_PROBE_REASONING=default
 export PAPER_AUDIT_MODEL=gpt-6-luna

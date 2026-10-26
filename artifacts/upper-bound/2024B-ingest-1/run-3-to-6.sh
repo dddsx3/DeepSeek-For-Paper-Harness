@@ -4,7 +4,8 @@ R=artifacts/upper-bound/2024B-ingest-1
 export PAPER_PROBE_BASE_URL=https://api.teamorouter.cn/v1
 export PAPER_PROBE_MODEL=deepseek-flash-free
 export PAPER_PROBE_PROVIDER=teamorouter
-export PAPER_PROBE_API_KEY=***REMOVED***
+# 密钥已移除（2026-10-27 安全治理）：运行前在环境或 .env.<profile> 中提供 PAPER_PROBE_API_KEY
+export PAPER_PROBE_API_KEY="${PAPER_PROBE_API_KEY:?请先提供 PAPER_PROBE_API_KEY（见 .env.example 的 profile 机制）}"
 export PAPER_AUDIT_MODEL=glm-5.3-flash-free
 for i in 1 2 3 4; do
   echo "===== 第 $i 次 --stage-next ====="
