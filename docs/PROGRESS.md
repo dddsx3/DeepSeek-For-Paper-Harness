@@ -3,17 +3,19 @@
 > 自动区由脚本维护，手写区（轮次日志）每轮收口时由执行者追加一节——格式见 PM-HANDBOOK §10。
 
 <!-- board:auto:start -->
-> 生成于 2026-10-26 19:04（本地时间）· 由 `pnpm run progress:board` 再生成；本节之下为手写轮次日志（只增不删）。
+> 生成于 2026-10-27 01:37（本地时间）· 由 `pnpm run progress:board` 再生成；本节之下为手写轮次日志（只增不删）。
 
 | 指标 | 值 |
 |---|---|
-| 分支 / HEAD | `main` @ `8bdb724110 feat(verification): v7-sympy孤儿模块接链为观察级findings(进入L6闭环有归宿,不阻断交付)——纯函数seam+懒降级(无python/sympy绝不崩链)；顺手清executor 28处存量缩进债` |
-| 未推送提交 | 3（常态应为 0，PM-HANDBOOK §7） |
-| 工作树脏文件 | 2（收口前必须为 0，PM-HANDBOOK §7） |
+| 分支 / HEAD | `main` @ `de4b807135 docs(survey): claim_code_check 命名脱钩问题的 GitHub 调研与方案评估(S1 待裁决)——9个参考项目实测数据,推荐A(AST符号表+impl_map+空壳检测),B/C/D列为待定` |
+| 未推送提交 | 1（常态应为 0，PM-HANDBOOK §7） |
+| 工作树脏文件 | 1（收口前必须为 0，PM-HANDBOOK §7） |
 | 设计债：已修 / 缓解 / open | 18 / 3 / **11**（共 32，见 [DESIGN-DEBTS.md](./DESIGN-DEBTS.md)） |
 
 ### 最近提交（≤15）
 
+- `de4b807135 docs(survey): claim_code_check 命名脱钩问题的 GitHub 调研与方案评估(S1 待裁决)——9个参考项目实测数据,推荐A(AST符号表+impl_map+空壳检测),B/C/D列为待定`
+- `346748ee2e docs(progress): 落实轮台账同步——三通道落地入矩阵，轮次日志，P4 范围补充`
 - `8bdb724110 feat(verification): v7-sympy孤儿模块接链为观察级findings(进入L6闭环有归宿,不阻断交付)——纯函数seam+懒降级(无python/sympy绝不崩链)；顺手清executor 28处存量缩进债`
 - `300b8118a0 feat(verification): 声明式不变量随机扫描通道(LEAN中间路径a/b)+declared_invariant_scan门禁——DECLARATION可选invariants[]/range，声明即20000点采样验证，直击F-002/F-003单位口径/守恒缺陷形态；未声明即过(P2按需)`
 - `3890473aae feat(review): 评审量化 rubric 五维加权分（可选项向后兼容）+review_rubric 门禁+improve 第三终止因 score-plateau——评价机制升级(Ecosystem 调研引入项)`
@@ -27,15 +29,24 @@
 - `073173eb80 docs(roadmap): 功能实现矩阵(五态全量梳理)+开源同类调研(AI-Scientist/STORM/PaperQA2等7家,确认引用真实性等三缺口)+Lean形式化引入评估(S1咨询件:现在不必要,留触发条件与中间路径)`
 - `f867f65fe7 chore(pm): 仪表盘刷新（手册轮收口）`
 - `8bbb645b69 fix(hooks): pre-push typecheck 用 pnpm 启动在无 pnpm 机器上被 lefthook 静默跳过(127)——改 npm 启动使门禁真正生效；手册 §7 记录该事故并立钩子自检纪律`
-- `a53abe66e9 docs(pm): PM-HANDBOOK 流程宪法生效——分支/门禁矩阵/测试三层/真实运行协议/交付发布/推送纪律/TASK八步/demo语料同步/进度四件套/安全/事故管理；pre-push 增加密钥扫描；新增 progress:board 仪表盘生成器与治理轮轮次日志`
-- `98c24d20ac docs(history): 2026-10-27 历史重写记录（4个密钥字面量替换+CSV路径清除；commit-map与备份bundle位置存档）`
 <!-- board:auto:end -->
 
 
 
 
 
+
 ## 轮次日志（只增不删）
+
+### 2026-10-27 暂停快照 —— 等待用户裁决后重启
+
+- **暂停原因**：stage 3 `claim_code_check` 命名脱钩（合同声明 beta_posterior 等签名，代码用 _beta_params 私有命名）；调研已完成（[CLAIM-CODE-CONFORMANCE-SURVEY.md](./CLAIM-CODE-CONFORMANCE-SURVEY.md)，推荐方案 A），**用户裁决：暂停，等待重启**。
+- **已停**：2024B 链循环已停止（无孤儿进程），工作树干净。
+- **断点现场**：`runs/2024B-mcgrox-1/stages/` —— stage 1✅(质量0.85)、stage 2✅(0.80) 通行证已签发；stage 3 多轮冒烟通过，卡在两门。
+- **恢复命令**：`PROFILE=mcgrox bash runs/2024B-mcgrox-1/scripts/run-loop.sh`（stage-next 断点续传，已过阶段自动跳过）。
+- **恢复前若采纳方案 A**：先改 `claim_code_check` 再重启，否则会继续在同一门禁空转。
+- **未登记项**（用户要求暂停，未写入台账）：CrossHair / deal / icontract 观察项；B 方案（stub-first）评估。
+
 
 ### 2026-10-27 落实轮 —— 强化机制全量落地 + 2024B 全链真实运行
 
