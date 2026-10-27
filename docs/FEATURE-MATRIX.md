@@ -65,6 +65,7 @@
 | 功能 | 状态 | 证据 / 说明 |
 |---|---|---|
 | review 阶段（COMP_REVIEW + ROLLBACK 拦截） | ✅ | 2024B 实战抓出 4 条致命建模缺陷并拦下阶段 9 |
+| 逐节点审计（阶段末独立角色：评分+findings+阈值 0.7） | ✅ | 2024B-mcgrox-1 实测：三条 fatal 全是机械门禁盲区（概率方向写反/零数字自白/产物缺失）；0.60→回灌后 0.85。**定位=判官非提醒者**；独立性/归宿缺口见 [AUDITOR-ROLE-SURVEY](./AUDITOR-ROLE-SURVEY.md)（P0 已落实） |
 | 九门交付门禁电池 + 四档交付语义 | ✅ | `delivery/` 37 模块；预算耗尽=ESCALATE |
 | 语义指纹三通道复验（L4） | ✅ | `verification/semantic-fingerprint.ts` |
 | 符号通道（sympy，v7） | ✅ | 已接链为观察级 findings（进 L6 闭环有归宿，不阻断交付）；升级路径见 LEAN-ASSESSMENT |

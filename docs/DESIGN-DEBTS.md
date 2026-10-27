@@ -37,6 +37,10 @@
 | B4'（图缺失） | ◆ | **已修（已核实）** | CLI 从不写出 `figures/*.svg`（报告链接的图全是空目录） | `cli.ts:1167-1185` 现在写 figures/ + figure-manifest.json |
 | Z1/B8 | ◆ | **已修（已核实）** | PDF 题面需人工转 md | 13 阶段链 prob-analysis 含 pypdf + openxpl 摄入（HANDOFF-2026-10-06 §3、`stages/` 资产） |
 
+| AUD-ROUTE | ◆ | L1 | **已修（已核实，2026-10-27）** | `adapterStream` 从不转发 `options.model`——`PAPER_AUDIT_MODEL` 与配额回退换模型一直是**静默空操作**（本轮审计调研顺带发现） | 已修：cli.ts 转发 `{...route, model: options.model}`；测试钉住（stage-cli/seam 套件） |
+| AUD-DEST | ◆ | L1 | **已修（已核实，2026-10-27）** | 通过审计的 non-blocking findings 无归宿（`_audit.json` 只在重跑时被读，delivery 不消费）——违反检出必须有归宿铁律 | 已修：`audit-collector.ts` + 链末写 `AUDIT-OBSERVATIONS.md/json`（只收 pass 阶段的 findings，即被接受的观察） |
+| CLAIM-LEVEL | ⛔→已修 | L1 | **已修（已核实，2026-10-27）** | `claim_code_check` 用文本子串判定方法已实现——2024B 模型用私有命名（_beta_params vs beta_posterior）连续 6+ 轮假硬失败 | 已修：AST 符号表（scripts/py-symbols.py）+ 三级判定（文本命中→符号命中→`impl_map` 声明映射）+ 空壳检测（non_doc_lines≥2）；简报教 impl_map；129 用例钉住 |
+
 ## §C open（已核实或快照在案的现行问题，按杠杆排序）
 
 | 编号（旧） | 严重级 | 层 | 状态 | 条目 | 证据 / 下一步 |
@@ -80,3 +84,17 @@
 4. **O2 + E4**（cockpit 按运行隔离子目录；空交付 fail-fast）——都是小改动，可与 2 并行。
 5. **P1 目视复核 / P2 regate**（跑完一轮完整流程后按 PENDING-FIXES 验收）。
 6. D1/D2 的渐进抽取**只在新功能需要触碰对应区域时顺路做**，不单独立项。
+
+## §E 延后项与观察项（调研批准但暂不实施，附触发条件）
+
+> 依据：[`AUDITOR-ROLE-SURVEY.md`](./AUDITOR-ROLE-SURVEY.md)、
+> [`CLAIM-CODE-CONFORMANCE-SURVEY.md`](./CLAIM-CODE-CONFORMANCE-SURVEY.md)、
+> [`LEAN-ASSESSMENT.md`](./LEAN-ASSESSMENT.md)。触发条件满足时按 TASK 制重开评估。
+
+| 编号 | 条目 | 状态 | 触发条件 / 依据 |
+|---|---|---|---|
+| DEF-1 | **分片级过程监督**（每分片交付后跑确定性检查，而非整阶段末一次性判定） | 延后 | 依据 [Let's Verify Step by Step](https://arxiv.org/abs/2305.20050)（过程监督优于结果监督）。触发：阶段内长任务（code 9 分片/40 分钟）收敛轮次仍 >3，或同一类错误在分片间重复出现 |
+| DEF-2 | **阶段链工具回路（`read_skill_doc`）** | 延后（本轮只做审计侧 P0） | 阶段链 `toolsMounted=false`（`stage-service.ts:794` 有明确论证：无工具回路时简报不得点名语料）。触发：模型反复因"不知道规范细节"而返工；注意 `check_container` **不适用**于阶段链（阶段链无内存容器面，产物落盘在回合末） |
+| OBS-1 | **CrossHair 符号执行契约验证** | 观察 | 依据 [CrossHair](https://github.com/pschanely/CrossHair)。触发：出现"纯 Python 核心算法 + 明确数学契约"的场景，且现有 sympy/不变量扫描通道不够用；数值库（scipy/numpy）代码不可穿透，不作为通用通道 |
+| OBS-2 | **deal / icontract 函数级契约** | 观察 | 依据 [deal](https://github.com/life4/deal)、[icontract](https://github.com/Parquery/icontract)。触发：需要"契约随代码走、运行即验"且模型能稳定写出正确契约时 |
+| OBS-3 | **Lean 形式化验证** | 观察 | 见 [`LEAN-ASSESSMENT.md`](./LEAN-ASSESSMENT.md) §5 三条触发条件 |

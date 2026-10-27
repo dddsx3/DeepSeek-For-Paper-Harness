@@ -3,17 +3,22 @@
 > 自动区由脚本维护，手写区（轮次日志）每轮收口时由执行者追加一节——格式见 PM-HANDBOOK §10。
 
 <!-- board:auto:start -->
-> 生成于 2026-10-27 01:37（本地时间）· 由 `pnpm run progress:board` 再生成；本节之下为手写轮次日志（只增不删）。
+> 生成于 2026-10-27 15:25（本地时间）· 由 `pnpm run progress:board` 再生成；本节之下为手写轮次日志（只增不删）。
 
 | 指标 | 值 |
 |---|---|
-| 分支 / HEAD | `main` @ `de4b807135 docs(survey): claim_code_check 命名脱钩问题的 GitHub 调研与方案评估(S1 待裁决)——9个参考项目实测数据,推荐A(AST符号表+impl_map+空壳检测),B/C/D列为待定` |
-| 未推送提交 | 1（常态应为 0，PM-HANDBOOK §7） |
-| 工作树脏文件 | 1（收口前必须为 0，PM-HANDBOOK §7） |
-| 设计债：已修 / 缓解 / open | 18 / 3 / **11**（共 32，见 [DESIGN-DEBTS.md](./DESIGN-DEBTS.md)） |
+| 分支 / HEAD | `main` @ `b59a195216 fix(briefing): selfCheckTool 与 skillDocsTool 拆成两个开关——阶段链挂语料工具时不再点名取不到的 check_container（round-5 同类缺陷）` |
+| 未推送提交 | 6（常态应为 0，PM-HANDBOOK §7） |
+| 工作树脏文件 | 3（收口前必须为 0，PM-HANDBOOK §7） |
+| 设计债：已修 / 缓解 / open | 21 / 3 / **11**（共 35，见 [DESIGN-DEBTS.md](./DESIGN-DEBTS.md)） |
 
 ### 最近提交（≤15）
 
+- `b59a195216 fix(briefing): selfCheckTool 与 skillDocsTool 拆成两个开关——阶段链挂语料工具时不再点名取不到的 check_container（round-5 同类缺陷）`
+- `df76ac70ec feat(audit): P0 两项——审计支持跨路由第二provider(PAPER_AUDIT_BASE_URL/API_KEY,修 adapterStream 不转发 model 的既有静默bug)+非阻断审计findings落交付台账(AUDIT-OBSERVATIONS)；feat(stages): P1 阶段链 read_skill_doc 工具回路(PAPER_STAGE_TOOLS=1 默认关,3轮上限,审计不带工具)`
+- `333aec21c8 feat(gates): claim_code_check 升级到符号级判定（AST 符号表+impl_map 声明映射+空壳检测）——修 2024B 命名脱钩循环；文本命中路径保留（库调用只能文本）；简报教 impl_map`
+- `c799d88115 docs(survey): 审计者角色调研——三层机制厘清(L1静态/L2回灌/L3阶段末判官)+实证效果(0.60→0.85,三条fatal全是机械门禁盲区)+四处与验证实践的出入(同模型/无工具回路/findings无归宿/无过程监督)；待裁决`
+- `0a7cce8185 docs(progress): 暂停快照——2024B 断点现场、恢复命令与待裁决项（用户要求暂停）`
 - `de4b807135 docs(survey): claim_code_check 命名脱钩问题的 GitHub 调研与方案评估(S1 待裁决)——9个参考项目实测数据,推荐A(AST符号表+impl_map+空壳检测),B/C/D列为待定`
 - `346748ee2e docs(progress): 落实轮台账同步——三通道落地入矩阵，轮次日志，P4 范围补充`
 - `8bdb724110 feat(verification): v7-sympy孤儿模块接链为观察级findings(进入L6闭环有归宿,不阻断交付)——纯函数seam+懒降级(无python/sympy绝不崩链)；顺手清executor 28处存量缩进债`
@@ -24,11 +29,6 @@
 - `48f7b4ad65 fix(cockpit): O2 按运行隔离输出目录+诚实空交付语义（run-*子目录/cockpit-run.json 标记/按 runKey 取报告）——BLOCKED 不再显示上次报告`
 - `5e97bf2959 fix(demo): P2/P3 语料升级到现行容器契约（补 narrative 四章/justification_refs/figure 声明/runner EISDIR）——DEMO-CORPUS 关闭，P2 4/4+2/2、P3 5/5+6/6 恢复绿`
 - `10fbaf96bb fix(gates): noUncheckedIndexedAccess 下解构守卫替代断言（lint 债清理补丁）`
-- `cd5e074c29 fix(gates): capability_check 接受顶层数组信封(2024B-mcgrox-1实测假硬失败,简报钉死形态)+回归;清 gates.ts/spec 既有lint债使钩子可过;C4-6对齐自检接入 paper-harness.yml(trunk push 首次真正执行)`
-- `73df170584 docs(debts): E4 核实为已修——revisionDestroysDraft 守卫在位（executor.ts:278），空/坍缩修订必拒`
-- `073173eb80 docs(roadmap): 功能实现矩阵(五态全量梳理)+开源同类调研(AI-Scientist/STORM/PaperQA2等7家,确认引用真实性等三缺口)+Lean形式化引入评估(S1咨询件:现在不必要,留触发条件与中间路径)`
-- `f867f65fe7 chore(pm): 仪表盘刷新（手册轮收口）`
-- `8bbb645b69 fix(hooks): pre-push typecheck 用 pnpm 启动在无 pnpm 机器上被 lefthook 静默跳过(127)——改 npm 启动使门禁真正生效；手册 §7 记录该事故并立钩子自检纪律`
 <!-- board:auto:end -->
 
 
@@ -36,7 +36,17 @@
 
 
 
+
 ## 轮次日志（只增不删）
+
+### 2026-10-27 调研落实轮 —— 两轮调研的方案全部落地
+
+- **目标**：落实 CLAIM-CODE-CONFORMANCE-SURVEY（方案 A）与 AUDITOR-ROLE-SURVEY（P0×2+P1）的裁决结果。
+- **结果**：① claim_code_check 符号级判定（AST+impl_map+空壳检测）；② 审计跨路由第二 provider（**顺带修掉 adapterStream 不转发 model 的既有静默 bug**——PAPER_AUDIT_MODEL 此前从未生效）；③ 非阻断审计 findings 落交付台账（AUDIT-OBSERVATIONS.md/json）；④ 阶段链 read_skill_doc 工具回路（PAPER_STAGE_TOOLS=1 默认关：带 tools 强制流式， reintroduces 截断风险）；⑤ selfCheckTool/skillDocsTool 简报开关拆分（修点名取不到的工具同类缺陷）；⑥ 延后项/观察项登记（§E：DEF-1/2、OBS-1~3）。
+- **关键提交**：333aec21c8、df76ac70ec、b59a195216。
+- **验证**：tsc 干净；scoped 2539/2540（1 失败=P4 类负载 flake，隔离 16/16 过）；gates 129、audit-collector 4、stage-tools 5、P1 demo 全绿。
+- **遗留**：PAPER_STAGE_TOOLS 在截断问题解决前保持关闭；审计独立性需配置第二路由才真正生效（.env.example 已文档化）。
+- **下一步**：恢复 2024B 链（claim_code_check 现接受 impl_map，收敛概率大幅提升）。
 
 ### 2026-10-27 暂停快照 —— 等待用户裁决后重启
 
