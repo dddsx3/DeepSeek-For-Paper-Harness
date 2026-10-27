@@ -1513,6 +1513,11 @@ function positiveHit(pattern: string, code: string): boolean {
     // `not X` / `without X` / `避免使用 X` / `未使用 X` —— 否定式语境
     if (/(?:not|no|without|avoid)\s*$/i.test(before)) continue
     if (/(?:避免|禁止|不得|没有|未|不)(?:使用|采用|选用|用|依赖)?\s*$/.test(before)) continue
+    // `（M1 forbid: X）` —— 模型在 docstring/说明字段里**引用禁令条文本身**（守约的证据，
+    // 不是使用）。2024B-mcgrox-1 实测：代码在 note 里写"正态近似仅作一致性对照，
+    // 不进入决策（M1 forbid: normal_approximation_as_primary）"——它是在**声明自己没降级**，
+    // 却被当成"出现降级签名"硬拦。引用条文必须豁免，否则守约的模型被惩罚、且无限循环。
+    if (/(?:^|[^a-z])forbid\s*[:：]?\s*$/i.test(before)) continue
     return true
   }
   return false

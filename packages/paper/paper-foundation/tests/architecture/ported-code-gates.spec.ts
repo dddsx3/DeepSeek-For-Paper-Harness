@@ -56,6 +56,36 @@ describe('claim_code_check —— 声称 ↔ 代码实现（移植 claim_code_ch
     expect(run('claim_code_check', real).code).toBe(1)
   })
 
+  it('**引用禁令条文本身不是使用**（2024B-mcgrox-1 实测的守约被罚形态）', () => {
+    // 模型在说明字段里写"（M1 forbid: normal_approximation_as_primary）"——
+    // 它在**声明自己没降级**并引用合同原文，却被 forbid 文本匹配当成"出现降级签名"。
+    const cited = input(
+      {
+        'code/main.py': [
+          'import pulp',
+          'v = pulp.LpVariable("v", cat=pulp.LpInteger)',
+          'report = {"note": "正态近似仅作一致性对照，不进入决策（M1 forbid: normal_approximation_as_primary）"}',
+        ].join('\n'),
+      },
+      { 'MODELING_REPORT.md': contract('M1 | must: LpInteger | forbid: normal_approximation_as_primary') },
+    )
+    expect(run('claim_code_check', cited).code).toBe(0)
+    // 而**没有引用语境**的真出现仍然算使用（负对照，§4.4）：上面的既有用例已钉。
+    // docstring 本就被置空，这里双保险验证引用语在 docstring 里也豁免。
+    const docCited = input(
+      {
+        'code/main.py': [
+          'import pulp',
+          'v = pulp.LpVariable("v", cat=pulp.LpInteger)',
+          '"""正态近似仅作对照（M1 forbid: normal_approximation_as_primary），不进入决策。"""',
+          'report = {}',
+        ].join('\n'),
+      },
+      { 'MODELING_REPORT.md': contract('M1 | must: LpInteger | forbid: normal_approximation_as_primary') },
+    )
+    expect(run('claim_code_check', docCited).code).toBe(0)
+  })
+
   it('合同行可以只有 forbid（must 为空）：只核 forbid，不因缺 must 判失败', () => {
     const clean = input(
       { 'code/main.py': 'v = 1\n' },
