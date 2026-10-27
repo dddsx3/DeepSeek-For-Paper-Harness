@@ -4,7 +4,7 @@
  * 三条纪律各有一组用例：移植意图不移植字面比较、未实现给 2 不放行、判据只读文本。
  */
 
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { GATES, runGates, type GateInput } from '../../src/stages/gates.ts'
 import { CJK_FONT_STACK } from '../../src/figure/renderer.ts'
 import { STAGES } from '../../src/stages/registry.ts'
@@ -1291,5 +1291,196 @@ describe('cashflow_branches_declared —— 现金流规则必须按决策分支
   it('**零误报**：写在顶层 `cashflow_rule` 也算（键的位置宽容）', () => {
     const d = JSON.stringify({ cashflow_rule: { branches: [{ when: '恒温干燥', terms: ['-能耗费'] }] } })
     expect(runGates(['cashflow_branches_declared'], input({ 'DECLARATION.json': d })).code).toBe(0)
+  })
+})
+
+// ══════════════════════════════════════════════════════════════════════════
+/**
+ * `claim_code_check` 的符号级判据（docs/CLAIM-CODE-CONFORMANCE-SURVEY.md §2.1）。
+ *
+ * 2024B 实跑：建模阶段声明 `beta_posterior` / `clopper_pearson_interval`，代码实现成
+ * `_beta_params` / `_posterior`。文本判据永远找不到 → 连续多轮硬失败。这里钉住三条
+ * 合法路径（文本命中 / 符号命中 / impl_map）与三类必须拦的坏映射（缺符号 / 空壳 /
+ * 空映射），并保留"不许要求改名"的负对照。
+ */
+describe('claim_code_check —— 符号表 + impl_map（命名脱钩不再硬失败）', () => {
+  const contract = (lines: string) =>
+    `<!-- BEGIN METHOD_CLAIMS_MACHINE -->\n${lines}\n<!-- END METHOD_CLAIMS_MACHINE -->`
+  const declaration = (lines: string): Record<string, string> => ({ 'DECLARATION.json': contract(lines) })
+  const deliverables = (map: unknown): string => JSON.stringify({ impl_map: map })
+  // 两个真实实现（≥2 条非 docstring 语句），docstring 引用 claim id 作为软证据。
+  const mappedCode = [
+    'def _beta_params(alpha, beta):',
+    '    """M4 Beta 参数。"""',
+    '    a = alpha + 1',
+    '    b = beta + 1',
+    '    return a, b',
+    '',
+    'def _posterior(alpha, beta, x, n):',
+    '    """M4 后验。"""',
+    '    a, b = _beta_params(alpha, beta)',
+    '    mean = a / (a + b)',
+    '    return mean',
+  ].join('\n')
+
+  it('(i) 直接文本命中照旧通过（现状正例路径逐字保留）', () => {
+    const code = 'def beta_posterior(alpha, beta, x, n):\n    a = alpha + x\n    return a\n'
+    const v = run('claim_code_check', input({ 'code/main.py': code }, declaration('M4 | must: beta_posterior')))
+    expect(v.code).toBe(0)
+  })
+
+  it('(i-b) 符号命中：带锚点的 must 文本匹配不到，但 def 名匹配 → 0', () => {
+    // `^_beta_params$` 对整段 codeText 不成立（它只是其中一行），对符号名成立。
+    const code = 'def _beta_params(alpha, beta):\n    a = alpha + 1\n    return a\n'
+    const v = run('claim_code_check', input({ 'code/main.py': code }, declaration('M4 | must: ^_beta_params$')))
+    expect(v.code).toBe(0)
+  })
+
+  it('(i-c) 符号命中：带类名的 must 只出现在 qualname 里也认', () => {
+    const code = 'class Helper:\n    def _beta_params(self, alpha):\n        a = alpha + 1\n        return a\n'
+    const v = run('claim_code_check', input(
+      { 'code/main.py': code },
+      declaration('M4 | must: ^Helper\\._beta_params$'),
+    ))
+    expect(v.code).toBe(0)
+  })
+
+  it('(ii) impl_map 映射到已存在的非空壳函数 → 0，并说明核对了映射', () => {
+    const v = run('claim_code_check', input(
+      { 'code/main.py': mappedCode, 'DELIVERABLES.json': deliverables({ M4: ['_beta_params', '_posterior'] }) },
+      declaration('M4 | must: beta_posterior, clopper_pearson_interval'),
+    ))
+    expect(v.code).toBe(0)
+    expect(v.items[0]?.detail).toContain('impl_map 核对了 1 条映射')
+  })
+
+  it('(ii-b) 映射函数的 docstring 没引用 claim id 只提示（软证据，不判失败）', () => {
+    const code = 'def _beta_params(alpha, beta):\n    """Beta 参数。"""\n    a = alpha + 1\n    b = beta + 1\n    return a, b\n'
+    const v = run('claim_code_check', input(
+      { 'code/main.py': code, 'DELIVERABLES.json': deliverables({ M4: ['_beta_params'] }) },
+      declaration('M4 | must: beta_posterior'),
+    ))
+    expect(v.code).toBe(0)
+    expect(v.items[0]?.detail).toContain('docstring 未引用 M4')
+  })
+
+  it('(ii-c) 多条合同共用一次符号表，各自按 impl_map 通过', () => {
+    const code = mappedCode + '\n\ndef _fixed_point(f, x0):\n    """M5 不动点迭代。"""\n'
+      + '    x = x0\n    for _ in range(3):\n        x = f(x)\n    return x\n'
+    const v = run('claim_code_check', input(
+      { 'code/main.py': code, 'DELIVERABLES.json': deliverables({ M4: ['_beta_params'], M5: ['_fixed_point'] }) },
+      declaration('M4 | must: beta_posterior\nM5 | must: fixed_point_iteration'),
+    ))
+    expect(v.code).toBe(0)
+    expect(v.items[0]?.detail).toContain('impl_map 核对了 2 条映射')
+  })
+
+  it('(ii-d) impl_map 可以写限定名 `Class.method`', () => {
+    const code = 'class Helper:\n    def _beta_params(self, alpha):\n        a = alpha + 1\n        return a\n'
+    const v = run('claim_code_check', input(
+      { 'code/main.py': code, 'DELIVERABLES.json': deliverables({ M4: ['Helper._beta_params'] }) },
+      declaration('M4 | must: beta_posterior'),
+    ))
+    expect(v.code).toBe(0)
+  })
+
+  it('(iii) impl_map 指向不存在的符号 → 1，并点名缺哪个', () => {
+    const v = run('claim_code_check', input(
+      { 'code/main.py': mappedCode, 'DELIVERABLES.json': deliverables({ M4: ['_beta_params', '_missing_fn'] }) },
+      declaration('M4 | must: beta_posterior'),
+    ))
+    expect(v.code).toBe(1)
+    expect(v.items[0]?.detail).toContain('_missing_fn')
+  })
+
+  it('(iv) impl_map 指向空壳函数（只有 docstring + pass）→ 1，报"空壳函数"', () => {
+    const code = 'def _beta_params(alpha, beta):\n    """M4 空壳。"""\n    pass\n'
+    const v = run('claim_code_check', input(
+      { 'code/main.py': code, 'DELIVERABLES.json': deliverables({ M4: ['_beta_params'] }) },
+      declaration('M4 | must: beta_posterior'),
+    ))
+    expect(v.code).toBe(1)
+    expect(v.items[0]?.detail).toContain('空壳函数')
+  })
+
+  it('(v) 三条路都不通 → 1，失败信息教 impl_map 而不是要求改名', () => {
+    const v = run('claim_code_check', input(
+      { 'code/main.py': mappedCode },
+      declaration('M4 | must: beta_posterior'),
+    ))
+    expect(v.code).toBe(1)
+    expect(v.items[0]?.detail).toContain('impl_map')
+    expect(v.items[0]?.detail).toContain('实际函数名')
+    expect(v.items[0]?.detail).not.toContain('请改名')
+  })
+
+  it('(v-b) impl_map 是空数组 → 1（空映射不是"覆盖 100%"）', () => {
+    const v = run('claim_code_check', input(
+      { 'code/main.py': mappedCode, 'DELIVERABLES.json': deliverables({ M4: [] }) },
+      declaration('M4 | must: beta_posterior'),
+    ))
+    expect(v.code).toBe(1)
+    expect(v.items[0]?.detail).toContain('空的')
+  })
+
+  it('(v-c) impl_map 的坏形态一律当"没声明"（坏 JSON / 非对象 / 非数组值）', () => {
+    const badShapes = [
+      '{坏',                                        // JSON.parse 抛
+      'null',                                       // 顶层 null
+      '[]',                                         // 顶层数组
+      '5',                                          // 顶层标量
+      JSON.stringify({ impl_map: 'x' }),            // map 不是对象
+      JSON.stringify({ impl_map: null }),           // map 为 null
+      JSON.stringify({ impl_map: [] }),             // map 是数组
+      JSON.stringify({ impl_map: { M4: 5 } }),      // 值既不是字符串也不是数组
+    ]
+    for (const raw of badShapes) {
+      const v = run('claim_code_check', input(
+        { 'code/main.py': mappedCode, 'DELIVERABLES.json': raw },
+        declaration('M4 | must: beta_posterior'),
+      ))
+      expect(v.code, raw).toBe(1)
+      expect(v.items[0]?.detail, raw).toContain('impl_map')
+    }
+    // 字符串单值也认（宽容形态），非字符串项被过滤掉。
+    const single = run('claim_code_check', input(
+      { 'code/main.py': mappedCode, 'DELIVERABLES.json': deliverables({ M4: '_beta_params' }) },
+      declaration('M4 | must: beta_posterior'),
+    ))
+    expect(single.code).toBe(0)
+    const filtered = run('claim_code_check', input(
+      { 'code/main.py': mappedCode, 'DELIVERABLES.json': deliverables({ M4: [5, '_beta_params'] }) },
+      declaration('M4 | must: beta_posterior'),
+    ))
+    expect(filtered.code).toBe(0)
+  })
+
+  it('(vi) python 不可用 → 退回纯文本判定，detail 注明"仅文本判定"（不崩）', () => {
+    vi.stubEnv('PYTHON', 'dsh-no-such-python-for-claim-code-check')
+    try {
+      const v = run('claim_code_check', input(
+        { 'code/main.py': mappedCode },
+        declaration('M4 | must: beta_posterior'),
+      ))
+      expect(v.code).toBe(1)
+      expect(v.items[0]?.detail).toContain('符号表不可用')
+      expect(v.items[0]?.detail).toContain('仅文本判定')
+    } finally {
+      vi.unstubAllEnvs()
+    }
+  })
+
+  it('(vi-b) 单个文件解析失败不影响其它文件的符号；成功 detail 里注明符号表不完整', () => {
+    const v = run('claim_code_check', input(
+      {
+        'code/main.py': mappedCode,
+        'code/broken.py': 'def broken(:\n    pass\n',
+        'DELIVERABLES.json': deliverables({ M4: ['_beta_params'] }),
+      },
+      declaration('M4 | must: beta_posterior'),
+    ))
+    expect(v.code).toBe(0)
+    expect(v.items[0]?.detail).toContain('符号表不完整')
+    expect(v.items[0]?.detail).toContain('code/broken.py')
   })
 })

@@ -45,6 +45,7 @@ import { numericShapeOf, parseResultSources, RESULTS_LEDGER_FILE } from './execu
 import { addRoundedVariants, auditFiles, buildAllowlist, commentLines, verificationClaims } from './number-audit.ts'
 import { CODE_PY_RE, undefinedConstNames } from './code-names.ts'
 import { runInvariantScan } from '../verification/invariant-scan.ts'
+import { runPySymbols, type PySymbolDef, type PySymbols } from '../verification/py-symbols.ts'
 import {
   ANCHOR_REPORT_FILE, anchorsIn, blankFencedCode, parseAnchorReport,
 } from './anchor-resolve.ts'
@@ -1655,12 +1656,62 @@ const METHOD_RULES: ReadonlyArray<MethodRule> = [
 ]
 
 /**
+ * 阶段 3 的 `DELIVERABLES.json` 里的 `impl_map`（claim id → 实际函数名）。
+ *
+ * 形态：`{"impl_map": {"M4": ["_beta_params", "_posterior"]}}`。坏 JSON / 坏形态
+ * 一律当"没声明映射"（文件本身的合法性由 `delivery_audit` 判），不在这里重复报。
+ */
+function readImplMap(input: GateInput): ReadonlyMap<string, ReadonlyArray<string>> {
+  const raw = input.files.get('DELIVERABLES.json') ?? null
+  if (raw === null) return new Map()
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(raw)
+  } catch {
+    /* DELIVERABLES.json 坏了由 delivery_audit 报；这里只当没声明映射 */
+    return new Map()
+  }
+  if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) return new Map()
+  const map = (parsed as { impl_map?: unknown }).impl_map
+  if (typeof map !== 'object' || map === null || Array.isArray(map)) return new Map()
+  const out = new Map<string, ReadonlyArray<string>>()
+  for (const [claimId, value] of Object.entries(map)) {
+    const names = typeof value === 'string'
+      ? [value]
+      : Array.isArray(value)
+        ? value.filter((item): item is string => typeof item === 'string')
+        : null
+    if (names !== null) out.set(claimId, names)
+  }
+  return out
+}
+
+/**
+ * must 签名 → 符号名：沿用 `safeSearch` 的 regex/大小写语义，但作用在**符号名**上。
+ * 同时看 `name` 与 `qualname`（`Class.method` 这类带类名的签名只出现在限定名里）。
+ */
+function mustMatchesSymbol(patterns: ReadonlyArray<string>, def: PySymbolDef): boolean {
+  return patterns.some(pattern => safeSearch(pattern, def.name) || safeSearch(pattern, def.qualname))
+}
+
+/** 按 `name` 或 `qualname` 找映射目标（写 `_posterior` 或 `Class.method` 都认）。 */
+function findSymbolDef(symbols: PySymbols, name: string): PySymbolDef | undefined {
+  return symbols.defs.find(def => def.name === name || def.qualname === name)
+}
+
+/**
  * **声称 ↔ 代码实现**（移植 `claim_code_check.py`）。
  *
  * 两层，都是"代码有没有背叛建模声称"的方向无关核对：
  * - (A) 通用合同（主）：执行建模阶段自己写的 `must`/`forbid` 签名，脚本零方向知识
  *   ——数模/NLP/CV/RL 全靠同一引擎，加新方向不改脚本、不堆规则库；
  * - (B) 内置安全网（兜底）：整数规划 / 排队仿真 / 蒙特卡洛三条通用灾难级降级。
+ *
+ * **must 的判定升级到符号级**（docs/CLAIM-CODE-CONFORMANCE-SURVEY.md §2.1）：文本命中
+ * 保留（库调用如 `scipy.stats.binom.cdf` 不是 def，只能靠文本）；文本没命中时用
+ * `runPySymbols` 建 AST 符号表，再允许模型在 `DELIVERABLES.json` 的 `impl_map` 里
+ * 声明"claim id → 实际函数名"。映射目标必须在符号表里存在且**不是空壳**
+ * （`non_doc_lines >= 2`）；docstring 未引用 claim id 只提示、不阻断。
  *
  * 参考原话：*"凭印象退化成 plot/bar/scatter 是最常见的质量塌方"*，这条就是治它的。
  */
@@ -1702,9 +1753,72 @@ const claimCodeCheck: GateFn = (input) => {
   }
   // (A) 通用合同（执行建模者写的签名）
   const contract = parseMethodClaims(claimText)
+  const implMap = readImplMap(input)
+  // 符号表**惰性**构建：全部 claim 都被文本命中时不 spawn python，也不引入
+  // "符号表不可用"的噪声（旧语料的行为逐字保留）。
+  let symbols: PySymbols | null = null
+  let mappedPasses = 0
+  const softNotes: string[] = []
+  const symbolTable = (): PySymbols => {
+    if (symbols === null) symbols = runPySymbols(sources)
+    return symbols
+  }
   for (const c of contract) {
-    if (c.must.length > 0 && !c.must.some(p => safeSearch(p, codeText))) {
-      problems.push(`[合同 ${c.id}·must] 声称需实现但代码找不到任一必备签名：${c.must.join('、')}`)
+    if (c.must.length > 0) {
+      // a. 直接文本命中（现状正例路径）：库调用/常量/任意代码文本都算。
+      const textHit = c.must.some(p => safeSearch(p, codeText))
+      if (!textHit) {
+        const table = symbolTable()
+        if (!table.ok) {
+          // 通道不可用（无 python / 脚本崩）：退回纯文本判定，最终 detail 里如实注明。
+          problems.push(`[合同 ${c.id}·must] 声称需实现但代码找不到任一必备签名：${c.must.join('、')}`)
+        } else if (table.defs.some(def => mustMatchesSymbol(c.must, def))) {
+          // b. 符号命中：def 名（含 qualname）匹配 must 签名。
+        } else {
+          const mapped = implMap.get(c.id)
+          if (mapped === undefined) {
+            // d. 三条路都不通：失败信息必须教"声明映射"，而不是要求改名。
+            problems.push(`[合同 ${c.id}·must] 代码里找不到必备签名：${c.must.join('、')}；`
+              + `符号表里也没有匹配的 def，且 DELIVERABLES.json 未声明 impl_map["${c.id}"]。`
+              + '修复：要么让该签名（或其正则）真实出现在代码里，要么在 DELIVERABLES.json 里声明 '
+              + `"impl_map": {"${c.id}": ["实际函数名", …]}`
+              + '（映射到的函数必须真实现，空壳会被判失败）。'
+              + '注意：这不是要你把函数改成与签名同名——命名可以不同，但必须显式声明映射。')
+          } else if (mapped.length === 0) {
+            problems.push(`[合同 ${c.id}·impl_map] DELIVERABLES.json 的 impl_map["${c.id}"] 是空的 —— `
+              + '映射必须列出实际实现函数名（至少一个）。')
+          } else {
+            // c. 声明映射：每个名字都必须在符号表里存在，且不是空壳。
+            const missing: string[] = []
+            const found: PySymbolDef[] = []
+            for (const name of mapped) {
+              const def = findSymbolDef(table, name)
+              if (def === undefined) missing.push(name)
+              else found.push(def)
+            }
+            if (missing.length > 0) {
+              problems.push(`[合同 ${c.id}·impl_map] DELIVERABLES.json 的 impl_map["${c.id}"] 指向代码里不存在的函数：`
+                + `${missing.join('、')} —— 映射只能指向 code/*.py 里真实定义的 def；`
+                + '要么补上这些函数，要么把映射改成实际函数名。')
+            } else {
+              const stubs = found.filter(def => def.non_doc_lines < 2)
+              if (stubs.length > 0) {
+                problems.push(`[合同 ${c.id}·impl_map] 映射到的函数是空壳函数：`
+                  + stubs.map(def => `${def.name}（非 docstring 语句 ${String(def.non_doc_lines)} 行）`).join('、')
+                  + ' —— 空壳不算实现（`pass` / `raise NotImplementedError` / 只有 docstring 都会被判空壳）。')
+              } else {
+                mappedPasses += 1
+                // 证据是**软**的：docstring 没引用 claim id 只提示，不判失败。
+                const noEvidence = found.filter(def => typeof def.docstring !== 'string' || !def.docstring.includes(c.id))
+                if (noEvidence.length > 0) {
+                  softNotes.push(`impl_map["${c.id}"] 映射的 ${noEvidence.map(def => def.name).join('、')} `
+                    + `的 docstring 未引用 ${c.id}`)
+                }
+              }
+            }
+          }
+        }
+      }
     }
     // **`forbid` 只算"真的用了"，不算"声明没用"**。判据是"命中任一即铁证降级"，
     // 但一个"否定式命中"恰恰是**守约的证据**：实测模型写
@@ -1716,18 +1830,33 @@ const claimCodeCheck: GateFn = (input) => {
     }
   }
 
+  // 符号表相关说明：只在真的用过符号表时出现，且只进 detail、不改判定。
+  // **经 IIFE 取值**：`symbols` 只在 `symbolTable()` 闭包里赋值，TS 的控制流分析会把
+  // 这里的 `symbols` 窄化成 `null`（闭包赋值它不跟踪），过一次函数调用取回联合类型。
+  const symbolsSnapshot = ((): PySymbols | null => symbols)()
+  const symbolNote = symbolsSnapshot === null
+    ? ''
+    : symbolsSnapshot.ok
+      ? symbolsSnapshot.errors.length > 0
+        ? `（符号表不完整：${String(symbolsSnapshot.errors.length)} 个文件解析失败，`
+          + `${symbolsSnapshot.errors.slice(0, 3).map(e => e.file).join('、')}）`
+        : ''
+      : `（符号表不可用：${symbolsSnapshot.errors.map(e => e.error).join('；').slice(0, 160)}，仅文本判定）`
+
   if (problems.length > 0) {
     return fail(id, `${String(problems.length)} 条方法声称与代码实现脱钩（名不副实/降级冒充）—— `
       + problems.slice(0, 5).join('；')
       + '。修复：要么把代码补成真正实现该方法，要么把建模报告/正文的声称改成代码真做的事'
-      + '（合同 must/forbid 签名由建模阶段针对本题所填，方向无关）。')
+      + '（合同 must/forbid 签名由建模阶段针对本题所填，方向无关）。' + symbolNote)
   }
   const contractNote = contract.length === 0
     ? '；⚠ 上游产物里找不到 `METHOD_CLAIMS_MACHINE` 合同块 —— 仅内置安全网生效，'
       + '本题特有方法**无人核**（建议阶段 2 补机器可核签名：'
       + '`<!-- BEGIN METHOD_CLAIMS_MACHINE -->` 一行一条 `M1 | must: … | forbid: …`）'
     : `；通用合同核对了 ${String(contract.length)} 条签名`
-  return ok(id, `内置安全网检查了 ${String(checked)} 类方法声称，全部有实现铁证${contractNote}`)
+  const mapNote = mappedPasses > 0 ? `；impl_map 核对了 ${String(mappedPasses)} 条映射` : ''
+  const softNote = softNotes.length > 0 ? `；提示：${softNotes.join('；')}（软证据，不阻断）` : ''
+  return ok(id, `内置安全网检查了 ${String(checked)} 类方法声称，全部有实现铁证${contractNote}${mapNote}${softNote}${symbolNote}`)
 }
 
 /** 把三引号块整段置空但保留换行数（维持行号映射）——对应参考 `_blank_triple_quoted`。 */

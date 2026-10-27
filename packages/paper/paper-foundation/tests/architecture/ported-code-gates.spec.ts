@@ -56,6 +56,19 @@ describe('claim_code_check —— 声称 ↔ 代码实现（移植 claim_code_ch
     expect(run('claim_code_check', real).code).toBe(1)
   })
 
+  it('合同行可以只有 forbid（must 为空）：只核 forbid，不因缺 must 判失败', () => {
+    const clean = input(
+      { 'code/main.py': 'v = 1\n' },
+      { 'MODELING_REPORT.md': contract('M1 | forbid: linprog') },
+    )
+    expect(run('claim_code_check', clean).code).toBe(0)
+    const bad = input(
+      { 'code/main.py': 'from scipy.optimize import linprog\n' },
+      { 'MODELING_REPORT.md': contract('M1 | forbid: linprog') },
+    )
+    expect(run('claim_code_check', bad).code).toBe(1)
+  })
+
   it('内置安全网：声称整数规划却只有连续变量 → 1', () => {
     const i = input(
       { 'code/main.py': 'from scipy.optimize import linprog\nres = linprog(c, A_ub, b_ub)' },

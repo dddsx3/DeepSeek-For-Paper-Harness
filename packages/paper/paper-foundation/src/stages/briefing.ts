@@ -411,6 +411,9 @@ const SKILLS: Readonly<Record<string, StageSkill>> = {
       '**遵守 `METHOD_CLAIMS_MACHINE` 的签名**（阶段 2 已给）：`must` 里列的实现铁证必须真的出现在代码里，'
         + '`forbid` 里列的降级替代**一个都不许出现**。门禁 `claim_code_check` 零方向知识逐条核——'
         + '参考原话：*"凭印象退化成 plot/bar/scatter 是最常见的质量塌方"*，这条就是治它的。',
+      '**实现函数名与 must 签名不同时，必须声明 `impl_map`**：若代码里的实现函数名与 '
+        + '`METHOD_CLAIMS_MACHINE` 的 must 签名不同，必须在 `DELIVERABLES.json` 里声明 '
+        + '`impl_map: {claimId: [实际函数名…]}`；映射到的函数必须真实现（空壳会被判失败）。',
       '**数据摄入必须显式**：读 Excel **必须** `sheet_name=None`（裸 `pd.read_excel(f)` = 默认首表 = 静默丢数据，'
         + '门禁 `data_ingest_check` 判硬失败）；加载完对 `DATA_PROFILE.json` 核行数，不符即 `raise`。',
       '**长求解必须前台同步等到产物落盘**：不要后台跑 + 结束本阶段——进程会被切断，等于没跑。'
