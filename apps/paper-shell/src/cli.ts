@@ -39,7 +39,19 @@ import {
   createExploratoryProfile,
 } from '@deepseek-ai/dsh-paper-foundation'
 import { ModelingIr } from '@deepseek-ai/dsh-paper-foundation'
-import { STAGE_REGISTRY, countProblems, markStageChainStaleFrom, readStagePassport, writeStagePassport, chainStageOf, type StageChainId, type StageOutcome } from '@deepseek-ai/dsh-paper-foundation'
+import {
+  STAGE_REGISTRY,
+  chainStageOf,
+  collectStageAuditObservations,
+  countProblems,
+  markStageChainStaleFrom,
+  readStagePassport,
+  renderAuditObservationsMarkdown,
+  writeStagePassport,
+  type AuditObservationsDocument,
+  type StageChainId,
+  type StageOutcome,
+} from '@deepseek-ai/dsh-paper-foundation'
 import { brokenFigureLinks, deliverablesContractFindings, docxExportGate, docxPrecheckVerdict, exportDepsSummary, parseDeliverablesContract, probeExportDeps, runDocxPrechecks, type ActualDeliverable } from '@deepseek-ai/dsh-paper-foundation'
 import { resolveShellRoute, blockMessage, failureFactsOf, fidelityBlockedHuman, lastFailureClassEvent, type ShellRoute } from './invoke.ts'
 import { assembleBundle } from './bundle.ts'
@@ -176,15 +188,19 @@ async function buildContext(display?: { provider: string; model: string }): Prom
  * 退出码的语义与阶段链的失败档一致：`blocked` / `gate-failed` → 1（**立即停**的那个
  * 阶段就是最后一行）；`passed-unverified` → 0（`2` 不阻断阶段，但缺口已记在通行证上，
  * 交付侧按它降档——这里不替交付侧做决定）。
+ *
+ * 链末同时落一份**非阻断审计观察台账**（见 `writeAuditObservations`）。
  */
-function finishStageChain(
+async function finishStageChain(
   outcomes: ReadonlyArray<StageOutcome>,
   stagesRoot: string,
+  outRoot: string,
   dispose: () => Promise<void>,
-): number {
+): Promise<number> {
   const icon = (status: StageOutcome['status']): string =>
     status === 'passed' ? '✅' : status === 'passed-unverified' ? '🟡' : status === 'blocked' ? '⛔' : '❌'
   for (const o of outcomes) console.log(`  ${icon(o.status)} ${o.stage}: ${o.reason}`)
+  await writeAuditObservations(stagesRoot, outRoot)
   const failed = outcomes.filter(o => o.status === 'gate-failed' || o.status === 'blocked')
   if (failed.length > 0) {
     console.error(`
@@ -198,6 +214,31 @@ STAGE CHAIN OK — ${String(outcomes.length)} 个阶段签发通行证`
     + `（其中 ${String(unverified.length)} 个带未判定门禁，缺口已记在 PASSED 上）。产物在 ${stagesRoot}`)
   void dispose()
   return 0
+}
+
+/**
+ * 把**通过审计的阶段**的非阻断观察写成交付台账（P0-b）。
+ *
+ * 为什么链末无条件写（成功失败都写）：台账记的是"已经放行的阶段留下了什么观察"，
+ * 与后面某个阶段失败无关；失败时反而更需要这份清单来回答"前面放行的东西干净吗"。
+ * 写盘失败只告警、不改退出码——它是记账不是门禁；但不许静默，否则"观察没有归宿"
+ * 会以另一种形式重演。
+ *
+ * @param stagesRoot - `stages/` 根目录（收集器的扫描起点）。
+ * @param outRoot - 输出根目录（台账落在 `stages/` 旁边，而不是阶段目录里）。
+ */
+async function writeAuditObservations(stagesRoot: string, outRoot: string): Promise<void> {
+  try {
+    const collected = await collectStageAuditObservations(stagesRoot)
+    const doc: AuditObservationsDocument = { generatedAt: new Date().toISOString(), ...collected }
+    await mkdir(outRoot, { recursive: true })
+    await writeFile(join(outRoot, 'AUDIT-OBSERVATIONS.json'), JSON.stringify(doc, null, 2) + '\n', 'utf8')
+    await writeFile(join(outRoot, 'AUDIT-OBSERVATIONS.md'), renderAuditObservationsMarkdown(doc), 'utf8')
+    console.log(`审计观察 -> AUDIT-OBSERVATIONS.md（${String(collected.total)} 条非阻断观察，`
+      + `${String(collected.stages.length)} 个阶段）`)
+  } catch (error) {
+    console.warn('审计观察台账写入失败（不阻断交付）：', error instanceof Error ? error.message : String(error))
+  }
 }
 
 async function main(): Promise<number> {
@@ -684,6 +725,8 @@ ${String(result.unverifiable.length)} / ${String(result.claims.length)} 条断�
     ? await CassetteReplayer.load(replayPath)
     : undefined
   void replayMeta
+  // 真实传输适配器：主路由与审计路由共用同一条传输（只有 baseURL/apiKey/model 不同）。
+  const realAdapter: SeamAdapter = (r, req) => streamCompletion(r, req)
   if (fake) {
     ctx.provide('paperProvider', createFakeProvider(route))
   } else if (replayer !== undefined) {
@@ -694,8 +737,7 @@ ${String(result.unverifiable.length)} / ${String(result.claims.length)} 条断�
       await dispose()
       return 1
     }
-    const adapter: SeamAdapter = (r, req) => streamCompletion(r, req)
-    ctx.provide('paperProvider', createRealProvider(route, adapter, recorder))
+    ctx.provide('paperProvider', createRealProvider(route, realAdapter, recorder))
   }
 
   // ── S6：`--stages` = 走 11 阶段链（不走交付链） ──────────────────────────
@@ -707,6 +749,21 @@ ${String(result.unverifiable.length)} / ${String(result.claims.length)} 条断�
     const stagesRoot = join(outDir, 'stages')
     const inputDir = join(stagesRoot, '00-input')
     await mkdir(inputDir, { recursive: true })
+    // ── 跨路由审计（P0-a）：给审计一条**独立**的 provider 路由 ──────────────
+    // 审计与执行者同路由/同模型族时，LLM-as-judge 的自我增强偏差会被放大
+    // （评委偏向自己家族的输出）。第二套 baseURL + key 是部署配置，只有**两样都给全**
+    // 才建第二条路由；半套配置是部署错误，回退主路由但**明说**（不静默），
+    // 否则"独立性"会名存实亡。fake/replay 下不建：离线路径不该因为环境里
+    // 残留了审计凭据就去打网络。
+    const auditRoute = fake || replayer !== undefined || route === undefined
+      ? undefined
+      : resolveAuditRoute(route)
+    // 录像机跟着审计路由走：审计请求也是这次运行的一部分，不录的话
+    // `--cassette` 录下的运行在回放时审计会全部落空（记成"未判定"）。
+    const auditProvider = auditRoute === undefined ? undefined : createRealProvider(auditRoute, realAdapter, recorder)
+    if (auditRoute !== undefined) {
+      console.log(`[AUDIT ROUTE] 审计走独立路由：${auditRoute.provider} / ${auditRoute.model}`)
+    }
     // 题面与附件是**外部输入**：harness 把它们落进 00-input，阶段 1 的简报才会内联它们
     // （第一版 runner 刻意跳过 00-input，那是为测试写的；真实运行的阶段 1 必须看得见题面）。
     //
@@ -785,7 +842,11 @@ ${String(result.unverifiable.length)} / ${String(result.claims.length)} 条断�
         ...(pauseAfter.length === 0 ? {} : { pauseAfter }),
         ...(regate === undefined ? {} : { regate }),
         ...(Number.isFinite(problemsArg) && problemsArg > 0 ? { problemCount: problemsArg } : {}),
-        onDeterministicOutcome: (o) => console.log(`  [deterministic] ${o.stage}: ${o.summary}`),
+        // 审计路由（P0-a）：没有独立路由时不传 —— 服务层回退主 provider，
+        // 并在审计摘要行里如实标注"同模型自审：独立性弱"。
+        ...(auditProvider === undefined ? {} : { auditProvider }),
+        ...(auditRoute === undefined ? {} : { auditModel: auditRoute.model }),
+        onDeterministicOutcome: o => console.log(`  [deterministic] ${o.stage}: ${o.summary}`),
       })
     } catch (error) {
       console.error('stage chain mount failed:', (error as Error).message)
@@ -829,7 +890,7 @@ ${String(result.unverifiable.length)} / ${String(result.claims.length)} 条断�
       }
       console.log(`[STAGE NEXT] 只跑了 '${one.stage}'，到此即停。`
         + `检查 ${stagesRoot} 后，放行 = 再执行一次 --stages --stage-next。`)
-      return finishStageChain([one], stagesRoot, dispose)
+      return finishStageChain([one], stagesRoot, outDir, dispose)
     }
     if (parsed['stage-resume'] === true) {
       const resumed = await ctx.paperStageChain.resume()
@@ -839,7 +900,7 @@ ${String(result.unverifiable.length)} / ${String(result.claims.length)} 条断�
         return 0
       }
       console.log(`[RESUME] 从 '${resumed.from}' 续跑（它的通行证缺失或已作废）。`)
-      return finishStageChain(resumed.outcomes, stagesRoot, dispose)
+      return finishStageChain(resumed.outcomes, stagesRoot, outDir, dispose)
     }
     const outcomes = pauseAfter.length === 0
       ? await ctx.paperStageChain.run()
@@ -847,9 +908,9 @@ ${String(result.unverifiable.length)} / ${String(result.claims.length)} 条断�
     if (pauseAfter.length > 0) {
       const last = outcomes[outcomes.length - 1]
       console.log(`[PAUSE] 跑到 '${last?.stage ?? '?'}' 就停 —— 检查 ${stagesRoot} 里的产物与 PASSED 后，`
-        + `用 --stages --stage-resume 继续。`)
+        + '用 --stages --stage-resume 继续。')
     }
-    return finishStageChain(outcomes, stagesRoot, dispose)
+    return finishStageChain(outcomes, stagesRoot, outDir, dispose)
   }
   // Plugin executor AFTER provider is mounted.
   // TASK-2026-09-09 E2/O3 (cockpit wiring): pricing arrives via
@@ -1407,6 +1468,43 @@ type ProviderFace = {
   stream: (options: { provider: string; model: string; system?: string; messages: Array<{ content?: unknown }> }) => AsyncIterable<unknown>
 }
 
+/**
+ * **审计专用路由**（P0-a 跨路由审计）：`PAPER_AUDIT_BASE_URL` + `PAPER_AUDIT_API_KEY`
+ * 同时给全才生效。
+ *
+ * 为什么必须支持第二条路由：审计与执行者走同一条路由、同一个模型族时，
+ * LLM-as-judge 的自我增强偏差（评委偏向自己家族的输出）会被放大；换路由/换族是
+ * 目前成本最低的缓解手段。但它需要**第二套凭据**——那是部署配置，不该由阶段链
+ * 替宿主猜，所以由 shell 在这里解析。
+ *
+ * 三条纪律：
+ * 1. **半套配置 = 部署错误**：只给 baseURL 或只给 key 时回退主路由，但必须**明说**
+ *    （静默回退会让"审计已换路由"成为假象）；
+ * 2. 模型缺省沿用主路由模型：审计端点大概率认识同一个模型名；想换族就设
+ *    `PAPER_AUDIT_MODEL`（.env.example 里推荐这么做）；
+ * 3. provider 只是身份标签（CLI 的 provider face 按捕获的路由传输），缺省
+ *    `audit-route`，便于日志里一眼看出"这一轮审计走的不是主路由"。
+ *
+ * @param main - 主路由（审计模型缺省时沿用它）。
+ * @returns 审计路由；未配置或配置不全时为 undefined（调用方回退主 provider）。
+ */
+function resolveAuditRoute(main: ShellRoute): ShellRoute | undefined {
+  const baseURL = process.env.PAPER_AUDIT_BASE_URL ?? ''
+  const apiKey = process.env.PAPER_AUDIT_API_KEY ?? ''
+  if (baseURL === '' && apiKey === '') return undefined
+  if (baseURL === '' || apiKey === '') {
+    console.warn('[AUDIT ROUTE] PAPER_AUDIT_BASE_URL 与 PAPER_AUDIT_API_KEY 必须同时给 —— '
+      + '回退主路由（同路由审计：独立性弱）')
+    return undefined
+  }
+  return {
+    provider: process.env.PAPER_AUDIT_PROVIDER ?? 'audit-route',
+    model: process.env.PAPER_AUDIT_MODEL ?? main.model,
+    baseURL,
+    apiKey,
+  }
+}
+
 /** Shell-level provider over the real adapter (never engine semantics).
  *  When a recorder is present, every answered request + assembled response
  *  is recorded into the cassette (TASK-E). */
@@ -1448,7 +1546,11 @@ async function* adapterStream(
   adapter: SeamAdapter,
   options: { provider: string; model: string; system?: string; messages: Array<{ content?: unknown }>; tools?: ReadonlyArray<ToolSchema> },
 ): AsyncGenerator<unknown> {
-  yield* adapter(route, {
+  // **请求里的 model 必须被采纳**：`route` 只提供传输端点（baseURL/apiKey），
+  // 模型是调用方按角色选的。忽略它会让两件事变成空操作——`PAPER_AUDIT_MODEL`
+  // （审计换模型族）与限额降级（`activeModel` 切到 fallback）——日志说换了模型，
+  // 线上仍发原模型，那正是本项目反复处理的"信号与原因不符"。
+  yield* adapter({ ...route, model: options.model }, {
     ...(options.system === undefined ? {} : { system: options.system }),
     ...(options.tools === undefined || options.tools.length === 0 ? {} : { tools: options.tools }),
     messages: (options.messages ?? []).map(m => ({ content: seamTextOf(m) })),

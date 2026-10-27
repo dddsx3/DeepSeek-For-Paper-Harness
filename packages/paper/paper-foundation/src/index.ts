@@ -96,6 +96,16 @@ export {
 } from './stages/handoff.ts'
 export { runGates as runStageGates, GATES as STAGE_GATES } from './stages/gates.ts'
 export { stageBriefing } from './stages/briefing.ts'
+// 非阻断审计观察的归宿（P0-b）：通过审计的阶段的 findings 进交付台账，不再只躺在
+// 阶段目录里。collector 只读盘、不抛错；渲染与写盘由 shell 决定落点。
+export {
+  collectStageAuditObservations,
+  renderAuditObservationsMarkdown,
+  type AuditObservationFinding,
+  type AuditObservationsDocument,
+  type StageAuditObservation,
+  type StageAuditObservations,
+} from './stages/audit-collector.ts'
 // 资产目录解析（含"这次用的是 src 还是 lib 那一份"）——诊断与报告要能回答这个问题。
 export { resolveStageAssetDir, stageAssetDir, type AssetLayout } from './stages/asset-dir.ts'
 export { missingAdaptations, ADAPTATIONS } from './stages/adaptation.ts'

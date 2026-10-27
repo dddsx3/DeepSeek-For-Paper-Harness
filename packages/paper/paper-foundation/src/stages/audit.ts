@@ -68,6 +68,17 @@ export interface AuditVerdict {
   readonly missing: ReadonlyArray<string>
   /** 审计用的模型（进通行证，便于事后追"这一轮是谁审的"）。 */
   readonly model: string
+  /**
+   * 这一轮审计是否**独立**（换了路由或换了模型族）。
+   *
+   * 为什么要把这件事记进结论：LLM-as-judge 的自我增强偏差（评委偏向自己家族
+   * 的输出）在同模型自审时会被放大，而"审计通过了"这个事实的含金量取决于谁审的。
+   * 只写 `model` 不够——同名的模型可能挂在两条不同的路由上，而审计路由本身就是
+   * 独立性的来源。所以由服务层显式标注，随通行证一起留档。
+   *
+   * 可选：历史通行证与直接调用 `parseAuditVerdict` 的测试没有这个字段。
+   */
+  readonly independent?: boolean
   readonly at: string
 }
 

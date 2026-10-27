@@ -31,12 +31,22 @@
  * 5 阶段表服务的是**交付链**（`WorkflowExecutor` 的切片点）；把 11 阶段塞进那张表
  * 是硬套，而通行证已经是更强的形态。所以这里**复用的是热重启的工作流，不是那张表**。
  *
- * ## 工具开关：这条路径**没有工具回路**，所以必须是 false
+ * ## 工具开关：**opt-in**（`PAPER_STAGE_TOOLS=1`），默认关
  *
- * `read_skill_doc` / `check_container` 的宿主在 `WorkflowExecutor`（它有工具调用循环）。
- * 阶段链的 `callModel` 是一次纯文本调用，模型**没有**发起工具调用的通道。如果这里
- * 接受 `skillDocs: true` 并把语料索引列进简报，就是点名一份**取不到的文档**——
- * round-5 的原缺陷。所以 `true` 在这里**拒绝启动**并说明原因，而不是静默忽略。
+ * 阶段链的 `callModel` 现在有工具回路（`runStageToolLoop`）：挂 `read_skill_doc`，
+ * 让模型在**同一回合内**取到规范原文，而不是靠简报里的摘要猜。
+ *
+ * 为什么默认关 —— **带工具会强制 provider 离开非流式**：`real-provider.ts` 的
+ * `nonStream` 要求 `tools.length === 0`（工具往返需要增量拼装）。本项目有实测的
+ * 流式截断/断流史（max-tokens 截断、`terminated`），而非流式正是为绕开它才存在的。
+ * 所以"能查资料"的收益必须由使用方用环境开关**显式换取**，不能替所有运行默认打开。
+ *
+ * **`check_container` 不在这条路径上挂**：阶段链没有内存容器面——产物在回合末才落盘，
+ * 没有"提交前验一遍"的对象；审计调用也保持无工具（审计员读产物，不读文档）。
+ * 注意简报的自检节与语料索引共用 `toolsMounted` 开关，所以打开后它仍会点名
+ * `check_container`；模型误调只会收到一条"没有这个工具"的可纠正回复，不是硬失败。
+ *
+ * 关掉时行为与旧路径一致：一次调用、请求里**没有** `tools` 字段。
  *
  * @module @deepseek-ai/dsh-paper-foundation/stages/stage-service
  */
@@ -44,7 +54,10 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { Context, Service } from '@deepseek-ai/cordis'
-import { createUserMessage, type GenerateOptions } from '@deepseek-ai/dsh-llm'
+import {
+  BlockAssembler, createAssistantMessage, createToolResultMessage, createUserMessage,
+  type FinishReason, type GenerateOptions, type StreamChunk,
+} from '@deepseek-ai/dsh-llm'
 import { deterministicRunner, type DeterministicOutcome } from './deterministic.ts'
 import { runCodeAndMintResults, smokeRunCode, type SmokeRunOutcome } from './execute-and-mint.ts'
 import { spawnSync } from 'node:child_process'
@@ -52,12 +65,13 @@ import { resolvePaperAnchors } from './anchor-resolve.ts'
 import { CODE_PY_RE, undefinedConstNames, type UndefinedNameFinding } from './code-names.ts'
 import { assembleShards, planCodeShards, planModelingShards, stripOneFence, type CodeShard } from './code-shard.ts'
 import { assembleFigureAnswers, planShard, scriptShards, type FigureShard } from './figure-script-shard.ts'
-import { auditPromptOf, parseAuditVerdict } from './audit.ts'
+import { auditPromptOf, parseAuditVerdict, type AuditVerdict } from './audit.ts'
 import { skillTaskOf } from './briefing.ts'
 import { readPassport } from './handoff.ts'
 import { REJECTED_ANSWER_FILE, runStages, type StageOutcome, type StageRunContext } from './runner.ts'
 import type { StageSpec } from './registry.ts'
 import { STAGES, stageDirName, stageOf, type StageId } from './registry.ts'
+import { skillDocToolSpec, type ToolSpec } from './tools.ts'
 
 /** 读一个文件；不存在返回 null（**不返回空串**）。 */
 async function readFileMaybe(path: string): Promise<string | null> {
@@ -124,6 +138,173 @@ const MAX_NAME_REPAIRS = 4
 const MAX_SYNTAX_REPAIRS = 9
 
 /**
+ * 阶段工具回路的**轮次上限**（每轮可含多个并行工具调用）。
+ *
+ * 为什么有上限：工具是帮忙的，不是新的门。无上限会退化成"模型读多少就等多少"，
+ * 而 `read_skill_doc` 单份语料可达上百 KB——每多读一轮就多付一轮 prompt 钱。
+ * 3 轮足够覆盖真实形态（先列目录 → 读一份 → 读第二份），到顶后强制收尾。
+ */
+export const STAGE_TOOL_MAX_ROUNDS = 3
+
+/**
+ * 到顶轮的指令：明确告诉模型"现在只能给最终答案"。
+ *
+ * 为什么不直接断掉工具：到顶不得把阶段判失败——那会让"模型爱查资料"变成比
+ * "不查"更差的结果。所以最后一轮**不带工具**、并明说要交付什么；收尾仍按
+ * 简报契约解析，只是不再给它新一轮工具。
+ */
+const STAGE_TOOL_FINAL_HINT = [
+  '',
+  '---',
+  '',
+  `## ⛔ 工具轮次已用完（${String(STAGE_TOOL_MAX_ROUNDS)} 轮）：现在就给最终答案`,
+  '',
+  '本轮**不再提供工具**。直接产出本阶段要求的交付物（按简报的契约；不要解释、不要提到工具）。',
+].join('\n')
+
+/**
+ * 阶段链的只读工具是否挂载 —— **opt-in**（`PAPER_STAGE_TOOLS=1`）且只对模型阶段。
+ *
+ * 为什么与 `callModel` 共用这一个判据：runner 的 `toolsMounted` 决定简报是否列
+ * 语料索引，`callModel` 决定是否真的挂工具。两者不同步，就又造出一条
+ * "点名了却取不到"的指令（round-5 的原缺陷）。
+ *
+ * @param spec - 阶段。
+ * @returns 该阶段是否挂只读工具。
+ */
+export function stageToolsMounted(spec: StageSpec): boolean {
+  return spec.kind === 'model' && process.env['PAPER_STAGE_TOOLS'] === '1'
+}
+
+/**
+ * 本阶段要挂的工具清单（空数组 = 不挂，走单次调用）。
+ *
+ * 只挂 `read_skill_doc`：`check_container` 需要内存容器面，而阶段链的产物在
+ * 回合末才落盘（见模块头），没有可检查的对象。
+ *
+ * @param spec - 阶段。
+ * @returns 工具清单；默认（未设 `PAPER_STAGE_TOOLS=1`）为空。
+ */
+export function stageToolsFor(spec: StageSpec): ReadonlyArray<ToolSpec> {
+  return stageToolsMounted(spec) ? [skillDocToolSpec(spec.id)] : []
+}
+
+/**
+ * 解析工具调用参数；非法 JSON 返回空对象。
+ *
+ * 不抛错：参数坏了是模型的一次**可纠正调用**——回一句"参数不合法"比让整次
+ * 模型调用作废更符合"工具是帮忙的，不是新的门"。
+ */
+function parseToolArguments(raw: string): Record<string, unknown> {
+  try {
+    const parsed = JSON.parse(raw) as unknown
+    return typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)
+      ? parsed as Record<string, unknown>
+      : {}
+  } catch {
+    return {}
+  }
+}
+
+/** 工具回路要用的 provider 缝（只要求 `stream`，与 `PaperProviderService` 结构兼容）。 */
+export interface StageToolProvider {
+  stream(options: GenerateOptions): AsyncIterable<StreamChunk>
+}
+
+/** {@link runStageToolLoop} 的输入。 */
+export interface StageToolLoopOptions {
+  /** provider 缝。 */
+  readonly provider: StageToolProvider
+  /** 基准请求：provider/model/system 与**第一条** user 消息（阶段简报）都在里面。 */
+  readonly request: GenerateOptions
+  /** 挂载的只读工具；空数组 = 不挂（默认路径，行为与旧单次调用一致）。 */
+  readonly tools: ReadonlyArray<ToolSpec>
+  /**
+   * 每次模型发起工具调用时回调一次（**包括未登记的名字**——模型误调
+   * `check_container` 这类"简报点名了但本路径没挂"的工具也要可观测）。
+   */
+  readonly onToolCall?: (info: { readonly round: number; readonly name: string }) => void
+}
+
+/** 工具回路的结果：最终文本 + **最后一次**调用的结束原因（错误语义交给调用方）。 */
+export interface StageToolLoopResult {
+  readonly text: string
+  readonly finish: FinishReason
+}
+
+/**
+ * 阶段模型调用：**可选的工具回路**（`read_skill_doc`），最多 {@link STAGE_TOOL_MAX_ROUNDS} 轮。
+ *
+ * 与 `executor.callWithSelfCheck` 同一形态（工具是帮忙的，不是新的门）：
+ * - 模型没调工具 → 立刻返回它的文本（**正常路径**，与旧单次调用一致）；
+ * - 调了 → 执行工具、把结果作为 tool-result 轮送回，再问下一轮；
+ * - 到顶 → **不带工具**再问一次最终答案（到顶不得让阶段失败）。
+ *
+ * `finish.kind` 为 `error` / `aborted` / `max-tokens` 时**不执行任何工具**、原样返回
+ * 结束原因——由 `singleCall` 按旧路径同一句话抛错（截断/断流/限额的处置一个字没变）。
+ *
+ * @param options - provider、基准请求、工具清单与观测回调。
+ * @returns 最终文本与最后一次调用的结束原因。
+ */
+export async function runStageToolLoop(options: StageToolLoopOptions): Promise<StageToolLoopResult> {
+  const { provider, request, tools } = options
+  // provider 的 `tools` 是 mutable 数组；这里是只读清单，展开一份再传。
+  const mounted = [...tools]
+  // 对话累积：首轮简报 + 每轮的 assistant 文本与工具结果。
+  const messages = [...request.messages]
+  for (let round = 0; round <= STAGE_TOOL_MAX_ROUNDS; round += 1) {
+    // 最后一轮（额度用完）**不带工具**，并明确要求给最终答案。
+    // 没挂工具时第一轮就是"最后一轮"——请求里连 `tools` 字段都不出现。
+    const finalRound = mounted.length === 0 || round === STAGE_TOOL_MAX_ROUNDS
+    if (finalRound && mounted.length > 0) {
+      messages.push(createUserMessage({
+        content: [{ type: 'text', text: STAGE_TOOL_FINAL_HINT }],
+        source: { kind: 'user' },
+      }))
+    }
+    const assembler = new BlockAssembler()
+    for await (const chunk of provider.stream({
+      ...request,
+      messages: [...messages],
+      ...(finalRound ? {} : { tools: mounted }),
+    })) {
+      assembler.push(chunk)
+    }
+    const finish = assembler.finish
+    const blocks = assembler.blocks()
+    const text = blocks.filter(block => block.type === 'text').map(block => block.text).join('\n')
+    // 失败/截断与旧路径同语义：不执行工具，把结束原因交回 `singleCall` 抛它原来的那句话。
+    if (finish.kind === 'error' || finish.kind === 'aborted' || finish.kind === 'max-tokens') {
+      return { text, finish }
+    }
+    const calls = blocks.filter(block => block.type === 'tool-call')
+    if (calls.length === 0 || finalRound) return { text, finish }
+    // assistant 轮必须用 assistant 消息（工具结果另走 tool-result 消息），
+    // 否则模型会把工具输出误读成新的用户指令。
+    messages.push(createAssistantMessage({
+      content: [{ type: 'text', text }],
+      source: { provider: request.provider, model: request.model },
+    }))
+    for (const call of calls) {
+      // 按 name 分派；未登记的名字回一句"没有这个工具"——模型偶尔会拼错，
+      // 那不是失败，是一次可纠正的调用（`ToolSpec.run` 本身不抛错）。
+      const tool = mounted.find(candidate => candidate.name === call.name)
+      const result = tool === undefined
+        ? `没有名为 ${call.name} 的工具。可用的：${mounted.map(candidate => candidate.name).join('、')}`
+        : tool.run(parseToolArguments(call.arguments))
+      options.onToolCall?.({ round, name: call.name })
+      messages.push(createToolResultMessage({
+        callId: call.id,
+        content: [{ type: 'text', text: result }],
+        isError: false,
+      }))
+    }
+  }
+  // 不可达：`finalRound` 那一轮必然 return（模型不给文本时返回空串，由 runner 按契约拒绝）。
+  return { text: '', finish: { kind: 'stop' } }
+}
+
+/**
  * 用 Python 自己的解析器查一段源码的语法；返回最后一行错误信息，合法返回 null。
  *
  * 为什么不写正则：括号配平、三引号、f-string、续行……任何手写判据都有漏网，
@@ -180,7 +361,7 @@ function syntaxRepairNote(problem: string): string {
  */
 function nameRepairNote(finding: UndefinedNameFinding): string {
   return '\n\n---\n\n## ⛔ 你上一版里有**未定义的名字**（会导致运行时 NameError，必须先修）\n\n'
-    + `本文件引用了这些**任何文件都没定义**的常量名：\n\n`
+    + '本文件引用了这些**任何文件都没定义**的常量名：\n\n'
     + finding.names.map(n => `- \`${n}\``).join('\n')
     + '\n\n修法只有两种，**必须**选一种落地：'
     + '① 改用 `params.py` 已定义的名字（上面那份列表里的）；'
@@ -188,6 +369,60 @@ function nameRepairNote(finding: UndefinedNameFinding): string {
     + '`PROBLEM_FACTS.json` 或建模报告取）。'
     + '\n\n**不许**继续引用未定义的名字，也不许把它们留成"以后会有人补"。'
     + '重新输出**修正后的完整文件**（不要只给补丁片段）。'
+}
+
+/** 审计流的结束原因（只保留诊断需要的两项，与 `singleCall` 的读法一致）。 */
+interface AuditFinish {
+  readonly kind: string
+  readonly failure?: { readonly message?: string; readonly code?: string }
+}
+
+/**
+ * 消费一条审计流：收文本、记结束原因。
+ *
+ * 按**结构**读块（`text-delta.text` / `finish.reason`），不按 `StreamChunk` 类型读：
+ * 审计可以走主 provider，也可以走 CLI 注入的**第二条路由**（它的 provider face
+ * 只承诺 `AsyncIterable<unknown>`）。两种来源的块形状相同，要读的字段也相同。
+ *
+ * @param stream - provider 的流。
+ * @returns 文本与结束原因（没有 finish 块时 `finish` 缺省，按 `stop` 处理）。
+ */
+async function drainAuditStream(
+  stream: AsyncIterable<unknown>,
+): Promise<{ readonly text: string; readonly finish?: AuditFinish }> {
+  let text = ''
+  let finish: AuditFinish | undefined
+  for await (const chunk of stream) {
+    if (typeof chunk !== 'object' || chunk === null) continue
+    const block = chunk as { readonly type?: unknown; readonly text?: unknown; readonly reason?: unknown }
+    if (block.type === 'text-delta' && typeof block.text === 'string') text += block.text
+    if (block.type !== 'finish' || typeof block.reason !== 'object' || block.reason === null) continue
+    const reason = block.reason as { readonly kind?: unknown; readonly failure?: unknown }
+    const failure = typeof reason.failure === 'object' && reason.failure !== null
+      ? reason.failure as { readonly message?: unknown; readonly code?: unknown }
+      : undefined
+    finish = {
+      kind: typeof reason.kind === 'string' ? reason.kind : 'stop',
+      ...(failure === undefined ? {} : {
+        failure: {
+          ...(typeof failure.message === 'string' ? { message: failure.message } : {}),
+          ...(typeof failure.code === 'string' ? { code: failure.code } : {}),
+        },
+      }),
+    }
+  }
+  return { text, ...(finish === undefined ? {} : { finish }) }
+}
+
+/**
+ * 审计路由的最小 provider 缝。
+ *
+ * 只要求 `stream`：审计是一次纯文本调用，不解析角色、不挂工具。`PaperProviderService`
+ * （返回 `AsyncIterable<StreamChunk>`）与 shell 的 provider face（返回
+ * `AsyncIterable<unknown>`）都结构兼容——审计路由不该被迫实现一个它用不到的接口。
+ */
+export interface StageAuditProvider {
+  stream(options: GenerateOptions): AsyncIterable<unknown>
 }
 
 /** 服务的配置。 */
@@ -209,10 +444,33 @@ export interface StageChainConfig {
    */
   readonly regate?: { readonly reason: string }
   /**
+   * **审计专用 provider 缝**（跨路由审计，P0-a）。
+   *
+   * 为什么不默认这样做、而是由宿主显式注入：审计与执行者走**同一条路由、同一个
+   * 模型族**时，LLM-as-judge 的自我增强偏差会被放大（评委偏向自己家族的输出）。
+   * 换一条路由/换一个模型族是目前成本最低的缓解手段，但它需要**第二套凭据**——
+   * 那是部署配置，不该由本模块替宿主猜。不给就回退主 provider（行为与之前一致）。
+   *
+   * 审计请求只用到 `stream`；`resolveRole` 与工具回路都不需要。
+   */
+  readonly auditProvider?: StageAuditProvider
+  /**
+   * 审计路由**实际使用的模型名**（可选；缺省读 `PAPER_AUDIT_MODEL`，再缺省用当前
+   * 执行模型）。
+   *
+   * 为什么需要它而不是只读环境变量：注入 `auditProvider` 时，路由的模型是宿主
+   * 解析出来的（可能是 `PAPER_AUDIT_MODEL`，也可能回退到主路由模型）；而执行模型
+   * 会因限额降级**中途变化**。审计请求必须钉在审计路由自己的模型上，否则一次限额
+   * 切换就会把审计发去一个审计端点根本不认识的模型名——那会把"审计跑不成"记成
+   * `2`（未判定），白白丢掉一整轮独立性。
+   */
+  readonly auditModel?: string
+  /**
    * 语料工具开关（与 `PaperExecutorOptions.skillDocs` 同名）。
    *
-   * **这条路径只接受 `false`**：阶段链的 `callModel` 没有工具调用回路，挂了开关
-   * 也只是让简报点名一份取不到的文档。要在这条路径上启用语料，先给阶段链加工具回路。
+   * **这条路径只接受 `false`**：阶段链的语料工具只由环境开关
+   * `PAPER_STAGE_TOOLS=1` 挂载（见模块头：带工具会强制 provider 走流式）。
+   * 传 `true` **拒绝启动**并说明原因，而不是静默忽略——否则就是点名一份取不到的语料。
    */
   readonly skillDocs?: boolean
   /** 每个确定性阶段跑完的回调（进 CLI 日志/检查点报告）。 */
@@ -237,9 +495,9 @@ export class PaperStageChainService extends Service {
       throw new Error('阶段链服务缺 stagesRoot —— 产物与通行证必须落盘，否则暂停/续跑无从谈起')
     }
     if (config.skillDocs === true) {
-      throw new Error('阶段链还没有工具回路（read_skill_doc 的宿主在 WorkflowExecutor），'
-        + 'skillDocs=true 只会让简报点名一份取不到的语料——这条路径必须传 false。'
-        + '要在阶段链上启用语料，先给 callModel 加工具调用循环。')
+      throw new Error('阶段链的语料工具只由环境开关 PAPER_STAGE_TOOLS=1 挂载'
+        + '（工具回路是 opt-in 的：带工具会强制 provider 离开非流式）。'
+        + 'skillDocs=true 在这条路径上不生效，也不会被静默忽略——请改用 PAPER_STAGE_TOOLS=1。')
     }
     this.config = config
   }
@@ -340,6 +598,9 @@ export class PaperStageChainService extends Service {
         messages: [createUserMessage({ content: [{ type: 'text', text }], source: { kind: 'user' } })],
       })
       let request = buildRequest(prompt)
+      // **工具清单每次调用算一次**：opt-in（`PAPER_STAGE_TOOLS=1`）且只对模型阶段；
+      // 空数组 = 旧路径（`runStageToolLoop` 退化为一次调用，请求里没有 `tools` 字段）。
+      const tools = stageToolsFor(spec)
       // **截断的补救不是"盲重发"**。原注释说"重发只会再超限一次"——那对**同一个请求**成立；
       // 但实测截断几乎都是因为模型把可展开的东西铺开了（2024B 重跑：`problem4.py`
       // 一次要吐几十 KB，把整轮 8 次调用作废）。所以这里重问一次、并**附上压缩指示**——
@@ -359,26 +620,31 @@ export class PaperStageChainService extends Service {
       let quotaWaits = 0
       for (let attempt = 1; attempt <= 3; attempt += 1) {
         try {
-          let text = ''
+          // **工具回路**（opt-in，见模块头）：模型可以在一回合内取 `read_skill_doc`。
+          // 没挂工具时它退化为**一次调用**——文本拼接、结束原因与旧路径一致。
+          const { text, finish } = await runStageToolLoop({
+            provider,
+            request,
+            tools,
+            onToolCall: (info) => {
+              this.config.onDeterministicOutcome?.({
+                stage: spec.id,
+                summary: `工具轮 ${String(info.round + 1)}：调用 ${info.name}（模型按需取规范原文）`,
+              })
+            },
+          })
           // **别把 finish 的细节削掉，也别读错字段**：provider 把失败细节放在
           // `finish.failure.{message,code}`（`kind:'error'` 时），而第一版这里读的是
           // `finish.message`——**读错字段**，于是日志里仍然只有一句 `finish=error`，
           // 分不清是限流、被重置、空流还是协议错（实测为此反复人工探活）。
           // 与 `_rejected-answer.txt`、渲染清单的 stderr 同一条纪律：**失败要可诊断**。
-          let finish: { kind: string; failure?: { message?: string; code?: string } } | undefined
-          for await (const chunk of provider.stream(request)) {
-            if (chunk.type === 'text-delta') text += chunk.text
-            if (chunk.type === 'finish') finish = chunk.reason
-          }
-          const kind = finish?.kind ?? 'stop'
-          if (kind === 'max-tokens') {
+          if (finish.kind === 'max-tokens') {
             throw new Error(`阶段 '${spec.id}' 的回答被 max-tokens 截断 —— `
               + '这不是"写错了哪里"，是产出超过了单次调用的输出上限；分片或压缩后重试')
           }
-          if (kind === 'error' || kind === 'aborted') {
-            const why = [finish?.failure?.message, finish?.failure?.code]
-              .filter((x): x is string => typeof x === 'string' && x !== '').join(' / ')
-            throw new Error(`模型调用未正常结束（finish=${kind}${why === '' ? '' : `：${why}`}）`
+          if (finish.kind === 'error' || finish.kind === 'aborted') {
+            const why = [finish.failure.message, finish.failure.code].filter(x => x !== '').join(' / ')
+            throw new Error(`模型调用未正常结束（finish=${finish.kind}${why === '' ? '' : `：${why}`}）`
               + `—— 阶段 '${spec.id}' 没有可用回答`)
           }
           return text
@@ -485,7 +751,7 @@ export class PaperStageChainService extends Service {
               body
                 .replace(/"""[\s\S]*?"""/g, ' ').replace(/'''[\s\S]*?'''/g, ' ')
                 .replace(/#[^\n]*/g, ' ').replace(/"[^"\n]*"/g, ' ').replace(/'[^'\n]*'/g, ' ')
-                .matchAll(/^\s*(?:([A-Za-z_]\w*)\s*(?::[^=\n]*)?=|(?:def|class)\s+([A-Za-z_]\w*))/gm)
+                .matchAll(/^\s*(?:([A-Za-z_]\w*)\s*(?::[^=\n]*)?=|(?:def|class)\s+([A-Za-z_]\w*))/gm),
             )].flatMap(m => [m[1], m[2]].filter((x): x is string => typeof x === 'string' && x.length > 1))
             const definedNames = namesIn(paramsAnswer)
             // **本阶段其它文件里已定义的名字**：只说"哪些名字已经被用过"——防的是
@@ -559,8 +825,8 @@ export class PaperStageChainService extends Service {
             // 救不了才重问并附解析器原话）。冒烟运行保留为整阶段兜底。
             if (CODE_PY_RE.test(shard.deliverable)) {
               for (let pass = 0; pass < 3; pass += 1) {
-                let body = stripOneFence(answer)
-                let problem = pythonSyntaxError(body)
+                const body = stripOneFence(answer)
+                const problem = pythonSyntaxError(body)
                 if (problem === null) break
                 const salvaged = salvageTrailingJunk(body)
                 if (salvaged !== null) {
@@ -742,9 +1008,15 @@ export class PaperStageChainService extends Service {
       // **题面事实必须给**：只给"上游文件名清单"时，审计员无从判断产物是否与题面相符。
       // 2024B 实测的失配正是这一类：题面给了调换损失 `ce=40`，阶段 3 的代码从头到尾没用它，
       // "什么都不检查"于是虚假胜出——那不是结构缺陷，机械门禁全绿，只有拿题面当尺子才量得出。
-      // 模型：PAPER_AUDIT_MODEL（默认与执行者同模型但**全新上下文**；换成别的模型族更独立）。
+      // 模型：`auditModel`（宿主解析）→ PAPER_AUDIT_MODEL → 当前执行模型。
+      // **同模型自审是已知的弱配置**（LLM-as-judge 自我增强偏差）：服务层不能替
+      // 部署方决定换哪条路由，但必须**如实标注**这一轮到底独不独立，并把建议写进
+      // 日志与通行证——否则"审计通过"会被读成比它实际更强的证据。
       auditStage: async (spec, auditStagesRoot, artifacts) => {
-        const auditModel = process.env['PAPER_AUDIT_MODEL'] ?? activeModel
+        const auditFace = this.config.auditProvider ?? provider
+        const auditModel = this.config.auditModel ?? process.env['PAPER_AUDIT_MODEL'] ?? activeModel
+        // 换路由或换模型都算独立；两者都没有才是同模型自审。
+        const independent = this.config.auditProvider !== undefined || auditModel !== activeModel
         const upstreamNames = spec.consumes.map(p2 => p2.split('/').pop() ?? p2)
         const groundTruth = await loadGroundTruth(auditStagesRoot)
         const prompt = auditPromptOf({
@@ -757,17 +1029,14 @@ export class PaperStageChainService extends Service {
             ? {} : { budgetChars: Number(process.env['PAPER_AUDIT_INLINE_BUDGET']) }),
         })
         const request: GenerateOptions = {
+          // `provider` 只是请求的身份标签：主 provider 按它选适配器；宿主注入的
+          // 审计路由由它自己捕获的 baseURL/apiKey 决定传输，不读这个字段。
           provider: route.provider,
           model: auditModel,
           system: STAGE_CHAIN_SYSTEM,
           messages: [createUserMessage({ content: [{ type: 'text', text: prompt }], source: { kind: 'user' } })],
         }
-        let text = ''
-        let finish: { kind: string; failure?: { message?: string; code?: string } } | undefined
-        for await (const chunk of provider.stream(request)) {
-          if (chunk.type === 'text-delta') text += chunk.text
-          if (chunk.type === 'finish') finish = chunk.reason
-        }
+        const { text, finish } = await drainAuditStream(auditFace.stream(request))
         const kind = finish?.kind ?? 'stop'
         if (kind === 'error' || kind === 'aborted' || kind === 'max-tokens') {
           // 审计没跑成 → 抛错，由 runner 记 `2`（**绝不当成通过**）
@@ -775,12 +1044,16 @@ export class PaperStageChainService extends Service {
             .filter((x): x is string => typeof x === 'string' && x !== '').join(' / ')
           throw new Error(`审计调用未正常结束（finish=${kind}${why === '' ? '' : `：${why}`}）—— 本阶段未被审计`)
         }
-        const verdict = parseAuditVerdict(text, spec, auditModel, new Date().toISOString())
+        const parsed = parseAuditVerdict(text, spec, auditModel, new Date().toISOString())
+        const verdict: AuditVerdict = { ...parsed, independent }
+        const independenceNote = independent
+          ? '（跨模型审计：独立）'
+          : '（同模型自审：独立性弱，建议设 PAPER_AUDIT_BASE_URL/API_KEY 或 PAPER_AUDIT_MODEL 换族）'
         this.config.onDeterministicOutcome?.({
           stage: spec.id,
           summary: `逐节点审计（${auditModel}）：${verdict.verdict}，质量分 ${verdict.score.toFixed(2)}，`
             + `要求 ${String(verdict.requirementCompliance.filter(r => r.done).length)}/${String(verdict.requirementCompliance.length)} 项完成，`
-            + `${String(verdict.findings.length)} 条 findings`,
+            + `${String(verdict.findings.length)} 条 findings${independenceNote}`,
         })
         return verdict
       },
@@ -790,8 +1063,12 @@ export class PaperStageChainService extends Service {
       })(),
       skillVersionOf: () => 'stage-chain-v1',
       gateVersionOf: () => 'stage-gates-v1',
-      // **这条路径没有工具回路**（见模块头）：简报永远不列语料索引。
-      toolsMounted: () => false,
+      // **opt-in**（见模块头）：`PAPER_STAGE_TOOLS=1` 才列语料索引，且只对模型阶段。
+      // 与 `callModel` 的挂载判据**同一个函数**——两边不同步就是"点名了却取不到"。
+      toolsMounted: stageToolsMounted,
+      // 阶段链没有内存容器面，`check_container` 只在单发交付链——恒 false，
+      // 简报（`selfCheckTool=false`）因此不会点名它。
+      selfCheckMounted: () => false,
     }
   }
 
