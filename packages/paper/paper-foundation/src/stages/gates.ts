@@ -2161,10 +2161,12 @@ const deliveryAudit: GateFn = (input) => {
   } catch (error) {
     return fail(id, `\`DELIVERABLES.json\` 不是合法 JSON（${String(error).slice(0, 80)}）—— 清单读不出来就无从核对`)
   }
-  // 键名两种都认：契约写的是 `deliverables`，实测模型写的是 `artifacts`。
-  // 只认一种会把"键名差异"变成"一条交付物都没声明"的假硬失败——判据是**一致**，不是键名。
+  // 键名三种都认：契约写的是 `deliverables`，实测模型写过 `artifacts`（2024B 早期）
+  // 与 `delivery`（2026-10-27 mcgrox 轮）。只认一种会把"键名差异"变成
+  // "一条交付物都没声明"的假硬失败——判据是**一致**，不是键名。
+  // （与 capability_check 的 capabilities/items、modeling_coverage 同一先例。）
   const o = parsed as Record<string, unknown>
-  const list = [o['deliverables'], o['artifacts']].find(Array.isArray) as ReadonlyArray<unknown> | undefined
+  const list = [o['deliverables'], o['artifacts'], o['delivery']].find(Array.isArray) as ReadonlyArray<unknown> | undefined
   if (list === undefined) {
     return fail(id, '`DELIVERABLES.json` 里没有 `deliverables` / `artifacts` 数组 —— 没有可核的清单')
   }

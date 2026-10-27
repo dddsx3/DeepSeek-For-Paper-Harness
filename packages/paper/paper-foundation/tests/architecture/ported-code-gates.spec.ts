@@ -300,6 +300,9 @@ describe('delivery_audit —— 声明的交付物与磁盘一致（移植 deliv
     const one = [{ path: 'code/main.py', min_bytes: 5 }]
     expect(run('delivery_audit', input({ 'code/main.py': 'print(1)', 'DELIVERABLES.json': list(one) })).code).toBe(0)
     expect(run('delivery_audit', input({ 'code/main.py': 'print(1)', 'DELIVERABLES.json': list(one, 'deliverables') })).code).toBe(0)
+    // `delivery` 也认（2026-10-27 mcgrox 轮实测：模型把交付清单写在 delivery 键下，
+    // 内容形态完全合规，只因键名差异被判"没有可核的清单"）。
+    expect(run('delivery_audit', input({ 'code/main.py': 'print(1)', 'DELIVERABLES.json': list(one, 'delivery') })).code).toBe(0)
   })
 
   it('**运行期产物**（代码里会写出、门禁时还没生成）放行并记账', () => {

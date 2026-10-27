@@ -373,6 +373,10 @@ const SKILLS: Readonly<Record<string, StageSkill>> = {
       '`RESULTS.md` 写结果说明：四问的关键数值、校核证据、归因、诚实边界。'
         + '散文里可以引用账本里的数（它们来自真实执行），但**不得**出现代码没产出的数。',
       '每个被声明为输出的量，都要真的写进声明的输出文件。**声明的输出必须存在且非空**。',
+      '**⛔ `DELIVERABLES.json` 的交付清单键名必须是 `deliverables`**（数组，每条 '
+        + '`{"path": "code/xxx.py", "kind": "py", "min_bytes": 1500, "desc": "…"}`）——'
+        + '不要写成 `delivery` / `artifacts` 等自创键名：门禁 `delivery_audit` 核对'
+        + '「清单里声明的每个文件与磁盘/代码一致」，键名不对 = 清单不存在 = 硬失败。',
       '**⛔ `DELIVERABLES.json` 必须公布 `ledger_keys`（阶段 4 的唯一取数依据）**：'
         + '逐条列出你**真的写进账本**的每个键——`{"json_path": "problem1.case95.n", "name": "…", "unit": "件"}`。'
         + '`json_path` **逐字照抄你在 JSON 里写的键**（用 `.` 分隔嵌套、`[i]` 索引数组，'
