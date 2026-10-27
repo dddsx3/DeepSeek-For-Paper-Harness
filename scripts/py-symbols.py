@@ -30,9 +30,10 @@ Python 符号表（AST）—— `claim_code_check` 的"符号级"判据。
 判定口径：
   - `body_lines`：函数体（去掉 docstring 后的语句）覆盖的物理行数，含语句之间的
     空行与注释行；只有 docstring 的函数为 0。
-  - `non_doc_lines`：同一段行范围里**非空且非整行注释**的行数。空壳检测用它：
-    `non_doc_lines < 2` 视为空壳（`pass` / `raise NotImplementedError` / 只有
-    docstring 的声明式函数）。
+  - `non_doc_lines`：同一段行范围里**非空且非整行注释**的行数。
+  - `stub`：**AST 级空壳判定**——函数体（去 docstring）只由 `pass` / `...` /
+    `raise NotImplementedError(...)` 组成即为空壳。不用行数阈值：实测
+    `_oc_accept` 是一行真实实现（一行列表推导），行数判据会误杀"写得短"。
   - `docstring`：`ast.get_docstring()` 的结果（无 docstring 为 null）。门禁只把
     它当**软证据**：映射函数的 docstring 没引用 claim id 时提示，不判失败。
 
@@ -55,24 +56,49 @@ def _is_docstring_statement(stmt):
     )
 
 
+def _is_stub_body(body):
+    """空壳判定（AST 级，不是行数）：函数体（去 docstring 后）只由
+    `pass` / `...`（Ellipsis） / `raise NotImplementedError(...)` 组成 → True。
+
+    为什么不用行数阈值（2026-10-27 实测教训）：`_oc_accept` 是**一行真实实现**
+    （`return [round(float(binom.cdf(c, n, p)), 10) for p in ps]`），`non_doc_lines
+    >= 2` 的行数判据把它误判成空壳。"空壳"的语义是**没有实现**，不是"写得短"。
+    """
+    if not body:
+        return True
+    for stmt in body:
+        if isinstance(stmt, ast.Pass):
+            continue
+        if isinstance(stmt, ast.Expr) and isinstance(stmt.value, ast.Constant) and stmt.value.value is Ellipsis:
+            continue
+        if isinstance(stmt, ast.Raise):
+            exc = stmt.exc
+            named = isinstance(exc, ast.Name) and exc.id in {'NotImplementedError', 'NotImplemented'}
+            called = isinstance(exc, ast.Call) and isinstance(exc.func, ast.Name) and exc.func.id == 'NotImplementedError'
+            if named or called:
+                continue
+        return False
+    return True
+
+
 def _body_metrics(node, source_lines):
-    """返回 (body_lines, non_doc_lines)，口径见模块 docstring。"""
+    """返回 (body_lines, non_doc_lines, is_stub)，口径见模块 docstring。"""
     body = list(node.body)
     if body and _is_docstring_statement(body[0]):
         body = body[1:]
     if not body:
-        return 0, 0
+        return 0, 0, True
     start = min(getattr(stmt, 'lineno', 0) for stmt in body)
     end = max(getattr(stmt, 'end_lineno', None) or getattr(stmt, 'lineno', 0) for stmt in body)
     if start <= 0 or end < start:
-        return 0, 0
+        return 0, 0, True
     body_lines = end - start + 1
     non_doc = 0
     for lineno in range(start, min(end, len(source_lines)) + 1):
         line = source_lines[lineno - 1].strip()
         if line and not line.startswith('#'):
             non_doc += 1
-    return body_lines, non_doc
+    return body_lines, non_doc, _is_stub_body(body)
 
 
 def _qualname(prefix, name):
@@ -85,13 +111,14 @@ def _collect(node, file_name, prefix, defs, classes, source_lines):
     for child in ast.iter_child_nodes(node):
         if isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef)):
             qual = _qualname(prefix, child.name)
-            body_lines, non_doc_lines = _body_metrics(child, source_lines)
+            body_lines, non_doc_lines, is_stub = _body_metrics(child, source_lines)
             defs.append({
                 'name': child.name,
                 'file': file_name,
                 'qualname': qual,
                 'body_lines': body_lines,
                 'non_doc_lines': non_doc_lines,
+                'stub': is_stub,
                 'docstring': ast.get_docstring(child),
             })
             _collect(child, file_name, f'{qual}.<locals>.', defs, classes, source_lines)

@@ -55,8 +55,32 @@ describe('PY-SYMBOLS 打包层', () => {
     const beta = result.defs.find(def => def.name === '_beta_params')
     expect(beta?.qualname).toBe('Helper._beta_params')
     expect(beta?.non_doc_lines).toBe(2)
+    expect(beta?.stub).toBe(false)
     expect(beta?.docstring).toBe('M4 doc.')
     expect(result.defs.find(def => def.name === 'inner')?.qualname).toBe('outer.<locals>.inner')
+  })
+
+  it('stub 判定是 AST 级：pass/NotImplementedError 是空壳，**一行真实实现不是**（2024B _oc_accept 教训）', () => {
+    const result = runPySymbols([['code/main.py', [
+      'def a():',
+      '    pass',
+      'def b():',
+      '    raise NotImplementedError',
+      'def c():',
+      '    ...',
+      'def one_liner():',
+      '    return [round(float(binom.cdf(c, n, p)), 10) for p in ps]',
+      'def empty():',
+      '    """只有 docstring。"""',
+    ].join('\n')]])
+    expect(result.ok).toBe(true)
+    const byName = (name: string): boolean | undefined => result.defs.find(def => def.name === name)?.stub
+    expect(byName('a')).toBe(true)
+    expect(byName('b')).toBe(true)
+    expect(byName('c')).toBe(true)
+    expect(byName('empty')).toBe(true)
+    // **一行列表推导是真实实现**——行数判据（>=2）会误杀它。
+    expect(byName('one_liner')).toBe(false)
   })
 
   it('per-file SyntaxError is reported; other files still parsed', () => {

@@ -1716,7 +1716,7 @@ function findSymbolDef(symbols: PySymbols, name: string): PySymbolDef | undefine
  * 保留（库调用如 `scipy.stats.binom.cdf` 不是 def，只能靠文本）；文本没命中时用
  * `runPySymbols` 建 AST 符号表，再允许模型在 `DELIVERABLES.json` 的 `impl_map` 里
  * 声明"claim id → 实际函数名"。映射目标必须在符号表里存在且**不是空壳**
- * （`non_doc_lines >= 2`）；docstring 未引用 claim id 只提示、不阻断。
+ * （AST 级空壳判定，非行数）；docstring 未引用 claim id 只提示、不阻断。
  *
  * 参考原话：*"凭印象退化成 plot/bar/scatter 是最常见的质量塌方"*，这条就是治它的。
  */
@@ -1806,10 +1806,13 @@ const claimCodeCheck: GateFn = (input) => {
                 + `${missing.join('、')} —— 映射只能指向 code/*.py 里真实定义的 def；`
                 + '要么补上这些函数，要么把映射改成实际函数名。')
             } else {
-              const stubs = found.filter(def => def.non_doc_lines < 2)
+              // 空壳是 **AST 级判定**（`pass` / `...` / `raise NotImplementedError`），
+              // 不是行数——实测一行真实实现（`return [binom.cdf(...) for p in ps]`）
+              // 会被"≥2 行"误杀（2024B-mcgrox-1 `_oc_accept`）。
+              const stubs = found.filter(def => def.stub)
               if (stubs.length > 0) {
                 problems.push(`[合同 ${c.id}·impl_map] 映射到的函数是空壳函数：`
-                  + stubs.map(def => `${def.name}（非 docstring 语句 ${String(def.non_doc_lines)} 行）`).join('、')
+                  + stubs.map(def => def.name).join('、')
                   + ' —— 空壳不算实现（`pass` / `raise NotImplementedError` / 只有 docstring 都会被判空壳）。')
               } else {
                 mappedPasses += 1

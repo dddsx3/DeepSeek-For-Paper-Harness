@@ -34,8 +34,14 @@ export interface PySymbolDef {
   readonly qualname: string
   /** 函数体（去掉 docstring）覆盖的物理行数，含语句之间的空行与注释行。 */
   readonly body_lines: number
-  /** 同一行范围里非空且非整行注释的行数 —— 空壳检测用它（`< 2` 视为空壳）。 */
+  /** 同一行范围里非空且非整行注释的行数。 */
   readonly non_doc_lines: number
+  /**
+   * **AST 级空壳判定**：函数体（去 docstring）只由 `pass` / `...` /
+   * `raise NotImplementedError(...)` 组成。不用行数阈值——实测一行真实实现
+   * （列表推导 return）会被"≥2 行"判据误杀。
+   */
+  readonly stub: boolean
   /** `ast.get_docstring()` 的结果；无 docstring 为 null。 */
   readonly docstring: string | null
 }
