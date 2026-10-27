@@ -987,8 +987,12 @@ export interface BriefingFinding {
  *
  * @param spec - 阶段。
  * @param upstreamText - 上游产物的内联内容（`相对路径 → 文本`）。
- * @param selfCheckTool - 该阶段是否挂了可调用的自检工具（阶段 2a/3）。
+ * @param selfCheckTool - 该阶段是否挂了可调用的 `check_container`（只有单发交付链挂它）。
  * @param priorFindings - 上一轮审计对该阶段提出的问题（重跑时给；首轮为空）。
+ * @param problemCount - 题面子问题数（图表预算）。
+ * @param skillDocsTool - 该阶段是否挂了 `read_skill_doc`（阶段链 `PAPER_STAGE_TOOLS=1` 时）。
+ *   与 `selfCheckTool` **分开**：两者挂载点不同，合成一个开关就会点名一个取不到的工具
+ *   ——"无法被遵守的指令"（round-5 原缺陷）。缺省跟随 `selfCheckTool`（旧调用方行为不变）。
  * @returns 简报全文。
  */
 export function stageBriefing(
@@ -1006,7 +1010,10 @@ export function stageBriefing(
    * 省略时按 1 问保守估算（测试与单阶段调用用）。
    */
   problemCount = 0,
+  /** 该阶段是否挂了 `read_skill_doc`（缺省跟随 `selfCheckTool`，旧调用方行为不变）。 */
+  skillDocsTool: boolean | undefined = undefined,
 ): string {
+  const skillDocs = skillDocsTool ?? selfCheckTool
   const skill = SKILLS[spec.id]
   if (skill === undefined) throw new Error(`no skill content for stage '${spec.id}'`)
   // 本轮的图表预算（规划端与交付端两个门禁用的是同一个函数，所以契约与判据不会漂移）。
@@ -1108,8 +1115,11 @@ export function stageBriefing(
   if (selfCheckTool) {
     L.push('你可以调用 `check_container` **任意多次**，在提交前验证结构化声明。'
       + '它返回逐条问题；**它说不可准入就不要提交**——它跑的是 harness 的同一套判据。')
+  }
+  if (skillDocs) {
     // 语料索引**只在工具确实挂了时**才列。工具没挂却点名文档 = 又造一条
-    // "无法被遵守的指令"（round-5 的原缺陷）。所以两者由同一个开关控制。
+    // "无法被遵守的指令"（round-5 的原缺陷）。两者挂载点不同（`check_container`
+    // 只在单发交付链、`read_skill_doc` 在阶段链），所以是**两个开关**。
     const docIndex = skillDocIndexBlock(spec.id)
     if (docIndex !== '') L.push('', docIndex)
   }

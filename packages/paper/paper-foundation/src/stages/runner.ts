@@ -106,6 +106,11 @@ export interface StageRunContext {
   readonly auditMinScore?: number
   /** 阶段是否挂了只读工具（影响简报是否列语料索引）。 */
   readonly toolsMounted?: (stage: StageSpec) => boolean
+  /**
+   * 阶段是否挂了 `check_container`（**只有单发交付链**；阶段链恒 false）。
+   * 与 `toolsMounted` 分开：合成一个开关会让简报点名一个取不到的工具。
+   */
+  readonly selfCheckMounted?: (stage: StageSpec) => boolean
   /** 时钟（测试可注入）。 */
   readonly now?: () => string
 }
@@ -672,11 +677,14 @@ export async function runStages(
         const prompt = stageBriefing(
           spec,
           await upstreamTextOf(ctx.stagesRoot, spec),
-          ctx.toolsMounted?.(spec) === true,
+          // 阶段链没有内存容器面，`check_container` 只在单发交付链——这里恒 false；
+          // 语料工具走独立的 `skillDocsTool` 开关（两者合成一个就会点名取不到的工具）。
+          ctx.selfCheckMounted?.(spec) === true,
           prior,
           // 图表预算按问数算：简报里的区间与门禁判的区间必须是同一个数
           // （否则又是"契约说的 ≠ 门禁判的"那一类错）。
           options.problemCount ?? 0,
+          ctx.toolsMounted?.(spec) === true,
         )
         const answer = await ctx.callModel(spec, prompt)
         rejectedAnswer = answer
