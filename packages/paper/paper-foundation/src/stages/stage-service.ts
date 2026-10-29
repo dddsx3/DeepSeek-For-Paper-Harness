@@ -967,11 +967,24 @@ export class PaperStageChainService extends Service {
           // → 只要修好的完整文件）+ 再跑一次冒烟；最多 3 轮。修不动才让本阶段失败
           // （回执照旧写 `_runtime-failure.txt`，下一轮简报里还有它）。
           for (let round = 1; round <= 5; round += 1) {
-            const smoke = await smokeRunCode(stagesRoot)
+            let smoke = await smokeRunCode(stagesRoot)
             this.config.onDeterministicOutcome?.({
               stage: 'code',
               summary: round === 1 ? smoke.summary : `第 ${String(round)} 轮冒烟：${smoke.summary}`,
             })
+            // **环境性失败先重跑，绝不让模型"修"好代码**：0xC0000142 是 Windows 子进程
+            // 初始化失败（stderr 为空、traceback 不存在），实测两次手动重跑同一份代码
+            // 全部退出码 0。进定向修复 = 让模型改一份没坏的代码（轻则浪费调用，重则改坏）。
+            let envRetries = 0
+            while (smoke.failure !== null && smoke.environmental === true && envRetries < 2) {
+              envRetries += 1
+              await new Promise(resolve => setTimeout(resolve, 3000))
+              smoke = await smokeRunCode(stagesRoot)
+              this.config.onDeterministicOutcome?.({
+                stage: 'code',
+                summary: `环境性失败重试 ${String(envRetries)}/2：${smoke.summary}`,
+              })
+            }
             if (smoke.failure === null) return
             const repaired = await this.repairSmokeFailure(spec, stagesRoot, singleCall, smoke)
             if (repaired === null) throw new Error(smoke.failure)

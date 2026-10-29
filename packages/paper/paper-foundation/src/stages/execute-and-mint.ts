@@ -74,6 +74,13 @@ export interface SmokeRunOutcome {
   readonly traceback: string
   /** 失败前写出的报告（`data_check.json` 这类——"为什么失败"的直接证据，清理前抢救下来）。 */
   readonly artifacts: ReadonlyArray<readonly [string, string]>
+  /**
+   * **环境性失败**（非代码错误）：Windows 子进程初始化失败（0xC0000142 =
+   * STATUS_DLL_INIT_FAILED）且 stderr 为空。2026-10-27 实测两次：冒烟报"跑不起来"，
+   * 手动重跑同一份代码退出码 0、四问全解——这是机器级瞬时故障，让模型"修"它只会
+   * 把好代码改坏。调用方（stage-service）见到此标记应**直接重跑冒烟**，不进定向修复。
+   */
+  readonly environmental?: boolean
 }
 
 /**
@@ -139,12 +146,16 @@ export async function smokeRunCode(stagesRoot: string): Promise<SmokeRunOutcome>
     `<!-- 阶段 3 冒烟运行失败（python code/main.py 退出码 ${String(run.status)}）。`
     + '环境与阶段 4 完全一致（cwd=code/）。修完代码再交付——别让独立审计替你执行代码。 -->\n\n'
     + `${tail}\n`, 'utf8').catch(() => { /* 落盘失败不掩盖原失败 */ })
+  // 0xC0000142（3221225794）= STATUS_DLL_INIT_FAILED：子进程还没跑到用户代码就死了，
+  // stderr 必然为空——这正是它与"代码有错"（必有 traceback）的判别点。
+  const environmental = run.status === 3221225794 && (run.stderr ?? '').trim() === ''
   return {
     summary: `冒烟运行失败（退出码 ${String(run.status)}）：${last}`,
     failure: `交付的代码跑不起来（python code/main.py 退出码 ${String(run.status)}）：${last}`
       + ' —— 完整栈在 `_runtime-failure.txt`。这是执行就能抓到的缺陷，修完再交付。',
     traceback: tail,
     artifacts,
+    environmental,
   }
 }
 
